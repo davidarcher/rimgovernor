@@ -39,13 +39,6 @@ public static class PlanningWindowReads
     public static IPlanningWindowSource? PlanningWindowFrom() => PlanningWindowScope.Value;
 
     /// <summary>
-    /// The planning facts a planning read needs. A read that did not request them carries
-    /// <see cref="O.Planning.NotRequested"/>, and a planner reading it raises <c>RequiredFactException("planning")</c>.
-    /// </summary>
-    public static O.PlanningFacts RequirePlanning(O.ColonyFactsSnapshot facts) =>
-        facts.Planning is O.Planning.Requested requested ? requested.Facts : throw new RequiredFactException("planning");
-
-    /// <summary>
     /// Sets the projection's window from the flow's source; a reading with no source keeps an empty window, which
     /// plans no site.
     /// </summary>

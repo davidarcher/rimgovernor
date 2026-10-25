@@ -59,7 +59,7 @@ internal static class DefenseThreat
     {
         async Task<Observations.ThreatFacts> ReadAsync(string label)
         {
-            var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+            var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
             var threat = facts.Threat.Observed;
             s.RecordWire(label, threat);
             return threat;

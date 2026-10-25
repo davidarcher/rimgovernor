@@ -141,6 +141,13 @@ tracking is in memory only: a restart has no urgent plan to wait for, and the ne
 
 ### Threat and stock rules
 
+The emergency threat census is `AwaitingEmergency`, `Quiet` or `Active(count)`.
+Awaiting a census never certifies a quiet colony. A current emergency read produces
+one of the sampled states, including raiders still inside pending drop pods. Routine
+and direct colony projections use the same emergency rules and complete pawn census
+for defense strength, recovery workers and dangerous cells. Recovery refuses a worker
+census that disagrees with its allowed-area restrictions.
+
 - A live, undowned hostile or hunting predator refuses the run (`unsafe_colony`)
   unless the `military/combat` Need holds an admitted plan with open work.
 - A hostile building alone refuses only while the defense planner has not reported

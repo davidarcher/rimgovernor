@@ -165,9 +165,8 @@ and the prisoners and tame animals holding food policies. The brain holds it as
   the floor of the construction tier), and planning definitions/cells
   including per-cell `doorway` (a door, door blueprint or door frame) so indoor
   furnishing keeps entrance aisles clear. Planning definitions are explicit
-  requested open definition names. Every colony facts member is required:
-  `planning` is `requested` (with the planning facts) or `not_requested` when
-  the request set `planning: false`, and `sleeping_temperature` is `indoor`
+  requested open definition names. Gear and crop censuses accompany every colony
+  read. Every colony facts member is required: `sleeping_temperature` is `indoor`
   (min and max) or `no_indoor_bed`. The read returns the record or fails; there
   is no reply outcome wrapper.
 - `dialog` section: the topmost open force-pausing
@@ -208,11 +207,12 @@ and the prisoners and tame animals holding food policies. The brain holds it as
   optional until #3788 hardens that copy.
   `ReadMedicalCatalog` is retired.
 - Gear loadouts carry the loadout model's inputs and an optional blocker; the brain
-  derives every deficit and replacement need from the model (the native deficit
-  and replacement-need fields are reserved). Blocked pawns can still have
+  derives every deficit and replacement need from the model. Blocked pawns can still have
   equipment needs. The complete candidate list belongs to that exact loadout
-  token. PlanningFacts carries no read issues: a failed gear or
-  controlled-environment read fails the colony facts read.
+  token. `ColonyFactsSnapshot.gear` and `crops` are required on every read; their
+  former optional planning wrapper is removed. A failed gear or controlled-environment
+  read fails the colony facts read. Governor reads use the frame's complete colony,
+  pawn, zone and research sections through the common decoder.
 - ColonyFactsSnapshot.foodClimate is required on every read. Its native source
   throws on failure; no food_climate read issue suppresses its calendar.
 - ColonyFactsSnapshot.controlledEnvironment is the required map-wide

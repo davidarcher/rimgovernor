@@ -19,7 +19,7 @@ public static class LootReleaseRules
     /// hive: DangerSeeds). The danger seeds are required, alongside the native route check. Forbidding an unsafe stack and allowed stacks are untouched. The returned rows
     /// are the census the safety review acts on.
     /// </summary>
-    public static (EquatableArray<LootItem> Rows, IReadOnlyList<LootHold> Holds) FilterLootRelease(EquatableArray<LootItem> rows, Fact<EquatableArray<Cell>> seeds)
+    public static (EquatableArray<LootItem> Rows, IReadOnlyList<LootHold> Holds) FilterLootRelease(EquatableArray<LootItem> rows, EquatableArray<Cell> danger)
     {
         var kept = new List<LootItem>();
         var holds = new List<LootHold>();
@@ -37,7 +37,6 @@ public static class LootReleaseRules
             }
             else
             {
-                if (!seeds.TryGetValue(out var danger)) throw new RequiredFactException("loot danger seeds");
                 if (ShelterRules.NearDanger(danger, row.Supply.Cell)) reason = LootHoldDanger;
             }
             if (reason == "")

@@ -342,17 +342,14 @@ public sealed partial class Rounder
     /// <summary>The player's preferences from the goals record of the colony (the default without a record): the one load every owning policy's facts and the combat inputs read.</summary>
     internal PreferencesRecord PreferencesOf(GenerationSnapshot snapshot, CancellationToken ct) => Player.Journal.LoadGoals(Player.PlayerWorld(snapshot), ct).Preferences;
 
-    /// <summary>The facts with each census pawn's filter and floor set from <paramref name="choices"/> (the default without one); an unread census stays unread.</summary>
+    /// <summary>The facts with each census pawn's filter and floor set from <paramref name="choices"/> (the default without one).</summary>
     internal static RoundsFacts WithGearChoices(RoundsFacts f, EquatableArray<GearChoice> choices)
     {
-        if (!f.Gear.TryGetValue(out var gear))
-        {
-            return f;
-        }
+        var gear = f.Gear;
         GearPawn Stamp(GearPawn p) => choices.FirstOrDefault(c => c.Pawn == p.Pawn.Value) is { } c
             ? p with { AllowTainted = c.AllowTainted, ColdFloor = c.ColdFloor, HeatFloor = c.HeatFloor }
             : p with { AllowTainted = false, ColdFloor = new InsulationFloor.Worn(), HeatFloor = new InsulationFloor.Worn() };
-        return f with { Gear = Known(gear with { Pawns = [.. gear.Pawns.Select(Stamp)] }) };
+        return f with { Gear = gear with { Pawns = [.. gear.Pawns.Select(Stamp)] } };
     }
 
     /// <summary>The remembered layout served into a fresh projection, then the food plan, meals, reserve and baby feeding reviews.</summary>

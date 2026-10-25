@@ -50,7 +50,7 @@ internal static class StorageStrandedLoot
         var zone = staged.Zones["store"];
         var wood = staged.Things["wood"].Ids.Single();
 
-        var facts = await s.CallAsync("stranded-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+        var facts = await s.CallAsync("stranded-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var row = facts.EventLoot.FirstOrDefault(i => i.Item.Id == wood)
             ?? throw new AcceptanceException($"the loot census lists no row for the WoodLog stack {wood}: {string.Join("; ", facts.EventLoot)}");
         s.RecordWire("wood-row", row);

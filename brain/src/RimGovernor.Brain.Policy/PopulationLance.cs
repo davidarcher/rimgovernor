@@ -62,13 +62,9 @@ public static partial class PopulationRules
     }
 
     /// <summary>Reports whether any observed colonist wears a lance.</summary>
-    internal static bool LanceWorn(Fact<GearObservation> gear)
+    internal static bool LanceWorn(GearObservation gear)
     {
-        if (!gear.TryGetValue(out var g))
-        {
-            return false;
-        }
-        foreach (var p in g.Pawns)
+        foreach (var p in gear.Pawns)
         {
             if (p.Apparel.Any(a => PopulationRules.LanceDefs.GetValueOrDefault(a.Definition)))
             {

@@ -78,7 +78,7 @@ public sealed class PrimaryWeaponRoleTests
 
     private static string Role(string? def)
     {
-        var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0) with { Gear = Known(Census(def)) };
+        var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0) with { Gear = Census(def) };
         var context = ForecastCoupledCandidates.GenerateCoupledActivities(facts)!.Context;
         return HarmLedger.RoleOf(context.Outfits["pawn"]);
     }

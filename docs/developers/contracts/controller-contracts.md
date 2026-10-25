@@ -486,6 +486,13 @@ next hunt and a second forage waits for the first.
 
 ## Raid-point awareness
 
+The common colony decoder derives defense capacity, recovery workers and gear from
+the same complete pawn, emergency and zone censuses for routine and direct reads.
+Missing or contradictory rows fail the read. Hostile presence is `AwaitingEmergency`
+before the event-driven emergency read, then `Quiet` or `Active(count)`; awaiting
+evidence cannot certify safety. Danger seeds and haulers are observed collections,
+and the danger window retains its cooldown after the observed threat clears.
+
 The native threat section supplies the wealth split and the current raid points (the
 story watcher's adaptation and the difficulty's threat scale are inside them); the section is
 required, and a threat read the native cannot complete fails the census. They are

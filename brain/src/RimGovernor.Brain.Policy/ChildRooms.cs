@@ -103,9 +103,9 @@ public sealed record ChildRoomNeed
                 }
 
                 piece.Defs.Add(d.Name);
-                var ak = d.Available.TryGetValue(out var available);
-                var sk = d.Size.TryGetValue(out var size);
-                if (ak && available && sk && size.Width > 0 && size.Height > 0 && (!found || string.CompareOrdinal(d.Name, piece.Piece.Def) < 0))
+                var available = d.Available;
+                var size = d.Size;
+                if (available && size.Width > 0 && size.Height > 0 && (!found || string.CompareOrdinal(d.Name, piece.Piece.Def) < 0))
                 {
                     piece.Piece = new InteriorPieceDef { Def = d.Name, Size = new Cell(size.Width, size.Height) };
                     found = true;

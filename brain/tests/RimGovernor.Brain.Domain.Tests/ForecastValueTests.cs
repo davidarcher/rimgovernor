@@ -96,7 +96,7 @@ public sealed class ForecastValueTests
     {
         Schedule = new() { Assessed = true, MajorThreatsPerDay = raidsPerDay, RaidFraction = 1 },
         Composition = new RaidComposition.Expected([RaidPartLossTests.Gun(10)]),
-        Raid = new HarmRaid.Assessed(new RaidDefense(1000, 1000)),
+        Raid = new RaidDefense(1000, 1000),
         Exposure = exposure ?? Exposure(), Coverage = Torso, Natural = new(), Parts = RaidPartLossTests.Catalog,
         // A colony the storyteller sends no disease (random diseases off): an assessed schedule without incidents.
         Illness = new() { Assessed = true },
@@ -122,8 +122,8 @@ public sealed class ForecastValueTests
     {
         var facts = WorkResourceTestFacts.Create("pawn") with
         { Resources = [] };
-        return WorkRules.WorkResourcesOf(ProductionRules.WorkAdmissionEvidenceOf(facts, Known(default(EquatableArray<ProductionBatch>))),
-            Known(default(EquatableArray<ProductionBatch>)), []);
+        return WorkRules.WorkResourcesOf(ProductionRules.WorkAdmissionEvidenceOf(facts, new ProductionBatchCensus.Read([])),
+            new ProductionBatchCensus.Read([]), []);
     }
 
     // A pawn with a mood, a known break tier mix and no food or poisoning trouble: every term but the one under test is 0.
@@ -616,8 +616,8 @@ public sealed class ForecastValueTests
     [Fact]
     public void AnUnobservedInputNamesItsOwnFinding()
     {
-        Assert.Contains("raid_points_unobserved", Harmed(Cloth, RaidDay() with { Raid = new HarmInputs().Raid }).Findings);
-        Assert.Contains("defense_capacity_unobserved", Harmed(Cloth, RaidDay() with { Raid = HarmInputs.Of(new RoundsFacts { RaidPoints = 1000d }).Raid }).Findings);
+        Assert.Contains("defense_capacity_nonpositive", Harmed(Cloth, RaidDay() with { Raid = new HarmInputs().Raid }).Findings);
+        Assert.Contains("defense_capacity_nonpositive", Harmed(Cloth, RaidDay() with { Raid = HarmInputs.Of(new RoundsFacts { RaidPoints = 1000d }).Raid }).Findings);
         Assert.Contains("threat_schedule_unknown", Harmed(Cloth, RaidDay() with { Schedule = new() }).Findings);
         Assert.Contains("raid_composition_unknown", Harmed(Cloth, RaidDay() with { Composition = new RaidComposition.Uncomposed() }).Findings);
         var noOutfit = ForecastValue.Of(Outcome(Calm()), Context(HarmPawn(), HarmTables(), RaidDay()), Day, Outcome(Calm()));

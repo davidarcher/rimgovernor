@@ -66,6 +66,7 @@ public sealed record Trade : IActionPayload
             participant.IsValid && negotiator.IsValid && !(participant.Kind == TradeParticipantKind.Map && participant.Id == negotiator.Value),
             "trade requires a distinct valid trader and negotiator"
         );
+        DomainException.Require(Enum.IsDefined(kind), "invalid trade operation kind");
         switch (kind)
         {
             case TradeOperationKind.Open:
@@ -92,8 +93,7 @@ public sealed record Trade : IActionPayload
                 );
                 DomainException.Require(endKind is TradeEndKind.Cancel or TradeEndKind.CloseDialog, "end trade requires an explicit cancel or close_dialog kind");
                 break;
-            default:
-                throw new DomainException("invalid trade operation kind");
+
         }
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var l in rows)

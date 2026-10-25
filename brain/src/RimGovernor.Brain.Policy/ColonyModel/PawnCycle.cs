@@ -81,8 +81,7 @@ public abstract record PawnCycle
     public static (bool Available, string Finding) SowGate(ModelPawn pawn, CropChoice crop)
     {
         // CropChoice is hardened by #3820; its missing read already fails this computation.
-        if (!crop.SowMinSkill.TryGetValue(out var required))
-            throw new RequiredFactException($"sow skill requirement:{crop.Name}");
+        var required = crop.SowMinSkill;
         var plants = pawn.Skills.FirstOrDefault(s => s.Name == PlantsSkillName)
             ?? throw new RequiredFactException($"plants skill:{pawn.Pawn}");
         return plants.Disabled ? (false, $"plants_disabled:{pawn.Pawn}") : (plants.Level >= required, "");

@@ -37,26 +37,22 @@ public static class DefenseCapacityPolicy
     /// <summary>
     /// The colony's combat strength in raid-point units: each combat-ready colonist (living, not downed, capable
     /// of violence) adds melee power plus ranged weapon DPS weighted by its hit factor, and every powered turret adds its
-    /// DPS. An unread roster leaves the result unknown.
+    /// DPS. Both inputs are total same-frame censuses.
     /// </summary>
-    public static Fact<double> DefenseCapacity(Fact<EquatableArray<DefenderStrength>> defenders, Fact<EquatableArray<DefenseTurretFacts>> turrets)
+    public static double DefenseCapacity(EquatableArray<DefenderStrength> defenders, EquatableArray<DefenseTurretFacts> turrets)
     {
-        if (!defenders.TryGetValue(out var pawns) || !turrets.TryGetValue(out var guns))
-        {
-            return Unknown<double>();
-        }
         var strength = 0.0;
-        foreach (var d in pawns.Where(d => d.Fighting))
+        foreach (var d in defenders.Where(d => d.Fighting))
         {
             strength += d.MeleePower + d.RangedDps;
         }
-        foreach (var t in guns)
+        foreach (var t in turrets)
         {
             if (t.Powered)
             {
                 strength += t.Dps;
             }
         }
-        return Known(strength * DefensePointsPerDps);
+        return strength * DefensePointsPerDps;
     }
 }

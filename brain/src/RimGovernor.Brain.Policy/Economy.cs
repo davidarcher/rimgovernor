@@ -26,13 +26,13 @@ public sealed record EconomyFacts
     /// <summary>The projects owed, in order; the first unfinished one the census lists is the target.</summary>
     public EquatableArray<string> ResearchNeeds { get; init; }
 
-    public Fact<ResearchCensus> Research { get; init; }
+    public ResearchCensus Research { get; init; } = null!;
 
     /// <summary>The resource Need's facts; with no target (the default) the Need is met.</summary>
     public ResourceFacts Resource { get; init; } = new();
 
     /// <summary>The review's trade facts the trade and caravan Needs read; unknown before the first review.</summary>
-    public TradeReview Trade { get; init; } = new();
+    public TradeReview Trade { get; init; } = new TradeReview.AwaitingFoodPlan();
 
     /// <summary>The trade-mission Need's facts; unknown (the default) when the record was not read.</summary>
     public TradeMissionFacts Missions { get; init; } = new();
@@ -158,7 +158,7 @@ public sealed partial class EconomyFamily(bool research = true, bool resource = 
     public static Need ResearchNeed(EconomyFacts f)
     {
         var needs = f.ResearchNeeds;
-        var census = f.Research.TryGetValue(out var read) ? EconomyRules.ResearchSummary(read!) : null;
+        var census = EconomyRules.ResearchSummary(f.Research ?? throw new RequiredFactException("research census"));
         var (target, derived) = ResearchRules.ResearchConcern(needs, census);
         var pick = census?.KnowledgePick.Value ?? "";
         // An empty Anomaly knowledge slot with a project to fund is a spending need of its own: a full deficit.
@@ -290,10 +290,7 @@ public static class EconomyRules
     /// </summary>
     public static ResearchStep ResearchStepOf(EconomyFacts f)
     {
-        if (!f.Research.TryGetValue(out var read))
-        {
-            return new ResearchStep("", new NeedHold("field_unavailable", "research"), false, false);
-        }
+        var read = f.Research ?? throw new RequiredFactException("research census");
         var (knowledge, knowledgeHold) = ResearchKnowledgeNext(f.ResearchNeeds, read!);
         if (knowledgeHold is not null)
         {

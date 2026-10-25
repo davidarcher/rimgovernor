@@ -32,10 +32,9 @@ public sealed class LootReleaseTests
     }
 
     [Fact]
-    public void ReleasingASafeForbiddenStackRequiresTheDangerCensus()
+    public void AnObservedEmptyDangerCensusAllowsASafeForbiddenStack()
     {
         var forbidden = new LootItem { Forbidden = true, Haul = new O.HaulSafety.Safe { PathLength = 1 } };
-        var error = Assert.Throws<RequiredFactException>(() => LootReleaseRules.FilterLootRelease([forbidden], default));
-        Assert.Equal("loot danger seeds", error.Fact);
+        Assert.Equal(forbidden, Assert.Single(LootReleaseRules.FilterLootRelease([forbidden], []).Rows));
     }
 }

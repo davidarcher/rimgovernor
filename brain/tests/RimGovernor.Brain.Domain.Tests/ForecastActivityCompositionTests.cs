@@ -235,7 +235,7 @@ public sealed class ForecastActivityCompositionTests
                     FoodUses = [new("pawn", "Meal", new(2, 1), true, .8, 10d, 1, new FoodFreshness.Rots(1000d)) { Thoughts = [], Ingredient = "Rice" }] },
             },
         };
-        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300));
         var recipes = generated.Context.Activities.Activities.Where(t => t.Id.Contains("/recipe/", StringComparison.Ordinal)).ToArray();
         Assert.NotEmpty(recipes);
@@ -322,7 +322,7 @@ public sealed class ForecastActivityCompositionTests
                 },
             } },
         };
-        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300));
         Assert.Equal(2, generated.Alternatives.Count(c => c.ExclusiveOutcome == "shelter/planned/1"));
         var roof = generated.Context.Activities.Activities.Where(a => a.Id.StartsWith("roof/", StringComparison.Ordinal)).ToArray();

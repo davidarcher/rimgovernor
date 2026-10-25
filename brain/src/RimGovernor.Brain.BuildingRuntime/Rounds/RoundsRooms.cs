@@ -155,10 +155,8 @@ public sealed class RoomsRounds
     internal static RoomsFacts Facts(ColonyProjection projection, RoundsPolicy policy, ComfortHistory history, NeedOwner? spot, RoundsBuildingPlanner? flooring)
     {
         var lighting = RoundsBuildingPlanner.LightingReviewOf(projection, policy.Lighting);
-        if (!lighting.Known) throw new RequiredFactException("lighting census");
         var census = flooring is not null ? flooring.FlooringCensus(projection) : RoundsBuildingPlanner.TrafficFlooringFacts(projection, policy.Flooring);
         var floorReview = FlooringRules.ReviewFlooring(census, projection.Rooms, policy.Flooring);
-        if (!floorReview.Known) throw new RequiredFactException("flooring census");
         var profiles = projection.Facts.WorkProfiles;
         var hosting = ComfortRules.ReviewComfort(projection.Facts.RequireComfort(), history, projection.Identity.Tick);
         return new RoomsFacts

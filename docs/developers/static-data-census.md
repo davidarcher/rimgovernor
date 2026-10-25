@@ -604,7 +604,6 @@ Kept, reason recorded:
 | PowerHeadroom | message | 1469 | 8 | state | Per-network generation, consumption and battery state |  |  |
 | ControlledEnvironment | message | 1470 | 7 | state | Controlled-environment lights, growers, rooms, networks, daylight, weather |  |  |
 | EdibleCrop | message | 1473 | 3 | state | Per-map demand and diet allowance for an edible crop (static row is in the catalog) |  |  |
-| PlanningFacts | message | 1478 | 4 | state | Planning bundle: gear, environment, crops |  |  |
 | FoodProduct | message | 1483 | 5 | state | Product count, edibility, demand and storage room (static row is in the catalog) |  |  |
 | FoodProduction | message | 1487 | 3 | state | Recipe availability and its products |  |  |
 | CookingFacts | message | 1488 | 8 | state | Cooking bench usability, recipes, bills, production, refuel flag |  |  |

@@ -49,3 +49,5 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 
 - [Native skill learning and decay](skill-learning.md): observed mechanics, bounded conditional projection and evidence limits.
 - [Assigned capability maintenance](capability-maintenance.md): justified role floors, selected range/sparring and exact participant ownership.
+
+- [Food storage and refrigeration](food-storage.md): total food censuses, reserve reads and cooling geometry.

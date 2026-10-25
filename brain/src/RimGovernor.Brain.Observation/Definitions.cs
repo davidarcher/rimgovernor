@@ -1,7 +1,7 @@
 using RimGovernor.Brain.Policy;
-namespace RimGovernor.Brain.Observation;
 
-/// <summary>Serves the load's definition catalog. A colony source without it reads no definitions; one that is also a <see cref="IResearchSource"/> makes a definition available by its finished research.</summary>
+namespace RimGovernor.Brain.Observation;
+/// <summary>Serves the load's definition catalog. A colony source without it reads no definitions; one that is also a <see cref = "IResearchSource"/> makes a definition available by its finished research.</summary>
 public interface IDefinitionSource
 {
     /// <summary>The load's catalog; a catalog that cannot be read throws.</summary>
@@ -15,18 +15,15 @@ public interface IResearchSource
 }
 
 /// <summary>
-/// What resolves a definition name: the catalog, the finished research projects (unknown without a research
-/// read) and the colony's edible crop rows.
+/// What resolves a definition name: the catalog, the required finished research projects and the colony's edible crop rows.
 /// </summary>
 internal sealed class DefinitionFacts
 {
     public required DefinitionCatalog Catalog { get; init; }
-
-    public Fact<IReadOnlySet<string>> Finished { get; init; }
-
+    public required IReadOnlySet<string> Finished { get; init; }
     public required IReadOnlyDictionary<string, O.EdibleCrop> Crops { get; init; }
 
-    /// <summary>Appends to <paramref name="held"/> the resolved row of every name it does not already hold.</summary>
+    /// <summary>Appends to <paramref name = "held"/> the resolved row of every name it does not already hold.</summary>
     public List<PlanningDefinition> AppendDefinitions(List<PlanningDefinition> held, IEnumerable<string> names)
     {
         foreach (var name in names)
@@ -35,8 +32,10 @@ internal sealed class DefinitionFacts
             {
                 continue;
             }
+
             held.Add(Resolve(name));
         }
+
         return held;
     }
 
@@ -56,32 +55,38 @@ internal sealed class DefinitionFacts
         {
             throw new DomainException($"planning definition {name}: {e.Message}");
         }
+
         if (view is null)
         {
-            return new PlanningDefinition { Name = name, Available = Known(false) };
-        }
-        var d = view;
-        if (Finished.TryGetValue(out var finished))
-        {
-            var available = true;
-            foreach (var prerequisite in d.Research)
+            return new PlanningDefinition
             {
-                available = available && finished.Contains(prerequisite);
-            }
-            d = d with { Available = Known(available) };
+                Name = name,
+                Availability = PlanningAvailability.NotInCatalog
+            };
         }
-        else if (d.Research.Count == 0)
+
+        var d = view;
+        d = d with
         {
-            d = d with { Available = Known(true) };
-        }
+            Available = d.Research.All(Finished.Contains)
+        };
         if (Crops.TryGetValue(name, out var crop))
         {
             d = d with
             {
-                NutritionDemandPerDay = ColonyDecodeReads.Present(crop.NutritionDemandPerDay),
-                DietAllowed = ColonyDecodeReads.Present(crop.DietAllowed),
+                Diet = (d.Diet ?? new PlanningDiet())with
+                {
+                    NutritionDemandPerDay = crop.NutritionDemandPerDay,
+                    DietAllowed = crop.DietAllowed
+                }
             };
         }
+
+        if (d.Harvest is { Edible: true } && d.Diet is null)
+        {
+            throw new RequiredFactException("edible crop diet:" + name);
+        }
+
         return d;
     }
 }
@@ -89,54 +94,31 @@ internal sealed class DefinitionFacts
 public static class DefinitionsReads
 {
     /// <summary>The planning definitions every planning read resolves from the definition catalog; a read names any other it needs.</summary>
-    public static readonly IReadOnlyList<string> StarterDefinitions =
-    [
-        "Barricade", "Battery", "Bed", "ButcherSpot", "Campfire", "ChemfuelPoweredGenerator", "Cooler", "Door",
-        "Fence", "FenceGate", "FueledStove", "GeothermalGenerator", "Heater", "PartySpot", "PassiveCooler", "PenMarker",
-        "Plant_Corn", "Plant_Potato", "Plant_Rice", "PowerConduit", "Sandbags", "SimpleResearchBench", "SleepingSpot",
-        "SolarGenerator", "StandingLamp", "TableStonecutter", "Wall", "WindTurbine", "WoodFiredGenerator",
-        ClimateRules.ClimateDefs().VentDef, // the vent the tiler prices (#2915)
-    ];
-
+    public static readonly IReadOnlyList<string> StarterDefinitions = ["Barricade", "Battery", "Bed", "ButcherSpot", "Campfire", "ChemfuelPoweredGenerator", "Cooler", "Door", "Fence", "FenceGate", "FueledStove", "GeothermalGenerator", "Heater", "PartySpot", "PassiveCooler", "PenMarker", "Plant_Corn", "Plant_Potato", "Plant_Rice", "PowerConduit", "Sandbags", "SimpleResearchBench", "SleepingSpot", "SolarGenerator", "StandingLamp", "TableStonecutter", "Wall", "WindTurbine", "WoodFiredGenerator", ClimateRules.ClimateDefs().VentDef, // the vent the tiler prices (#2915)
+ ];
     /// <summary>
-    /// Reads the catalog and finished research through <paramref name="source"/>; null when it serves no
-    /// definitions. A research read that fails leaves the finished projects unknown.
+    /// Reads the catalog and finished research through <paramref name = "source"/>; null when it serves no
+    /// definitions. A failed research read raises; an unread project set cannot authorize availability.
     /// </summary>
-    internal static async Task<DefinitionFacts?> ReadDefinitionFacts(object source, C.Identity id, O.PlanningFacts? planning, CancellationToken cancellationToken)
+    internal static async Task<DefinitionFacts?> ReadDefinitionFacts(object source, C.Identity id, IEnumerable<O.EdibleCrop> crops, CancellationToken cancellationToken)
     {
         if (source is not IDefinitionSource native)
         {
             return null;
         }
+
         var catalog = await native.DefinitionCatalogAsync(id, cancellationToken).ConfigureAwait(false);
-        var finished = default(Fact<IReadOnlySet<string>>);
-        if (source is IResearchSource research)
+        var research = source as IResearchSource ?? throw new RequiredFactException("finished research");
+        var read = await research.ReadResearchAsync(id, cancellationToken).ConfigureAwait(false);
+        var finished = FinishedSet(read.Finished);
+        return new DefinitionFacts
         {
-            try
-            {
-                var read = await research.ReadResearchAsync(id, cancellationToken).ConfigureAwait(false);
-                finished = FinishedSet(read.Finished);
-            }
-            catch (BridgeUnavailableException)
-            {
-                // The research read is unavailable: the finished projects stay unknown.
-            }
-        }
-        return new DefinitionFacts { Catalog = catalog, Finished = finished, Crops = CropRows(planning) };
+            Catalog = catalog,
+            Finished = finished,
+            Crops = CropRows(crops)
+        };
     }
 
-    internal static Fact<IReadOnlySet<string>> FinishedSet(IEnumerable<string> names) => Known<IReadOnlySet<string>>(new HashSet<string>(names, StringComparer.Ordinal));
-
-    internal static Dictionary<string, O.EdibleCrop> CropRows(O.PlanningFacts? planning)
-    {
-        var rows = new Dictionary<string, O.EdibleCrop>(StringComparer.Ordinal);
-        if (planning is not null)
-        {
-            foreach (var row in planning.Crops)
-            {
-                rows[row.DefName] = row;
-            }
-        }
-        return rows;
-    }
+    internal static IReadOnlySet<string> FinishedSet(IEnumerable<string> names) => new HashSet<string>(names, StringComparer.Ordinal);
+    internal static Dictionary<string, O.EdibleCrop> CropRows(IEnumerable<O.EdibleCrop> crops) => crops.ToDictionary(crop => crop.DefName, StringComparer.Ordinal);
 }

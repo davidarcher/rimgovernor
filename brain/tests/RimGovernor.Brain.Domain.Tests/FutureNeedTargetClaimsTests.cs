@@ -22,7 +22,7 @@ public sealed class FutureNeedTargetClaimsTests
             { Tasks = [task] };
         var action = DomainAction.NewPawnActivitiesAction(new("future"), batch);
         var facts = WorkResourceTestFacts.Create("owner", "pawn");
-        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]),
+        facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]),
             new([new(new("plan"), action, new() { Action = action.Id, Stage = Stage.Pending })]));
         Assert.Contains("shared-service", facts.WorkView!.Claims.Targets);
         var other = DomainAction.NewPawnActivitiesAction(new("other"), new(1,
@@ -32,7 +32,7 @@ public sealed class FutureNeedTargetClaimsTests
         {
             var symbolic = batch with { Tasks = [task with { Step = step with { Target = "observed-output" } }] };
             var reviewed = WorkRules.ReviewWorkResources(WorkResourceTestFacts.Create("owner", "pawn"),
-                Known<EquatableArray<ProductionBatch>>([]),
+                new ProductionBatchCensus.Read([]),
                 new([new(new("plan"), DomainAction.NewPawnActivitiesAction(action.Id, symbolic),
                     new() { Action = action.Id, Stage = Stage.Pending })]));
             Assert.DoesNotContain("observed-output", reviewed.WorkView!.Claims.Targets);
@@ -59,9 +59,9 @@ public sealed class FutureNeedTargetClaimsTests
             [new("owner", "held/owner", "held", 0, 1, false,
                 [new(PawnActivityKind.Hold, "", "", "", 0, 2000)]) { Preparing = true, Task = "future" }])
             { Tasks = [new("future", "owner", [], step, new(2, 2), 500)] });
-        var free = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        var free = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         Assert.Contains(ForecastCoupledCandidates.GenerateCoupledActivities(free, 300)!.Context.NeedTasks, n => n.Target == "pin");
-        var held = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]),
+        var held = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]),
             new([new(new("held-plan"), action, new() { Action = action.Id, Stage = Stage.Pending })]));
         Assert.DoesNotContain(ForecastCoupledCandidates.GenerateCoupledActivities(held, 300)!.Context.NeedTasks, n => n.Target == "pin");
     }

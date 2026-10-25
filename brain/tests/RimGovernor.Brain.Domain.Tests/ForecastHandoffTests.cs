@@ -21,11 +21,11 @@ public sealed class ForecastHandoffTests
         };
         var policy = new ColonyModelPolicy { MedicineTendsPerDay = 0, Projects = new() { Nodes = [new() { Id = ProjectGraph.ResearchId(new("Research")), Kind = ProjectKind.Research, Work = 100 }] } };
         var evidence = new WorkAdmissionEvidence { Stock = stock, Standing = new([], new Dictionary<Resource, long>()),
-            Reservations = [], Promises = Known<EquatableArray<ProductionMaterialPromise>>([]) };
+            Reservations = [], Promises = AdmissionAssertions.MaterialPromises([]) };
         return new() { Origin = new(0), HorizonDays = 1,
             Facts = new() { Stock = stock, Food = new() { Larder = new(), Stocks = [new() { Place = new FoodPlace.Stands(true, ""), Form = new FoodForm.Item(), DefName = Food, Count = 10L, Nutrition = 5d, Rot = new FoodRot.Keeps() }] }, Items = new() { Nutrition = new Dictionary<Resource, double> { [Food] = .5 } } },
             Coupled = new() { Activities = new() { Deadline = 0, Activities = [new("research", "", "", []) { ProjectProgress = new("Research", 1) }] },
-                ModelBasis = new(input, policy), Needs = NeedsFixtures.Empty, Resources = new(evidence, new([], [], [], []), default),
+                ModelBasis = new(input, policy), Needs = NeedsFixtures.Empty, Resources = new(evidence, new([], [], [], []), new MaterialAvailability.Blocked(MaterialBudgetBlock.AwaitingReview)),
                 InitialLots = [new("meal", "", Food, 10d) { Freshness = new FoodFreshness.Rots(120000d) }] } };
     }
     private static ForecastCoupledOutcome Outcome() => new(new([new("research", "pawn", 0, 0, 0, 50, 0, 0, 50, 0, 0)], 50, 0), true,
@@ -135,8 +135,8 @@ public sealed class ForecastHandoffTests
     {
         var request = Request();
         var paid = new ForecastCommitment("paid", [new(Steel, .5, -5d)]);
-        var other = new ForecastCommitment("other", []) { MaterialClaims = [new(Steel, Known(3d), Known(""))] };
-        var promises = Known<EquatableArray<ProductionMaterialPromise>>([new("paid", [new(Steel, Known(5d), Known(""))]), new("other", other.MaterialClaims)]);
+        var other = new ForecastCommitment("other", []) { MaterialClaims = [new(Steel, new MaterialUnits.Exact(3d), "")] };
+        var promises = AdmissionAssertions.MaterialPromises([("paid", [new(Steel, new MaterialUnits.Exact(5d), "")]), ("other", other.MaterialClaims)]);
         request = request with { Commitments = [paid, other], Coupled = request.Coupled! with
         { Resources = request.Coupled.Resources with { Evidence = request.Coupled.Resources.Evidence with { Promises = promises } } } };
         var handoff = Handoff(request, new Dictionary<Resource, double> { [Steel] = 15d, [Food] = 10d, [Medicine] = 3d },
@@ -165,7 +165,7 @@ public sealed class ForecastHandoffTests
         Assert.Equal(completion, Assert.Single(handoff.Completed).Day, 8);
         var growth = Assert.Single(handoff.State!.Projects, p => p.Id == "grow/cohort/0");
         Assert.True(growth.GrowthInitialized);
-        Assert.True(growth.Remaining < input.Crops[0].HarvestMinGrowth.Value);
+        Assert.True(growth.Remaining < input.Crops[0].HarvestMinGrowth);
     }
 
     [Fact]
@@ -208,14 +208,14 @@ public sealed class ForecastHandoffTests
     public void ReservationWithoutPhysicalStockRemainsVisibleAndCannotFinanceContinuation()
     {
         var request = Request(0);
-        var promise = new ForecastCommitment("other", []) { MaterialClaims = [new(Steel, Known(3d), Known(""))] };
+        var promise = new ForecastCommitment("other", []) { MaterialClaims = [new(Steel, new MaterialUnits.Exact(3d), "")] };
         var noSteel = request.Facts.Stock.Where(s => s.Resource != Steel).ToArray();
         var stock = EquatableArray.From(noSteel);
         var basis = request.Coupled!.ModelBasis!;
         request = request with { Facts = request.Facts with { Stock = stock },
             Coupled = request.Coupled with { ModelBasis = basis with { Input = basis.Input with { Stocks = basis.Input.Stocks with { Materials = stock } } },
                 Resources = request.Coupled.Resources with { Evidence = request.Coupled.Resources.Evidence with
-                { Stock = stock, Promises = Known<EquatableArray<ProductionMaterialPromise>>([new("other", promise.MaterialClaims)]) } } } };
+                { Stock = stock, Promises = AdmissionAssertions.MaterialPromises([("other", promise.MaterialClaims)]) } } } };
         var handoff = Handoff(request, new Dictionary<Resource, double> { [Food] = 10d, [Medicine] = 3d });
         Assert.Equal(3, Assert.Single(handoff.State!.ExternalHolds).Count);
         Assert.Contains("colony_model_holds_exceed_stock", handoff.Gaps);

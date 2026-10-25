@@ -130,9 +130,12 @@ public sealed record ThroughputObservation
     /// <summary>A pawn works a carrying bench this Round.</summary>
     public bool Busy { get; init; }
 
-    /// <summary>The recipe's ingredient stock is above IngredientBoundStock (known true), at or below it (known false) or unread.</summary>
-    public Fact<bool> Ingredients { get; init; }
+    /// <summary>The recipe has stocked alternatives, lacks an ingredient, or has no eligible bench.</summary>
+    public ThroughputIngredients Ingredients { get; init; }
 }
+
+/// <summary>The observed recipe stock, or the absence of a bench offering that recipe.</summary>
+public enum ThroughputIngredients { NoRecipe, Missing, Stocked }
 
 /// <summary>A closed window's verdict.</summary>
 public sealed record Calibration
@@ -384,12 +387,11 @@ public static partial class WorkRules
         if (!w.Met && expected > 0 && gain < ShortfallFraction * expected)
         {
             cal = cal with { IsShort = true, ShortPerDay = (expected - gain) / days };
-            var ingredientsKnown = o.Ingredients.TryGetValue(out var ingredients);
-            if (ingredientsKnown && !ingredients)
+            if (o.Ingredients == ThroughputIngredients.Missing)
             {
                 cal = cal with { Reason = UnmetReason.Ingredients };
             }
-            else if (ingredientsKnown && !w.Inactive && w.Samples > 0 && w.Busy == 0)
+            else if (o.Ingredients == ThroughputIngredients.Stocked && !w.Inactive && w.Samples > 0 && w.Busy == 0)
             {
                 cal = cal with { Reason = UnmetReason.Haul };
             }

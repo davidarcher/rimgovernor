@@ -286,12 +286,15 @@ public sealed record ColonyModelInput
         foreach (var crop in Crops)
         {
             var missing = new List<string>();
-            if (!crop.GrowDays.TryGetValue(out var days) || !(days > 0))
+            var days = crop.GrowDays;
+            if (!(days > 0))
             {
                 missing.Add(nameof(crop.GrowDays));
             }
 
-            if (!crop.SowMinSkill.TryGetValue(out var skill) || skill < 0)
+            var skill = crop.SowMinSkill;
+
+            if (skill < 0)
             {
                 missing.Add(nameof(crop.SowMinSkill));
             }
@@ -301,14 +304,21 @@ public sealed record ColonyModelInput
             AddUnlessNonnegative(missing, nameof(crop.FertilityMin), crop.FertilityMin);
             AddUnlessNonnegative(missing, nameof(crop.FertilitySensitivity), crop.FertilitySensitivity);
             AddUnlessNonnegative(missing, nameof(crop.HarvestMinGrowth), crop.HarvestMinGrowth);
-            if (!crop.RestingDayFraction.TryGetValue(out var resting) || !(resting >= 0 && resting < 1))
+            var resting = crop.RestingDayFraction;
+            if (!(resting >= 0 && resting < 1))
             {
                 missing.Add(nameof(crop.RestingDayFraction));
             }
 
-            if (!crop.MinGrowthTemperature.TryGetValue(out var lo) || !crop.MinOptimalGrowthTemperature.TryGetValue(out var lo2)
-                || !crop.MaxOptimalGrowthTemperature.TryGetValue(out var hi2) || !crop.MaxGrowthTemperature.TryGetValue(out var hi)
-                || !(lo <= lo2 && lo2 <= hi2 && hi2 <= hi))
+            var lo = crop.MinGrowthTemperature;
+
+            var lo2 = crop.MinOptimalGrowthTemperature;
+
+            var hi2 = crop.MaxOptimalGrowthTemperature;
+
+            var hi = crop.MaxGrowthTemperature;
+
+            if (!(lo <= lo2 && lo2 <= hi2 && hi2 <= hi))
             {
                 missing.Add("growth temperature band");
             }
@@ -320,9 +330,9 @@ public sealed record ColonyModelInput
         }
     }
 
-    private static void AddUnlessNonnegative(List<string> missing, string name, Fact<double> value)
+    private static void AddUnlessNonnegative(List<string> missing, string name, double value)
     {
-        if (!value.TryGetValue(out var v) || !Number(v) || v < 0)
+        if (!Number(value) || value < 0)
         {
             missing.Add(name);
         }

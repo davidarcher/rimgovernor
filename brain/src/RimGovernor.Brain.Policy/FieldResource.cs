@@ -11,7 +11,7 @@ public sealed record ResourceFieldRequest
     public Resource Resource { get; init; }
 
     /// <summary>The units still wanted; unknown or non-positive plans nothing.</summary>
-    public Fact<double> Deficit { get; init; }
+    public double Deficit { get; init; }
 
     public IReadOnlyList<CropChoice> Choices { get; init; } = [];
 
@@ -23,7 +23,7 @@ public sealed record ResourceFieldRequest
     /// The best Plants level among the colonists who sow (<c>GrowerSkill</c>); a crop with a sow skill floor is
     /// planned only when it is known and meets it.
     /// </summary>
-    public Fact<int> GrowerSkill { get; init; }
+    public int GrowerSkill { get; init; }
 }
 
 public static class FieldResourceRules
@@ -41,10 +41,10 @@ public static class FieldResourceRules
     /// </summary>
     public static FieldPlan? PlanFieldByResource(ResourceFieldRequest r)
     {
-        var dk = r.Deficit.TryGetValue(out var deficit);
-        var sk = r.Climate.SowingOutdoors().TryGetValue(out var sowing);
-        var ck = r.Climate.DaysRemaining.TryGetValue(out var season);
-        if (!dk || !FieldCapacityRules.FieldPositive(deficit) || !sk || !sowing || !ck || !FieldCapacityRules.FieldPositive(season) || r.Resource.IsEmpty)
+        var deficit = r.Deficit;
+        var sowing = r.Climate.SowingOutdoors();
+        var season = r.Climate.DaysRemaining;
+        if (!FieldCapacityRules.FieldPositive(deficit) || !sowing || !FieldCapacityRules.FieldPositive(season) || r.Resource.IsEmpty)
         {
             return null;
         }
@@ -58,7 +58,8 @@ public static class FieldResourceRules
             {
                 return null;
             }
-            if (crop.Harvests.TryGetValue(out var resource) && resource != r.Resource)
+            var resource = crop.Harvests;
+            if (resource != r.Resource)
             {
                 continue;
             }
@@ -92,15 +93,15 @@ public static class FieldResourceRules
     /// </summary>
     public static SupplyCandidate? ResourceFieldCandidate(Resource resource, FieldPlan plan)
     {
-        var dk = plan.Crop.GrowDays.TryGetValue(out var days);
-        var uk = plan.Crop.UnitsPerCell.TryGetValue(out var units);
-        var wk = plan.Crop.HarvestWork.TryGetValue(out var work);
+        var days = plan.Crop.GrowDays;
+        var units = plan.Crop.UnitsPerCell;
+        var work = plan.Crop.HarvestWork;
         var cells = plan.Sites.Cells;
         if (TreePlantationRules.IsTreeCrop(plan.Crop))
         {
             return TreeFieldCandidate(resource, plan);
         }
-        if (!dk || !uk || !wk || !FieldCapacityRules.FieldPositive(days) || !FieldCapacityRules.FieldPositive(units) || work < 0 || cells <= 0)
+        if (!FieldCapacityRules.FieldPositive(days) || !FieldCapacityRules.FieldPositive(units) || work < 0 || cells <= 0)
         {
             return null;
         }
@@ -124,12 +125,12 @@ public static class FieldResourceRules
     /// </summary>
     private static SupplyCandidate? TreeFieldCandidate(Resource resource, FieldPlan plan)
     {
-        var (fraction, wood, _, ok) = TreePlantationRules.TreePricing(plan.Crop);
-        var days = plan.Crop.GrowDays.ValueOrDefault;
-        var sow = plan.Crop.SowWork.ValueOrDefault;
-        var fell = plan.Crop.HarvestWork.ValueOrDefault;
+        var (fraction, wood, _) = TreePlantationRules.TreePricing(plan.Crop);
+        var days = plan.Crop.GrowDays;
+        var sow = plan.Crop.SowWork;
+        var fell = plan.Crop.HarvestWork;
         var trees = plan.Sites.Cells / ZoneCreateConstants.TreeCellsPerTree;
-        if (!ok || trees <= 0)
+        if (trees <= 0)
         {
             return null;
         }
@@ -154,14 +155,14 @@ public static class FieldResourceRules
     /// </summary>
     public static double StandingFieldYield(CropChoice crop, Resource resource, uint n)
     {
-        var hk = crop.Harvests.TryGetValue(out var harvests);
-        var uk = crop.UnitsPerCell.TryGetValue(out var units);
-        if (TreePlantationRules.IsTreeCrop(crop) && hk && harvests == resource)
+        var harvests = crop.Harvests;
+        var units = crop.UnitsPerCell;
+        if (TreePlantationRules.IsTreeCrop(crop) && harvests == resource)
         {
-            var (_, wood, _, ok) = TreePlantationRules.TreePricing(crop);
-            return ok ? wood * (n / (uint)ZoneCreateConstants.TreeCellsPerTree) : 0;
+            var (_, wood, _) = TreePlantationRules.TreePricing(crop);
+            return wood * (n / (uint)ZoneCreateConstants.TreeCellsPerTree);
         }
-        if (!hk || !uk || harvests != resource || !FieldCapacityRules.FieldPositive(units))
+        if (harvests != resource || !FieldCapacityRules.FieldPositive(units))
         {
             return 0;
         }
@@ -171,13 +172,12 @@ public static class FieldResourceRules
     /// <summary>Screens one crop that harvests the demanded resource, returning the viable crop or the reason it is excluded.</summary>
     private static (ViableCrop Crop, string Reason) ResourceCropViable(CropChoice crop, double deficit, double season, ResourceFieldRequest r)
     {
-        var ak = crop.Available.TryGetValue(out var available);
-        var gk = crop.GrowDays.TryGetValue(out var days);
-        var uk = crop.UnitsPerCell.TryGetValue(out var units);
-        var rk = crop.Harvests.IsKnown;
-        if (!rk || !ak || !gk || !uk || !FieldCapacityRules.FieldPositive(days) || !FieldCapacityRules.FieldPositive(units))
+        var available = crop.Available;
+        var days = crop.GrowDays;
+        var units = crop.UnitsPerCell;
+        if (!FieldCapacityRules.FieldPositive(days) || !FieldCapacityRules.FieldPositive(units))
         {
-            return (new ViableCrop(), "incomplete crop facts");
+            throw new RequiredFactException("resource crop growth:" + crop.Name);
         }
         if (!available)
         {
@@ -219,17 +219,13 @@ public static class FieldResourceRules
         {
             return (new ViableCrop(), sowReason);
         }
-        var (_, wood, price, ok) = TreePlantationRules.TreePricing(crop);
-        if (!ok)
-        {
-            return (new ViableCrop(), "incomplete crop facts");
-        }
-        var trees = (int)Math.Ceiling((deficit / wood) - 1e-9);
+        var (_, wood, price) = TreePlantationRules.TreePricing(crop);
+var trees = (int)Math.Ceiling((deficit / wood) - 1e-9);
         if (trees <= 0)
         {
             return (new ViableCrop(), string.Create(CultureInfo.InvariantCulture, $"no trees needed for {deficit:F2} units"));
         }
-        var days = crop.GrowDays.ValueOrDefault;
+        var days = crop.GrowDays;
         return (
             new ViableCrop
             {

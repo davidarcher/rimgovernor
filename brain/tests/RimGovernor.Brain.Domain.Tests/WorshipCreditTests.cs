@@ -192,7 +192,7 @@ public sealed class WorshipCreditTests
         Assert.Equal((25, 60), (need.MinArea, need.MinImpressiveness));
         Assert.Equal(["FineFloor", "Floor"], need.FloorTags.Items);
         Assert.Equal(["Bed"], need.ForbiddenDefs.Items);
-        FurnitureDefinition Def(string name) => new() { Name = name, Available = Known(true), Size = Known(new P.Bounds(1, 1)) };
+        FurnitureDefinition Def(string name) => new() { Name = name, Available = true, Size = new P.Bounds(1, 1)};
         var shape = need.Shape([Def(Altar), Def(Column)])!;
         Assert.Equal(25, shape.MinArea);
         var (w, d) = LayoutChildRoomsRules.ChildRoomSizes(shape)[0];

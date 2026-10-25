@@ -16,7 +16,6 @@ public sealed class BlightCensusTests
     public void AnEmptyCensusWithoutPlanningIsNoBlight()
     {
         var snapshot = ColonyFactsCoreTests.Snapshot();
-        Assert.IsType<O.Planning.NotRequested>(snapshot.Planning);
         Assert.Empty(ColonyFramesReads.BlightCensus(snapshot, Empty));
     }
 

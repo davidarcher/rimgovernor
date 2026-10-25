@@ -33,7 +33,7 @@ public sealed class FirstPlanHeldTests
     public void AFirstPlanWithTheStockUnreadFailsNamingItAndHoldsTheClock()
     {
         var s = FirstLayoutPlanTests.Survey("mild");
-        var f = FirstLayoutPlanTests.Facts(s, 3) with { Stock = Unknown<IReadOnlyDictionary<Resource, long>>() };
+        var f = FirstLayoutPlanTests.Facts(s, 3) with { Stock = null! };
 
         var e = Assert.Throws<RequiredFactException>(() => LayoutDeriveRules.DeriveLayoutPlan(s, f, []));
         Assert.Equal("resource demand", e.Fact);

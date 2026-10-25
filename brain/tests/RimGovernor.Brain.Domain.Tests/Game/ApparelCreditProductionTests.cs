@@ -94,7 +94,7 @@ public sealed class ApparelCreditProductionTests
         };
         facts = facts with
         {
-            Gear = Known(Census(dressed, worn, crafters)),
+            Gear = Census(dressed, worn, crafters),
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Apparel = apparel, ThoughtStages = [Stage(0, -3), Stage(1, -5), TitleStage, QualityStage] }] },

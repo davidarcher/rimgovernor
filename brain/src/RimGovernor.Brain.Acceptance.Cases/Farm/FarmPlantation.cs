@@ -51,7 +51,7 @@ internal static class FarmPlantation
     {
         var oakId = s.Staged!.Plants[Oak].Ids.Single();
         var riceId = s.Staged.Plants[Rice].Ids.Single();
-        var reply = await s.CallAsync("plantation-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = true }, cancellationToken).ConfigureAwait(false);
+        var reply = await s.CallAsync("plantation-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var rows = reply.Acquisition.ToList();
         if (rows.FirstOrDefault(r => r.Source?.Id == riceId) is { } riceRow)
         {

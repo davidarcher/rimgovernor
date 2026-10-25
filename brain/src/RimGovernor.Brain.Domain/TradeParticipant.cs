@@ -39,18 +39,21 @@ public sealed record TradeParticipant(TradeParticipantKind Kind, string Id, stri
                 return Caravan.Length != 0 ? "caravan on non-settlement trade participant" : null;
             case TradeParticipantKind.Settlement:
                 return !IdText.IsValidText(Caravan) || Caravan == Id ? "invalid settlement trade caravan" : null;
-            default:
-                return "invalid trade participant kind";
+
         }
+        return "invalid trade participant kind";
     }
 
     /// <summary>The identity of a priced seller and the inventory owning the deal.</summary>
-    public string Key() =>
-        Kind switch
+    public string Key()
+    {
+        Validate();
+        switch (Kind)
         {
-            TradeParticipantKind.Map => Id,
-            TradeParticipantKind.Orbital => "orbital/" + Id,
-            TradeParticipantKind.Settlement => "settlement/" + Id + "/" + Caravan,
-            _ => "",
-        };
+            case TradeParticipantKind.Map: return Id;
+            case TradeParticipantKind.Orbital: return "orbital/" + Id;
+            case TradeParticipantKind.Settlement: return "settlement/" + Id + "/" + Caravan;
+        }
+        throw new DomainException("invalid trade participant kind");
+    }
 }

@@ -6,9 +6,16 @@ public static class EmergencyNeedsRules
     /// Uses the same census and medical/threat rules as clock safety. Incomplete or
     /// conflicting evidence cannot become a recovered routine need.
     /// </summary>
-    public static (Fact<long> Hostiles, long Patients) EmergencyNeeds(EmergencySnapshot snapshot, GenerationSnapshot current, Tick tick)
+    public static (HostileCensus Hostiles, long Patients) EmergencyNeeds(EmergencySnapshot snapshot, GenerationSnapshot current, Tick tick)
     {
         var decision = EmergencyRules.EvaluateEmergency(snapshot, current, tick);
+        // Patients are counted from the census, not the holds: ordinary tending also owns a patient.
+        return (HostilesOf(decision, snapshot.PodsPending), CountPatients(snapshot.Facts, true));
+    }
+
+    /// <summary>The named threat state of an assessed emergency, including raiders still inside pending pods.</summary>
+    public static HostileCensus HostilesOf(EmergencyDecision decision, bool podsPending)
+    {
         long threats = 0;
         foreach (var hold in decision.Holds)
         {
@@ -24,13 +31,11 @@ public static class EmergencyNeedsRules
             }
         }
         // Raiders still in their pods are a threat no census row names yet.
-        if (snapshot.PodsPending)
+        if (podsPending)
         {
             threats++;
         }
-        // Patients are counted from the census, not the holds: a colonist who only needs tending is the tend
-        // planner's patient although the emergency no longer holds dispatch for them.
-        return (Known(threats), CountPatients(snapshot.Facts, true));
+        return HostileCensus.Of(threats);
     }
 
     /// <summary>

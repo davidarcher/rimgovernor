@@ -50,19 +50,13 @@ public static class ForecastCapacity
     public static ForecastCapacityInput InputOf(string pawn, WorkPawnAvailability? observed, double horizon, ForecastProtection occupancy,
         bool protectTimetable = true)
     {
-        bool available = false, applies = false;
-        double hour = 0;
-        var availableRead = observed is not null && observed.Available.TryGetValue(out available);
-        var appliesRead = observed is not null && observed.Applies.TryGetValue(out applies);
-        var clockRead = observed is not null && observed.LocalHour.TryGetValue(out hour);
-        var state = availableRead && !available || appliesRead && !applies
-            ? ForecastPawnCapacityState.Unavailable
-            : availableRead && appliesRead && clockRead ? ForecastPawnCapacityState.Available : ForecastPawnCapacityState.Unread;
+        var state = observed is null ? ForecastPawnCapacityState.Unread
+            : observed.Available && observed.Applies ? ForecastPawnCapacityState.Available : ForecastPawnCapacityState.Unavailable;
         return new()
         {
-            Pawn = new() { Id = new(pawn), State = state, Schedule = observed is not null && observed.Schedule.TryGetValue(out var schedule) ? schedule : [] },
+            Pawn = new() { Id = new(pawn), State = state, Schedule = observed?.Schedule ?? [] },
             Location = "start", HorizonTicks = horizon, ProtectTimetable = protectTimetable,
-            LocalHour = hour, OpportunityCostPerTick = 1,
+            LocalHour = observed?.LocalHour ?? 0, OpportunityCostPerTick = 1,
             CurrentWork = new(new(pawn), observed?.Occupied == true, WorkType.None, new ForecastWorkRemaining.Untimed()),
             Occupancy = occupancy,
         };

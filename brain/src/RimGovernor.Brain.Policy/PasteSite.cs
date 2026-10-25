@@ -8,9 +8,9 @@ public sealed record PasteSiteRequest
 
     public EquatableArray<ProductionBench> Benches { get; init; }
 
-    public Fact<Infrastructure> Hopper { get; init; }
+    public Infrastructure? Hopper { get; init; }
 
-    public Fact<Bounds> Size { get; init; }
+    public Bounds Size { get; init; }
 
     public PowerTopology Power { get; init; } = new();
 }
@@ -34,11 +34,12 @@ public static partial class PasteSiteRules
         {
             return null;
         }
-        if (!v.Hopper.TryGetValue(out var hopper) || !v.Size.TryGetValue(out var size))
+        if (v.Hopper is not { } hopper)
         {
             return null;
         }
-        if (review.Tier != MealTier.Paste || !RoundsRules.Positive(hopper.Available) || size.Width <= 0 || size.Height <= 0 || size.Width > 6 || size.Height > 6)
+        var size = v.Size;
+        if (review.Tier != MealTier.Paste || !hopper.Available || size.Width <= 0 || size.Height <= 0 || size.Width > 6 || size.Height > 6)
         {
             return null;
         }
@@ -86,13 +87,13 @@ public static partial class PasteSiteRules
             {
                 continue;
             }
-            v.Meals.Paste.TryGetValue(out var infra);
+            var infra = v.Meals.Paste ?? throw new RequiredFactException("paste infrastructure");
             var buildings = new List<SiteBuilding>
             {
                 new() { Definition = infra!.Name, Cell = c.Cell, Rotation = Rotation.North },
                 new() { Definition = hopper.Name, Cell = h, Rotation = Rotation.North },
             };
-            infra.PowerW.TryGetValue(out var watts);
+            var watts = infra.PowerW;
             var candidate = new SiteTypeCandidate
             {
                 Kind = SiteKind.Paste,

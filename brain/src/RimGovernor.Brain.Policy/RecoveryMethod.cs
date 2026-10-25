@@ -33,7 +33,7 @@ public sealed record RecoveryPlanning
 {
     public RecoverySafety Safety { get; init; } = new();
 
-    public Fact<EquatableArray<RecoveryWorker>> Workers { get; init; }
+    public EquatableArray<RecoveryWorker> Workers { get; init; }
 
     public EquatableArray<RecoveryBuilding> Buildings { get; init; }
 
@@ -53,15 +53,12 @@ public sealed record RecoveryPlanning
                 throw new DomainException("invalid current restriction");
             }
         }
-        if (Workers.TryGetValue(out var workers))
+        var seen = new HashSet<PawnId>();
+        foreach (var w in Workers)
         {
-            var seen = new HashSet<PawnId>();
-            foreach (var w in workers)
+            if (!FoodForecastRules.FoodId(w.Pawn.Value) || !seen.Add(w.Pawn))
             {
-                if (!FoodForecastRules.FoodId(w.Pawn.Value) || !seen.Add(w.Pawn))
-                {
-                    throw new DomainException("invalid recovery worker");
-                }
+                throw new DomainException("invalid recovery worker");
             }
         }
     }
@@ -79,8 +76,6 @@ public enum RecoverySelectionReason
     None = 0,
     [WireName("native_admission_required")]
     AdmissionRequired,
-    [WireName("observations_unknown")]
-    FactsUnknown,
     [WireName("no_available_worker")]
     NoWorker,
     [WireName("methods_already_seen")]
@@ -145,7 +140,7 @@ public sealed record RecoverySelection
         {
             throw new DomainException("invalid recovery selection bounds");
         }
-        if (Reason == RecoverySelectionReason.None)
+        if (Reason == RecoverySelectionReason.None || !Wire.IsDefined(Reason))
         {
             throw new DomainException("invalid recovery selection reason");
         }
@@ -244,7 +239,7 @@ public static partial class RecoveryRules
     /// create a replacement while that work is still running. This is derived from the census, not a second
     /// commitment ledger. Unknown jobs/targets cannot establish that work stopped.
     /// </summary>
-    public static Fact<bool> RecoveryWorkContinuing(RecoveryService service, EquatableArray<RecoveryBuilding> buildings, WorkPawnsRead pawns)
+    public static bool RecoveryWorkContinuing(RecoveryService service, EquatableArray<RecoveryBuilding> buildings, WorkPawnsRead pawns)
     {
         var work = DisasterRules.RecoveryPending([.. buildings.Where(b => b.Id == service.Thing)]);
         var needed = false;
@@ -257,7 +252,7 @@ public static partial class RecoveryRules
         }
         if (!needed)
         {
-            return Known(false);
+            return false;
         }
         var rows = pawns.Pawns;
         foreach (var pawn in rows)
@@ -272,15 +267,17 @@ public static partial class RecoveryRules
                 RecoveryMethod.Repair => "Repair",
                 RecoveryMethod.Breakdown => "FixBrokenDownBuilding",
                 RecoveryMethod.Refuel => "Refuel",
-                _ => "",
+                RecoveryMethod.InvestigateMonolith or RecoveryMethod.ActivateMonolith or RecoveryMethod.Interact
+                    or RecoveryMethod.InspectGravEngine or RecoveryMethod.OfferHelp => null,
+                RecoveryMethod invalid => throw new DomainException($"invalid recovery service method {invalid}"),
             };
-            if (job.Def != name)
+            if (name is null || job.Def != name)
             {
-                return Known(false);
+                return false;
             }
-            return Known(job.Target.Thing == service.Thing);
+            return job.Target.Thing == service.Thing;
         }
-        return Known(false);
+        return false;
     }
 
     /// <summary>
@@ -290,7 +287,7 @@ public static partial class RecoveryRules
     /// </summary>
     public static RecoverySelection SelectRecoveryMethods(RecoveryPlanning p, DisasterHistory? h, IReadOnlyList<MethodId> used, Tick tick)
     {
-        var output = new RecoverySelection { Tick = tick, Reason = RecoverySelectionReason.FactsUnknown };
+        var output = new RecoverySelection { Tick = tick, Reason = RecoverySelectionReason.NoWork };
         p.Validate();
         h?.Validate();
         if (tick.Value < 0 || (h is not null && (h.Observed > tick || (h.Phase != DisasterPhase.Restored && h.Observed != tick))))
@@ -311,15 +308,16 @@ public static partial class RecoveryRules
         }
         var buildings = p.Buildings;
         var safety = p.Safety;
-        if (!p.Workers.TryGetValue(out var workers) || h.Phase == DisasterPhase.Unread)
+        if (h.Phase == DisasterPhase.Unread)
         {
-            return output;
+            throw new RequiredFactException("disaster service finding");
         }
+        var workers = p.Workers;
         // The independent exact-pawn and restriction censuses must agree. Missing identities cannot silently
         // remove a pawn's exposure or player restriction.
         if (workers.Count != safety.Restrictions.Count)
         {
-            return output;
+            throw new DomainException("recovery worker and restriction censuses disagree");
         }
         var byPawn = new Dictionary<PawnId, RecoveryWorker>();
         foreach (var w in workers)
@@ -330,7 +328,7 @@ public static partial class RecoveryRules
         {
             if (!byPawn.ContainsKey(r.Pawn))
             {
-                return output;
+                throw new DomainException($"recovery restriction has no worker: {r.Pawn.Value}");
             }
         }
         var available = new List<RecoveryWorker>();

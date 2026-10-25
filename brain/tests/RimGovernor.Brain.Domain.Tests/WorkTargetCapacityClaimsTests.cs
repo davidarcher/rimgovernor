@@ -27,7 +27,7 @@ public sealed class WorkTargetCapacityClaimsTests
         DomainAction.NewPawnActivitiesAction(new(id), new(1, orders));
     private static PlanSpec Plan(string id, params DomainAction[] actions) => new(new(id), new(1), EquatableArray.From(actions));
     private static WorkResourceView Committed(RoundsFacts facts, params DomainAction[] held) =>
-        WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new(EquatableArray.From(held
+        WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new(EquatableArray.From(held
             .Select(a => new WorkAction(new(a.Id.Value + "-plan"), a, new() { Action = a.Id, Stage = Stage.Pending })))))
         .WorkView!;
 

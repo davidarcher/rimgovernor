@@ -45,8 +45,7 @@ public sealed partial class RoundsBuildingPlanner
                 resolved.Refrigeration = proposal;
                 resolved.Definition = "Cooler";
                 return (resolved, default);
-            case RefrigerationMethod.Unknown:
-                return (null, FieldUnavailable("refrigeration"));
+
             case RefrigerationMethod.NoMethod:
                 return (null, BuildingReasonNoDeficit);
             case RefrigerationMethod.None:
@@ -105,7 +104,7 @@ public sealed partial class RoundsBuildingPlanner
         // The dining room's meal closet stands before its cooler; a shell already committed, or refused, leaves the
         // cooling to go on.
         var (closet, closetOwed) = RoundsBurialFacts.PlannedMealCloset(facts);
-        if (PositiveFact(closetOwed))
+        if (closetOwed)
         {
             var closetResult = await ReconcileRoomAsync(state, review, goal, rounds, null, new RoomReconcile { RingOnly = true, Room = closet, Name = PlannedRoomMethod(closet).Value, Reason = "cold meal shelf" }, call, epoch).ConfigureAwait(false);
             if (!closetResult.Verdict.SkipsToPlacement)
@@ -277,7 +276,9 @@ public sealed partial class RoundsBuildingPlanner
             return (null!, stock, BuildingReasonExistingWork);
         }
 
-        if (facts.DefinitionAvailable(def).TryGetValue(out var available) && !available)
+        var available = facts.DefinitionAvailable(def);
+
+        if (!available)
         {
             return (null!, stock, FieldUnavailable(def + "_research"));
         }

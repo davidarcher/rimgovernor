@@ -58,20 +58,14 @@ public sealed partial class RoundsWorkPlanner
         {
             construction = construction[..8];
         }
-        if (!RoundsProjectBill.RoundsProjectWork(definitions, read.Projection.Definitions).TryGetValue(out var required))
-        {
-            return Existing(FieldUnavailable("project_work"));
-        }
+        var required = RoundsProjectBill.RoundsProjectWork(definitions, read.Projection.Definitions);
         var resourceTargets = _reviewer.ResourceTargets(state.Snapshot);
         // The resource targets are in deficit when the economy/resource Need's threshold reads short now.
         var deficit = !ResearchRules.ResourceTargetNeed(resourceTargets, read.Projection.Facts.Resources).Recovered;
         var targets = RoundsProjectBill.RoundsDeficitTargets(resourceTargets, deficit, read.Projection.Facts.Gear);
         var benchWork = await RoundsProjectBill.RoundsBenchWorkAsync(_reviewer.BenchSource(_benches, expected, false), state.Snapshot, plans, targets, targets.Count > 0, read.Projection.Facts.Items.Wort, call).ConfigureAwait(false);
-        if (!benchWork.TryGetValue(out var benchRows))
-        {
-            return Existing(FieldUnavailable("bench_work"));
-        }
-        required = RoundsProjectBill.MergeWorkRequirements([.. required], benchRows);
+
+        required = RoundsProjectBill.MergeWorkRequirements([.. required], benchWork);
         var needs = RoundsProjectBill.RoundsResearchNeeds(p.Journal, _reviewer.Policy, read.Projection.Facts.Items, state.Snapshot, _reviewer.EquipmentOwed(state.Snapshot), call);
         needs = _reviewer.CensusResearchNeeds(needs);
         required = RoundsProjectBill.MergeWorkRequirements([.. required], RoundsProjectBill.RoundsResearchWork(needs, read.Projection.Facts.Research));
@@ -359,8 +353,8 @@ partial class RoundsWorkPlanner
 
     internal static List<HostilityPawn> HostilityRows(IReadOnlyList<WorkPawn> pawns) => [.. pawns.Select(p => p.HostilityPawn()).OfType<HostilityPawn>()];
 
-    internal static Fact<EquatableArray<HostilityPawn>> HostilityPawns(WorkPawnsRead pawns) =>
-        Known<EquatableArray<HostilityPawn>>([.. HostilityRows(pawns.Pawns)]);
+    internal static EquatableArray<HostilityPawn> HostilityPawns(WorkPawnsRead pawns) =>
+        [.. HostilityRows(pawns.Pawns)];
 
     /// <summary>The reading-policy writes and assignments the review's policies, books and skill goals call for.</summary>
     internal static IReadOnlyList<ReadingPolicyChange> RoundsReadingChanges(PbObservations.Policies policies, IReadOnlyList<Book> books, PrisonerCensus census, IReadOnlyList<WorkPawn> pawns, IReadOnlyList<SkillGoal> training)

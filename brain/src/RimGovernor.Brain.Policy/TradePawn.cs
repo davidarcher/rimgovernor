@@ -71,17 +71,16 @@ public static partial class TradePolicyRules
     }
 
     /// <summary>
-    /// Adds the pawn-purchase need to a measured trade need: set only while capacity is known true, so an unknown
-    /// capacity neither opens a caravan nor leaves the rest of the need unknown.
+    /// Adds pawn purchases only after population capacity is assessed. Awaiting the food plan
+    /// leaves other purchases reviewable.
     /// </summary>
-    public static Fact<TradeNeed> PopulationTradeNeed(Fact<TradeNeed> need, Fact<bool> capacity)
+    public static TradeNeed PopulationTradeNeed(TradeNeed need, PopulationCapacity capacity)
     {
-        var known = need.TryGetValue(out var n);
-        var roomKnown = capacity.TryGetValue(out var room);
-        if (!known || !roomKnown || !room)
+        switch (capacity)
         {
-            return need;
+            case PopulationCapacity.Assessed(var room): return need with { Population = room };
+            case PopulationCapacity.AwaitingFoodPlan: return need;
         }
-        return Known(n! with { Population = true });
+        throw new DomainException("unhandled population capacity");
     }
 }

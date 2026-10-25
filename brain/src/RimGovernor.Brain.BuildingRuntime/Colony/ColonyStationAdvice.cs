@@ -140,7 +140,9 @@ public sealed partial class Rounder
         }
         if (def.StuffOptions.Count == 0)
         {
-            return def.WorkToBuild.TryGetValue(out var own) && def.Costs.TryGetValue(out var costs) ? (own, costs) : null;
+            var own = (def.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).WorkToBuild;
+            var costs = (def.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).Costs;
+            return (own, costs);
         }
         return def.StuffOptions.FirstOrDefault(o => o.Stuff == stuff) is { } option && option.Stats.TryGetValue(Bridge.Contracts.StatDefNames.StatWorkToBuild, out var work)
             ? (work, option.Costs) : null;
@@ -455,7 +457,7 @@ internal static class StationFactsBuilder
     public static StationFacts StationFacts(DefinitionCatalog catalog, StationFacts f)
     {
         var recipes = catalog.StationRecipeFlows(f.Catalog);
-        var stock = f.Stock.TryGetValue(out var held) ? held : new Dictionary<Resource, long>();
+        var stock = f.Stock;
         var (stackLimit, perishable) = catalog.StationItemFacts(stock, recipes, LayoutPenNodesRules.PenItems(f.Herds, f.Races));
         return f with { Recipes = recipes, StackLimit = stackLimit, Perishable = perishable };
     }
@@ -465,7 +467,7 @@ internal static class StationFactsBuilder
     /// flows, stack limits, rot) are added by the caller. A demand a review derived for this world is known even when
     /// empty: it targets no stock.
     /// </summary>
-    public static StationFacts StationFactsOf(ColonyProjection projection, LayoutPlan plan, MapSurvey survey, Fact<IReadOnlyDictionary<Resource, long>> needs, LedgerView ledger)
+    public static StationFacts StationFactsOf(ColonyProjection projection, LayoutPlan plan, MapSurvey survey, IReadOnlyDictionary<Resource, long> needs, LedgerView ledger)
     {
         var f = new StationFacts
         {
@@ -476,7 +478,7 @@ internal static class StationFactsBuilder
             Patients = projection.Facts.MedicalPawns,
             Surgical = SurgeryRules.SurgeryBedShortPatients(projection.Facts.MedicalPawns),
             GoalBuild = projection.Facts.GoalBuild,
-            Prisoners = Unknown<int>(),
+            Prisoners = PrisonersRounds.HeldPrisoners(projection.Facts.Population.Prisoners),
             Herds = projection.Facts.PenHerds(),
             Races = projection.Facts.AnimalUpkeep.AnimalRaces,
             Pasture = projection.Facts.Pasture,
@@ -507,7 +509,7 @@ internal static class StationFactsBuilder
         }
         var ground = RoundsBuildingPlanner.ColonyGround(projection);
         f = f with { Built = LayoutPlan.BuiltRooms(plan, ground), ShellStanding = LayoutPlan.ShellStanding(plan, ground) };
-        return f with { Prisoners = Known(PrisonersRounds.HeldPrisoners(projection.Facts.Population.Prisoners)) };
+        return f;
     }
 
     /// <summary>
@@ -516,7 +518,7 @@ internal static class StationFactsBuilder
     /// asks (ThroneArea) and what the colony has not read left unknown, which the plan waits for. The catalog rows
     /// are added by the caller (<see cref="StationFacts"/>).
     /// </summary>
-    public static StationFacts FirstPlanFacts(ColonyProjection projection, MapSurvey survey, Fact<IReadOnlyDictionary<Resource, long>> needs, LedgerView ledger)
+    public static StationFacts FirstPlanFacts(ColonyProjection projection, MapSurvey survey, IReadOnlyDictionary<Resource, long> needs, LedgerView ledger)
     {
         var f = StationFactsOf(projection, new LayoutPlan(), survey, needs, ledger) with { Derive = true };
         var (need, owed) = RoundsSleepingUpkeepPlanner.ThroneNeed(projection);

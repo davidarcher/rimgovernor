@@ -73,7 +73,8 @@ public sealed partial class GoalsRounds
         var output = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
         foreach (var d in definitions)
         {
-            if (d.HarvestedThingDef.TryGetValue(out var stuff) && d.Research.Count > 0)
+            var stuff = (d.Harvest ?? throw new RequiredFactException("planning Harvest")).HarvestedThingDef;
+            if (d.Research.Count > 0)
             {
                 output[stuff] = d.Research;
             }

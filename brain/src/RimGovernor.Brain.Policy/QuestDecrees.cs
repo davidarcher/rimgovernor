@@ -194,7 +194,7 @@ public static class QuestDecrees
         return (null, "production_infeasible");
     }
 
-    public static (FieldPlan? Plan, string Reason) PlanDecreeHarvest(DecreeDue objective, long standing, IReadOnlyList<CropChoice> choices, CropClimate climate, FarmSiteRequest site, Fact<int> skill)
+    public static (FieldPlan? Plan, string Reason) PlanDecreeHarvest(DecreeDue objective, long standing, IReadOnlyList<CropChoice> choices, CropClimate climate, FarmSiteRequest site, int skill)
     {
         var remaining = objective.Remaining;
         if (remaining <= 0)
@@ -210,13 +210,13 @@ public static class QuestDecrees
         {
             if (crop.Name == objective.Def)
             {
-                exact.Add(crop with { Harvests = Known(new Resource(crop.Name)), UnitsPerCell = Known(1.0) });
+                exact.Add(crop with { Harvests = new Resource(crop.Name), UnitsPerCell = 1.0});
             }
         }
         var plan = FieldResourceRules.PlanFieldByResource(new ResourceFieldRequest
         {
             Resource = new Resource(objective.Def),
-            Deficit = Known((double)(remaining - standing)),
+            Deficit = (double)(remaining - standing),
             Choices = exact,
             Climate = climate,
             Site = site,

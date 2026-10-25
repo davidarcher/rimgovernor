@@ -182,13 +182,10 @@ public static class FirebreakRules
             return null;
         }
         if (!floors.TryGetValue(style, out var def)
-            || !def.Available.TryGetValue(out var available)
-            || !def.Terrain.TryGetValue(out var terrain)
-            || !def.Flammability.TryGetValue(out var flammability)
             || !FlooringRules.FloorPriced(def))
         {
             throw new RequiredFactException("firebreak floor " + style);
         }
-        return !available || !terrain || flammability > 0 ? null : style;
+        return !def.Available || !def.Terrain || def.Flammability > 0 ? null : style;
     }
 }

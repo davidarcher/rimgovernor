@@ -52,11 +52,11 @@ public static class GearDefinitionsReads
     /// the finished projects. Null, with no census to decode, when the source serves no catalog or no research read.
     /// </summary>
     public static async Task<GearDefinitions?> ReadGearDefinitions(object source, C.Identity id, CancellationToken cancellationToken) =>
-        GearDefinitionsOf(await DefinitionsReads.ReadDefinitionFacts(source, id, null, cancellationToken).ConfigureAwait(false));
+        GearDefinitionsOf(await DefinitionsReads.ReadDefinitionFacts(source, id, [], cancellationToken).ConfigureAwait(false));
 
     /// <summary>The gear definitions of a definitions read; null when there is none or its research read failed (DefinitionFacts.Finished).</summary>
     internal static GearDefinitions? GearDefinitionsOf(DefinitionFacts? facts) =>
-        facts is not null && facts.Finished.TryGetValue(out var finished) ? new GearDefinitions { Catalog = facts.Catalog, Finished = finished } : null;
+        facts is not null ? new GearDefinitions { Catalog = facts.Catalog, Finished = facts.Finished } : null;
 
     /// <summary>The wear inputs of one gear row.</summary>
     internal static GearWearer WearerOf(O.GearLoadout p)

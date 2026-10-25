@@ -556,7 +556,7 @@ public sealed class GameReuse : IAsyncDisposable
         var facts = await h.CallAsync(
             label + "-stock",
             NativeOps.ReadColonyFacts,
-            new Wo.ColonyFactsRequest { Scope = scope, Planning = false },
+            new Wo.ColonyFactsRequest { Scope = scope },
             cancellationToken).ConfigureAwait(false);
         var stock = new Dictionary<string, StockCounts>(StringComparer.Ordinal);
         foreach (var row in facts.Resources)

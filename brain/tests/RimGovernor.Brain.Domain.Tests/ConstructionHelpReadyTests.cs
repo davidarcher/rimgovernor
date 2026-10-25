@@ -16,7 +16,7 @@ public sealed class ConstructionHelpReadyTests
     };
 
     private static ConstructionHelp Demand(ReadyWorkReport? report, CurrentConstruction? census) => ConstructionHelpersRules.ConstructionHelpDemand(
-        report, World, new Tick(10), [new HelpDefinition { Name = "Wall", Skill = Known(0) }], null, census);
+        report, World, new Tick(10), null, census);
 
     [Fact]
     public void AMissingCensusRefusesHelperPlanning()
@@ -36,4 +36,9 @@ public sealed class ConstructionHelpReadyTests
         var census = CurrentConstruction.Empty with { Sites = EquatableArray.From(new[] { FilledWall }) };
         Assert.Equal(1, Demand(null, census).Ready);
     }
-}
+    [Fact]
+    public void QualityFreeHelpersUseTheObservedNativeSkill()
+    {
+        var census = CurrentConstruction.Empty with { Sites = [FilledWall with { NativeFinishingSkill = 3 }] };
+        Assert.Equal(3, Demand(null, census).Floor);
+    }}

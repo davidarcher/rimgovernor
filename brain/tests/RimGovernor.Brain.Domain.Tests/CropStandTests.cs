@@ -23,10 +23,10 @@ public sealed class CropStandTests
     {
         Stand = stand,
         Temperature = temperature,
-        MinGrowth = Known(6.0),
-        MinOptimal = Known(10.0),
-        MaxOptimal = Known(30.0),
-        MaxGrowth = Known(42.0),
+        MinGrowth = 6.0,
+        MinOptimal = 10.0,
+        MaxOptimal = 30.0,
+        MaxGrowth = 42.0,
     };
 
     private static O.ZoneState.Growing Farm(uint planted, double temperature = 20) => new()
@@ -35,6 +35,7 @@ public sealed class CropStandTests
         Label = "Rice",
         Bounds = new O.CellExtents { Minimum = new Cell(0, 0), Maximum = new Cell(2, 2) },
         Crop = "Plant_Rice",
+        ZoneCells = 10, UnroofedCells = 10,
         UsableCells = 10,
         PlantedCells = planted,
         FertilePlantedCells = planted / 2,
@@ -45,13 +46,22 @@ public sealed class CropStandTests
         Temperature = temperature,
     };
 
+    private static readonly PlanningDefinition[] Definitions =
+    [
+        new() { Name = "Plant_Rice", Plant = new PlanningPlant
+        {
+            MinGrowthTemperature = 6, MinOptimalGrowthTemperature = 10,
+            MaxOptimalGrowthTemperature = 30, MaxGrowthTemperature = 42,
+        } },
+    ];
+
     [Fact]
     public void AFallowZoneHasNoGrowingCellsAndNoHarvestLead()
     {
         var growth = Growth(new CropStand.Fallow());
 
-        Assert.Equal(0L, growth.GrowingCells().Value);
-        Assert.False(CalendarRules.HarvestLeadDays(growth, Known(6.0), Summer).TryGetValue(out _));
+        Assert.Equal(0L, growth.GrowingCells());
+        Assert.IsType<HarvestTiming.Fallow>(CalendarRules.HarvestLeadDays(growth, 6.0, Summer));
     }
 
     [Fact]
@@ -59,22 +69,22 @@ public sealed class CropStandTests
     {
         var growth = Growth(new CropStand.Sown(8, 0.5, 1.0));
 
-        Assert.Equal(8L, growth.GrowingCells().Value);
-        Assert.Equal(3.0, CalendarRules.HarvestLeadDays(growth, Known(6.0), Summer).Value, 9);
+        Assert.Equal(8L, growth.GrowingCells());
+        Assert.Equal(3.0, Assert.IsType<HarvestTiming.Expected>(CalendarRules.HarvestLeadDays(growth, 6.0, Summer)).Days, 9);
     }
 
     [Fact]
     public void AFarmReadsAsFallowOrAsItsPlantMeans()
     {
-        Assert.IsType<CropStand.Fallow>(ColonyProductionReads.FarmGrowth(Farm(0), []).Stand);
+        Assert.IsType<CropStand.Fallow>(ColonyProductionReads.FarmGrowth(Farm(0), Definitions).Stand);
 
-        var sown = Assert.IsType<CropStand.Sown>(ColonyProductionReads.FarmGrowth(Farm(10), []).Stand);
+        var sown = Assert.IsType<CropStand.Sown>(ColonyProductionReads.FarmGrowth(Farm(10), Definitions).Stand);
         Assert.Equal((5L, 0.5, 1.0), (sown.FertilePlanted, sown.GrowthMean, sown.FertilityMean));
     }
 
     [Fact]
     public void AnUnreadTemperatureRaisesInsteadOfReadingAsAnyValue()
     {
-        Assert.Throws<RequiredFactException>(() => ColonyProductionReads.FarmGrowth(Farm(10, double.NaN), []));
+        Assert.Throws<RequiredFactException>(() => ColonyProductionReads.FarmGrowth(Farm(10, double.NaN), Definitions));
     }
 }

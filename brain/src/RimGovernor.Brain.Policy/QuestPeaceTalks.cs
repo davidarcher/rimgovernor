@@ -15,7 +15,7 @@ public static class QuestPeaceTalksPolicy
         return PlanPeaceTalks(offer, site, f, f.AnimalUpkeep.Food, RoundsRules.DefaultRoundsPolicy()).Reason;
     }
 
-    public static ExpeditionPlan PlanPeaceTalks(QuestState offer, ExpeditionSite site, RoundsFacts f, Fact<FoodSupply> food, RoundsPolicy p)
+    public static ExpeditionPlan PlanPeaceTalks(QuestState offer, ExpeditionSite site, RoundsFacts f, FoodSupply food, RoundsPolicy p)
     {
         ExpeditionPlan Fail(QuestSkipReason reason) => new() { Quest = offer.Id, Site = site.Id, Reason = reason };
 
@@ -96,9 +96,9 @@ public static class QuestPeaceTalksPolicy
             }
             return x.Id.CompareTo(y.Id);
         });
-        var ck = f.DefenseCapacity.TryGetValue(out var capacity);
+        var capacity = f.DefenseCapacity;
         var raid = f.RaidPoints;
-        if (f.QuestRoster is not QuestRoster.Planned planned || f.QuestPawns is not QuestPawns.Seen { Departures: var departures } || !ck || !TradePolicyRules.Finite(capacity) || !TradePolicyRules.Finite(raid) || capacity < 0 || raid < 0)
+        if (f.QuestRoster is not QuestRoster.Planned planned || f.QuestPawns is not QuestPawns.Seen { Departures: var departures } || !TradePolicyRules.Finite(capacity) || !TradePolicyRules.Finite(raid) || capacity < 0 || raid < 0)
         {
             return (default, "capacity_unknown");
         }

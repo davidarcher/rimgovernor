@@ -78,7 +78,7 @@ public sealed class EconomyRounds
 
     /// <summary>
     /// Reads the family's facts in <paramref name="scope"/>'s world: the research needs (the production ladder's
-    /// rung, planners' research waits, the census requests, deep drilling) and, when any is owed, the native
+    /// rung, planners' research waits, the census requests, deep drilling) and the native
     /// research census. Throws when the read is from another world, older than the review, or slower than the
     /// review's age bound.
     /// </summary>
@@ -102,7 +102,6 @@ public sealed class EconomyRounds
         needs = _reviewer.CensusResearchNeeds(needs);
         needs = DeepDrillRules.DeepDrillingResearch(needs, review.ResourceRunwayState(), items);
         var facts = new EconomyFacts { ResearchNeeds = [.. needs] };
-        if (needs.Count != 0)
         {
             var read = await _native.ReadResearchAsync(Boundary.Identity(scope.World), ct).ConfigureAwait(false);
             try
@@ -118,7 +117,7 @@ public sealed class EconomyRounds
                 throw new ControlException("economy read: research read older than the review");
             }
             var catalog = await _native.DefinitionCatalogAsync(Boundary.Identity(scope.World), ct).ConfigureAwait(false);
-            facts = facts with { Research = Known(EconomyRules.ResearchCensusOf(read, catalog.Research, catalog.KnowledgeOverflow)) };
+            facts = facts with { Research = EconomyRules.ResearchCensusOf(read, catalog.Research, catalog.KnowledgeOverflow) };
         }
         if (_resource is not null)
         {
@@ -131,7 +130,7 @@ public sealed class EconomyRounds
         if (_caravan is not null)
         {
             var missions = await p.Journal.LoadTradeMissionsAsync(Player.PlayerWorld(scope.World), ct).ConfigureAwait(false);
-            facts = facts with { Missions = new TradeMissionFacts { Active = Known(missions.Missions.Count != 0), Proposed = _caravan.MissionProposed() } };
+            facts = facts with { Missions = new TradeMissionFacts { Active = missions.Missions.Count != 0, Proposed = _caravan.MissionProposed() } };
         }
         var elapsed = _reviewer.Clock.Now() - started;
         if (elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)
@@ -150,7 +149,7 @@ public sealed class EconomyRounds
         var demand = _reviewer.Demand.Get(scope.World);
         var claims = _reviewer.Player.Journal.ConstructionClaims(scope.World, expected.Tick, ct);
         var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, ct).ConfigureAwait(false);
-        var research = economy.Research.TryGetValue(out var census) ? EconomyRules.ResearchSummary(census!) : null;
+        var research = EconomyRules.ResearchSummary(economy.Research);
         var observed = reading.Projection.Facts with
         {
             ResourceRunways = review.ResourceRunwayState(),
@@ -282,10 +281,7 @@ public sealed partial class RoundsBuildingPlanner
             return (null, FieldUnavailable("research_bench_definition"));
         }
 
-        if (!definition.Available.TryGetValue(out var available))
-        {
-            return (null, FieldUnavailable("research_bench_availability"));
-        }
+        var available = definition.Available;
 
         if (!available)
         {
@@ -334,7 +330,8 @@ public sealed partial class RoundsBuildingPlanner
         {
             if (d.Name == next)
             {
-                if (d.Available.TryGetValue(out var available) && available)
+                var available = d.Available;
+                if (available)
                 {
                     return (next, true);
                 }

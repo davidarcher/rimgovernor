@@ -45,7 +45,8 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             blocked.UnionWith(h.Footprint);
         }
-        if (!RoundsBuildingPlanner.DefinitionRow(facts, planner.Definition).Def.Size.TryGetValue(out var size) || size.Width <= 0 || size.Height <= 0)
+        var size = RoundsBuildingPlanner.DefinitionRow(facts, planner.Definition).Def.Size;
+        if (size.Width <= 0 || size.Height <= 0)
         {
             return null;
         }

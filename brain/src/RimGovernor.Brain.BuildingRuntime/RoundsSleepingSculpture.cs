@@ -54,20 +54,20 @@ partial class RoundsSleepingUpkeepPlanner
     /// The review's shed_art input: the unreserved packed art count, read only while the wealth headroom is
     /// known and negative (unknown otherwise, so the need adds nothing).
     /// </summary>
-    internal static async Task<Fact<long>> ReviewSaleArtAsync(object source, C.Identity identity, Observation.ColonyProjection facts, CancellationToken ct)
+    internal static async Task<long> ReviewSaleArtAsync(object source, C.Identity identity, Observation.ColonyProjection facts, CancellationToken ct)
     {
         var native = source as FacadeNativeClient;
-        var hk = facts.Facts.WealthBudget().TryGetValue(out var h);
-        if (native is null || !hk || h >= 0)
+        var h = facts.Facts.WealthBudget();
+        if (h >= 0)
         {
-            return Unknown<long>();
+            return 0;
         }
-        var sale = await SaleSculpturesOfAsync(native, identity, facts, ct).ConfigureAwait(false);
+        var sale = await SaleSculpturesOfAsync(native ?? throw new RequiredFactException("native art stock source"), identity, facts, ct).ConfigureAwait(false);
         if (sale is null)
         {
-            return Unknown<long>();
+            throw new RequiredFactException("sculpture sale facts");
         }
-        return Known<long>(sale.Count);
+        return sale.Count;
     }
 }
 

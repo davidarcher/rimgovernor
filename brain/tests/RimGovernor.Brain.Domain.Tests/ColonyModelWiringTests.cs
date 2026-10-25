@@ -22,12 +22,12 @@ public sealed class ColonyModelWiringTests
     private static ColonyProjection Frame()
     {
         var projection = ColonyModelFixtures.Projection();
-        var gear = projection.Facts.Gear.Value;
+        var gear = projection.Facts.Gear;
         return projection with
         {
             Facts = projection.Facts with
             {
-                Gear = Known(gear with { Climate = ColonyModelFixtures.Climate() with { Temperatures = EquatableArray.From(new[] { -10.0, -8, -2, 5, 12, 18, 22, 21, 15, 8, 12, 12 }) }, Pawns = [gear.Pawns[0] with { LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Options = [BillDuster()] }) }] }),
+                Gear = gear with { Climate = ColonyModelFixtures.Climate() with { Temperatures = EquatableArray.From(new[] { -10.0, -8, -2, 5, 12, 18, 22, 21, 15, 8, 12, 12 }) }, Pawns = [gear.Pawns[0] with { LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Options = [BillDuster()] }) }] },
             },
             // 20 cells of 6 cloth each cover the duster's 80.
             Cells = [.. Enumerable.Range(0, 20).Select(x => SiteCellFixtures.Ground with { Cell = new Cell(x, 0), Zone = true, ZoneId = "zone1", Fertility = 0.8 })],
@@ -51,7 +51,7 @@ public sealed class ColonyModelWiringTests
         Assert.Null(review.Basis);
         Assert.Contains("colony_model_input_unready", review.Marginals.Findings);
         Assert.Empty(review.Marginals.Trajectory.Events);
-        Assert.Contains(review.Unknowns, u => u.StartsWith("climate:", StringComparison.Ordinal));
+        Assert.Contains(review.Unknowns, u => u.StartsWith("crops:", StringComparison.Ordinal));
     }
 
     [Fact]

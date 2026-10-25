@@ -52,6 +52,6 @@ public static class ArmoryShellsRules
     /// Whether any target's stock is below half its count, the point a native stock-target bill resumes at:
     /// above it a standing bill has nothing to add. No targets is false.
     /// </summary>
-    public static Fact<bool> ShellsShort(IReadOnlyList<Amount> targets, IReadOnlyDictionary<Resource, long> stock) =>
-        Known(targets.Any(t => stock.GetValueOrDefault(t.Resource) * 2 < t.Count));
+    public static bool ShellsShort(IReadOnlyList<Amount> targets, IReadOnlyDictionary<Resource, long> stock) =>
+        targets.Any(t => stock.GetValueOrDefault(t.Resource) * 2 < t.Count);
 }

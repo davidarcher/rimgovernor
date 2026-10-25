@@ -73,7 +73,7 @@ public sealed class ShelterRounds
         var world = RoundsStockpilePlanner.StockpileWorld(scope.World);
         if (scope.Immediate)
         {
-            return new ShelterFacts { SafeAreaOwed = _safeArea ? _reviewer.SafeArea.Owed(world) : Unknown<bool>() };
+            return new ShelterFacts { SafeAreaOwed = _safeArea ? _reviewer.SafeArea.Owed(world) : SafeAreaStatus.AwaitingReview };
         }
         var review = await _reviewer.Player.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
         var expected = await StepScope.StepScopeAsync(scope, _reviewer.Native, call).ConfigureAwait(false);
@@ -91,7 +91,7 @@ public sealed class ShelterRounds
             SleepingRecovered = recovered,
             TemperatureOwed = RoundsBuildingPlanner.TemperatureOwed(projection),
             Upkeep = f.Upkeep with { Rooms = projection.Rooms },
-            SafeAreaOwed = _safeArea ? _reviewer.SafeArea.Owed(world) : Unknown<bool>(),
+            SafeAreaOwed = _safeArea ? _reviewer.SafeArea.Owed(world) : SafeAreaStatus.AwaitingReview,
         };
         return ShelterFacts.From(f, _reviewer.Policy);
     }

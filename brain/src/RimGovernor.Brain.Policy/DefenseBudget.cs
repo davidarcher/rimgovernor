@@ -15,11 +15,7 @@ public readonly record struct RaidDefense(double RaidPoints, double Capacity)
     /// </summary>
     public static RaidDefense Of(RoundsFacts f)
     {
-        if (!f.DefenseCapacity.TryGetValue(out var have))
-        {
-            throw new RequiredFactException("defense_capacity");
-        }
-        return new RaidDefense(f.RaidPoints, have);
+        return new RaidDefense(f.RaidPoints, f.DefenseCapacity);
     }
 }
 
@@ -31,7 +27,7 @@ public static class DefenseBudget
     /// yield to measure, so one is built and the next review reads it; standing turrets none of which is powered
     /// yet are that probe, and ask for no more. No shortfall asks for none.
     /// </summary>
-    internal static int TurretsOwed(RaidDefense threat, Fact<EquatableArray<DefenseTurretFacts>> turrets)
+    internal static int TurretsOwed(RaidDefense threat, EquatableArray<DefenseTurretFacts> turrets)
     {
         var shortfall = threat.Shortfall;
         if (shortfall <= 0)
@@ -40,7 +36,7 @@ public static class DefenseBudget
         }
         var sum = 0.0;
         var n = 0;
-        foreach (var t in turrets.TryGetValue(out var standing) ? standing : default)
+        foreach (var t in turrets)
         {
             if (t.Powered && t.Dps > 0)
             {
@@ -55,14 +51,13 @@ public static class DefenseBudget
         return Math.Max(1, (int)Math.Ceiling(shortfall / (sum / n)));
     }
 
-    internal static int TurretsStanding(Fact<EquatableArray<DefenseTurretFacts>> turrets) =>
-        turrets.TryGetValue(out var standing) ? standing.Count : 0;
+    internal static int TurretsStanding(EquatableArray<DefenseTurretFacts> turrets) => turrets.Count;
 
     /// <summary>
     /// The turret count the layout plans: those already standing plus those the raid shortfall still asks for.
     /// A turret goal (<paramref name="goalFloor"/>, #3496) raises the count to at least that many. There is no ceiling; power, stock and the layout's geometry decide how many are placed, and each gate that
     /// stops placement is named on the tier.
     /// </summary>
-    public static int TurretBudget(RaidDefense threat, Fact<EquatableArray<DefenseTurretFacts>> turrets, int goalFloor) =>
+    public static int TurretBudget(RaidDefense threat, EquatableArray<DefenseTurretFacts> turrets, int goalFloor) =>
         Math.Max(TurretsStanding(turrets) + TurretsOwed(threat, turrets), goalFloor);
 }

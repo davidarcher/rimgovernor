@@ -215,7 +215,7 @@ internal sealed partial class Tiler
             Note(-1, -1, LayoutTileRules.TileUnsatisfied, LayoutTileVentRules.ReasonTileVentClimateUnknown);
             return;
         }
-        In.VentAvailable.TryGetValue(out var available);
+        var available = In.VentAvailable;
         var ventW = ClimateRules.BuildW(SiteRules.DefaultSiteTypeWeights(), m.Build.Vent, In.SteelValue);
         var p = new VentPricer(this, m, curve!);
         var used = new HashSet<Cell>();

@@ -1040,10 +1040,7 @@ public static partial class WorkRules
             Handling = jobs.ContainsKey(HerdJob.Milk) || jobs.ContainsKey(HerdJob.Wool),
             Training = facts.GoalTraining.Items,
         };
-        if (facts.GrowingCells.TryGetValue(out var cells))
-        {
-            demand = demand with { GrowingCells = cells };
-        }
+        demand = demand with { GrowingCells = facts.GrowingCells };
         demand = demand with { Prisoners = facts.Population.Prisoners.Count };
         var stacks = 0;
         foreach (var row in facts.EventLoot)

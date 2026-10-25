@@ -113,7 +113,7 @@ public sealed class ForecastNeedsTests
         var facts = WorkResourceTestFacts.Create("pawn");
         facts = facts with { ForecastObserved = facts.ForecastObserved with
         { Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = [Pawn()] } } };
-        var reviewed = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        var reviewed = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         var choices = Assert.IsType<ForecastNeedsReview>(reviewed.NeedsAlternatives).Alternatives["pawn"].Choices;
         Assert.Contains(choices, c => c.Kind == "food" && c.Count == 1);
         Assert.Contains(choices, c => c.Kind == "food" && c.Count == 2);

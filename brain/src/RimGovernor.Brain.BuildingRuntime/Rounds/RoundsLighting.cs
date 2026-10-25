@@ -75,13 +75,18 @@ public sealed partial class RoundsBuildingPlanner
                 resolved.Lighting = proposal;
                 resolved.Definition = proposal.Definition;
                 return (resolved, default);
-            case LightingMethod.Unknown:
-                return (null, FieldUnavailable("lighting"));
             case LightingMethod.NoMethod:
                 return (null, BuildingReasonNoDeficit);
-            default:
+            case LightingMethod.PowerNeeded:
+            case LightingMethod.FuelNeeded:
+            case LightingMethod.RepairNeeded:
+            case LightingMethod.SwitchedOff:
+            case LightingMethod.Blocked:
+            case LightingMethod.ResearchNeeded:
+            case LightingMethod.NoSpace:
                 return (null, AwaitingMethod(proposal.Method));
         }
+        throw new ControlException($"invalid lighting proposal method: {proposal.Method}");
     }
 
     internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewLightingAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)

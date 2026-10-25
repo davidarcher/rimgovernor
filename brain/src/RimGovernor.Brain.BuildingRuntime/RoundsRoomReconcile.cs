@@ -128,7 +128,7 @@ partial class RoundsBuildingPlanner
         }
         var inside = room.Region.Bounds();
         cells = [.. cells.Where(c => !(c.Cell.X >= inside.X && c.Cell.X < inside.X + inside.Width && c.Cell.Z >= inside.Z && c.Cell.Z < inside.Z + inside.Height))];
-        var vent = facts.DefinitionAvailable(ClimateRules.ClimateDefs().VentDef).TryGetValue(out var ventAvailable);
+        var ventAvailable = facts.DefinitionAvailable(ClimateRules.ClimateDefs().VentDef);
         return new Pol.ReconcileInput
         {
             Plan = plan,
@@ -136,7 +136,7 @@ partial class RoundsBuildingPlanner
             Ground = plan.GroundWithRock(buildings, NaturalRock(facts)),
             Rooms = facts.Rooms,
             Cells = cells,
-            VentAvailable = vent && ventAvailable,
+            VentAvailable = ventAvailable,
             Unroofed = unroofed,
         };
     }
@@ -252,19 +252,19 @@ partial class RoundsBuildingPlanner
         {
             flooring = flooring with { ContainmentFloor = defs.Floor };
         }
-        foreach (var d in facts.Definitions)
+        foreach (var d in facts.Definitions.Where(d => d.Floor is not null))
         {
             definitions[d.Name] = new Pol.FloorDefinition
             {
                 Available = d.Available,
                 Terrain = d.Terrain,
-                Cleanliness = d.Cleanliness,
-                Beauty = d.Beauty,
-                Flammability = d.Flammability,
+                Cleanliness = (d.Floor ?? throw new RequiredFactException("planning Floor")).Cleanliness,
+                Beauty = (d.Floor ?? throw new RequiredFactException("planning Floor")).Beauty,
+                Flammability = (d.Floor ?? throw new RequiredFactException("planning Floor")).Flammability,
                 PathCost = d.PathCost,
-                Costs = d.Costs,
-                WorkToBuild = d.WorkToBuild,
-                Tags = d.FloorTags,
+                Costs = (d.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).Costs,
+                WorkToBuild = (d.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).WorkToBuild,
+                Tags = (d.Floor ?? throw new RequiredFactException("planning Floor")).FloorTags,
             };
         }
         return flooring;
@@ -411,9 +411,9 @@ partial class RoundsBuildingPlanner
         {
             return ("", "", FieldUnavailable("wall_door_definitions"), false);
         }
-        var wak = wallDef.Available.TryGetValue(out var wa);
-        var dak = doorDef.Available.TryGetValue(out var da);
-        if (!wak || !dak || !wa || !da)
+        var wa = wallDef.Available;
+        var da = doorDef.Available;
+        if (!wa || !da)
         {
             return ("", "", FieldUnavailable("wall_door_availability"), false);
         }

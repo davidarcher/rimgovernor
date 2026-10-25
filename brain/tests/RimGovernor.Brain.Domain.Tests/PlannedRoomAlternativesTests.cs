@@ -58,11 +58,11 @@ public sealed class PlannedRoomAlternativesTests
     [Fact]
     public void RoomWorkSumsTheFirstStuffFullSitesPerPieceAndNamesTheRoofApart()
     {
-        var (work, roof) = PlannedRules.PlannedRoomWork(Room(), 1, s => Known(s.Op == OpKind.FloorIn ? 85.0 : s.Op == OpKind.Build ? 600.0 : 135.0));
+        var (work, roof) = PlannedRules.PlannedRoomWork(Room(), 1, s => s.Op == OpKind.FloorIn ? 85.0 : s.Op == OpKind.Build ? 600.0 : 135.0);
         // 12 steel walls and a steel door at 135, nine floors at 85, one bench at 600; the roof is left out.
-        Assert.Equal(Known(13 * 135.0 + 9 * 85.0 + 600.0), work);
+        Assert.Equal(13 * 135.0 + 9 * 85.0 + 600.0, work);
         Assert.True(roof);
-        Assert.False(PlannedRules.PlannedRoomWork(Room(), 1, s => s.Op == OpKind.Build ? Unknown<double>() : Known(1.0)).Work.IsKnown);
-        Assert.Equal((Known(0.0), false), PlannedRules.PlannedRoomWork(Room(), 2, _ => Known(1.0)));
+        Assert.Throws<RequiredFactException>(() => PlannedRules.PlannedRoomWork(Room(), 1, _ => throw new RequiredFactException("work")));
+        Assert.Equal((0.0, false), PlannedRules.PlannedRoomWork(Room(), 2, _ => 1.0));
     }
 }

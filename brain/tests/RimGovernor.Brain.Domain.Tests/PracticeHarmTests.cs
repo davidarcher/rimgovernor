@@ -26,7 +26,7 @@ public sealed class PracticeHarmTests
         new ExposureCell("0.5-1", ExposureRoles.Noncombatant, 100, 1, 1, 3, 0.1, 0.05, 0.15),
     ]);
 
-    private static HarmInputs Raids(double raidsPerDay = 1) => ForecastValueTests.RaidDay(Exposure(), raidsPerDay) with { Raid = new HarmRaid.Assessed(new RaidDefense(1000, 990)) };
+    private static HarmInputs Raids(double raidsPerDay = 1) => ForecastValueTests.RaidDay(Exposure(), raidsPerDay) with { Raid = new RaidDefense(1000, 990) };
 
     private static PracticeTrainee Trainee(string pawn = "Anna") =>
         new(pawn, SkillStockTests.Mechanics(3, 0), 20, EquatableArray.From(Enumerable.Range(0, 21).Select(l => l >= 4 ? 6d : 2d)));
@@ -128,7 +128,7 @@ public sealed class PracticeHarmTests
         var roster = ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Skills = [new() { Name = "Melee", Level = 1, Learning = learning }] }).ToArray();
         var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, "Melee", "target/" + i, new(i + 1, 1), "RimGovernor_Spar", "RimGovernor_Spar",
             0d, 100d, learning) { Company = [], CallbackIntervalTicks = 10d, RawXpPerCallback = 10d, PreparationTicks = 0, JoyGainPerTick = 0, Thoughts = [], Equipment = [], Findings = [] }).ToArray();
-        facts = facts with { Hostiles = Known(0L), CriticalPatients = 0L, ForecastObserved = facts.ForecastObserved with
+        facts = facts with { Hostiles = HostileCensus.Of(0L), CriticalPatients = 0L, ForecastObserved = facts.ForecastObserved with
         {
             WorkPawns = new WorkPawnsRead(EquatableArray.From(roster)),
             Needs = facts.ForecastObserved.Needs! with { Pawns = EquatableArray.From(facts.ForecastObserved.Needs!.Pawns.Select(p => p with

@@ -313,17 +313,17 @@ public static class ConstructionReads
     }
 
     /// <summary>Bill lifecycle from the same census as ingredient reservations.</summary>
-    public static Fact<EquatableArray<ProductionBatchState>> ProductionBatchStates(O.BillsSnapshot? snapshot)
+    public static EquatableArray<ProductionBatchState> ProductionBatchStates(O.BillsSnapshot? snapshot)
     {
-        if (snapshot is null) return default;
+        if (snapshot is null) throw new RequiredFactException("bills");
         var rows = new List<ProductionBatchState>();
         foreach (var bill in snapshot.Benches.SelectMany(b => b.Bills))
         {
-            if (string.IsNullOrWhiteSpace(bill.Id)) return default;
+            if (string.IsNullOrWhiteSpace(bill.Id)) throw new RequiredFactException("bills.id");
             rows.Add(new(bill.Id, bill.ManagedUnchanged, ColonyProductionReads.BillRepeatOf(bill.RepeatMode), bill.RepeatCount,
                 bill.Suspended, bill.Finished, ProductionUnfinishedWorkOf(bill.Id, bill.UnfinishedWork)));
         }
-        return Known(EquatableArray.From(rows));
+        return EquatableArray.From(rows);
     }
 
     /// <summary>The bill's bound unfinished item; a bound item without an id, or an embedded ingredient without a def or a positive count, is a broken read.</summary>

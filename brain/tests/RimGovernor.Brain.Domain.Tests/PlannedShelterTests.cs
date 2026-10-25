@@ -97,8 +97,8 @@ public sealed class PlannedShelterTests
                 },
             },
         };
-        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced().BuildersRead() };
+        facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
+        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
     }
 
     /// <summary>The unplaced planned room with its planned heater (#3323): wall, door, roof and heater sites, the room alternative and the
@@ -174,7 +174,7 @@ public sealed class PlannedShelterTests
             PlannedRoomPredictions = EquatableArray.From([PlannedRoomPredictionTests.Closed("1", "WoodLog", "Barracks", 30d, 0, 1, 0, false)]),
             ForecastObserved = facts.ForecastObserved with { Needs = facts.ForecastObserved.Needs with { Pawns = [sleeper] } },
         };
-        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(barracks, Horizon)!.Priced().BuildersRead()!;
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(barracks, Horizon)!.Priced()!;
         barracks = AlternativeOnly(barracks with { CoupledAlternatives = generated with { Context = generated.Context with
             { BedroomOccupants = new Dictionary<int, EquatableArray<string>> { [1] = ["pawn"] }, PlannedBeds = SleepFixtures.Beds(1, 1), InvestmentHorizonDays = 10d } } });
         Assert.True(barracks.CoupledAlternatives!.Context.Priced(1));
@@ -217,7 +217,7 @@ public sealed class PlannedShelterTests
             PlannedRoomPredictions = EquatableArray.From([PlannedRoomPredictionTests.Closed("1", "WoodLog", "Barracks", 30d, 0, 1, 0, false)]),
             ForecastObserved = facts.ForecastObserved with { Needs = facts.ForecastObserved.Needs with { Pawns = [sleeper] } },
         };
-        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(barracks, Horizon)!.Priced().BuildersRead()!;
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(barracks, Horizon)!.Priced()!;
         barracks = barracks with { CoupledAlternatives = generated with { Context = generated.Context with
             { BedroomOccupants = new Dictionary<int, EquatableArray<string>> { [1] = ["pawn"] }, PlannedBeds = SleepFixtures.Beds(1, 1), InvestmentHorizonDays = 10d } } };
         Assert.True(barracks.CoupledAlternatives!.Context.Priced(1));

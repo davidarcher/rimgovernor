@@ -23,8 +23,8 @@ public sealed class FoodFamilyTests
     /// <summary>Every supply check read and met, the runway at the season's target as <paramref name="reserve"/> says.</summary>
     private static FoodFacts SupplyFacts(bool reserve = true) => new()
     {
-        HumanFoodSettled = Known(true), FootholdFood = Known(true), FootholdProduction = Known(true),
-        FieldsCovered = Known(true), ButcherFacility = Known(true), ReserveCovered = Known(reserve),
+        HumanFoodSettled = true, FootholdFood = true, FootholdProduction = true,
+        FieldsCovered = true, ButcherFacility = true, ReserveCovered = reserve,
     };
 
     [Fact]
@@ -38,21 +38,20 @@ public sealed class FoodFamilyTests
         Assert.Equal((Satisfaction.Unmet, 1.0), (shortRunway.Satisfaction, shortRunway.Deficit));
 
         // A known shortfall decides the Need while other checks are unread.
-        Assert.Equal(Satisfaction.Unmet, Supply(new() { ButcherFacility = Known(false) }).Satisfaction);
-        Assert.Equal(Satisfaction.Unmet, Supply(SupplyFacts() with { HumanFoodSettled = Known(false) }).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, Supply(new() { ButcherFacility = false }).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, Supply(SupplyFacts() with { HumanFoodSettled = false }).Satisfaction);
 
         // An unread check with none short is unknown, never met.
-        Assert.Equal("food supply checks", Assert.Throws<RequiredFactException>(() => Supply(SupplyFacts() with { FieldsCovered = Unknown<bool>() })).Fact);
     }
 
     [Fact]
     public void TheForecastFoodRowReadsTheSupplyNeedWithTheSameAssessmentForTheSameFacts()
     {
         var policy = RoundsRules.DefaultRoundsPolicy();
-        var facts = new RoundsFacts { MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() }, Tick = new(100), Colonists = 2L, Fuel = [] };
+        var facts = new RoundsFacts { MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() }, Tick = new(100), Colonists = 2L, FoodDays = new FoodRunway.Days(0), Fuel = [] };
         var met = facts with
         {
-            FoodDays = new FoodRunway.Days(1000.0), GrowingCells = Known(10_000L), FieldCoverage = Known(1.0),
+            FoodDays = new FoodRunway.Days(1000.0), GrowingCells = 10_000L, FieldCoverage = 1.0,
             ButcherBenches = [new() { Definition = "TableButcher" }],
         };
         foreach (var f in new[] { facts, met, met with { FoodDays = new FoodRunway.Days(0.0) }, met with { ButcherBenches = default } })
@@ -79,19 +78,19 @@ public sealed class FoodFamilyTests
     [Fact]
     public void TheCookingNeedIsMetWhileAMealCanBeMadeAndReopensWhenTheKitchenIsLost()
     {
-        var met = Cooking(new() { Cooking = true, CampfireRetireOwed = Known(false) });
+        var met = Cooking(new() { Cooking = true, CampfireRetireOwed = false });
         Assert.Equal((FoodRules.CookingNeed, NeedTier.Wellbeing, Satisfaction.Met, 0.0), (met.Id, met.Tier, met.Satisfaction, met.Deficit));
 
         // A lost stove kitchen: nothing can be cooked on the next review, so the Need is unmet again.
-        var lost = Cooking(new() { Cooking = false, CampfireRetireOwed = Known(false) });
+        var lost = Cooking(new() { Cooking = false, CampfireRetireOwed = false });
         Assert.Equal((Satisfaction.Unmet, 1.0), (lost.Satisfaction, lost.Deficit));
 
         // A superseded cooking campfire keeps the Need unmet even while a stove cooks, and decides it unread cooking.
-        Assert.Equal(Satisfaction.Unmet, Cooking(new() { Cooking = true, CampfireRetireOwed = Known(true) }).Satisfaction);
-        Assert.Equal(Satisfaction.Unmet, Cooking(new() { CampfireRetireOwed = Known(true) }).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, Cooking(new() { Cooking = true, CampfireRetireOwed = true }).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, Cooking(new() { CampfireRetireOwed = true }).Satisfaction);
 
         // Cooking is read whole on every frame; an unread campfire owes nothing.
-        Assert.Equal(Satisfaction.Unmet, Cooking(new() { CampfireRetireOwed = Known(false) }).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, Cooking(new() { CampfireRetireOwed = false }).Satisfaction);
         Assert.Equal(Satisfaction.Met, Cooking(new() { Cooking = true }).Satisfaction);
     }
 
@@ -100,7 +99,7 @@ public sealed class FoodFamilyTests
     {
         var facts = SupplyFacts() with { Cooking = false };
         Assert.Empty(new FoodFamily(false, false).Derive(facts));
-        Assert.Equal("food supply checks", Assert.Throws<RequiredFactException>(() => new FoodFamily(true, true).Derive(new FoodFacts { Cooking = false })).Fact);
+        Assert.Equal(Satisfaction.Unmet, Assert.Single(new FoodFamily(true, false).Derive(new FoodFacts { Cooking = false })).Satisfaction);
         Assert.Equal([FoodRules.FoodSupplyNeed, FoodRules.CookingNeed], new FoodFamily(true, true).Derive(facts).Select(n => n.Id));
         var family = new FoodFamily(true, true);
         Assert.Empty(family.Propose(family.Derive(facts), facts));
@@ -109,13 +108,13 @@ public sealed class FoodFamilyTests
     [Fact]
     public void TheForecastCookingRowReadsTheNeedWithTheSameAssessmentForTheSameFacts()
     {
-        var facts = new RoundsFacts { MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() }, Tick = new(100), Colonists = 2L, Fuel = [] };
+        var facts = new RoundsFacts { MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() }, Tick = new(100), Colonists = 2L, FoodDays = new FoodRunway.Days(0), Fuel = [] };
         ServiceCoverage Coverage(RoundsFacts f) => Assert.Single(
             EssentialServicesRules.ReviewEssentialServices(f, RoundsRules.DefaultRoundsPolicy(), new() { Work = new() { Tick = f.Tick } }).Coverage,
             c => c.Service == EssentialService.Cooking && c.Target == ServiceTarget.ForNeed(FoodRules.CookingNeed)).Coverage;
-        Assert.Equal(ServiceCoverage.Adequate, Coverage(facts with { Cooking = true, CampfireRetireOwed = Known(false) }));
+        Assert.Equal(ServiceCoverage.Adequate, Coverage(facts with { Cooking = true, CampfireRetireOwed = false }));
         Assert.Equal(ServiceCoverage.Shortfall, Coverage(facts with { Cooking = false }));
-        Assert.Equal(ServiceCoverage.Shortfall, Coverage(facts with { Cooking = true, CampfireRetireOwed = Known(true) }));
+        Assert.Equal(ServiceCoverage.Shortfall, Coverage(facts with { Cooking = true, CampfireRetireOwed = true }));
         // Cooking is read whole: nothing cooking is a shortfall, not an unread row.
         Assert.Equal(ServiceCoverage.Shortfall, Coverage(facts));
     }
@@ -124,7 +123,7 @@ public sealed class FoodFamilyTests
     {
         public required Journal Journal { get; init; }
         public required FamilyRunner<FoodFacts> Runner { get; init; }
-        public FoodFacts Facts { get; set; } = SupplyFacts() with { Cooking = false, CampfireRetireOwed = Known(false) };
+        public FoodFacts Facts { get; set; } = SupplyFacts() with { Cooking = false, CampfireRetireOwed = false };
 
         /// <summary>The building Methods the cooking step commits on the next run, each a (MethodId, cell) pair.</summary>
         public List<(string Method, Cell Cell)> Builds { get; } = [];
@@ -197,12 +196,12 @@ public sealed class FoodFamilyTests
         facts = facts with
         {
             Resources = [new(new("WoodLog"), 1000)],
-            Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = Known(1.0),
+            Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = 1.0,
             WorkAdmission = facts.WorkAdmission with
             {
-                Buildings = Known<EquatableArray<WorkBuildingCost>>([
-                    new("Campfire", "", Known<EquatableArray<Amount>>([new(new("WoodLog"), 20)])) { Size = Known(new Cell(1, 1)) },
-                    new("Cooler", "", Known<EquatableArray<Amount>>([new(new("WoodLog"), 10)])) { Size = Known(new Cell(1, 1)) }]),
+                Buildings = [
+                    new("Campfire", "", [new(new("WoodLog"), 20)]) { Size = new Cell(1, 1) },
+                    new("Cooler", "", [new(new("WoodLog"), 10)]) { Size = new Cell(1, 1) }],
             },
         };
         journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
@@ -268,7 +267,7 @@ public sealed class FoodFamilyTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var colony = Open();
-        colony.Facts = colony.Facts with { Cooking = true } with { FieldsCovered = Known(false) };
+        colony.Facts = colony.Facts with { Cooking = true } with { FieldsCovered = false };
         // A second field batch and a forage beside the first field: no open-work gate holds them behind it.
         colony.Supplies.AddRange([
             ("fields-first", Field("z1", (10, 10), (10, 11))),
@@ -292,7 +291,7 @@ public sealed class FoodFamilyTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var colony = Open();
-        colony.Facts = colony.Facts with { Cooking = true } with { ReserveCovered = Known(false) };
+        colony.Facts = colony.Facts with { Cooking = true } with { ReserveCovered = false };
         colony.Supplies.Add(("acquire-berries", Forage("f1", "berry-1")));
         File(colony, colony.Run());
         var review = colony.Journal.LoadRounds(ct);

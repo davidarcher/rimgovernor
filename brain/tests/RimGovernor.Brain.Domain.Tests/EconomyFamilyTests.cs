@@ -30,19 +30,19 @@ public sealed class EconomyFamilyTests
     private static EconomyFacts Facts(string[] needs, string current = "", string[]? finished = null, KnowledgeSlot[]? slots = null, params KeyValuePair<string, ResearchProjectFacts>[] projects) => new()
     {
         ResearchNeeds = EquatableArray.From(needs),
-        Research = Known(new ResearchCensus
+        Research = new ResearchCensus
         {
             Current = current,
             Projects = projects.ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal),
             Finished = EquatableArray.From(finished ?? []),
             Knowledge = EquatableArray.From(slots ?? []),
-        }),
+        },
     };
 
     [Fact]
     public void ResearchIsMetUnmetOrUnknownByTheNeedsAndTheCensus()
     {
-        var none = EconomyFamily.ResearchNeed(new EconomyFacts());
+        var none = EconomyFamily.ResearchNeed(Facts([]));
         Assert.Equal((EconomyFamily.Research, NeedTier.Development, Satisfaction.Met, 0.0), (none.Id, none.Tier, none.Satisfaction, none.Deficit));
 
         var finished = EconomyFamily.ResearchNeed(Facts(["Smithing"], finished: ["Smithing"], projects: Project("Smithing")));
@@ -69,7 +69,7 @@ public sealed class EconomyFamilyTests
         Assert.Equal(new ResearchStep("Study", null, false, false), EconomyRules.ResearchStepOf(facts));
 
         // A slot already funding is no spending need.
-        var funding = facts with { Research = Known(facts.Research.Value! with { Knowledge = [new KnowledgeSlot { Category = "Basic", Current = new("Other") }] }) };
+        var funding = facts with { Research = facts.Research with { Knowledge = [new KnowledgeSlot { Category = "Basic", Current = new("Other") }] } };
         Assert.Equal(Satisfaction.Met, EconomyFamily.ResearchNeed(funding).Satisfaction);
     }
 
@@ -88,7 +88,7 @@ public sealed class EconomyFamilyTests
         var broken = EconomyRules.ResearchStepOf(Facts(["Smithing"], projects: Project("Smithing", ["Missing"])));
         Assert.Equal(("field_unavailable", "research_prerequisites", false), (broken.Hold!.Subject, broken.Hold.Detail, broken.BuildAhead));
 
-        Assert.Equal("research", EconomyRules.ResearchStepOf(new EconomyFacts { ResearchNeeds = ["Smithing"] }).Hold!.Detail);
+        Assert.Throws<RequiredFactException>(() => EconomyRules.ResearchStepOf(new EconomyFacts { ResearchNeeds = ["Smithing"] }));
     }
 
     [Fact]
@@ -177,7 +177,7 @@ public sealed class EconomyFamilyTests
     public void TheResourceNeedIsHeldOnTheResearchGateUntilTheWorksDemandStock()
     {
         var family = new EconomyFamily(false, true);
-        var facts = new EconomyFacts { Resource = Stock(25) with { ResearchGate = "Smithing" } };
+        var facts = new EconomyFacts { Research = new ResearchCensus(), Resource = Stock(25) with { ResearchGate = "Smithing" } };
         var ready = family.Derive(facts);
         Assert.Equal([EconomyFamily.Resource], ready.Select(n => n.Id));
         var held = Assert.Single(family.Propose(ready, facts));
@@ -235,28 +235,34 @@ public sealed class EconomyFamilyTests
     }
 
     [Fact]
+    public void ATradeReviewBeforeTheFoodPlanCannotCertifyEitherNeed()
+    {
+        var review = RoundsRules.TradeReviewOf(new RoundsFacts(), RoundsRules.DefaultRoundsPolicy(), new MedicalReserveReview(), new DerivedDemand());
+        Assert.IsType<TradeReview.AwaitingFoodPlan>(review);
+        Assert.Throws<RequiredFactException>(() => EconomyFamily.TradeNeed(review));
+        Assert.Throws<RequiredFactException>(() => EconomyFamily.CaravanNeed(review));
+    }
+
+    [Fact]
     public void TradeNeedsAreMetUnmetOrUnknownByTheReviewAndTheMissionRecord()
     {
         // The trade Need (#3316): the silver gap, unknown while unread.
-        Assert.Equal("silver gap", Assert.Throws<RequiredFactException>(() => EconomyFamily.TradeNeed(new TradeReview())).Fact);
-        Assert.Equal(Satisfaction.Met, EconomyFamily.TradeNeed(new TradeReview { SilverGap = Known(0.0) }).Satisfaction);
-        var gap = EconomyFamily.TradeNeed(new TradeReview { SilverGap = Known(120.0) });
+        Assert.Equal(Satisfaction.Met, EconomyFamily.TradeNeed(new TradeReview.Assessed(0.0, false)).Satisfaction);
+        var gap = EconomyFamily.TradeNeed(new TradeReview.Assessed(120.0, false));
         Assert.Equal((EconomyFamily.Trade, NeedTier.Development, Satisfaction.Unmet, 1.0), (gap.Id, gap.Tier, gap.Satisfaction, gap.Deficit));
 
         // The caravan Need: met once every caravan present is traded out.
-        Assert.Equal("caravan trade", Assert.Throws<RequiredFactException>(() => EconomyFamily.CaravanNeed(new TradeReview())).Fact);
-        Assert.Equal(Satisfaction.Met, EconomyFamily.CaravanNeed(new TradeReview { CaravanRecovered = Known(true) }).Satisfaction);
-        var caravan = EconomyFamily.CaravanNeed(new TradeReview { CaravanRecovered = Known(false) });
+        Assert.Equal(Satisfaction.Met, EconomyFamily.CaravanNeed(new TradeReview.Assessed(0, true)).Satisfaction);
+        var caravan = EconomyFamily.CaravanNeed(new TradeReview.Assessed(0, false));
         Assert.Equal((EconomyFamily.Caravan, NeedTier.Wellbeing, Satisfaction.Unmet), (caravan.Id, caravan.Tier, caravan.Satisfaction));
 
         // The trade-mission Need: a mission under way or a proposed trip; unknown while the record is unread.
-        Assert.Equal("trade missions", Assert.Throws<RequiredFactException>(() => EconomyFamily.TradeMissionNeed(new TradeMissionFacts { Proposed = true })).Fact);
-        Assert.Equal(Satisfaction.Met, EconomyFamily.TradeMissionNeed(new TradeMissionFacts { Active = Known(false) }).Satisfaction);
-        Assert.Equal(Satisfaction.Unmet, EconomyFamily.TradeMissionNeed(new TradeMissionFacts { Active = Known(true) }).Satisfaction);
-        Assert.Equal(Satisfaction.Unmet, EconomyFamily.TradeMissionNeed(new TradeMissionFacts { Active = Known(false), Proposed = true }).Satisfaction);
+        Assert.Equal(Satisfaction.Met, EconomyFamily.TradeMissionNeed(new TradeMissionFacts { Active = false }).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, EconomyFamily.TradeMissionNeed(new TradeMissionFacts { Active = true }).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, EconomyFamily.TradeMissionNeed(new TradeMissionFacts { Active = false, Proposed = true }).Satisfaction);
 
         // The toggles compose them: the trade Need alone, or the caravan and trade-mission Needs together.
-        var facts = new EconomyFacts { Trade = new TradeReview { SilverGap = Known(1.0), CaravanRecovered = Known(false) }, Missions = new TradeMissionFacts { Active = Known(false) } };
+        var facts = new EconomyFacts { Trade = new TradeReview.Assessed(1.0, false), Missions = new TradeMissionFacts { Active = false } };
         Assert.Equal([EconomyFamily.Trade], new EconomyFamily(false, false, trade: true).Derive(facts).Select(n => n.Id));
         Assert.Equal([EconomyFamily.Caravan, EconomyFamily.TradeMission], new EconomyFamily(false, false, caravan: true).Derive(facts).Select(n => n.Id));
         Assert.Empty(new EconomyFamily(false, false).Derive(facts));

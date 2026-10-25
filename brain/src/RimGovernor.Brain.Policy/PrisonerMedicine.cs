@@ -59,14 +59,14 @@ public static partial class PrisonerMedicineRules
     /// Adds PrisonerSurgeryHerbal herbal medicine to needs while a sale harvest or stock recovery (the ones
     /// that keep the medical/surgery Need unmet) is blocked only by the prisoner care limit.
     /// </summary>
-    public static IReadOnlyDictionary<Resource, long> PrisonerHerbalNeeds(IReadOnlyDictionary<Resource, long> needs, RoundsFacts f, Fact<bool> silverShort)
+    public static IReadOnlyDictionary<Resource, long> PrisonerHerbalNeeds(IReadOnlyDictionary<Resource, long> needs, RoundsFacts f, bool silverShort)
     {
         var stock = new Dictionary<Resource, long>();
         foreach (var row in f.Resources)
         {
             stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
         }
-        var sale = OrganHarvestRules.OrganNeeds([], [], RoundsRules.Positive(silverShort), stock, f.Recipes);
+        var sale = OrganHarvestRules.OrganNeeds([], [], silverShort, stock, f.Recipes);
         if (CareLimitedHarvest(f.Population, sale, [], null, f.Recipes) is null)
         {
             return needs;

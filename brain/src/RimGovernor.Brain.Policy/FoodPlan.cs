@@ -107,9 +107,9 @@ public sealed record FoodField
 
     public FieldPlan Plan { get; init; } = new();
 
-    public Fact<double> RemainingGrowDays { get; init; }
+    public double RemainingGrowDays { get; init; }
 
-    public Fact<double> WorkPerDay { get; init; }
+    public double WorkPerDay { get; init; }
 
     /// <summary>What the field's fallout and blight risks derive from.</summary>
     public FieldExposure Exposure { get; init; } = new();
@@ -123,18 +123,16 @@ public sealed record CropKitchen
     public double Cooks { get; init; }
 
     /// <summary>
-    /// Reads the best meal made of vegetables. It is Unknown while the benches are unread, and known "none"
-    /// (empty recipe, Known) is never confused with it: a kitchen with no usable bench or no vegetable meal
-    /// leaves the crop raw.
+    /// The best available vegetable recipe at a usable bench, or no recipe. A kitchen without one leaves the crop raw.
     /// </summary>
-    public Fact<CropCooking> Cooking()
+    public CropCooking? Cooking()
     {
         if (!FoodForecastRules.FoodNumber(Cooks))
         {
-            return Unknown<CropCooking>();
+            throw new RequiredFactException("crop kitchen cooks");
         }
         var usable = 0;
-        var best = new CropCooking();
+        CropCooking? best = null;
         foreach (var b in Benches)
         {
             if (!b.Usable)
@@ -154,14 +152,14 @@ public sealed record CropKitchen
                 {
                     continue;
                 }
-                if (best.Recipe.Length == 0 || eff > best.NutrientEfficiency
+                if (best is null || eff > best.NutrientEfficiency
                     || (eff == best.NutrientEfficiency && (work < best.WorkPerNutrition || (work == best.WorkPerNutrition && string.CompareOrdinal(r.Name, best.Recipe) < 0))))
                 {
                     best = new CropCooking { Recipe = r.Name, NutrientEfficiency = eff, WorkPerNutrition = work };
                 }
             }
         }
-        return Known(best with { CapacityTicks = Math.Min(usable, Cooks) *FoodPlanRules.CookTicksPerDay });
+        return best is null ? null : best with { CapacityTicks = Math.Min(usable, Cooks) *FoodPlanRules.CookTicksPerDay };
     }
 }
 
@@ -325,7 +323,8 @@ public static class FoodPlanRules
         var @out = new List<SupplyCandidate>();
         foreach (var f in fields)
         {
-            if (f.Plan.Crop.Edible.TryGetValue(out var edible) && !edible)
+            var edible = f.Plan.Crop.Edible;
+            if (!edible)
             {
                 continue;
             }
@@ -340,62 +339,35 @@ public static class FoodPlanRules
     /// The nutrition, work and rot cap of cells of crop, shared by a planted field and a candidate one. baseWork is the
     /// daily harvest work; an unread work, nutrition or lead is the candidate's unpriced or unscheduled state.
     /// </summary>
-    private static SupplyCandidate PriceCrop(string id, CropChoice crop, int cells, Fact<double> baseWork, Fact<CropCooking> cooking, Fact<double> lead, CandidateState state)
+    private static SupplyCandidate PriceCrop(string id, CropChoice crop, int cells, double baseWork, CropCooking? cook, double lead, CandidateState state)
     {
-        var ek = crop.Edible.TryGetValue(out _);
-        var yk = crop.HarvestNutrition.TryGetValue(out var yield);
-        var dk = crop.GrowDays.TryGetValue(out var days);
-        var nutrition = Unknown<double>();
+        if (!FieldCapacityRules.FieldPositive(crop.GrowDays) || !FoodForecastRules.FoodNumber(crop.HarvestNutrition) || cells < 0 || !FoodForecastRules.FoodNumber(baseWork))
+            throw new RequiredFactException("crop production price");
+        var raw = crop.HarvestNutrition * cells / crop.GrowDays;
+        var nutrition = raw;
         var work = baseWork;
-        var terms = new List<CandidateTerm>();
-        // Preserve malformed known numbers for PlanSupply's error boundary.
-        if ((yk && !FoodForecastRules.FoodNumber(yield)) || (dk && !FieldCapacityRules.FieldPositive(days)) || cells < 0)
+        var terms = new List<CandidateTerm> { new("raw_nutrition_per_day", raw), new("grow_days", crop.GrowDays) };
+        if (cook is not null)
         {
-            nutrition = Known(double.NaN);
-        }
-        else if (ek && yk && dk)
-        {
-            var raw = yield * cells / days;
-            nutrition = Known(raw);
-            terms.Add(new CandidateTerm("raw_nutrition_per_day", raw));
-            if (cooking.TryGetValue(out var cook) && cook.Recipe.Length != 0)
+            var cooked = raw * cook.NutrientEfficiency;
+            var cookWork = cooked * cook.WorkPerNutrition;
+            if (cookWork <= cook.CapacityTicks && (cooked > raw || (cooked == raw && !crop.RawPreferred)))
             {
-                var cooked = raw * cook.NutrientEfficiency;
-                var cookWork = cooked * cook.WorkPerNutrition;
-                var pk = crop.RawPreferred.TryGetValue(out var preferred);
-                if (cookWork <= cook.CapacityTicks && (cooked > raw || (cooked == raw && pk && !preferred)))
-                {
-                    nutrition = Known(cooked);
-                    terms.Add(new CandidateTerm("cooked_nutrition_per_day", cooked));
-                    terms.Add(new CandidateTerm("cook_work_per_day", cookWork));
-                    if (baseWork.TryGetValue(out var w))
-                    {
-                        work = Known(w + cookWork);
-                    }
-                }
+                nutrition = cooked;
+                work += cookWork;
+                terms.Add(new CandidateTerm("cooked_nutrition_per_day", cooked));
+                terms.Add(new CandidateTerm("cook_work_per_day", cookWork));
             }
         }
-        if (dk && FieldCapacityRules.FieldPositive(days))
+        YieldSupply supply = new YieldSupply.Steady(nutrition);
+        if (crop.Decay is { } decay)
         {
-            terms.Add(new CandidateTerm("grow_days", days));
+            if (!FieldCapacityRules.FieldPositive(decay.Days)) throw new RequiredFactException("harvest rot duration");
+            supply = new YieldSupply.Bounded(nutrition, (long)Math.Ceiling(nutrition * decay.Days));
+            terms.Add(new CandidateTerm("rot_days", decay.Days));
         }
-        YieldSupply supply = new YieldSupply.Unpriced();
-        if (nutrition.TryGetValue(out var n))
-        {
-            supply = new YieldSupply.Steady(n);
-            var rk = crop.RotDays.TryGetValue(out var rot);
-            var pk = crop.Perishable.TryGetValue(out var perishable);
-            if (FoodForecastRules.FoodNumber(n) && rk && pk && perishable && FieldCapacityRules.FieldPositive(rot))
-            {
-                supply = new YieldSupply.Bounded(n, (long)Math.Ceiling(n * rot));
-                terms.Add(new CandidateTerm("rot_days", rot));
-            }
-        }
-        CandidateWork labor = work.TryGetValue(out var perDay) ? new CandidateWork.PerDay(perDay) : new CandidateWork.Unpriced();
-        CandidateLead first = lead.TryGetValue(out var leadDays) ? new CandidateLead.Days(leadDays) : new CandidateLead.Unscheduled();
-        return CandidateRules.FoodCandidate(CandidateKind.Crop, id, supply, state, first, labor) with { Terms = EquatableArray.From(terms) };
+        return CandidateRules.FoodCandidate(CandidateKind.Crop, id, supply, state, new CandidateLead.Days(lead), new CandidateWork.PerDay(work)) with { Terms = EquatableArray.From(terms) };
     }
-
     /// <summary>The sowing work of one cell (a typical plant's sowWork); the zone itself costs no work.</summary>
     public const double FieldSowTicksPerCell = 170.0;
 
@@ -404,19 +376,19 @@ public static class FoodPlanRules
     /// across the calendar, so growth that outlasts the growing days left waits out the non-growing stretch. A
     /// crop is sown only while it grows, so the walk starts at the current temperature factor 1.
     /// </summary>
-    public static Fact<double> NewFieldLeadDays(Fact<double> growDays, Calendar calendar)
+    public static double NewFieldLeadDays(double growDays,Calendar calendar)
     {
-        var dk = growDays.TryGetValue(out var days);
+        var days = growDays;
         var c = calendar;
-        if (!dk || !c.Valid() || !FieldCapacityRules.FieldPositive(days))
+        if (!c.Valid() || !FieldCapacityRules.FieldPositive(days))
         {
-            return Unknown<double>();
+            throw new RequiredFactException("new field growth calendar");
         }
         if (days > c.GrowingDaysRemaining)
         {
             days += c.NonGrowingDays;
         }
-        return Known(Math.Min(CalendarRules.YearDays, days));
+        return Math.Min(CalendarRules.YearDays, days);
     }
 
     /// <summary>
@@ -427,7 +399,8 @@ public static class FoodPlanRules
     /// </summary>
     public static IReadOnlyList<SupplyCandidate> NewFieldChannels(FieldRequest r, CropKitchen kitchen)
     {
-        if (!r.Climate.SowingOutdoors().TryGetValue(out var sowing) || !sowing)
+        var sowing = r.Climate.SowingOutdoors();
+        if (!sowing)
         {
             return [];
         }
@@ -440,15 +413,11 @@ public static class FoodPlanRules
         var @out = new List<SupplyCandidate>();
         foreach (var v in viables)
         {
-            var work = Unknown<double>();
-            if (v.Crop.HarvestWork.TryGetValue(out var harvest))
-            {
-                work = Known(harvest * v.Needed / v.Days);
-            }
+            var work = v.Crop.HarvestWork * v.Needed / v.Days;
             var lead = CropRiskRules.WithCropPause(NewFieldLeadDays(v.Crop.GrowDays, r.Calendar), r.Conditions);
             var c = PriceCrop(NewFieldPrefix + v.Crop.Name, v.Crop, v.Needed, work, cooking, lead, CandidateState.Closed);
             // A field not yet sown lies under open sky and carries no blight.
-            var open = Known((long)v.Needed);
+            var open = (long)v.Needed;
             c = c with
             {
                 Risk = EquatableArray.From(CropRiskRules.CropRisks(new CropSeason { Calendar = r.Calendar, Conditions = r.Conditions }, lead, new FieldExposure { ZoneCells = open, UnroofedCells = open })),

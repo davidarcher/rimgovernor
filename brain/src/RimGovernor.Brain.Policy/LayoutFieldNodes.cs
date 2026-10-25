@@ -54,16 +54,14 @@ internal sealed partial class GraphBuilder
         }
         foreach (var crop in In.Crops)
         {
-            if (!crop.Edible.TryGetValue(out var edible) || !edible)
+            var edible = crop.Edible;
+            if (!edible)
             {
                 continue;
             }
-            if (!FieldCapacityRules.FieldCapacityTarget(colonists, crop, In.FoodReserveDays).TryGetValue(out var cells))
-            {
-                continue;
-            }
-            var hk = crop.Harvests.TryGetValue(out var harvests);
-            crop.FertilityMin.TryGetValue(out var fertility);
+            var cells = FieldCapacityRules.FieldCapacityTarget(colonists, crop, In.FoodReserveDays);
+            var harvests = crop.Harvests;
+            var fertility = crop.FertilityMin;
             var node = new FieldNode
             {
                 Id = LayoutFieldNodesRules.FieldId(crop.Name),
@@ -71,9 +69,9 @@ internal sealed partial class GraphBuilder
                 FertilityMin = Math.Max(fertility, LayoutZoningRules.ZoneFieldFertility),
             };
             output.Add(node);
-            var uk = crop.UnitsPerCell.TryGetValue(out var perCell);
-            var gk = crop.GrowDays.TryGetValue(out var days);
-            if (!hk || !uk || !gk || !FieldCapacityRules.FieldPositive(perCell) || !FieldCapacityRules.FieldPositive(days))
+            var perCell = crop.UnitsPerCell;
+            var days = crop.GrowDays;
+            if (!FieldCapacityRules.FieldPositive(perCell) || !FieldCapacityRules.FieldPositive(days))
             {
                 continue;
             }

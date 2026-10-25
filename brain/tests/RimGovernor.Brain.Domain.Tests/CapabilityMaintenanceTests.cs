@@ -61,7 +61,7 @@ public sealed class CapabilityMaintenanceTests
         var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, skill, "target/" + i, new(i + 1, 1),
             melee ? "RimGovernor_Spar" : "RimGovernor_TrainRange", melee ? "RimGovernor_Spar" : "RimGovernor_TrainShooting",
             0d, 100d, Learning()) { Company = [], CallbackIntervalTicks = 10d, RawXpPerCallback = 10d, PreparationTicks = 0, JoyGainPerTick = 0, Thoughts = [], Equipment = [], Findings = [] }).ToArray();
-        facts = facts with { Hostiles = Known(0L), CriticalPatients = 0L, Ideology = new IdeologyMode.Installed(ideology), ForecastObserved = facts.ForecastObserved with
+        facts = facts with { Hostiles = HostileCensus.Of(0L), CriticalPatients = 0L, Ideology = new IdeologyMode.Installed(ideology), ForecastObserved = facts.ForecastObserved with
         {
             WorkPawns = new WorkPawnsRead(EquatableArray.From(roster)),
             Needs = facts.ForecastObserved.Needs! with { Pawns = EquatableArray.From(facts.ForecastObserved.Needs!.Pawns.Select(p => p with
@@ -87,7 +87,7 @@ public sealed class CapabilityMaintenanceTests
         Assert.Equal(batch.Tasks[0].Step.Practice, stored.Tasks[0].Step.Practice);
         Assert.Equal(batch.Orders[0].Steps[0].Practice, stored.Orders[0].Steps[0].Practice);
         if (melee) Assert.Throws<DomainException>(() => (batch with { Tasks = [batch.Tasks[0]] }).Validate());
-        var emergency = facts with { Hostiles = Known(1L) };
+        var emergency = facts with { Hostiles = HostileCensus.Of(1L) };
         var postponed = ForecastCoupledCandidates.GenerateCoupledActivities(emergency, 300)!;
         Assert.Empty(ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = postponed.Context }, postponed).Selection.Selected);
         var absent = ConstructionFixtures.NoTasks();

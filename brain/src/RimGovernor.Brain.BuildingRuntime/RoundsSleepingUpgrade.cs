@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 partial class RoundsSleepingUpkeepPlanner
 {
     private static bool DefinitionBuildable(Observation.ColonyProjection facts, string def) =>
-        facts.DefinitionAvailable(def).TryGetValue(out var v) && v;
+        facts.DefinitionAvailable(def);
 
     /// <summary>The next room quality upgrade: one template piece for an owned bedroom below its target.</summary>
     internal static (Pol.RoomUpgrade Upgrade, bool Due) RoomUpgradeOf(Observation.ColonyProjection facts)
@@ -97,9 +97,9 @@ partial class RoundsSleepingUpkeepPlanner
         {
             return (new Pol.RoomUpgrade(), false);
         }
-        var sizeKnown = d.Size.TryGetValue(out var size);
-        var availableKnown = d.Available.TryGetValue(out var available);
-        if (!sizeKnown || !availableKnown || size.Width < 1 || size.Height < 1)
+        var size = d.Size;
+        var available = d.Available;
+        if (size.Width < 1 || size.Height < 1)
         {
             return (new Pol.RoomUpgrade(), false);
         }
@@ -121,11 +121,11 @@ partial class RoundsSleepingUpkeepPlanner
         facts.TechTier.TryGetValue(out var tier);
         var definitions = new Dictionary<string, Pol.FloorDefinition>(StringComparer.Ordinal);
         var floors = new Pol.FlooringFacts { Definitions = definitions, Stock = facts.Resources };
-        foreach (var d in facts.Definitions)
+        foreach (var d in facts.Definitions.Where(d => d.Floor is not null))
         {
-            definitions[d.Name] = new Pol.FloorDefinition { Available = d.Available, Terrain = d.Terrain, Cleanliness = d.Cleanliness, Beauty = d.Beauty, Flammability = d.Flammability, PathCost = d.PathCost, Costs = d.Costs, WorkToBuild = d.WorkToBuild };
+            definitions[d.Name] = new Pol.FloorDefinition { Available = d.Available, Terrain = d.Terrain, Cleanliness = (d.Floor ?? throw new RequiredFactException("planning Floor")).Cleanliness, Beauty = (d.Floor ?? throw new RequiredFactException("planning Floor")).Beauty, Flammability = (d.Floor ?? throw new RequiredFactException("planning Floor")).Flammability, PathCost = d.PathCost, Costs = (d.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).Costs, WorkToBuild = (d.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).WorkToBuild };
         }
-        return RoomQualityRules.NextBeautyUpgrade(obs!, UpgradeTargetsOf(facts, WithRequirementTargets(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness))), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def), facts.Facts.Upkeep.Flooring ?? throw new RequiredFactException("flooring census"), floors);
+        return RoomQualityRules.NextBeautyUpgrade(obs!, UpgradeTargetsOf(facts, WithRequirementTargets(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness))), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def), facts.Facts.Upkeep.Flooring, floors);
     }
 }
 

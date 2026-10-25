@@ -141,9 +141,9 @@ public sealed class DeathrestCreditTests
     // against the catalog's deathrest buildings (ChildRoomsRules.DeathrestFurniture, as RoundsSleepingUpkeepPlanner.DeathrestFurnitureOf).
     private static readonly IReadOnlyList<FurnitureDefinition> Catalog =
     [
-        new() { Name = "DeathrestCasket", Available = Known(true), Size = Known(new P.Bounds(1, 2)), Roles = [FurnitureRole.DeathrestCasket.Value] },
-        new() { Name = "DeathrestAccelerator", Available = Known(true), Size = Known(new P.Bounds(1, 2)), Roles = [FurnitureRole.DeathrestAccelerator.Value] },
-        new() { Name = "HemogenAmplifier", Available = Known(true), Size = Known(new P.Bounds(1, 2)), Roles = [FurnitureRole.DeathrestAccelerator.Value] },
+        new() { Name = "DeathrestCasket", Available = true, Size = new P.Bounds(1, 2), Roles = [FurnitureRole.DeathrestCasket.Value] },
+        new() { Name = "DeathrestAccelerator", Available = true, Size = new P.Bounds(1, 2), Roles = [FurnitureRole.DeathrestAccelerator.Value] },
+        new() { Name = "HemogenAmplifier", Available = true, Size = new P.Bounds(1, 2), Roles = [FurnitureRole.DeathrestAccelerator.Value] },
     ];
 
     private static WorkPawn Worker(P.PawnDeathrest? deathrest) => PawnFixtures.Worker("pawn") with
@@ -211,19 +211,19 @@ public sealed class DeathrestCreditTests
         // The production path (#3822): the pawn row's wire Biotech block lifted by PawnBiotech.Of, the needs read's deathrest
         // defs on ForecastObserved and the catalog's role rows, through DeathrestFurnitureOf as the round sets the credit's context.
         Obs.PlanningDefinition Row(string name, FurnitureRole role) =>
-            new() { Name = name, Available = Known(true), Size = Known(new P.Bounds(1, 2)), RoomRoles = [role.Value] };
+            new() { Name = name, Available = true, Size = new P.Bounds(1, 2), RoomRoles = [role.Value] };
         var worker = PawnFixtures.Worker("pawn") with { Biotech = new PawnBiotechStatus.Active(RimGovernor.Brain.Policy.PawnBiotech.Of(new O.PawnBiotech { DevelopmentalStage = RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Adult, Genes = [], Mechanitor = null, Mech = null, Deathrest = new O.PawnDeathrest { Deathresting = false, Capacity = 1 } }, new GeneEffects(), new Dictionary<WorkType, int>())) };
         var colony = ColonyFactsCoreTests.Projection() with
         {
             WorkPawns = new WorkPawnsRead(EquatableArray.From<WorkPawn>([worker])),
-            Facts = new() { ForecastObserved = new() { Needs = NeedsFixtures.Empty with { Pawns = [Deathrester()], Deathrest = Defs } } },
+            Facts = new() { Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new(), Flooring = new(), Lighting = new() { Census = LightingTests.NoLighting, DiesToLight = [], Lamps = [] } }, ForecastObserved = new() { Needs = NeedsFixtures.Empty with { Pawns = [Deathrester()], Deathrest = Defs } } },
             Definitions = [Row("DeathrestCasket", FurnitureRole.DeathrestCasket), Row("DeathrestAccelerator", FurnitureRole.DeathrestAccelerator), Row("HemogenAmplifier", FurnitureRole.DeathrestAccelerator)],
         };
         var furniture = RoundsSleepingUpkeepPlanner.DeathrestFurnitureOf(colony);
         Assert.Equal([new DeathrestPiece("DeathrestCasket", 1), new DeathrestPiece("DeathrestAccelerator", 1)], furniture.Items);
         Assert.Equal(-(Share(1) - Share(1.32)) * Horizon, Assert.Single(Rows(Context(Deathrester(), furniture), Serving(0))).Value, 12);
         // Without Biotech no pawn row carries a block and the needs read no defs: no chamber is owed.
-        Assert.Empty(RoundsSleepingUpkeepPlanner.DeathrestFurnitureOf(colony with { WorkPawns = new WorkPawnsRead(EquatableArray.From<WorkPawn>([PawnFixtures.Worker("pawn")])), Facts = new() }));
+        Assert.Empty(RoundsSleepingUpkeepPlanner.DeathrestFurnitureOf(colony with { WorkPawns = new WorkPawnsRead(EquatableArray.From<WorkPawn>([PawnFixtures.Worker("pawn")])), Facts = new() { Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new(), Flooring = new(), Lighting = new() { Census = LightingTests.NoLighting, DiesToLight = [], Lamps = [] } } } }));
     }
 
     [Fact]

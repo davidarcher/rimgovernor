@@ -82,15 +82,16 @@ public static partial class SiteRules
         SiteTypeRequest r, SiteTypeWeights w, ControlledEnvironment env, ViableCrop v, SiteTypeCandidate c,
         Infrastructure basin, double basinDraw, double fertility, double unit)
     {
-        var lk = r.Lamp.TryGetValue(out var lamp);
-        var dk = lamp.PowerW.TryGetValue(out var lampDraw);
-        if (!lk || !RoundsRules.Positive(lamp.Available) || !dk || !FoodForecastRules.FoodNumber(lampDraw) || lamp.Name == "")
+        var lamp = r.Lamp;
+        if (lamp is null) return c with { Reason = "sun lamp not offered" };
+        var lampDraw = lamp.PowerW;
+        if (!lamp.Available || !FoodForecastRules.FoodNumber(lampDraw) || lamp.Name == "")
         {
             return c with { Reason = "sun lamp unavailable" };
         }
         var site = r.Field.Site;
         // Indoor soil the crop grows in belongs to the greenhouse kinds; the unit is the soil-free bootstrap.
-        v.Crop.FertilityMin.TryGetValue(out var minimum);
+        var minimum = v.Crop.FertilityMin;
         foreach (var s in site.Cells)
         {
             if (CropChoiceRules.FreeCropSoil(SiteUnroofed(s), minimum, null).Ok && s.Roofed && s.Indoors)
@@ -160,14 +161,15 @@ public static partial class SiteRules
                 cold = true;
             }
         }
-        Infrastructure heater = new();
+        Infrastructure? heater = null;
         var heaterDraw = 0.0;
         Cell heaterAt = default;
         if (cold)
         {
-            var hk = r.Heater.TryGetValue(out heater);
-            var hdk = heater.PowerW.TryGetValue(out heaterDraw);
-            if (!hk || !RoundsRules.Positive(heater.Available) || !hdk || !FoodForecastRules.FoodNumber(heaterDraw) || heater.Name == "")
+            heater = r.Heater;
+            if (heater is null) return c with { Reason = "heater not offered" };
+            heaterDraw = heater.PowerW;
+            if (!heater.Available || !FoodForecastRules.FoodNumber(heaterDraw) || heater!.Name == "")
             {
                 return c with { Reason = "room too cold and no heater available" };
             }
@@ -203,7 +205,7 @@ public static partial class SiteRules
             var need = new Dictionary<Resource, long>();
             void Add(Infrastructure infra, long amount)
             {
-                infra.Costs.TryGetValue(out var costs);
+                var costs = infra.Costs;
                 foreach (var a in costs)
                 {
                     need[a.Resource] = need.GetValueOrDefault(a.Resource) + (a.Count * amount);
@@ -212,7 +214,7 @@ public static partial class SiteRules
             Add(lamp, 1);
             if (cold)
             {
-                Add(heater, 1);
+                Add(heater!, 1);
             }
             Add(basin, count);
             return need;
@@ -265,13 +267,13 @@ public static partial class SiteRules
         var buildings = new List<SiteBuilding> { new() { Definition = lamp.Name, Cell = center, Rotation = Rotation.North } };
         if (cold)
         {
-            buildings.Add(new SiteBuilding { Definition = heater.Name, Cell = heaterAt, Rotation = Rotation.North });
+            buildings.Add(new SiteBuilding { Definition = heater!.Name, Cell = heaterAt, Rotation = Rotation.North });
         }
         buildings.AddRange(basins.Take(n));
         var charges = new List<(Infrastructure Infra, int Count)> { (lamp, 1), (basin, n) };
         if (cold)
         {
-            charges.Add((heater, 1));
+            charges.Add((heater!, 1));
         }
         var build = 0.0;
         foreach (var (infra, count) in charges)

@@ -86,6 +86,8 @@ namespace HomeBridge.BridgeTools
                     return new Obs.ZoneState.Growing
                     {
                         Id = id, Label = label, Bounds = bounds, Crop = Id(crop.defName),
+                        ZoneCells = (uint)visible.Count,
+                        UnroofedCells = (uint)visible.Count(c => !c.Roofed(map)),
                         UsableCells = (uint)visible.Count(c => map.fertilityGrid.FertilityAt(c) >= crop.plant.fertilityMin),
                         PlantedCells = (uint)plants.Count,
                         FertilePlantedCells = (uint)plants.Count(p => p.GrowthRateFactor_Fertility > 0),

@@ -48,7 +48,7 @@ public sealed partial class Rounder
         {
             var emergency = EmergencySnapshot.New(snapshot, tick, read.Emergency);
             var (hostiles, patients) = EmergencyNeedsRules.EmergencyNeeds(emergency, snapshot, tick);
-            calm = RitualRules.RitualCalm(hostiles, patients).TryGetValue(out var safe) ? safe : throw new RequiredFactException("colony calm");
+            calm = RitualRules.RitualCalm(hostiles, patients);
         }
         catch (DomainException)
         {

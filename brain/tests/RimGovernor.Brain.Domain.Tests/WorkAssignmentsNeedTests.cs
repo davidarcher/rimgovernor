@@ -92,7 +92,7 @@ public sealed class WorkAssignmentsNeedTests
         var ct = TestContext.Current.CancellationToken;
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-work-coupled-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        var facts = WorkRules.ReviewWorkResources(WorkResourceTestFacts.Create("a", "b"), Known<EquatableArray<ProductionBatch>>([]), new([]));
+        var facts = WorkRules.ReviewWorkResources(WorkResourceTestFacts.Create("a", "b"), new ProductionBatchCensus.Read([]), new([]));
         journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         var coupled = PlanIds.MintPlanId();
         var method = "coupled-" + coupled.Value;

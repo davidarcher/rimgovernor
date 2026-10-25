@@ -240,14 +240,14 @@ public sealed class NeedBuildingTests
         facts = facts with
         {
             Resources = [new(new("WoodLog"), 1000)],
-            Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = Known(1.0),
+            Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = 1.0,
             WorkAdmission = facts.WorkAdmission with
             {
-                Buildings = Known<EquatableArray<WorkBuildingCost>>([
-                    new(ContainmentCellRules.ShellWallDefinition, "WoodLog", Known<EquatableArray<Amount>>([new(new("WoodLog"), 5)])) { Size = Known(new Cell(1, 1)) },
-                    new(ContainmentCellRules.ShellDoorDefinition, "WoodLog", Known<EquatableArray<Amount>>([new(new("WoodLog"), 25)])) { Size = Known(new Cell(1, 1)) },
-                    new("Cooler", "", Known<EquatableArray<Amount>>([new(new("WoodLog"), 10)])) { Size = Known(new Cell(1, 1)) },
-                    new("SimpleResearchBench", "WoodLog", Known<EquatableArray<Amount>>([new(new("WoodLog"), 75)])) { Size = Known(new Cell(1, 1)) }]),
+                Buildings = [
+                    new(ContainmentCellRules.ShellWallDefinition, "WoodLog", [new(new("WoodLog"), 5)]) { Size = new Cell(1, 1) },
+                    new(ContainmentCellRules.ShellDoorDefinition, "WoodLog", [new(new("WoodLog"), 25)]) { Size = new Cell(1, 1) },
+                    new("Cooler", "", [new(new("WoodLog"), 10)]) { Size = new Cell(1, 1) },
+                    new("SimpleResearchBench", "WoodLog", [new(new("WoodLog"), 75)]) { Size = new Cell(1, 1) }],
             },
         };
         journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
@@ -271,8 +271,8 @@ public sealed class NeedBuildingTests
                     Bounds = new(50, 50),
                     Definitions =
                     [
-                        new PlanningDefinition { Name = ContainmentCellRules.ShellWallDefinition, Available = Known(true) },
-                        new PlanningDefinition { Name = ContainmentCellRules.ShellDoorDefinition, Available = Known(true) },
+                        new PlanningDefinition { Name = ContainmentCellRules.ShellWallDefinition, Available = true},
+                        new PlanningDefinition { Name = ContainmentCellRules.ShellDoorDefinition, Available = true},
                     ],
                 },
             },

@@ -1103,6 +1103,8 @@ work-time estimation, construction and delivery adapters, and observed replannin
 
 ## Food candidates from acquisition and recipe observations
 
+Acquisition uses required numeric deficits and pending yields. Pending and undispatched work suppress duplicate selection without counting as delivered food; withdrawing a stalled source removes its pending credit. Residual supply labor charges each retained food channel once and refuses an unpriced commitment. Human-butcher candidates require their matching pawn row, traits, ideoligion and work eligibility. Terminal stock evidence distinguishes an eligible quantity (including zero) from a lot with no observed food use. Animal feed is calculated directly from the complete food census and eligible herd, with an empty herd yielding zero shortfall. Missing kept-animal consumption or race growth inputs refuse that calculation. Seasonal hay demand uses the same required harvest-gap value as food reserves. The food family checks reserve and foothold runway, butcher facilities and campfire retirement as plain predicates; absent runway or butcher build definitions refuse the calculation. Caravan and quest packing read the same complete food census.
+
 Normal Rounds generates its food alternatives through `FoodMethodCandidates.GenerateCoupled` (the
 [live policy stages](#live-activity-policy-stages)). The supplied-input generator `GenerateFoodActivities` was deleted
 in #3894: nothing outside its tests called it. A coupled harvest or cook candidate whose product has no read shelf

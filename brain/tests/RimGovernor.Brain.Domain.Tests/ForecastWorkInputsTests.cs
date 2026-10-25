@@ -118,17 +118,20 @@ public sealed class ForecastWorkInputsTests
     }
 
     [Fact]
-    public void AdmissionEvidenceCannotTurnAnUnreadClockOrUntimedJobIntoFreeWork()
+    public void AdmissionEvidenceCannotTurnAnAbsentPawnOrUntimedJobIntoFreeWork()
     {
-        var observed = new WorkPawnAvailability("cook-builder", Known(true), Known(true), false, Known(""))
-        { LocalHour = Known(12d), Schedule = Known(Pawn().Schedule) };
+        var observed = new WorkPawnAvailability("cook-builder", true, true, false, "")
+        { LocalHour = 12d, Schedule = Pawn().Schedule };
         var protection = new ForecastProtection.Read([]);
         var free = ForecastCapacity.InputOf("cook-builder", observed, 100, protection);
         Assert.Equal(ForecastPawnCapacityState.Available, free.Pawn.State);
         Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(free).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
-        Assert.Equal(ForecastPawnCapacityState.Unread, ForecastCapacity.InputOf("cook-builder", observed with { LocalHour = default }, 100, protection).Pawn.State);
+        var midnight = ForecastCapacity.InputOf("cook-builder", observed with { LocalHour = 0 }, 100, protection);
+        Assert.Equal(ForecastPawnCapacityState.Available, midnight.Pawn.State);
+        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(midnight).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
+        Assert.Throws<DomainException>(() => ForecastCapacity.ForecastPawnCapacityOf(ForecastCapacity.InputOf("cook-builder", observed with { LocalHour = double.NaN }, 100, protection)));
         Assert.Equal(ForecastPawnCapacityState.Unread, ForecastCapacity.InputOf("cook-builder", null, 100, protection).Pawn.State);
-        var unavailable = ForecastCapacity.InputOf("cook-builder", observed with { Available = Known(false), LocalHour = default }, 100, protection);
+        var unavailable = ForecastCapacity.InputOf("cook-builder", observed with { Available = false, LocalHour = default }, 100, protection);
         Assert.Equal(ForecastPawnCapacityState.Unavailable, unavailable.Pawn.State);
         Assert.Empty(ForecastCapacity.ForecastPawnCapacityOf(unavailable).Capacity.Windows.ReadWindows());
         var busy = ForecastCapacity.InputOf("cook-builder", observed with { Occupied = true }, 100, protection);
@@ -142,11 +145,11 @@ public sealed class ForecastWorkInputsTests
         var claim = new ConstructionClaim { Plan = new PlanId("method"), Action = new ActionId("action"), Building = building };
         return new()
         {
-            Tick = new Tick(100), Gear = RimGovernor.Brain.Domain.Fact.Known(ColonyModelFixtures.NoGear()), CurrentConstruction = CurrentConstruction.Empty with { Sites = EquatableArray.From(new[] { site }) },
+            Tick = new Tick(100), Gear = ColonyModelFixtures.NoGear(), CurrentConstruction = CurrentConstruction.Empty with { Sites = EquatableArray.From(new[] { site }) },
             ConstructionClaims = EquatableArray.From(new[] { claim, claim }),
             ForecastObserved = new() { WorkPawns = new WorkPawnsRead(EquatableArray.From(new[] { PawnFixtures.Worker("cook-builder") with { Schedule = Pawn().Schedule } })) },
             BillReservations = [],
-            ProductionPromises = Known(default(EquatableArray<ForecastCommitment>)),
+            ProductionPromises = new ProductionPromiseSet.Assessed([]),
             Resources = default(EquatableArray<Amount>),
         };
     }

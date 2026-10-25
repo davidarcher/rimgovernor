@@ -15,6 +15,7 @@ internal static class ZoneFixtures
         Label = id,
         Bounds = Origin,
         Crop = crop,
+        ZoneCells = usableCells, UnroofedCells = usableCells,
         UsableCells = usableCells,
         PlantedCells = 0,
         FertilePlantedCells = 0,

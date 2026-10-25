@@ -23,13 +23,13 @@ public sealed record MealCook
 public sealed record MealTierRequest
 {
     public FoodPlan? Plan { get; init; }
-    public Fact<double> RawRunwayDays { get; init; }
+    public FoodRunway RawRunwayDays { get; init; } = new FoodRunway.NoEaters();
     public double MinDays { get; init; }
     public double TargetDays { get; init; }
-    public Fact<EquatableArray<MealCook>> Cooks { get; init; }
-    public Fact<bool> HighExpectations { get; init; }
+    public EquatableArray<MealCook> Cooks { get; init; }
+    public bool HighExpectations { get; init; }
     public MealTier Previous { get; init; }
-    public Fact<Infrastructure> Paste { get; init; }
+    public Infrastructure? Paste { get; init; }
     public ControlledEnvironment Environment { get; init; }
 }
 
@@ -70,8 +70,16 @@ public static partial class MealRules
     public static MealTierReview ReviewMealTier(MealTierRequest r, EquatableArray<ProductionBench> rows)
     {
         var plan = r.Plan;
-        var dk = r.RawRunwayDays.TryGetValue(out var days);
-        if (plan is null || !dk || !FoodForecastRules.FoodNumber(days) || !FoodForecastRules.FoodNumber(r.MinDays) || !FieldCapacityRules.FieldPositive(r.TargetDays) || r.TargetDays > 60 || r.MinDays >= r.TargetDays || !ValidMealTier(r.Previous))
+        if (r.RawRunwayDays is FoodRunway.NoEaters)
+        {
+            return new MealTierReview();
+        }
+        if (r.RawRunwayDays is not FoodRunway.Days runway)
+        {
+            throw new MealTierFactsException();
+        }
+        var days = runway.Value;
+        if (plan is null || !FoodForecastRules.FoodNumber(days) || !FoodForecastRules.FoodNumber(r.MinDays) || !FieldCapacityRules.FieldPositive(r.TargetDays) || r.TargetDays > 60 || r.MinDays >= r.TargetDays || !ValidMealTier(r.Previous))
         {
             throw new MealTierFactsException();
         }
@@ -80,7 +88,7 @@ public static partial class MealRules
         {
             throw new MealTierFactsException();
         }
-        var ck = r.Cooks.TryGetValue(out var cooks);
+        var cooks = r.Cooks;
 
         var skill = -1;
         var seen = new HashSet<PawnId>();
@@ -101,7 +109,7 @@ public static partial class MealRules
         {
             Tier = MealTier.Simple,
         };
-        var constrained = ck && cooks.Count == 0;
+        var constrained = cooks.Count == 0;
         var pasteNeeded = constrained || days < r.MinDays || (r.Previous == MealTier.Paste && days < r.MinDays + margin);
         if (pasteNeeded && sources!.Count > 0)
         {
@@ -115,17 +123,14 @@ public static partial class MealRules
                 };
             }
         }
-        if (!ck)
-        {
-            throw new MealTierFactsException();
-        }
+
         var advanced = days >= r.TargetDays + margin || ((r.Previous == MealTier.Fine || r.Previous == MealTier.Lavish) && days >= r.TargetDays);
         var maxTier = MealTier.Simple;
         if (advanced && protein)
         {
             maxTier = MealTier.Fine;
             var lavishSurplus = days >= r.TargetDays + margin || (r.Previous == MealTier.Lavish && days > r.TargetDays);
-            if (RoundsRules.Positive(r.HighExpectations) && lavishSurplus)
+            if (r.HighExpectations && lavishSurplus)
             {
                 maxTier = MealTier.Lavish;
             }
@@ -207,8 +212,8 @@ public static partial class MealRules
     }
 
     /// <summary>
-    /// A proposed Open channel is not yet an ingredient source. Hold preserves an observed-open source; Close and
-    /// Unknown never satisfy a recipe slot.
+    /// A proposed Open channel is not yet an ingredient source. Hold preserves an observed-open source; closed channels
+    /// never satisfy a recipe slot.
     /// </summary>
     internal static (HashSet<FoodIngredientClass>? Sources, bool Protein, bool Ok) MealIngredientSources(FoodPlan p)
     {
@@ -328,9 +333,11 @@ public static partial class MealRules
 
     private static (string Network, bool Known) MealPasteNetwork(MealTierRequest r)
     {
-        var ik = r.Paste.TryGetValue(out var infra);
+        var infra = r.Paste;
+        if (infra is null) return ("", false);
         var env = r.Environment;
-        if (!ik || !infra!.PowerW.TryGetValue(out var watts) || !FoodForecastRules.FoodId(infra.Name) || !RoundsRules.Positive(infra.Available) || !FieldCapacityRules.FieldPositive(watts))
+        var watts = infra!.PowerW;
+        if (!FoodForecastRules.FoodId(infra.Name) || !infra.Available || !FieldCapacityRules.FieldPositive(watts))
         {
             return ("", false);
         }

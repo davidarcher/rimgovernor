@@ -126,7 +126,7 @@ public static partial class WorkRules
             Capacity = sized.Capacity,
             Stock = sized.Stock,
             Active = true,
-            Ingredients = Unknown<bool>(),
+            Ingredients = ThroughputIngredients.NoRecipe,
         };
         var carrying = new List<string>();
         foreach (var b in input.Benches)
@@ -152,13 +152,13 @@ public static partial class WorkRules
         return o;
     }
 
-    // Known false when some ingredient slot has every alternative at or below IngredientBoundStock, known true when
-    // every slot has one above it, unknown when the bench lists no such recipe.
-    private static Fact<bool> IngredientsStocked(GearRecipe? r, IReadOnlyDictionary<Resource, long> have)
+    // Missing when some ingredient slot has every alternative at or below IngredientBoundStock, stocked when
+    // every slot has one above it, including recipes taking none; NoRecipe when no bench offers the recipe.
+    private static ThroughputIngredients IngredientsStocked(GearRecipe? r, IReadOnlyDictionary<Resource, long> have)
     {
-        if (r is null || r.Ingredients.Count == 0)
+        if (r is null)
         {
-            return Unknown<bool>();
+            return ThroughputIngredients.NoRecipe;
         }
         foreach (var alternatives in r.Ingredients)
         {
@@ -172,9 +172,9 @@ public static partial class WorkRules
             }
             if (!present)
             {
-                return Known(false);
+                return ThroughputIngredients.Missing;
             }
         }
-        return Known(true);
+        return ThroughputIngredients.Stocked;
     }
 }

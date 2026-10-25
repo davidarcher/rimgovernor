@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 public static partial class RoundsRules
 {
-    internal static Fact<bool> NotFact(Fact<bool> f) => Measured(f, v => !v);
+
 
     /// <summary>
     /// The admin/work-assignments Need's measure (#3304): owed while a coupled activity runs or is selected or deferred,
@@ -30,18 +30,21 @@ public static partial class RoundsRules
     /// The review's trade facts the economy family's trade and caravan Needs read (#3316): the silver gap a
     /// purchase need leaves open, and whether the caravans present leave nothing worth trading.
     /// </summary>
-    internal static TradeReview TradeReviewOf(RoundsFacts f, RoundsPolicy p, MedicalReserveReview medicine, DerivedDemand demand) => new()
+    internal static TradeReview TradeReviewOf(RoundsFacts f, RoundsPolicy p, MedicalReserveReview medicine, DerivedDemand demand)
     {
-        SilverGap = SilverGapRules.ReviewSilverGap(f, p, medicine, demand),
-        CaravanRecovered = CaravanRecoveredOf(f, p, medicine, demand),
-    };
+        if (f.FoodPlan is null)
+            return new TradeReview.AwaitingFoodPlan();
+        return new TradeReview.Assessed(
+            SilverGapRules.ReviewSilverGap(f, p, medicine, demand),
+            CaravanRecoveredOf(f, p, medicine, demand));
+    }
 
     /// <summary>
     /// Whether a caravan visit leaves nothing to trade: known true when no tradeable caravan is present or nothing
     /// is worth trading, unknown while the trader census or the need is unread. Restore parts a bench could make
     /// do not count.
     /// </summary>
-    internal static Fact<bool> CaravanRecoveredOf(RoundsFacts f, RoundsPolicy p, MedicalReserveReview medicine, DerivedDemand demand)
+    internal static bool CaravanRecoveredOf(RoundsFacts f, RoundsPolicy p, MedicalReserveReview medicine, DerivedDemand demand)
     {
         var tradeNeed = HerdSaleRules.AnimalSaleNeed(
             f.Items,
@@ -67,7 +70,7 @@ public static partial class RoundsRules
             f.Silver(),
             f.Colonists);
         tradeNeed = TradePolicyRules.FavorGoldNeed(tradeNeed, f.Traders, f.Resources, demand.Needs, TradePolicyRules.RoundsTradeFloors(p, null), demand.Retained);
-        var shortage = SilverGapRules.RoundsSilverShort(f, p, medicine.Active).TryGetValue(out var silverShort) && silverShort;
+        var shortage = SilverGapRules.RoundsSilverShort(f, p, medicine.Active);
         tradeNeed = TradePolicyRules.FavorPrisonerNeed(tradeNeed, f.Traders, f.SurplusPrisoners(shortage));
         return TradePolicyRules.TradeRecovered(f.Traders, f.UnpricedTraders, TradePolicyRules.PopulationTradeNeed(tradeNeed, PopulationRules.JoinerCapacity(f.JoinerCapacity())));
     }

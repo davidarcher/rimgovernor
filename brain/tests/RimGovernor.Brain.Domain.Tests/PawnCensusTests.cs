@@ -53,17 +53,32 @@ public sealed class PawnCensusTests
     public void CommonColonyDecoderBuildsMedicalMoodWorkAndArmedSectionsFromTheActualTable(bool needsTend, long critical)
     {
         var silver = new Verse.ThingDef { defName = "Silver" };
+        var human = new Verse.ThingDef { defName = "Human", race = new Verse.RaceProperties { intelligence = Verse.Intelligence.Humanlike, lifeStageAges = [new() { minAge = 0 }] } };
         var stats = new RimGovernor.Brain.Bridge.DefStatTable(
-            new Dictionary<(Verse.BuildableDef, Verse.ThingDef?), RimGovernor.Brain.Bridge.DefStatTable.Cost> { [(silver, null)] = new([], null) },
+            new Dictionary<(Verse.BuildableDef, Verse.ThingDef?), RimGovernor.Brain.Bridge.DefStatTable.Cost> { [(silver, null)] = new([], null), [(human, null)] = new([], null) },
             new Dictionary<(Verse.BuildableDef, Verse.ThingDef?, RimGovernor.Brain.Bridge.CatalogStat), RimGovernor.Brain.Bridge.DefStatTable.Value>(),
             new Dictionary<Verse.BuildableDef, IReadOnlyList<string>>(),
             new HashSet<RimGovernor.Brain.Bridge.CatalogStat>(RimGovernor.Brain.Bridge.CatalogStats.All));
         var catalog = new RimGovernor.Brain.Bridge.DefinitionCatalog([
             silver, new Verse.TerrainDef { defName = "Soil" },
+            human,
+            new Verse.GeneDef { defName = "Robust" },
+            new Verse.MechWorkModeDef { defName = nameof(RimWorld.MechWorkModeDefOf.Work) },
+            new Verse.MechWorkModeDef { defName = nameof(RimWorld.MechWorkModeDefOf.Escort) },
+            new Verse.MechWorkModeDef { defName = nameof(RimWorld.MechWorkModeDefOf.Recharge) },
             new Verse.HediffDef { defName = "BloodLoss", stages = [new Verse.HediffStage { label = "moderate", minSeverity = .5f }] }],
             stats, new RimGovernor.Brain.Bridge.CatalogDerived("Silver", "Wort", 10f));
         var row = EmergencyFixtures.Placed("pawn");
-        row = row with { Health = row.Health with { NeedsTend = needsTend } };
+        row = row with
+        {
+            Health = row.Health with { NeedsTend = needsTend },
+            Biotech = new O.PawnBiotechState.Active(new O.PawnBiotech
+            {
+                DevelopmentalStage = RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Adult,
+                Genes = [], Mech = null, Deathrest = null,
+                Mechanitor = new() { UsedBandwidth = 0, TotalBandwidth = 6, UsedBandwidthFromGestation = 0, ControlGroups = 1, ControlledMechs = [] },
+            }),
+        };
         row = row with { Settings = row.Settings with { Care = new O.PawnCare.Configured(RimGovernor.Contracts.Wire.Operations.MedicalCare.HerbalOrWorse, false, RimGovernor.Contracts.Wire.Operations.HostilityResponse.Flee) } };
         var status = EmergencyFixtures.Status("pawn");
         var table = new O.PawnSnapshot { Context = status.Context, Pawns = [row] };
@@ -74,16 +89,21 @@ public sealed class PawnCensusTests
             Emergency = status,
             Research = new() { Context = status.Context!, Slots = [], Projects = [], Finished = [] },
             Rooms = new() { Context = status.Context!, Rooms = [] },
+            Zones = new() { Context = status.Context!, Zones = [] },
             Ideology = new O.IdeologyFrame.NotInstalled(),
         };
         var routine = FacadeNativeClient.DecodeRoundsFrame(frame, catalog, FramePrepared.Of(frame));
         var tables = routine.Tables;
         Assert.Same(table, tables.PawnCensus);
+        Assert.Same(frame.Zones, tables.Zones);
         Assert.Equal("pawn", Assert.Single(routine.Pawns!.Pawns).Pawn.Id);
         var projection = ColonyPawnReads.WithPawnCensus(ColonyFactsCoreTests.Projection(), ColonyFactsCoreTests.Snapshot() with { ColonistCount = 1 }, tables, catalog);
         Assert.Equal("pawn", Assert.Single(projection.Facts.MedicalPawns).Id.Value);
         Assert.Equal("pawn", Assert.Single(projection.Facts.MoodPawns).Id.Value);
+        Assert.Equal("pawn", Assert.Single(projection.Facts.RecoveryWorkers).Pawn.Value);
         Assert.Equal("pawn", Assert.Single(projection.WorkPawns.Pawns).Id.Value);
+        Assert.Equal("pawn", Assert.Single(projection.Mechs.Mechanitors).Id.Value);
+        Assert.Empty(projection.Mechs.Mechs);
         Assert.Equal("pawn", Assert.Single(projection.Facts.WorkProfiles).Id.Value);
         Assert.True(projection.Facts.MedicalCareRecovered);
         Assert.Equal(critical, projection.Facts.CriticalPatients);

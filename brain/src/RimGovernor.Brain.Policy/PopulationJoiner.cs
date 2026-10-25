@@ -49,6 +49,14 @@ public sealed record JoinerCapacityFacts
     public int ColonistGoal { get; init; }
 }
 
+/// <summary>Population capacity is derived once the shared food runway exists.</summary>
+public abstract record PopulationCapacity
+{
+    private protected PopulationCapacity() { }
+    public sealed record AwaitingFoodPlan : PopulationCapacity;
+    public sealed record Assessed(bool HasRoom) : PopulationCapacity;
+}
+
 public static partial class PopulationRules
 {
     /// <summary>The population the colony grows toward: the bot's own target, raised to the player's colonist goal (#3494).</summary>
@@ -95,16 +103,16 @@ public static partial class PopulationRules
     /// <summary>
     /// Reports whether the colony can host one more colonist: hosted population below
     /// FindingConstants.PopulationTarget and the food runway at or above JoinerFoodFloorDays. No unowned bed is
-    /// required (#3749). Any unknown ingredient leaves it unknown.
+    /// required (#3749). Before the shared food plan, the result explicitly awaits that plan.
     /// </summary>
-    public static Fact<bool> JoinerCapacity(JoinerCapacityFacts f)
+    public static PopulationCapacity JoinerCapacity(JoinerCapacityFacts f)
     {
         if (f.FoodDays is not { } food)
         {
-            return Unknown<bool>();
+            return new PopulationCapacity.AwaitingFoodPlan();
         }
         var hosted = HostedPopulation(f.Population.Custody);
-        return Known(hosted < PopulationTargetFor(f.ColonistGoal) && food.Reaches(JoinerFoodFloorDays(hosted)));
+        return new PopulationCapacity.Assessed(hosted < PopulationTargetFor(f.ColonistGoal) && food.Reaches(JoinerFoodFloorDays(hosted)));
     }
 
     /// <summary>
@@ -112,14 +120,14 @@ public static partial class PopulationRules
     /// the colony cannot host is not a deficit: it is left to expire. A waiting offer while the capacity is
     /// unread raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static bool JoinerDeficit(IReadOnlyList<QuestState> offers, Fact<bool> capacity, RoundsFacts facts) =>
+    public static bool JoinerDeficit(IReadOnlyList<QuestState> offers, PopulationCapacity capacity, RoundsFacts facts) =>
         offers.Any(offer => JoinerAnswerable(offer) && QuestSelection.JoinerThreatReason(offer, facts).IsNone) && Room(capacity);
 
     /// <summary>
     /// Picks the lowest-ID answerable joiner offer to accept next, for a deterministic order, once the
     /// colony's capacity for one more colonist is known.
     /// </summary>
-    public static JoinerChoice SelectJoinerMethod(IReadOnlyList<QuestState> offers, Fact<bool> capacity, RoundsFacts facts)
+    public static JoinerChoice SelectJoinerMethod(IReadOnlyList<QuestState> offers, PopulationCapacity capacity, RoundsFacts facts)
     {
         var refused = false;
         foreach (var offer in offers.OrderBy(o => o.Id))
@@ -140,8 +148,16 @@ public static partial class PopulationRules
         return new JoinerChoice { Reason = refused ? JoinerPlanReason.NoCapacity : JoinerPlanReason.NoOffer };
     }
 
-    /// <summary>Whether the colony has room for one more colonist; an unread capacity raises <see cref="RequiredFactException"/>.</summary>
-    private static bool Room(Fact<bool> capacity) => capacity.TryGetValue(out var room) ? room : throw new RequiredFactException("population capacity");
+    /// <summary>Whether the colony has room for one more colonist; capacity awaiting the food plan raises <see cref="RequiredFactException"/>.</summary>
+    private static bool Room(PopulationCapacity capacity)
+    {
+        switch (capacity)
+        {
+            case PopulationCapacity.Assessed(var room): return room;
+            case PopulationCapacity.AwaitingFoodPlan: throw new RequiredFactException("population capacity awaiting food plan");
+        }
+        throw new DomainException("unhandled population capacity");
+    }
 
     /// <summary>
     /// Reports whether an offer is a bestowing-ceremony quest the title claim gate allows (claims,
@@ -152,14 +168,14 @@ public static partial class PopulationRules
         claims.Contains(offer.Id) && offer.State == QuestStatus.NotYetAccepted && offer.CanAccept && !offer.RequiresAccepter;
 
     /// <summary>The lowest-id acceptable joiner letter while the colony has room; null when none waits or there is no room.</summary>
-    public static JoinerLetter? SelectJoinerLetter(IReadOnlyList<JoinerLetter> letters, Fact<bool> capacity)
+    public static JoinerLetter? SelectJoinerLetter(IReadOnlyList<JoinerLetter> letters, PopulationCapacity capacity)
     {
         var acceptable = letters.Where(row => row.CanAccept).OrderBy(row => row.Id).ToList();
         return acceptable.Count > 0 && Room(capacity) ? acceptable[0] : null;
     }
 
     /// <summary>Reports whether an acceptable joiner letter waits while the colony has room.</summary>
-    public static bool JoinerLetterDeficit(IReadOnlyList<JoinerLetter> letters, Fact<bool> capacity) =>
+    public static bool JoinerLetterDeficit(IReadOnlyList<JoinerLetter> letters, PopulationCapacity capacity) =>
         letters.Any(row => row.CanAccept) && Room(capacity);
 }
 

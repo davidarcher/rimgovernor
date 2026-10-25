@@ -19,6 +19,10 @@ public enum ShelterTrigger
     [WireName("")]
     None = 0,
 
+    AwaitingEmergency,
+
+    NoIndoorBed,
+
     [WireName("threat")]
     Threat,
 
@@ -47,17 +51,11 @@ public static partial class ShelterRules
     /// Whether haulers are kept out of the danger cells: a hostile is live (hostiles &gt; 0) or the last one
     /// was seen (lastThreat, when lastKnown) less than DangerCooldown before now. Unknown with hostiles.
     /// </summary>
-    public static Fact<bool> DangerWindowOf(Fact<long> hostiles, Tick lastThreat, bool lastKnown, Tick now)
-    {
-        if (!hostiles.TryGetValue(out var n))
-        {
-            return Unknown<bool>();
-        }
-        return Known(n > 0 || (lastKnown && now.Value - lastThreat.Value < DangerCooldown.Value));
-    }
+    public static bool DangerWindowOf(HostileCensus hostiles, Tick lastThreat, bool lastKnown, Tick now) =>
+        hostiles.ThreatCount > 0 || (lastKnown && now.Value - lastThreat.Value < DangerCooldown.Value);
 
     /// <summary>The work pawns with Hauling enabled (priority 1..4). Unknown when any row's work is unknown.</summary>
-    public static Fact<EquatableArray<PawnId>> DangerHaulers(WorkPawnsRead workers)
+    public static EquatableArray<PawnId> DangerHaulers(WorkPawnsRead workers)
     {
         var rows = workers.Pawns;
         var output = new List<PawnId>();
@@ -71,7 +69,7 @@ public static partial class ShelterRules
                 }
             }
         }
-        return Known(EquatableArray.From(output));
+        return EquatableArray.From(output);
     }
 
     /// <summary>
@@ -131,10 +129,10 @@ public static partial class ShelterRules
 
     /// <summary>
     /// The active sheltering trigger: toxic fallout, a cold snap or heat wave whose outdoor temperature is
-    /// outside the sleeping comfort range, or hostiles on the map (a raid or manhunter pack). Known is false
-    /// only when some trigger is not known clear.
+    /// outside the sleeping comfort range, or hostiles on the map (a raid or manhunter pack). Names absent
+    /// indoor beds during weather and the emergency census before it is observed.
     /// </summary>
-    public static (ShelterTrigger Trigger, bool Known) ShelterTriggerOf(RoundsFacts f)
+    public static ShelterTrigger ShelterTriggerOf(RoundsFacts f)
     {
         var conditions = f.DisasterConditions;
         var weather = false;
@@ -142,32 +140,26 @@ public static partial class ShelterRules
         {
             if (c.Definition == DisasterRules.ConditionToxicFallout)
             {
-                return (ShelterTrigger.Fallout, true);
+                return ShelterTrigger.Fallout;
             }
             if (c.Definition == DisasterRules.ConditionColdSnap || c.Definition == DisasterRules.ConditionHeatWave)
             {
                 weather = true;
             }
         }
-        var tempKnown = true;
-        if (weather)
+        if (weather && f.SleepingTemperature is RimGovernor.Contracts.Wire.Observations.SleepingTemperature.Indoor indoor &&
+            (f.OutdoorTemperature < indoor.MinC || f.OutdoorTemperature > indoor.MaxC))
         {
-            var outside = f.OutdoorTemperature;
-            var (cold, hot) = TemperatureMethodRules.SleepingBand(f.SleepingTemperature);
-            var lk = cold.TryGetValue(out var lo);
-            var hk0 = hot.TryGetValue(out var hi);
-            tempKnown = lk && hk0;
-            if (tempKnown && (outside < lo || outside > hi))
-            {
-                return (ShelterTrigger.Temperature, true);
-            }
+            return ShelterTrigger.Temperature;
         }
-        var hk = f.Hostiles.TryGetValue(out var hostiles);
-        if (hk && hostiles > 0)
+        if (f.Hostiles is HostileCensus.Active active && active.ThreatCount > 0)
         {
-            return (ShelterTrigger.Threat, true);
+            return ShelterTrigger.Threat;
         }
-        return (ShelterTrigger.None, tempKnown && hk);
+        if (f.Hostiles is HostileCensus.AwaitingEmergency) return ShelterTrigger.AwaitingEmergency;
+        if (f.Hostiles is HostileCensus.Quiet && weather && f.SleepingTemperature is RimGovernor.Contracts.Wire.Observations.SleepingTemperature.NoIndoorBed) return ShelterTrigger.NoIndoorBed;
+        if (f.Hostiles is HostileCensus.Quiet or HostileCensus.Active) return ShelterTrigger.None;
+        throw new DomainException("unrecognized hostile census");
     }
 
     /// <summary>
@@ -183,29 +175,16 @@ public static partial class ShelterRules
     public static List<AllowedAreaChange> PlanSheltering(RoundsFacts f)
     {
         var safe = f.ShelterArea;
-        var (trigger, tk) = ShelterTriggerOf(f);
-        if (!tk)
+        var trigger = ShelterTriggerOf(f);
+        if (trigger is ShelterTrigger.AwaitingEmergency or ShelterTrigger.NoIndoorBed)
         {
             return [];
         }
         var noKill = f.NoDangerArea;
-        var windowKnown = f.DangerWindow.TryGetValue(out var window);
-        var hk = f.DangerHaulers.TryGetValue(out var haulerRows);
-        var haulers = new HashSet<PawnId>();
-        if (hk)
-        {
-            foreach (var id in haulerRows)
-            {
-                haulers.Add(id);
-            }
-        }
-        HashSet<PawnId>? combatants = null;
-        if (trigger == ShelterTrigger.Threat && f.ShelterCombatants.TryGetValue(out var combatantRows))
-        {
-            combatants = [.. combatantRows];
-        }
-        var hostilesKnown = f.Hostiles.TryGetValue(out var hostiles);
-        var calm = hostilesKnown && hostiles == 0;
+        var window = f.DangerWindow;
+        HashSet<PawnId> haulers = [.. f.DangerHaulers];
+        HashSet<PawnId> combatants = [.. f.ShelterCombatants];
+        var calm = f.Hostiles is HostileCensus.Quiet;
         var changes = new List<AllowedAreaChange>();
 
         void Add(PawnId id, bool animal, bool shelter, string area)
@@ -220,7 +199,7 @@ public static partial class ShelterRules
                 to = safe;
                 move = area != safe;
             }
-            else if (noKill != "" && windowKnown && window && hk && hauler)
+            else if (noKill != "" && window && hauler)
             {
                 // Haulers stay out of the danger cells through the fight and its cooldown.
                 to = noKill;
@@ -233,7 +212,7 @@ public static partial class ShelterRules
             }
             else if (noKill != "" && area == noKill)
             {
-                move = windowKnown && (!window || (hk && !hauler));
+                move = !window || !hauler;
             }
             // Native no longer vetoes an unroofed area during fallout, so the only area a fallout move may
             // land on is the roofed Safe area.
@@ -248,17 +227,14 @@ public static partial class ShelterRules
         }
 
         var safety = f.RecoverySafety;
-        var wk = f.RecoveryWorkers.TryGetValue(out var workers);
-        if (wk)
+        foreach (var worker in f.RecoveryWorkers)
         {
-            foreach (var worker in workers)
-            {
                 if (worker.Dead || worker.Downed || worker.Drafted || worker.Mental)
                 {
                     continue;
                 }
                 // A threat shelters only pawns known outside the draft set.
-                var shelter = trigger != ShelterTrigger.None && (trigger != ShelterTrigger.Threat || (combatants is not null && !combatants.Contains(worker.Pawn)));
+                var shelter = trigger != ShelterTrigger.None && (trigger != ShelterTrigger.Threat || !combatants.Contains(worker.Pawn));
                 foreach (var restriction in safety.Restrictions)
                 {
                     if (restriction.Pawn == worker.Pawn)
@@ -267,7 +243,6 @@ public static partial class ShelterRules
                         break;
                     }
                 }
-            }
         }
         foreach (var animal in f.AnimalUpkeep.Animals)
         {
@@ -288,11 +263,11 @@ public static partial class ShelterRules
     /// </summary>
     public static bool ShelterHeld(RoundsFacts f)
     {
-        var (trigger, tk) = ShelterTriggerOf(f);
+        var trigger = ShelterTriggerOf(f);
         var safe = f.ShelterArea;
         var safety = f.RecoverySafety;
-        var wk = f.RecoveryWorkers.TryGetValue(out var workers);
-        if (!tk || trigger != ShelterTrigger.Threat || string.IsNullOrEmpty(safe) || !wk)
+        var workers = f.RecoveryWorkers;
+        if (trigger != ShelterTrigger.Threat || string.IsNullOrEmpty(safe))
         {
             return false;
         }

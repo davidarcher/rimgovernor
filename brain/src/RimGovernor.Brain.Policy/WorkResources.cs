@@ -1,15 +1,15 @@
 namespace RimGovernor.Brain.Policy;
 
-public sealed record WorkBuildingCost(string Definition, string Stuff, Fact<EquatableArray<Amount>> Materials)
+public sealed record WorkBuildingCost(string Definition, string Stuff, EquatableArray<Amount> Materials)
 {
-    /// <summary>The definition's North footprint (x by z); unknown when the catalog did not state it.</summary>
-    public Fact<Cell> Size { get; init; }
+    /// <summary>The definition's required North footprint (x by z).</summary>
+    public required Cell Size { get; init; }
 }
-public sealed record WorkPawnAvailability(string Pawn, Fact<bool> Available, Fact<bool> Applies,
-    bool Occupied, Fact<string> Target)
+public sealed record WorkPawnAvailability(string Pawn, bool Available, bool Applies,
+    bool Occupied, string Target)
 {
-    public Fact<EquatableArray<string>> Schedule { get; init; }
-    public Fact<double> LocalHour { get; init; }
+    public EquatableArray<string> Schedule { get; init; }
+    public double LocalHour { get; init; }
     /// <summary>The pawn runs a preemptible vanilla job (#3670): it holds <see cref="Target"/>, but a coupled order replaces it.</summary>
     public bool Preemptible { get; init; }
 }
@@ -105,38 +105,35 @@ public sealed record WorkResourceClaims(EquatableArray<ForecastCommitment> Mater
     public EquatableArray<WorkTargetClaim> Shared { get; init; }
 }
 public sealed record WorkResourceView(WorkAdmissionEvidence Evidence, WorkResourceClaims Claims,
-    Fact<IReadOnlyDictionary<Resource, Fact<double>>> Materials)
+    MaterialAvailability Materials)
 {
     public IReadOnlyDictionary<string, ForecastCapacityResult> Capacity { get; init; } = new Dictionary<string, ForecastCapacityResult>();
 }
 
 public static partial class WorkRules
 {
-    public static Fact<EquatableArray<ForecastCommitment>> CreditCarriedBillInputs(Fact<EquatableArray<ForecastCommitment>> promises,
-        Fact<EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>> observation)
+    public static ProductionPromiseSet CreditCarriedBillInputs(ProductionPromiseSet promises,
+        EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn> observation)
     {
-        if (!promises.TryGetValue(out var rows)) return default;
-        return Known(EquatableArray.From(rows.Select(c => c with
+        if (promises is not ProductionPromiseSet.Assessed(var rows)) return promises;
+        return new ProductionPromiseSet.Assessed(EquatableArray.From(rows.Select(c => c with
         {
             MaterialClaims = EquatableArray.From(c.MaterialClaims.Select(m =>
-        {
-            if (!m.ReservationBill.TryGetValue(out var bill) || bill.Length == 0 || !m.Units.TryGetValue(out var units)) return m;
-            return m with
             {
-                Units = observation.TryGetValue(out var native)
-                ? Known(Math.Max(0, units - native.Where(n => n.Bill == bill && n.CarriedResource == m.Resource.Value).Sum(n => (double)n.CarriedCount))) : default
-            };
-        }))
+                if (m.ReservationBill.Length == 0 || m.Units is not MaterialUnits.Exact(var units)) return m;
+                return m with { Units = new MaterialUnits.Exact(Math.Max(0, units - observation
+                    .Where(n => n.Bill == m.ReservationBill && n.CarriedResource == m.Resource.Value).Sum(n => (double)n.CarriedCount))) };
+            }))
         })));
     }
     public static ForecastCapacityResult WorkCapacityOf(WorkResourceView view, string pawn, double horizon, bool protectTimetable = true)
     {
-        var observed = view.Evidence.Pawns.TryGetValue(out var rows) ? rows.SingleOrDefault(p => p.Pawn == pawn) : null;
+        var observed = view.Evidence.Pawns.SingleOrDefault(p => p.Pawn == pawn);
         var protection = view.Claims.Truncated ? (ForecastProtection)new ForecastProtection.Truncated() : new ForecastProtection.Read(view.Claims.Pawns.Contains(pawn)
             ? [new("journal", pawn, 0, 0, ForecastOccupancyState.Untimed)] : []);
         return ForecastCapacity.ForecastPawnCapacityOf(ForecastCapacity.InputOf(pawn, observed, horizon, protection, protectTimetable));
     }
-    public static RoundsFacts ReviewWorkResources(RoundsFacts facts, Fact<EquatableArray<ProductionBatch>> batches,
+    public static RoundsFacts ReviewWorkResources(RoundsFacts facts, ProductionBatchCensus batches,
         WorkActionCensus actions)
     {
         var evidence = ProductionRules.WorkAdmissionEvidenceOf(facts, batches);
@@ -146,10 +143,11 @@ public static partial class WorkRules
         if (retrievers.Count > 0)
             view = view with { Claims = view.Claims with { Pawns = EquatableArray.From(view.Claims.Pawns.Concat(retrievers.Select(r => r.Value)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)) } };
         var claims = view.Claims;
-        var production = evidence.ForecastPromises;
+        var production = evidence.Promises;
         var reviewed = facts with
         {
-            ProductionPromises = !actions.Truncated && production.TryGetValue(out var rows) ? Known(MergeWorkMaterialPromises(rows.Concat(claims.Materials))) : default,
+            ProductionPromises = actions.Truncated ? new ProductionPromiseSet.Blocked(ProductionPromiseBlock.TruncatedWork)
+                : production is ProductionPromiseSet.Assessed(var rows) ? new ProductionPromiseSet.Assessed(MergeWorkMaterialPromises(rows.Concat(claims.Materials))) : production,
             WorkClaims = claims,
             WorkView = view,
             NeedsAlternatives = ForecastNeeds.ReviewNeedsAlternatives(facts.ForecastObserved.Needs, view),
@@ -165,14 +163,14 @@ public static partial class WorkRules
         var result = commitments.Select(c => c with
         {
             MaterialClaims = EquatableArray.From(c.MaterialClaims
-            .Where(m => !m.ReservationBill.TryGetValue(out var bill) || bill.Length == 0))
+            .Where(m => m.ReservationBill.Length == 0))
         }).ToList();
         foreach (var bill in commitments.SelectMany(c => c.MaterialClaims)
-            .Where(c => c.ReservationBill.TryGetValue(out var id) && id.Length != 0).GroupBy(c => c.ReservationBill.Value))
+            .Where(c => c.ReservationBill.Length != 0).GroupBy(c => c.ReservationBill))
             result.Add(new("shared-bill/" + bill.Key, default)
             {
                 MaterialClaims = EquatableArray.From(bill.GroupBy(c => c.Resource)
-                .Select(g => new ForecastMaterialClaim(g.Key, g.All(c => c.Units.IsKnown) ? Known(g.Max(c => c.Units.Value)) : default, Known(bill.Key))))
+                .Select(g => new ForecastMaterialClaim(g.Key, g.All(c => c.Units is MaterialUnits.Exact) ? new MaterialUnits.Exact(g.Max(c => ((MaterialUnits.Exact)c.Units).Count)) : new MaterialUnits.Open(), bill.Key)))
             });
         return EquatableArray.From(result);
     }
@@ -223,7 +221,7 @@ public static partial class WorkRules
             var progress = row.Progress;
             if (ActionAbsent(progress)) continue;
             if (row.Action.ProductionBill is { Mode: BillMode.GearBatch } bill
-                && evidence.ForecastPromises.TryGetValue(out var promises)
+                && evidence.Promises is ProductionPromiseSet.Assessed(var promises)
                 && (progress.Attempt.Value == 0 || progress.Tick > evidence.Tick || promises.Any(p => p.Id == "production/" + row.Action.Id.Value)))
             {
                 Take(bill.Bench);
@@ -237,22 +235,21 @@ public static partial class WorkRules
                     && evidence.Standing is not null) continue;
                 if (footprint) foreach (var cell in MethodClaimsRules.BuildingClaimTargets(evidence, building)) Take(cell);
                 else Take(BuildingClaimTarget(building));
-                var cost = evidence.Buildings.TryGetValue(out var costs)
-                    ? costs.SingleOrDefault(c => c.Definition == building.Definition && c.Stuff == building.Stuff) : null;
-                if (cost is null || !cost.Materials.TryGetValue(out var units))
+                var cost = evidence.Buildings.SingleOrDefault(c => c.Definition == building.Definition && c.Stuff == building.Stuff);
+                if (cost is null)
                 {
                     findings.Add("unknown_building_materials:" + row.Action.Id.Value);
                     continue;
                 }
                 materials.Add(new("work/" + row.Action.Id.Value, default)
-                { MaterialClaims = EquatableArray.From(units.Select(a => new ForecastMaterialClaim(a.Resource, Known((double)a.Count), Known("")))) });
+                { MaterialClaims = EquatableArray.From(cost.Materials.Select(a => new ForecastMaterialClaim(a.Resource, new MaterialUnits.Exact(a.Count), ""))) });
             }
             if (row.Action.PawnActivities is not { } batch) continue;
             foreach (var task in ordersOnly ? Enumerable.Empty<SelectedActivityTask>() : batch.Tasks)
             {
                 var owner = batch.Orders.FirstOrDefault(o => o.Pawn == task.Pawn && !o.Release);
                 if (owner is not null && progress.Attempt.Value > 0 && !progress.Unresolved && progress.Tick < evidence.Tick
-                    && evidence.WorkResources.TryGetValue(out var owners) && owners.Any(p => p.Pawn == owner.Pawn
+                    && evidence.WorkResources is var owners && owners.Any(p => p.Pawn == owner.Pawn
                         && (p.Assignment != owner.Assignment || p.Revision != owner.Revision))) continue;
                 // Preparation owns the selected future service too, not only its approach cell.
                 // Produced food keeps its unresolved identity until native output rebinding.
@@ -264,7 +261,7 @@ public static partial class WorkRules
                 if (task.Step.Destination is { } destination) Take("cell/" + destination.X + "/" + destination.Z);
                 if (task.Step.Container.Length != 0) Take(task.Step.Container);
                 var executing = batch.Orders.FirstOrDefault(o => !o.Release && !o.Preparing && o.Task == task.Id);
-                var actual = executing is not null && evidence.WorkResources.TryGetValue(out var actualWorkers)
+                var actual = executing is not null && evidence.WorkResources is var actualWorkers
                     ? actualWorkers.SingleOrDefault(p => p.Pawn == executing.Pawn && p.Assignment == executing.Assignment && p.Revision == executing.Revision) : null;
                 var partial = actual?.State == "completed" && task.Step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Supply
                     && executing!.Steps[0].Count < task.Step.Count;
@@ -280,7 +277,7 @@ public static partial class WorkRules
                         var order = batch.Orders.FirstOrDefault(o => !o.Release && !o.Preparing && o.Task == producer);
                         if (order is not null && source.Step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Supply
                             && order.Steps[0].Count < source.Step.Count) return false;
-                        return order is not null && evidence.WorkResources.TryGetValue(out var workers)
+                        return order is not null && evidence.WorkResources is var workers
                             && workers.Any(p => p.Pawn == order.Pawn && p.Assignment == order.Assignment
                                 && p.Revision == order.Revision && p.State == "completed");
                     }
@@ -291,7 +288,7 @@ public static partial class WorkRules
                             required = Math.Min(required, task.Step.Count) - (partial ? executing!.Steps[0].Count : 0);
                         var carried = actual;
                         if (carried is null && executing is not null && progress.Attempt.Value == 0
-                            && evidence.WorkResources.TryGetValue(out var previousWorkers))
+                            && evidence.WorkResources is var previousWorkers)
                             carried = previousWorkers.SingleOrDefault(p => p.Pawn == executing.Pawn && p.Assignment == executing.Assignment
                                 && p.Revision == executing.ExpectedRevision && p.State is "completed" or "failed"
                                 && p.CarriedThing == executing.Steps[0].Target);
@@ -313,10 +310,10 @@ public static partial class WorkRules
                 // Accepted release ends ownership. A pending release must retain its predecessor's claim.
                 if (order.Release) continue;
                 if (progress.Attempt.Value > 0 && !progress.Unresolved && progress.Tick < evidence.Tick
-                    && evidence.WorkResources.TryGetValue(out var observedOwners)
+                    && evidence.WorkResources is var observedOwners
                     && observedOwners.Any(n => n.Pawn == order.Pawn && (n.Assignment != order.Assignment || n.Revision != order.Revision))) continue;
                 pawns.Add(order.Pawn);
-                var observed = evidence.WorkResources.TryGetValue(out var native)
+                var observed = evidence.WorkResources is var native
                     ? native.SingleOrDefault(p => p.Pawn == order.Pawn && p.Assignment == order.Assignment && p.Revision == order.Revision) : null;
                 foreach (var step in order.Steps)
                 {
@@ -338,17 +335,17 @@ public static partial class WorkRules
                         var task = batch.Tasks.SingleOrDefault(t => t.Id == order.Task);
                         if (task is null || task.Inputs.Count == 0) findings.Add("unknown_selected_care_materials:" + row.Action.Id.Value);
                         else claims.AddRange(task.Inputs.Select(i => new ForecastMaterialClaim(new(i.Resource),
-                            Known((double)Math.Max(0, i.Count - (observed?.CarriedResource == i.Resource ? observed.CarriedCount : 0))), Known(""))));
+                            new MaterialUnits.Exact(Math.Max(0, i.Count - (observed?.CarriedResource == i.Resource ? observed.CarriedCount : 0))), "")));
                     }
                     if (step.Kind == PawnActivityKind.Deliver && order.OutputDelivery is { } output)
                     {
                         // Moving stock protects its use, not a second physical consumption. Carried units are outside loose stock.
-                        var input = observed ?? (progress.Attempt.Value == 0 && evidence.WorkResources.TryGetValue(out var inputs)
+                        var input = observed ?? (progress.Attempt.Value == 0 && evidence.WorkResources is var inputs
                             ? inputs.SingleOrDefault(p => p.Pawn == order.Pawn && p.Assignment == order.Assignment
                                 && p.Revision == order.ExpectedRevision && p.State is "completed" or "failed") : null);
                         var carried = input?.CarriedResource == output.Resource && (observed is not null || input.CarriedThing == step.Target) ? input.CarriedCount : 0;
                         if (observed?.State == "completed") continue;
-                        claims.Add(new(new(output.Resource), Known((double)Math.Max(0, step.Count - carried)), Known("")));
+                        claims.Add(new(new(output.Resource), new MaterialUnits.Exact(Math.Max(0, step.Count - carried)), ""));
                     }
                     if (step.Recipe is { } cooking)
                     {
@@ -356,7 +353,7 @@ public static partial class WorkRules
                         if (observed is { Unfinished.Length: > 0 }) continue; // Actual UFT owns consumed ingredients outside loose stock.
                         if (cooking.Resource.Length == 0) { findings.Add("unknown_cooking_materials:" + row.Action.Id.Value); continue; }
                         var carried = observed?.CarriedResource == cooking.Resource ? observed.CarriedCount : 0;
-                        claims.Add(new(new(cooking.Resource), Known((double)Math.Max(0, cooking.Ingredients.Sum(i => i.Count) - carried)), Known(cooking.Bill)));
+                        claims.Add(new(new(cooking.Resource), new MaterialUnits.Exact(Math.Max(0, cooking.Ingredients.Sum(i => i.Count) - carried)), cooking.Bill));
                     }
                 }
                 if (claims.Count != 0)
@@ -366,19 +363,19 @@ public static partial class WorkRules
                     // The migrated material path binds one delivery/cooking step. Repeated uses inside
                     // one revision need a dependency-aware consumption estimate, not max or sum guesses.
                     held.AddRange(claims.GroupBy(c => c.Resource).Select(g => g.Count() == 1 ? g.First()
-                        : new ForecastMaterialClaim(g.Key, default, default)));
+                        : new ForecastMaterialClaim(g.Key, new MaterialUnits.Open(), "")));
                 }
             }
         }
         foreach (var group in selectedMaterials.GroupBy(p => (p.Key.Owner, p.Key.Task)))
             materials.Add(new("activity/selected-input/" + group.Key.Owner + "/" + group.Key.Task, [])
-            { MaterialClaims = EquatableArray.From(group.Select(p => new ForecastMaterialClaim(p.Key.Resource, Known(p.Value), Known(p.Key.Bill)))) });
+            { MaterialClaims = EquatableArray.From(group.Select(p => new ForecastMaterialClaim(p.Key.Resource, new MaterialUnits.Exact(p.Value), p.Key.Bill))) });
         foreach (var (owner, claims) in activityMaterials)
             materials.Add(new("activity/" + owner.Assignment + "/" + owner.Pawn, default)
             {
                 MaterialClaims = EquatableArray.From(claims.GroupBy(c => c.Resource).Select(g => new ForecastMaterialClaim(g.Key,
-                g.All(c => c.Units.IsKnown) ? Known(g.Max(c => c.Units.Value)) : default,
-                g.Select(c => c.ReservationBill).Distinct().Count() == 1 ? g.First().ReservationBill : default)))
+                g.All(c => c.Units is MaterialUnits.Exact) && g.Select(c => c.ReservationBill).Distinct().Count() == 1 ? new MaterialUnits.Exact(g.Max(c => ((MaterialUnits.Exact)c.Units).Count)) : new MaterialUnits.Open(),
+                g.Select(c => c.ReservationBill).Distinct().Count() == 1 ? g.First().ReservationBill : "")))
             });
         return new(EquatableArray.From(materials), EquatableArray.From(pawns.Order(StringComparer.Ordinal)),
             EquatableArray.From(targets.Order(StringComparer.Ordinal)), EquatableArray.From(findings.Order(StringComparer.Ordinal)))
@@ -434,18 +431,17 @@ public static partial class WorkRules
 
     public static string BuildingClaimTarget(Building building) => "cell/" + building.Cell.X + "/" + building.Cell.Z;
 
-    public static WorkResourceView WorkResourcesOf(WorkAdmissionEvidence evidence, Fact<EquatableArray<ProductionBatch>> batches,
+    public static WorkResourceView WorkResourcesOf(WorkAdmissionEvidence evidence, ProductionBatchCensus batches,
         IEnumerable<WorkAction> actions, bool truncated = false)
     {
         var claims = WorkClaimsOf(evidence, actions) with { Truncated = truncated };
         var materials = ProductionRules.ProductionAdmissionBudget(evidence, batches, claims.Materials);
         // An unpriced commitment can consume any material. Keep pawn/target accounting usable independently.
-        if (claims.Findings.Count != 0 || truncated) materials = default;
+        if (claims.Findings.Count != 0 || truncated) materials = new MaterialAvailability.Blocked(MaterialBudgetBlock.WorkClaims);
         var view = new WorkResourceView(evidence, claims, materials);
         return view with
         {
-            Capacity = evidence.Pawns.TryGetValue(out var roster)
-            ? roster.ToDictionary(p => p.Pawn, p => WorkCapacityOf(view, p.Pawn, 7 * GameTime.TicksPerDay), StringComparer.Ordinal) : new Dictionary<string, ForecastCapacityResult>()
+            Capacity = evidence.Pawns.ToDictionary(p => p.Pawn, p => WorkCapacityOf(view, p.Pawn, 7 * GameTime.TicksPerDay), StringComparer.Ordinal)
         };
     }
 
@@ -491,16 +487,9 @@ public static partial class WorkRules
             return "target_claimed:" + blocked;
         if (capacityTargets.FirstOrDefault(t => TargetOverCapacity(view.Evidence, t,
             view.Claims.Shared.Concat(candidate.Shared).Where(s => s.Target == t), [])) is { } full) return "target_claimed:" + full;
-        var usesBench = proposed.Actions.Any(a => a.ProductionBill is { Mode: BillMode.GearBatch }
-            || a.PawnActivities is { } activity && activity.Orders.Any(o => o.Steps.Any(s => s.Recipe is not null) || o.OutputDelivery?.Recipe is not null));
-        if (usesBench && (!view.Evidence.WorkResources.IsKnown || !view.Evidence.Pawns.TryGetValue(out var benchPawns)
-            || benchPawns.Any(p => p.Occupied && !p.Target.IsKnown))) return "bench_evidence_unknown";
         foreach (var pawn in candidate.Pawns)
-        {
-            if (!view.Evidence.Pawns.TryGetValue(out var roster)) return "pawn_roster_unknown";
-            var observed = roster.SingleOrDefault(p => p.Pawn == pawn);
-            if (observed is null || !observed.Available.TryGetValue(out var available) || !available
-                || !observed.Applies.TryGetValue(out var applies) || !applies) return "pawn_unavailable:" + pawn;
+        {            var observed = view.Evidence.Pawns.SingleOrDefault(p => p.Pawn == pawn);
+            if (observed is null || !observed.Available || !observed.Applies) return "pawn_unavailable:" + pawn;
             if (retainedParticipants?.Contains(pawn) != true && proposed.Actions.SelectMany(a => a.PawnActivities?.Orders ?? []).Any(o => o.Pawn == pawn
                 && o.Steps.Any(s => s.Kind is PawnActivityKind.Work or PawnActivityKind.Deliver or PawnActivityKind.Recipe or PawnActivityKind.Approach or PawnActivityKind.Supply))
                 && (!view.Capacity.TryGetValue(pawn, out var capacity) || capacity.Capacity.Windows is not ForecastCapacityWindows.Read(var windows)
@@ -509,8 +498,8 @@ public static partial class WorkRules
         // A pawn the plan does not move already occupying a target: whole for an exclusive one, one more owner for a capacity target.
         // A preemptible holder runs vanilla work the coupled order interrupts (#3671), so it holds nothing against the candidate (#3670).
         IEnumerable<string> Holders(string target, bool journal) => journal
-            ? view.Evidence.Pawns.TryGetValue(out var rows) ? rows.Where(p => !p.Preemptible && p.Target.TryGetValue(out var occupied) && occupied == target).Select(p => p.Pawn) : []
-            : view.Evidence.WorkResources.TryGetValue(out var all) ? all.Where(p => p.Target == target).Select(p => p.Pawn) : [];
+            ? view.Evidence.Pawns.Where(p => !p.Preemptible && p.Target == target).Select(p => p.Pawn)
+            : view.Evidence.WorkResources.Where(p => p.Target == target).Select(p => p.Pawn);
         bool Occupied(string target, bool journal) => Holders(target, journal).Any(p => !candidate.Pawns.Contains(p));
         bool Crowded(string target, bool journal) => Occupied(target, journal) && TargetOverCapacity(view.Evidence, target,
             view.Claims.Shared.Concat(candidate.Shared).Where(s => s.Target == target), Holders(target, journal));
@@ -518,26 +507,26 @@ public static partial class WorkRules
         if (candidate.Targets.FirstOrDefault(t => t.Length != 0 && (capacityTargets.Contains(t) ? Crowded(t, false) : Occupied(t, false))) is not null) return "native_target_claimed";
         var bills = proposed.Actions.Where(a => a.ProductionBill is { Mode: BillMode.GearBatch })
             .Select(a => new ProductionBatch(a.ProductionBill!, new ProgressView { Action = a.Id, Stage = Stage.Pending }));
-        var production = ProductionRules.ProductionPromisesOf(ProductionRules.PriceProductionBatches(Known(EquatableArray.From(bills)), view.Evidence.Recipes), default);
-        if (!production.TryGetValue(out var promises)) return "production_promises_unknown";
+        var production = ProductionRules.ProductionPromisesOf(ProductionRules.PriceProductionBatches(EquatableArray.From(bills), view.Evidence.Recipes), default);
+        if (production is not ProductionPromiseSet.Assessed(var promises)) return "production_promises_unknown";
         // A blueprint spends nothing until delivery: it is placed whatever the stock, and its admitted cost is held
         // against the budget as construction the colony gathers toward. Other work in the same plan cannot spend it.
         var placements = proposed.Actions.Where(a => a.Building is not null && a.ConstructionTarget.Length == 0)
             .Select(a => "work/" + a.Id.Value).ToHashSet(StringComparer.Ordinal);
         if (placements.Count != 0 && view.Claims.Truncated) return "work_census_truncated";
         var placed = candidate.Materials.Where(c => placements.Contains(c.Id)).SelectMany(c => c.MaterialClaims)
-            .GroupBy(c => c.Resource).ToDictionary(g => g.Key, g => g.Sum(c => c.Units.Value));
+            .GroupBy(c => c.Resource).ToDictionary(g => g.Key, g => g.Sum(c => ((MaterialUnits.Exact)c.Units).Count));
         var needed = candidate.Materials.Where(c => !placements.Contains(c.Id)).Concat(promises).SelectMany(c => c.MaterialClaims).GroupBy(c => c.Resource);
         foreach (var group in needed)
         {
-            var credits = group.Where(c => c.ReservationBill.TryGetValue(out var id) && id.Length != 0)
-                .GroupBy(c => c.ReservationBill.Value).Select(g => Methods.Evaluation.WorkMaterialEvaluation.ExistingBillCredit(view, g.Key, group.Key,
-                    g.All(c => c.Units.IsKnown) ? g.Sum(c => c.Units.Value) : 0)).ToArray();
-            if (group.Any(c => !c.Units.IsKnown) || credits.Any(c => !c.IsKnown) || !view.Materials.TryGetValue(out var budget)
-                || !budget.GetValueOrDefault(group.Key, Known(0.0)).TryGetValue(out var free))
+            var credits = group.Where(c => c.ReservationBill.Length != 0)
+                .GroupBy(c => c.ReservationBill).Select(g => Methods.Evaluation.WorkMaterialEvaluation.ExistingBillCredit(view, g.Key, group.Key,
+                    g.All(c => c.Units is MaterialUnits.Exact) ? g.Sum(c => ((MaterialUnits.Exact)c.Units).Count) : 0)).ToArray();
+            if (group.Any(c => c.Units is MaterialUnits.Open) || credits.Any(c => c is MaterialUnits.Open) || view.Materials is not MaterialAvailability.Assessed(var budget)
+                || budget.GetValueOrDefault(group.Key, new MaterialUnits.Exact(0)) is not MaterialUnits.Exact(var free))
                 return "materials_short:" + group.Key.Value;
-            var need = group.Sum(c => c.Units.Value);
-            var credit = credits.Sum(c => c.Value);
+            var need = group.Sum(c => ((MaterialUnits.Exact)c.Units).Count);
+            var credit = credits.Sum(c => ((MaterialUnits.Exact)c).Count);
             free -= placed.GetValueOrDefault(group.Key);
             if (need > free + credit) return $"materials_short:{group.Key.Value} (need {need}, free {free}, credit {credit})";
         }
@@ -547,15 +536,15 @@ public static partial class WorkRules
     public static WorkAdmissionEvidence WorkContinuationEvidence(WorkAdmissionEvidence evidence, PawnActivities batch,
         IReadOnlyList<ActivityOwnership>? observed = null)
     {
-        if (!evidence.Pawns.TryGetValue(out var pawns) || !evidence.WorkResources.TryGetValue(out var native)) return evidence;
+        var pawns = evidence.Pawns; var native = evidence.WorkResources;
         return evidence with
         {
-            Pawns = Known(EquatableArray.From(pawns.Select(p => batch.Orders.Any(o => o.Pawn == p.Pawn
+            Pawns = EquatableArray.From(pawns.Select(p => batch.Orders.Any(o => o.Pawn == p.Pawn
             && (observed is not null ? observed.Any(n => ActivityContinuationRules.MatchesActivityOwner(o, n)
                 && (n.State is "completed" or "failed" || o.Preparing && n.State == "holding"))
                 : native.Any(n => n.Pawn == o.Pawn && n.Assignment == o.Assignment && n.Revision == o.Revision
                     && (n.State is "completed" or "failed" || o.Preparing && n.State == "holding"))))
-            ? p with { Occupied = false } : p)))
+            ? p with { Occupied = false } : p))
         };
     }
 }

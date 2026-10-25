@@ -2,14 +2,14 @@ namespace RimGovernor.Brain.Policy.Methods.Evaluation;
 
 internal static class WorkMaterialEvaluation
 {
-    internal static Fact<double> ExistingBillCredit(WorkResourceView view, string bill, Resource resource, double required)
+    internal static MaterialUnits ExistingBillCredit(WorkResourceView view, string bill, Resource resource, double required)
     {
-        if (bill.Length == 0) return Known(0.0);
-        if (!view.Evidence.ForecastPromises.TryGetValue(out var promises)) return default;
+        if (bill.Length == 0) return new MaterialUnits.Exact(0);
+        if (view.Evidence.Promises is not ProductionPromiseSet.Assessed(var promises)) return new MaterialUnits.Open();
         var claims = promises.Concat(view.Claims.Materials).SelectMany(p => p.MaterialClaims)
-            .Where(c => c.Resource == resource && c.ReservationBill.TryGetValue(out var id) && id == bill).ToArray();
-        if (claims.Any(c => !c.Units.IsKnown)) return default;
-        return Known(Math.Min(required, Math.Max(claims.Select(c => c.Units.Value).DefaultIfEmpty(0).Max(),
+            .Where(c => c.Resource == resource && c.ReservationBill == bill).ToArray();
+        if (claims.Any(c => c.Units is MaterialUnits.Open)) return new MaterialUnits.Open();
+        return new MaterialUnits.Exact(Math.Min(required, Math.Max(claims.Select(c => ((MaterialUnits.Exact)c.Units).Count).DefaultIfEmpty(0).Max(),
             view.Evidence.Reservations.Where(r => r.Bill == bill).SelectMany(r => r.Items)
                 .Where(i => i.Resource == resource).Sum(i => (double)i.Count))));
     }

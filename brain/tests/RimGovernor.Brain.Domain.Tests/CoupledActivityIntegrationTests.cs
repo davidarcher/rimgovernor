@@ -85,7 +85,7 @@ public sealed class CoupledActivityIntegrationTests
             Coupled = observed with { Food = observed.Food with { Options = [observed.Food.Options[0], other] },
                 FoodUses = [observed.FoodUses[0], observed.FoodUses[0] with { Pawn = "helper", Location = new(4, 1) }] },
         } };
-        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), journal.WorkActions(Root, ct));
+        facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), journal.WorkActions(Root, ct));
         Assert.Contains("pawn", facts.WorkView!.Claims.Pawns);
         Assert.Contains("plant-a", facts.WorkView.Claims.Targets);
         facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, GameTime.TicksPerDay)?.Priced() };
@@ -162,8 +162,8 @@ public sealed class CoupledActivityIntegrationTests
         var active = Assert.Single(batch.Orders);
         facts = facts with { Tick = new(completedAt), Resources = [new(new("Rice"), 2)],
             CoupledAlternatives = null, CoupledWorkActive = true,
-            WorkResources = Known<EquatableArray<WorkResourcePawn>>([new(active.Pawn, active.Assignment, active.Revision,
-                "completed", "", "", 0) { LocalHour = 6 }]) };
+            WorkResources = [new(active.Pawn, active.Assignment, active.Revision,
+                "completed", "", "", 0) { LocalHour = 6 }] };
         var refreshed = journal.ReviewRounds(new RoundsRequest { Revision = reviewed.Review.Revision, Current = Root, Tick = new(completedAt), Enabled = true,
             Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         Assert.False(journal.LoadPlan(plan.Id, ct).Retired); // Accepted assignment still owns unfinished graph work.
@@ -189,7 +189,7 @@ public sealed class CoupledActivityIntegrationTests
             journal.ReviewRounds(new RoundsRequest { Revision = refreshed.Review.Revision, Current = Root,
                 Tick = new(completedAt + 20), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(),
                 Facts = facts with { Tick = new(completedAt + 20), CoupledWorkActive = false,
-                    WorkResources = Known<EquatableArray<WorkResourcePawn>>([new(released.Pawn, "", 0, "", "", "", 0) { LocalHour = 6 }]) } }, ct);
+                    WorkResources = [new(released.Pawn, "", 0, "", "", "", 0) { LocalHour = 6 }] } }, ct);
             Assert.True(journal.LoadPlan(recovered.Id, ct).Retired); // Accepted release must not become a permanent hold.
         }
         else

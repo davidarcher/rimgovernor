@@ -42,7 +42,7 @@ public sealed partial class GoalsRounds
         }
         read = read.WithProjection(f.AddDefinitions(read.Frame, read.Catalog, [goal.Target]));
         f = read.Projection;
-        var defs = f.Definitions.Where(d => d.Name == goal.Target && d.Available.TryGetValue(out var available) && available).ToList();
+        var defs = f.Definitions.Where(d => d.Name == goal.Target && d.Available).ToList();
         if (defs.Count == 0)
         {
             return FieldUnavailable(goal.Target + "_definition");
@@ -56,7 +56,8 @@ public sealed partial class GoalsRounds
         {
             return WaitFor(Cause.MethodUsed, "built_count_method");
         }
-        if (!defs[0].Size.TryGetValue(out var size) || size.Width <= 0 || size.Height <= 0)
+        var size = defs[0].Size;
+        if (size.Width <= 0 || size.Height <= 0)
         {
             return FieldUnavailable(goal.Target + "_size");
         }
@@ -67,7 +68,7 @@ public sealed partial class GoalsRounds
         }
         else
         {
-            if (!f.Center().TryGetValue(out var center))
+            if (f.Center() is not { } center)
             {
                 return BuildingReasonNoLayoutPlan;
             }
@@ -78,10 +79,10 @@ public sealed partial class GoalsRounds
     }
 
     /// <summary>The free geysers' footprints, nearest the colony's centre first (in map order while it is unread).</summary>
-    internal static IEnumerable<Rectangle> GeyserSites(IReadOnlyList<PowerGeyser> geysers, Fact<Cell> center, Bounds size)
+    internal static IEnumerable<Rectangle> GeyserSites(IReadOnlyList<PowerGeyser> geysers, Cell? center, Bounds size)
     {
         var free = geysers.Where(g => !g.Occupied && g.Cells.Count > 0);
-        if (center.TryGetValue(out var at))
+        if (center is { } at)
         {
             free = free.OrderBy(g => Math.Abs(g.Cell.X - at.X) + Math.Abs(g.Cell.Z - at.Z));
         }

@@ -34,7 +34,7 @@ public sealed record RoomsFacts
     public bool WorkChairsOwed { get; init; }
 
     /// <summary>The party the mood census owes now (an organizer named), or none.</summary>
-    public Fact<GatheringPlan> Gathering { get; init; }
+    public GatheringPlan Gathering { get => field ?? throw new RequiredFactException("gathering mood census"); init; }
 }
 
 /// <summary>
@@ -190,13 +190,11 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
     /// </summary>
     public static Need GatheringsNeed(RoomsFacts f, bool partySpot)
     {
-        return FoodRules.WholeNeed(Gatherings, NeedTier.Wellbeing, !Owed(GatheringRules.GatheringOwed(f.Gathering), "gathering mood census")) with
+        return FoodRules.WholeNeed(Gatherings, NeedTier.Wellbeing, !GatheringRules.GatheringOwed(f.Gathering)) with
         {
             Preconditions = partySpot ? [PartySpot] : [],
         };
     }
-
-    private static bool Owed(Fact<bool> owed, string fact) => owed.TryGetValue(out var v) ? v : throw new RequiredFactException(fact);
 
     private static string Count(int n) => n.ToString(CultureInfo.InvariantCulture);
 }

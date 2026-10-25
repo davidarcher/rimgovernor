@@ -12,7 +12,7 @@ internal static class CodecRegistry
         codecs.Register(new WorkPawnAvailabilityConverter());
         codecs.Register(new WorkResourcePawnConverter());
         codecs.Register(new ProductionRecipeInputConverter());
-        codecs.Register(new ProductionMaterialPromiseConverter());
+        codecs.Register(new ProductionPromiseSetConverter());
         codecs.Register(new ForecastMaterialClaimConverter());
         codecs.Register(new IngredientReservationConverter());
         codecs.Register(new AmountConverter());

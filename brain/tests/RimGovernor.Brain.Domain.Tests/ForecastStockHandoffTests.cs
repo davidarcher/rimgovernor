@@ -28,12 +28,12 @@ public sealed class ForecastStockHandoffTests
             Medicine = new() { Items = [new() { Id = "med", Definition = Medicine, Count = 5, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Never() }, new() { Id = "barred-med", Definition = Medicine, Count = 100, Forbidden = true, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Never() }] },
             Items = new() { Nutrition = new Dictionary<Resource, double> { [Meal] = .5 }, MedicalPotency = new Dictionary<Resource, double> { [Medicine] = 1 } }
         };
-        var input = ProjectGraphTests.Colony() with { OtherNutritionPerDay = ForecastStockScope.OtherDemand(facts.Food, []).Value, Stocks = new() { Materials = physical, Nutrition = ForecastStockScope.Nutrition(facts.Food).Value, Medicine = [new(Medicine, 5)] }, Pawns = [] };
+        var input = ProjectGraphTests.Colony() with { OtherNutritionPerDay = ForecastStockScope.OtherDemand(facts.Food, []), Stocks = new() { Materials = physical, Nutrition = ForecastStockScope.Nutrition(facts.Food), Medicine = [new(Medicine, 5)] }, Pawns = [] };
         return new() { Origin = new(0), HorizonDays = 1, Facts = facts, Coupled = new()
         {
             Activities = new() { Deadline = 0 }, Needs = NeedsFixtures.Empty, ModelBasis = new(input, new() { MedicineTendsPerDay = 0 }),
             FoodUses = [new("animal", Meal.Value, new(1, 1), true, .5, 10d, 1, new FoodFreshness.Rots(120000d)) { Ingredient = "", Thoughts = [] }],
-            Resources = new(new() { Stock = physical, Standing = new([], new Dictionary<Resource, long>()), Reservations = [], Promises = Known<EquatableArray<ProductionMaterialPromise>>([]) }, new([], [], [], []), default)
+            Resources = new(new() { Stock = physical, Standing = new([], new Dictionary<Resource, long>()), Reservations = [], Promises = AdmissionAssertions.MaterialPromises([]) }, new([], [], [], []), new MaterialAvailability.Blocked(MaterialBudgetBlock.AwaitingReview))
         } };
     }
     private static ForecastCoupledOutcome Evaluate(ColonyForecastRequest request, params ForecastCommitment[] changes) =>

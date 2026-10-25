@@ -42,13 +42,13 @@ public sealed class ClaimAdmissionTests
         facts = facts with
         {
             Resources = [new(new("Rice"), 100)],
-            Colonists = 1L, IndoorCapacity = 0L, BedCapacity = 0L, FieldCoverage = Known(0.0),
+            Colonists = 1L, IndoorCapacity = 0L, BedCapacity = 0L, FieldCoverage = 0.0,
             WorkAdmission = facts.WorkAdmission with
             {
-                Buildings = Known<EquatableArray<WorkBuildingCost>>([
-                    new("TestWall", "Rice", Known<EquatableArray<Amount>>([new(new("Rice"), 1)])) { Size = Known(new Cell(1, 1)) },
-                    new("TestBed", "Rice", Known<EquatableArray<Amount>>([new(new("Rice"), 1)])) { Size = Known(new Cell(1, 2)) },
-                    new("TestSpot", "", Known<EquatableArray<Amount>>([])) { Size = Known(new Cell(1, 1)) }]),
+                Buildings = [
+                    new("TestWall", "Rice", [new(new("Rice"), 1)]) { Size = new Cell(1, 1) },
+                    new("TestBed", "Rice", [new(new("Rice"), 1)]) { Size = new Cell(1, 2) },
+                    new("TestSpot", "", []) { Size = new Cell(1, 1) }],
             },
         };
         var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);

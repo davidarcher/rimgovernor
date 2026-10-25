@@ -257,11 +257,12 @@ public static class QuestCapacity
         {
             return new QuestCalm.Unsettled();
         }
-        var cleared = RoundsRules.CombatCleared(f);
-        if (!cleared.TryGetValue(out var calm))
+        return RoundsRules.CombatSituation(f.Hostiles, HuntSquadRules.HuntRequest(f.FoodPlan).Count) switch
         {
-            return new QuestCalm.Unsettled();
-        }
-        return calm ? QuestCalm.Settled : new QuestCalm.Busy();
+            Situation.Clear => QuestCalm.Settled,
+            Situation.Active => new QuestCalm.Busy(),
+            Situation.Unclear => new QuestCalm.Unsettled(),
+            var unexpected => throw new DomainException($"invalid combat situation: {unexpected}"),
+        };
     }
 }

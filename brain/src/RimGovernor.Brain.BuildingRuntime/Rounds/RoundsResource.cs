@@ -120,7 +120,7 @@ public sealed partial class RoundsResourcePlanner
         RoundsBuildingPlanner.CancelStalledExcavation(p.Journal, goal, review.Tick, call);
         var started = reviewer.Clock.Now();
         var identity = Boundary.Identity(state.Snapshot);
-        var observed = await native.ReadColonyFactsAsync(identity, false, call).ConfigureAwait(false);
+        var observed = await native.ReadColonyFactsAsync(identity, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(observed.Context, state.Snapshot);

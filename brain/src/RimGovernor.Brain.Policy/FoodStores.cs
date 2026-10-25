@@ -3,11 +3,19 @@ using System.Globalization;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// What the food stores family reads (#3251, #3280): the perishable food census, the travel reserve review, whether
+/// Reserve targets are not requested until the reserve needs stack access. The full read supplies a measured list.
+/// The food stores family (#3251, #3280) reads: the perishable food census, the travel reserve review, whether
 /// a food stockpile stands, whether the food plan holds the stock-protection channel, the reserve stacks the native
-/// supply reads offer to hold or release (known only on a full family read; the pure uses leave it unknown), and the
+/// supply reads offer to hold or release, and the
 /// planned cooling rooms refrigeration answers for.
 /// </summary>
+public abstract record ReserveSupplyRead
+{
+    private protected ReserveSupplyRead() { }
+    public sealed record NotRequested : ReserveSupplyRead;
+    public sealed record Targets(EquatableArray<SupplyAllow> Values) : ReserveSupplyRead;
+}
+
 public sealed record FoodStoresFacts
 {
     public FoodStorageObservation Storage { get; init; } = new();
@@ -20,16 +28,16 @@ public sealed record FoodStoresFacts
     /// <summary>Whether the food plan opened or holds the reserve's stock-protection channel; without it the family proposes nothing.</summary>
     public bool StockProtection { get; init; }
 
-    /// <summary>The supply actions the native reserve reads offer, the release read first; unknown when not read.</summary>
-    public Fact<EquatableArray<SupplyAllow>> ReserveTargets { get; init; }
+    /// <summary>The supply actions the native reserve reads offer, the release read first; not requested unless reserve access is pending.</summary>
+    public ReserveSupplyRead ReserveTargets { get; init; } = new ReserveSupplyRead.NotRequested();
 
-    /// <summary>The warm standing tombs, morgues and meal closets (<see cref="TombRules.WarmCoolingRooms"/>); unknown while the plan, rooms or cooler research are unread.</summary>
-    public Fact<EquatableArray<string>> WarmRooms { get; init; }
+    /// <summary>The warm standing tombs, morgues and meal closets (<see cref="TombRules.WarmCoolingRooms"/>); empty while the plan or cooler research is unavailable.</summary>
+    public EquatableArray<string> WarmRooms { get; init; }
 
-    /// <summary>Whether the planned meal closet waits to be shelled while its dining room stands; unknown while unread.</summary>
-    public Fact<bool> MealClosetOwed { get; init; }
+    /// <summary>Whether the planned meal closet waits to be shelled while its dining room stands; false before the plan exists.</summary>
+    public bool MealClosetOwed { get; init; }
 
-    /// <summary>The facts a review already holds; the reserve targets stay unknown.</summary>
+    /// <summary>The facts a review already holds; the reserve targets have not been requested.</summary>
     public static FoodStoresFacts From(RoundsFacts f) => new()
     {
         Storage = f.FoodStorageUpkeep,
@@ -110,10 +118,15 @@ public sealed class FoodStoresFamily(FoodStoragePolicy policy, bool storage, boo
     /// <summary>The offered reserve stacks the review wants held (forbid) or released (allow), in read order, at most eight.</summary>
     private static List<SupplyAllow> ReserveSupplies(FoodStoresFacts facts)
     {
-        if (facts.Reserve is not FoodReserveState.Reviewed { Review: var reserve } || !facts.ReserveTargets.TryGetValue(out var targets))
+        if (facts.Reserve is not FoodReserveState.Reviewed { Review: var reserve })
         {
             return [];
         }
+        if (facts.ReserveTargets is not ReserveSupplyRead.Targets read)
+        {
+            throw new RequiredFactException("reserve supply targets");
+        }
+        var targets = read.Values;
         var wanted = new Dictionary<string, bool>(StringComparer.Ordinal);
         foreach (var id in reserve.Hold)
         {
@@ -196,7 +209,7 @@ public static class FoodStoresRules
     /// perishable nutrition warmer than <see cref="FoodStoragePolicy.ChilledExitC"/> reaches
     /// <see cref="FoodStoragePolicy.AtRiskNutritionThreshold"/>, while a standing tomb, morgue or meal closet measures
     /// warm, or while the planned meal closet waits for its shell. Otherwise it is met; malformed census rows throw.
-    /// Unread warm rooms or an unread closet owe nothing. Its deficit is the warm nutrition's share of the
+    /// The cooling room and closet observations are total. Its deficit is the warm nutrition's share of the
     /// threshold, whole for a warm cooling room, and at least a half while the closet is owed.
     /// </summary>
     public static Need RefrigerationNeedOf(FoodStoresFacts f, FoodStoragePolicy p)
@@ -211,7 +224,7 @@ public static class FoodStoresRules
             // Malformed census rows are an unreadable census, never a measured one.
             throw new RequiredFactException("refrigeration census");
         }
-        var closet = RoundsRules.Positive(f.MealClosetOwed);
+        var closet = f.MealClosetOwed;
         var unmet = review.Active || closet;
         var deficit = 0.0;
         if (unmet)

@@ -163,14 +163,14 @@ public sealed class PlannedRoomGateTests
         facts = facts with
         {
             Resources = [new(new("WoodLog"), 1000), new(new("BlocksGranite"), 1000)],
-            Colonists = 1L, IndoorCapacity = 1L, BedCapacity = 1L, FieldCoverage = Known(1.0),
+            Colonists = 1L, IndoorCapacity = 1L, BedCapacity = 1L, FieldCoverage = 1.0,
             WorkAdmission = facts.WorkAdmission with
             {
-                Buildings = Known<EquatableArray<WorkBuildingCost>>([
-                    new(ContainmentCellRules.ShellWallDefinition, "WoodLog", Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("WoodLog"), 5)])) { Size = Known(new Cell(1, 1)) },
-                    new(ContainmentCellRules.ShellDoorDefinition, "WoodLog", Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("WoodLog"), 25)])) { Size = Known(new Cell(1, 1)) },
-                    new(ContainmentCellRules.ShellWallDefinition, "BlocksGranite", Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("BlocksGranite"), 5)])) { Size = Known(new Cell(1, 1)) },
-                    new(ContainmentCellRules.ShellDoorDefinition, "BlocksGranite", Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("BlocksGranite"), 25)])) { Size = Known(new Cell(1, 1)) }]),
+                Buildings = [
+                    new(ContainmentCellRules.ShellWallDefinition, "WoodLog", [new(new("WoodLog"), 5)]) { Size = new Cell(1, 1) },
+                    new(ContainmentCellRules.ShellDoorDefinition, "WoodLog", [new(new("WoodLog"), 25)]) { Size = new Cell(1, 1) },
+                    new(ContainmentCellRules.ShellWallDefinition, "BlocksGranite", [new(new("BlocksGranite"), 5)]) { Size = new Cell(1, 1) },
+                    new(ContainmentCellRules.ShellDoorDefinition, "BlocksGranite", [new(new("BlocksGranite"), 25)]) { Size = new Cell(1, 1) }],
             },
         };
         journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = review is null ? facts : review(facts) }, ct);
@@ -190,8 +190,9 @@ public sealed class PlannedRoomGateTests
             Rooms = RoomTestFacts.NoRooms,
             Definitions =
             [
-                new PlanningDefinition { Name = ContainmentCellRules.ShellWallDefinition, Available = Known(true) },
-                new PlanningDefinition { Name = ContainmentCellRules.ShellDoorDefinition, Available = Known(true) },
+                new PlanningDefinition { Name = ContainmentCellRules.ShellWallDefinition, Available = true, FixedConstruction = new(), Size = new(1, 1) },
+                new PlanningDefinition { Name = ContainmentCellRules.ShellDoorDefinition, Available = true, FixedConstruction = new(), Size = new(1, 1) },
+                new PlanningDefinition { Name = "Vent", Available = false },
             ],
         };
         Colony? colony = null;
@@ -291,7 +292,7 @@ public sealed class PlannedRoomGateTests
                 [
                     new PlanningDefinition
                     {
-                        Name = "Bed", Available = Known(true), Research = ["ComplexFurniture"],
+                        Name = "Bed", Available = true, Research = ["ComplexFurniture"],
                         StuffOptions = [new StuffOption { Stuff = "WoodLog", Value = 1, Common = true, Costs = [new RimGovernor.Brain.Policy.Amount(new("WoodLog"), 45)] }],
                     },
                 ],
@@ -312,7 +313,7 @@ public sealed class PlannedRoomGateTests
     }
 
     /// <summary>A projection describing a bed (ComplexFurniture, wood) and a stuff-less FueledStove (no prerequisite), <paramref name="wood"/> stocked and no ring sources on the map.</summary>
-    private static ColonyProjection BlockedFacts(Fact<bool> bedAvailable, bool researchRead, long wood = 100)
+    private static ColonyProjection BlockedFacts(bool bedAvailable, bool researchRead, long wood = 100)
     {
         var projection = ColonyFactsCoreTests.Projection() with
         {
@@ -323,7 +324,7 @@ public sealed class PlannedRoomGateTests
                     Name = "Bed", Available = bedAvailable, Research = ["ComplexFurniture"],
                     StuffOptions = [new StuffOption { Stuff = "WoodLog", Value = 1, Common = true, Costs = [new RimGovernor.Brain.Policy.Amount(new("WoodLog"), 45)] }],
                 },
-                new PlanningDefinition { Name = "FueledStove", Available = Known(true) },
+                new PlanningDefinition { Name = "FueledStove", Available = true, FixedConstruction = new() },
             ],
             Resources = new Dictionary<Resource, long> { [new("WoodLog")] = wood },
             RingSources = new RingStuffSources(),
@@ -344,12 +345,11 @@ public sealed class PlannedRoomGateTests
         RoundsReading Reading(ColonyProjection projection) => new() { Emergency = new(), Frame = new(), Reading = new ColonyReading { Projection = projection } };
         bool Done(ColonyProjection projection) => PlannedRules.PlannedRoomDone(owed, RoundsBuildingPlanner.PieceBlockedOf(Reading(projection)));
 
-        Assert.False(Done(BlockedFacts(default, researchRead: true)));
-        Assert.False(Done(BlockedFacts(Known(true), researchRead: false)));
-        Assert.True(Done(BlockedFacts(Known(false), researchRead: false)));
-        Assert.True(Done(BlockedFacts(Known(true), researchRead: true)));
+        Assert.False(Done(BlockedFacts(true, researchRead: false)));
+        Assert.True(Done(BlockedFacts(false, researchRead: false)));
+        Assert.True(Done(BlockedFacts(true, researchRead: true)));
         // Researched, nothing stocked: blocked only when the stock was read and the map offers no wood or blocks.
-        var read = BlockedFacts(Known(true), researchRead: true, wood: 0);
+        var read = BlockedFacts(true, researchRead: true, wood: 0);
         var researched = read with { Facts = read.Facts with { Research = new ResearchFacts { Finished = [new ResearchProjectId("ComplexFurniture")] } } };
         Assert.True(Done(researched));
         Assert.False(Done(researched with { RingSources = null }));
@@ -372,8 +372,8 @@ public sealed class PlannedRoomGateTests
             Site("planned/room1/build/FueledStove/6/6", OpKind.Build, "FueledStove"),
         ];
         string[] Blocked(ColonyProjection projection) => [.. Rounder.BlockedPiecesOf(projection, sites).Where(s => s.Blocked).Select(s => s.Id)];
-        Assert.Equal(["planned/room1/build/Bed/5/5"], Blocked(BlockedFacts(Known(true), researchRead: true)));
-        Assert.Empty(Blocked(BlockedFacts(Known(true), researchRead: false)));
+        Assert.Equal(["planned/room1/build/Bed/5/5"], Blocked(BlockedFacts(true, researchRead: true)));
+        Assert.Empty(Blocked(BlockedFacts(true, researchRead: false)));
     }
 
     /// <summary>
@@ -390,13 +390,13 @@ public sealed class PlannedRoomGateTests
             [
                 new PlanningDefinition
                 {
-                    Name = "Bed", Available = Known(true),
+                    Name = "Bed", Available = true,
                     StuffOptions = [new StuffOption { Stuff = "WoodLog", Value = 1, Common = true, Costs = [Of("WoodLog", 45)] }],
                 },
-                new PlanningDefinition { Name = "FueledStove", Available = Known(true), Costs = Known(EquatableArray.From(new[] { Of("Steel", 80) })) },
+                new PlanningDefinition { Name = "FueledStove",Available = true,FixedConstruction=new PlanningFixedConstruction {Costs = EquatableArray.From(new[] { Of("Steel", 80) })}},
                 new PlanningDefinition
                 {
-                    Name = "SimpleResearchBench", Available = Known(true),
+                    Name = "SimpleResearchBench", Available = true,
                     StuffOptions = [new StuffOption { Stuff = "WoodLog", Value = 1, Common = true, Costs = [Of("WoodLog", 75), Of("Steel", 50)] }],
                 },
             ],
@@ -409,7 +409,7 @@ public sealed class PlannedRoomGateTests
     /// #3839: the one predicate reads a piece's cost list beside its stuff. A stuff-less stove (80 Steel) and a wood research
     /// bench (beside 50 Steel) are blocked with no Steel stocked and the window offering none; Steel stocked, a stack of it
     /// lying on the map, compacted steel to mine or an unowned building that yields it on deconstruction makes them
-    /// available; an unread stock, unread map sources, a building whose salvage is unread or an unread cost list leaves
+    /// available; an unread stock, unread map sources, a building whose salvage is unread leaves
     /// them unread, so a started room owing only the stove stays open.
     /// </summary>
     [Fact]
@@ -429,8 +429,9 @@ public sealed class PlannedRoomGateTests
         Assert.Equal(DefinitionReadiness.Available, Stove(StoveFacts(sources: new RingStuffSources { Salvage = offered })));
         Assert.Equal(DefinitionReadiness.Unread, Stove(StoveFacts(sourcesRead: false)));
         Assert.Equal(DefinitionReadiness.Unread, Stove(StoveFacts(sources: new RingStuffSources { Unsalvaged = MachineUnsalvaged })));
-        var unread = StoveFacts();
-        Assert.Equal(DefinitionReadiness.Unread, Stove(unread with { Definitions = [.. unread.Definitions.Select(d => d.Name == "FueledStove" ? d with { Costs = default } : d)] }));
+        var read = StoveFacts();
+        Assert.Equal(DefinitionReadiness.Available, Stove(read with { Definitions = [.. read.Definitions.Select(d => d.Name == "FueledStove" ? d with { FixedConstruction = new PlanningFixedConstruction() } : d)] }));
+        Assert.Throws<RequiredFactException>(() => Stove(read with { Definitions = [.. read.Definitions.Select(d => d.Name == "FueledStove" ? d with { FixedConstruction = null } : d)] }));
 
         var stove = new WantedPiece { DefName = "FueledStove", Minimum = new(6, 7), Maximum = new(6, 7), Size = new(1, 1), Rot = Rotation.North };
         IReadOnlyList<Operation> owed = [new Operation { Kind = OpKind.Build, Pieces = [stove] }];
@@ -525,7 +526,7 @@ public sealed class PlannedRoomGateTests
     {
         // Shared admission refused the storage room's ring by throwing past the stockpile step, so the step never reached
         // its zone edits. A refusal is an outcome: the reconcile returns it, and the step decides what goes on.
-        using var colony = Open(f => f with { WorkAdmission = f.WorkAdmission with { Buildings = Known<EquatableArray<WorkBuildingCost>>([]) } });
+        using var colony = Open(f => f with { WorkAdmission = f.WorkAdmission with { Buildings = [] } });
         colony.Census = CurrentConstruction.Empty with { Buildings = [Built(ContainmentCellRules.ShellWallDefinition, new(4, 8))] };
         var run = await colony.RunAsync();
         Assert.Empty(run.Methods);

@@ -37,10 +37,7 @@ partial class RoundsBuildingPlanner
             {
                 return availability;
             }
-            if (!def.ConstructionSkill.TryGetValue(out var skill))
-            {
-                return FieldUnavailable(name + "_construction_skill");
-            }
+            var skill = def.ConstructionSkill;
             if (skill != 0)
             {
                 return Refuse(Pol.Cause.NoWorker, "builder_for_" + name, string.Create(CultureInfo.InvariantCulture, $"construction_skill_{skill}"));
@@ -64,10 +61,7 @@ partial class RoundsBuildingPlanner
     /// <summary>The zero Verdict for a definition the game reports buildable, else the missing fact or the research it waits on.</summary>
     internal static Verdict DefinitionAvailability(Observation.PlanningDefinition def)
     {
-        if (!def.Available.TryGetValue(out var ready))
-        {
-            return FieldUnavailable(def.Name + "_availability");
-        }
+        var ready = def.Available;
         if (ready)
         {
             return new Verdict();
@@ -79,7 +73,6 @@ partial class RoundsBuildingPlanner
         return ResearchWait(string.Join("+", def.Research));
     }
 
-    internal static bool PositiveFact(Fact<bool> f) => f.TryGetValue(out var v) && v;
 
     /// <summary>
     /// Folds one more preview's stock into a bundle's. Previews of one bundle are native calls made one after

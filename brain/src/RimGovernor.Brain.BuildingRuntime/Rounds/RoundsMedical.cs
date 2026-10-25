@@ -48,7 +48,7 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
 
         var started = reviewer.Clock.Now();
         var identity = Boundary.Identity(state.Snapshot);
-        var observed = await reviewer.ColonyFactsAsync(native, identity, false, call).ConfigureAwait(false);
+        var observed = await reviewer.ColonyFactsAsync(native, identity, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(observed.Context, state.Snapshot);
@@ -202,7 +202,7 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
         IReadOnlyList<AcquisitionSource> selected;
         try
         {
-            selected = AcquisitionRules.SelectResourceAcquisition(sources, Known((double)replenish), Known(pending), medicineResource, held);
+            selected = AcquisitionRules.SelectResourceAcquisition(sources, (double)replenish, pending, medicineResource, held);
         }
         catch (DomainException)
         {

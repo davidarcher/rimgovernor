@@ -189,7 +189,7 @@ public static partial class TombRules
     /// </summary>
     public static bool TombOwed(
         PieceShapes shapes,
-        Fact<bool> available,
+        bool available,
         LayoutPlan? plan,
         EquatableArray<WasteItem> waste,
         CurrentConstruction? built
@@ -203,10 +203,7 @@ public static partial class TombRules
         {
             throw new RequiredFactException("layout plan");
         }
-        if (!available.TryGetValue(out var a))
-        {
-            throw new RequiredFactException("sarcophagus availability");
-        }
-        return NextTombStep(p, waste, b.Buildings, shapes, a).Kind != TombStepKind.None;
+
+        return NextTombStep(p, waste, b.Buildings, shapes, available).Kind != TombStepKind.None;
     }
 }

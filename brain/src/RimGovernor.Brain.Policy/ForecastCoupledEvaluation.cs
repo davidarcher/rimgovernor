@@ -168,8 +168,7 @@ public static partial class ForecastCoupled
             {
                 var pawn = context.Needs.Pawns[p];
                 WorkPawnAvailability? observed = null;
-                if (context.Resources.Evidence.Pawns.TryGetValue(out var rows))
-                    foreach (var row in rows)
+                foreach (var row in context.Resources.Evidence.Pawns)
                         if (row.Pawn == pawn.Pawn) { if (observed is not null) throw new InvalidOperationException("Sequence contains more than one matching element"); observed = row; }
                 var journal = false;
                 foreach (var claimant in context.Resources.Claims.Pawns) journal |= claimant == pawn.Pawn;

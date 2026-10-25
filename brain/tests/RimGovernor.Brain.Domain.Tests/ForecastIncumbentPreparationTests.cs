@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class ForecastIncumbentPreparationTests
 {
-    private static readonly Fact<EquatableArray<ProductionBatch>> NoBatches = Known<EquatableArray<ProductionBatch>>([]);
+    private static readonly ProductionBatchCensus NoBatches = new ProductionBatchCensus.Read([]);
 
     [Fact]
     public void OrdinaryGenerationStillRunsWithoutAnyEligibleIncumbent()
@@ -39,13 +39,13 @@ public sealed class ForecastIncumbentPreparationTests
                 Tick = new(100),
             }
         );
-        var native = Known<EquatableArray<WorkResourcePawn>>([
+        EquatableArray<WorkResourcePawn> native = [
             new("pawn", "joy-assignment", 1, "started", "", "", 0) { LocalHour = 12 },
-        ]);
+        ];
         var evidence = facts.WorkView!.Evidence with
         {
             WorkResources = native,
-            Pawns = Known(EquatableArray.From(facts.WorkView.Evidence.Pawns.Value.Select(p => p with { Occupied = true })))
+            Pawns = EquatableArray.From(facts.WorkView.Evidence.Pawns.Select(p => p with { Occupied = true }))
         };
         var view = WorkRules.WorkResourcesOf(evidence, NoBatches, [row]);
         var needs = facts.ForecastObserved.Needs!;
@@ -72,7 +72,7 @@ public sealed class ForecastIncumbentPreparationTests
         Assert.Contains("pawn", prepared.WorkView!.Claims.Pawns);
         var candidates = Assert.IsType<ForecastCoupledCandidates>(prepared.CoupledAlternatives);
         Assert.DoesNotContain("pawn", candidates.Context.Resources.Claims.Pawns);
-        Assert.True(candidates.Context.Resources.Evidence.Pawns.Value[0].Occupied == false);
+        Assert.True(candidates.Context.Resources.Evidence.Pawns[0].Occupied == false);
         Assert.Equal(facts.WorkView!.Evidence.Stock, candidates.Context.Resources.Evidence.Stock);
         Assert.Equal(facts.WorkView.Evidence.Reservations, candidates.Context.Resources.Evidence.Reservations);
         var task = Assert.Single(candidates.Context.Activities.Activities, a => a.Id == incumbent.Commitment);
@@ -137,12 +137,12 @@ public sealed class ForecastIncumbentPreparationTests
                 {
                     Evidence = facts.WorkView!.Evidence with
                     {
-                        WorkResources = Known<EquatableArray<WorkResourcePawn>>([
+                        WorkResources = [
                             new("pawn", "joy-assignment", 1, "started", "rice", "Rice", 1)
                             {
                                 LocalHour = 12,
                             },
-                        ]),
+                        ],
                     },
                 },
             };
@@ -195,7 +195,7 @@ public sealed class ForecastIncumbentPreparationTests
         row = row with { Action = DomainAction.NewPawnActivitiesAction(row.Action.Id, batch) };
         var native = new List<WorkResourcePawn> { new("pawn", order.Assignment, order.Revision, "holding", "", "", 0) { LocalHour = 12 } };
         if (tombstone) native.Add(new("helper", "new-independent-idle", 1, "holding", "", "", 0) { LocalHour = 12 });
-        var evidence = facts.WorkView!.Evidence with { WorkResources = Known(EquatableArray.From(native)) };
+        var evidence = facts.WorkView!.Evidence with { WorkResources = EquatableArray.From(native) };
         var view = WorkRules.WorkResourcesOf(evidence, NoBatches, [row]);
         var pawn = facts.ForecastObserved.Needs!.Pawns[0] with
         {
@@ -243,9 +243,9 @@ public sealed class ForecastIncumbentPreparationTests
         var (_, incumbents) = ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions);
         var released = Assert.Single(Assert.Single(incumbents).ReleasedOwnership);
         Assert.Equal("new-independent-idle", released.Assignment);
-        var native = facts.WorkView!.Evidence.WorkResources.Value;
+        var native = facts.WorkView!.Evidence.WorkResources;
         facts = facts with { WorkView = facts.WorkView! with { Evidence = facts.WorkView!.Evidence with
-            { WorkResources = Known<EquatableArray<WorkResourcePawn>>([native[0], native[1] with { Assignment = "old-helper" }]) } } };
+            { WorkResources = [native[0], native[1] with { Assignment = "old-helper" }] } } };
         Assert.Empty(ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions).Incumbents);
     }
 
@@ -303,9 +303,9 @@ public sealed class ForecastIncumbentPreparationTests
             }
         );
         WorkAction[] rows = [row];
-        var native = facts.WorkView!.Evidence.WorkResources.Value.Select(p => p.Pawn == "pawn" ? p with { Assignment = order.Assignment, Revision = order.Revision, State = state } : p).ToList();
+        var native = facts.WorkView!.Evidence.WorkResources.Select(p => p.Pawn == "pawn" ? p with { Assignment = order.Assignment, Revision = order.Revision, State = state } : p).ToList();
         if (busy.Length != 0) native.Add(new("busy", "busy-assignment", 1, "started", "", "", 0) { LocalHour = 12, Bill = busy == "shares" ? recipe.Bill : "bill/Other" });
-        var evidence = facts.WorkView.Evidence with { WorkResources = Known(EquatableArray.From(native)) };
+        var evidence = facts.WorkView.Evidence with { WorkResources = EquatableArray.From(native) };
         var view = WorkRules.WorkResourcesOf(evidence, NoBatches, rows);
         return (facts with { WorkView = view, WorkClaims = view.Claims, WorkResources = evidence.WorkResources }, new(EquatableArray.From(rows)));
     }
@@ -432,9 +432,9 @@ public sealed class ForecastIncumbentPreparationTests
             rows.Add(new(new("plan" + i), action, original.Progress with { Action = action.Id }));
             needs.Add(facts.ForecastObserved.Needs!.Pawns[0] with { Pawn = pawn, CurrentService = new(order.Assignment, order.Method, 1, "pin", "joy", new(1, 1), 100d, .001) { Unsupported = [] } });
             native.Add(new(pawn, order.Assignment, 1, "started", "", "", 0) { LocalHour = 12 });
-            capacity.Add(facts.WorkView!.Evidence.Pawns.Value[0] with { Pawn = pawn });
+            capacity.Add(facts.WorkView!.Evidence.Pawns[0] with { Pawn = pawn });
         }
-        var evidence = facts.WorkView!.Evidence with { Pawns = Known(EquatableArray.From(capacity)), WorkResources = Known(EquatableArray.From(native)) };
+        var evidence = facts.WorkView!.Evidence with { Pawns = EquatableArray.From(capacity), WorkResources = EquatableArray.From(native) };
         var view = WorkRules.WorkResourcesOf(evidence, NoBatches, rows);
         facts = facts with { WorkView = view, WorkClaims = view.Claims, ForecastObserved = facts.ForecastObserved with
         {

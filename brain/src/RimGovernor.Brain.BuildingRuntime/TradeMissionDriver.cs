@@ -333,7 +333,7 @@ public sealed partial class RoundsTradePlanner
     /// </summary>
     internal async Task<(IReadOnlyList<TradeLine> Lines, IReadOnlyList<CargoItem> Goods)> MissionPurchasesAsync(ControlState state, Sto.Rounds review, TradeMission m, PbObservations.TradeSheet sheet, PbObservations.CaravanState caravan, CancellationToken ct)
     {
-        var reply = await Native.ReadColonyFactsAsync(Boundary.Identity(state.Snapshot), false, ct).ConfigureAwait(false);
+        var reply = await Native.ReadColonyFactsAsync(Boundary.Identity(state.Snapshot), ct).ConfigureAwait(false);
         var tables = await Native.FrameTablesAsync(Boundary.Identity(state.Snapshot), ct).ConfigureAwait(false);
         if (Native is not IDefinitionSource definitions)
         {
@@ -351,7 +351,6 @@ public sealed partial class RoundsTradePlanner
             },
             tables,
             catalog);
-        projection = await ZonesReads.FillZones(Native as Observation.IZonesNative, reply.Context.Identity, projection.Identity, projection, ct).ConfigureAwait(false);
         Reviewer.PlanFood(ref projection);
         var targets = Reviewer.ResourceTargets(state.Snapshot);
         var nutrition = new Dictionary<string, double>(StringComparer.Ordinal);

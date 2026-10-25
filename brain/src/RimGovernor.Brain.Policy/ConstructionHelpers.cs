@@ -10,17 +10,8 @@ namespace RimGovernor.Brain.Policy;
 // facts per definition, with no name list: a definition is helper work when its quality sensitivity is
 // observed false and its skill prerequisite is observed (the helper must reach it), and a quality-sensitive
 // definition is protected when its sites carry an observed finishing minimum, which native enforces per target
-// (helpers then neither count as demand nor constrain the floor). An unobserved prerequisite, an unobserved
-// quality fact or an unconfigured quality site withholds helpers with a reason naming that fact. A new
+// (helpers then neither count as demand nor constrain the floor). A candidate without a placed site, or a quality site without a finishing policy, withholds helpers. A new
 // unconfigured site between reviews still follows vanilla rules until the brain adopts it on a later review.
-
-/// <summary>An open plan's building definition with its observed native skill prerequisite.</summary>
-public sealed record HelpDefinition
-{
-    public string Name { get; init; } = "";
-
-    public Fact<int> Skill { get; init; }
-}
 
 /// <summary>The planner's helper input (WorkDemand.Help).</summary>
 public sealed record ConstructionHelp
@@ -33,7 +24,7 @@ public sealed record ConstructionHelp
     /// <summary>The runnable helper-eligible construction parallelism from the complete census.</summary>
     public int Ready { get; init; }
 
-    /// <summary>The definitions whose prerequisite or quality is unobserved or unconfigured.</summary>
+    /// <summary>The candidates without a placed building site and the sites without a finishing policy.</summary>
     public EquatableArray<string> Withheld { get; init; }
 
     /// <summary>The highest-ranked fact among the withheld definitions.</summary>
@@ -80,16 +71,16 @@ public static class ConstructionHelpersRules
     public const string HelpNoDemand = "no_unmet_suitable_construction";
     public const string HelpNoSpare = "no_sustained_idle_pawn";
 
-    // Withholding reasons name the unobserved or unconfigured fact.
-    public const string HelpPrerequisiteUnknown = "construction_prerequisite_unknown";
-    public const string HelpQualityUnknown = "construction_quality_unknown";
+    // Withholding reasons name the stage or native site state.
+    public const string HelpStageNotBuilding = "construction_stage_not_building";
+    public const string HelpSiteNotPlaced = "construction_site_not_placed";
     public const string HelpQualityUnprotected = "construction_quality_unprotected";
 
     /// <summary>Orders withholding reasons when several hold.</summary>
     private static int HelpWithholdRank(string reason) => reason switch
     {
-        HelpPrerequisiteUnknown => 1,
-        HelpQualityUnknown => 2,
+        HelpStageNotBuilding => 1,
+        HelpSiteNotPlaced => 2,
         HelpQualityUnprotected => 3,
         _ => 0,
     };
@@ -114,7 +105,6 @@ public static class ConstructionHelpersRules
         ReadyWorkReport? report,
         GenerationSnapshot current,
         Tick tick,
-        IReadOnlyList<HelpDefinition> definitions,
         ConstructionHelpRecord? previous,
         CurrentConstruction? census)
     {
@@ -145,13 +135,7 @@ public static class ConstructionHelpersRules
             quality[name] = (HelpQuality)Math.Max((int)quality.GetValueOrDefault(name), (int)q);
             siteSkill[name] = Math.Max(siteSkill.GetValueOrDefault(name), site.NativeFinishingSkill);
         }
-        var skills = new Dictionary<string, Fact<int>>(StringComparer.Ordinal);
         var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var d in definitions)
-        {
-            skills[d.Name] = d.Skill;
-            names.Add(d.Name);
-        }
         foreach (var name in quality.Keys)
         {
             names.Add(name);
@@ -166,7 +150,7 @@ public static class ConstructionHelpersRules
             const string Prefix = "building:";
             if (!c.Stage.StartsWith(Prefix, StringComparison.Ordinal))
             {
-                Withhold(c.Stage, HelpPrerequisiteUnknown);
+                Withhold(c.Stage, HelpStageNotBuilding);
                 continue;
             }
             var def = c.Stage[Prefix.Length..];
@@ -183,7 +167,7 @@ public static class ConstructionHelpersRules
             }
             if (!quality.TryGetValue(name, out var q))
             {
-                Withhold(name, HelpQualityUnknown);
+                Withhold(name, HelpSiteNotPlaced);
             }
             else if (q == HelpQuality.Unprotected)
             {
@@ -191,17 +175,7 @@ public static class ConstructionHelpersRules
             }
             else if (q == HelpQuality.Free)
             {
-                var known = skills.GetValueOrDefault(name).TryGetValue(out var skill);
-                if (!known && siteSkill.ContainsKey(name))
-                {
-                    skill = siteSkill.GetValueOrDefault(name); // a free definition has an observed site
-                    known = true;
-                }
-                if (!known)
-                {
-                    Withhold(name, HelpPrerequisiteUnknown);
-                    continue;
-                }
+                var skill = siteSkill[name];
                 helperWork.Add(name);
                 floor = Math.Max(floor, skill);
             }

@@ -419,10 +419,7 @@ public static partial class GoalRules
     private static GoalStatus Worn(GoalRecord goal, GoalsFacts f)
     {
         var owner = EconomyFamily.Resource;
-        if (!f.Rounds.Gear.TryGetValue(out var gear))
-        {
-            throw new RequiredFactException("gear");
-        }
+        var gear = f.Rounds.Gear;
         var want = new WornGoal(new Resource(goal.Target), new Resource(goal.Qualifier), goal.Count);
         var wearing = WearingCount(gear, want);
         var deficit = GoalDeficit.Of((double)Math.Max(0, goal.Count - wearing));
@@ -787,10 +784,11 @@ public static partial class GoalRules
     /// </summary>
     private static RoundsFacts StampWorn(RoundsFacts f, IReadOnlyList<WornGoal> worn)
     {
-        if (!f.Gear.TryGetValue(out var gear))
+        if (worn.Count == 0)
         {
             return f with { WornBills = [] };
         }
+        var gear = f.Gear;
         var required = new Dictionary<PawnId, List<string>>();
         var bills = new List<OpenBill>();
         foreach (var w in worn)
@@ -816,7 +814,7 @@ public static partial class GoalRules
             GearPawn Add(GearPawn p) => required.TryGetValue(p.Pawn, out var names) && p.Policy is { } state
                 ? p with { Policy = state with { Required = EquatableArray.From(state.Required.Items.Union(names, StringComparer.Ordinal)) } }
                 : p;
-            f = f with { Gear = Fact.Known(gear with { Pawns = [.. gear.Pawns.Select(Add)] }) };
+            f = f with { Gear = gear with { Pawns = [.. gear.Pawns.Select(Add)] } };
         }
         return f with { WornBills = bills };
     }

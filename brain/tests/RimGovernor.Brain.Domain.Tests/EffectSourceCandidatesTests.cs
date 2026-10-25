@@ -222,18 +222,15 @@ public sealed class EffectSourceCandidatesTests
             Stored = [],
             Pawns = [new GearPawn { Pawn = new("pawn"), Loadout = "worker", LoadoutModel = new GearModel.Modeled(model), Candidates = [] }],
         };
-        var facts = new RoundsFacts { Gear = Known(gear) };
+        var facts = new RoundsFacts { Gear = gear };
 
         var standing = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearChoices(facts, []).Gear;
         Assert.NotEmpty(GearRules.GearReplacementNeeds(standing));
 
         var allowed = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearChoices(facts, [GearChoice.KeepFloors("pawn", true)]).Gear;
-        Assert.True(Assert.Single(allowed.Value.Pawns).AllowTainted);
+        Assert.True(Assert.Single(allowed.Pawns).AllowTainted);
         Assert.True(GearRules.ReviewGear(allowed).Recovered);
         Assert.Empty(GearRules.GearReplacementNeeds(allowed));
-        var (wanted, known) = BillWantedRules.GearBillsWanted(allowed);
-        Assert.True(known);
-        Assert.Empty(wanted!);
     }
 
     // #3329: with Live temperature cards each filter offers the distinct insulation levels of the planner's predicted outfits

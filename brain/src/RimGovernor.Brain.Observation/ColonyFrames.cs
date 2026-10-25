@@ -64,7 +64,7 @@ public static class ColonyFramesReads
         return facts with { RecoveryBuildings = EquatableArray.From(rows) };
     }
 
-    internal static Fact<EquatableArray<RecoveryWorker>> RecoveryWorkers(EquatableArray<MoodPawn> pawns)
+    internal static EquatableArray<RecoveryWorker> RecoveryWorkers(EquatableArray<MoodPawn> pawns)
     {
         var rows = pawns;
         var workers = new List<RecoveryWorker>(rows.Count);
@@ -72,7 +72,7 @@ public static class ColonyFramesReads
         {
             workers.Add(new RecoveryWorker { Pawn = p.Id, Dead = p.Dead, Downed = p.Downed, Drafted = p.Drafted, Mental = p.Mental, PlayerForced = p.PlayerForced });
         }
-        return Known(EquatableArray.From(workers));
+        return EquatableArray.From(workers);
     }
 
     /// <summary>

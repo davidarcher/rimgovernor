@@ -51,9 +51,9 @@ internal static class RoundsTierStyle
         var costs = new Dictionary<string, IReadOnlyList<Pol.Amount>>(StringComparer.Ordinal);
         foreach (var d in facts.Definitions)
         {
-            if (d.Costs.TryGetValue(out var known) && (d.Name == TierStyleRules.Carpet || d.Name == TierStyleRules.SterileTile || d.Name == TierStyleRules.StrawMatting))
+            if ((d.Name == TierStyleRules.Carpet || d.Name == TierStyleRules.SterileTile || d.Name == TierStyleRules.StrawMatting))
             {
-                costs[d.Name] = known;
+                if (d.Available) costs[d.Name] = d.CheapestCosts();
             }
         }
         var research = new Pol.FloorStyleFacts { CarpetMaking = StyleResearchFinished(facts, "CarpetMaking"), SterileMaterials = StyleResearchFinished(facts, "SterileMaterials"), Costs = costs };

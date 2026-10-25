@@ -7,7 +7,8 @@ internal static class RoundsMech
 
     internal static IReadOnlyList<PawnSettings> RoundsMechSettings(RoundsReading read)
     {
-        if (!read.Projection.Mechs.TryGetValue(out var fleet) || fleet.Mechanitors.Count == 0)
+        var fleet = read.Projection.Mechs;
+        if (fleet.Mechanitors.Count == 0)
         {
             return [];
         }

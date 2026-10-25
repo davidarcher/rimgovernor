@@ -1,87 +1,42 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>
-/// Budgets a complete growth cycle plus stored-food reserve. Growing cells describe production capacity, never
-/// food available for consumption.
-/// </summary>
+/// <summary>Observed capacity of one planted food crop; growing cells are future production, not delivered food.</summary>
 public sealed record FieldCrop
 {
-    public Fact<bool> Edible { get; init; }
-
-    public Fact<long> GrowingCells { get; init; }
-
-    public Fact<double> Demand { get; init; }
-
-    public Fact<double> GrowDays { get; init; }
-
-    public Fact<double> HarvestNutrition { get; init; }
+    public bool Edible { get; init; }
+    public long GrowingCells { get; init; }
+    public double Demand { get; init; }
+    public double GrowDays { get; init; }
+    public double HarvestNutrition { get; init; }
 }
 
 public static class FieldCapacityRules
 {
-    public static Fact<double> FieldCoverage(long colonists, EquatableArray<FieldCrop> crops, double reserveDays)
+    public static double FieldCoverage(long colonists, EquatableArray<FieldCrop> crops, double reserveDays)
     {
-        var rows = crops;
-        if (!FieldPositive(reserveDays))
-        {
-            return Unknown<double>();
-        }
+        if (colonists < 0 || !FieldPositive(reserveDays)) throw new RequiredFactException("field coverage budget");
         var coverage = 0.0;
-        foreach (var crop in rows)
+        foreach (var crop in crops)
         {
-            if (!crop.Edible.TryGetValue(out var edible))
-            {
-                return Unknown<double>();
-            }
-            if (!edible)
-            {
-                continue;
-            }
-            var sk = crop.GrowingCells.TryGetValue(out var cells);
-            var dk = crop.Demand.TryGetValue(out var demand);
-            var gk = crop.GrowDays.TryGetValue(out var days);
-            var yk = crop.HarvestNutrition.TryGetValue(out var yield);
-            if (colonists < 0 || !sk || cells < 0 || !dk || !gk || !yk || !FieldPositive(demand) || !FieldPositive(days) || !FieldPositive(yield))
-            {
-                return Unknown<double>();
-            }
-            var target = FieldCoverageTarget(colonists, demand, days, yield, reserveDays);
-            if (!FieldPositive(target))
-            {
-                return Unknown<double>();
-            }
-            coverage += cells / target;
+            if (!crop.Edible || crop.Demand == 0) continue;
+            if (crop.GrowingCells < 0 || !FieldPositive(crop.Demand) || !FieldPositive(crop.GrowDays) || !FieldPositive(crop.HarvestNutrition))
+                throw new RequiredFactException("food field capacity");
+            coverage += crop.GrowingCells / FieldCoverageTarget(colonists, crop.Demand, crop.GrowDays, crop.HarvestNutrition, reserveDays);
         }
-        if (double.IsInfinity(coverage) || double.IsNaN(coverage))
-        {
-            return Unknown<double>();
-        }
-        return Known(coverage);
+        return double.IsFinite(coverage) ? coverage : throw new RequiredFactException("finite field coverage");
     }
 
-    internal static bool FieldPositive(double v) => v > 0 && !double.IsNaN(v) && !double.IsInfinity(v);
+    internal static bool FieldPositive(double v) => double.IsFinite(v) && v > 0;
 
     private static double FieldCoverageTarget(long count, double demand, double days, double yield, double reserveDays) =>
         Math.Max(count * 10.0, Math.Ceiling(demand * ((days * 2.5) + reserveDays) / yield));
 
-    /// <summary>
-    /// The cell count at which <see cref="FieldCoverage"/> reads 1 for the crop:
-    /// growth stops there, so a shrink target below it would trim cells the planner keeps adding.
-    /// </summary>
-    public static Fact<int> FieldCapacityTarget(long colonists, CropChoice crop, double reserve)
+    /// <summary>The cell count where coverage reaches one, shared by expansion and shrink planning.</summary>
+    public static int FieldCapacityTarget(long colonists, CropChoice crop, double reserve)
     {
-        var dk = crop.Demand.TryGetValue(out var demand);
-        var gk = crop.GrowDays.TryGetValue(out var days);
-        var yk = crop.HarvestNutrition.TryGetValue(out var yield);
-        if (colonists < 0 || !dk || !gk || !yk || !FieldPositive(demand) || !FieldPositive(days) || !FieldPositive(yield) || !FieldPositive(reserve))
-        {
-            return Unknown<int>();
-        }
-        var target = FieldCoverageTarget(colonists, demand, days, yield, reserve);
-        if (!FieldPositive(target) || target > 65536)
-        {
-            return Unknown<int>();
-        }
-        return Known((int)target);
+        if (colonists < 0 || !FieldPositive(crop.Demand) || !FieldPositive(crop.GrowDays) || !FieldPositive(crop.HarvestNutrition) || !FieldPositive(reserve))
+            throw new RequiredFactException("field capacity budget");
+        var target = FieldCoverageTarget(colonists, crop.Demand, crop.GrowDays, crop.HarvestNutrition, reserve);
+        return FieldPositive(target) && target <= 65536 ? (int)target : throw new DomainException("field capacity exceeds supported cells");
     }
 }

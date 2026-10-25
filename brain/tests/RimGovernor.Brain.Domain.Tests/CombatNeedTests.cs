@@ -18,7 +18,7 @@ public sealed class CombatNeedTests
     private static RoundsResult Reviewed(Journal journal, GenerationSnapshot world, long hostiles, long tick, CancellationToken ct, FoodPlan? foodPlan = null) => journal.ReviewRounds(new()
     {
         Current = world, Tick = new(tick), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Revision = journal.LoadRounds(ct).Revision,
-        Facts = WorkResourceTestFacts.Create("a", "b") with { Hostiles = Known(hostiles), Tick = new(tick), FoodPlan = foodPlan },
+        Facts = WorkResourceTestFacts.Create("a", "b") with { Colonists = 2, Items = ItemFactsFixtureRules.CoreItemFacts(), Wealth = new(0, 0), Hostiles = HostileCensus.Of(hostiles), Tick = new(tick), FoodPlan = foodPlan },
     }, ct);
 
     /// <summary>

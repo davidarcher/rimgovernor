@@ -310,18 +310,13 @@ public static class AnimalAcquireRules
     public static HusbandryChoice FoodTameChoice(
         FoodPlan plan,
         EquatableArray<UpkeepAnimal> wild,
-        Fact<bool> feedShort,
+        bool feedShort,
         EquatableArray<PawnProfile> handlers
     )
     {
-        var fk = feedShort.TryGetValue(out var short_);
         var profiles = handlers;
-        if (!fk)
-        {
-            return new HusbandryChoice.Unread();
-        }
 
-        if (short_)
+        if (feedShort)
         {
             return new HusbandryChoice.NoDeficit();
         }

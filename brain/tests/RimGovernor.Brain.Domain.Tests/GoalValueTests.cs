@@ -14,8 +14,8 @@ public sealed class GoalValueTests
     {
         var facts = WorkResourceTestFacts.Create("pawn") with
         { Resources = [] };
-        return WorkRules.WorkResourcesOf(ProductionRules.WorkAdmissionEvidenceOf(facts, Known(default(EquatableArray<ProductionBatch>))),
-            Known(default(EquatableArray<ProductionBatch>)), []);
+        return WorkRules.WorkResourcesOf(ProductionRules.WorkAdmissionEvidenceOf(facts, new ProductionBatchCensus.Read([])),
+            new ProductionBatchCensus.Read([]), []);
     }
 
     // A research goal on a 5,000-point project at 1 point per tick: one hour of work (2,500 points) is half the goal.

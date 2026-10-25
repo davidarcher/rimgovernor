@@ -28,10 +28,10 @@ public static partial class SocialCropsRules
 
     /// <summary>Whether crop harvests a social-drug ingredient.</summary>
     public static bool IsSocialCrop(CropChoice crop) =>
-        crop.Harvests.TryGetValue(out var harvests) && SocialCropResources.Contains(harvests.Value);
+        SocialCropResources.Contains(crop.Harvests.Value);
 
     /// <summary>Whether crop harvests hay.</summary>
-    public static bool IsHayCrop(CropChoice crop) => crop.Harvests.TryGetValue(out var harvests) && harvests == HayResource;
+    public static bool IsHayCrop(CropChoice crop) => crop.Harvests == HayResource;
 
     /// <summary>
     /// The cells a social crop still needs under its nine-cell ceiling, zero when none or out of season; the
@@ -43,11 +43,11 @@ public static partial class SocialCropsRules
         {
             return 0;
         }
-        var known = crop.Available.TryGetValue(out var available);
-        var sk = climate.SowingOutdoors().TryGetValue(out var sowing);
-        var dk = crop.GrowDays.TryGetValue(out var days);
-        var remaining = climate.DaysRemaining.TryGetValue(out var season);
-        if (!known || !available || !sk || !sowing || !dk || !FieldCapacityRules.FieldPositive(days) || !remaining || season < days * 2.5)
+        var available = crop.Available;
+        var sowing = climate.SowingOutdoors();
+        var days = crop.GrowDays;
+        var season = climate.DaysRemaining;
+        if (!available || !sowing || !FieldCapacityRules.FieldPositive(days) || season < days * 2.5)
         {
             return 0;
         }

@@ -6,7 +6,7 @@ public static class CropResilienceRules
     /// Counts observed enabled growers and capable cooks. Unknown pawn availability or work rows cannot
     /// establish that the colony has no cook.
     /// </summary>
-    public static (Fact<int> Growers, Fact<int> Cooks) CropWorkers(WorkPawnsRead fact)
+    public static (int Growers, int Cooks) CropWorkers(WorkPawnsRead fact)
     {
         var pawns = fact.Pawns;
         var g = 0;
@@ -34,7 +34,7 @@ public static class CropResilienceRules
                 }
             }
         }
-        return (Known(g), Known(c));
+        return (g, c);
     }
 
     /// <summary>
@@ -46,17 +46,19 @@ public static class CropResilienceRules
     {
         var unit = SiteRules.CropRate(crop, 1) * cells;
         var terms = new List<FarmSiteTerm>();
-        var wk = crop.HarvestWork.TryGetValue(out var work);
-        var yk = crop.HarvestNutrition.TryGetValue(out var yield);
-        var dk = crop.GrowDays.TryGetValue(out var days);
-        var gk = r.Growers.TryGetValue(out var growers);
+        var work = crop.HarvestWork;
+        var yield = crop.HarvestNutrition;
+        var days = crop.GrowDays;
+        var growers = r.Growers;
         var people = r.Colonists;
-        if (wk && yk && dk && gk && FoodForecastRules.FoodNumber(work) && work >= 0 && FieldCapacityRules.FieldPositive(yield) && FieldCapacityRules.FieldPositive(days) && growers >= 0 && people > 0)
+        if (FoodForecastRules.FoodNumber(work) && work >= 0 && FieldCapacityRules.FieldPositive(yield) && FieldCapacityRules.FieldPositive(days) && growers >= 0 && people > 0)
         {
             terms.Add(new FarmSiteTerm("labor", -unit * .0002 * work / yield * people / Math.Max(1, growers)));
             terms.Add(new FarmSiteTerm("harvest-delay", -unit * .03 * days));
         }
-        if (r.Cooks.TryGetValue(out var cooks) && cooks == 0 && crop.RawPreferred.TryGetValue(out var raw) && raw)
+        var raw = crop.RawPreferred;
+        var cooks = r.Cooks;
+        if (cooks == 0 && raw)
         {
             terms.Add(new FarmSiteTerm("cook", unit));
         }
@@ -74,11 +76,11 @@ public static class CropResilienceRules
                 return false;
             }
         }
-        if (RoundsRules.Positive(crop.RequiresPollution) && !cell.Polluted)
+        if (crop.RequiresPollution && !cell.Polluted)
         {
             return false;
         }
-        if (RoundsRules.Positive(crop.RequiresCleanSoil) && cell.Polluted)
+        if (crop.RequiresCleanSoil && cell.Polluted)
         {
             return false;
         }
@@ -94,7 +96,8 @@ public static class CropResilienceRules
         {
             terms.Add(new FarmSiteTerm("risk-fallout", 2 * unit));
         }
-        if (CalendarRules.HarvestGapDays(r.Calendar, []).TryGetValue(out var gap) && gap > 0)
+        var gap = CalendarRules.HarvestGapDays(r.Calendar, []);
+        if (gap > 0)
         {
             terms.Add(new FarmSiteTerm("risk-frost", 2 * unit * Math.Min(1, gap / Math.Max(1, r.ReserveDays))));
         }

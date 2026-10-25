@@ -43,6 +43,32 @@ public sealed class DisasterFamilyTests
     };
 
     [Fact]
+    public void UnreadServiceFactsFailSelectionAndInvalidReasonsCannotWait()
+    {
+        var unread = Disrupted() with { Phase = DisasterPhase.Unread };
+        Assert.Equal("disaster service finding", Assert.Throws<RequiredFactException>(() =>
+            RecoveryRules.SelectRecoveryMethods(new RecoveryPlanning(), unread, [], new(1))).Fact);
+        Assert.Throws<DomainException>(() => new RecoverySelection { Reason = (RecoverySelectionReason)999 }.Validate());
+        Assert.Throws<ControlException>(() => DisasterRounds.RecoverySelectionVerdict(RecoverySelectionReason.None));
+        Assert.Throws<ControlException>(() => DisasterRounds.RecoverySelectionVerdict((RecoverySelectionReason)999));
+        Assert.Equal(Verdict.WaitFor(Cause.MethodUsed, "recovery_service_proposal"),
+            DisasterRounds.RecoverySelectionVerdict(RecoverySelectionReason.MethodsSeen));
+        Assert.Equal(Verdict.WaitFor(Cause.MethodUsed, "recovery_service_proposal"),
+            DisasterRounds.RecoverySelectionVerdict(RecoverySelectionReason.AdmissionRequired));
+    }
+    [Fact]
+    public void RecoveryRefusesARestrictionWhoseWorkerIsMissingFromTheTotalCensus()
+    {
+        var planning = new RecoveryPlanning
+        {
+            Safety = new RecoverySafety { Restrictions = [new(new("missing"), "Safe")] },
+            Workers = [],
+        };
+        Assert.Equal("recovery worker and restriction censuses disagree",
+            Assert.Throws<DomainException>(() => RecoveryRules.SelectRecoveryMethods(planning, Disrupted(), [], new(1))).Message);
+    }
+
+    [Fact]
     public void ShelteringIsUnmetWhileAMoveIsOwedAndAnUnknownTriggerRaisesOnTheRead()
     {
         Assert.Equal("sheltering triggers", Assert.Throws<RequiredFactException>(() => DisasterFacts.From(new RoundsFacts(), null)).Fact);

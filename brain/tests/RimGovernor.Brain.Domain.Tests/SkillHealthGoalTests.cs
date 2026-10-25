@@ -54,7 +54,7 @@ public sealed class SkillHealthGoalTests
         Assert.NotEqual(1, Priority(plain, "trainee", WorkType.Cooking));
 
         var goal = Goal(GoalKind.Skill, "trainee", "Cooking", 10);
-        var facts = GoalRules.Stamp(new RoundsFacts(), GoalRules.DemandOf(SkillFacts(goal, chef, trainee)));
+        var facts = GoalRules.Stamp(new RoundsFacts { Wealth = new(0, 0) }, GoalRules.DemandOf(SkillFacts(goal, chef, trainee)));
         Assert.Equal([new SkillGoal(new PawnId("trainee"), "Cooking")], facts.GoalTraining.Items);
         var trained = WorkRules.PlanWork([chef, trainee], [], new() { Training = facts.GoalTraining.Items });
         Assert.Equal(1, Priority(trained, "chef", WorkType.Cooking));

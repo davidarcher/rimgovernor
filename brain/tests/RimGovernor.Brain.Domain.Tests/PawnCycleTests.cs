@@ -193,7 +193,7 @@ public sealed class PawnCycleTests
     public void PlantsEightIsGatedOutOfDevilstrandSowingAndPlantsTenIsIn()
     {
         var crop = ColonyModelFixtures.Devilstrand().Crops.Single(c => c.Name == ColonyModelFixtures.Crop);
-        Assert.Equal(10, crop.SowMinSkill.Value);
+        Assert.Equal(10, crop.SowMinSkill);
 
         (bool Available, string Finding) Gate(int level, bool disabled = false) =>
             PawnCycle.SowGate(Pawn() with { Skills = EquatableArray.From(new[] { new WorkSkill { Name = "Plants", Level = level, Disabled = disabled } }) }, crop);
@@ -210,7 +210,7 @@ public sealed class PawnCycleTests
         var pawn = Pawn() with { Skills = default };
 
         Assert.Throws<RequiredFactException>(() => PawnCycle.SowGate(pawn, crop));
-        Assert.Throws<RequiredFactException>(() => PawnCycle.SowGate(Pawn(), crop with { SowMinSkill = default }));
+        Assert.Equal((true, ""), PawnCycle.SowGate(Pawn(), crop with { SowMinSkill = 0 }));
     }
 
     [Fact]

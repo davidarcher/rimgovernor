@@ -62,8 +62,6 @@ public sealed partial class RoundsBuildingPlanner
                 resolved.Flooring = proposal;
                 resolved.Definition = proposal.Definition;
                 return (resolved, default);
-            case FlooringMethod.Unknown:
-                return (null, FieldUnavailable("flooring"));
             case FlooringMethod.NoMethod:
                 return (null, BuildingReasonNoDeficit);
             case FlooringMethod.None or FlooringMethod.Pending or FlooringMethod.ResearchNeeded or FlooringMethod.MaterialsNeeded:
@@ -185,24 +183,24 @@ partial class RoundsBuildingPlanner
     /// </summary>
     internal static FlooringObservation TrafficFlooringFacts(ColonyProjection facts, FlooringPolicy p)
     {
-        var v = facts.Facts.Upkeep.Flooring ?? throw new RequiredFactException("flooring census");
+        var v = facts.Facts.Upkeep.Flooring;
 
         var floors = new Dictionary<string, FloorDefinition>();
         foreach (var d in facts.Definitions)
         {
-            if (p.Floors.Contains(d.Name))
+            if (p.Floors.Contains(d.Name) && d.Floor is not null)
             {
                 floors[d.Name] = new FloorDefinition
                 {
                     Available = d.Available,
                     Terrain = d.Terrain,
-                    Cleanliness = d.Cleanliness,
-                    Beauty = d.Beauty,
-                    Flammability = d.Flammability,
+                    Cleanliness = (d.Floor ?? throw new RequiredFactException("planning Floor")).Cleanliness,
+                    Beauty = (d.Floor ?? throw new RequiredFactException("planning Floor")).Beauty,
+                    Flammability = (d.Floor ?? throw new RequiredFactException("planning Floor")).Flammability,
                     PathCost = d.PathCost,
-                    Costs = d.Costs,
-                    WorkToBuild = d.WorkToBuild,
-                    Tags = d.FloorTags,
+                    Costs = (d.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).Costs,
+                    WorkToBuild = (d.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).WorkToBuild,
+                    Tags = (d.Floor ?? throw new RequiredFactException("planning Floor")).FloorTags,
                 };
             }
         }

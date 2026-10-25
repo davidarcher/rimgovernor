@@ -27,11 +27,12 @@ public sealed record HypothermiaTuning
 }
 
 /// <summary>How long a pawn may stay outdoors. Unbounded means the hazard does not grow at this temperature.</summary>
-public sealed record OutdoorBudget
+public abstract record OutdoorBudget
 {
-    public int Ticks { get; init; }
-
-    public bool Unbounded { get; init; }
+    private OutdoorBudget() { }
+    public sealed record Finite(int Ticks) : OutdoorBudget;
+    public sealed record Unbounded : OutdoorBudget;
+    public sealed record Unmodelled : OutdoorBudget;
 }
 
 public static class DashEstimateRules
@@ -65,32 +66,26 @@ public static class DashEstimateRules
 
     /// <summary>
     /// The ticks a pawn can stay outdoors before its hypothermia reaches target (a stage floor), starting at
-    /// severity. Only cold is modelled; heat and fallout are unknown. Unknown temperature, comfort or severity
-    /// is unknown. A severity already at target gets zero.
+    /// severity. Only cold is modelled; other hazards are explicitly unmodelled. The measurements
+    /// are required. A severity already at target gets zero.
     /// </summary>
-    public static Fact<OutdoorBudget> OutdoorBudgetFor(
+    public static OutdoorBudget OutdoorBudgetFor(
         HazardKind kind,
-        Fact<double> tempC,
-        Fact<double> comfortMinC,
-        Fact<double> severity,
+        double tempC,
+        double comfortMinC,
+        double severity,
         double target,
         HypothermiaTuning tuning)
     {
         if (kind != HazardKind.ExtremeCold)
         {
-            return Unknown<OutdoorBudget>();
+            return new OutdoorBudget.Unmodelled();
         }
-        var tk = tempC.TryGetValue(out var temp);
-        var ck = comfortMinC.TryGetValue(out var comfort);
-        var sk = severity.TryGetValue(out var sev);
-        if (!tk || !ck || !sk)
-        {
-            return Unknown<OutdoorBudget>();
-        }
-        var g = tuning.Growth(temp, comfort);
+        var sev = severity;
+        var g = tuning.Growth(tempC, comfortMinC);
         if (g <= 0)
         {
-            return Known(new OutdoorBudget { Unbounded = true });
+            return new OutdoorBudget.Unbounded();
         }
         var steps = 0;
         if (sev < target)
@@ -100,6 +95,6 @@ public static class DashEstimateRules
                 steps++;
             }
         }
-        return Known(new OutdoorBudget { Ticks = steps * HypothermiaInterval });
+        return new OutdoorBudget.Finite(steps * HypothermiaInterval);
     }
 }

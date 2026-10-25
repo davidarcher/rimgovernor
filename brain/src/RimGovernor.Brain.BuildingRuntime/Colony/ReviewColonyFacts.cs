@@ -5,15 +5,15 @@ public sealed partial class Rounder
     /// <summary>
     /// A planner's colony facts read (no extra definitions): the retained review frame's colony facts, by reference,
     /// while that review serves the planner's current identity (<see cref="RoundsCensusStore.ServedColony"/>),
-    /// otherwise native. A read without planning carries Planning.NotRequested, as native answers it.
+    /// otherwise the newest native frame.
     /// </summary>
-    internal async Task<PbObservations.ColonyFactsSnapshot> ColonyFactsAsync(FacadeNativeClient native, PbCommon.Identity identity, bool planning, CancellationToken ct)
+    internal async Task<PbObservations.ColonyFactsSnapshot> ColonyFactsAsync(FacadeNativeClient native, PbCommon.Identity identity, CancellationToken ct)
     {
         if (RoundsCensus.SameNativeSource(native, Native) && await ServedColonyAsync(identity, ct).ConfigureAwait(false) is { } served)
         {
-            return planning ? served : served with { Planning = new PbObservations.Planning.NotRequested() };
+            return served;
         }
-        return await native.ReadColonyFactsAsync(identity, planning, ct).ConfigureAwait(false);
+        return await native.ReadColonyFactsAsync(identity, ct).ConfigureAwait(false);
     }
 
     private async Task<PbObservations.ColonyFactsSnapshot?> ServedColonyAsync(PbCommon.Identity identity, CancellationToken ct)

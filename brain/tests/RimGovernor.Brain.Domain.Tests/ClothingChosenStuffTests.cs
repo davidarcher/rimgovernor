@@ -19,7 +19,7 @@ public sealed class ClothingChosenStuffTests
     // p1 wears a tattered plain-leather parka; the parka takes 80 of any leather.
     private static RoundsFacts Facts(params (GearSlot Slot, Resource Stuff)[] chosen) => new()
     {
-        Gear = Known(ColonyModelFixtures.NoGear() with
+        Gear = ColonyModelFixtures.NoGear() with
         {
             Pawns =
             [
@@ -32,7 +32,7 @@ public sealed class ClothingChosenStuffTests
                     }),
                 },
             ],
-        }),
+        },
         Resources = [],
         Garments = [new ClothingGarment { Definition = new(Parka), Groups = ["Torso"], Slots = [[new Amount(Plain, 80), new Amount(Bear, 80)]] }],
         ClothingStuff = chosen.ToDictionary(c => (new PawnId("p1"), c.Slot), c => c.Stuff),

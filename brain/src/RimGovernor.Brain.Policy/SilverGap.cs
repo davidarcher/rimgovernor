@@ -6,12 +6,12 @@ public static partial class SilverGapRules
     // TradeSilverReserve, does not cover. Sold goods leave colony wealth, so raid headroom does not gate this
     // work. SelectTrade sells the goods as surplus.
 
-    /// <summary>The colony's silver from the resource census; unknown while the catalog's currency is.</summary>
-    public static Fact<long> SilverStock(ItemFacts items, EquatableArray<Amount> resources)
+    /// <summary>The colony's silver from the resource census; refusing a missing currency definition.</summary>
+    public static long SilverStock(ItemFacts items, EquatableArray<Amount> resources)
     {
         if (items.Currency.Value.Length == 0)
         {
-            return Unknown<long>();
+            throw new RequiredFactException("currency definition");
         }
         long n = 0;
         foreach (var row in resources)
@@ -21,11 +21,11 @@ public static partial class SilverGapRules
                 n += row.Count;
             }
         }
-        return Known(n);
+        return n;
     }
 
     /// <summary>The colony silver stock (SilverStock over f.Resources).</summary>
-    public static Fact<long> Silver(this RoundsFacts f) => SilverStock(f.Items, f.Resources);
+    public static long Silver(this RoundsFacts f) => SilverStock(f.Items, f.Resources);
 
     /// <summary>
     /// The rough silver the need's purchases cost at the game's market values (ItemFacts): the cheapest medicine
@@ -62,56 +62,30 @@ public static partial class SilverGapRules
 
     /// <summary>
     /// The silver the colony lacks: the need's rough purchase price plus TradeSilverReserve less the silver on
-    /// hand, zero when the need has no purchase or the silver covers it. Unknown while any input is.
+    /// hand, zero when the need has no purchase or the silver covers it. Missing prices refuse the calculation.
     /// </summary>
-    public static Fact<double> SilverGap(ItemFacts items, Fact<TradeNeed> need, Fact<long> silver, long colonists)
+    public static double SilverGap(ItemFacts items, TradeNeed need, long silver, long colonists)
     {
-        var nk = need.TryGetValue(out var n);
-        var sk = silver.TryGetValue(out var s);
-        var (reserve, rk) = TradePolicyRules.TradeSilverReserve(colonists);
-        if (!nk || !sk || !rk)
+        var (reserve, ok) = TradePolicyRules.TradeSilverReserve(colonists);
+        if (!ok)
         {
-            return Unknown<double>();
+            throw new RequiredFactException("colonist count");
         }
-        double price;
-        bool any;
-        try
-        {
-            (price, any) = n!.PurchasePrice(items);
-        }
-        catch (DomainException)
-        {
-            return Unknown<double>();
-        }
-        if (!any)
-        {
-            return Known(0.0);
-        }
-        return Known(Math.Max(0, price + reserve - s));
+        var (price, any) = need.PurchasePrice(items);
+        return any ? Math.Max(0, price + reserve - silver) : 0;
     }
 
-    /// <summary>
-    /// The silver runway deficit: a purchase need exists and the silver on hand is below its rough price plus
-    /// TradeSilverReserve (a positive SilverGap). The economy/trade Need's exports and sale organ harvests answer it;
-    /// unknown while any input is.
-    /// </summary>
-    public static Fact<bool> SilverShort(ItemFacts items, Fact<TradeNeed> need, Fact<long> silver, long colonists)
-    {
-        if (!SilverGap(items, need, silver, colonists).TryGetValue(out var gap))
-        {
-            return Unknown<bool>();
-        }
-        return Known(gap > 0);
-    }
-
+    /// <summary>Whether purchase demand exceeds the silver above the colony reserve.</summary>
+    public static bool SilverShort(ItemFacts items, TradeNeed need, long silver, long colonists) =>
+        SilverGap(items, need, silver, colonists) > 0;
     /// <summary>The review's purchase need as the silver decisions read it.</summary>
-    private static Fact<TradeNeed> ReviewTradeNeedOf(RoundsFacts f, RoundsPolicy p, MedicalReserveReview medicine, DerivedDemand demand) =>
+    private static TradeNeed ReviewTradeNeedOf(RoundsFacts f, RoundsPolicy p, MedicalReserveReview medicine, DerivedDemand demand) =>
         TradePolicyRules.ReviewTradeNeed(f.Items, medicine, f.Resources, demand.Needs, TradePolicyRules.RoundsTradeFloors(p, null), f.Wealth, demand.Retained, TradePolicyRules.RoundsTradeFood(f, p));
 
-    internal static Fact<double> ReviewSilverGap(RoundsFacts f, RoundsPolicy p, MedicalReserveReview medicine, DerivedDemand demand) =>
+    internal static double ReviewSilverGap(RoundsFacts f, RoundsPolicy p, MedicalReserveReview medicine, DerivedDemand demand) =>
         SilverGap(f.Items, ReviewTradeNeedOf(f, p, medicine, demand), f.Silver(), f.Colonists);
 
-    private static Fact<bool> ReviewSilverShort(RoundsFacts f, RoundsPolicy p, MedicalReserveReview medicine, DerivedDemand demand) =>
+    private static bool ReviewSilverShort(RoundsFacts f, RoundsPolicy p, MedicalReserveReview medicine, DerivedDemand demand) =>
         SilverShort(f.Items, ReviewTradeNeedOf(f, p, medicine, demand), f.Silver(), f.Colonists);
 
     /// <summary>
@@ -127,34 +101,18 @@ public static partial class SilverGapRules
     }
 
     /// <summary>The review's silver runway deficit recomputed by a planner from its own read.</summary>
-    public static Fact<bool> RoundsSilverShort(RoundsFacts f, RoundsPolicy p, bool medicineActive)
+    public static bool RoundsSilverShort(RoundsFacts f, RoundsPolicy p, bool medicineActive)
     {
-        try
-        {
-            var (policy, medicine) = RoundsMedicineReview(f, p, medicineActive);
-            return ReviewSilverShort(f, policy, medicine, ResourceRules.ResourceDemandOf(f, policy, new RoundsLatches()));
-        }
-        catch (DomainException)
-        {
-            return Unknown<bool>();
-        }
+        var (policy, medicine) = RoundsMedicineReview(f, p, medicineActive);
+        return ReviewSilverShort(f, policy, medicine, ResourceRules.ResourceDemandOf(f, policy, new RoundsLatches()));
     }
-
     /// <summary>The review's silver gap recomputed by a planner from its own read, with the review's derived resource demand beside it.</summary>
-    public static (Fact<double> Gap, DerivedDemand Demand) RoundsSilverGap(RoundsFacts f, RoundsPolicy p, bool medicineActive)
+    public static (double Gap, DerivedDemand Demand) RoundsSilverGap(RoundsFacts f, RoundsPolicy p, bool medicineActive)
     {
-        try
-        {
-            var (policy, medicine) = RoundsMedicineReview(f, p, medicineActive);
-            var demand = ResourceRules.ResourceDemandOf(f, policy, new RoundsLatches());
-            return (ReviewSilverGap(f, policy, medicine, demand), demand);
-        }
-        catch (DomainException)
-        {
-            return (Unknown<double>(), new DerivedDemand());
-        }
+        var (policy, medicine) = RoundsMedicineReview(f, p, medicineActive);
+        var demand = ResourceRules.ResourceDemandOf(f, policy, new RoundsLatches());
+        return (ReviewSilverGap(f, policy, medicine, demand), demand);
     }
-
     /// <summary>The market value a work tick adds (StatWorker_MarketValue, 0.0036 silver per tick).</summary>
     internal const double ValuePerWorkTick = 0.0036;
 }

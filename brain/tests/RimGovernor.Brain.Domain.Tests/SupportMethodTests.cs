@@ -34,7 +34,7 @@ public sealed class SupportMethodTests
                 }
             }
         };
-        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
     }
     private static ForecastCoupledSelection Select(RoundsFacts facts, ForecastSearchBudget? budget = null) => ForecastCoupledSelection.CompareActivityOutcomes(

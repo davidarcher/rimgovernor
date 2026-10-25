@@ -191,7 +191,8 @@ public sealed class ClassroomCreditTests
         Assert.True(review.Context.SkillRaises[key].Xp > 0);
         var perXp = SkillValue.PerXp(review.Outcome, review.Commitments, review.Context, review.Horizon, "child", "Construction");
         Assert.True(perXp > review.Context.Investment[key], "the colony is short of construction, so the level adds work beyond tier 2's price");
-        Assert.True(Assert.Single(review.Gains()).PerDay is var gain && double.IsFinite(gain));
+        var gain = Assert.Single(review.Gains()).PerDay;
+        Assert.True(double.IsFinite(gain));
     }
 
     [Fact]

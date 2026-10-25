@@ -25,14 +25,10 @@ internal static class RoundsHerdRooms
                 throw new ControlException($"herdFurniture: {name} was not read from the native catalog");
             }
 
-            var sizeKnown = d.Size.TryGetValue(out var size);
-            var availableKnown = d.Available.TryGetValue(out var available);
-            if (availableKnown && !available && !sizeKnown)
-            {
-                throw new ControlException($"herdFurniture: the native catalog has no definition {name}");
-            }
+            var size = d.Size;
+            var available = d.Available;
 
-            if (!availableKnown || !available || !sizeKnown || size.Width < 1 || size.Height < 1)
+            if (!available || size.Width < 1 || size.Height < 1)
             {
                 usable = false;
                 continue;
@@ -44,8 +40,9 @@ internal static class RoundsHerdRooms
         var marker = RoundsAnimalContainment.AnimalContainmentDefinition(facts.Definitions, HerdPenRules.PenMarkerDefinition);
         if (marker is not null)
         {
-            var sizeKnown = marker.Size.TryGetValue(out var size);
-            if (marker.Available.TryGetValue(out var available) && available && sizeKnown && size.Width >= 1 && size.Height >= 1)
+            var size = marker.Size;
+            var available = marker.Available;
+            if (available && size.Width >= 1 && size.Height >= 1)
             {
                 output = output with { Marker = new InteriorPieceDef { Def = HerdPenRules.PenMarkerDefinition, Size = new Cell(size.Width, size.Height) } };
             }

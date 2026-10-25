@@ -39,32 +39,14 @@ internal static class ColonyModelFixtures
 
     internal static PlanningDefinition CropRow() => new()
     {
-        Name = Crop,
-        Research = [Project],
-        Available = Known(false),
-        GrowDays = Known(22.5),
-        SowMinSkill = Known(10),
-        SowWork = Known(400.0),
-        FertilityMin = Known(0.5),
-        FertilitySensitivity = Known(0.7),
-        HarvestYield = Known(6.0),
-        HarvestMinGrowth = Known(0.65),
-        HarvestWork = Known(200.0),
-        Edible = Known(false),
-        HarvestedThingDef = Known(Cloth),
-        MinGrowthTemperature = Known(0.0),
-        MinOptimalGrowthTemperature = Known(10.0),
-        MaxOptimalGrowthTemperature = Known(42.0),
-        MaxGrowthTemperature = Known(58.0),
-        RestingDayFraction = Known(PlantResting.RestingDayFraction),
-    };
+        Name = Crop,        Research = [Project],        Available = false,Plant=new PlanningPlant {        GrowDays = 22.5,        SowMinSkill = 10,        SowWork = 400.0,        FertilityMin = 0.5,        FertilitySensitivity = 0.7,        HarvestMinGrowth = 0.65,        HarvestWork = 200.0,        MinGrowthTemperature = 0.0,        MinOptimalGrowthTemperature = 10.0,        MaxOptimalGrowthTemperature = 42.0,        MaxGrowthTemperature = 58.0,        RestingDayFraction = PlantResting.RestingDayFraction},Harvest=new PlanningHarvest {        HarvestYield = 6.0,        Edible = false,        HarvestedThingDef = Cloth}    };
 
     internal static ColonyProjection Projection() => ColonyFactsCoreTests.Projection() with
     {
         Facts = new RoundsFacts
         {
             ResourceThings = ["m1"],
-            Gear = Known(NoGear() with { Pawns = [new GearPawn { LoadoutModel = new GearModel.NoOutfit() }] }),
+            Gear = NoGear() with { Pawns = [new GearPawn { LoadoutModel = new GearModel.NoOutfit() }] },
             Calendar = new Calendar { GrowingYear = EquatableArray.From(Enumerable.Repeat(true, CalendarRules.YearDays)), Season = "Spring", DayOfYear = 12, GrowingDays = 40, GrowingDaysRemaining = 25, GrowingDaysUntil = 0, NonGrowingDays = 0 },
             Research = new ResearchFacts
             {
@@ -91,14 +73,14 @@ internal static class ColonyModelFixtures
             }, new Dictionary<string, ForecastNeedsCandidates>()),
             WorkAdmission = new WorkAdmissionObservation
             {
-                Recipes = Known(EquatableArray.From(new[]
+                Recipes = EquatableArray.From(new[]
                 {
                     new ProductionRecipeInput(Recipe, EquatableArray.From(new[] { EquatableArray.From(new[] { new Amount(new Resource(Cloth), 80) }) }), false)
                     {
                         Products = EquatableArray.From(new[] { new Amount(new Resource("Apparel_Duster"), 1) }),
                         WorkAmount = 10_000.0,
                     },
-                })),
+                }),
             },
             CurrentConstruction = CurrentConstruction.Empty,
             PlannedSites = new PlannedSiteFacts(),

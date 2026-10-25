@@ -124,8 +124,8 @@ public sealed class PlannedRoomActivitiesTests
                 },
             },
         };
-        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)?.Priced().BuildersRead() };
+        facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
+        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)?.Priced() };
     }
 
     /// <summary>The test-only workshop credit: one capability-day a served day, booked to no pawn.</summary>
@@ -655,8 +655,8 @@ public sealed class PlannedRoomActivitiesTests
             ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with
                 { Construction = facts.ForecastObserved.Coupled.Construction! with { Options = [floor] } } },
         };
-        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        facts = Credited(facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced().BuildersRead() });
+        facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
+        facts = Credited(facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() });
         var candidates = facts.CoupledAlternatives!;
         var result = Select(facts);
         var why = Why(facts, result) + " selected=" + string.Join(",", result.Selection.Selected);
@@ -814,7 +814,7 @@ public sealed class PlannedRoomActivitiesTests
         Assert.DoesNotContain(unpriced.Selection.Selected, id => id.StartsWith("planned/", StringComparison.Ordinal));
         var counted = Select(Credited(facts));
         var bedroom = facts with { PlannedSites = facts.PlannedSites! with { Roles = [(1, PlannedRole.Bedroom)] } };
-        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(bedroom, Horizon)!.Priced().BuildersRead()!;
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(bedroom, Horizon)!.Priced()!;
         Assert.Equal(PlannedRole.Bedroom, generated.Context.PlannedRoomRoles[1]);
         Assert.True(generated.Context.Priced(1));
         var priced = bedroom with { CoupledAlternatives = generated };
@@ -865,7 +865,7 @@ public sealed class PlannedRoomActivitiesTests
     {
         var facts = Review([Ring(OpKind.WallIn, "WoodLog", 200, count: 20, available: 20)]);
         var bedroom = facts with { PlannedSites = facts.PlannedSites! with { Roles = [(1, PlannedRole.Bedroom)] } };
-        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(bedroom, Horizon)!.Priced().BuildersRead()!;
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(bedroom, Horizon)!.Priced()!;
         const double perUnit = 0.001;
         IEnumerable<ForecastConsequenceVector> Vectors(ForecastCoupledSelection result) =>
             result.Rejected.Where(e => e.Consequences is not null).Select(e => e.Consequences!).Append(result.SelectedVector);
@@ -918,7 +918,7 @@ public sealed class PlannedRoomActivitiesTests
             MoodBreak = new() { Threshold = .3, Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
             ForecastObserved = facts.ForecastObserved with { Needs = facts.ForecastObserved.Needs with { Pawns = EquatableArray.From(pawns) } },
         };
-        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)!.Priced().BuildersRead()!;
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)!.Priced()!;
         return facts with
         {
             CoupledAlternatives = generated with
@@ -1106,7 +1106,7 @@ public sealed class PlannedRoomActivitiesTests
             MoodBreak = new() { Threshold = .3, Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
             ForecastObserved = facts.ForecastObserved with { Needs = facts.ForecastObserved.Needs with { Pawns = EquatableArray.From(pawns) } },
         };
-        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Day)!.Priced().BuildersRead()!;
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Day)!.Priced()!;
         return facts with
         {
             CoupledAlternatives = generated with

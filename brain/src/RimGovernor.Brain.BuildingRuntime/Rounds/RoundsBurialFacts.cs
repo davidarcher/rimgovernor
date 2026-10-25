@@ -10,7 +10,7 @@ internal static class RoundsBurialFacts
         {
             return new TombStep();
         }
-        SarcophagusAvailable(facts).TryGetValue(out var available);
+        var available = SarcophagusAvailable(facts);
         var plan = facts.LayoutPlan;
         var waste = facts.Facts.Waste;
         return TombRules.NextTombStep(plan ?? new LayoutPlan(), waste, facts.Facts.CurrentConstruction.Buildings, facts.Shapes, available);
@@ -19,7 +19,7 @@ internal static class RoundsBurialFacts
     internal static bool TombOwed(ColonyProjection facts) =>
         TombRules.TombOwed(facts.Shapes, SarcophagusAvailable(facts), facts.LayoutPlan, facts.Facts.Waste, facts.Facts.CurrentConstruction);
 
-    internal static Fact<bool> SarcophagusAvailable(ColonyProjection facts)
+    internal static bool SarcophagusAvailable(ColonyProjection facts)
     {
         foreach (var d in facts.Definitions)
         {
@@ -29,11 +29,11 @@ internal static class RoundsBurialFacts
             }
             if (d.Stuffed && d.StuffOptions.Count == 0)
             {
-                return Known(false);
+                return false;
             }
             return d.Available;
         }
-        return Unknown<bool>();
+        throw new RequiredFactException("sarcophagus definition");
     }
 
     internal static (PlannedRoom Room, bool Owed) PlannedMorgue(ColonyProjection facts)
@@ -72,26 +72,26 @@ internal static class RoundsBurialFacts
     internal static Fact<bool> BurialOwed(ColonyProjection facts) =>
         Known(PlannedMorgue(facts).Owed || MorgueAwaitingRoom(facts) || TombOwed(facts));
 
-    internal static (PlannedRoom Room, Fact<bool> Owed) PlannedMealCloset(ColonyProjection facts)
+    internal static (PlannedRoom Room, bool Owed) PlannedMealCloset(ColonyProjection facts)
     {
-        var ak = facts.DefinitionAvailable("Cooler").TryGetValue(out var available);
-        if (ak && !available)
+        var available = facts.DefinitionAvailable("Cooler");
+        if (!available)
         {
-            return (new PlannedRoom(), Known(false));
+            return (new PlannedRoom(), false);
         }
         var plan = facts.LayoutPlan;
         var pk = plan is not null;
         var rooms = facts.Rooms;
-        if (!ak || !pk)
+        if (!pk)
         {
-            return (new PlannedRoom(), Unknown<bool>());
+            return (new PlannedRoom(), false);
         }
         var (room, owed) = plan!.MealClosetOwed(rooms!);
-        return (room ?? new PlannedRoom(), Known(owed));
+        return (room ?? new PlannedRoom(), owed);
     }
 
-    internal static Fact<bool> MealClosetOwed(ColonyProjection facts) => PlannedMealCloset(facts).Owed;
+    internal static bool MealClosetOwed(ColonyProjection facts) => PlannedMealCloset(facts).Owed;
 
-    internal static Fact<EquatableArray<string>> WarmCoolingRooms(ColonyProjection facts) =>
+    internal static EquatableArray<string> WarmCoolingRooms(ColonyProjection facts) =>
         TombRules.WarmCoolingRooms(facts.DefinitionAvailable("Cooler"), facts.LayoutPlan, facts.Rooms);
 }

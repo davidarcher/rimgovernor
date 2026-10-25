@@ -135,7 +135,7 @@ public static partial class TradePolicyRules
     /// observed rate over the projection horizon) plus the construction demand. A resource nothing consumes or
     /// builds with has no entry and is wholly surplus. A runway still unrated (an unread ring) keeps nothing.
     /// </summary>
-    public static Fact<IReadOnlyDictionary<Resource, long>> TradeRetained(IReadOnlyList<ResourceRunway> runways, IReadOnlyDictionary<Resource, long> construction)
+    public static IReadOnlyDictionary<Resource, long> TradeRetained(IReadOnlyList<ResourceRunway> runways, IReadOnlyDictionary<Resource, long> construction)
     {
         var output = new Dictionary<Resource, long>();
         foreach (var row in runways)
@@ -149,14 +149,14 @@ public static partial class TradePolicyRules
         {
             output[resource] = output.GetValueOrDefault(resource) + Math.Max(0, demand);
         }
-        return Known<IReadOnlyDictionary<Resource, long>>(output);
+        return output;
     }
 
     /// <summary>
     /// The wealth-driven half of the trade surplus: while the item share of total wealth exceeds
     /// TradeItemWealthShare, every deep-deposit def (the raw ore and metal hoards, ItemFacts.DeepResources; never
     /// the currency) stocked above max(target, floor, retained) is a surplus of the difference, so a sale lands
-    /// exactly on the highest floor. Unknown wealth, unknown retention, an unmet share or a stock at its floor
+    /// exactly on the highest floor. An unassessed retention plan, an unmet share or a stock at its floor
     /// yields nothing; the rows come back in DeepResources order.
     /// </summary>
     public static IReadOnlyList<Amount> WealthSurplus(
@@ -164,13 +164,13 @@ public static partial class TradePolicyRules
         ItemFacts items,
         IReadOnlyDictionary<Resource, long> targets,
         IReadOnlyDictionary<string, long> floors,
-        Fact<IReadOnlyDictionary<Resource, long>> retainedFact,
-        Fact<WealthFacts> wealth
+        TradeRetention retainedFact,
+        WealthFacts wealth
     )
     {
-        var known = wealth.TryGetValue(out var facts);
-        var retainedKnown = retainedFact.TryGetValue(out var retained);
-        if (!known || !retainedKnown)
+        var facts = wealth ?? throw new RequiredFactException("wealth");
+        var retainedKnown = retainedFact is TradeRetention.Assessed;
+        if (!retainedKnown)
         {
             return [];
         }
@@ -190,7 +190,7 @@ public static partial class TradePolicyRules
             {
                 continue;
             }
-            var keep = Math.Max(targets.GetValueOrDefault(resource), Math.Max(floors.GetValueOrDefault(resource.Value), retained!.GetValueOrDefault(resource)));
+            var keep = Math.Max(targets.GetValueOrDefault(resource), Math.Max(floors.GetValueOrDefault(resource.Value), ((TradeRetention.Assessed)retainedFact).Stock.GetValueOrDefault(resource)));
             var surplus = counts.GetValueOrDefault(resource) - keep;
             if (surplus > 0)
             {
@@ -200,37 +200,34 @@ public static partial class TradePolicyRules
         return output;
     }
 
-    /// <summary>Adds the shed_art reason to the need: known negative wealth headroom and unreserved packed art. Anything unknown adds nothing.</summary>
-    public static Fact<TradeNeed> ShedArtNeed(Fact<TradeNeed> need, Fact<double> headroom, Fact<long> saleArt)
+    /// <summary>Adds unreserved packed art under negative wealth headroom to the trade need.</summary>
+    public static TradeNeed ShedArtNeed(TradeNeed need, double headroom, long saleArt)
     {
-        var nk = need.TryGetValue(out var n);
-        var hk = headroom.TryGetValue(out var h);
-        var ak = saleArt.TryGetValue(out var art);
-        if (!nk || !hk || !ak || !Finite(h) || h >= 0 || art <= 0)
+        var n = need;
+        var h = headroom;
+        var art = saleArt;
+        if (!Finite(h) || h >= 0 || art <= 0)
         {
             return need;
         }
-        return Known(n! with { ShedArt = art });
+        return n with { ShedArt = art };
     }
 
     /// <summary>
-    /// Measures the trade need from the same facts the other reviews already produced. It is unknown while the
-    /// medicine reserve or the resource census is unknown: a trade opened on a guessed need is not one. An unknown
-    /// wealth fact only leaves the wealth-driven surplus out. Floors are EconomicReserves's per-definition floors
-    /// (reserves plus construction deficits); target-driven surplus rows win over wealth-driven ones for the same
-    /// resource. items.Currency is the colony census's coin, which is neither target nor surplus. A single
-    /// optional food context adds the shared ledger's food needs; omitting it leaves food purchases and protected
-    /// crop exports disabled.
+    /// Measures trade demand from the shared medicine, resource, wealth and food reviews.
+    /// Floors protect construction reserves; retained stock protects the resource runway.
+    /// Target-driven surplus wins over wealth-driven surplus for the same resource.
+    /// Currency is neither a target nor a surplus.
     /// </summary>
-    public static Fact<TradeNeed> ReviewTradeNeed(
+    public static TradeNeed ReviewTradeNeed(
         ItemFacts items,
         MedicalReserveReview medicine,
         EquatableArray<Amount> resources,
         IReadOnlyDictionary<Resource, long> targets,
         IReadOnlyDictionary<string, long> floors,
-        Fact<WealthFacts> wealth,
-        Fact<IReadOnlyDictionary<Resource, long>> retained,
-        TradeFoodContext? food = null
+        WealthFacts wealth,
+        TradeRetention retained,
+        TradeFoodContext food
     )
     {
         var replenish = medicine.Replenish;
@@ -240,10 +237,7 @@ public static partial class TradePolicyRules
             stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
         }
         var need = new TradeNeed { MedicineReplenish = Math.Max(0, replenish) };
-        if (food is not null)
-        {
-            need = need with { Food = ReviewTradeFood(food) };
-        }
+        need = need with { Food = ReviewTradeFood(food) };
         need = need with { ComponentShortfall = Math.Max(0, targets.GetValueOrDefault(ComponentResource) - stock.GetValueOrDefault(ComponentResource)) };
         var names = targets.Keys.Select(r => r.Value).ToList();
         names.Sort(StringComparer.Ordinal);
@@ -279,24 +273,17 @@ public static partial class TradePolicyRules
             surplusRows.Add(row);
             keeps[row.Resource] = stock.GetValueOrDefault(row.Resource) - row.Count;
         }
-        return Known(need with { Shortfall = shortfall, Surplus = surplusRows, Retained = keeps });
+        return need with { Shortfall = shortfall, Surplus = surplusRows, Retained = keeps };
     }
 
     /// <summary>
-    /// The economy/caravan Need's recovered fact: known true when no tradeable or arriving caravan is present or nothing
-    /// is worth trading, known false while both hold or while a tradeable caravan is unpriced (its key in unpriced:
-    /// a caravan whose sheet the negotiator has no fresh record of, which the always-browse session opens to read),
-    /// unknown while the need is. A caravan still travelling counts as present so the goal stands (and
-    /// the planner keeps the clock moving) until it arrives. An unknown trader census (a source without a trader
-    /// list) also reads as recovered: there is no caravan the planner could open with, so the goal stays off
-    /// rather than standing unknown forever.
+    /// Recovery means no tradeable or arriving caravan remains, or nothing is worth trading
+    /// and every present caravan has a fresh priced sheet. Arriving caravans keep the Need
+    /// standing until arrival; an absent census is refused at the observation boundary.
     /// </summary>
-    public static Fact<bool> TradeRecovered(Fact<EquatableArray<Trader>> traders, EquatableArray<string> unpriced, Fact<TradeNeed> need)
+    public static bool TradeRecovered(EquatableArray<Trader> traders, EquatableArray<string> unpriced, TradeNeed need)
     {
-        if (!traders.TryGetValue(out var rows))
-        {
-            return Known(true);
-        }
+        var rows = traders;
         var present = false;
         var browse = false;
         foreach (var row in rows!)
@@ -306,13 +293,10 @@ public static partial class TradePolicyRules
         }
         if (!present)
         {
-            return Known(true);
+            return true;
         }
-        if (!need.TryGetValue(out var n))
-        {
-            return Unknown<bool>();
-        }
-        return Known(!n!.Any() && !browse);
+        var n = need;
+        return !n.Any() && !browse;
     }
 
     /// <summary>Picks the caravan to open with: tradeable, not already settled this epoch, most goods first, id order on ties; null when none is.</summary>

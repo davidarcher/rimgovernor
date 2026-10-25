@@ -21,21 +21,9 @@ public sealed partial class FacadeNativeClient
     internal Task<PbLifecycle.LoadedTick> TickAsync(CancellationToken cancellationToken) =>
         Facade.ReadTickAsync(new PbLifecycle.TickRequest(), cancellationToken);
 
-    /// <summary>The colony census: the planning form from the newest frame, the other form read live.</summary>
-    internal async Task<PbObservations.ColonyFactsSnapshot> ReadColonyFactsAsync(PbCommon.Identity identity, bool planning, CancellationToken cancellationToken)
-    {
-        if (planning)
-        {
-            return await FrameReadAsync(ReadColonyFactsMethod, identity, view => view.Snapshot.ColonyFacts, cancellationToken).ConfigureAwait(false);
-        }
-        // The stream seeds the colony_facts section under the planning form only, so no frame carries this form.
-        var request = new PbObservations.ColonyFactsRequest
-        {
-            Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
-            Planning = false,
-        };
-        return await Facade.ReadColonyFactsAsync(request, cancellationToken).ConfigureAwait(false);
-    }
+    /// <summary>The complete colony census from the newest frame, shared with its entity and zone tables.</summary>
+    internal Task<PbObservations.ColonyFactsSnapshot> ReadColonyFactsAsync(PbCommon.Identity identity, CancellationToken cancellationToken) =>
+        FrameReadAsync(ReadColonyFactsMethod, identity, view => view.Snapshot.ColonyFacts, cancellationToken);
 
     /// <summary>
     /// Composes the step's snapshot, the live tick (scope and pause state), then the clock

@@ -119,12 +119,12 @@ public enum MonolithOrder
 public sealed record AwakenGate
 {
     /// <summary>The observed defense capacity.</summary>
-    public Fact<double> Capacity { get; init; }
+    public double Capacity { get; init; }
 
     /// <summary>The points a default threat draws, in raid-point units.</summary>
     public double RaidPoints { get; init; }
 
-    public Fact<long> Hostiles { get; init; }
+    public HostileCensus Hostiles { get; init; } = new HostileCensus.AwaitingEmergency();
     public ContainmentPlanning Containment { get; init; } = new();
 }
 
@@ -210,21 +210,17 @@ public static partial class MonolithRules
             }
         }
 
-        var ck = g.Capacity.TryGetValue(out var capacity);
+        var capacity = g.Capacity;
         var points = g.RaidPoints;
-        if (!ck)
-        {
-            issues.Add("the defense capacity is unread");
-        }
-        else if (capacity < AwakenStrengthFactor * points)
+        if (capacity < AwakenStrengthFactor * points)
         {
             Note(string.Create(CultureInfo.InvariantCulture, $"defense capacity {capacity:F0} is below {AwakenStrengthFactor:F2} times the {points:F0} raid points of the awakening waves"));
         }
-        if (!g.Hostiles.TryGetValue(out var hostiles))
+        if (g.Hostiles is HostileCensus.AwaitingEmergency)
         {
             issues.Add("whether a threat stands is unread");
         }
-        else if (hostiles > 0)
+        else if (g.Hostiles.ThreatCount is > 0 and var hostiles)
         {
             Note($"{hostiles} threats stand");
         }

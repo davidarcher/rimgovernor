@@ -269,7 +269,7 @@ public sealed class ForecastConditionalMoodTests
             Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = [pawn] },
             Coupled = CoupledFixtures.Empty with { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Tick = 100, Food = CoupledFixtures.NoFood, Construction = ConstructionFixtures.NoConstruction(), Routes = [new("pawn", new(1, 1), new(1, 1), new RouteTicks.Reachable(0d)) { FromStart = true }] },
         } };
-        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         var candidates = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)!.Priced(horizon);
         facts = facts with { CoupledAlternatives = candidates };
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), horizon / GameTime.TicksPerDay,

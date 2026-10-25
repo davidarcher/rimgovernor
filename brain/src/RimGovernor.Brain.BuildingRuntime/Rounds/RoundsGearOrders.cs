@@ -28,11 +28,9 @@ public static partial class RoundsGearPlanner
     public static Declared DeclareOrders(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
         DeclareOrdersInner(snapshot, projection, benches, ct).For(MilitaryFamily.Equipment.FilingKey.Value);
 
-    /// <summary>Abstains while the rounds census is unread.</summary>
+    /// <summary>Declares gear work from the complete colony census.</summary>
     internal static Declared DeclareOrdersInner(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
-        projection.Facts.Gear.TryGetValue(out var census)
-            ? GearOrdersRules.DeclareGearOrders(GearRequest(projection, census, benches))
-            : WorkRules.Abstaining(Cause.UnreadGearRecover);
+        GearOrdersRules.DeclareGearOrders(GearRequest(projection, projection.Facts.Gear, benches));
 }
 
 public sealed partial class RoundsArmoryPlanner
@@ -43,15 +41,10 @@ public sealed partial class RoundsArmoryPlanner
     internal async Task<Declared> DeclareOrdersInnerAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         var tier = ArmoryRules.AssessArmory(projection.Facts).Tier;
-        var known = projection.Facts.Gear.TryGetValue(out var census);
+        var census = projection.Facts.Gear;
         if (_native is not FacadeNativeClient)
         {
             return WorkRules.Abstaining(Cause.UnreadNativeRead);
-        }
-
-        if (!known)
-        {
-            return WorkRules.Abstaining(Cause.UnreadGearDemand);
         }
 
         var ids = census!.Pawns.Select(p => p.Pawn.Value).ToList();
@@ -67,10 +60,7 @@ public sealed partial class RoundsArmoryPlanner
         }
 
         // The review's d_reads lap read the shell targets (Facts.ShellTargets); the declarer does not read them again (#3566).
-        if (!projection.Facts.ShellTargets.TryGetValue(out var shells))
-        {
-            return WorkRules.Abstaining(Cause.UnreadShells);
-        }
+        var shells = projection.Facts.ShellTargets;
 
         return GearOrdersRules.DeclareArmoryOrders(RoundsGearPlanner.GearRequest(projection, census, benches), tier, MergeAmounts(fighters, hunters), shells);
     }

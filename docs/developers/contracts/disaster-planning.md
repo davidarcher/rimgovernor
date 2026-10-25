@@ -86,3 +86,6 @@ observed condition starts a fresh episode. Routine events make no model calls.
 buildings, wholly roofed visible allowed areas, and colonist area restrictions.
 Reads do not acquire area leases, alter restrictions, or issue work. Partial or
 unavailable censuses remain unknown. See acceptance.
+
+Survival services have explicit restored or deficit states. Food alone awaits the first food plan; that state prevents a recovery claim. A colony without an indoor bed has an unmet temperature service. During cold snaps or heat waves that sleeping state cannot clear sheltering; the family requires an indoor measurement. Before the first emergency census, sheltering likewise awaits that census. Dash planning reads total body measurements; the cold estimator names finite, unbounded and unmodelled hazards. Raid harm reads observed raid points and defense capacity directly; zero capacity cannot establish a calibrated fight ratio. Hunting admission uses an observed integer capacity, including zero when no hunter is available.
+Safe-area review status is awaiting-review before a review in this world, edits when area differences are queued, and clear after commit or an unchanged review. An awaiting review cannot establish that the safe-area Need is met.

@@ -143,9 +143,9 @@ public sealed class ColonyModelContinuationTests
                 new ProjectNode { Id = "harvest", Kind = ProjectKind.Harvest, Crop = crop.Name, Field = "zone1", Cells = 1, Prerequisites = EquatableArray.From(["grow"]) },
             }) },
         };
-        var first = CropGrowthModel.DailyGrowth(crop, 1, input.Climate.Temperatures[4]).Value;
-        var second = CropGrowthModel.DailyGrowth(crop, 1, input.Climate.Temperatures[5]).Value;
-        var remaining = crop.HarvestMinGrowth.Value - first * Math.Min(cut, .2) - second * Math.Max(0, cut - .2);
+        var first = CropGrowthModel.DailyGrowth(crop, 1, input.Climate.Temperatures[4]);
+        var second = CropGrowthModel.DailyGrowth(crop, 1, input.Climate.Temperatures[5]);
+        var remaining = crop.HarvestMinGrowth - first * Math.Min(cut, .2) - second * Math.Max(0, cut - .2);
         var state = ColonyModelState.Observed(input, policy) with
         {
             Day = cut,

@@ -1,3 +1,4 @@
+#nullable enable
 using RimGovernor.Brain.Domain;
 using RimWorld;
 using Verse;
@@ -15,11 +16,11 @@ public sealed partial class DefinitionCatalog
     private static bool IsBuyGenerator(StockGenerator generator) => generator.GetType().Name.Contains("_Buy", StringComparison.Ordinal);
 
     /// <summary>Sell-generator compatibility, never probability, stock or prices: whether a trader of kind can supply the good. Unsupported generator forms keep a negative answer unknown.</summary>
-    public Fact<bool> TraderKindCanSupply(string kind, P.ResourceKey good)
+    public P.TradeCompatibility TraderKindCanSupply(string kind, P.ResourceKey good)
     {
         if (DefRow<TraderKindDef>(kind) is not { } row)
         {
-            return Unknown<bool>();
+            throw new DomainException("trade catalog definition unavailable");
         }
 
         var items = ItemFacts();
@@ -29,7 +30,7 @@ public sealed partial class DefinitionCatalog
             names = [.. items.Nutrition.Where(pair => pair.Value > 0 && TradeFood(pair.Key.Value) is not null).Select(pair => pair.Key.Value)];
             if (names.Count == 0)
             {
-                return Unknown<bool>();
+                throw new DomainException("trade catalog definition unavailable");
             }
         }
 
@@ -93,12 +94,12 @@ public sealed partial class DefinitionCatalog
 
                 if (compatible)
                 {
-                    return Known(true);
+                    return P.TradeCompatibility.Trades;
                 }
             }
         }
 
-        return unknown ? Unknown<bool>() : Known(false);
+        return unknown ? P.TradeCompatibility.UnsupportedGenerator : P.TradeCompatibility.DoesNotTrade;
     }
 
     /// <summary>
@@ -107,16 +108,16 @@ public sealed partial class DefinitionCatalog
     /// cash nor its price. Unknown for an unread kind or def and for a generator form it cannot classify; a def the player
     /// cannot sell is a known no.
     /// </summary>
-    public Fact<bool> TraderKindBuys(string kind, P.Resource def)
+    public P.TradeCompatibility TraderKindBuys(string kind, P.Resource def)
     {
         if (DefRow<TraderKindDef>(kind) is not { } row || FindThing(def.Value) is not { } thing)
         {
-            return Unknown<bool>();
+            throw new DomainException("trade catalog definition unavailable");
         }
 
         if (thing.tradeability is not (Tradeability.Sellable or Tradeability.All))
         {
-            return Known(false);
+            return P.TradeCompatibility.DoesNotTrade;
         }
 
         var unknown = false;
@@ -138,14 +139,14 @@ public sealed partial class DefinitionCatalog
                 case StockGenerator_BuyTradeTag tag:
                     if (thing.techLevel <= tag.maxTechLevelBuy && thing.tradeTags.Seq().Contains(tag.tag))
                     {
-                        return Known(true);
+                        return P.TradeCompatibility.Trades;
                     }
 
                     break;
                 case StockGenerator_BuySingleDef single:
                     if (thing.techLevel <= single.maxTechLevelBuy && single.thingDef?.defName == def.Value)
                     {
-                        return Known(true);
+                        return P.TradeCompatibility.Trades;
                     }
 
                     break;
@@ -154,7 +155,7 @@ public sealed partial class DefinitionCatalog
                     // through a tag or a def row.
                     if (thing.techLevel <= expensive.maxTechLevelBuy && ItemFacts().Market.TryGetValue(def, out var value) && value >= expensive.minValuePerUnit)
                     {
-                        return Known(true);
+                        return P.TradeCompatibility.Trades;
                     }
 
                     break;
@@ -166,18 +167,18 @@ public sealed partial class DefinitionCatalog
             }
         }
 
-        return unknown ? Unknown<bool>() : Known(false);
+        return unknown ? P.TradeCompatibility.UnsupportedGenerator : P.TradeCompatibility.DoesNotTrade;
     }
 
     /// <summary>The low end of the silver a trader of kind carries: the countRange minimum of its currency stock generator. Unknown when the kind has no currency row.</summary>
-    public Fact<long> TraderKindSilver(string kind)
+    public long TraderKindSilver(string kind)
     {
         if (DefRow<TraderKindDef>(kind) is not { } row)
         {
-            return Unknown<long>();
+            throw new DomainException("trader kind unavailable");
         }
 
         var currency = row.stockGenerators.Seq().OfType<StockGenerator_SingleDef>().Where(single => GameMembers.SingleDefThing(single)?.defName == Derived.CurrencyDef).ToList();
-        return currency.Count == 0 ? Unknown<long>() : Known(currency.Sum(single => (long)single.countRange.min));
+        return currency.Sum(single => (long)single.countRange.min);
     }
 }

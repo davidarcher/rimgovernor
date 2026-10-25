@@ -576,7 +576,7 @@ public sealed partial class Rounder
     internal async Task DrawHeatOverlayAsync(FacadeNativeClient native, GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
     {
         var census = projection.Facts.Upkeep.Flooring;
-        var on = LayoutOverlay && census is not null;
+        var on = LayoutOverlay;
         if (!on && HeatCleared)
         {
             return;
@@ -590,7 +590,7 @@ public sealed partial class Rounder
         {
             foreach (var layer in TrafficRules.TrafficLayers)
             {
-                var heat = on && census is not null ? TrafficRules.TrafficOverlay(census.Traffic, layer, projection.Bounds) : new LayoutOverlay();
+                var heat = on ? TrafficRules.TrafficOverlay(census.Traffic, layer, projection.Bounds) : new LayoutOverlay();
                 await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), "heat." + Wire.Name(layer), heat, on && heat.Layers.Count > 0, ct).ConfigureAwait(false);
             }
         }

@@ -124,13 +124,14 @@ public static partial class SurgeryRules
     }
 
     /// <summary>Adds the parts only a trader can supply to the trade need; an unknown need stays unknown.</summary>
-    public static Fact<TradeNeed> SurgeryTradeNeed(Fact<TradeNeed> need, IReadOnlyList<SurgeryPart> parts)
+    public static TradeNeed SurgeryTradeNeed(TradeNeed need, IReadOnlyList<SurgeryPart> parts)
     {
-        if (!need.TryGetValue(out var n) || parts.Count == 0)
+        var n = need;
+        if (parts.Count == 0)
         {
             return need;
         }
-        return Known(n with { SurgeryParts = [.. n.SurgeryParts, .. parts] });
+        return n with { SurgeryParts = [.. n.SurgeryParts, .. parts] };
     }
 
     /// <summary>

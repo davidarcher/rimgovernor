@@ -4,13 +4,6 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>What an economy/resource deficit needs from the building ladder before a bill can be dispatched for it.</summary>
 public enum WorkshopMethod
 {
-    /// <summary>
-    /// A candidate bench definition is missing from the planning census, or its availability, power need or
-    /// construction skill is unread there, so no rung of the ladder can be chosen.
-    /// </summary>
-    [WireName("definition_unread")]
-    DefinitionUnread,
-
     /// <summary>A usable bench already hosts an available recipe for the resource; the bill path owns the deficit from here.</summary>
     [WireName("existing")]
     Existing,
@@ -33,11 +26,11 @@ public sealed record BenchDefinition
 {
     public string Name { get; init; } = "";
 
-    public Fact<bool> Available { get; init; }
+    public bool Available { get; init; }
 
-    public Fact<bool> NeedsPower { get; init; }
+    public bool NeedsPower { get; init; }
 
-    public Fact<int> ConstructionSkill { get; init; }
+    public int ConstructionSkill { get; init; }
 
     /// <summary>Names the definition's own ResearchProjectDefs; with Available false they are what stands between the colony and the bench.</summary>
     public IReadOnlyList<string> Research { get; init; } = [];
@@ -54,14 +47,14 @@ public sealed record WorkshopRequest
     public IReadOnlyList<BenchDefinition> Definitions { get; init; } = [];
 
     /// <summary>Whether a generator definition is available to build, so a powered bench can be staged and connected; unknown or false keeps the choice to unpowered benches.</summary>
-    public Fact<bool> Power { get; init; }
+    public bool Power { get; init; }
 
     /// <summary>
     /// The best Construction level among colonists who can build (BuilderSkill); a bench with a construction skill
     /// prerequisite is buildable only when a builder meets it, and the plan's own work requirement then assigns that
     /// builder. Unknown keeps the choice to benches without a prerequisite.
     /// </summary>
-    public Fact<int> BuilderSkill { get; init; }
+    public int BuilderSkill { get; init; }
 
     /// <summary>Names the bench kinds (FurtherBenchKinds) whose standing benches no longer suffice: a bench of such a kind is not reused, and a further one of the kind is staged instead.</summary>
     public IReadOnlyList<string> Further { get; init; } = [];
@@ -120,7 +113,7 @@ public static partial class WorkRules
     }
 
     /// <summary>The highest Construction skill level among the pawns that are available, apply to work assignment and have the skill enabled; unknown while the roster is unread.</summary>
-    public static Fact<int> BuilderSkill(WorkPawnsRead pawns)
+    public static int BuilderSkill(WorkPawnsRead pawns)
     {
         var rows = pawns.Pawns;
         var best = 0;
@@ -139,7 +132,7 @@ public static partial class WorkRules
                 }
             }
         }
-        return Known(best);
+        return best;
     }
 
     /// <summary>Lists, in stable order, every bench definition hosting a research-available recipe that produces the resource. It is the definition set a planner requests from the planning census before choosing.</summary>
@@ -209,15 +202,14 @@ public static partial class WorkRules
         {
             byName[d.Name] = d;
         }
-        var powerKnown = r.Power.TryGetValue(out var power);
-        var builderKnown = r.BuilderSkill.TryGetValue(out var builder);
-        bool Buildable(int skill) => skill == 0 || (builderKnown && skill <= builder);
-        var unread = false;
+        var power = r.Power;
+        var builder = r.BuilderSkill;
+        bool Buildable(int skill) => skill == 0 || (skill <= builder);
 
         // Buildable now: unpowered first, then powered when a generator can be built for it.
         foreach (var allowPower in new[] { false, true })
         {
-            if (allowPower && !(powerKnown && power))
+            if (allowPower && !(power))
             {
                 continue;
             }
@@ -227,12 +219,11 @@ public static partial class WorkRules
                 {
                     continue;
                 }
-                var exists = byName.TryGetValue(name, out var d);
-                if (!exists || !d!.Available.TryGetValue(out var available) || !d.NeedsPower.TryGetValue(out var powered) || !d.ConstructionSkill.TryGetValue(out var skill))
-                {
-                    unread = true;
-                    continue;
-                }
+                if (!byName.TryGetValue(name, out var d))
+                    throw new RequiredFactException("bench definition:" + name);
+                var available = d.Available;
+                var powered = d.NeedsPower;
+                var skill = d.ConstructionSkill;
                 if (available && powered == allowPower && Buildable(skill))
                 {
                     return new WorkshopChoice { Method = WorkshopMethod.Build, Definition = name, Recipe = WorkshopRecipe(r.Resource, r.Hosts, name) };
@@ -253,13 +244,12 @@ public static partial class WorkRules
             }
             foreach (var name in host.Benches)
             {
-                var exists = byName.TryGetValue(name, out var d);
-                if (!exists || !d!.Available.TryGetValue(out var available) || !d.NeedsPower.TryGetValue(out var powered) || !d.ConstructionSkill.TryGetValue(out var skill))
-                {
-                    unread = true;
-                    continue;
-                }
-                if (!Buildable(skill) || (powered && !(powerKnown && power)))
+                if (!byName.TryGetValue(name, out var d))
+                    throw new RequiredFactException("bench definition:" + name);
+                var available = d.Available;
+                var powered = d.NeedsPower;
+                var skill = d.ConstructionSkill;
+                if (!Buildable(skill) || (powered && !(power)))
                 {
                     continue;
                 }
@@ -296,7 +286,7 @@ public static partial class WorkRules
                 };
             }
         }
-        return new WorkshopChoice { Method = unread ? WorkshopMethod.DefinitionUnread : WorkshopMethod.Unavailable };
+        return new WorkshopChoice { Method = WorkshopMethod.Unavailable };
     }
 
     private static string WorkshopRecipe(Resource resource, IReadOnlyList<RecipeHost> hosts, string bench)

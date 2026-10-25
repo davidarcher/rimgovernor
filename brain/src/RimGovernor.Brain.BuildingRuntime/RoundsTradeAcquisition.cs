@@ -163,8 +163,8 @@ public sealed partial class Rounder
         }
         // No attempt is proposed while the colony's silver is unread or its size prices no reserve.
         var (reserve, known) = Pol.TradePolicyRules.TradeSilverReserve(p.Facts.Colonists);
-        var plan = known && p.Facts.Silver().TryGetValue(out var silver)
-            ? Pol.TradePolicyRules.PlanTradeAcquisition(new Pol.TradeAcquisitionRequest { Demands = demands, Options = options, Silver = silver, Reserve = reserve, ActiveID = active })
+        var plan = known
+            ? Pol.TradePolicyRules.PlanTradeAcquisition(new Pol.TradeAcquisitionRequest { Demands = demands, Options = options, Silver = p.Facts.Silver(), Reserve = reserve, ActiveID = active })
             : new Pol.TradeAcquisitionPlan();
         lock (m.Mu)
         {
@@ -230,7 +230,7 @@ partial class TradeAcquisitionMemory
             var compatible = new List<Pol.ResourceKey>();
             foreach (var demand in demands)
             {
-                if (catalog.TraderKindCanSupply(option.TraderKind, demand.Demand.Good).TryGetValue(out var can) && can)
+                if (catalog.TraderKindCanSupply(option.TraderKind, demand.Demand.Good) == Pol.TradeCompatibility.Trades)
                 {
                     compatible.Add(demand.Demand.Good);
                 }

@@ -38,8 +38,8 @@ public sealed class CropRowTests
 
         var row = PlanningViewReads.PlanningView(catalog, "Plant_Devilstrand")!;
 
-        Assert.Equal([0.0, 10, 42, 58], new[] { row.MinGrowthTemperature.Value, row.MinOptimalGrowthTemperature.Value, row.MaxOptimalGrowthTemperature.Value, row.MaxGrowthTemperature.Value });
-        Assert.Equal(22.5, row.GrowDays.Value);
-        Assert.Equal(PlantResting.RestingDayFraction, row.RestingDayFraction.Value);
+        Assert.Equal([0.0, 10, 42, 58], new[] { (row.Plant ?? throw new RequiredFactException("planning Plant")).MinGrowthTemperature, (row.Plant ?? throw new RequiredFactException("planning Plant")).MinOptimalGrowthTemperature, (row.Plant ?? throw new RequiredFactException("planning Plant")).MaxOptimalGrowthTemperature, (row.Plant ?? throw new RequiredFactException("planning Plant")).MaxGrowthTemperature });
+        Assert.Equal(22.5, (row.Plant ?? throw new RequiredFactException("planning Plant")).GrowDays);
+        Assert.Equal(PlantResting.RestingDayFraction, (row.Plant ?? throw new RequiredFactException("planning Plant")).RestingDayFraction);
     }
 }

@@ -13,21 +13,21 @@ public static partial class TombRules
 
     /// <summary>
     /// Lists the native room IDs of the standing planned tombs, morgues and meal closets that measure warmer than
-    /// TombMaxC, sorted. Known empty while coolers are unavailable; unknown while a fact it reads is.
+    /// TombMaxC, sorted. Empty while coolers are unavailable or no layout plan exists.
     /// </summary>
-    public static Fact<EquatableArray<string>> WarmCoolingRooms(Fact<bool> coolers, LayoutPlan? plan, RoomObservation rooms)
+    public static EquatableArray<string> WarmCoolingRooms(bool coolers, LayoutPlan? plan, RoomObservation rooms)
     {
-        var ak = coolers.TryGetValue(out var available);
-        if (ak && !available)
+        var available = coolers;
+        if (!available)
         {
-            return Known<EquatableArray<string>>([]);
+            return [];
         }
         var p = plan;
         var pk = p is not null;
         var r = rooms;
-        if (!ak || !pk)
+        if (!pk)
         {
-            return Unknown<EquatableArray<string>>();
+            return [];
         }
         var output = new List<string>();
         foreach (var planned in p!.Rooms)
@@ -48,13 +48,14 @@ public static partial class TombRules
             }
         }
         output.Sort(StringComparer.Ordinal);
-        return Known(EquatableArray.From(output));
+        return EquatableArray.From(output);
     }
 
-    /// <summary>Adds the warm cooling rooms to the review's rooms: any warm one makes it active. Unknown rooms leave the review as it is.</summary>
-    public static RefrigerationReview WithWarmRooms(this RefrigerationReview r, Fact<EquatableArray<string>> warm)
+    /// <summary>Adds the warm cooling rooms to the review's rooms: any warm one makes it active.</summary>
+    public static RefrigerationReview WithWarmRooms(this RefrigerationReview r, EquatableArray<string> warm)
     {
-        if (!warm.TryGetValue(out var ids) || ids.Count == 0)
+        var ids = warm;
+        if (ids.Count == 0)
         {
             return r;
         }

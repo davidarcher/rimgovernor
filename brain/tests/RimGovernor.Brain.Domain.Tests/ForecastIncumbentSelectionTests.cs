@@ -12,7 +12,7 @@ public sealed class ForecastIncumbentSelectionTests
     {
         var facts = ForecastCoupledSelectionTests.Review(food, fall);
         facts = WorkRules.ReviewWorkResources(facts with { Resources = [new(new("Rice"), 1)] },
-            Known<EquatableArray<ProductionBatch>>([]), new([]));
+            new ProductionBatchCensus.Read([]), new([]));
         var original = facts.CoupledAlternatives!;
         var pawn = original.Context.Needs.Pawns[0] with
         {
@@ -81,7 +81,7 @@ public sealed class ForecastIncumbentSelectionTests
     {
         var (request, candidates) = Problem(1, 0, meal: false);
         var roster = WorkResourceTestFacts.Create("pawn", "helper");
-        roster = WorkRules.ReviewWorkResources(roster, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        roster = WorkRules.ReviewWorkResources(roster, new ProductionBatchCensus.Read([]), new([]));
         var context = candidates.Context;
         context = context with
         {
@@ -110,7 +110,7 @@ public sealed class ForecastIncumbentSelectionTests
     {
         var (request, candidates) = Problem(1, 0, meal: false);
         var names = Enumerable.Range(1, helpers).Select(i => "helper" + i).ToArray();
-        var roster = WorkRules.ReviewWorkResources(WorkResourceTestFacts.Create(["pawn", .. names]), Known<EquatableArray<ProductionBatch>>([]), new([]));
+        var roster = WorkRules.ReviewWorkResources(WorkResourceTestFacts.Create(["pawn", .. names]), new ProductionBatchCensus.Read([]), new([]));
         var context = candidates.Context;
         ForecastNeedTask Claim(string task, string pawn) => new(task, pawn, kind, target, new(""), count, .2, [])
             { MaxPawns = maxPawns, Quantity = stock ?? new TargetQuantity.Unbounded() };
@@ -157,7 +157,7 @@ public sealed class ForecastIncumbentSelectionTests
         var facts = WorkResourceTestFacts.Create("pawn", "helper");
         facts = facts with { ForecastObserved = facts.ForecastObserved with
             { Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = [NeedsFixtures.Pawn() with { Pawn = "pawn", Targets = [rice] }, NeedsFixtures.Pawn() with { Pawn = "helper", Targets = [rice] }] } } };
-        var view = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])).WorkView!;
+        var view = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([])).WorkView!;
         var bindings = new Dictionary<(string, string), RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate>
         {
             [("eat", "pawn")] = new("eat", "pawn", [], PawnActivityKind.Eat, "rice", "", "", 2, 2000, new(1, 1)) { Resource = "Rice", Source = new(1, 1) },
@@ -315,7 +315,7 @@ public sealed class ForecastIncumbentSelectionTests
         var facts = WorkResourceTestFacts.Create("pawn", "helper");
         facts = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead(EquatableArray.From(((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns
             .Select(p => p.Id.Value == "helper" ? p with { Available = false } : p))) } };
-        var roster = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        var roster = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         var context = candidates.Context;
         context = context with
         {

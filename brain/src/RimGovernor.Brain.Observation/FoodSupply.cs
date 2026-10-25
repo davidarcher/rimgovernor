@@ -14,7 +14,7 @@ public static class FoodSupplyReads
     /// catalog. A stock the table misses, a stock whose def the catalog lacks, or no catalog held is a contract error.
     /// </summary>
     public static FoodSupply DecodeFoodSupply(O.FoodSupplyFacts v, Things things, DefinitionCatalog? catalog) =>
-        DecodeFoodSupply(v, FoodSupplyRules.JoinFoodSupply(v, things), ColonyDecodeReads.RequireCatalog(catalog));
+        DecodeFoodSupply(v ?? throw new BridgeContractException("food supply section absent"), FoodSupplyRules.JoinFoodSupply(v, things), ColonyDecodeReads.RequireCatalog(catalog));
 
     private static FoodDefFacts FoodDefFactsOf(DefinitionCatalog catalog, string def, bool corpse) =>
         new(catalog.RawFoodClass(def), catalog.RawMeat(def), catalog.Vegetable(def), corpse && catalog.HumanlikeCorpse(def));

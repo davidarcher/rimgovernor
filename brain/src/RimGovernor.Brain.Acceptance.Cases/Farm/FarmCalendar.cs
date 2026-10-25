@@ -25,7 +25,7 @@ internal static class FarmCalendar
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        var facts = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+        var facts = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
 
         var climate = facts.FoodClimate;
         s.RecordWire("food_climate", climate);

@@ -17,7 +17,7 @@ public static class ForecastMaterialChoices
 {
     /// <summary>Joint material deltas against the forecast's shared free budget; every demand can be postponed.</summary>
     public static ForecastMaterialComparison CompareMaterialPlans(IEnumerable<ForecastMaterialOption> options,
-        Fact<IReadOnlyDictionary<Resource, Fact<double>>> availability, int expansionBudget = 4096,
+        MaterialAvailability availability, int expansionBudget = 4096,
         ForecastMaterialValuation? valuation = null)
     {
         if (expansionBudget < 1) throw new DomainException("positive material search budget required");
@@ -29,7 +29,8 @@ public static class ForecastMaterialChoices
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         if (valuation is not null && rows.Any(o => o.Requirements is not null))
             throw new DomainException("requirement priorities and scalar utility are separate objectives");
-        if (!availability.TryGetValue(out var budget)) return new([], 0, false, ["unknown_material_budget"]);
+        if (availability is MaterialAvailability.Blocked blocked) return new([], 0, false, ["material_budget_blocked:" + blocked.Reason]);
+        var budget = ((MaterialAvailability.Assessed)availability).Balances;
         var groups = rows.GroupBy(o => o.Demand, StringComparer.Ordinal).Select(g => g.ToArray()).ToArray();
         var selected = new List<ForecastMaterialOption>();
         ForecastMaterialOption[] best = [];
@@ -50,7 +51,7 @@ public static class ForecastMaterialChoices
                 var benefit = valuation is null ? option.Value : 0;
                 var next = new Dictionary<Resource, long>(used);
                 foreach (var cost in option.Cost) next[cost.Resource] = checked(next.GetValueOrDefault(cost.Resource) + cost.Count);
-                if (next.Any(c => !budget.GetValueOrDefault(c.Key, Known(0.0)).IsKnown))
+                if (next.Any(c => budget.GetValueOrDefault(c.Key, new MaterialUnits.Exact(0)) is MaterialUnits.Open))
                 { findings.Add("unknown_material:" + option.Id); continue; }
                 if (!ProductionRules.MaterialBudgetCovers(budget, next.Select(c => new Amount(c.Key, c.Value)), 1)) continue;
                 if (!double.IsFinite(value + benefit)) throw new DomainException("material value overflow");

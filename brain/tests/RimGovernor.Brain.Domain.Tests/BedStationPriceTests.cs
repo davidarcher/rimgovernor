@@ -78,7 +78,7 @@ public sealed class BedStationPriceTests
         Facts = facts,
         OutdoorCurve = Known(EquatableArray.From(curve)),
         WorkDay = BedMergePriceTests.Day(8000.0),
-        Builders = Known(1),
+        Builders = 1,
     };
 
     /// <summary>Three calm sleepers whom the market price of wood merges into one barracks (BedMergePriceTests), and a station the beds' sleepers walk to <paramref name="walks"/> times a day.</summary>

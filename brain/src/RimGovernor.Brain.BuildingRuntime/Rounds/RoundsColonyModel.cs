@@ -82,15 +82,14 @@ internal static class RoundsColonyModel
         var paths = (goals?.Goals ?? []).Where(g => GoalRules.Evaluate(g, goals!).State != GoalState.Met).OrderBy(g => g.Id)
             .Select(g => (Goal: GoalRules.NeedOf(g).Value, Path: GoalPaths.Of(g, goals!, input))).ToList();
         // The pawns' bill options, and the apparel only unfinished knowledge projects keep from the colony (#3848): a garment node of one waits on them.
-        var options = colony.Facts.Gear.TryGetValue(out var gear)
-            ? gear.Pawns.SelectMany(p => p.Model?.Options ?? []).Where(o => o.Source == GearSource.Bill).Concat(gear.KnowledgeBills).DistinctBy(o => o.ID).ToArray()
-            : [];
+        var gear = colony.Facts.Gear;
+        var options = gear.Pawns.SelectMany(p => p.Model?.Options ?? []).Where(o => o.Source == GearSource.Bill).Concat(gear.KnowledgeBills).DistinctBy(o => o.ID).ToArray();
         var valuation = new ColonyValue(context, options, ColonyModelPolicy.DefaultHorizonDays, input.Pawns, colony.Facts.MedicalReserve.Catalog);
         // The medicine the colony crafts toward the reserve's stock target (#3868): the best kind a crafter can make.
         var reserve = colony.Facts.MedicalReserve;
         var policy = new ColonyModelPolicy
         {
-            Projects = paths.Aggregate(ProjectGraph.Standing(input, options, gear?.Threat), (graph, p) => graph.Then(p.Path.Graph)),
+            Projects = paths.Aggregate(ProjectGraph.Standing(input, options, gear.Threat), (graph, p) => graph.Then(p.Path.Graph)),
             MedicineTendsPerDay = valuation.TreatmentsPerDay(input),
             MedicineCraft = context.Stock.MedicineCraft([.. reserve.Catalog.MedicineTiers().Reverse()], colony.Facts.Colonists * MedicalReservePolicy.Default().TargetPerColonist),
             MedicineTrade = context.Stock.MedicineTrade,
@@ -134,40 +133,20 @@ internal static class RoundsColonyModel
     {
         var facts = colony.Facts;
         var gaps = new List<string>();
-        GearClimate? climate = null;
-        if (facts.Gear.TryGetValue(out var gear))
-        {
-            climate = gear.Climate;
-        }
-        else
-        {
-            gaps.Add("climate: the review frame carries no seasonal temperatures");
-        }
+        var climate = facts.Gear.Climate;
 
         var calendar = facts.Calendar;
 
-        var recipes = default(EquatableArray<ProductionRecipeInput>);
-        if (facts.WorkAdmission.Recipes.TryGetValue(out var recipeRows))
-        {
-            recipes = recipeRows;
-        }
-        else
-        {
-            gaps.Add("recipes: the review carries no bench recipe census");
-        }
+        var recipes = facts.WorkAdmission.Recipes;
 
         var wildlife = HuntSquadRules.Herds(colony.Acquisition);
 
-        var otherDemand = 0d;
-        if (!ForecastStockScope.OtherDemand(colony.CombinedFoodSupply, facts.NeedsAlternatives?.Observation.Pawns.Select(p => p.Pawn) ?? []).TryGetValue(out otherDemand))
-        {
-            gaps.Add("stocks: other food-consumer demand is unknown or invalid");
-        }
+        var otherDemand = ForecastStockScope.OtherDemand(colony.CombinedFoodSupply, facts.NeedsAlternatives?.Observation.Pawns.Select(p => p.Pawn) ?? []);
 
         var land = LandOf(colony, gaps);
         var crops = CropsOf(colony, gaps);
         var research = ResearchOf(facts.Research, facts.NeedsAlternatives?.Observation, gaps);
-        var stocks = StocksOf(colony, gaps);
+        var stocks = StocksOf(colony);
         var pawns = PawnsOf(colony, gaps);
         if (gaps.Count > 0)
         {
@@ -177,7 +156,7 @@ internal static class RoundsColonyModel
         var input = new ColonyModelInput
         {
             OtherNutritionPerDay = otherDemand,
-            Climate = climate!,
+            Climate = climate,
             Calendar = calendar,
             Land = land,
             Crops = crops,
@@ -325,28 +304,19 @@ internal static class RoundsColonyModel
         return new ModelResearch { Current = facts.Current, Finished = facts.Finished, Projects = EquatableArray.From(projects), Benches = needs.ResearchBenches.Count, Knowledge = EquatableArray.From(knowledge) };
     }
 
-    /// <summary>The colony's nutrition, materials and medicine; each census the frame did not carry is named.</summary>
-    private static ModelStocks? StocksOf(ColonyProjection colony, List<string> gaps)
+    /// <summary>The colony's nutrition, materials and medicine from the required frame censuses.</summary>
+    private static ModelStocks StocksOf(ColonyProjection colony)
     {
-        var nutrition = 0d;
+        var nutrition = ForecastStockScope.Nutrition(colony.CombinedFoodSupply);
         var materials = default(EquatableArray<Amount>);
         var medicine = default(EquatableArray<Amount>);
-        var whole = true;
-        if (!NutritionOf(colony.CombinedFoodSupply).TryGetValue(out nutrition))
-        {
-            gaps.Add("stocks: the food census is unknown");
-            whole = false;
-        }
 
         materials = EquatableArray.From(colony.Resources.OrderBy(p => p.Key).Select(p => new Amount(p.Key, p.Value)));
 
         medicine = MedicineOf(colony.Facts.MedicalReserve, colony.Facts.ResourceThings);
 
-        return whole ? new ModelStocks { Nutrition = nutrition, Materials = materials, Medicine = medicine } : null;
+        return new ModelStocks { Nutrition = nutrition, Materials = materials, Medicine = medicine };
     }
-
-    /// <summary>The nutrition of the food stacks the colony can eat; unknown while the food census is incomplete or a stack's nutrition is.</summary>
-    private static Fact<double> NutritionOf(FoodSupply supply) => ForecastStockScope.Nutrition(supply);
 
     /// <summary>
     /// The medicine on hand by kind: the unforbidden stacks of the medical reserve census, highest potency first (the catalog's

@@ -121,7 +121,7 @@ public static class HostilityRules
         return @out;
     }
 
-    /// <summary>The review's HostilityOwed: a change is owed. Pawns the census did not read owe nothing.</summary>
-    public static bool HostilityOwed(Fact<EquatableArray<HostilityPawn>> pawns, IReadOnlyList<EmergencyThreat> threats) =>
-        pawns.TryGetValue(out var rows) && HostilityChanges(rows, threats).Count > 0;
+    /// <summary>The review's HostilityOwed: a change is owed. The pawn census is total.</summary>
+    public static bool HostilityOwed(EquatableArray<HostilityPawn> pawns, IReadOnlyList<EmergencyThreat> threats) =>
+        HostilityChanges(pawns, threats).Count > 0;
 }

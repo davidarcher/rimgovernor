@@ -4,8 +4,7 @@ namespace RimGovernor.Brain.Policy;
 // rate); the pasture of the pens feeds part of it and the unheld stock every animal of the group can eat the
 // rest. The runway is that stock over the net daily consumption, against MaintenanceHorizonDays. The shortfall is
 // a forward-projector domain and the feed to stock ahead of it is an economy/resource level in the Rounder's
-// construction memory, like FuelRunway. Unknown consumption, pasture, stock or feed leaves the projection
-// unknown, never defaulted.
+// construction memory, like FuelRunway. Missing required consumption, pasture, stock or feed facts refuse the calculation.
 //
 // Herd growth from known events is in it: a pregnant animal adds the catalog's mean litter, eating as a newborn
 // from the due tick and stepping up each life stage after it, and a young animal steps up at its next life stage
@@ -19,9 +18,7 @@ public sealed record AnimalFeedInputs
 
     public EquatableArray<Resource> Directed { get; init; }
 
-    public Fact<FoodSupply> Food { get; init; }
-
-    public Fact<FoodForecast> Forecast { get; init; }
+    public FoodSupply Food { get; init; } = new() { Larder = new() };
 
     /// <summary>The pens' worst-season pasture rates (PenGrazing).</summary>
     public EquatableArray<PenGrazing> Pens { get; init; }
@@ -48,12 +45,12 @@ public sealed record AnimalFeedRunway
 {
     public IReadOnlyDictionary<Resource, long> Needs { get; init; } = new Dictionary<Resource, long>();
 
-    public Fact<AnimalFeedProjection> Projection { get; init; }
+    public AnimalFeedProjection Projection { get; init; } = new();
 }
 
 public static class AnimalFeedRunwayExtensions
 {
-    /// <summary>PlanAnimalFeedRunway of the review's facts: the herd's food forecast is the food plan's when it is read.</summary>
+    /// <summary>PlanAnimalFeedRunway from the review's complete food census and kept herd.</summary>
     public static AnimalFeedRunway AnimalFeedRunway(this RoundsFacts f) => AnimalFeedRunwayRules.PlanAnimalFeedRunway(AnimalFeedInputsOf(f));
 
     internal static AnimalFeedInputs AnimalFeedInputsOf(RoundsFacts f)
@@ -64,15 +61,10 @@ public static class AnimalFeedRunwayExtensions
             Animals = u.Animals,
             Directed = u.DirectedHerds,
             Food = u.Food,
-            Forecast = u.Forecast,
             Pens = f.PenGrazing,
             Races = u.AnimalRaces,
             Stock = new StockReader { Resources = f.Resources, Wood = f.Wood },
         };
-        if (f.FoodPlan is { } plan)
-        {
-            input = input with { Forecast = Known(plan.Forecast) };
-        }
 
         return input;
     }
@@ -80,8 +72,6 @@ public static class AnimalFeedRunwayExtensions
 
 public static class AnimalFeedRunwayRules
 {
-    private static AnimalFeedRunway UnknownFeedRunway() => new() { Projection = Unknown<AnimalFeedProjection>() };
-
     /// <summary>
     /// The consumption steps a pregnancy and the next life stages of one animal eating <paramref name="need"/> a
     /// day make. Not known when the race, a stage or the litter is not; a stalled pregnancy, the last stage and an animal that does not age add no step.
@@ -193,13 +183,12 @@ public static class AnimalFeedRunwayRules
     }
 
     /// <summary>
-    /// The animals the herd feed covers: not marked for release or slaughter and not of a directed herd. Unknown
-    /// when an animal's removal flags are.
+    /// The animals the herd feed covers: not marked for release or slaughter and not of a directed herd.
     /// </summary>
-    internal static bool FeedEligible(IEnumerable<UpkeepAnimal> animals, IEnumerable<Resource> directed, out List<UpkeepAnimal> eligible)
+    internal static List<UpkeepAnimal> FeedEligible(IEnumerable<UpkeepAnimal> animals, IEnumerable<Resource> directed)
     {
         var skip = new HashSet<Resource>(directed);
-        eligible = [];
+        var eligible = new List<UpkeepAnimal>();
         foreach (var a in animals)
         {
             if (!a.Release && !a.Slaughter && !skip.Contains(a.Definition))
@@ -208,7 +197,7 @@ public static class AnimalFeedRunwayRules
             }
         }
 
-        return true;
+        return eligible;
     }
 
     /// <summary>
@@ -282,40 +271,22 @@ public static class AnimalFeedRunwayRules
     /// </summary>
     public static AnimalFeedRunway PlanAnimalFeedRunway(AnimalFeedInputs input)
     {
-        if (!FeedEligible(input.Animals, input.Directed, out var eligible))
-        {
-            return UnknownFeedRunway();
-        }
+        var eligible = FeedEligible(input.Animals, input.Directed);
 
         if (eligible.Count == 0)
         {
-            return new AnimalFeedRunway { Projection = Known(new AnimalFeedProjection()) };
+            return new AnimalFeedRunway { Projection = new AnimalFeedProjection() };
         }
 
-        var supplyKnown = input.Food.TryGetValue(out var supply);
+        var supply = input.Food;
         var pens = input.Pens;
-        if (!supplyKnown)
-        {
-            return UnknownFeedRunway();
-        }
-
-        if (!input.Forecast.TryGetValue(out var forecast))
-        {
-            var ids = eligible.Select(a => a.Id).ToList();
-            try
-            {
-                forecast = FoodForecastRules.ForecastFood(supply!, ids);
-            }
-            catch (DomainException)
-            {
-                return UnknownFeedRunway();
-            }
-        }
 
         var perDay = new Dictionary<PawnId, double>();
-        foreach (var row in forecast.Consumers)
+        foreach (var row in supply.Consumers)
         {
-            perDay[row.Id] = row.NutritionPerDay;
+            if (!FoodForecastRules.FoodId(row.Id.Value) || !FoodForecastRules.FoodNumber(row.NutritionPerDay)
+                || !perDay.TryAdd(row.Id, row.NutritionPerDay))
+                throw new FoodFactsException();
         }
 
         var pasture = 0.0;
@@ -323,7 +294,7 @@ public static class AnimalFeedRunwayRules
         {
             if (!FoodForecastRules.FoodNumber(p.DemandPerDay) || !FoodForecastRules.FoodNumber(p.PasturePerDay))
             {
-                return UnknownFeedRunway();
+                throw new RequiredFactException("animal feed runway inputs");
             }
 
             pasture += Math.Min(p.DemandPerDay, p.PasturePerDay);
@@ -335,7 +306,7 @@ public static class AnimalFeedRunwayRules
         {
             if (!perDay.TryGetValue(a.Id, out var need) || !FoodForecastRules.FoodNumber(need))
             {
-                return UnknownFeedRunway();
+                throw new RequiredFactException("animal feed runway inputs");
             }
 
             if (!byRace.TryGetValue(a.Definition, out var g))
@@ -346,7 +317,7 @@ public static class AnimalFeedRunwayRules
 
             if (!GrowthSteps(a, need, input.Races, out var steps))
             {
-                return UnknownFeedRunway();
+                throw new RequiredFactException("animal feed runway inputs");
             }
 
             g.Animals.Add(a.Id);
@@ -374,7 +345,7 @@ public static class AnimalFeedRunwayRules
 
             if (!FoodForecastRules.FoodNumber(g.StockNutrition) || !FoodForecastRules.FoodNumber(g.NutritionPerDay))
             {
-                return UnknownFeedRunway();
+                throw new RequiredFactException("animal feed runway inputs");
             }
 
             var (missing, runway) = RunwayOver(g.NutritionPerDay, g.PasturePerDay, g.StockNutrition, g.Steps);
@@ -384,7 +355,7 @@ public static class AnimalFeedRunwayRules
                 var (item, perItem, ok, known) = FeedItem(g.Animals, g.Definition, supply.Stocks, input.Races);
                 if (!known)
                 {
-                    return UnknownFeedRunway();
+                    throw new RequiredFactException("animal feed runway inputs");
                 }
 
                 if (ok)
@@ -401,7 +372,7 @@ public static class AnimalFeedRunwayRules
         return new AnimalFeedRunway
         {
             Needs = needs,
-            Projection = Known(new AnimalFeedProjection { ShortfallDays = projectionShortfall }),
+            Projection = new AnimalFeedProjection { ShortfallDays = projectionShortfall },
         };
     }
 

@@ -969,11 +969,13 @@ public sealed partial class RoundsBuildingPlanner
                 cells.Add(c);
             }
         }
-        var planned0 = facts.Center().TryGetValue(out var center);
-        if (!planned0 && Cells is null && Power is null)
+        var planCenter = facts.Center();
+        if (planCenter is null && Cells is null && Power is null)
         {
             return (null, new Pol.StockObservation(), BuildingReasonNoLayoutPlan);
         }
+        var roomBox = CellsBox(roomCells);
+        var center = planCenter ?? (Power is { } power ? power.Center : new Cell(roomBox.X + roomBox.Width / 2, roomBox.Z + roomBox.Height / 2));
         var searchRequest = new Pol.PlacementSearchRequest
         {
             Snapshot = snapshot,

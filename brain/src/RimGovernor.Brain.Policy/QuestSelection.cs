@@ -43,7 +43,8 @@ public static class QuestSelection
         }
         // A quest without threat parts threatens no raid.
         var threat = offer.Threat is Pb.QuestThreat.Points points ? points.Value : 0;
-        if (!facts.DefenseCapacity.TryGetValue(out var defense) || !TradePolicyRules.Finite(defense) || defense < 0)
+        var defense = facts.DefenseCapacity;
+        if (!TradePolicyRules.Finite(defense) || defense < 0)
         {
             return "defense_unknown";
         }

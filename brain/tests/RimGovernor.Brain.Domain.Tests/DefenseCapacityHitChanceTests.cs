@@ -27,8 +27,7 @@ public sealed class DefenseCapacityHitChanceTests
         var colony = ColonyFactsCoreTests.Snapshot() with { ColonistCount = (uint)rows.Length };
         var pawns = new O.PawnSnapshot { Context = colony.Context, Pawns = EquatableArray.From(rows) };
         var defenders = RoundsMoodReads.RoundsDefenders(colony, emergency, pawns);
-        Assert.True(DefenseCapacityPolicy.DefenseCapacity(defenders, Known(EquatableArray.From(new List<DefenseTurretFacts>()))).TryGetValue(out var capacity));
-        return capacity;
+        return DefenseCapacityPolicy.DefenseCapacity(defenders, []);
     }
 
     [Fact]

@@ -37,32 +37,21 @@ public sealed record RoundsReading
     public DefinitionCatalog? Catalog { get; init; }
 }
 
-/// <summary>Answers ObserveColony's colony facts and zone reads from the frame.</summary>
-internal sealed class FrameColony(IRoundsSource inner, RoundsFrame frame) : IColonySource, IZonesNative, IZonesSource, IDefinitionSource, IResearchSource
+/// <summary>Answers ObserveColony's reads from the coherent frame.</summary>
+internal sealed class FrameColony(IRoundsSource inner, RoundsFrame frame) : IColonySource, IDefinitionSource, IResearchSource
 {
     public Task<L.LoadedTick> TickAsync(CancellationToken cancellationToken) => inner.TickAsync(cancellationToken);
 
     public Task<L.LoadedIdentity> IdentityAsync(CancellationToken cancellationToken) => inner.IdentityAsync(cancellationToken);
 
-    public Task<O.ColonyFactsSnapshot> ReadColonyFactsAsync(C.Identity identity, bool planning, CancellationToken cancellationToken) =>
+    public Task<O.ColonyFactsSnapshot> ReadColonyFactsAsync(C.Identity identity, CancellationToken cancellationToken) =>
         Task.FromResult(frame.Colony ?? throw new BridgeUnavailableException("The frame holds no colony facts."));
 
-    public Task<Tables> FrameTablesAsync(C.Identity identity, CancellationToken cancellationToken) => Task.FromResult(frame.Tables with { Rooms = frame.Rooms ?? throw new BridgeContractException("missing total rooms census"), RoomCells = frame.RoomCells });
-
-    public Task<O.ZonesSnapshot> ReadZoneSectionAsync(C.Identity identity, CancellationToken cancellationToken)
+    public Task<Tables> FrameTablesAsync(C.Identity identity, CancellationToken cancellationToken) => Task.FromResult(frame.Tables with
     {
-        if (frame.Zones is not { } zones)
-        {
-            throw new BridgeUnavailableException();
-        }
-        return Task.FromResult(zones);
-    }
-
-    public async Task<Held<O.ZonesSnapshot>> ZonesAsync(C.Identity identity, CancellationToken cancellationToken)
-    {
-        var read = await ReadZoneSectionAsync(identity, cancellationToken).ConfigureAwait(false);
-        return new Held<O.ZonesSnapshot> { Value = read, AsOf = read.Context.Tick, Complete = true, Source = "native_frame" };
-    }
+        Rooms = frame.Rooms ?? throw new BridgeContractException("missing total rooms census"), RoomCells = frame.RoomCells,
+        Zones = frame.Zones ?? throw new BridgeContractException("missing total zones census"),
+    });
 
     /// <summary>The load's catalog.</summary>
     public Task<DefinitionCatalog> DefinitionCatalogAsync(C.Identity id, CancellationToken cancellationToken) => inner.DefinitionCatalogAsync(id, cancellationToken);
@@ -101,9 +90,7 @@ public static class RoundsReads
             throw new ObservationContractException("rounds frame lacks colony or emergency context");
         }
         var colonySource = new FrameColony(source, frame);
-        using var zoneScope = planning ? null : ZonesReads.WithZones(colonySource);
-        // Protection uses only this coherent frame, never the ordinary scheduler's zone refresher and its
-        // potentially blocked census.
+        // Every colony projection uses the frame's own zone census, including protection and direct reads.
         var reading = await ColonyReads.ObserveColony(colonySource, clock, expected, maxAge, planning, cancellationToken).ConfigureAwait(false);
         var p = reading.Projection;
         var colony = frame.Colony;
@@ -146,19 +133,17 @@ public static class RoundsReads
             },
         };
         p = p with { Facts = p.Facts with { Containment = RoundsContainmentReads.ContainmentPlanningOf(frame, catalog, p.Definitions) } };
-        var sleeping = p.Facts.Sleeping with { BedBuildable = p.DefinitionAvailable(p.Shapes.Furniture.PrimaryBed()).TryGetValue(out var buildable) && buildable };
+        var buildable = p.DefinitionAvailable(p.Shapes.Furniture.PrimaryBed());
+        var sleeping = p.Facts.Sleeping with { BedBuildable = buildable };
         p = p with { Facts = p.Facts with { Sleeping = sleeping, VacantColonistBeds = PawnValueRules.VacantColonistBeds(sleeping) } };
         var census = frame.Buildings ?? throw new ObservationContractException("a routine frame carries no building census");
         p = p with { Facts = p.Facts with { BillReservations = ConstructionReads.BillReservations(frame.Bills) } };
         var pawns = frame.Pawns ?? throw new BridgeContractException("routine frame without its pawn census");
         p = p with { Facts = p.Facts with { StockArrival = StockArrivalReads.Of(catalog, finished, frame.Bills, pawns, colony, p.Facts.Items.MedicineTiers()) } };
-        p = p with { Mechs = frame.Tables.Pawns.Count > 0 ? Known(RoundsContainmentReads.MechFleetOf(frame.Tables.Pawns.Table.Values())) : Unknown<MechFleet>() };
         p = p with
         {
             Facts = p.Facts with
             {
-                RecoveryWorkers = ColonyFramesReads.RecoveryWorkers(p.Facts.MoodPawns),
-                Gear = ColonyGearReads.RoundsGear(p.Facts.Gear, emergency),
                 Research = FrameResearch(ResearchSection(frame), catalog),
                 BuiltBuildings = BuiltBuildingsOf(census),
             },
@@ -218,7 +203,6 @@ public static class RoundsReads
             throw new ObservationStaleException();
         }
         cancellationToken.ThrowIfCancellationRequested();
-        p = ColonyGearReads.StampGearCreepjoinersOn(p, pawns, catalog.CreepJoinerDownsides());
         p = p with { Facts = QuestReads.StampQuestGuestProtection(p.Facts) };
         p = p with { Facts = QuestReads.StampQuestRefugees(p.Facts) };
         return new RoundsReading
@@ -256,8 +240,8 @@ public static class RoundsReads
         new()
         {
             Catalog = catalog,
-            Crops = DefinitionsReads.CropRows(frame.Colony?.Planning is O.Planning.Requested requested ? requested.Facts : null),
-            Finished = frame.Research is { } research ? DefinitionsReads.FinishedSet(research.Finished) : default,
+            Crops = DefinitionsReads.CropRows((frame.Colony ?? throw new RequiredFactException("colony")).Crops),
+            Finished = DefinitionsReads.FinishedSet((frame.Research ?? throw new RequiredFactException("finished research")).Finished),
         };
 
     /// <summary>
@@ -314,8 +298,8 @@ public static class RoundsReads
         EconomyRules.ResearchSummary(EconomyRules.ResearchCensusOf(read, catalog.Research, catalog.KnowledgeOverflow));
 
     /// <summary>The trader census; unknown when the frame carries none.</summary>
-    internal static Fact<EquatableArray<RimGovernor.Contracts.Wire.Observations.Trader>> FrameTraders(RimGovernor.Contracts.Wire.Observations.TradersSnapshot? read) =>
-        read is null ? Unknown<EquatableArray<RimGovernor.Contracts.Wire.Observations.Trader>>() : Known(read.Traders);
+    internal static EquatableArray<RimGovernor.Contracts.Wire.Observations.Trader> FrameTraders(RimGovernor.Contracts.Wire.Observations.TradersSnapshot? read) =>
+        read?.Traders ?? throw new BridgeUnavailableException("The frame holds no trader census.");
 
     /// <summary>The finished project list of a known research census, the input TechTier is selected from.</summary>
     public static Fact<EquatableArray<ResearchProjectId>> FinishedResearch(ResearchFacts? research) =>

@@ -26,7 +26,7 @@ public readonly record struct StaleHunt(PlanId Plan, ActionId Action);
 /// </summary>
 public sealed record MilitaryFacts
 {
-    public Fact<long> Hostiles { get; init; }
+    public HostileCensus Hostiles { get; init; } = new HostileCensus.AwaitingEmergency();
 
     /// <summary>
     /// The food plan's squad-hunt prey (<see cref="HuntSquadRules.HuntRequest"/>): a fight with no hostile standing.
@@ -43,7 +43,7 @@ public sealed record MilitaryFacts
     public long Foothold { get; init; }
 
     /// <summary>The pests in the wild-animal census (<see cref="PestRules.PestCensus"/>).</summary>
-    public Fact<int> Pests { get; init; }
+    public int Pests { get; init; }
 
     /// <summary>The Need's undispatched hunts whose animal died or left the map: the work step cancels them.</summary>
     public EquatableArray<StaleHunt> StaleHunts { get; init; }
@@ -64,16 +64,22 @@ public sealed record MilitaryFacts
     public TrainingReview? Training { get; init; }
 
     /// <summary>The colonists' gear census (loadouts, apparel policies, outfits) the equipment Need is judged on.</summary>
-    public Fact<GearObservation> Gear { get; init; }
+    private GearObservation? _gear;
+
+    public GearObservation Gear
+    {
+        get => _gear ?? throw new RequiredFactException("gear census");
+        init => _gear = value;
+    }
 
     /// <summary>A built mortar's shell stock is below half its target (<see cref="ArmoryShellsRules.ShellsShort"/>).</summary>
-    public Fact<bool> ShellsShort { get; init; }
+    public bool ShellsShort { get; init; }
 
     /// <summary>
     /// The drafted colonists no live plan needs (the undraft sweep's candidates); none while a threat holds the
     /// drafts, unknown while the colonist census is unread or incomplete.
     /// </summary>
-    public Fact<int> StrayDrafts { get; init; }
+    public int StrayDrafts { get; init; }
 
     /// <summary>The defense, training and equipment facts a review already holds; the pest section stays unread.</summary>
     public static MilitaryFacts From(RoundsFacts f) => new()
@@ -209,14 +215,10 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     /// not hold, at most <see cref="MaxApparelPolicies"/>; with none, the prune of every outfit no pawn keeps. A
     /// Method is named by its value alone, so the same policy continues its open Method.
     /// </summary>
-    public static IReadOnlyList<NeedMethod> EquipmentMethods(Fact<GearObservation> gear)
+    public static IReadOnlyList<NeedMethod> EquipmentMethods(GearObservation gear)
     {
-        if (!gear.TryGetValue(out var census))
-        {
-            return [];
-        }
         var output = new List<NeedMethod>();
-        foreach (var pawn in census.Pawns)
+        foreach (var pawn in gear.Pawns)
         {
             if (output.Count == MaxApparelPolicies)
             {
@@ -233,7 +235,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
         {
             return output;
         }
-        var drop = census.OutfitsToPrune();
+        var drop = gear.OutfitsToPrune();
         if (drop.Count > 0)
         {
             var prune = new PolicyPrune(PolicyDatabase.Outfit, drop);
@@ -247,13 +249,13 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     /// The equipment predicate: the gear review recovered and no mortar short of shells. A shell shortage is unmet
     /// whatever the gear census says; otherwise an unread gear census raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static bool EquipmentMet(MilitaryFacts f) => !Positive(f.ShellsShort) && GearRules.ReviewGear(f.Gear).Recovered;
+    public static bool EquipmentMet(MilitaryFacts f) => !f.ShellsShort && GearRules.ReviewGear(f.Gear).Recovered;
 
     private static Need EquipmentNeed(MilitaryFacts f)
     {
         var ok = EquipmentMet(f);
         // The gear review's deficit while gear is short; a retire or a shell shortage alone is a whole deficit.
-        var deficit = ok ? 0.0 : f.Gear.IsKnown && GearRules.ReviewGear(f.Gear) is { Recovered: false } gear ? gear.Deficit : 1.0;
+        var deficit = ok ? 0.0 : GearRules.ReviewGear(f.Gear) is { Recovered: false } gear ? gear.Deficit : 1.0;
         return new Need { Id = Equipment, Tier = NeedTier.Wellbeing, Satisfaction = ok ? Satisfaction.Met : Satisfaction.Unmet, Deficit = deficit };
     }
 
@@ -295,25 +297,19 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     private static MethodId ValueMethod(string prefix, string value) =>
         new(prefix + "-" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)).AsSpan(0, 16)));
 
-    private static bool Positive(Fact<bool> v) => v.TryGetValue(out var b) && b;
-
     /// <summary>
     /// The basic-defense predicate: the foothold's armed fighters (<see cref="RoundsRules.ArmedTarget"/>) with
     /// no hostile standing, and no fighting-capable colonist left unarmed; unknown when the facts do not say.
     /// </summary>
-    public static Fact<bool> DefenseMet(MilitaryFacts f)
+    public static bool DefenseMet(MilitaryFacts f)
     {
         var armed = f.Armed >= Math.Min(2, f.Foothold);
-        return BasicDefenseRules.BasicDefenseRecovered(RoundsRules.Measured(f.Hostiles, v => v == 0 && armed), f.Unarmed);
+        return f.Hostiles.ThreatCount == 0 && armed && f.Unarmed == 0;
     }
 
     private static Need DefenseNeed(MilitaryFacts f)
     {
-        var met = DefenseMet(f);
-        if (!met.TryGetValue(out var ok))
-        {
-            throw new RequiredFactException("armed fighters, hostiles or unarmed colonists");
-        }
+        var ok = DefenseMet(f);
         var deficit = ok ? 0.0 : 1.0;
         var n = f.Foothold;
         var stock = f.Armed;
@@ -335,31 +331,17 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     /// The restore-workers predicate: unmet while a stray draft stands and no hostile does; met with no stray draft
     /// or while a hostile stands (the fight owns the drafts); unknown while either census is unread.
     /// </summary>
-    public static Fact<bool> RestoreWorkersMet(MilitaryFacts f)
-    {
-        if (!f.StrayDrafts.TryGetValue(out var stray))
-        {
-            return Unknown<bool>();
-        }
-        if (stray == 0)
-        {
-            return Known(true);
-        }
-        return RoundsRules.Measured(f.Hostiles, n => n > 0);
-    }
+    public static bool RestoreWorkersMet(MilitaryFacts f) => f.StrayDrafts == 0 || f.Hostiles.ThreatCount > 0;
 
     private static Need RestoreWorkersNeed(MilitaryFacts f)
     {
-        if (!RestoreWorkersMet(f).TryGetValue(out var ok))
-        {
-            throw new RequiredFactException("stray drafts or hostiles");
-        }
+        var ok = RestoreWorkersMet(f);
         return new Need
         {
             Id = RestoreWorkers,
             Tier = NeedTier.SeriousHarm,
             Satisfaction = ok ? Satisfaction.Met : Satisfaction.Unmet,
-            Deficit = ok ? 0.0 : f.StrayDrafts.Value,
+            Deficit = ok ? 0.0 : f.StrayDrafts,
         };
     }
 
@@ -370,10 +352,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     private static Need CombatNeed(MilitaryFacts f)
     {
         var situation = RoundsRules.CombatSituation(f.Hostiles, f.HuntPrey.Count);
-        if (situation == Situation.Unclear || !f.Hostiles.TryGetValue(out var hostiles))
-        {
-            throw new RequiredFactException("hostiles");
-        }
+        var hostiles = f.Hostiles.ThreatCount;
         var met = situation == Situation.Clear;
         return new Need
         {
@@ -386,11 +365,8 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
 
     private static Need PestsNeed(MilitaryFacts f)
     {
-        if (!f.Pests.TryGetValue(out var count))
-        {
-            throw new RequiredFactException("pests");
-        }
-        var owed = count + f.StaleHunts.Count;
+        DomainException.Require(f.Pests >= 0, "negative pest census");
+        var owed = f.Pests + f.StaleHunts.Count;
         return new Need
         {
             Id = Pests,

@@ -39,7 +39,7 @@ public sealed record StationFacts
     public GoalBuildDemand GoalBuild { get; init; } = GoalBuildDemand.None;
 
     /// <summary>The held prisoners.</summary>
-    public Fact<int> Prisoners { get; init; }
+    public int Prisoners { get; init; }
 
     /// <summary>The pen herd by race, Races the animal race rows and Pasture the worst-quadrum growth per terrain: the pen nodes' products and hunger (#2996). Herds empty asks for no pen.</summary>
     public IReadOnlyList<StationHerd> Herds { get; init; } = [];
@@ -60,7 +60,7 @@ public sealed record StationFacts
     public LedgerView Ledger { get; init; } = WorkRules.NewLedgerView(WorkRules.LedgerViewNone);
 
     /// <summary>The resource demand's stock levels (DerivedDemand.Needs).</summary>
-    public Fact<IReadOnlyDictionary<Resource, long>> Stock { get; init; }
+    public IReadOnlyDictionary<Resource, long> Stock { get => field ?? throw new RequiredFactException("resource demand"); init; }
 
     /// <summary>The game's roof support distance.</summary>
     public double RoofDistance { get; init; }
@@ -89,7 +89,7 @@ public sealed record StationFacts
     public double FullRotRateC { get; init; }
 
     /// <summary>Whether the vent is researched (#2915); unknown or false leaves vents out of the tiled plan.</summary>
-    public Fact<bool> VentAvailable { get; init; }
+    public bool VentAvailable { get; init; }
 
     /// <summary>The crops the colony grows (the caller's choice, not the chain's): each edible crop with a known capacity target is a field node (#2920).</summary>
     public IReadOnlyList<CropChoice> Crops { get; init; } = [];
@@ -212,10 +212,7 @@ public sealed record StationFacts
         var population = LayoutStationPlanRules.StationPopulationOf(this);
         var nutrition = LayoutStationPlanRules.HumanNutritionPerDay(Food);
         var orders = LedgerOrders();
-        if (!Stock.TryGetValue(out var stock))
-        {
-            throw new RequiredFactException("resource demand");
-        }
+        var stock = Stock;
         var seed = SeedRoomsOf();
         var (stands, markers) = TrainingAsk();
         return new StationGraphInput
@@ -482,10 +479,7 @@ public static partial class LayoutStationPlanRules
     {
         var colonists = f.Colonists;
         var ill = HospitalRules.IllPatients(f.Patients, f.Surgical);
-        if (!f.Prisoners.TryGetValue(out var prisoners))
-        {
-            throw new RequiredFactException("prisoners");
-        }
+        var prisoners = f.Prisoners;
         var pawns = f.WorkPawns.Pawns;
         var babies = BabyCount(pawns);
         return new StationPopulation { Colonists = Math.Max((int)colonists - babies, 0), Injured = Math.Max(ill.Count, f.GoalBuild.HospitalBeds), Prisoners = prisoners, Babies = Math.Max(babies, NurseryFloor(f)), Herds = f.Herds };

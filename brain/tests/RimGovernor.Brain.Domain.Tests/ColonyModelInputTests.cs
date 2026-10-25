@@ -29,23 +29,20 @@ public sealed class ColonyModelInputTests
     }
 
     [Fact]
-    public void AFrameMissingTheClimateIsUnreadyAndNamesIt()
+    public void AFrameMissingTheRequiredGearCensusRefusesTheModel()
     {
         var projection = ColonyModelFixtures.Projection();
-        projection = projection with { Facts = projection.Facts with { Gear = Unknown<GearObservation>() } };
-
-        var read = RoundsColonyModel.InputOf(projection);
-
-        var unready = Assert.IsType<ColonyModelInputRead.Unready>(read);
-        Assert.StartsWith("climate:", Assert.Single(unready.Gaps));
+        projection = projection with { Facts = projection.Facts with { Gear = null! } };
+        Assert.Equal("gear census", Assert.Throws<RequiredFactException>(() => RoundsColonyModel.InputOf(projection)).Fact);
     }
 
     [Fact]
     public void TheCalendarAndEveryOtherUnreadSectionAreNamedNotDefaulted()
     {
         var unknowns = ColonyModelFixtures.GapsOf(ColonyFactsCoreTests.Projection());
+        Assert.DoesNotContain(unknowns, u => u.StartsWith("recipes:", StringComparison.Ordinal)); // The complete bench census contains no recipes.
 
-        foreach (var section in new[] { "climate:", "crops:", "research:", "pawns:", "recipes:" })
+        foreach (var section in new[] { "crops:", "research:", "pawns:" })
         {
             Assert.Contains(unknowns, u => u.StartsWith(section, StringComparison.Ordinal));
         }
@@ -61,13 +58,13 @@ public sealed class ColonyModelInputTests
         Assert.Equal(800, project.Cost);
         Assert.Equal([ColonyModelFixtures.Prerequisite], project.Prerequisites.Select(p => p.Value));
         var crop = Assert.Single(input.Crops);
-        Assert.Equal(10, crop.SowMinSkill.Value);
-        Assert.Equal(400, crop.SowWork.Value);
-        Assert.Equal(0.5, crop.FertilityMin.Value);
-        Assert.Equal(22.5, crop.GrowDays.Value);
-        Assert.Equal(6, crop.UnitsPerCell.Value);
+        Assert.Equal(10, crop.SowMinSkill);
+        Assert.Equal(400, crop.SowWork);
+        Assert.Equal(0.5, crop.FertilityMin);
+        Assert.Equal(22.5, crop.GrowDays);
+        Assert.Equal(6, crop.UnitsPerCell);
         // 22.5 growing days at the 0.55 of a day a plant grows are about 41 calendar days.
-        Assert.Equal(41, Math.Round(crop.GrowDays.Value / (1 - crop.RestingDayFraction.Value)));
+        Assert.Equal(41, Math.Round(crop.GrowDays / (1 - crop.RestingDayFraction)));
         var recipe = Assert.Single(input.Recipes);
         Assert.Equal(10_000, recipe.WorkAmount);
         Assert.Equal(80, Assert.Single(Assert.Single(recipe.Slots)).Count);
@@ -80,15 +77,15 @@ public sealed class ColonyModelInputTests
     {
         var crop = Assert.Single(RoundsFieldPlanner.CropChoices(ColonyModelFixtures.Projection()));
 
-        Assert.Equal([0.0, 10, 42, 58], new[] { crop.MinGrowthTemperature.Value, crop.MinOptimalGrowthTemperature.Value, crop.MaxOptimalGrowthTemperature.Value, crop.MaxGrowthTemperature.Value });
-        Assert.Equal(0.45, crop.RestingDayFraction.Value, 9);
+        Assert.Equal([0.0, 10, 42, 58], new[] { crop.MinGrowthTemperature, crop.MinOptimalGrowthTemperature, crop.MaxOptimalGrowthTemperature, crop.MaxGrowthTemperature });
+        Assert.Equal(0.45, crop.RestingDayFraction, 9);
     }
 
     [Fact]
     public void ACropWithAnUnorderedBandLeavesTheInputUnreadyAndIsNamed()
     {
         var projection = ColonyModelFixtures.Projection();
-        projection = projection with { Definitions = [ColonyModelFixtures.CropRow() with { MinOptimalGrowthTemperature = Known(60.0) }] };
+        projection = projection with { Definitions = [ColonyModelFixtures.CropRow() with { Plant=(ColonyModelFixtures.CropRow().Plant ?? new PlanningPlant()) with {MinOptimalGrowthTemperature = 60.0}}] };
 
         var unknowns = ColonyModelFixtures.GapsOf(projection);
 

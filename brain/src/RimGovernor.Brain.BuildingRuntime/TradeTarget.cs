@@ -15,9 +15,10 @@ internal static class TradeTarget
                 return new TradeParticipant(TradeParticipantKind.Orbital, ship.ShipId ?? "");
             case C.TradeTargetKind.SettlementCase { Value: var settlement }:
                 return new TradeParticipant(TradeParticipantKind.Settlement, settlement.SettlementId ?? "", settlement.CaravanId ?? "");
-            default:
-                return new TradeParticipant(TradeParticipantKind.Map, "");
+            case null:
+                throw new DomainException("trade participant unavailable");
         }
+        throw new DomainException("unsupported trade participant");
     }
 
     /// <summary>The trader key of the session's engagement; empty while the session is idle.</summary>

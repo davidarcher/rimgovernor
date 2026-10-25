@@ -103,7 +103,7 @@ partial class RoundsStockpilePlanner
 
     /// <summary>
     /// The Shelf's build cost for the storage option report: the stuff an ordinary placement builds it from
-    /// (BuildStuff), that stuff's cost list and WorkToBuild; unknown without the def or a cost row for the stuff.
+    /// (BuildStuff), that stuff's required cost list and WorkToBuild.
     /// </summary>
     internal static Pol.StorageBuildCost ShelfCost(Observation.ColonyProjection projection)
     {
@@ -113,9 +113,9 @@ partial class RoundsStockpilePlanner
         }
         if (d.StuffOptions.Count == 0)
         {
-            return !d.Stuffed && d.Costs.TryGetValue(out var costs)
-                ? new Pol.StorageBuildCost { Costs = [.. costs], WorkTicks = d.WorkToBuild.TryGetValue(out var work) ? work : throw new RequiredFactException("shelf build work") }
-                : throw new RequiredFactException("shelf build cost");
+            if (d.Stuffed) throw new RequiredFactException("shelf stuff recipes");
+            var recipe = d.FixedConstruction ?? throw new RequiredFactException("shelf construction recipe");
+            return new Pol.StorageBuildCost { Costs = [.. recipe.Costs], WorkTicks = recipe.WorkToBuild };
         }
         var stuff = projection.BuildStuff(StorageRules.ShelfDefinition);
         if (d.StuffOptions.FirstOrDefault(o => o.Stuff == stuff) is not { } option)
@@ -133,7 +133,7 @@ partial class RoundsStockpilePlanner
     /// <summary>
     /// The layout plan's storage rooms and yards for the storage option report, each with the material the plan still
     /// owes for it (PlannedConstructionOf; a yard is unfenced and owes none) and the catalog work its planned sites owe
-    /// (PlannedRoomWork over PlannedRoomSitesOf); unknown while the plan is.
+    /// (PlannedRoomWork over PlannedRoomSitesOf). The saved plan is required.
     /// </summary>
     internal static IReadOnlyList<Pol.PlannedStoreRoom> StoreRooms(Observation.ColonyProjection projection, Pol.FlooringPolicy flooring)
     {
@@ -160,13 +160,13 @@ partial class RoundsStockpilePlanner
                 material = byRoom.GetValueOrDefault(room.Id) ?? new Dictionary<Pol.Resource, long>();
             }
             else { throw new RequiredFactException("planned storage material"); }
-            var (work, roof) = room.Unfenced() ? (Known(0.0), false)
+            var (work, roof) = room.Unfenced() ? (0.0, false)
                 : PlannedRules.PlannedRoomWork(sites ?? throw new RequiredFactException("storage room sites"), room.Id,
                     site => Rounder.PlannedSiteWork(projection, floors ?? throw new RequiredFactException("storage flooring"), site));
             output.Add(new Pol.PlannedStoreRoom
             {
                 Room = room.Id, Role = room.Role, Cells = [.. room.Region.Cells()], Outdoor = room.Outdoor, Material = material,
-                Work = work.TryGetValue(out var ticks) ? ticks : throw new RequiredFactException("planned storage work"), RoofOwed = roof,
+                Work = work, RoofOwed = roof,
             });
         }
         return output;
@@ -184,7 +184,8 @@ partial class RoundsStockpilePlanner
         {
             if (d.Name == StorageRules.ShelfDefinition)
             {
-                return d.Available.TryGetValue(out var available) && available;
+                var available = d.Available;
+                return available;
             }
         }
         return false;

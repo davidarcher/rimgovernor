@@ -13,12 +13,12 @@ public static class ForecastStockScope
 {
     public const string Food = "map_food_supply/eligible_nonreserve/holder_and_diet/v1";
 
-    public static Fact<double> OtherDemand(FoodSupply food, IEnumerable<string> modeledPawns)
+    public static double OtherDemand(FoodSupply food, IEnumerable<string> modeledPawns)
     {
         var modeled = modeledPawns.ToHashSet(StringComparer.Ordinal);
         var other = food.Consumers.Where(c => !modeled.Contains(c.Id.Value)).ToArray();
         return other.All(c => double.IsFinite(c.NutritionPerDay) && c.NutritionPerDay >= 0)
-            ? Known(other.Sum(c => c.NutritionPerDay)) : default;
+            ? other.Sum(c => c.NutritionPerDay) : throw new FoodFactsException();
     }
 
     /// <summary>Whether a fed eater of the stock may eat it; every eater is a consumer of the census. Throws <see cref="FoodFactsException"/>.</summary>
@@ -38,18 +38,18 @@ public static class ForecastStockScope
     public static double Count(FoodSupply supply, Resource resource) =>
         supply.Stocks.Where(s => s.DefName == resource && Eligible(s, supply)).Sum(s => (double)s.Count);
 
-    public static Fact<double> Nutrition(FoodSupply supply) =>
-        Known(supply.Stocks.Where(s => Eligible(s, supply)).Sum(s => s.Nutrition));
+    public static double Nutrition(FoodSupply supply) =>
+        supply.Stocks.Where(s => Eligible(s, supply)).Sum(s => s.Nutrition);
 
-    internal static Fact<double> Count(IEnumerable<ForecastTerminalLot> lots, Resource resource)
+    internal static EvidenceValue Count(IEnumerable<ForecastTerminalLot> lots, Resource resource)
     {
         double count = 0;
         foreach (var lot in lots.Where(l => l.Resource == resource))
         {
-            if (lot.FoodEligible is FoodEligibility.NoObservedUse) return default;
+            if (lot.FoodEligible is FoodEligibility.NoObservedUse) return new EvidenceValue.Unavailable("food_stock_census_or_lot_unknown");
             if (lot.FoodEligible is FoodEligibility.Ineligible) continue;
             count += lot.Count;
         }
-        return Known(count);
+        return new EvidenceValue.Valued(count);
     }
 }

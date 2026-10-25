@@ -65,7 +65,7 @@ public sealed class AnimalsIdeologyFamilyTests
         {
             Animals = EquatableArray.From<UpkeepAnimal>([]),
             Wild = EquatableArray.From<UpkeepAnimal>([]),
-            FeedShort = Known(false),
+            FeedShort = false,
             Handlers = [],
             FoodPlan = new FoodPlan(),
             Uncontained = EquatableArray.From<PawnId>([]),
@@ -98,7 +98,7 @@ public sealed class AnimalsIdeologyFamilyTests
         {
             Animals = EquatableArray.From<UpkeepAnimal>([]),
             Wild = EquatableArray.From<UpkeepAnimal>([]),
-            FeedShort = Known(false),
+            FeedShort = false,
             Handlers = [],
         };
         // The food plan's slaughter and tame read it: unread, the herd is unknown, never held as met.

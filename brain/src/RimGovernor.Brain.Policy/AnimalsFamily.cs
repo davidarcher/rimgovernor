@@ -16,7 +16,7 @@ public sealed record AnimalsFacts
 
     public HerdPolicy Herd { get; init; } = new();
 
-    public Fact<bool> FeedShort { get; init; }
+    public bool FeedShort { get; init; }
 
     public FoodPlan? FoodPlan { get; init; }
 
@@ -194,11 +194,7 @@ public static class AnimalsFamilyRules
         var slaughter = plan is not null && AnimalFoodRules.FoodSlaughterChoice(plan, f.Animals, f.Herd) is HusbandryChoice.Write { Method: HusbandryMethod.Slaughter };
         var tame = plan is not null && AnimalAcquireRules.FoodTameChoice(plan, f.Wild, f.FeedShort, f.Handlers) is HusbandryChoice.Write { Method: HusbandryMethod.Tame };
         var master = HerdMasterRules.HerdMasterChoice(f.Animals, f.Herd, f.Handlers) is HusbandryChoice.Write;
-        var owed = RoundsRules.Positive(deficit) || removal || slaughter || tame || master;
-        if (!owed && !deficit.IsKnown)
-        {
-            throw new RequiredFactException("herd deficit");
-        }
+        var owed = deficit || removal || slaughter || tame || master;
         if (!owed && HerdChoice(f) is HusbandryChoice.Unread)
         {
             throw new RequiredFactException("husbandry census");

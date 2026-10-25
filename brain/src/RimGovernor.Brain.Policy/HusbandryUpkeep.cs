@@ -106,7 +106,7 @@ public static class HusbandryUpkeepRules
     /// eligible candidate not yet designated. The deficit is unknown only while a wild candidate waits on an
     /// unread feed forecast.
     /// </summary>
-    public static Fact<bool> AnimalHerdDeficit(EquatableArray<UpkeepAnimal> animals, EquatableArray<UpkeepAnimal> wild, Fact<bool> feedShort, HerdPolicy herd)
+    public static bool AnimalHerdDeficit(EquatableArray<UpkeepAnimal> animals, EquatableArray<UpkeepAnimal> wild, bool feedShort, HerdPolicy herd)
     {
         var deficit = false;
         foreach (var a in animals)
@@ -127,11 +127,7 @@ public static class HusbandryUpkeepRules
         {
             if (HerdTameCandidates(animals, wild, herd).Count > 0)
             {
-                if (!feedShort.TryGetValue(out var short_))
-                {
-                    return Unknown<bool>();
-                }
-                if (!short_)
+                if (!feedShort)
                 {
                     deficit = true;
                 }
@@ -141,7 +137,7 @@ public static class HusbandryUpkeepRules
         {
             deficit = true;
         }
-        return Known(deficit);
+        return deficit;
     }
 
     /// <summary>
@@ -281,19 +277,6 @@ public static class HusbandryUpkeepRules
     }
 
     /// <summary>
-    /// The feed gate SelectHusbandryMethod's tame fallback reads from the animal feed runway: known true
-    /// while any race group's stock and pasture fall short of the horizon, unknown while the projection is.
-    /// </summary>
-    public static Fact<bool> HerdFeedShort(Fact<AnimalFeedProjection> projection)
-    {
-        if (!projection.TryGetValue(out var p))
-        {
-            return Unknown<bool>();
-        }
-        return Known(p.IsShort());
-    }
-
-    /// <summary>
     /// Picks the lowest animal-Id, lowest-def-name available untrained trainable to dispatch next, trying
     /// training first the same way it always has. Only once no training candidate exists does it fall back
     /// to the first tame candidate in HerdTameLess order (the race the plan wants most, its missing sex,
@@ -304,9 +287,8 @@ public static class HusbandryUpkeepRules
     /// -- and only after that to the lowest-Id surplus candidate for the operator's chosen removal method
     /// -- so an operator who opts into tame or removal never loses the pre-existing training behavior.
     /// </summary>
-    public static HusbandryChoice SelectHusbandryMethod(EquatableArray<UpkeepAnimal> animals, EquatableArray<UpkeepAnimal> wild, Fact<bool> feedShort, HerdPolicy herd, EquatableArray<PawnProfile> handlers)
+    public static HusbandryChoice SelectHusbandryMethod(EquatableArray<UpkeepAnimal> animals, EquatableArray<UpkeepAnimal> wild, bool feedShort, HerdPolicy herd, EquatableArray<PawnProfile> handlers)
     {
-        var unknownChoice = new HusbandryChoice.Unread();
         var sorted = animals.OrderBy(a => a.Id).ToList();
         foreach (var a in sorted)
         {
@@ -332,15 +314,11 @@ public static class HusbandryUpkeepRules
             if (candidates.Count > 0)
             {
                 var profiles = handlers;
-                if (!feedShort.TryGetValue(out var short_))
-                {
-                    return unknownChoice;
-                }
                 foreach (var a in candidates)
                 {
                     var minimum = a.MinimumHandlingSkill;
                     var ok = PawnRules.TamerFor(profiles, minimum) is not null;
-                    if (!short_ && ok)
+                    if (!feedShort && ok)
                     {
                         return new HusbandryChoice.Write(a.Id, HusbandryMethod.Tame);
                     }

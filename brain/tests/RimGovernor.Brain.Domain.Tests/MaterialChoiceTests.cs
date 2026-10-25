@@ -11,12 +11,12 @@ public sealed class MaterialChoiceTests
 {
     private static readonly Resource Metal = new("AMetal");
     private static readonly Resource Timber = new("BTimber");
-    private static Fact<IReadOnlyDictionary<Resource, Fact<double>>> Budget(double metal = 10, double timber = 10) =>
-        Known<IReadOnlyDictionary<Resource, Fact<double>>>(new Dictionary<Resource, Fact<double>> { [Metal] = Known(metal), [Timber] = Known(timber) });
+    private static MaterialAvailability.Assessed Budget(double metal = 10, double timber = 10) =>
+        new MaterialAvailability.Assessed(new Dictionary<Resource, MaterialUnits> { [Metal] = new MaterialUnits.Exact(metal), [Timber] = new MaterialUnits.Exact(timber) });
     private static ProductionMaterialView View(double metal = 10, double timber = 10) => new(
-        Known<EquatableArray<ProductionRecipeInput>>([
+        [
             new("FlexibleRecipe", [[new(Metal, 10), new(Timber, 10)]], false) { Products = [], WorkAmount = 0 },
-            new("MetalRecipe", [[new(Metal, 10)]], false) { Products = [], WorkAmount = 0 }]), Budget(metal, timber));
+            new("MetalRecipe", [[new(Metal, 10)]], false) { Products = [], WorkAmount = 0 }], Budget(metal, timber));
     private static LedgerPlacement Flexible => new("bench-a", new() { Recipe = "FlexibleRecipe", BenchKind = "TestBench", Mode = BillMode.GearBatch, Target = 1 });
     private static LedgerPlacement Machine => new("bench-b", new() { Recipe = "MetalRecipe", BenchKind = "TestBench", Mode = BillMode.GearBatch, Target = 1 });
     private static ProductionBatch Batch(LedgerPlacement p, string id) => new(new ProductionBill(p.Bench, p.Spec.Recipe, p.Spec.Mode, p.Spec.Target, [.. p.Spec.Ingredients]),
@@ -84,8 +84,8 @@ public sealed class MaterialChoiceTests
     [Fact]
     public void GlobalNativeFilterCannotPretendToPinOverlappingSlots()
     {
-        var view = View() with { Recipes = Known<EquatableArray<ProductionRecipeInput>>([
-            new("FlexibleRecipe", [[new(Metal, 5), new(Timber, 5)], [new(Metal, 5)]], false) { Products = [], WorkAmount = 0 }]) };
+        var view = View() with { Recipes = [
+            new("FlexibleRecipe", [[new(Metal, 5), new(Timber, 5)], [new(Metal, 5)]], false) { Products = [], WorkAmount = 0 }] };
         // Choosing timber for slot one and metal for slot two reopens both choices in slot one.
         var choice = LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible], view with { Availability = Budget(5, 5) });
         Assert.Empty(choice.Selected);
@@ -109,7 +109,7 @@ public sealed class MaterialChoiceTests
         Assert.True(searched.Comparison.SearchTruncated);
         Assert.Equal(1, searched.Comparison.Expansions);
         Assert.Single(searched.Selected);
-        Assert.Empty(LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible], View() with { Availability = default }).Selected);
+        Assert.Empty(LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible], View() with { Availability = new MaterialAvailability.Blocked(MaterialBudgetBlock.AwaitingReview) }).Selected);
     }
 
     [Fact]
@@ -150,11 +150,11 @@ public sealed class MaterialChoiceTests
             Comfort = ComfortTests.NoComfortObservation,
             BasicComfort = ComfortTests.NoComfortObservation,
             ForecastObserved = new() { WorkPawns = new WorkPawnsRead(default(EquatableArray<WorkPawn>)) },
-            WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
+            WorkResources = default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>),
             Resources = [new(Metal, 10), new(Timber, 10)],
-            Gear = Known(ColonyModelFixtures.NoGear()), CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long>() },
+            Gear = ColonyModelFixtures.NoGear(), CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long>() },
             BillReservations = [],
-            WorkAdmission = new() { Recipes = View().Recipes, Bills = Known(default(EquatableArray<ProductionBatchState>)) } };
+            WorkAdmission = new() { Recipes = View().Recipes, Bills = default(EquatableArray<ProductionBatchState>) } };
         var review = journal.ReviewRounds(new() { Current = world, Tick = facts.Tick, Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         Assert.True(review.Review.Enabled);
         var selected = LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible, Machine], journal.ProductionMaterials(world, ct));
@@ -162,10 +162,10 @@ public sealed class MaterialChoiceTests
         var spec = new PlanSpec(new PlanId("joint"), new PlanRevision(1), batches.Select(b => DomainAction.NewProductionBillAction(b.Progress.Action, b.Order)));
         journal.CommitClaimedMethod(AdminFamily.WorkLedger, world, new MethodId("joint"), "", spec, ct);
         var committed = journal.ProductionBatches(world, facts.Tick, ct);
-        Assert.Equal(2, committed.Value.Count);
-        var claims = ProductionRules.ProductionPromisesOf(ProductionRules.PriceProductionBatches(committed, View().Recipes), default).Value.SelectMany(p => p.MaterialClaims).ToArray();
-        Assert.Equal(10, Assert.Single(claims, c => c.Resource == Metal).Units.Value);
-        Assert.Equal(10, Assert.Single(claims, c => c.Resource == Timber).Units.Value);
+        Assert.Equal(2, committed.ReadBatches().Count);
+        var claims = ProductionRules.ProductionPromisesOf(ProductionRules.PriceProductionBatches(committed.ReadBatches(), View().Recipes), default).AssessedPromises().SelectMany(p => p.MaterialClaims).ToArray();
+        Assert.Equal(10, Assert.Single(claims, c => c.Resource == Metal).ExactCount());
+        Assert.Equal(10, Assert.Single(claims, c => c.Resource == Timber).ExactCount());
         Assert.Empty(LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible], journal.ProductionMaterials(world, ct)).Selected);
     }
 }

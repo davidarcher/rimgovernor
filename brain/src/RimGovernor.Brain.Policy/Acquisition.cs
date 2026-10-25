@@ -101,11 +101,11 @@ public static class AcquisitionRules
     /// </summary>
     public static IReadOnlyList<AcquisitionSource> SelectAcquisition(
         EquatableArray<AcquisitionSource> sources,
-        Fact<double> deficit,
-        Fact<double> pending,
+        double deficit,
+        double pending,
         bool food,
         IReadOnlyDictionary<string, bool> held,
-        params Fact<int>[] huntSlots
+        int huntSlots = 0
     )
     {
         (double, bool) Accept(AcquisitionSource row) =>
@@ -119,8 +119,8 @@ public static class AcquisitionRules
     /// </summary>
     public static IReadOnlyList<AcquisitionSource> SelectResourceAcquisition(
         EquatableArray<AcquisitionSource> sources,
-        Fact<double> deficit,
-        Fact<double> pending,
+        double deficit,
+        double pending,
         Resource resource,
         IReadOnlyDictionary<string, bool> held
     )
@@ -132,23 +132,18 @@ public static class AcquisitionRules
 
     internal static List<AcquisitionSource> SelectAcquisitionCore(
         EquatableArray<AcquisitionSource> sources,
-        Fact<double> deficit,
-        Fact<double> pending,
+        double deficit,
+        double pending,
         Func<AcquisitionSource, (double Amount, bool Ok)> accept,
         IReadOnlyDictionary<string, bool> held,
-        params Fact<int>[] huntSlots
+        int huntSlots = 0
     )
     {
-        var nk = deficit.TryGetValue(out var need);
-        var pk = pending.TryGetValue(out var outstanding);
-        DomainException.Require(nk && pk && FoodForecastRules.FoodNumber(need) && FoodForecastRules.FoodNumber(outstanding), "acquisition facts unavailable");
-        var slots = 0;
-        DomainException.Require(huntSlots.Length <= 1, "multiple hunting budgets");
-        if (huntSlots.Length == 1 && huntSlots[0].TryGetValue(out var n))
-        {
-            DomainException.Require(n >= 0 && n <= PawnRules.MaxHuntRows, "invalid hunting budget");
-            slots = n;
-        }
+        var need = deficit;
+        var outstanding = pending;
+        DomainException.Require(FoodForecastRules.FoodNumber(need) && FoodForecastRules.FoodNumber(outstanding), "invalid acquisition quantities");
+        DomainException.Require(huntSlots >= 0 && huntSlots <= PawnRules.MaxHuntRows, "invalid hunting budget");
+        var slots = huntSlots;
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in sources)

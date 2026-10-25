@@ -23,10 +23,10 @@ public static partial class MechRules
 {
     /// <summary>
     /// The biotech/mech-charger Need's verdict over the Biotech section's chargers and the review's mech fleet
-    /// (MechChargerOwed); an unread fleet raises <see cref="RequiredFactException"/>.
+    /// (MechChargerOwed); the common colony decoder supplies the fleet even when it is empty.
     /// </summary>
-    public static bool MechChargerOwed(Fact<MechFleet> fleet, RimGovernor.Contracts.Wire.Observations.BiotechColonyFacts biotech) =>
-        fleet.TryGetValue(out var f) ? MechChargerOwed(f.Mechanitors.Count, MechChargersOf(biotech)) : throw new RequiredFactException("mech fleet");
+    public static bool MechChargerOwed(MechFleet fleet, RimGovernor.Contracts.Wire.Observations.BiotechColonyFacts biotech) =>
+        MechChargerOwed(fleet.Mechanitors.Count, MechChargersOf(biotech));
 
     /// <summary>
     /// Ranks every width x height footprint lying wholly on known free ground (walkable, unoccupied, covered by no

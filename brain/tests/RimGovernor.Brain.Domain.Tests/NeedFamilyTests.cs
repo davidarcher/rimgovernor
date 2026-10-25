@@ -87,7 +87,7 @@ public sealed class NeedFamilyTests
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-need-family-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
-        facts = facts with { Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = Known(1.0) };
+        facts = facts with { Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = 1.0};
         journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         var family = new CareFamily();
         Colony? colony = null;

@@ -216,7 +216,7 @@ public static partial class MedicalRules
     public static bool SurgeryNeedRecovered(RoundsFacts f, RoundsPolicy p, bool medicineActive)
     {
         var recovered = SurgeryRules.SurgeryRecovered(f.MedicalPawns) && !SurgeryRules.ElectiveSurgeryOwed(f.MedicalPawns, f.SurgeryContextOf(), f.FabricableParts);
-        if (OrganHarvestRules.SaleHarvestWanted(f, SilverGapRules.RoundsSilverShort(f, p, medicineActive)) || OrganHarvestRules.PartRecoveryWanted(f))
+        if ((OrganHarvestRules.SaleHarvestWanted(f, true) && SilverGapRules.RoundsSilverShort(f, p, medicineActive)) || OrganHarvestRules.PartRecoveryWanted(f))
         {
             return false;
         }

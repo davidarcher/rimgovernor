@@ -71,10 +71,7 @@ public sealed partial class Rounder
         {
             return [];
         }
-        if (!p.Facts.Silver().TryGetValue(out var silver))
-        {
-            return [];
-        }
+        var silver = p.Facts.Silver();
         var budget = Pol.TradePolicyRules.TradeMissionBudget(silver, p.Facts.Colonists);
         if (budget <= 0)
         {
@@ -134,7 +131,7 @@ public sealed partial class Rounder
                 return held;
             }
         }
-        var supplies = catalog.TraderKindCanSupply(kind, good).TryGetValue(out var can) && can;
+        var supplies = catalog.TraderKindCanSupply(kind, good) == Pol.TradeCompatibility.Trades;
         lock (m.Mu)
         {
             m.ForCatalog(catalog);

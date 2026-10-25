@@ -13,9 +13,9 @@ public static partial class PestRules
 {
     /// <summary>
     /// Counts the pests in the wild-animal census (every living factionless animal on the map, so a pest
-    /// anywhere counts, not only one near the colony). The count is a Fact for the Military Need that reads it.
+    /// anywhere counts, not only one near the colony).
     /// </summary>
-    public static Fact<int> PestCensus(EquatableArray<UpkeepAnimal> wild) => Known(wild.Count(row => row.Pest));
+    public static int PestCensus(EquatableArray<UpkeepAnimal> wild) => wild.Count(row => row.Pest);
 
     /// <summary>
     /// Picks the pest hunts to admit: every undesignated, unheld pest row in native order (nearest the colony
@@ -25,15 +25,15 @@ public static partial class PestRules
     /// </summary>
     public static IReadOnlyList<AcquisitionSource> SelectPestAcquisition(
         EquatableArray<AcquisitionSource> sources,
-        Fact<int> pests,
+        int pests,
         IReadOnlyDictionary<string, bool>? held,
-        Fact<int> huntSlots)
+        int huntSlots)
     {
-        if (!pests.TryGetValue(out var count) || count < 0)
+        if (pests < 0)
         {
-            throw new DomainException("pest census unavailable");
+            throw new DomainException("negative pest census");
         }
         static (double Weight, bool Accepted) Accept(AcquisitionSource row) => (1, row.Hunt && row.Pest);
-        return AcquisitionRules.SelectAcquisitionCore(sources, Known((double)count), Known(0.0), Accept, held ?? new Dictionary<string, bool>(), huntSlots);
+        return AcquisitionRules.SelectAcquisitionCore(sources, (double)pests, 0.0, Accept, held ?? new Dictionary<string, bool>(), huntSlots);
     }
 }

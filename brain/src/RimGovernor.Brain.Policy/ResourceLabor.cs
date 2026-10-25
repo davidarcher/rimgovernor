@@ -3,19 +3,17 @@ namespace RimGovernor.Brain.Policy;
 public static partial class ResourceRules
 {
     /// <summary>
-    /// The daily budget after selected or retained food commitments. Unknown commitment cost or unread workers leave
-    /// the residual unknown. A known empty plan reserves nothing; each kind/ID is charged once. Throws
+    /// The daily budget after selected or retained food commitments. Unpriced commitment work refuses the calculation. An empty plan reserves nothing; each kind/ID is charged once. Throws
     /// <see cref="SupplyPlanFactsException"/> on invalid inputs.
     /// </summary>
-    public static Fact<double> ResidualSupplyLabor(Fact<int> workers, FoodPlan food)
+    public static double ResidualSupplyLabor(int workers, FoodPlan food)
     {
-        var workersKnown = workers.TryGetValue(out var count);
-        if (workersKnown && count < 0)
+        var count = workers;
+        if (count < 0)
         {
             throw new SupplyPlanFactsException();
         }
         var plan = food;
-        var known = workersKnown;
         var budget = (double)count * 20000;
         var charged = new HashSet<(string, string)>();
         foreach (var rows in new[] { plan.Portfolio, plan.Unknown })
@@ -32,8 +30,7 @@ public static partial class ResourceRules
                 }
                 if (e.Channel.Work is not CandidateWork.PerDay { Ticks: var work })
                 {
-                    known = false;
-                    continue;
+                    throw new RequiredFactException("food commitment work");
                 }
                 if (!FoodForecastRules.FoodNumber(work))
                 {
@@ -46,14 +43,10 @@ public static partial class ResourceRules
                 }
             }
         }
-        if (!known)
-        {
-            return Unknown<double>();
-        }
         if (double.IsInfinity(budget) || double.IsNaN(budget))
         {
             throw new SupplyPlanFactsException();
         }
-        return Known(Math.Max(0, budget));
+        return Math.Max(0, budget);
     }
 }

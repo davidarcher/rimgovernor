@@ -83,7 +83,7 @@ public sealed class ChildPlayBuildingsTests
     public void TheNurseryFurnishesTheToyTheCatalogReads()
     {
         // The catalog gives the toy box the Toy role (DefinitionCatalog.GameRoomRoles over PlayBuildings).
-        FurnitureDefinition Def(string name, FurnitureRole role) => new() { Name = name, Available = Known(true), Size = Known(new Bounds(1, 1)), Roles = [role.Value] };
+        FurnitureDefinition Def(string name, FurnitureRole role) => new() { Name = name, Available = true, Size = new Bounds(1, 1), Roles = [role.Value] };
         var defs = new List<FurnitureDefinition> { Def(Crib, FurnitureRole.BabyBed), Def(ToyBox, FurnitureRole.Toy) };
         var needs = ChildRoomsRules.GoalRoomNeeds([RoomRole.Nursery], []);
 

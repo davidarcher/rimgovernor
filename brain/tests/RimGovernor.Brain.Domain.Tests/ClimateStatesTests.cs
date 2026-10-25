@@ -1,4 +1,5 @@
 using RimGovernor.Brain.Policy;
+using O = RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
 
@@ -64,7 +65,7 @@ public sealed class ClimateStatesTests
     public void ARefuelSwitchOutranksTheRoomMethodAndNamesTheCampfire()
     {
         var sleeper = new SleepingPerson { Id = new PawnId("p"), OwnedBed = "bed", ComfortableMin = 16, ComfortableMax = 26 };
-        var burning = HeatCampfire.Of("fire", Known("room"), Known(true));
+        var burning = HeatCampfire.Of("fire", "room", new O.BenchAutoRefuel.Refuelable { Allowed = true });
         var cooling = Cooling(campfires: [burning!], sleepers: [sleeper]);
         var off = TemperatureMethodRules.SelectTemperatureMethod(Rooms(30, true, "bed"), ["bed"], cooling, Limits);
         Assert.Equal(TemperatureMethod.RefuelOff, off.Method);
@@ -76,9 +77,9 @@ public sealed class ClimateStatesTests
     [Fact]
     public void ACampfireWithAnUnreadRoomOrToggleIsNotBuilt()
     {
-        Assert.Null(HeatCampfire.Of("fire", default, Known(true)));
-        Assert.Null(HeatCampfire.Of("fire", Known("room"), default));
-        Assert.NotNull(HeatCampfire.Of("fire", Known("room"), Known(false)));
+        Assert.Null(HeatCampfire.Of("fire", default, new O.BenchAutoRefuel.Refuelable { Allowed = true }));
+        Assert.Null(HeatCampfire.Of("fire", "room", new O.BenchAutoRefuel.NotRefuelable()));
+        Assert.NotNull(HeatCampfire.Of("fire", "room", new O.BenchAutoRefuel.Refuelable { Allowed = false }));
     }
 
     [Fact]
@@ -92,10 +93,9 @@ public sealed class ClimateStatesTests
     [Fact]
     public void AClimateGearIsPlaceableOnlyWhenAvailableAndDrawn()
     {
-        Assert.IsType<ClimateGear.NotPlaceable>(ClimateGear.Of("Cooler", Known(false), default));
-        Assert.Equal(new ClimateGear.Placeable(200), ClimateGear.Of("Cooler", Known(true), Known(200.0)));
-        Assert.Throws<RequiredFactException>(() => ClimateGear.Of("Cooler", default, Known(200.0)));
-        Assert.Throws<RequiredFactException>(() => ClimateGear.Of("Cooler", Known(true), default));
+        Assert.IsType<ClimateGear.NotPlaceable>(ClimateGear.Of("Cooler", false, 0));
+        Assert.Equal(new ClimateGear.Placeable(200), ClimateGear.Of("Cooler", true, 200.0));
+        Assert.Throws<RequiredFactException>(() => ClimateGear.Of("Cooler", true, double.NaN));
     }
 
     [Fact]

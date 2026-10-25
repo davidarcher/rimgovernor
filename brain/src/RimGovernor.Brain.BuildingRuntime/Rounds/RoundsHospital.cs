@@ -66,9 +66,7 @@ public sealed partial class RoundsBuildingPlanner
         var choice = HospitalRules.SelectHospitalBed(RoundsHospitalPlanner.HospitalRequestOf(facts));
         switch (choice.Method)
         {
-            case HospitalMethod.Unknown:
-                return (null, FieldUnavailable("hospital"));
-            case HospitalMethod.NoDemand:
+case HospitalMethod.NoDemand:
                 return (null, BuildingReasonNoDeficit);
             case HospitalMethod.Existing:
                 return (null, BuildingReasonExistingFacility);
@@ -124,9 +122,7 @@ public sealed partial class RoundsHospitalPlanner
         var choice = HospitalRules.SelectHospitalBed(HospitalRequestOf(facts));
         switch (choice.Method)
         {
-            case HospitalMethod.Unknown:
-                return new RoundsBuildingResult { Verdict = FieldUnavailable("hospital") };
-            case HospitalMethod.NoDemand:
+case HospitalMethod.NoDemand:
                 return new RoundsBuildingResult { Verdict = BuildingReasonNoDeficit };
             case HospitalMethod.Existing:
                 return new RoundsBuildingResult { Verdict = BuildingReasonExistingFacility };
@@ -175,7 +171,8 @@ public sealed partial class RoundsHospitalPlanner
 
         var commit = p.CommitBedPatch(state, work.Owner, method, patch, () =>
         {
-            if (Reviewer.Clock.Now() - started is var elapsed && (elapsed < TimeSpan.Zero || elapsed > Reviewer.MaxAge))
+            var elapsed = Reviewer.Clock.Now() - started;
+            if ((elapsed < TimeSpan.Zero || elapsed > Reviewer.MaxAge))
             {
                 throw new ControlException("step: the bed read took too long");
             }

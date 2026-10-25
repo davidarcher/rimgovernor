@@ -48,7 +48,7 @@ public static class ForecastIncumbentPreparation
     /// <summary>Conditional comparison only. The original review's admission claims remain authoritative
     /// until exact native release is observed on a later review.</summary>
     public static (RoundsFacts Facts, EquatableArray<ForecastObservedIncumbent> Incumbents) PrepareCoupledIncumbents(
-        RoundsFacts facts, Fact<EquatableArray<ProductionBatch>> batches, WorkActionCensus actions)
+        RoundsFacts facts, ProductionBatchCensus batches, WorkActionCensus actions)
     {
         (RoundsFacts Facts, EquatableArray<ForecastObservedIncumbent> Incumbents) Protected() => (ForecastCoupledCandidates.ReviewCoupledActivities(facts), []);
         var original = facts.WorkView;
@@ -56,8 +56,9 @@ public static class ForecastIncumbentPreparation
         if (original is null || needs is null || actions.Truncated || original.Claims.Truncated
             || original.Evidence.Tick != facts.Tick || needs.Tick != facts.Tick
             || facts.ForecastObserved.Coupled?.Tick != needs.Tick.Value
-            || !original.Evidence.WorkResources.TryGetValue(out var native)
-            || !original.Evidence.Pawns.TryGetValue(out var availability)) return Protected();
+            ) return Protected();
+        var native = original.Evidence.WorkResources;
+        var availability = original.Evidence.Pawns;
 
         var eligible = new List<(WorkAction Row, IncumbentServiceProjection Service, ActivityOwnership Owner,
             Cell Start, double Wait, double Travel, EquatableArray<ActivityOwnership> Released)>();
@@ -91,7 +92,7 @@ public static class ForecastIncumbentPreparation
             var available = availability.Where(p => p.Pawn == order.Pawn).ToArray();
             if (observations.Length != 1 || physical.Length != 1 || available.Length != 1
                 || observations[0].State != "eligible" || observations[0].VoluntaryControlBlockers.Count != 0
-                || available[0].Available != Known(true) || available[0].Applies != Known(true)
+                || !available[0].Available || !available[0].Applies
                 || physical[0].CarriedCount != 0 || physical[0].CarriedThing.Length != 0 || physical[0].CarriedResource.Length != 0
                 || physical[0].Bill.Length != 0 || physical[0].Unfinished.Length != 0
                 || physical[0].Assignment != order.Assignment || physical[0].Revision != order.Revision) continue;
@@ -145,8 +146,8 @@ public static class ForecastIncumbentPreparation
         {
             var omitted = chosen.Select(e => (e.Row.Plan, e.Row.Action.Id)).Concat(methods.Select(m => (m.Row.Plan, m.Row.Action.Id))).ToHashSet();
             var releasedPawns = servicePawns.Concat(methods.SelectMany(m => m.Owners.Select(o => o.Pawn))).ToHashSet(StringComparer.Ordinal);
-            var evidence = original.Evidence with { Pawns = Known(EquatableArray.From(availability.Select(p =>
-                releasedPawns.Contains(p.Pawn) ? p with { Occupied = false } : p))) };
+            var evidence = original.Evidence with { Pawns = EquatableArray.From(availability.Select(p =>
+                releasedPawns.Contains(p.Pawn) ? p with { Occupied = false } : p)) };
             // The participants still working keep their claims: the Method as it stands after its reconsidered workers leave.
             var kept = methods.Where(m => m.Working.Length > 0)
                 .Select(m => m.Row with { Action = DomainAction.NewPawnActivitiesAction(m.Row.Action.Id, m.Kept) });

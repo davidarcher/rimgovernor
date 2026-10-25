@@ -274,21 +274,18 @@ internal sealed class ProjectRun
     {
         var node = live.Node;
         var climate = input.Climate;
-        if (CropOf(node) is not { } crop || double.IsNaN(MeanFertility(node)) || !crop.HarvestMinGrowth.TryGetValue(out var target))
+        if (CropOf(node) is not { } crop || double.IsNaN(MeanFertility(node)))
         {
             findings.Add($"crop_growth_unknown:{node.Id}");
             return;
         }
 
+        var target = crop.HarvestMinGrowth;
         var mean = MeanFertility(node);
         var daily = new double[climate.Temperatures.Count];
         for (var t = 0; t < daily.Length; t++)
         {
-            if (!CropGrowthModel.DailyGrowth(crop, mean, climate.Temperatures[t]).TryGetValue(out daily[t]))
-            {
-                findings.Add($"crop_growth_unknown:{node.Id}");
-                return;
-            }
+            daily[t] = CropGrowthModel.DailyGrowth(crop, mean, climate.Temperatures[t]);
         }
 
         if (!live.Forecast)
@@ -446,19 +443,18 @@ internal sealed class ProjectRun
             return;
         }
 
-        if (crop.Edible.TryGetValue(out var edible) && edible && crop.HarvestNutrition.TryGetValue(out var nutrition))
+        var edible = crop.Edible;
+
+        var nutrition = crop.HarvestNutrition;
+
+        if (edible)
         {
             levels[(int)ModelStock.Nutrition] += node.Cells * nutrition;
         }
-        else if (crop.Harvests.TryGetValue(out var resource) && crop.UnitsPerCell.TryGetValue(out var units))
-        {
-            var yield = node.Cells * units;
+        else {
+            var yield = node.Cells * crop.UnitsPerCell;
             levels[(int)ModelStock.Materials] += yield;
-            Arrive(node, day, resource, yield);
-        }
-        else
-        {
-            findings.Add($"crop_yield_unknown:{node.Id}");
+            Arrive(node, day, crop.Harvests, yield);
         }
     }
 }

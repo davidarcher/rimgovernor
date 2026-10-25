@@ -165,7 +165,7 @@ public sealed class PawnValueTests
         var facts = FirstLayoutPlanTests.Priced(FirstLayoutPlanTests.Facts(survey, 3), "mild") with
         {
             FoodReserveDays = 5,
-            Stock = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [raw] = 300, [steel] = 300 }),
+            Stock = new Dictionary<Resource, long> { [raw] = 300, [steel] = 300 },
             StackLimit = new Dictionary<Resource, long> { [raw] = 75, [steel] = 75 },
             Perishable = new Dictionary<Resource, bool> { [raw] = true },
         };

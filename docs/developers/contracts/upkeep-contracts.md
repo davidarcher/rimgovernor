@@ -691,3 +691,5 @@ rotten corpses are excluded.
 
 `snapshot.TestCorpseLarderReleasesOneFrozenCorpse` replays the release decision over a
 recorded snapshot.
+
+Lighting, flooring and routes are required censuses in every routine frame. Both wire decoding and direct colony decoding refuse an absent section; planner reads also fail when a projection omitted one. An empty measured census is valid. Lighting and flooring reviews therefore carry deficits directly without an unread flag or method.

@@ -178,12 +178,13 @@ public sealed partial class BiotechRounds
         {
             return WaitFor(Cause.MethodUsed, "mech_charger_method");
         }
-        if (!defs[0].Size.TryGetValue(out var size) || size.Width <= 0 || size.Height <= 0)
+        var size = defs[0].Size;
+        if (size.Width <= 0 || size.Height <= 0)
         {
             return FieldUnavailable("mech_charger_size");
         }
         var fieldZones = new Dictionary<string, bool>();
-        if (f.FoodFields.TryGetValue(out var fields))
+        var fields = f.FoodFields;
         {
             foreach (var field in fields)
             {
@@ -236,7 +237,8 @@ public sealed partial class BiotechRounds
         {
             return WaitFor(Cause.MethodUsed, "gene_bank_method");
         }
-        if (!defs[0].Size.TryGetValue(out var size) || size.Width <= 0 || size.Height <= 0)
+        var size = defs[0].Size;
+        if (size.Width <= 0 || size.Height <= 0)
         {
             return FieldUnavailable("gene_bank_size");
         }
@@ -378,7 +380,8 @@ partial class BiotechRounds
         var output = new List<PlanningDefinition>();
         foreach (var d in BiotechColonyReads.MechChargerDefs(read.Projection.Definitions))
         {
-            if (d.Available.TryGetValue(out var available) && available)
+            var available = d.Available;
+            if (available)
             {
                 output.Add(d);
             }
@@ -399,7 +402,8 @@ partial class BiotechRounds
         var output = new List<PlanningDefinition>();
         foreach (var d in read.Projection.Definitions)
         {
-            if (d.Available.TryGetValue(out var available) && available && names.Contains(d.Name))
+            var available = d.Available;
+            if (available && names.Contains(d.Name))
             {
                 output.Add(d);
             }
@@ -420,7 +424,7 @@ partial class BiotechRounds
             return (biotech.GeneBanks[0].Position, true);
         }
 
-        if (!facts.Center().TryGetValue(out var center))
+        if (facts.Center() is not { } center)
         {
             return (default, false);
         }

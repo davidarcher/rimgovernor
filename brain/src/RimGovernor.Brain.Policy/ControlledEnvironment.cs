@@ -148,5 +148,5 @@ public static class ControlledEnvironmentRules
 {
     /// <summary>Reports a crop whose native minimum glow is zero, such as cave fungus, so an unlit roofed room is eligible for it.</summary>
     public static bool GrowsInDark(CropChoice crop) =>
-        crop.MinGlow.TryGetValue(out var glow) && FoodForecastRules.FoodNumber(glow) && glow <= 0;
+        FoodForecastRules.FoodNumber(crop.MinGlow) && crop.MinGlow <= 0;
 }

@@ -84,11 +84,11 @@ public sealed partial class Rounder
 
     internal FoodTrade FoodTradeOf(ColonyProjection p)
     {
-        var tk = p.Facts.Traders.TryGetValue(out var traders);
-        var sk = p.Facts.Silver().TryGetValue(out var silver);
+        var traders = p.Facts.Traders;
+        var silver = p.Facts.Silver();
         var (reserve, rk) = TradePolicyRules.TradeSilverReserve(p.Facts.Colonists);
         var output = new FoodTrade { Revision = TradeOffers.Version() };
-        if (tk && sk && rk)
+        if (rk)
         {
             var world = new GenerationSnapshot { Colony = p.Identity.Colony, Map = p.Identity.Map, Load = p.Identity.Load };
             output = output with { Offers = TradeOffers.Fresh(world, p.Identity.Tick, silver, traders!), Silver = silver, Reserve = reserve };
@@ -100,10 +100,8 @@ public sealed partial class Rounder
     /// <summary>Marks the traders whose offers the book has not priced, so the plan does not count them as a channel.</summary>
     internal void MarkUnpriced(ref ColonyProjection p)
     {
-        if (!p.Facts.Traders.TryGetValue(out var traders) || !p.Facts.Silver().TryGetValue(out var silver))
-        {
-            return;
-        }
+        var traders = p.Facts.Traders;
+        var silver = p.Facts.Silver();
 
         var world = new GenerationSnapshot { Colony = p.Identity.Colony, Map = p.Identity.Map, Load = p.Identity.Load };
         var priced = new HashSet<string>(StringComparer.Ordinal);
@@ -186,7 +184,7 @@ partial class Rounder
         channels.AddRange(FoodAnimalProductsRules.AnimalProductChannels(p.FoodChannels.Products));
 
         channels.AddRange(MealRules.StockIngredientChannels(supply));
-        if (p.FoodFields.TryGetValue(out var fields))
+        var fields = p.FoodFields;
         {
             channels.AddRange(FoodPlanRules.CropChannels(
                 fields,

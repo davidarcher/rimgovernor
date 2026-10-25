@@ -26,9 +26,9 @@ public static partial class TradePolicyRules
     /// (construction commitments) and the retained stock the wealth-surplus rule already keeps (TradeRetained).
     /// While the retained stock is unknown nothing is surplus: the keep is the largest stock, so a sale takes none.
     /// </summary>
-    public static long FavorGoldKeep(IReadOnlyDictionary<Resource, long> targets, IReadOnlyDictionary<string, long> floors, Fact<IReadOnlyDictionary<Resource, long>> retainedFact)
+    public static long FavorGoldKeep(IReadOnlyDictionary<Resource, long> targets, IReadOnlyDictionary<string, long> floors, TradeRetention retainedFact)
     {
-        if (!retainedFact.TryGetValue(out var retained))
+        if (retainedFact is not TradeRetention.Assessed(var retained))
         {
             return long.MaxValue;
         }
@@ -37,23 +37,20 @@ public static partial class TradePolicyRules
 
     /// <summary>
     /// Adds the favor-sale reason to the need: a tribute collector is present or arriving and the known gold
-    /// stock exceeds FavorGoldKeep. Unknown traders, stock or need add nothing.
+    /// stock exceeds FavorGoldKeep. The trader census, stock and need are required.
     /// </summary>
-    public static Fact<TradeNeed> FavorGoldNeed(
-        Fact<TradeNeed> need,
-        Fact<EquatableArray<Trader>> traders,
+    public static TradeNeed FavorGoldNeed(
+        TradeNeed need,
+        EquatableArray<Trader> traders,
         EquatableArray<Amount> stock,
         IReadOnlyDictionary<Resource, long> targets,
         IReadOnlyDictionary<string, long> floors,
-        Fact<IReadOnlyDictionary<Resource, long>> retained
+        TradeRetention retained
     )
     {
-        var nk = need.TryGetValue(out var n);
-        var tk = traders.TryGetValue(out var rows);
-        if (!nk || !tk)
-        {
-            return need;
-        }
+        var n = need;
+        var rows = traders;
+
         var present = false;
         foreach (var row in rows!)
         {
@@ -74,7 +71,7 @@ public static partial class TradePolicyRules
         var surplus = gold - FavorGoldKeep(targets, floors, retained);
         if (surplus > 0)
         {
-            return Known(n! with { FavorGold = surplus });
+            return n with { FavorGold = surplus };
         }
         return need;
     }
@@ -91,7 +88,7 @@ public static partial class TradePolicyRules
     /// The prisoners (by pawn id) the colony can sell to the tribute collector: living, not recruitable-wanted
     /// (HarvestEligible), no creepjoiner, no queued surgery or execution, not one the prisoners family would enslave
     /// and not one the organ harvest or part recovery would cut (judged row by row against the surgery planner's
-    /// needs). Empty while any needed fact is unknown or the precepts do not plainly allow the sale.
+    /// needs). Empty when nothing qualifies or the precepts do not plainly allow the sale.
     /// </summary>
     public static IReadOnlySet<PawnId> SurplusPrisoners(this RoundsFacts f, bool silverShort)
     {
@@ -136,11 +133,11 @@ public static partial class TradePolicyRules
     }
 
     /// <summary>Adds the prisoner-sale reason to the need: a tribute collector is present or arriving and some prisoner is surplus.</summary>
-    public static Fact<TradeNeed> FavorPrisonerNeed(Fact<TradeNeed> need, Fact<EquatableArray<Trader>> traders, IReadOnlySet<PawnId> surplus)
+    public static TradeNeed FavorPrisonerNeed(TradeNeed need, EquatableArray<Trader> traders, IReadOnlySet<PawnId> surplus)
     {
-        var nk = need.TryGetValue(out var n);
-        var tk = traders.TryGetValue(out var rows);
-        if (!nk || !tk || surplus.Count == 0)
+        var n = need;
+        var rows = traders;
+        if (surplus.Count == 0)
         {
             return need;
         }
@@ -148,7 +145,7 @@ public static partial class TradePolicyRules
         {
             if (IsTributeCollector(row) && (row.CanTrade || row.Travelling))
             {
-                return Known(n! with { FavorPrisoners = surplus.Count });
+                return n with { FavorPrisoners = surplus.Count };
             }
         }
         return need;

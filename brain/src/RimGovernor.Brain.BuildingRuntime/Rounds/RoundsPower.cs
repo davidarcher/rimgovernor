@@ -29,7 +29,7 @@ public sealed partial class RoundsBuildingPlanner
         planning = planning with
         {
             Generators = generators,
-            DaylightHours = facts.Facts.Gear.TryGetValue(out var gear) ? gear.Climate.DaylightHoursIn(gear.Climate.CurrentTwelfth) : throw new RequiredFactException("gear climate"),
+            DaylightHours = facts.Facts.Gear.Climate.DaylightHoursIn(facts.Facts.Gear.Climate.CurrentTwelfth),
             Sources = facts.PowerSources,
             Battery = facts.PowerBattery,
             Light = facts.LightTerrains,
@@ -354,7 +354,9 @@ partial class RoundsBuildingPlanner
         var draw = new Dictionary<string, double>();
         foreach (var d in facts.Definitions)
         {
-            if (d.PowerW.TryGetValue(out var w) && w > 0)
+            if (d.Power is not { } power) continue;
+            var w = power.PowerW;
+            if (w > 0)
             {
                 draw[d.Name] = w;
             }
@@ -386,7 +388,9 @@ partial class RoundsBuildingPlanner
                 continue;
             }
 
-            if (!d.Available.TryGetValue(out var available) || available)
+            var available = d.Available;
+
+            if (available)
             {
                 continue;
             }

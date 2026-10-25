@@ -36,9 +36,9 @@ partial class RoundsTradePlanner
         {
             throw new DomainException("settlement_unavailable");
         }
-        var sk = facts.Silver().TryGetValue(out var silver);
+        var silver = facts.Silver();
         var (reserve, rk) = Pol.TradePolicyRules.TradeSilverReserve(facts.Colonists);
-        if (!sk || !rk || silverBudget <= 0 || silverBudget > int.MaxValue || silver < reserve || silverBudget > silver - reserve)
+        if (!rk || silverBudget <= 0 || silverBudget > int.MaxValue || silver < reserve || silverBudget > silver - reserve)
         {
             throw new DomainException("insufficient_silver");
         }
@@ -93,11 +93,11 @@ async
         // Calculate the whole food pack under the original native capacity minus silver. Seed nutrition is not
         // removed from home reserves twice.
         var seedFoodMass = 0.0;
-        facts.AnimalUpkeep.Food.TryGetValue(out var supply);
+        var supply = facts.AnimalUpkeep.Food;
         foreach (var item in seedFood)
         {
             var mass = double.MaxValue;
-            foreach (var stock in supply?.Stocks ?? [])
+            foreach (var stock in supply.Stocks)
             {
                 if (stock.DefName.Value == item.Definition)
                 {

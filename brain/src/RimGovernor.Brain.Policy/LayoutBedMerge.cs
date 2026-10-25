@@ -51,8 +51,8 @@ public sealed record BedMergePrice
     /// <summary>A colonist's work-day (LayoutLightRules.StationWorkDayOf); a day with no price fails the heat it prices.</summary>
     public required StationWorkDay WorkDay { get; init; }
 
-    /// <summary>The colonists able to build (LayoutClusterRules.BuildersOf); unknown while a pawn's work facts are unread (the work planning's read to harden, #3876).</summary>
-    public Fact<int> Builders { get; init; }
+    /// <summary>The colonists able to build (LayoutClusterRules.BuildersOf); zero when none can build.</summary>
+    public int Builders { get; init; }
 
     /// <summary>The bed slots of the barracks the plan holds (BedSlotsOf), 0 for none: the incumbent a new size must beat by more than the tie resolution.</summary>
     public int Incumbent { get; init; }
@@ -155,10 +155,10 @@ public static partial class LayoutClusterRules
 
     /// <summary>
     /// The colonists able to build (#3748): each available pawn with an enabled Construction work row it is capable of.
-    /// Unknown while any pawn's availability or work rows are unread. With <paramref name="free"/>, only the pawns it
+    /// With <paramref name="free"/>, only the pawns it
     /// names free count (#3744: the needs census's colonists no running method claims).
     /// </summary>
-    public static Fact<int> BuildersOf(WorkPawnsRead fact, Func<string, bool>? free = null)
+    public static int BuildersOf(WorkPawnsRead fact, Func<string, bool>? free = null)
     {
         var pawns = fact.Pawns;
         var n = 0;
@@ -178,7 +178,7 @@ public static partial class LayoutClusterRules
                 n++;
             }
         }
-        return Known(n);
+        return n;
     }
 }
 
@@ -320,10 +320,7 @@ internal sealed partial class Clusterer
         }
         var f = (BedMergeFacts.Read)price.Facts;
         var (sleepers, levels, wall, door) = (f.Sleepers, f.Levels, f.WallCell, f.Door);
-        if (!price.Builders.TryGetValue(out var builders))
-        {
-            throw new RequiredFactException("builders");
-        }
+        var builders = price.Builders;
         var walk = LayoutRegroupRules.CellWalkDays(_in.Catalog.Climate.TicksPerSecond);
         if (!QuestCapacityForecast.FinitePositive(walk))
         {

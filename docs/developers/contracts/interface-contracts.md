@@ -106,8 +106,7 @@ the option.
 - **The container holds the record.** `ColonyFactsSnapshot` carries the section as a `required` member of the
   record's type, and the brain's projection (`ColonyProjection`) holds its core (identity, bounds, tech level,
   workers, pending values, delivery ledger) as `required` members. A state that may legitimately be missing is a
-  named case: `Planning` is `Requested` or `NotRequested`, and a planner that needs planning facts from a read
-  that did not request them raises `RequiredFactException("planning")`; the sleeping range is `Indoor` or
+  named case: the sleeping range is `Indoor` or
   `NoIndoorBed`; a pawn's need is `NeedLevel.Has(level)` or `Lacks` (an animal has no joy), and its food need
   `FoodNeed.Has(level, hunger)` or `Lacks` ([rule 9](../architecture/rules.md#review-items)).
 - **A typed read returns its payload.** `INativeFacade` returns the record (`ListPawnsAsync` returns

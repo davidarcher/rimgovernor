@@ -11,15 +11,16 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
 /// The colony facts core is total (#3764): every core member of the read and of its projection is <c>required</c>,
-/// planning is a named state (<see cref="Planning.Requested"/> or <see cref="Planning.NotRequested"/>) and so is the
+/// the complete gear and crop censuses are always present, and the
 /// indoor sleeping range (<see cref="SleepingTemperature.Indoor"/> or <see cref="SleepingTemperature.NoIndoorBed"/>).
-/// A planner that needs planning facts from a read that did not request them raises <c>RequiredFactException("planning")</c>.
 /// </summary>
 public sealed class ColonyFactsCoreTests
 {
-    /// <summary>A colony facts read with every section present and empty: no planning, no indoor bed, nothing pending.</summary>
+    /// <summary>A colony facts read with every section present and empty: no indoor bed and nothing pending.</summary>
     internal static ColonyFactsSnapshot Snapshot(C.ObservationContext? context = null) => new()
     {
+        Gear = GearFixtures.NoSnapshot,
+        Crops = [],
         FoodClimate = new FoodClimate { GrowingYear = [], GrowingDays = 0, GrowingDaysRemaining = 0, SowingNow = false, GrowingDaysUntil = 60, Season = "Winter", DayOfYear = 0, NonGrowingDays = 60 },
         ControlledEnvironment = ControlledEnvironmentTests.NoWireEnvironment,
         Resources = [],
@@ -42,7 +43,6 @@ public sealed class ColonyFactsCoreTests
         Forecast = new() { Needs = NeedsFixtures.Empty, Coupled = CoupledFixtures.Empty, CombinedFoodSupply = new() { Larder = new() }, Patients = [] },
         Upkeep = UpkeepFactsTests.NoUpkeep,
         Development = new() { Outcome = new() { ShortCircuit = new ObservedShortCircuit.NoneSeen() } },
-        Planning = new Planning.NotRequested(),
         Recovery = new() { Restrictions = [], Buildings = [] },
         Waste = new() { Items = [] },
         Blight = new() { Plants = [] },
@@ -59,6 +59,8 @@ public sealed class ColonyFactsCoreTests
         DeliveryLedger = DeliveryLedgerTests.NoDeliveries,
         HuntCensus = new() { Hunters = [] },
         Acquisition = [],
+        Cooking = [],
+        Butchering = [],
     };
 
     /// <summary>A projection with its total core set: the given identity, an empty map, no workers, no deliveries and nothing pending.</summary>
@@ -66,7 +68,7 @@ public sealed class ColonyFactsCoreTests
     {
         Rooms = RoomTestFacts.NoRooms,
         Identity = identity ?? new Identity(),
-        Facts = new() { CurrentConstruction = CurrentConstruction.Empty },
+        Facts = new() { CurrentConstruction = CurrentConstruction.Empty, Gear = ColonyModelFixtures.NoGear() },
         Bounds = default,
         PlayerTechLevel = Defs.TechLevel.Neolithic,
         Workers = 0,
@@ -103,20 +105,11 @@ public sealed class ColonyFactsCoreTests
     };
 
     [Fact]
-    public void ReadWithoutPlanningFailsPlannerThatNeedsIt()
+    public void EveryColonyReplyRequiresGearEvenWithoutAPlanningRequest()
     {
-        var facts = Snapshot();
-        Assert.IsType<Planning.NotRequested>(facts.Planning);
-        var refused = Assert.Throws<RequiredFactException>(() => PlanningWindowReads.RequirePlanning(facts));
-        Assert.Equal("planning", refused.Fact);
-    }
-
-    [Fact]
-    public void PlanningReadHandsPlannerItsFacts()
-    {
-        var planning = new PlanningFacts { Gear = GearFixtures.NoSnapshot, Crops = [new EdibleCrop { DefName = "Plant_Rice", NutritionDemandPerDay = 2.5, DietAllowed = true }] };
-        var facts = Snapshot() with { Planning = new Planning.Requested(planning) };
-        Assert.Same(planning, PlanningWindowReads.RequirePlanning(facts));
+        var json = System.Text.Json.Nodes.JsonNode.Parse(WireJson.Serialize(Snapshot()))!.AsObject();
+        Assert.True(json.Remove("gear"));
+        Assert.Throws<System.Text.Json.JsonException>(() => WireJson.Deserialize<ColonyFactsSnapshot>(json.ToJsonString()));
     }
 
     [Fact]
@@ -127,7 +120,7 @@ public sealed class ColonyFactsCoreTests
             Snapshot(),
             Snapshot() with
             {
-                Planning = new Planning.Requested(new PlanningFacts { Gear = GearFixtures.NoSnapshot, Crops = [new EdibleCrop { DefName = "Plant_Rice", NutritionDemandPerDay = 2.5, DietAllowed = true }] }),
+                Crops = [new EdibleCrop { DefName = "Plant_Rice", NutritionDemandPerDay = 2.5, DietAllowed = true }],
                 SleepingTemperature = new SleepingTemperature.Indoor(12.5, 21),
                 PendingFoodNutrition = 3.5,
                 PendingHunts = 2,
@@ -139,7 +132,6 @@ public sealed class ColonyFactsCoreTests
             var json = WireJson.Serialize(facts);
             var back = WireJson.Deserialize<ColonyFactsSnapshot>(json);
             Assert.Equal(json, WireJson.Serialize(back));
-            Assert.Equal(facts.Planning.GetType(), back.Planning.GetType());
             Assert.Equal(facts.SleepingTemperature, back.SleepingTemperature);
         }
     }
@@ -165,7 +157,6 @@ public sealed class ColonyFactsCoreTests
     public void MissingEnvironmentFailsTheDecoderEvenWithoutPlanning()
     {
         var read = Snapshot() with { ControlledEnvironment = null! };
-        Assert.IsType<Planning.NotRequested>(read.Planning);
         Assert.Throws<BridgeContractException>(() => ColonyDecodeReads.DecodeColony(read, new Identity(), default!, null));
     }
 
@@ -177,14 +168,13 @@ public sealed class ColonyFactsCoreTests
     }
 
     [Fact]
-    public async Task MissingZoneSourceFailsInsteadOfCertifyingEmptyFields()
+    public void MissingZoneCensusFailsInsteadOfCertifyingEmptyFields()
     {
-        await Assert.ThrowsAsync<BridgeUnavailableException>(() =>
-            ZonesReads.FillZones(null, Snapshot().Context.Identity, new Identity(), Projection(), CancellationToken.None));
+        Assert.Throws<BridgeContractException>(() => ZonesReads.ApplyZones(Projection(), null));
     }
 
     [Fact]
-    public async Task ZoneSnapshotFillsBothTotalCropArrays()
+    public void ZoneSnapshotFillsBothTotalCropArrays()
     {
         var context = Snapshot().Context with { NativeGeneration = new C.ObservedGeneration.AtCase(7) };
         var expected = DecodeReads.ContextIdentity(context);
@@ -193,25 +183,31 @@ public sealed class ColonyFactsCoreTests
             Context = context,
             Zones = [ZoneFixtures.Growing("field", "Plant_Rice", usableCells: 12, edible: true)],
         };
-        var projection = await ZonesReads.FillZones(new ZoneSource(read), context.Identity, expected, Projection(expected), CancellationToken.None);
+        var projection = ZonesReads.ApplyZones(Projection(expected) with
+        {
+            Definitions =
+            [
+                new PlanningDefinition
+                {
+                    Name = "Plant_Rice", Available = true,
+                    Plant = new PlanningPlant { GrowDays = 6, MinGrowthTemperature = 0, MinOptimalGrowthTemperature = 10, MaxOptimalGrowthTemperature = 42, MaxGrowthTemperature = 58 },
+                    Harvest = new PlanningHarvest { HarvestedThingDef = "RawRice", HarvestYield = 6, HarvestNutrition = .3, Edible = true },
+                    Diet = new PlanningDiet { NutritionDemandPerDay = 1.6, DietAllowed = true },
+                },
+            ],
+        }, read);
 
         Assert.Same(read, projection.Zones!.Value);
         Assert.Single(projection.FieldCrops);
-        Assert.Equal(12L, Assert.Single(projection.FieldCapacityCrops).GrowingCells.Value);
-    }
-
-    private sealed class ZoneSource(ZonesSnapshot read) : IZonesNative
-    {
-        public Task<ZonesSnapshot> ReadZoneSectionAsync(C.Identity identity, CancellationToken cancellationToken) => Task.FromResult(read);
+        Assert.Equal(12L, Assert.Single(projection.FieldCapacityCrops).GrowingCells);
     }
 
     [Fact]
-    public void ReadMissingItsPlanningStateDoesNotDecode()
+    public void ReadMissingItsCropCensusDoesNotDecode()
     {
         var json = WireJson.Serialize(Snapshot());
         var node = System.Text.Json.Nodes.JsonNode.Parse(json)!.AsObject();
-        var planning = node.Select(p => p.Key).Single(k => k.Equals("planning", StringComparison.OrdinalIgnoreCase));
-        node.Remove(planning);
+        Assert.True(node.Remove("crops"));
         Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<ColonyFactsSnapshot>(node.ToJsonString()));
     }
 }

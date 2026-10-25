@@ -107,12 +107,12 @@ public static partial class SleepingRules
             {
                 continue;
             }
-            if (!byName.TryGetValue(name, out var d) || !d.Available.TryGetValue(out var avail))
+            if (!byName.TryGetValue(name, out var d))
             {
                 unread = true;
                 continue;
             }
-            if (avail && (!SleepingBedrolls.Contains(name) || (stocked is not null && stocked.Contains(name))))
+            if (d.Available && (!SleepingBedrolls.Contains(name) || (stocked is not null && stocked.Contains(name))))
             {
                 return (name, SleepingMethod.Build);
             }

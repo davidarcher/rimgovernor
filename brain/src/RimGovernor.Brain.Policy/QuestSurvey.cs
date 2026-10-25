@@ -76,7 +76,7 @@ public static class QuestSurvey
     /// affordable after that departure; none is sent merely because time passed, and the scanner performs its
     /// ordinary passive work.
     /// </summary>
-    public static ExpeditionPlan PlanSurvey(QuestState offer, ExpeditionSite site, RoundsFacts f, Fact<FoodSupply> food, RoundsPolicy p)
+    public static ExpeditionPlan PlanSurvey(QuestState offer, ExpeditionSite site, RoundsFacts f, FoodSupply food, RoundsPolicy p)
     {
         var (budget, reason) = SurveyBudget(offer, site, f);
         if (!reason.IsNone)
@@ -101,12 +101,9 @@ public static class QuestSurvey
         return plan;
     }
 
-    private static Fact<FoodSupply> SurveyReliefFood(Fact<FoodSupply> food, CaravanDeparture primary)
+    private static FoodSupply SurveyReliefFood(FoodSupply food, CaravanDeparture primary)
     {
-        if (!food.TryGetValue(out var supply))
-        {
-            return food;
-        }
+        var supply = food;
         var crew = primary.Crew;
         var consumers = supply.Consumers.Where(row => !crew.Items.Contains((Domain.PawnId)row.Id)).ToList();
         var stocks = supply.Stocks.ToList();
@@ -137,7 +134,7 @@ public static class QuestSurvey
             };
             packed[row.DefName.Value] -= take;
         }
-        return Known(supply with { Consumers = consumers, Stocks = stocks });
+        return supply with { Consumers = consumers, Stocks = stocks };
     }
 
     /// <summary>
@@ -147,10 +144,10 @@ public static class QuestSurvey
     private static bool SurveyReliefFacts(RoundsFacts f, EquatableArray<Domain.PawnId> crew, out RoundsFacts reserve)
     {
         reserve = f;
-        var ck = f.DefenseCapacity.TryGetValue(out var capacity);
+        var capacity = f.DefenseCapacity;
         var covk = f.WorkRoster is WorkRosterRead.Read;
         var roster = f.WorkRoster is WorkRosterRead.Read { Coverage: var rosterRead } ? rosterRead : default;
-        if (f.QuestPawns is not QuestPawns.Seen seen || f.QuestRoster is not QuestRoster.Planned planned || !ck || !covk)
+        if (f.QuestPawns is not QuestPawns.Seen seen || f.QuestRoster is not QuestRoster.Planned planned || !covk)
         {
             return false;
         }
@@ -195,14 +192,14 @@ public static class QuestSurvey
         reserve = f with
         {
             QuestPawns = seen with { AtHome = home - crew.Count, Departures = EquatableArray.From(rows.Where(row => !crew.Items.Contains((Domain.PawnId)row.Id))) },
-            DefenseCapacity = Known(capacity),
+            DefenseCapacity = capacity,
             WorkRoster = new WorkRosterRead.Read(EquatableArray.From(coverage)),
             QuestRoster = planned with { Spare = EquatableArray.From(planned.Spare.Where(id => !crew.Items.Contains((Domain.PawnId)id))) },
         };
         return true;
     }
 
-    public static SurveyPlan SurveyWork(QuestState offer, WorldSite site, RoundsFacts f, Fact<FoodSupply> food, RoundsPolicy p)
+    public static SurveyPlan SurveyWork(QuestState offer, WorldSite site, RoundsFacts f, FoodSupply food, RoundsPolicy p)
     {
         var result = new SurveyPlan();
         if (offer.State == QuestStatus.EndedFailed)

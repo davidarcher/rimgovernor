@@ -131,7 +131,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // The frame's colony facts request: the planning form.
-        private static Obs.ColonyFactsRequest ColonyRequest(Obs.ReadScope scope) => new Obs.ColonyFactsRequest { Scope = scope, Planning = true };
+        private static Obs.ColonyFactsRequest ColonyRequest(Obs.ReadScope scope) => new Obs.ColonyFactsRequest { Scope = scope };
 
         // On the main thread. Adds the census families to observed, each
         // keyed as its dedicated read. A section that throws fails the frame

@@ -14,28 +14,9 @@ internal static class RoundsDisease
             history = [];
             helped = null;
         }
-        demand = demand with { Help = ConstructionHelpersRules.ConstructionHelpDemand(previous.ReadyWork, current, facts.Identity.Tick, HelpDefinitions(definitions, facts.Definitions), helped, facts.Facts.CurrentConstruction) };
+        demand = demand with { Help = ConstructionHelpersRules.ConstructionHelpDemand(previous.ReadyWork, current, facts.Identity.Tick, helped, facts.Facts.CurrentConstruction) };
         demand = demand with { Resting = DiseaseRestRules.ReviewDiseaseRest(facts.Facts.MedicalPawns, history) };
         return demand;
     }
 
-    internal static List<HelpDefinition> HelpDefinitions(IReadOnlyList<string> names, IReadOnlyList<PlanningDefinition> catalog)
-    {
-        var skills = new Dictionary<string, Fact<int>>(StringComparer.Ordinal);
-        foreach (var d in catalog)
-        {
-            skills[d.Name] = d.ConstructionSkill;
-        }
-        var output = new List<HelpDefinition>(names.Count);
-        foreach (var name in names)
-        {
-            var skill = Unknown<int>();
-            if (skills.TryGetValue(name, out var s) && s.TryGetValue(out var v))
-            {
-                skill = Known(v);
-            }
-            output.Add(new HelpDefinition { Name = name, Skill = skill });
-        }
-        return output;
-    }
 }

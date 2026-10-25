@@ -128,7 +128,7 @@ public sealed class RoomRoleGoalTests
         Sleeping = new SleepingObservation { Beds = [.. beds] },
         Rooms = RoomFixtures.Census(Standing(RoomRole.Hospital, [.. beds.Select(b => b.Id)])),
         Furniture = new RoomFurniture { Beds = [new FurnitureBed { Def = "Bed", Slots = 1 }] },
-        Definitions = [new BenchDefinition { Name = "Bed", Available = Known(true) }],
+        Definitions = [new BenchDefinition { Name = "Bed", Available = true}],
         MinBeds = floor,
         // Native's sleeping capacities leave the medical beds out.
         BedCapacity = beds.Count(b => !b.Medical),
@@ -180,7 +180,7 @@ public sealed class RoomRoleGoalTests
             Catalog = catalog,
             Colonists = 4L,
             Patients = [],
-            Prisoners = Known(0),
+            Prisoners = 0,
             WorkPawns = new WorkPawnsRead([]),
             GoalBuild = build,
         };

@@ -212,9 +212,9 @@ public static class ContainmentCellRules
         {
             return false;
         }
-        var ak = def.Available.TryGetValue(out var available);
-        var tk = def.Terrain.TryGetValue(out var terrain);
-        return ak && tk && available && terrain && FlooringRules.AffordableCells(def, facts.Stock, tiles) >= tiles;
+        var available = def.Available;
+        var terrain = def.Terrain;
+        return available && terrain && FlooringRules.AffordableCells(def, facts.Stock, tiles) >= tiles;
     }
 
     /// <summary>

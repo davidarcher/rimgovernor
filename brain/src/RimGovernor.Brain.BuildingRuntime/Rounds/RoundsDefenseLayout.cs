@@ -80,10 +80,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             {
                 continue;
             }
-            if (!d.Available.TryGetValue(out var v))
-            {
-                return DefinitionReadiness.Unread;
-            }
+            var v = d.Available;
             if (!v)
             {
                 return DefinitionReadiness.Blocked;
@@ -523,12 +520,13 @@ public sealed partial class RoundsDefenseLayoutPlanner
             {
                 turret = turret with { Stuff = price.Stuff };
             }
-            if (d.PowerW.TryGetValue(out var w) && w >= 0)
+            var w = (d.Power ?? throw new RequiredFactException("planning Power")).PowerW;
+            if (w >= 0)
             {
                 drawRead = true;
                 turret = turret with { DrawW = w };
             }
-            if (d.Size.TryGetValue(out var size))
+            var size = d.Size;
             {
                 turret = turret with { Size = size };
             }

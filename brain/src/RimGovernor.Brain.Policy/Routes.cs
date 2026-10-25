@@ -159,7 +159,7 @@ public sealed record RoutesProposal
 /// <summary>What SelectRoutesMethod needs beyond the review: the planning census row for the door definition.</summary>
 public sealed record RoutesFacts
 {
-    public Fact<bool> DoorAvailable { get; init; }
+    public bool DoorAvailable { get; init; }
 }
 
 public static partial class RoutesRules
@@ -255,10 +255,7 @@ public static partial class RoutesRules
         {
             return new RoutesProposal { Method = RoutesMethod.NoMethod };
         }
-        if (!facts.DoorAvailable.TryGetValue(out var available))
-        {
-            throw new RequiredFactException(p.Door + " availability");
-        }
+        var available = facts.DoorAvailable;
         if (!available)
         {
             return new RoutesProposal { Method = RoutesMethod.DoorUnavailable };

@@ -156,7 +156,7 @@ public sealed class PeopleRounds
     /// <summary>The open choice dialog of <paramref name="world"/>'s colony census, null when none is; throws when the read is another world or older than the review.</summary>
     private async Task<OpenDialog?> ObserveAsync(GenerationSnapshot world, Tick reviewed, CancellationToken call)
     {
-        var observed = await _reviewer.ColonyFactsAsync(_native!, Boundary.Identity(world), false, call).ConfigureAwait(false);
+        var observed = await _reviewer.ColonyFactsAsync(_native!, Boundary.Identity(world), call).ConfigureAwait(false);
         try
         {
             Boundary.Context(observed.Context, world);

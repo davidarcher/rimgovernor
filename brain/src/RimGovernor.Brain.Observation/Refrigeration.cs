@@ -24,10 +24,7 @@ public static class RefrigerationReads
     {
         var rooms = projection.Rooms;
         var topology = projection.PowerPlanning;
-        if (!projection.DefinitionAvailable(cooler).TryGetValue(out var available))
-        {
-            throw new RequiredFactException("cooler definition");
-        }
+        var available = projection.DefinitionAvailable(cooler);
         return new RefrigerationObservation
         {
             Rooms = rooms,

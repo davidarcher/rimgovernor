@@ -328,26 +328,28 @@ public static class RoundsMoodReads
     /// Each census colonist's defense capacity facts from the same pawn rows <see cref="RoundsArmed"/> compares:
     /// dead and downed from the emergency census, violence from the biography, melee power as the observed
     /// MeleeDPS times summary health and the observed ranged DPS at the pawn's hit factor. A row the census does not
-    /// match, or a frame without the pawn rows, leaves the roster unknown.
+    /// match, or a frame without the pawn rows, fails the observation contract.
     /// </summary>
-    internal static Fact<EquatableArray<DefenderStrength>> RoundsDefenders(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot? pawns)
+    internal static EquatableArray<DefenderStrength> RoundsDefenders(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot? pawns)
     {
-        var unknown = Unknown<EquatableArray<DefenderStrength>>();
-        if (colony is null || pawns is null || colony.ColonistCount != emergency.Colonists.Count || pawns.Pawns.Count != emergency.Colonists.Count)
+        if (colony is null || pawns is null || !emergency.AllSeen || colony.ColonistCount != emergency.Colonists.Count || pawns.Pawns.Count != emergency.Colonists.Count)
         {
-            return unknown;
+            throw new ObservationContractException("defender and colonist censuses disagree");
         }
         var byId = new Dictionary<string, O.PawnState>(pawns.Pawns.Count, StringComparer.Ordinal);
         foreach (var row in pawns.Pawns)
         {
-            byId[row.Pawn.Id ?? ""] = row;
+            if (!byId.TryAdd(row.Pawn.Id, row))
+            {
+                throw new ObservationContractException($"duplicate defender pawn row: {row.Pawn.Id}");
+            }
         }
         var output = new List<DefenderStrength>(emergency.Colonists.Count);
         foreach (var pawn in emergency.Colonists)
         {
             if (!byId.TryGetValue(pawn.Id.Value, out var row))
             {
-                return unknown;
+                throw new ObservationContractException($"missing defender pawn row: {pawn.Id.Value}");
             }
             var e = row.Equipment;
             // Ranged DPS counts at the pawn's hit chance over the reference gunner's (#3845).
@@ -361,6 +363,6 @@ public static class RoundsMoodReads
                 RangedDps = e.RangedDps * e.RangedHitFactor,
             });
         }
-        return Known(EquatableArray.From(output));
+        return EquatableArray.From(output);
     }
 }

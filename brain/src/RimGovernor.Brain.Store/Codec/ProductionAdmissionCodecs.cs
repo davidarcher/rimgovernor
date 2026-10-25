@@ -16,14 +16,14 @@ internal sealed class WorkAdmissionEvidenceConverter : ObjectCodec<WorkAdmission
     protected override WorkAdmissionEvidence Read(JsonElement e, Codecs o) => new()
     {
         Tick = e.Get<Tick>("Tick", o),
-        Buildings = e.Get<Fact<EquatableArray<WorkBuildingCost>>>("Buildings", o),
+        Buildings = e.Get<EquatableArray<WorkBuildingCost>>("Buildings", o),
         Standing = e.Has("Standing") ? new(e.Get<EquatableArray<Building>>("Standing", o), e.Get<IReadOnlyDictionary<Resource, long>>("Construction", o)) : null,
-        Pawns = e.Get<Fact<EquatableArray<WorkPawnAvailability>>>("Pawns", o),
-        WorkResources = e.Get<Fact<EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>>>("WorkResources", o),
+        Pawns = e.Get<EquatableArray<WorkPawnAvailability>>("Pawns", o),
+        WorkResources = e.Get<EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>>("WorkResources", o),
         Stock = e.Get<EquatableArray<Amount>>("Stock", o),
         Reservations = e.Get<EquatableArray<IngredientReservation>>("Reservations", o),
-        Recipes = e.Get<Fact<EquatableArray<ProductionRecipeInput>>>("Recipes", o),
-        Promises = e.Get<Fact<EquatableArray<ProductionMaterialPromise>>>("Promises", o),
+        Recipes = e.Get<EquatableArray<ProductionRecipeInput>>("Recipes", o),
+        Promises = e.Get<ProductionPromiseSet>("Promises", o),
         Reviewed = e.Get<EquatableArray<ActionId>>("Reviewed", o),
         NeedTargets = e.Get<EquatableArray<WorkTargetCapacity>>("NeedTargets", o),
     };
@@ -50,55 +50,83 @@ internal sealed class WorkTargetCapacityConverter : ObjectCodec<WorkTargetCapaci
 
 internal sealed class WorkBuildingCostConverter : ObjectCodec<WorkBuildingCost>
 {
-    protected override WorkBuildingCost Read(JsonElement e, Codecs o) => new(e.Str("Definition"), e.Str("Stuff"), e.Get<Fact<EquatableArray<Amount>>>("Materials", o))
-    { Size = e.GetOr<Fact<Cell>>("Size", default, o) };
+    protected override WorkBuildingCost Read(JsonElement e, Codecs o) => new(e.Str("Definition"), e.Str("Stuff"), e.Get<EquatableArray<Amount>>("Materials", o))
+    { Size = e.Get<Cell>("Size", o) };
     protected override void WriteFields(Utf8JsonWriter w, WorkBuildingCost v, Codecs o)
-    { w.WriteString("Definition", v.Definition); w.WriteString("Stuff", v.Stuff); w.Put("Materials", v.Materials, o); if (v.Size.IsKnown) w.Put("Size", v.Size, o); }
+    { w.WriteString("Definition", v.Definition); w.WriteString("Stuff", v.Stuff); w.Put("Materials", v.Materials, o); w.Put("Size", v.Size, o); }
 }
 
 internal sealed class WorkPawnAvailabilityConverter : ObjectCodec<WorkPawnAvailability>
 {
-    protected override WorkPawnAvailability Read(JsonElement e, Codecs o) => new(e.Str("Pawn"), e.Get<Fact<bool>>("Available", o),
-        e.Get<Fact<bool>>("Applies", o), e.Bool("Occupied"), e.Get<Fact<string>>("Target", o))
-    { Schedule = e.Get<Fact<EquatableArray<string>>>("Schedule", o), LocalHour = e.Get<Fact<double>>("LocalHour", o) };
+    protected override WorkPawnAvailability Read(JsonElement e, Codecs o) => new(e.Str("Pawn"), e.Bool("Available"),
+        e.Bool("Applies"), e.Bool("Occupied"), e.Str("Target"))
+    { Schedule = e.Get<EquatableArray<string>>("Schedule", o), LocalHour = e.Dbl("LocalHour"), Preemptible = e.Bool("Preemptible") };
     protected override void WriteFields(Utf8JsonWriter w, WorkPawnAvailability v, Codecs o)
-    { w.WriteString("Pawn", v.Pawn); w.Put("Available", v.Available, o); w.Put("Applies", v.Applies, o); w.WriteBoolean("Occupied", v.Occupied); w.Put("Target", v.Target, o); w.Put("Schedule", v.Schedule, o); w.Put("LocalHour", v.LocalHour, o); }
+    { w.WriteString("Pawn", v.Pawn); w.Put("Available", v.Available, o); w.Put("Applies", v.Applies, o); w.WriteBoolean("Occupied", v.Occupied); w.Put("Target", v.Target, o); w.Put("Schedule", v.Schedule, o); w.Put("LocalHour", v.LocalHour, o); w.WriteBoolean("Preemptible", v.Preemptible); }
 }
 
 internal sealed class WorkResourcePawnConverter : ObjectCodec<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>
 {
     protected override RimGovernor.Contracts.Wire.Observations.WorkResourcePawn Read(JsonElement e, Codecs o) =>
-        new(e.Str("Pawn"), e.Str("Assignment"), e.I64("Revision"), e.Str("State"), e.Str("CarriedThing"), e.Str("CarriedResource"), e.I32("CarriedCount")) { LocalHour = e.Get<double?>("LocalHour", o) ?? throw new InvalidDataException(), Bill = e.Str("Bill"), Target = e.Str("Target") };
+        new(e.Str("Pawn"), e.Str("Assignment"), e.I64("Revision"), e.Str("State"), e.Str("CarriedThing"), e.Str("CarriedResource"), e.I32("CarriedCount")) { LocalHour = e.Dbl("LocalHour"), Bill = e.Str("Bill"), Target = e.Str("Target"), Unfinished = e.Str("Unfinished") };
     protected override void WriteFields(Utf8JsonWriter w, RimGovernor.Contracts.Wire.Observations.WorkResourcePawn v, Codecs o)
     { w.WriteString("Pawn", v.Pawn); w.WriteString("Assignment", v.Assignment); w.WriteNum("Revision", v.Revision);
-      w.WriteString("State", v.State); w.WriteString("CarriedThing", v.CarriedThing); w.WriteString("CarriedResource", v.CarriedResource); w.WriteNum("CarriedCount", v.CarriedCount); w.Put<double?>("LocalHour", v.LocalHour, o); w.WriteString("Bill", v.Bill); w.WriteString("Target", v.Target); }
+      w.WriteString("State", v.State); w.WriteString("CarriedThing", v.CarriedThing); w.WriteString("CarriedResource", v.CarriedResource); w.WriteNum("CarriedCount", v.CarriedCount); w.WriteNum("LocalHour", v.LocalHour); w.WriteString("Bill", v.Bill); w.WriteString("Target", v.Target); w.WriteString("Unfinished", v.Unfinished); }
 }
 
 internal sealed class ProductionRecipeInputConverter : ObjectCodec<ProductionRecipeInput>
 {
     protected override ProductionRecipeInput Read(JsonElement e, Codecs o) => new(e.Str("Recipe"),
         e.Get<EquatableArray<EquatableArray<Amount>>>("Slots", o), e.Bool("UsesUnfinishedItem"))
-        { Products = e.Get<EquatableArray<Amount>>("Products", o), WorkAmount = e.Dbl("WorkAmount") };
+        { Products = e.Get<EquatableArray<Amount>>("Products", o), WorkAmount = e.Dbl("WorkAmount"), WorkSpeedStat = e.Str("WorkSpeedStat") };
     protected override void WriteFields(Utf8JsonWriter w, ProductionRecipeInput v, Codecs o)
     { w.WriteString("Recipe", v.Recipe); w.Put("Slots", v.Slots, o); w.WriteBoolean("UsesUnfinishedItem", v.UsesUnfinishedItem);
-      w.Put("Products", v.Products, o); w.WriteNum("WorkAmount", v.WorkAmount); }
+      w.Put("Products", v.Products, o); w.WriteNum("WorkAmount", v.WorkAmount); w.WriteString("WorkSpeedStat", v.WorkSpeedStat); }
 }
 
-internal sealed class ProductionMaterialPromiseConverter : ObjectCodec<ProductionMaterialPromise>
+internal sealed class ProductionPromiseSetConverter : ObjectCodec<ProductionPromiseSet>
 {
-    protected override ProductionMaterialPromise Read(JsonElement e, Codecs o) => new(e.Str("Id"), e.Get<EquatableArray<ForecastMaterialClaim>>("Claims", o));
-    protected override void WriteFields(Utf8JsonWriter w, ProductionMaterialPromise v, Codecs o)
-    { w.WriteString("Id", v.Id); w.Put("Claims", v.Claims, o); }
+    protected override ProductionPromiseSet Read(JsonElement e, Codecs o)
+    {
+        if (e.Has("Blocked")) return new ProductionPromiseSet.Blocked(Enum.Parse<ProductionPromiseBlock>(e.Str("Blocked")));
+        var rows = e.GetProperty("Promises").EnumerateArray().Select(p => new ForecastCommitment(p.Str("Id"), default)
+            { MaterialClaims = p.Get<EquatableArray<ForecastMaterialClaim>>("Claims", o) });
+        return new ProductionPromiseSet.Assessed(EquatableArray.From(rows));
+    }
+    protected override void WriteFields(Utf8JsonWriter w, ProductionPromiseSet v, Codecs o)
+    {
+        if (v is ProductionPromiseSet.Blocked(var reason)) { w.WriteString("Blocked", reason.ToString()); return; }
+        var rows = ((ProductionPromiseSet.Assessed)v).Promises;
+        w.WriteStartArray("Promises");
+        foreach (var row in rows)
+        {
+            w.WriteStartObject(); w.WriteString("Id", row.Id); w.Put("Claims", row.MaterialClaims, o); w.WriteEndObject();
+        }
+        w.WriteEndArray();
+    }
 }
 
 internal sealed class ForecastMaterialClaimConverter : ObjectCodec<ForecastMaterialClaim>
 {
     protected override ForecastMaterialClaim Read(JsonElement e, Codecs o) => new(e.Get<Resource>("Resource", o),
-        e.Get<Fact<double>>("Units", o), e.Get<Fact<string>>("ReservationBill", o));
+        ReadUnits(e), e.Str("ReservationBill"));
+    private static MaterialUnits ReadUnits(JsonElement e)
+    {
+        switch (e.Str("Amount"))
+        {
+            case nameof(MaterialUnits.Exact): return new MaterialUnits.Exact(e.Dbl("Units"));
+            case nameof(MaterialUnits.Open): return new MaterialUnits.Open();
+        }
+        throw new InvalidDataException("invalid material amount state");
+    }
     protected override void WriteFields(Utf8JsonWriter w, ForecastMaterialClaim v, Codecs o)
-    { w.Put("Resource", v.Resource, o); w.Put("Units", v.Units, o); w.Put("ReservationBill", v.ReservationBill, o); }
+    {
+        w.Put("Resource", v.Resource, o);
+        if (v.Units is MaterialUnits.Exact(var count)) { w.WriteString("Amount", nameof(MaterialUnits.Exact)); w.WriteNum("Units", count); }
+        else w.WriteString("Amount", nameof(MaterialUnits.Open));
+        w.WriteString("ReservationBill", v.ReservationBill);
+    }
 }
-
 internal sealed class IngredientReservationConverter : ObjectCodec<IngredientReservation>
 {
     protected override IngredientReservation Read(JsonElement e, Codecs o) => new()

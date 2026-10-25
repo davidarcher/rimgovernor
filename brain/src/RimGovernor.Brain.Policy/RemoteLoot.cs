@@ -96,12 +96,6 @@ public static partial class RemoteRules
     /// <summary>Assembles outdoor safety from the required hostile census.</summary>
     public static RemoteSafety LootSafety(RoundsFacts f)
     {
-        var r = new RemoteSafety { Hazard = OutdoorHazardRules.OutdoorHazardsOf(f), DashOpen = f.DashOpen() };
-        if (f.Hostiles.TryGetValue(out var hostiles))
-        {
-            r = r with { Threat = hostiles > 0 };
-        }
-        else { throw new RequiredFactException("remote hostile census"); }
-        return r;
+        return new RemoteSafety { Threat = f.Hostiles, Hazard = OutdoorHazardRules.OutdoorHazardsOf(f), DashOpen = f.DashOpen() };
     }
 }

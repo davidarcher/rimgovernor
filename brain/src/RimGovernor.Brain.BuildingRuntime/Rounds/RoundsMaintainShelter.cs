@@ -51,7 +51,7 @@ public sealed partial class SafeAreaMemory
         edits.AddRange(planned);
     }
 
-    public Fact<bool> Review(string newWorld, ColonyProjection projection)
+    public SafeAreaStatus Review(string newWorld, ColonyProjection projection)
     {
         var rooms = projection.Rooms;
 
@@ -84,20 +84,20 @@ public sealed partial class SafeAreaMemory
             }
 
             reviewed = true;
-            return Known(edits.Count > 0);
+            return edits.Count > 0 ? SafeAreaStatus.Edits : SafeAreaStatus.Clear;
         }
     }
 
     /// <summary>Whether the last review in <paramref name="newWorld"/> left edits to commit; unknown before a review there.</summary>
-    public Fact<bool> Owed(string newWorld)
+    public SafeAreaStatus Owed(string newWorld)
     {
         lock (mu)
         {
             if (world != newWorld || areas is null || !reviewed)
             {
-                return Unknown<bool>();
+                return SafeAreaStatus.AwaitingReview;
             }
-            return Known(edits.Count > 0);
+            return edits.Count > 0 ? SafeAreaStatus.Edits : SafeAreaStatus.Clear;
         }
     }
 
@@ -125,19 +125,19 @@ public sealed partial class SafeAreaMemory
         }
     }
 
-    public Fact<bool> DangerWindow(string newWorld, Fact<long> hostiles, IReadOnlyList<Cell> seeds, Tick tick)
+    public bool DangerWindow(string newWorld, HostileCensus hostiles, IReadOnlyList<Cell> seeds, Tick tick)
     {
         lock (mu)
         {
             Enter(newWorld);
-            if (hostiles.TryGetValue(out var n) && n > 0)
+            if (hostiles.ThreatCount > 0)
             {
                 last = tick;
                 lastKnown = true;
             }
 
             var window = ShelterRules.DangerWindowOf(hostiles, last, lastKnown, tick);
-            if (window.TryGetValue(out var open) && open)
+            if (window)
             {
                 danger ??= [];
                 foreach (var c in seeds)
@@ -145,7 +145,7 @@ public sealed partial class SafeAreaMemory
                     danger.Add(c);
                 }
             }
-            else if (window.IsKnown)
+            else
             {
                 danger = null;
             }
@@ -157,9 +157,6 @@ public sealed partial class SafeAreaMemory
 
 partial class SafeAreaMemory
 {
-    internal static Fact<EquatableArray<Cell>> DangerSeedFact(Fact<long> hostiles, IReadOnlyList<EmergencyThreat> threats) =>
-        hostiles.IsKnown ? Known<EquatableArray<Cell>>([.. ShelterRules.DangerSeeds(threats)]) : Unknown<EquatableArray<Cell>>();
-
     internal static IReadOnlyList<Cell> SortedSeeds(HashSet<Cell>? set) =>
         set is null ? [] : [.. set.OrderBy(c => c.Z).ThenBy(c => c.X)];
 }

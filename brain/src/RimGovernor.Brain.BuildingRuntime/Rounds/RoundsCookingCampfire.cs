@@ -90,8 +90,7 @@ partial class RoundsBuildingPlanner
             {
                 continue;
             }
-            var ik = bench.Room.TryGetValue(out var id);
-            var (room, found) = ik && id is not null ? rooms!.Room(id) : (null, false);
+            var (room, found) = bench.Room is { } id ? rooms!.Room(id) : (null, false);
             stove = stove || (bench.Usable && found && room!.Role == RoomRole.Kitchen);
         }
         foreach (var bench in benches)
@@ -163,9 +162,9 @@ partial class RoundsBuildingPlanner
     internal static bool TemperatureOwed(ColonyProjection facts) =>
         TemperatureMethodRules.TemperatureOwed(facts.Rooms, facts.Facts.Sleeping, HeatCampfires(facts));
 
-    internal static Fact<bool> CampfireRetireOwed(ColonyProjection facts)
+    internal static bool CampfireRetireOwed(ColonyProjection facts)
     {
         var claims = facts.Facts.ConstructionClaims;
-        return Known(CampfireRetirement(facts, claims).Retire);
+        return CampfireRetirement(facts, claims).Retire;
     }
 }

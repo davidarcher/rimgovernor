@@ -13,9 +13,6 @@ public enum FoodOrderGap
     [WireName("")]
     Chosen = 0,
 
-    /// <summary>Subject names a fact the declaration needs and lacks.</summary>
-    [WireName("field")]
-    Field,
 
     /// <summary>The food plan does not yet support the capacity in Subject.</summary>
     [WireName("food_plan")]
@@ -193,8 +190,8 @@ public static class FoodOrdersRules
                 }
                 break;
             }
-            default:
-                return Gap(FoodOrderGap.NoBill, "");
+            case var purpose when purpose != ProductionRules.CookFood && purpose != ProductionRules.PreserveFood && purpose != ProductionRules.ButcherFood && purpose != ProductionRules.CookAheadFood:
+                throw new DomainException($"not a food bill purpose: {purpose}");
         }
         return new FoodOrder
         {
@@ -213,10 +210,6 @@ public static class FoodOrdersRules
     public static Declared DeclareFoodOrders(FoodOrderRequest r, IReadOnlyList<GearBench> benches)
     {
         var order = SelectFoodOrder(r);
-        if (order.Gap == FoodOrderGap.Field)
-        {
-            return WorkRules.Abstaining(Cause.UnreadFoodFacts);
-        }
         if (order.Gap == FoodOrderGap.Plan)
         {
             return WorkRules.Abstaining(Cause.UnreadFoodPlan);

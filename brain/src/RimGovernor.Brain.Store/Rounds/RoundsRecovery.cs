@@ -83,7 +83,7 @@ public sealed record RoundsRecoveryBuilding
 
 /// <summary>
 /// Retains the exact inputs for reproducible proposal readback. Nullable values are storage boundaries, not known
-/// zero/false domain observations; a null worker census is unread. It is keyed by the Need it serves and that Need's
+/// zero/false domain observations. It is keyed by the Need it serves and that Need's
 /// world (#3304); a record an older journal keyed by its incident is dropped on load.
 /// </summary>
 public sealed record RoundsRecovery
@@ -99,8 +99,7 @@ public sealed record RoundsRecovery
 
     public RoundsRecoverySafety Safety { get; init; } = new();
 
-    /// <summary>Null when the worker census was unknown.</summary>
-    public EquatableArray<RoundsRecoveryWorker>? Workers { get; init; }
+    public EquatableArray<RoundsRecoveryWorker> Workers { get; init; }
 
     public EquatableArray<RoundsRecoveryBuilding> Buildings { get; init; }
 
@@ -109,31 +108,20 @@ public sealed record RoundsRecovery
     /// <summary>The planning facts this record retains, lifted back into policy terms.</summary>
     internal RecoveryPlanning Planning()
     {
-        var planning = new RecoveryPlanning
+        return new RecoveryPlanning
         {
             Safety = new RecoverySafety { Restrictions = EquatableArray.From(Safety.Restrictions.Select(v => new RecoveryRestriction(v.Pawn, v.Area))) },
             Buildings = EquatableArray.From(Buildings.Select(v => v.Building())),
-        };
-        if (Workers is { } workers)
-        {
-            planning = planning with
+            Workers = EquatableArray.From(Workers.Select(v => new RecoveryWorker
             {
-                Workers = Fact.Known(
-                    EquatableArray.From(
-                        workers.Select(v => new RecoveryWorker
-                        {
-                            Pawn = v.Pawn,
-                            Dead = v.Dead,
-                            Downed = v.Downed,
-                            Drafted = v.Drafted,
-                            Mental = v.Mental,
-                            PlayerForced = v.PlayerForced,
-                        })
-                    )
-                ),
-            };
-        }
-        return planning;
+                Pawn = v.Pawn,
+                Dead = v.Dead,
+                Downed = v.Downed,
+                Drafted = v.Drafted,
+                Mental = v.Mental,
+                PlayerForced = v.PlayerForced,
+            })),
+        };
     }
 }
 
@@ -142,32 +130,23 @@ public sealed partial class Store
     /// <summary>The retained planning inputs, with no Need, used methods or selection yet.</summary>
     internal static RoundsRecovery RecoveryRecord(RecoveryPlanning p)
     {
-        var r = new RoundsRecovery
+        return new RoundsRecovery
         {
             Safety = new RoundsRecoverySafety
             {
                 Restrictions = EquatableArray.From(p.Safety.Restrictions.Select(v => new RoundsRecoveryRestriction(v.Pawn, v.Area))),
             },
             Buildings = EquatableArray.From(p.Buildings.Select(RoundsRecoveryBuilding.Of)),
-        };
-        if (p.Workers.TryGetValue(out var workers))
-        {
-            r = r with
+            Workers = EquatableArray.From(p.Workers.Select(v => new RoundsRecoveryWorker
             {
-                Workers = EquatableArray.From(
-                    workers.Select(v => new RoundsRecoveryWorker
-                    {
-                        Pawn = v.Pawn,
-                        Dead = v.Dead,
-                        Downed = v.Downed,
-                        Drafted = v.Drafted,
-                        Mental = v.Mental,
-                        PlayerForced = v.PlayerForced,
-                    })
-                ),
-            };
-        }
-        return r;
+                Pawn = v.Pawn,
+                Dead = v.Dead,
+                Downed = v.Downed,
+                Drafted = v.Drafted,
+                Mental = v.Mental,
+                PlayerForced = v.PlayerForced,
+            })),
+        };
     }
 
     /// <summary>

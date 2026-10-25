@@ -158,7 +158,18 @@ internal sealed class RoundsLapInputs
     // A diagnostic equality probe must compose required getters before reading them. Each probe owns its
     // dictionary so construction's reference-comparing material table is correctly left out of the digest.
     private static object? ProbeRecord(Type record) => record == typeof(RoundsFacts)
-        ? new RoundsFacts { CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long>() } }
+        ? new RoundsFacts
+        {
+            CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long>() },
+            // These are equality probes, never planner inputs. Separate empty lists expose Gear's
+            // reference-comparing collections just as separate dictionaries do for construction.
+            Gear = new GearObservation
+            {
+                Pawns = new List<GearPawn>(),
+                Climate = new O.GearClimate { Temperatures = [], DaylightHours = [], CurrentTwelfth = 0, TicksToNextTwelfth = 0 },
+                Threat = new RaidThreat.Uncomposed(),
+            },
+        }
         : Activator.CreateInstance(record);
 
     private static IEnumerable<PropertyInfo> StoredAll(Type type, string? except) =>

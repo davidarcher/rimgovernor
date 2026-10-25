@@ -83,7 +83,7 @@ public static class QuestReads
     /// the map is not the home map, the emergency census is incomplete, the work pawns are unread, or the defender roster
     /// misses a fighter.
     /// </summary>
-    internal static (EquatableArray<QuestWorkCapacity> Capacity, QuestPawns Pawns) FrameQuestPawns(WorldProgressionRead read, MapId current, EmergencyFacts emergency, Fact<EquatableArray<DefenderStrength>> defenders, WorkPawnsRead workPawns)
+    internal static (EquatableArray<QuestWorkCapacity> Capacity, QuestPawns Pawns) FrameQuestPawns(WorldProgressionRead read, MapId current, EmergencyFacts emergency, EquatableArray<DefenderStrength> defenders, WorkPawnsRead workPawns)
     {
         foreach (var m in read.Maps)
         {
@@ -94,18 +94,17 @@ public static class QuestReads
             // Native reads the map's pawns and its quest workers from the same FreeColonistsSpawned list.
             var capacity = new List<QuestWorkCapacity>();
             var departures = new List<QuestDeparturePawn>();
-            var byId = defenders.TryGetValue(out var fighters) ? fighters.ToDictionary(f => f.Id) : null;
-            var seen = byId is not null && emergency.AllSeen && m.Home;
+            var byId = defenders.ToDictionary(f => f.Id);
+            var seen = emergency.AllSeen && m.Home;
             foreach (var p in m.QuestWorkers)
             {
                 capacity.Add(new QuestWorkCapacity { Pawn = p.PawnId, HealthyAdult = p.HealthyAdult, Rates = p.Rates.ToDictionary(r => r.Stat, r => r.Rate, StringComparer.Ordinal) });
                 var points = 0.0;
                 if (p.CanFight)
                 {
-                    if (byId is null || !byId.TryGetValue(new PawnId(p.PawnId.Value), out var pawn))
+                    if (!byId.TryGetValue(new PawnId(p.PawnId.Value), out var pawn))
                     {
-                        seen = false;
-                        continue;
+                        throw new ObservationContractException($"quest worker missing from defender census: {p.PawnId.Value}");
                     }
                     points = (pawn.MeleePower + pawn.RangedDps) * DefenseCapacityPolicy.DefensePointsPerDps;
                 }

@@ -133,7 +133,7 @@ public sealed partial class LayoutRounds
         // Use the review's shared budget, including committed production before a pawn reserves its ingredients.
         var material = materials[0];
         var funded = false;
-        if (_reviewer.Demand.Get(state.Snapshot).MaterialAvailability.TryGetValue(out var available))
+        if (_reviewer.Demand.Get(state.Snapshot).MaterialAvailability is MaterialAvailability.Assessed(var available))
         {
             foreach (var option in materials)
             {

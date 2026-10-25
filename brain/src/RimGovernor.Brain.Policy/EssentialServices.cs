@@ -111,15 +111,13 @@ public static class EssentialServicesRules
             var result = assess();
             stress.Add(new(target, unavailable, result.Coverage, result.Missing));
         }
-        var food = FoodFacts.From(facts, policy);
-        NeedOwner(EssentialService.Food, FoodRules.FoodSupplyNeed, () => FoodRules.FoodSupplyNeedOf(food));
-        NeedOwner(EssentialService.Cooking, FoodRules.CookingNeed, () => FoodRules.CookingNeedOf(food));
+        NeedOwner(EssentialService.Food, FoodRules.FoodSupplyNeed, () => FoodRules.FoodSupplyNeedOf(FoodFacts.From(facts, policy)));
+        NeedOwner(EssentialService.Cooking, FoodRules.CookingNeed, () => FoodRules.CookingNeedOf(FoodFacts.From(facts, policy)));
         // The medical family's Needs (#3258): the critical census as one row (the review counts the patients, it
         // does not name them), then surgery and reserves; medicineActive is the review's medicine latch.
-        var medical = MedicalFacts.From(facts, policy, medicineActive);
         NeedOwner(EssentialService.Medical, MedicalRules.CriticalCensusNeed, () => MedicalRules.CriticalCensusNeedOf(facts.CriticalPatients));
-        NeedOwner(EssentialService.Medical, MedicalRules.SurgeryNeed, () => MedicalRules.SurgeryNeedOf(medical));
-        NeedOwner(EssentialService.Medical, MedicalRules.MedicalReservesNeed, () => MedicalRules.MedicalReservesNeedOf(medical));
+        NeedOwner(EssentialService.Medical, MedicalRules.SurgeryNeed, () => MedicalRules.SurgeryNeedOf(MedicalFacts.From(facts, policy, medicineActive)));
+        NeedOwner(EssentialService.Medical, MedicalRules.MedicalReservesNeed, () => MedicalRules.MedicalReservesNeedOf(MedicalFacts.From(facts, policy, medicineActive)));
         var shelter = ShelterFacts.From(facts, policy);
         NeedOwner(EssentialService.Shelter, ShelterFamily.Sleeping, () => ShelterRules.SleepingNeedOf(shelter));
         NeedOwner(EssentialService.Shelter, ShelterFamily.SafeArea, () => ShelterRules.SafeAreaNeedOf(shelter));
@@ -127,7 +125,7 @@ public static class EssentialServicesRules
         NeedOwner(EssentialService.Food, FoodStoresRules.FoodStorageNeed, () => FoodStoresRules.FoodStorageNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
         NeedOwner(EssentialService.Food, FoodStoresRules.RefrigerationNeed, () => FoodStoresRules.RefrigerationNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
         NeedOwner(EssentialService.Power, PowerFamily.Basic, () => PowerRules.PowerNeedOf(PowerFacts.From(facts)));
-        NeedOwner(EssentialService.Logistics, LayoutFamily.Routes, () => LayoutFamily.RoutesNeed(LayoutFamily.RoutesStandingOf(facts.Upkeep.Routes ?? throw new RequiredFactException("routes census"), facts.Upkeep.Rooms, policy)));
+        NeedOwner(EssentialService.Logistics, LayoutFamily.Routes, () => LayoutFamily.RoutesNeed(LayoutFamily.RoutesStandingOf(facts.Upkeep.Routes, facts.Upkeep.Rooms, policy)));
         NeedOwner(EssentialService.Materials, EconomyFamily.Resource, () => EconomyRules.ResourceNeedOf(ResourceFacts.From(facts, demand)));
 
         // The owner already merged overlapping costs. Never add a fuel or service copy to demand.
@@ -237,7 +235,7 @@ public static class EssentialServicesRules
                         ? (ServiceCoverage.Adequate, [])
                         : (ServiceCoverage.EvidenceGap, ["replacement_throughput_not_established_by_recipe_eligibility"]);
                     if (material.GenerationTruncated || material.Comparison.SearchTruncated || material.Comparison.Findings.Count > 0
-                        || !demand.MaterialAvailability.IsKnown) unknown = true;
+                        || demand.MaterialAvailability is MaterialAvailability.Blocked) unknown = true;
                 }
             }
             return unknown ? (ServiceCoverage.EvidenceGap, ["recipe_skill_material_or_worker_evidence"]) : (ServiceCoverage.Shortfall, []);
@@ -298,7 +296,7 @@ public static class EssentialServicesRules
     private static void AssessServiceRoutes(RoundsFacts facts, List<ServiceAssessment> rows,
         Action<ServiceTarget, string, Func<(ServiceCoverage, EquatableArray<string>)>> scenario)
     {
-        if (facts.Upkeep.Routes is not { } routes) return;
+        var routes = facts.Upkeep.Routes;
         foreach (var facility in routes.Facilities.OrderBy(f => f.Id, StringComparer.Ordinal))
         {
             var target = ServiceTarget.ForNeed(LayoutFamily.Routes, facility.Id, "observed_facility_reachable");

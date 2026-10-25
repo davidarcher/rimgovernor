@@ -25,7 +25,7 @@ public sealed record TileInput
     public Fact<EquatableArray<double>> OutdoorCurve { get; init; }
     public double FullRotRateC { get; init; }
     public double SteelValue { get; init; }
-    public Fact<bool> VentAvailable { get; init; }
+    public bool VentAvailable { get; init; }
     public LightPrice Light { get; init; } = default!;
     public IReadOnlyList<PlannedSite> Sites { get; init; } = [];
     public StationGraph Graph { get; init; } = default!;

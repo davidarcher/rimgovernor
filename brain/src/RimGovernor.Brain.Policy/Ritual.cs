@@ -48,14 +48,7 @@ public sealed record RitualPlan
 public static partial class RitualRules
 {
     /// <summary>Whether the colony is calm enough to hold a ritual: known no hostile threat and no critical patient. Unknown stays unknown.</summary>
-    public static Fact<bool> RitualCalm(Fact<long> hostiles, long patients)
-    {
-        if (!hostiles.TryGetValue(out var h))
-        {
-            return Unknown<bool>();
-        }
-        return Known(h == 0 && patients == 0);
-    }
+    public static bool RitualCalm(HostileCensus hostiles, long patients) => hostiles.ThreatCount == 0 && patients == 0;
 
     /// <summary>
     /// Whether the held ritual is due at tick. A running ritual is not. An active obligation (the game's own,
@@ -87,17 +80,15 @@ public static partial class RitualRules
     /// Attendees are available believers of the ideoligion: a slot bound to a role precept takes that role's
     /// holders (up to the slot's maximum), a required slot with no role precept takes the most certain
     /// unassigned believer, optional unbound slots stay empty and every other believer attends as a
-    /// spectator. Whether the game accepts a pawn in a slot is its own check when the begin applies. Raises
-    /// <see cref="RequiredFactException"/> without the sites or the calm reading. A held ritual whose pattern the
+    /// spectator. Whether the game accepts a pawn in a slot is its own check when the begin applies. Plans
+    /// a held ritual only against observed sites and calm. A held ritual whose pattern the
     /// catalog lacks, or that names no required building, is not planned: nothing says where to hold it.
     /// </summary>
     public static EquatableArray<RitualPlan> PlanRituals(
-        Ideoligion ideo, EquatableArray<WorkPawn> rows, Fact<EquatableArray<RitualSite>> sites, Tick tick, Fact<bool> calm)
+        Ideoligion ideo, EquatableArray<WorkPawn> rows, EquatableArray<RitualSite> sites, Tick tick, bool calm)
     {
-        var known = sites.TryGetValue(out var read) ? read : throw new RequiredFactException("ritual sites");
-        var quiet = calm.TryGetValue(out var safe) ? safe : throw new RequiredFactException("colony calm");
         var output = new List<RitualPlan>();
-        if (!quiet)
+        if (!calm)
         {
             return EquatableArray.From(output);
         }
@@ -119,7 +110,7 @@ public static partial class RitualRules
             {
                 continue;
             }
-            var at = known.Where(site => def.RequiredBuildings.Contains(site.Def)).OrderBy(site => site.Id, StringComparer.Ordinal).ToList();
+            var at = sites.Where(site => def.RequiredBuildings.Contains(site.Def)).OrderBy(site => site.Id, StringComparer.Ordinal).ToList();
             if (at.Count == 0)
             {
                 continue;

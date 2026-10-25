@@ -67,7 +67,7 @@ public sealed class AnimalsReader
             Animals = f.AnimalUpkeep.Animals,
             Wild = f.AnimalUpkeep.WildAnimals,
             Herd = f.HerdPolicy(),
-            FeedShort = HusbandryUpkeepRules.HerdFeedShort(f.AnimalFeedRunway().Projection),
+            FeedShort = f.AnimalFeedRunway().Projection.IsShort(),
             FoodPlan = f.FoodPlan,
             Handlers = handlers,
             Uncontained = uncontained,

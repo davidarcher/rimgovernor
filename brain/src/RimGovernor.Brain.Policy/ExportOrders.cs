@@ -10,7 +10,7 @@ public sealed record ExportRequest
     public ItemFacts Items { get; init; } = new();
 
     /// <summary>The silver gap (<c>SilverGap</c>).</summary>
-    public Fact<double> Gap { get; init; }
+    public double Gap { get; init; }
 
     /// <summary>Gives the floors and needs that put a product out of reach (<c>DerivedDemand.Needs</c>).</summary>
     public DerivedDemand Demand { get; init; } = new();
@@ -33,7 +33,7 @@ public sealed record ExportRequest
     public bool SurplusKnown { get; init; }
 
     /// <summary>The packed sculptures held: the goods already in flight.</summary>
-    public Fact<long> Packed { get; init; }
+    public long Packed { get; init; }
 
     /// <summary>
     /// The priced ways to acquire an ingredient by hand (mine, chop, harvest, hunt), per ingredient; none leaves
@@ -43,10 +43,10 @@ public sealed record ExportRequest
         new Dictionary<Resource, IReadOnlyList<SupplyCandidate>>();
 
     /// <summary>Says per product whether a reachable trader buys it.</summary>
-    public IReadOnlyDictionary<Resource, Fact<bool>> Buys { get; init; } = new Dictionary<Resource, Fact<bool>>();
+    public IReadOnlyDictionary<Resource, TradeCompatibility> Buys { get; init; } = new Dictionary<Resource, TradeCompatibility>();
 
     /// <summary>The low end of the silver the best reachable trader carries.</summary>
-    public Fact<long> CashCap { get; init; }
+    public long CashCap { get; init; }
 
     /// <summary>
     /// The work of one piece of a product made from a stuff, for the recipes that name none (the product's
@@ -60,11 +60,6 @@ public sealed record ExportPlan
 {
     public Declared Declared { get; init; } = new();
 
-    /// <summary>
-    /// The products the economy/trade Need can rank (every craftable sale good its benches make, floors and the non-sale
-    /// kinds left out), the goods a held stack joins the sale surplus of while the gap is open.
-    /// </summary>
-    public IReadOnlyList<Resource> Products { get; init; } = [];
 }
 
 /// <summary>
@@ -257,16 +252,16 @@ public static class ExportOrdersRules
     /// retaining none of it, while the colony is short of silver (the OrganSaleSurplus rule). Gear and art sell
     /// by their own paths, so products holds only the generic goods.
     /// </summary>
-    public static Fact<TradeNeed> ExportSaleSurplus(
+    public static TradeNeed ExportSaleSurplus(
         ItemFacts items,
-        Fact<TradeNeed> need,
+        TradeNeed need,
         EquatableArray<Amount> resources,
         long colonists,
         IReadOnlyList<Resource> products
     )
     {
-        var nk = need.TryGetValue(out var n);
-        if (!nk || products.Count == 0 || !RoundsRules.Positive(SilverGapRules.SilverShort(items, need, SilverGapRules.SilverStock(items, resources), colonists)))
+        var n = need;
+        if (products.Count == 0 || !SilverGapRules.SilverShort(items, need, SilverGapRules.SilverStock(items, resources), colonists))
         {
             return need;
         }
@@ -285,7 +280,7 @@ public static class ExportOrdersRules
                 n = n.Retain(product, 0);
             }
         }
-        return Known(n!);
+        return n;
     }
 
     /// <summary>
@@ -577,6 +572,9 @@ public static class ExportOrdersRules
         return (orders, bills);
     }
 
+    /// <summary>The rankable products, independent of the observed cash and stock used to size orders.</summary>
+    public static IReadOnlyList<Resource> ExportProducts(ExportRequest r) =>
+        [.. ExportRecipes(r).Select(e => e.Product).Distinct().OrderBy(p => p.Value, StringComparer.Ordinal)];
     /// <summary>
     /// The economy/trade Need's wanted orders. While the silver gap is open every standing
     /// export batch is declared as it stands and, for what the goods held and in progress leave of the gap, one
@@ -588,37 +586,16 @@ public static class ExportOrdersRules
     {
         var declared = new Declared();
         var recipes = ExportRecipes(r);
-        var productSet = new HashSet<Resource>();
-        var products = new List<Resource>();
-        foreach (var e in recipes)
-        {
-            if (productSet.Add(e.Product))
-            {
-                products.Add(e.Product);
-            }
-        }
-        products.Sort((a, b) => string.CompareOrdinal(a.Value, b.Value));
-        ExportPlan Plan() => new() { Declared = declared, Products = products };
-        if (!r.Gap.TryGetValue(out var gap))
-        {
-            declared.Unread(Cause.UnreadSilverGap);
-            return Plan();
-        }
+        var products = ExportProducts(r);
+        var productSet = new HashSet<Resource>(products);
+        ExportPlan Plan() => new() { Declared = declared };
+        var gap = r.Gap;
         if (!(gap > 0))
         {
             return Plan();
         }
         var profiles = r.Profiles;
-        var ck = r.CashCap.TryGetValue(out var cash);
-
-        if (!ck)
-        {
-            declared.Unread(Cause.UnreadTraderCash);
-        }
-        if (!ck)
-        {
-            return Plan();
-        }
+        var cash = r.CashCap;
         var (standing, bills) = StandingExports(r.Benches, productSet);
         declared.Orders.AddRange(standing);
         var busy = new HashSet<string>(StringComparer.Ordinal);
@@ -652,14 +629,14 @@ public static class ExportOrdersRules
         foreach (var e in recipes)
         {
             var buysFact = r.Buys.GetValueOrDefault(e.Product);
-            if (!buysFact.TryGetValue(out var buys))
+            if (buysFact == TradeCompatibility.UnsupportedGenerator)
             {
                 declared.Unread(Cause.UnreadBuyers);
                 continue;
             }
             var variants = ExportVariants(r.Items, e);
             var workers = ExportWorkers(profiles!, e.Required);
-            if (!buys)
+            if (buysFact != TradeCompatibility.Trades)
             {
                 continue;
             }
@@ -774,7 +751,7 @@ public static class ExportOrdersRules
         var result = new List<ExportCandidate>();
         foreach (var e in recipes)
         {
-            if (!r.Buys.GetValueOrDefault(e.Product).TryGetValue(out var buys) || !buys)
+            if (r.Buys.GetValueOrDefault(e.Product) != TradeCompatibility.Trades)
             {
                 continue;
             }
@@ -856,7 +833,8 @@ public static class ExportOrdersRules
         {
             total += n * price[product];
         }
-        if (r.Packed.TryGetValue(out var packed) && packed > 0)
+        var packed = r.Packed;
+        if (packed > 0)
         {
             total += packed * cheapestSculpture;
         }

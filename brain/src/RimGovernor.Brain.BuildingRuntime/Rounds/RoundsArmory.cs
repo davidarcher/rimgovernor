@@ -33,9 +33,7 @@ public sealed partial class Rounder
     internal void NoteEquipment(GenerationSnapshot world, RoundsFacts facts)
     {
         var owed = Needs.Contains(MilitaryFamily.Equipment)
-            && (facts.Gear.IsKnown
-                ? !MilitaryFamily.EquipmentMet(new MilitaryFacts { Gear = facts.Gear, ShellsShort = facts.ShellsShort })
-                : RoundsBuildingPlanner.PositiveFact(facts.ShellsShort));
+            && !MilitaryFamily.EquipmentMet(new MilitaryFacts { Gear = facts.Gear, ShellsShort = facts.ShellsShort });
         lock (_equipmentMu)
         {
             _equipment = (world, owed);

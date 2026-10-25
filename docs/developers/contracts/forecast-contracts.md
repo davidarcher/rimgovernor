@@ -59,7 +59,12 @@ supplied estimate; forecast claims do not acquire native reservations.
 [Live fixed batches](../architecture/colony-forecast.md#live-fixed-batch-material-promises)
 project committed Method actions and current native remaining counts into the
 shared demand pipeline. Exact single-choice ingredients reconcile with native
-holds by bill ID; alternatives stay unknown. [Fixed-batch admission](../architecture/colony-forecast.md#fixed-batch-material-admission)
+holds by bill ID. Ambiguous ingredients and unbounded remaining counts carry open
+material obligations: only the affected resource balance is unassessed. A missing
+native bill census fails the required frame read. A journal census exceeding its
+claim bound or containing actions ahead of the observed tick names that condition
+and blocks the whole promise set; unpriced recipes, edited bills and filters with
+no ingredient alternative also block it. [Fixed-batch admission](../architecture/colony-forecast.md#fixed-batch-material-admission)
 rechecks journal claims atomically with Method commit against the last full
 review's material evidence. This is not a native resource lock; indefinite
 production and sale admission remain outside that check.

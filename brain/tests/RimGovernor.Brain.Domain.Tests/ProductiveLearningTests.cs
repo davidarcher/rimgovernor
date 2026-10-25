@@ -180,7 +180,7 @@ public sealed class ProductiveLearningTests
                 { Needs = EquatableArray.From(p.Needs.Select(n => n.Kind == "food" ? n with { Level = .75, FallPerTick = .002, Threshold = .25 } : n)) } : p)) },
             Coupled = read with { FoodUses = EquatableArray.From(read.FoodUses.Select(u => u with { Nutrition = .5, FreshTicks = new FoodFreshness.Rots(2000d) })) }
         } };
-        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         return facts;
     }
 }

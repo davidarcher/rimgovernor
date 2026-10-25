@@ -111,7 +111,7 @@ public sealed class BedMergePriceTests
         Facts = facts,
         OutdoorCurve = curve is null ? default : Known(EquatableArray.From(curve)),
         WorkDay = Day(8000.0), // a colonist's work-day at the game's rice (the key test's facts give the same)
-        Builders = Known(1),
+        Builders = 1,
     };
 
     /// <summary>The walls alone decide: a temperate room's heat priced at a work-day so dear that it costs nothing.</summary>
@@ -163,7 +163,6 @@ public sealed class BedMergePriceTests
         {
             Assert.Equal("work_day", Fails(Price(Wood(Calm), Temperate) with { WorkDay = day }).Fact);
         }
-        Assert.Equal("builders", Fails(Price(Wood(Calm), IceSheet) with { Builders = default }).Fact);
         // Facts the colony could not read fail naming the one unread.
         foreach (var fact in new[] { "sleeper_mood", "impressiveness_levels", "wall_price", "door_price" })
         {
@@ -247,7 +246,7 @@ public sealed class BedMergePriceTests
     public void ThreeBuildersAndAHighLossKeepEverySleeperInABedroom()
     {
         // The same map with three builders, each sleeper losing 0.05 a day in a barracks: the bedrooms pay.
-        var c = LayoutClusterRules.ClusterStations(Input(3, Price(MarketWood(Flat(0.05, 0.05, 0.05)), Temperate) with { Builders = Known(3) }));
+        var c = LayoutClusterRules.ClusterStations(Input(3, Price(MarketWood(Flat(0.05, 0.05, 0.05)), Temperate) with { Builders = 3 }));
 
         Assert.Equal([1, 1, 1], Rooms(c));
         Assert.All(c.Groups, g => Assert.Equal(RoomRole.Bedroom, g.Role));
@@ -323,8 +322,8 @@ public sealed class BedMergePriceTests
     // The crop that prices a colonist's work-day: the game's rice, six units of 0.05 nutrition a cell.
     internal static readonly CropChoice Rice = new()
     {
-        Name = "Rice", Available = Known(true), Edible = Known(true), GrowDays = Known(6.0), FertilityMin = Known(0.5),
-        FertilitySensitivity = Known(1.0), HarvestNutrition = Known(0.3), Demand = Known(1.6), DietAllowed = Known(true),
+        Name = "Rice", Available = true, Edible = true, GrowDays = 6.0, FertilityMin = 0.5,
+        FertilitySensitivity = 1.0, HarvestNutrition = 0.3, Demand = 1.6, DietAllowed = true,
     };
 
     [Fact]
@@ -409,7 +408,7 @@ public sealed class BedMergePriceTests
         var granite = new Resource("BlocksGranite");
         Obs.PlanningDefinition Def(string name, double work, long count) => new()
         {
-            Name = name, Available = Known(true),
+            Name = name, Available = true,
             StuffOptions = [Option(granite, count * 0.9, work * 2, count), Option(wood, count * 1.2, work * 0.7, count)],
         };
         var colony = ColonyFactsCoreTests.Projection() with
@@ -435,7 +434,7 @@ public sealed class BedMergePriceTests
         var granite = new Resource("BlocksGranite");
         Obs.PlanningDefinition Def(string name, double work, long count) => new()
         {
-            Name = name, Available = Known(true),
+            Name = name, Available = true,
             StuffOptions = [Option(granite, count * 0.9, work * 2, count), Option(wood, count * 1.2, work * 0.7, count)],
         };
         Obs.ColonyProjection Colony(RingStuffSources map, params Resource[] stocked) => ColonyFactsCoreTests.Projection() with
@@ -470,7 +469,7 @@ public sealed class BedMergePriceTests
         var granite = new Resource("BlocksGranite");
         Obs.PlanningDefinition Def(string name, double work, long count) => new()
         {
-            Name = name, Available = Known(true),
+            Name = name, Available = true,
             StuffOptions = [Option(granite, count * 0.9, work * 2, count), Option(wood, count * 1.2, work * 0.7, count)],
         };
         var colony = ColonyFactsCoreTests.Projection() with

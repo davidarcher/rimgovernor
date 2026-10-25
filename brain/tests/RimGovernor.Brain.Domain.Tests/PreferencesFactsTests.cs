@@ -78,7 +78,7 @@ public sealed class PreferencesFactsTests
         Butcher = true,
         HumanCorpseNutrition = 60.0,
         Recipes = [new ProductionRecipe { Name = "ButcherCorpseFlesh", Role = RecipeRole.ButcherFlesh, Available = true, Food = new RecipeFood.NotFood() }],
-        HumanButchers = [new HumanButcherCandidate { ID = new PawnId("worker1"), Traits = Known(EquatableArray.From<PawnTrait>([])), Held = Known(new HeldPrecepts()), CanWork = Known(true) }],
+        HumanButchers = [new HumanButcherCandidate { ID = new PawnId("worker1"), Traits = EquatableArray.From<PawnTrait>([]), Held = new HeldPrecepts(), CanWork = true }],
     };
 
     [Fact]
@@ -156,10 +156,10 @@ public sealed class PreferencesFactsTests
                 StuffCategories = new Dictionary<Resource, IReadOnlyList<string>> { [cloth] = ["Fabric"], [PreferenceRules.HumanLeather] = ["Leathery"] },
                 StuffBeauty = new Dictionary<Resource, double> { [cloth] = 1.0, [PreferenceRules.HumanLeather] = 1.0 },
             },
-            Gear = Known(ColonyModelFixtures.NoGear() with
+            Gear = ColonyModelFixtures.NoGear() with
             {
                 Pawns = [new GearPawn { Pawn = new PawnId("p"), LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Options = EquatableArray.From([option, plain]) }) }],
-            }),
+            },
         };
 
         var untouched = facts.WithPreferences(None);
@@ -168,7 +168,7 @@ public sealed class PreferencesFactsTests
         var stamped = facts.WithPreferences(Prefer(forbidden: [ForbiddenMethod.HumanLeather]));
         Assert.Equal([cloth], stamped.Items.StuffCategories.Keys);
         Assert.Equal([cloth], stamped.Items.StuffBeauty.Keys);
-        Assert.True(stamped.Gear.TryGetValue(out var gear));
+        var gear = stamped.Gear;
         var input = Assert.IsType<GearModel.Modeled>(gear.Pawns[0].LoadoutModel).Input;
         Assert.Equal(["o2"], input.Options.Select(o => o.ID));
     }

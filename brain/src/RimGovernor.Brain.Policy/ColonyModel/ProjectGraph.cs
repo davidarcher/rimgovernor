@@ -161,10 +161,9 @@ public sealed record ProjectGraph
         var yielded = new HashSet<Resource>();
         foreach (var node in sources.Nodes)
         {
-            if (node.Kind == ProjectKind.Harvest && input.Crops.FirstOrDefault(c => c.Name == node.Crop) is { } crop
-                && crop.Harvests.TryGetValue(out var harvested))
+            if (node.Kind == ProjectKind.Harvest && input.Crops.FirstOrDefault(c => c.Name == node.Crop) is { } crop)
             {
-                yielded.Add(harvested);
+                yielded.Add(crop.Harvests);
             }
             else if (node.Kind == ProjectKind.Hunt)
             {
@@ -322,10 +321,11 @@ public sealed record ProjectGraph
             return research.Then(Gap($"field_unknown:{field}"));
         }
 
-        if (!choice.FertilityMin.TryGetValue(out var minimum) || !choice.SowWork.TryGetValue(out var sowWork) || !choice.HarvestWork.TryGetValue(out var harvestWork))
-        {
-            return research.Then(Gap($"crop_work_unknown:{crop}"));
-        }
+        var minimum = choice.FertilityMin;
+
+        var sowWork = choice.SowWork;
+
+        var harvestWork = choice.HarvestWork;
 
         var cells = zone.Fertility.Count(f => f >= minimum);
         if (cells == 0)

@@ -52,16 +52,16 @@ public sealed class RoutesTests
         Assert.Equal(1, deficit.Pending);
         Assert.Equal([new Cell(2, 4), new Cell(6, 4)], deficit.Breaches.Select(b => b.Cell));
 
-        var proposal = RoutesRules.SelectRoutesMethod(review, new RoutesFacts { DoorAvailable = Known(true) }, p);
+        var proposal = RoutesRules.SelectRoutesMethod(review, new RoutesFacts { DoorAvailable = true}, p);
         Assert.Equal((RoutesMethod.Build, new Cell(2, 4)), (proposal.Method, proposal.Breaches[0]));
     }
 
     [Fact]
-    public void AnUnreadDoorAvailabilityIsARequiredFact()
+    public void AnUnavailableDoorCannotOpenTheRoute()
     {
         var p = RoutesRules.DefaultRoutesPolicy();
         var review = RoutesRules.ReviewRoutes(Census(new RouteTravel.Unreachable { Pawn = "a" }), p);
-        Assert.Equal("Door availability", Assert.Throws<RequiredFactException>(() => RoutesRules.SelectRoutesMethod(review, new RoutesFacts(), p)).Fact);
+        Assert.Equal(RoutesMethod.DoorUnavailable, RoutesRules.SelectRoutesMethod(review, new RoutesFacts { DoorAvailable = false }, p).Method);
     }
 
     [Fact]

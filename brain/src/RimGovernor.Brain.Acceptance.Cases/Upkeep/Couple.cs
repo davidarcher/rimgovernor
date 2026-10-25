@@ -40,7 +40,7 @@ internal static class UpkeepCouple
         var couple = new HashSet<string>(StringComparer.Ordinal) { prepared.Pawn, prepared.Partner! };
         _ = await s.ServeUntilAsync("couple", s.TicksLeft, async ct =>
         {
-            var facts = await s.CallAsync("beds", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, ct).ConfigureAwait(false);
+            var facts = await s.CallAsync("beds", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, ct).ConfigureAwait(false);
             var upkeep = facts.Upkeep;
             var row = upkeep.Beds.FirstOrDefault(b => b.Id == prepared.DoubleBed)
                 ?? throw new AcceptanceException($"double bed {prepared.DoubleBed} missing from the bed facts");

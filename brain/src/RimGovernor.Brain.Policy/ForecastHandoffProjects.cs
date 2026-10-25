@@ -124,8 +124,7 @@ internal static class ForecastHandoffProjects
             var cells = residual ? sow.Cells - sown.Count : 1;
             if (cells <= 0) continue;
             var id = grow.Id + "/cohort/" + i;
-            var growth = residual ? (Remaining: 0d, Mature: (double?)null, Known: true) : Growth(input, grow, sown[i], day);
-            if (!growth.Known) gaps.Add("terminal_growth_unknown:" + id);
+            var growth = residual ? (Remaining: 0d, Mature: (double?)null) : Growth(input, grow, sown[i], day);
             var g = grow with { Id = id, Cells = cells, Prerequisites = residual ? [sowId] : [] };
             nodes[id] = g; growIds.Add(id);
             states[id] = new(id, growth.Remaining, growth.Mature is null ? ModelProjectStatus.Waiting : ModelProjectStatus.Done, ModelProjectInputs.Unpaid, !residual);
@@ -146,21 +145,22 @@ internal static class ForecastHandoffProjects
         if (harvest is not null) Aggregate(harvest, harvestIds);
     }
 
-    private static (double Remaining, double? Mature, bool Known) Growth(ColonyModelInput input, ProjectNode node, double from, double until)
+    private static (double Remaining, double? Mature) Growth(ColonyModelInput input, ProjectNode node, double from, double until)
     {
         var climate = input.Climate;
         var crop = input.Crops.FirstOrDefault(c => c.Name == node.Crop); var field = input.Land.FirstOrDefault(f => f.Id == node.Field);
-        if (crop is null || field is null || field.Fertility.Count == 0 || !crop.HarvestMinGrowth.TryGetValue(out var remaining)) return (0, null, false);
+        if (crop is null || field is null || field.Fertility.Count == 0) throw new RequiredFactException("forecast crop growth:" + node.Id);
+        var remaining = crop.HarvestMinGrowth;
         var twelfth = climate.CurrentTwelfth; var boundary = Math.Max(1, climate.TicksToNextTwelfth) / (double)GameTime.TicksPerDay;
         while (boundary <= from) { twelfth = (twelfth + 1) % 12; boundary += ColonyModel.TwelfthDays; }
         while (from < until)
         {
-            if (!CropGrowthModel.DailyGrowth(crop, field.Fertility.Average(), climate.Temperatures[twelfth]).TryGetValue(out var rate)) return (remaining, null, false);
+            var rate = CropGrowthModel.DailyGrowth(crop, field.Fertility.Average(), climate.Temperatures[twelfth]);
             var end = Math.Min(until, boundary);
-            if (rate > 0 && remaining <= (end - from) * rate) return (0, from + remaining / rate, true);
+            if (rate > 0 && remaining <= (end - from) * rate) return (0, from + remaining / rate);
             remaining -= (end - from) * rate; from = end;
             if (from >= boundary) { twelfth = (twelfth + 1) % 12; boundary += ColonyModel.TwelfthDays; }
         }
-        return (Math.Max(0, remaining), null, true);
+        return (Math.Max(0, remaining), null);
     }
 }

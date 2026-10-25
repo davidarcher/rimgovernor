@@ -21,7 +21,7 @@ public static partial class ShelterRules
     /// </summary>
     public static (long Count, int Missing) StandInsOwed(RoundsFacts f)
     {
-        if (RoundsRules.Positive(RoundsRules.AllFacts(RoundsRules.FootholdShelter(f), RoundsRules.FootholdSleeping(f))))
+        if (RoundsRules.FootholdShelter(f) && RoundsRules.FootholdSleeping(f))
         {
             return (0, 0);
         }

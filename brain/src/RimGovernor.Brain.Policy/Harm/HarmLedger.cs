@@ -13,19 +13,6 @@ public sealed record HarmCatalog
 }
 
 /// <summary>
-/// The raid the harm term prices: assessed at the observed raid points and defense capacity, or unassessed with the finding
-/// naming the fact that was unread.
-/// </summary>
-public abstract record HarmRaid
-{
-    private HarmRaid() { }
-
-    public sealed record Assessed(RaidDefense Defense) : HarmRaid;
-
-    public sealed record Unassessed(string Finding) : HarmRaid;
-}
-
-/// <summary>
 /// What the ledger's harm term reads of the colony's expected raids (#3546 of #3471), assembled once per review: the threat
 /// schedule, the raid composition, the exposure table, the observed points and defense capacity, and where a hit lands. The
 /// hediff tables are the context's <see cref="ForecastCoupledContext.CapacityPenalties"/>. Every default is unknown, never a number.
@@ -39,7 +26,7 @@ public sealed record HarmInputs
     public RaidComposition Composition { get; init; } = new RaidComposition.Uncomposed { Findings = ["raid_points_unobserved"] };
 
     /// <summary>The observed raid points and defense capacity the exposure ratio reads.</summary>
-    public HarmRaid Raid { get; init; } = new HarmRaid.Unassessed("raid_points_unobserved");
+    public RaidDefense Raid { get; init; } = new(0, 0);
 
     /// <summary>The calibrated exposure table; the embedded file unless a test injects one.</summary>
     public ExposureTable Exposure { get; init; } = RaidExposure.Load();
@@ -63,8 +50,7 @@ public sealed record HarmInputs
     internal static HarmInputs Of(RoundsFacts facts)
     {
         var points = facts.RaidPoints;
-        HarmRaid raid = facts.DefenseCapacity.TryGetValue(out var capacity) ? new HarmRaid.Assessed(new RaidDefense(points, capacity))
-            : new HarmRaid.Unassessed("defense_capacity_unobserved");
+        var raid = new RaidDefense(points, facts.DefenseCapacity);
         RaidComposition composition = RaidCompositionRules.Of(points, [.. facts.HostileFactions], facts.HarmCatalog.Raid);
         var schedule = ThreatSchedule.Of(facts.ThreatTable, facts.Storyteller, facts.DaysPassed, points);
         return new()
@@ -181,7 +167,7 @@ internal static class HarmLedger
         }
         else
         {
-            findings.Add(inputs.Raid is HarmRaid.Unassessed unassessed ? unassessed.Finding : "defense_capacity_unobserved");
+            findings.Add("defense_capacity_nonpositive");
         }
 
         complete &= !double.IsNaN(ratio);
@@ -407,7 +393,7 @@ internal static class HarmLedger
         }
 
         if (BinsOf(inputs) is not { } bins) return new ForecastTerm.Unassessed(CompositionUnknown);
-        if (PointsRatio(inputs) is not { } ratio) return new ForecastTerm.Unassessed(inputs.Raid is HarmRaid.Unassessed unread ? unread.Finding : "defense_capacity_unobserved");
+        if (PointsRatio(inputs) is not { } ratio) return new ForecastTerm.Unassessed("defense_capacity_nonpositive");
         if (pawns.Count == 0) return new ForecastTerm.Unassessed("harm_unassessed:no_pawns");
 
         var treatments = 0.0;
@@ -430,12 +416,12 @@ internal static class HarmLedger
 
     /// <summary>The raid's points ÷ the colony's defense capacity plus <paramref name="shift"/> points (the sparring ring's trained
     /// Melee, #3813), the exposure table's ratio; null when either is unread or the capacity is not positive.</summary>
-    internal static double? PointsRatio(HarmInputs inputs, double shift = 0) => inputs.Raid is HarmRaid.Assessed { Defense: var raid } ? RatioOf(inputs, raid.RaidPoints, shift) : null;
+    internal static double? PointsRatio(HarmInputs inputs, double shift = 0) => RatioOf(inputs, inputs.Raid.RaidPoints, shift);
 
     /// <summary><paramref name="points"/> ÷ the colony's defense capacity plus <paramref name="shift"/> (a raid's, or an escaped
     /// entity's combatPower, #3811); null when the capacity is unread or not positive.</summary>
     private static double? RatioOf(HarmInputs inputs, double points, double shift = 0) =>
-        inputs.Raid is HarmRaid.Assessed { Defense.Capacity: var defense and > 0 } ? points / (defense + shift) : null;
+        inputs.Raid.Capacity + shift is var defense and > 0 ? points / defense : null;
 
     /// <summary>The raid composition's weapon bins; null when the composition is unread or has none.</summary>
     internal static WeaponBin[]? BinsOf(HarmInputs inputs) =>

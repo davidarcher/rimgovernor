@@ -53,7 +53,7 @@ public sealed class ForecastPortfolioChoiceTests
                 },
             },
         };
-        return WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        return WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
     }
     internal static CoupledFoodConversion Conversion(string source, string resource, string recipe, double work) =>
         CoupledFixtures.Conversion(source, "pawn", "bench", recipe, resource, 4, "Meal", 1, Source, Bench, Destination,

@@ -68,65 +68,31 @@ public abstract record CropStand
 public sealed record CropGrowth
 {
     public required CropStand Stand { get; init; }
-
-    /// <summary>The outdoor temperature at the zone, finite.</summary>
     public required double Temperature { get; init; }
+    public double MinGrowth { get; init; }
+    public double MinOptimal { get; init; }
+    public double MaxOptimal { get; init; }
+    public double MaxGrowth { get; init; }
 
-    public Fact<double> MinGrowth { get; init; }
-
-    public Fact<double> MinOptimal { get; init; }
-
-    public Fact<double> MaxOptimal { get; init; }
-
-    public Fact<double> MaxGrowth { get; init; }
-
-    /// <summary>
-    /// The crop's growth-rate factor at the current outdoor temperature: 1 inside the optimal range, falling
-    /// linearly to 0 at the growth limits. Unknown while a range fact is missing or the range is not
-    /// ordered.
-    /// </summary>
-    public Fact<double> TemperatureFactor()
+    public double TemperatureFactor()
     {
-        var t = Temperature;
-        var lk = MinGrowth.TryGetValue(out var lo);
-        var l2k = MinOptimal.TryGetValue(out var lo2);
-        var h2k = MaxOptimal.TryGetValue(out var hi2);
-        var hk = MaxGrowth.TryGetValue(out var hi);
-        if (!lk || !l2k || !h2k || !hk || !(lo <= lo2 && lo2 <= hi2 && hi2 <= hi))
-        {
-            return Unknown<double>();
-        }
-
-        if (t <= lo || t >= hi)
-        {
-            return Known(0.0);
-        }
-
-        if (t < lo2)
-        {
-            return Known((t - lo) / (lo2 - lo));
-        }
-
-        if (t > hi2)
-        {
-            return Known((hi - t) / (hi - hi2));
-        }
-
-        return Known(1.0);
+        if (!double.IsFinite(Temperature) || !double.IsFinite(MinGrowth) || !double.IsFinite(MaxGrowth)
+            || !(MinGrowth <= MinOptimal && MinOptimal <= MaxOptimal && MaxOptimal <= MaxGrowth))
+            throw new RequiredFactException("crop temperature band");
+        return CropGrowthModel.TemperatureFactor(MinGrowth, MinOptimal, MaxOptimal, MaxGrowth, Temperature);
     }
 
-    /// <summary>The planted cells that grow right now: fertile and inside the crop's growth temperature range. Unknown while a fact is missing.</summary>
-    public Fact<long> GrowingCells()
-    {
-        if (!TemperatureFactor().TryGetValue(out var factor))
-        {
-            return Unknown<long>();
-        }
-
-        return factor <= 0 || Stand is not CropStand.Sown sown ? Known(0L) : Known(sown.FertilePlanted);
-    }
+    public long GrowingCells() => Stand is CropStand.Sown sown && TemperatureFactor() > 0 ? sown.FertilePlanted : 0;
 }
 
+/// <summary>A field's observed harvest timing: a live crop with a lead, an unsown zone, or a crop with no growing season ahead.</summary>
+public abstract record HarvestTiming
+{
+    private HarvestTiming() { }
+    public sealed record Expected(double Days) : HarvestTiming;
+    public sealed record Fallow : HarvestTiming;
+    public sealed record Dormant : HarvestTiming;
+}
 public static class CalendarRules
 {
     /// <summary>The native 60-day year every calendar fact is bounded by.</summary>
@@ -158,7 +124,7 @@ public static class CalendarRules
     /// waits for the pause to lift; while they do not, the pause plus the first harvest cycle stands in for a
     /// shorter seasonal wait.
     /// </summary>
-    public static Fact<double> HarvestGapDays(Calendar calendar, EquatableArray<DisasterCondition> conditions)
+    public static double HarvestGapDays(Calendar calendar, EquatableArray<DisasterCondition> conditions)
     {
         var pause = CropRiskRules.CropPauseDays(conditions);
         var c = calendar;
@@ -166,7 +132,7 @@ public static class CalendarRules
 
         if (c.GrowingDaysUntil > 0)
         {
-            return Known(Math.Min(YearDays, Math.Max(c.GrowingDaysUntil, pause) + FirstHarvestDays));
+            return Math.Min(YearDays, Math.Max(c.GrowingDaysUntil, pause) + FirstHarvestDays);
         }
 
         var gap = 0.0;
@@ -177,7 +143,7 @@ public static class CalendarRules
             gap *= Math.Max(0, Math.Min(1, 1 - ((c.GrowingDaysRemaining - 1) / lead)));
         }
 
-        return Known(Math.Min(YearDays, gap + pause));
+        return Math.Min(YearDays, gap + pause);
     }
 
     /// <summary>
@@ -189,7 +155,8 @@ public static class CalendarRules
     /// </summary>
     public static RoundsPolicy Seasonal(this RoundsPolicy p, Calendar calendar, EquatableArray<DisasterCondition> conditions)
     {
-        if (!HarvestGapDays(calendar, conditions).TryGetValue(out var gap) || gap <= 0 || p.FoodTargetDays <= 0)
+        var gap = HarvestGapDays(calendar, conditions);
+        if (gap <= 0 || p.FoodTargetDays <= 0)
         {
             return p;
         }
@@ -211,45 +178,20 @@ public static class CalendarRules
     /// The days until the field's plants finish growing, counted from the mean planted growth at the current
     /// temperature and fertility, and extended by the calendar: crops that do not grow now wait
     /// GrowingDaysUntil first, and growth that outlasts the growing days left before the frost resumes after
-    /// the non-growing stretch. It is capped at one year. Unknown (never zero) while a fact the walk needs is
-    /// missing, no plant is sown, or the crop cannot grow at the current temperature with no growing day
-    /// ahead on the calendar.
+    /// the non-growing stretch. It is capped at one year. Unsown fields are fallow; a field with no growing window ahead is dormant.
+    /// Invalid required growth inputs raise.
     /// </summary>
-    public static Fact<double> HarvestLeadDays(CropGrowth g, Fact<double> growDays, Calendar calendar)
+    public static HarvestTiming HarvestLeadDays(CropGrowth g, double growDays, Calendar calendar)
     {
-        var dk = growDays.TryGetValue(out var days);
-        var tk = g.TemperatureFactor().TryGetValue(out var factor);
-        var c = calendar;
-        if (
-            g.Stand is not CropStand.Sown sown
-            || !dk
-            || !tk
-            || !c.Valid()
-            || double.IsNaN(days)
-            || double.IsInfinity(days)
-            || days <= 0
-        )
-        {
-            return Unknown<double>();
-        }
-
-        var need = Math.Max(0, 1 - sown.GrowthMean) * days / Math.Max(MinFertilityFactor, sown.FertilityMean);
+        if (!calendar.Valid() || !double.IsFinite(growDays) || growDays <= 0) throw new RequiredFactException("crop harvest cycle");
+        if (g.Stand is CropStand.Fallow) return new HarvestTiming.Fallow();
+        var sown = (CropStand.Sown)g.Stand;
+        var factor = g.TemperatureFactor();
+        var need = Math.Max(0, 1 - sown.GrowthMean) * growDays / Math.Max(MinFertilityFactor, sown.FertilityMean);
         if (factor <= 0)
-        {
-            if (c.GrowingDaysUntil <= 0)
-            {
-                return Unknown<double>();
-            }
-
-            return Known(Math.Min(YearDays, c.GrowingDaysUntil + need));
-        }
-
+            return calendar.GrowingDaysUntil <= 0 ? new HarvestTiming.Dormant() : new HarvestTiming.Expected(Math.Min(YearDays, calendar.GrowingDaysUntil + need));
         var lead = need / factor;
-        if (lead > c.GrowingDaysRemaining)
-        {
-            lead += c.NonGrowingDays;
-        }
-
-        return Known(Math.Min(YearDays, lead));
+        if (lead > calendar.GrowingDaysRemaining) lead += calendar.NonGrowingDays;
+        return new HarvestTiming.Expected(Math.Min(YearDays, lead));
     }
 }

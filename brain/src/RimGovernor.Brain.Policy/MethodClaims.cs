@@ -82,12 +82,9 @@ public static partial class MethodClaimsRules
     /// </summary>
     public static IReadOnlyList<string> BuildingClaimTargets(WorkAdmissionEvidence evidence, Building building)
     {
-        var size = evidence.Buildings.TryGetValue(out var costs)
-            ? costs.FirstOrDefault(c => c.Definition == building.Definition && c.Size.IsKnown)?.Size ?? default
-            : default;
-        if (size.TryGetValue(out var known))
+        if (evidence.Buildings.FirstOrDefault(c => c.Definition == building.Definition) is { Size: var size })
         {
-            var rect = InteriorRules.OccupiedRect(building.Cell, known, building.Rotation);
+            var rect = InteriorRules.OccupiedRect(building.Cell, size, building.Rotation);
             if (rect.Width > 0 && rect.Height > 0) return [.. LayoutUtilityRules.RectangleCells(rect).Select(CellClaimTarget)];
         }
         return [WorkRules.BuildingClaimTarget(building)];

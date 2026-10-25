@@ -110,9 +110,9 @@ public sealed record FurnitureDefinition
 {
     public string Name { get; init; } = "";
 
-    public Fact<bool> Available { get; init; }
+    public bool Available { get; init; }
 
-    public Fact<Bounds> Size { get; init; }
+    public Bounds Size { get; init; }
 
     /// <summary>The room-role furniture roles the catalog's def rows give the definition (the PlanningDefinition view's RoomRoles).</summary>
     public IReadOnlyList<string> Roles { get; init; } = [];
@@ -341,9 +341,9 @@ public static partial class ThroneRules
                 {
                     continue;
                 }
-                var ak = d.Available.TryGetValue(out var available);
-                var sk = d.Size.TryGetValue(out var size);
-                if (ak && available && sk && size.Width > 0 && size.Height > 0)
+                var available = d.Available;
+                var size = d.Size;
+                if (available && size.Width > 0 && size.Height > 0)
                 {
                     return (new InteriorPieceDef(d.Name, new Cell(size.Width, size.Height), default, new InteractionCell.None()), true);
                 }

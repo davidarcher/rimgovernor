@@ -18,20 +18,10 @@ public static partial class MealRules
             {
                 continue;
             }
-            CandidateKind kind;
-            switch (rawClass)
+            var candidate = StockIngredientKind(rawClass);
+            if (candidate is not { } kind)
             {
-                case FoodIngredientClass.Meat:
-                    kind = CandidateKind.Hunt;
-                    break;
-                case FoodIngredientClass.Vegetable:
-                    kind = CandidateKind.Crop;
-                    break;
-                case FoodIngredientClass.AnimalProduct:
-                    kind = CandidateKind.AnimalProduct;
-                    break;
-                default:
-                    continue;
+                continue;
             }
             amounts[kind] = amounts.GetValueOrDefault(kind) + amount;
         }
@@ -53,6 +43,22 @@ public static partial class MealRules
         return rows;
     }
 
+    private static CandidateKind? StockIngredientKind(FoodIngredientClass rawClass)
+    {
+        switch (rawClass)
+        {
+            case FoodIngredientClass.Meat:
+                return CandidateKind.Hunt;
+            case FoodIngredientClass.Vegetable:
+                return CandidateKind.Crop;
+            case FoodIngredientClass.AnimalProduct:
+                return CandidateKind.AnimalProduct;
+            case FoodIngredientClass.None:
+            case FoodIngredientClass.Any:
+                return null;
+        }
+        throw new DomainException($"undefined food ingredient class {(int)rawClass}");
+    }
     private static bool MealStockAvailable(SupplyCandidate c)
     {
         if (c.Id != "stored-ingredients")

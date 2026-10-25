@@ -229,14 +229,14 @@ public static class QuestExpedition
     /// food that every selected pawn eats, survives the round trip, and leaves the colony's diet-aware
     /// reserve intact.
     /// </summary>
-    public static ExpeditionPlan PlanExpedition(QuestState offer, ExpeditionSite site, RoundsFacts f, Fact<FoodSupply> food, RoundsPolicy p) =>
+    public static ExpeditionPlan PlanExpedition(QuestState offer, ExpeditionSite site, RoundsFacts f, FoodSupply food, RoundsPolicy p) =>
         PlanExpeditionOf(offer, site, f, food, p, null);
 
     /// <summary>
     /// Validates a specialized crew through the common staffing, route, mass and food gates. Diplomacy may
     /// select noncombatant colonists.
     /// </summary>
-    public static ExpeditionPlan PlanExpeditionCrew(QuestState offer, ExpeditionSite site, RoundsFacts f, Fact<FoodSupply> food, RoundsPolicy p, IReadOnlyList<PawnId> crew)
+    public static ExpeditionPlan PlanExpeditionCrew(QuestState offer, ExpeditionSite site, RoundsFacts f, FoodSupply food, RoundsPolicy p, IReadOnlyList<PawnId> crew)
     {
         if (crew.Count == 0)
         {
@@ -245,7 +245,7 @@ public static class QuestExpedition
         return PlanExpeditionOf(offer, site, f, food, p, crew);
     }
 
-    private static ExpeditionPlan PlanExpeditionOf(QuestState offer, ExpeditionSite site, RoundsFacts f, Fact<FoodSupply> food, RoundsPolicy p, IReadOnlyList<PawnId>? explicitCrew)
+    private static ExpeditionPlan PlanExpeditionOf(QuestState offer, ExpeditionSite site, RoundsFacts f, FoodSupply food, RoundsPolicy p, IReadOnlyList<PawnId>? explicitCrew)
     {
         var result = new ExpeditionPlan { Quest = offer.Id, Site = site.Id };
         ExpeditionPlan Fail(QuestSkipReason reason) => result with { Reason = reason };
@@ -350,10 +350,7 @@ public static class QuestExpedition
                 return Fail("route_crew_unknown");
             }
         }
-        if (!food.TryGetValue(out var supply))
-        {
-            return Fail("food_unknown");
-        }
+        var supply = food;
         var capacity = 0.0;
         foreach (var id in crew)
         {

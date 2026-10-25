@@ -74,6 +74,7 @@ public sealed class RoundsLapInputsTests
         Assert.Contains("Shapes", RoundsLapInputs.Uncompared);
         Assert.Contains("Facts.Items", RoundsLapInputs.Uncompared);
         Assert.Contains("Facts.CurrentConstruction", RoundsLapInputs.Uncompared);
+        Assert.Contains("Facts.Gear", RoundsLapInputs.Uncompared);
         Assert.True(RoundsLapInputs.HasValueEquality(typeof(EquatableArray<MoodPawn>)));
         Assert.True(RoundsLapInputs.HasValueEquality(typeof(Identity)));
         Assert.False(RoundsLapInputs.HasValueEquality(typeof(List<string>)));
@@ -98,11 +99,13 @@ public sealed class RoundsLapInputsTests
         var was = ColonyFactsCoreTests.Projection();
         var facts = new RoundsFacts
         {
-            FoodDays = new FoodRunway.Days(1.0), FieldCoverage = Known(1.0), Colonists = 1L, BedCapacity = 1L,
-            IndoorCapacity = 1L, GrowingCells = Known(1L), Armed = 1L, Unarmed = 1L, Wood = 1L, Hostiles = Known(1L),
+            CurrentConstruction = CurrentConstruction.Empty,
+            Gear = ColonyModelFixtures.NoGear(),
+            FoodDays = new FoodRunway.Days(1.0), FieldCoverage = 1.0, Colonists = 1L, BedCapacity = 1L,
+            IndoorCapacity = 1L, GrowingCells = 1L, Armed = 1L, Unarmed = 1L, Wood = 1L, Hostiles = HostileCensus.Of(1L),
             CriticalPatients = 1L, UrgentPatients = 1L, SleepingTemperature = new SleepingTemperature.Indoor(1.0, 1.0), OutdoorTemperature = 1.0,
             PowerHeadroom = 1.0, OutdoorsDark = true, Tick = new Tick(5), DisasterTick = new Tick(5), BedroomsOwed = true,
-            MealClosetOwed = Known(true), CampfireRetireOwed = Known(true), TemperatureOwed = true, ButcherTableAffordable = Known(true),
+            MealClosetOwed = true, CampfireRetireOwed = true, TemperatureOwed = true, ButcherTableAffordable = true,
             CleanupPawns = true, WorkCoverage = WorkCoverageState.Matched,
         };
         var names = RoundsLapInputs.Differences(was, was with { Facts = facts });

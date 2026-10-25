@@ -31,14 +31,14 @@ internal sealed class ExportMemory
         }
     }
 
-    public void SetPlan(GenerationSnapshot snapshot, IReadOnlyList<Pol.Resource> sale, IReadOnlyList<Pol.GearStock> apparel, bool known)
+    public void SetPlan(GenerationSnapshot snapshot, IReadOnlyList<Pol.Resource> sale, IReadOnlyList<Pol.GearStock> apparel)
     {
         lock (_gate)
         {
             World(snapshot);
             _sale = sale;
             _apparel = apparel;
-            _apparelKnown = known;
+            _apparelKnown = true;
         }
     }
 
@@ -112,7 +112,8 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
     private bool _working;
 
     // The silver gap of the latest declaration: the economy/trade Need's measure, unknown before the first.
-    private Fact<double> _gap = Unknown<double>();
+    private double _gap;
+    private bool _reviewed;
 
     // The home map's world tile of _homeSnapshot's world, once read (HomeTileAsync).
     private GenerationSnapshot _homeSnapshot;
@@ -162,6 +163,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         lock (_gate)
         {
             _gap = gap;
+            _reviewed = true;
         }
         var candidateSources = new Dictionary<Pol.Resource, IReadOnlyList<Pol.SupplyCandidate>>();
         var request = new Pol.ExportRequest
@@ -172,9 +174,6 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             Gap = gap,
             Demand = demand,
             Floors = Pol.TradePolicyRules.RoundsTradeFloors(rd.Policy, null),
-            Packed = Unknown<long>(),
-            Buys = new Dictionary<Pol.Resource, Fact<bool>>(),
-            CashCap = Unknown<long>(),
             Sources = candidateSources,
         };
         request = request with { Stock = ExportStock(f) };
@@ -182,22 +181,19 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         {
             request = request with { Runways = review.ResourceRunwayState() };
         }
-        var (apparel, apparelKnown) = GearSurplusRules.ApparelSurplus(new Pol.ClothingDemandInput { Garments = f.Garments, Items = f.Items, Gear = f.Gear, Stock = new Pol.StockReader { Resources = f.Resources, Wood = f.Wood } });
-        if (apparelKnown)
-        {
-            request = request with { Surplus = request.Surplus with { Apparel = apparel } };
-        }
+        var apparel = GearSurplusRules.ApparelSurplus(new Pol.ClothingDemandInput { Garments = f.Garments, Items = f.Items, Gear = f.Gear, Stock = new Pol.StockReader { Resources = f.Resources, Wood = f.Wood } });
+        request = request with { Surplus = request.Surplus with { Apparel = apparel } };
         var (weapons, weaponsOk) = rd.Exports.Surplus(snapshot);
         if (weaponsOk && rd.Exports.Known(snapshot))
         {
-            request = request with { Surplus = request.Surplus with { Weapons = weapons.Weapons }, SurplusKnown = apparelKnown };
+            request = request with { Surplus = request.Surplus with { Weapons = weapons.Weapons }, SurplusKnown = true };
         }
         // The sale path learns the rankable goods even when this Round abstains.
-        var ranked = ExportOrdersRules.DeclareExportOrders(request);
-        rd.Exports.SetPlan(snapshot, ExportOrdersRules.ExportSaleProducts(f.Items, ranked.Products), apparel, apparelKnown);
-        if (!gap.TryGetValue(out var g) || !(g > 0))
+        var products = ExportOrdersRules.ExportProducts(request);
+        rd.Exports.SetPlan(snapshot, ExportOrdersRules.ExportSaleProducts(f.Items, products), apparel);
+        if (!(gap > 0))
         {
-            return ranked.Declared;
+            return new Declared();
         }
         var native = rd.Native as FacadeNativeClient;
         var resource = rd.ResourceNative ?? rd.Native as FacadeNativeClient;
@@ -220,7 +216,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         {
             return RoundsGearPlanner.AbstainOnRead(Pol.Cause.UnreadBuyers, null, ct);
         }
-        var (cashCap, buys) = ExportBuyers(catalog, kinds, ranked.Products);
+        var (cashCap, buys) = ExportBuyers(catalog, kinds, products);
         request = request with { CashCap = cashCap, Buys = buys };
         request = request with { WorkFor = ExportWorkFor(catalog) };
         var names = ExportOrdersRules.ExportIngredients(request);
@@ -244,7 +240,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             }
             request = request with { Supply = supply };
         }
-        var centered = projection.Center().TryGetValue(out var center);
+        var center = projection.Center();
         for (var i = 0; i < names.Count; i++)
         {
             var name = names[i];
@@ -262,7 +258,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
                 }
             }
             var sources = AcquisitionCatalogRules.MineCandidates(name, mines, new YieldStorage.Unread()).ToList();
-            if (centered)
+            if (center is { } at)
             {
                 var hand = new List<Pol.AcquisitionSource>();
                 foreach (var s in projection.Acquisition)
@@ -272,7 +268,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
                         hand.Add(s);
                     }
                 }
-                sources.AddRange(AcquisitionCatalogRules.AcquisitionSourceCandidates(name, hand, center, new YieldStorage.Unread()));
+                sources.AddRange(AcquisitionCatalogRules.AcquisitionSourceCandidates(name, hand, at, new YieldStorage.Unread()));
             }
             candidateSources[name] = sources;
         }
@@ -289,14 +285,15 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
     }
 
     /// <summary>Counts the packed sculptures no owed room reserves; unknown when the count is unread.</summary>
-    private async Task<Fact<long>> PackedArtAsync(GenerationSnapshot snapshot, C.Identity identity, Observation.ColonyProjection projection, CancellationToken ct)
+    private async Task<long> PackedArtAsync(GenerationSnapshot snapshot, C.Identity identity, Observation.ColonyProjection projection, CancellationToken ct)
     {
         if (_reviewer.Native is not FacadeNativeClient native)
         {
-            return Unknown<long>();
+            throw new Pol.RequiredFactException("native art stock source");
         }
         var (sale, error) = await SharedReads.Attempt(RoundsSleepingUpkeepPlanner.SaleSculpturesOfAsync(native, identity, projection, ct)).ConfigureAwait(false);
-        return error is not null || sale is null ? Unknown<long>() : Known((long)sale.Count);
+        if (error is not null) throw error;
+        return sale?.Count ?? throw new Pol.RequiredFactException("sculpture sale facts");
     }
 
     /// <summary>
@@ -402,7 +399,8 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
     {
         lock (_gate)
         {
-            var need = EconomyFamily.TradeNeed(new TradeReview { SilverGap = _gap });
+            if (!_reviewed) throw new Pol.RequiredFactException("export review");
+            var need = EconomyFamily.TradeNeed(new TradeReview.Assessed(_gap, false));
             if (!_working)
             {
                 return new PurposeReport { Need = need, Order = BuildingReasonNoDeficit };
@@ -429,41 +427,32 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
     /// Evaluates the reachable kinds' buy generators: per product whether any kind buys it, and the cash cap, the
     /// low end of the silver the best kind carries. No reachable kind buys nothing and caps at zero.
     /// </summary>
-    internal static (Fact<long> CashCap, Dictionary<Pol.Resource, Fact<bool>> Buys) ExportBuyers(Bridge.DefinitionCatalog catalog, IReadOnlyList<string> kinds, IReadOnlyList<Pol.Resource> products)
+    internal static (long CashCap, Dictionary<Pol.Resource, Pol.TradeCompatibility> Buys) ExportBuyers(Bridge.DefinitionCatalog catalog, IReadOnlyList<string> kinds, IReadOnlyList<Pol.Resource> products)
     {
-        var buys = new Dictionary<Pol.Resource, Fact<bool>>();
+        var buys = new Dictionary<Pol.Resource, Pol.TradeCompatibility>();
         foreach (var product in products)
         {
-            var any = false;
-            var unknown = false;
+            var result = Pol.TradeCompatibility.DoesNotTrade;
             foreach (var kind in kinds)
             {
-                if (!catalog.TraderKindBuys(kind, product).TryGetValue(out var v))
+                var candidate = catalog.TraderKindBuys(kind, product);
+                switch (candidate)
                 {
-                    unknown = true;
-                }
-                else if (v)
-                {
-                    any = true;
+                    case Pol.TradeCompatibility.Trades:
+                        result = candidate;
+                        break;
+                    case Pol.TradeCompatibility.UnsupportedGenerator when result != Pol.TradeCompatibility.Trades:
+                        result = candidate;
+                        break;
+                    case Pol.TradeCompatibility.UnsupportedGenerator:
+                    case Pol.TradeCompatibility.DoesNotTrade:
+                        break;
                 }
             }
-            buys[product] = any ? Known(true) : unknown ? Unknown<bool>() : Known(false);
+            buys[product] = result;
         }
         long cap = 0;
-        var capUnknown = false;
-        foreach (var kind in kinds)
-        {
-            if (!catalog.TraderKindSilver(kind).TryGetValue(out var silver))
-            {
-                capUnknown = true;
-                continue;
-            }
-            cap = Math.Max(cap, silver);
-        }
-        if (cap == 0 && capUnknown)
-        {
-            return (Unknown<long>(), buys);
-        }
-        return (Known(cap), buys);
+        foreach (var kind in kinds) cap = Math.Max(cap, catalog.TraderKindSilver(kind));
+        return (cap, buys);
     }
 }

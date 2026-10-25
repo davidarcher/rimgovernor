@@ -27,7 +27,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             if (d.Name == definition)
             {
-                d.Size.TryGetValue(out var size);
+                var size = d.Size;
                 return size;
             }
         }
@@ -47,7 +47,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal async Task<LayoutPlan> ReplaceTurretAsync(ControlState state, RoundsReading read, DefenseLayoutRecord record, LayoutPlan plan, CancellationToken call)
     {
         var projection = read.Projection;
-        if (!projection.Facts.Hostiles.TryGetValue(out var hostiles) || hostiles > 0)
+        if (projection.Facts.Hostiles is not HostileCensus.Quiet)
         {
             return plan;
         }

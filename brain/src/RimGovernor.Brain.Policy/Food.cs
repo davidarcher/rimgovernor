@@ -21,26 +21,26 @@ public sealed record FoodFacts
     /// <summary>A meal of the picked tier can be made now: an active bill of the tier's recipe, or a stocked, powered paste dispenser.</summary>
     public bool Cooking { get; init; }
 
-    /// <summary>A stove kitchen supersedes a cooking campfire that is not yet deconstructed; unknown while the benches, rooms or construction are unread.</summary>
-    public Fact<bool> CampfireRetireOwed { get; init; }
+    /// <summary>A stove kitchen supersedes a cooking campfire that is not yet deconstructed; from the observed benches, rooms and construction.</summary>
+    public bool CampfireRetireOwed { get; init; }
 
     /// <summary>No human-meat route of the food plan holds nutrition to place (feed, survival trade, raw trade, meals).</summary>
-    public Fact<bool> HumanFoodSettled { get; init; }
+    public bool HumanFoodSettled { get; init; }
 
     /// <summary>The food runway covers the foothold's days.</summary>
-    public Fact<bool> FootholdFood { get; init; }
+    public bool FootholdFood { get; init; }
 
     /// <summary>The growing cells cover the foothold's colonists.</summary>
-    public Fact<bool> FootholdProduction { get; init; }
+    public bool FootholdProduction { get; init; }
 
     /// <summary>The fields cover the food plan's growing share.</summary>
-    public Fact<bool> FieldsCovered { get; init; }
+    public bool FieldsCovered { get; init; }
 
-    /// <summary>A butcher bench stands outside the kitchen; unknown while the bench census is unread.</summary>
-    public Fact<bool> ButcherFacility { get; init; }
+    /// <summary>A butcher bench stands outside the kitchen; from the required bench census.</summary>
+    public bool ButcherFacility { get; init; }
 
     /// <summary>The food runway reaches the season's target days.</summary>
-    public Fact<bool> ReserveCovered { get; init; }
+    public bool ReserveCovered { get; init; }
 
     /// <summary>The facts a review already holds, the food thresholds read for the review's season.</summary>
     public static FoodFacts From(RoundsFacts f, RoundsPolicy policy)
@@ -50,10 +50,10 @@ public sealed record FoodFacts
         {
             Cooking = f.Cooking,
             CampfireRetireOwed = f.CampfireRetireOwed,
-            HumanFoodSettled = Fact.Known(f.FoodPlan is not { } held || !HumanFoodPlanRules.HumanFoodPending(held)),
+            HumanFoodSettled = f.FoodPlan is not { } held || !HumanFoodPlanRules.HumanFoodPending(held),
             FootholdFood = RoundsRules.FootholdFood(f, p),
             FootholdProduction = RoundsRules.FootholdProduction(f),
-            FieldsCovered = RoundsRules.Measured(f.FieldCoverage, v => v >= 1 - 1e-9),
+            FieldsCovered = f.FieldCoverage >= 1 - 1e-9,
             ButcherFacility = RoundsRules.ButcherFacilityMet(f),
             ReserveCovered = RoundsRules.Reached(f.FoodDays, p.FoodTargetDays),
             BabyFeeding = f.BabyFeeding,
@@ -138,14 +138,14 @@ public static class FoodRules
     public static readonly NeedId CookingNeed = NeedId.Of(FoodFamilyId, "cooking");
 
     /// <summary>
-    /// The supply Need, a plain threshold over its six checks: unmet when any known check fails, met otherwise; with
-    /// none failing, an unread one raises <see cref="RequiredFactException"/>. The runway is held to the season's target
+    /// The supply Need, a plain threshold over its six required checks: unmet when any check fails, met otherwise.
+    /// The runway is held to the season's target
     /// days with no hysteresis. Its deficit is whole while unmet.
     /// </summary>
     public static Need FoodSupplyNeedOf(FoodFacts f)
     {
-        var met = RoundsRules.AllFacts(f.HumanFoodSettled, f.FootholdFood, f.FootholdProduction, f.FieldsCovered, f.ButcherFacility, f.ReserveCovered);
-        return WholeNeed(FoodSupplyNeed, NeedTier.Wellbeing, met.TryGetValue(out var known) ? known : throw new RequiredFactException("food supply checks"));
+        var met = f.HumanFoodSettled && f.FootholdFood && f.ButcherFacility && f.ReserveCovered;
+        return WholeNeed(FoodSupplyNeed, NeedTier.Wellbeing, f.FieldsCovered && f.FootholdProduction && met);
     }
 
     /// <summary>
@@ -154,7 +154,7 @@ public static class FoodRules
     /// </summary>
     public static Need CookingNeedOf(FoodFacts f)
     {
-        var retire = RoundsRules.Positive(f.CampfireRetireOwed);
+        var retire = f.CampfireRetireOwed;
         return WholeNeed(CookingNeed, NeedTier.Wellbeing, !retire && f.Cooking);
     }
 

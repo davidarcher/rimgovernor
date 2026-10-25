@@ -320,7 +320,6 @@ public static class PlannedRoomCredits
                 if (best is null || remaining < best.Value.Remaining) best = (remaining, way, unfinished);
             }
             if (best is not { } chosen) continue;
-            if (context.PlannedBuildersUnread) throw new RequiredFactException("planned builders");
             if (context.PlannedBuilders <= 0) continue;
             queue.Add((started, chosen.Remaining, room, chosen.Way.Stuff, chosen.Unfinished));
         }

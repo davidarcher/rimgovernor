@@ -36,12 +36,13 @@ public static class HerdSaleRules
     /// Adds the animal-sale reason to the need: sale animals and a known silver
     /// shortfall (SilverShort). Anything unknown adds nothing.
     /// </summary>
-    public static Fact<TradeNeed> AnimalSaleNeed(ItemFacts items, Fact<TradeNeed> need, IReadOnlySet<PawnId> sale, Fact<long> silver, long colonists)
+    public static TradeNeed AnimalSaleNeed(ItemFacts items, TradeNeed need, IReadOnlySet<PawnId> sale, long silver, long colonists)
     {
-        if (!need.TryGetValue(out var n) || sale.Count == 0 || !RoundsRules.Positive(SilverGapRules.SilverShort(items, need, silver, colonists)))
+        var n = need;
+        if (sale.Count == 0 || !SilverGapRules.SilverShort(items, need, silver, colonists))
         {
             return need;
         }
-        return Known(n with { SurplusAnimals = sale.Count });
+        return n with { SurplusAnimals = sale.Count };
     }
 }

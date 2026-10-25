@@ -40,11 +40,13 @@ public sealed class RoundsDiagnostics(StoreJournal journal, bool reviewsEnabled,
         if (FactStore.TryGet<ColonyProjection>(sections, Section.Colony, out var held) && held.Complete)
         {
             var f = held.Value.Facts;
-            var threat = HostilePresence.Unread;
-            if (f.Hostiles.TryGetValue(out var count))
+            var threat = f.Hostiles switch
             {
-                threat = count > 0 ? HostilePresence.Present : HostilePresence.Absent;
-            }
+                HostileCensus.AwaitingEmergency => HostilePresence.Unread,
+                HostileCensus.Quiet => HostilePresence.Absent,
+                HostileCensus.Active { Count: > 0 } => HostilePresence.Present,
+                HostileCensus unexpected => throw new DomainException($"invalid hostile census state: {unexpected.GetType().Name}"),
+            };
 
             status = status with { Extent = ColonyExtentRules.DeriveColonyExtent(held.Value.Bounds, f.CurrentConstruction, f.ConstructionClaims, f.HomeCoverage) };
             var id = held.Value.Identity;

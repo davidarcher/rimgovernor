@@ -10,7 +10,7 @@ public sealed record DerivedDemand
     public ForecastWorkInputs Work { get; init; } = new();
 
     /// <summary>Free material after construction and reconciled production/native promises; absent keys mean zero.</summary>
-    public Fact<IReadOnlyDictionary<Resource, Fact<double>>> MaterialAvailability { get; init; }
+    public MaterialAvailability MaterialAvailability { get; init; } = new MaterialAvailability.Blocked(MaterialBudgetBlock.AwaitingReview);
     /// <summary>Every stock level some source asks for, per resource: the targets the economy/resource Need and the trade stock against.</summary>
     public IReadOnlyDictionary<Resource, long> Needs { get; init; } = new Dictionary<Resource, long>();
 
@@ -27,7 +27,7 @@ public sealed record DerivedDemand
     /// The stock a sale keeps of each resource (TradeRetained): the runways' protected lines plus Works.
     /// Unknown while the consumption ring is unread or a production hold is.
     /// </summary>
-    public Fact<IReadOnlyDictionary<Resource, long>> Retained { get; init; }
+    public TradeRetention Retained { get; init; } = new TradeRetention.AwaitingConsumption();
 }
 
 public static partial class ResourceRules
@@ -44,12 +44,12 @@ public static partial class ResourceRules
         var works = ConstructionDemandRules.ConstructionDemandOf(f, p, l);
         var holds = ProductionRules.ProductionMaterialHoldsOf(f.ProductionPromises, f.BillReservations);
         var material = ProductionRules.SharedMaterialBudgetOf(f.Resources, f.CurrentConstruction.Deficit, holds);
-        if (holds.TryGetValue(out var held))
+        if (holds is MaterialAvailability.Assessed(var held))
         {
             works = new Dictionary<Resource, long>(works);
             var admitted = ConstructionDemandRules.AdmittedNeeds(f.Admitted);
             foreach (var (resource, amount) in held)
-                if (amount.TryGetValue(out var units))
+                if (amount is MaterialUnits.Exact(var units))
                 {
                     // ConstructionDemand drops already funded lines; two individually funded promises can still compete.
                     var construction = f.CurrentConstruction.Deficit.GetValueOrDefault(resource);
@@ -83,8 +83,9 @@ public static partial class ResourceRules
             Needs = needs,
             Works = works,
             Clothing = clothing.Needs.Keys.ToHashSet(),
-            Retained = holds.TryGetValue(out var knownHolds) && knownHolds.Values.All(a => a.IsKnown) && f.ResourceConsumption is not null
-                ? TradePolicyRules.TradeRetained(f.ResourceRunways, works) : default,
+            Retained = f.ResourceConsumption is null ? new TradeRetention.AwaitingConsumption()
+                : holds is MaterialAvailability.Assessed(var knownHolds) && knownHolds.Values.All(a => a is MaterialUnits.Exact)
+                ? new TradeRetention.Assessed(TradePolicyRules.TradeRetained(f.ResourceRunways, works)) : new TradeRetention.OpenMaterialObligation(),
         };
     }
 

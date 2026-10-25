@@ -19,7 +19,7 @@ public static class ForecastCoupledMaterials
     internal static MaterialHolds? MaterialHoldsOf(ColonyForecastRequest request, IReadOnlyDictionary<string, ForecastCommitment> commitments)
     {
         var context = request.Coupled!; var evidence = context.Resources.Evidence;
-        if (evidence.Standing is not { Owed: var construction } || !evidence.ForecastPromises.TryGetValue(out var production)) return null;
+        if (evidence.Standing is not { Owed: var construction } || evidence.Promises is not ProductionPromiseSet.Assessed(var production)) return null;
         var held = WorkRules.MergeWorkMaterialPromises(production).ToDictionary(c => c.Id, StringComparer.Ordinal);
         // The delta addresses declared identities. Native holds still enter through the shared owner's reservations.
         foreach (var original in request.Commitments.Where(c => !commitments.ContainsKey(c.Id))) held.Remove(original.Id);
@@ -36,13 +36,13 @@ public static class ForecastCoupledMaterials
             held[commitment.Id] = owner with
             {
                 MaterialClaims = EquatableArray.From(owner.MaterialClaims.Select(m =>
-                m.ReservationBill == Known("") && m.Units.IsKnown && debit.TryGetValue(m.Resource, out var units)
-                    ? m with { Units = Known(Math.Max(0, m.Units.Value - units)) } : m))
+                m.ReservationBill.Length == 0 && m.Units is MaterialUnits.Exact(var exact) && debit.TryGetValue(m.Resource, out var units)
+                    ? m with { Units = new MaterialUnits.Exact(Math.Max(0, exact - units)) } : m))
             };
         }
-        var protectedMaterials = ProductionRules.ProductionMaterialHoldsOf(Known(WorkRules.MergeWorkMaterialPromises(held.Values)), evidence.Reservations);
-        if (!protectedMaterials.TryGetValue(out var holds) || holds.Values.Any(h => !h.IsKnown)) return null;
-        return new(held, holds.ToDictionary(h => h.Key, h => h.Value.Value), owed);
+        var protectedMaterials = ProductionRules.ProductionMaterialHoldsOf(new ProductionPromiseSet.Assessed(WorkRules.MergeWorkMaterialPromises(held.Values)), evidence.Reservations);
+        if (protectedMaterials is not MaterialAvailability.Assessed(var holds) || holds.Values.Any(h => h is MaterialUnits.Open)) return null;
+        return new(held, holds.ToDictionary(h => h.Key, h => ((MaterialUnits.Exact)h.Value).Count), owed);
     }
 
     /// <summary>Reproject the shared owner for this schedule, with optional sites and exact admitted work claims.
@@ -58,16 +58,16 @@ public static class ForecastCoupledMaterials
             && b.Recipe is { Bill.Length: > 0 }).GroupBy(b => b.Recipe!.Bill))
             foreach (var resource in bill.SelectMany(b => tasks[b.Id].Inputs).GroupBy(i => i.Resource))
             {
-                var promised = held.Values.SelectMany(c => c.MaterialClaims).Where(c => c.Resource == resource.Key && c.ReservationBill == Known(bill.Key)).ToArray();
+                var promised = held.Values.SelectMany(c => c.MaterialClaims).Where(c => c.Resource == resource.Key && c.ReservationBill == bill.Key).ToArray();
                 var native = evidence.Reservations.Where(r => r.Bill == bill.Key).SelectMany(r => r.Items).Where(i => i.Resource == resource.Key).Sum(i => (double)i.Count);
-                if (promised.Any(p => !p.Units.IsKnown)) continue;
-                var credit = Math.Min(resource.Sum(i => i.Units), Math.Max(native, promised.Select(p => p.Units.Value).DefaultIfEmpty(0).Max()));
+                if (promised.Any(p => p.Units is MaterialUnits.Open)) continue;
+                var credit = Math.Min(resource.Sum(i => i.Units), Math.Max(native, promised.Select(p => ((MaterialUnits.Exact)p.Units).Count).DefaultIfEmpty(0).Max()));
                 adjusted[resource.Key] = Math.Max(0, adjusted.GetValueOrDefault(resource.Key) - credit);
             }
         var shared = ProductionRules.SharedMaterialBudgetOf(evidence.Stock, owed,
-            Known<IReadOnlyDictionary<Resource, Fact<double>>>(adjusted.ToDictionary(p => p.Key, p => Known(p.Value))));
-        return shared.TryGetValue(out var free) && free.Values.All(v => v.IsKnown)
-            ? new MaterialBudget.Read(free.ToDictionary(p => p.Key, p => p.Value.Value))
+            new MaterialAvailability.Assessed(adjusted.ToDictionary(p => p.Key, p => (MaterialUnits)new MaterialUnits.Exact(p.Value))));
+        return shared is MaterialAvailability.Assessed(var free) && free.Values.All(v => v is MaterialUnits.Exact)
+            ? new MaterialBudget.Read(free.ToDictionary(p => p.Key, p => ((MaterialUnits.Exact)p.Value).Count))
             : new MaterialBudget.Unread("material_budget_unread");
     }
 }

@@ -154,9 +154,9 @@ public static class QuestDeparture
             }
             return x.Id.CompareTo(y.Id);
         });
-        var capk = f.DefenseCapacity.TryGetValue(out var capacity);
+        var capacity = f.DefenseCapacity;
         var raid = f.RaidPoints;
-        if (family == QuestFamily.BanditCamp && (!capk || !TradePolicyRules.Finite(capacity) || !TradePolicyRules.Finite(raid) || capacity < 0 || raid < 0))
+        if (family == QuestFamily.BanditCamp && (!TradePolicyRules.Finite(capacity) || !TradePolicyRules.Finite(raid) || capacity < 0 || raid < 0))
         {
             return (none, "defense_unknown");
         }

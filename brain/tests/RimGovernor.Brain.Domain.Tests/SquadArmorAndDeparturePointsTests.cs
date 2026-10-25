@@ -75,7 +75,7 @@ public sealed class SquadArmorAndDeparturePointsTests
     [Fact]
     public void ADeparturesDefensePointsAreTheFightersRosterStrengthAndZeroForANonFighter()
     {
-        var roster = Known(EquatableArray.From(new[] { Strength("fighter", 3, 11) }));
+        var roster = EquatableArray.From(new[] { Strength("fighter", 3, 11) });
 
         var (_, pawns) = QuestReads.FrameQuestPawns(Read(Worker("fighter", true), Worker("pacifist", false)), new MapId(0), new EmergencyFacts(), roster, new WorkPawnsRead([]));
 
@@ -85,13 +85,9 @@ public sealed class SquadArmorAndDeparturePointsTests
     }
 
     [Fact]
-    public void AFighterMissingFromTheRosterLeavesTheDeparturesUnread()
+    public void AFighterMissingFromTheTotalRosterFailsTheObservation()
     {
-        var roster = Known(EquatableArray.From(Array.Empty<DefenderStrength>()));
-
-        var (capacity, pawns) = QuestReads.FrameQuestPawns(Read(Worker("fighter", true)), new MapId(0), new EmergencyFacts(), roster, new WorkPawnsRead([]));
-
-        Assert.Single(capacity);
-        Assert.IsType<QuestPawns.Unseen>(pawns);
+        Assert.Throws<ObservationContractException>(() =>
+            QuestReads.FrameQuestPawns(Read(Worker("fighter", true)), new MapId(0), new EmergencyFacts(), [], new WorkPawnsRead([])));
     }
 }

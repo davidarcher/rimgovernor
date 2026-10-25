@@ -42,11 +42,11 @@ public sealed record DashRequest
 
     public double Temperature { get; init; }
 
-    public Fact<double> ComfortMin { get; init; }
+    public double ComfortMin { get; init; }
 
-    public Fact<double> Severity { get; init; }
+    public double Severity { get; init; }
 
-    public Fact<double> Speed { get; init; }
+    public double Speed { get; init; }
 
     public EquatableArray<DashCandidate> Candidates { get; init; }
 
@@ -110,14 +110,14 @@ public static class DashPlanRules
         return 1;
     }
 
-    /// <summary>Selects the trips for one pawn. Unknown inputs open nothing.</summary>
+    /// <summary>Selects the trips for one pawn with observed body measurements.</summary>
     public static DashPlan PlanDash(DashRequest r)
     {
         var temp = r.Temperature;
-        var ck = r.ComfortMin.TryGetValue(out var comfort);
-        var sk = r.Severity.TryGetValue(out var sev);
-        var vk = r.Speed.TryGetValue(out var speed);
-        if (!ck || !sk || !vk || double.IsNaN(speed) || speed <= 0)
+        var comfort = r.ComfortMin;
+        var sev = r.Severity;
+        var speed = r.Speed;
+        if (double.IsNaN(speed) || speed <= 0)
         {
             return new DashPlan();
         }
@@ -190,10 +190,10 @@ public static class DashPlanRules
 
     /// <summary>Reports whether <paramref name="pawn"/> may be outdoors at the facts' tick.</summary>
     public static bool DashOpenFor(this RoundsFacts f, PawnId pawn) =>
-        f.Dash.TryGetValue(out var w) && w.Pawn == pawn && w.OpenAt(f.Tick);
+        f.Dash.Pawn == pawn && f.Dash.OpenAt(f.Tick);
 
     /// <summary>Reports whether any dash window is open at the facts' tick.</summary>
-    public static bool DashOpen(this RoundsFacts f) => f.Dash.TryGetValue(out var w) && w.OpenAt(f.Tick);
+    public static bool DashOpen(this RoundsFacts f) => f.Dash.OpenAt(f.Tick);
 
     /// <summary>The pickups the loot census offers: safe stacks with a known path and a known market value.</summary>
     public static IReadOnlyList<DashCandidate> DashCandidates(RoundsFacts f)
@@ -215,11 +215,8 @@ public static class DashPlanRules
         return result;
     }
 
-    /// <summary>The window a review persists: none when unknown or closed.</summary>
-    internal static DashWindow DashLatch(Fact<DashWindow> f) => f.TryGetValue(out var w) ? w : new DashWindow();
-
     /// <summary>Plans a window afresh: ReviewDash with none held.</summary>
-    public static Fact<DashWindow> DashWindowOf(RoundsFacts f, WorkPawnsRead pawns, Tick now, HypothermiaTuning tuning) =>
+    public static DashWindow DashWindowOf(RoundsFacts f, WorkPawnsRead pawns, Tick now, HypothermiaTuning tuning) =>
         ReviewDash(new DashWindow(), f, pawns, now, tuning);
 
     /// <summary>
@@ -231,26 +228,22 @@ public static class DashPlanRules
     /// Otherwise each available colonist with a readable body is planned and the plan with the most value
     /// wins, ties to the lowest pawn id. Unknown while the hazards, hostiles or the roster are unknown.
     /// </summary>
-    public static Fact<DashWindow> ReviewDash(DashWindow held, RoundsFacts f, WorkPawnsRead pawns, Tick now, HypothermiaTuning tuning)
+    public static DashWindow ReviewDash(DashWindow held, RoundsFacts f, WorkPawnsRead pawns, Tick now, HypothermiaTuning tuning)
     {
         var hazards = OutdoorHazardRules.OutdoorHazardsOf(f);
-        var ok = f.Hostiles.TryGetValue(out var hostiles);
+        var hostiles = f.Hostiles.ThreatCount;
         var rows = pawns.Pawns;
-        if (!ok)
-        {
-            return Unknown<DashWindow>();
-        }
         if (hostiles > 0 || hazards.Count != 1 || hazards[0].Kind != HazardKind.ExtremeCold)
         {
-            return Known(new DashWindow());
+            return new DashWindow();
         }
         if (!held.Pawn.IsEmpty)
         {
             if (held.OpenAt(now) && rows.Any(w => w.Id == held.Pawn && w.Available))
             {
-                return Known(held);
+                return held;
             }
-            return Known(new DashWindow());
+            return new DashWindow();
         }
         var candidates = DashCandidates(f);
         var best = new DashWindow();
@@ -266,9 +259,9 @@ public static class DashPlanRules
             {
                 Now = now,
                 Temperature = f.OutdoorTemperature,
-                ComfortMin = Known(body.ComfortableMinC),
-                Severity = Known(body.Hypothermia),
-                Speed = Known(body.MoveSpeed),
+                ComfortMin = body.ComfortableMinC,
+                Severity = body.Hypothermia,
+                Speed = body.MoveSpeed,
                 Candidates = EquatableArray.From(candidates),
                 Tuning = tuning,
             });
@@ -287,6 +280,6 @@ public static class DashPlanRules
                 bestValue = value;
             }
         }
-        return Known(best);
+        return best;
     }
 }

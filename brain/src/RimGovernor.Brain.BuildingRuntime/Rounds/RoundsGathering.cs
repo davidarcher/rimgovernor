@@ -7,7 +7,7 @@ public sealed partial class Rounder
     /// The party the mood census owes in <paramref name="reading"/>, the rooms/gatherings Need's evidence: the party
     /// thought's worth, the mood ledger and pawns, and the colony's calm. The AttendedParty memory is the cooldown.
     /// </summary>
-    internal static Fact<GatheringPlan> GatheringPlanOf(RoundsReading reading, GenerationSnapshot snapshot)
+    internal static GatheringPlan GatheringPlanOf(RoundsReading reading, GenerationSnapshot snapshot)
     {
         var facts = reading.Projection.Facts;
         var thought = reading.Catalog?.ThoughtFacts(GatheringRules.PartyThought)

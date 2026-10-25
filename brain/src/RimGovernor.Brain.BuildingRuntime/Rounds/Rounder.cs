@@ -9,15 +9,12 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// </summary>
 public sealed partial class Rounder
 {
-    /// <summary>Whether the Rounder was composed with its capabilities; a bare Rounder knows no Needs.</summary>
-    private bool _composed;
-
     /// <summary>The migrated families' Needs the runtime composes (#3280); the review reads their facts as it read their Concerns'.</summary>
     internal IReadOnlySet<NeedId> Needs = new HashSet<NeedId>();
 
-    /// <summary>The composed Needs as the review's facts carry them: known whenever the capabilities are.</summary>
-    internal Fact<EquatableArray<NeedId>> AvailableNeeds =>
-        _composed ? Known<EquatableArray<NeedId>>([.. Needs.OrderBy(n => n.Value, StringComparer.Ordinal)]) : Unknown<EquatableArray<NeedId>>();
+    /// <summary>The composed Needs; a bare Rounder enables no coupled activities.</summary>
+    internal EquatableArray<NeedId> AvailableNeeds =>
+        [.. Needs.OrderBy(n => n.Value, StringComparer.Ordinal)];
     internal Player Player;
     internal IRoundsSource Native;
     internal IClock Clock;
@@ -90,7 +87,7 @@ public sealed partial class Rounder
     internal HashSet<QuestSkipKey> SkipsLogged = [];
 
     /// <summary>The last tech tier logged: the OTLP log ring records a change once, not every review.</summary>
-    internal Fact<TechTier> TechTierLogged;
+    internal TechTier? TechTierLogged;
 
     /// <summary>The realized-consumption ledger of the current load, in memory only.</summary>
     internal ConsumptionMemory Consumption = new();
@@ -218,11 +215,11 @@ public sealed partial class Rounder
         {
             return;
         }
-        if (TechTierLogged.TryGetValue(out var last) && last == tier)
+        if (TechTierLogged == tier)
         {
             return;
         }
-        TechTierLogged = projection.TechTier;
+        TechTierLogged = tier;
         var evidence = TechTierRules.TechTierEvidence(RoundsReads.FinishedResearch(projection.Facts.Research), projection.PlayerTechLevel);
         var message = "tech tier " + tier;
         if (evidence != "")
@@ -306,7 +303,7 @@ public sealed partial class Rounder
             jailShell = capabilities[0].JailShell;
             Goals = capabilities[0].Goals;
             Needs = capabilities[0].Needs.ToHashSet();
-            _composed = true;
+
         }
         Player = player;
         Native = native;
@@ -439,9 +436,9 @@ public sealed partial class Rounder
         {
             WorkAdmission = new()
             {
-                Buildings = reading.Catalog is { } buildingCatalog ? Known(buildingCatalog.WorkBuildingCosts()) : default,
-                Recipes = reading.Catalog is { } batchCatalog ? Known(batchCatalog.ProductionRecipeInputs(
-                reading.Frame.Tables.Buildings.Table.Values().Select(b => b.Building.DefName))) : default,
+                Buildings = (reading.Catalog ?? throw new RequiredFactException("definition_catalog")).WorkBuildingCosts(),
+                Recipes = (reading.Catalog ?? throw new RequiredFactException("definition_catalog")).ProductionRecipeInputs(
+                    reading.Frame.Tables.Buildings.Table.Values().Select(b => b.Building.DefName)),
                 Bills = ConstructionReads.ProductionBatchStates(reading.Frame.Bills),
             }
         });
@@ -471,7 +468,7 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { TemperatureOwed = RoundsBuildingPlanner.TemperatureOwed(reading.Projection) });
         Lap("d_owed");
         var targets = await RoundsArmoryShells.ShellTargetsAsync(Native, p.Journal, state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
-        reading = reading.WithFacts(rf => rf with { ShellTargets = Known(EquatableArray.From(targets)), ShellsShort = ArmoryShellsRules.ShellsShort(targets, reading.Projection.Resources) });
+        reading = reading.WithFacts(rf => rf with { ShellTargets = EquatableArray.From(targets), ShellsShort = ArmoryShellsRules.ShellsShort(targets, reading.Projection.Resources) });
         if (Needs.Contains(ShelterFamily.SafeArea))
         {
             reading = reading.WithFacts(rf => rf with { SafeAreaOwed = SafeArea.Review(RoundsStockpilePlanner.StockpileWorld(state.Snapshot), reading.Projection) });
@@ -550,10 +547,6 @@ public sealed partial class Rounder
         fine.Lap("d_planned/firebreak");
         Lap("d_planned");
 
-        if (reading.Projection.Facts.FoodPlan is { } foodPlan)
-        {
-            reading = reading.WithFacts(rf => rf with { AnimalUpkeep = rf.AnimalUpkeep with { Forecast = Known(foodPlan.Forecast) } });
-        }
         reading = reading.WithColonySection(c => c with { Facts = c.Facts with { FoodPlan = reading.Projection.Facts.FoodPlan, FoodReserve = reading.Projection.Facts.FoodReserve } });
         Census.Retain(reading);
         var filedScope = new FactScope(expected.Load.Value, expected.Map.Value, native.Value);
@@ -567,8 +560,8 @@ public sealed partial class Rounder
         var (hostiles, criticalPatients) = EmergencyNeedsRules.EmergencyNeeds(emergency, state.Snapshot, expected.Tick);
         reading = reading.WithFacts(rf => rf with { Hostiles = hostiles, CriticalPatients = criticalPatients });
         reading = reading.WithFacts(rf => rf with { QuestCalm = QuestCapacity.QuestCalmColony(reading.Projection.Facts, EmergencyRules.EvaluateEmergency(emergency, state.Snapshot, expected.Tick), emergency.PodsPending) });
-        reading = reading.WithFacts(rf => rf with { DangerSeeds = SafeAreaMemory.DangerSeedFact(reading.Projection.Facts.Hostiles, reading.Emergency.Threats) });
-        reading.Projection.Facts.DangerSeeds.TryGetValue(out var seeds);
+        reading = reading.WithFacts(rf => rf with { DangerSeeds = EquatableArray.From(ShelterRules.DangerSeeds(reading.Emergency.Threats)) });
+        var seeds = reading.Projection.Facts.DangerSeeds;
         reading = reading.WithFacts(rf => rf with { DangerWindow = SafeArea.DangerWindow(RoundsStockpilePlanner.StockpileWorld(state.Snapshot), reading.Projection.Facts.Hostiles, seeds, expected.Tick) });
         reading = reading.WithFacts(rf => rf with { DangerHaulers = ShelterRules.DangerHaulers(reading.Projection.WorkPawns) });
         reading = reading.WithFacts(rf => rf with { CoupledWorkActive = plans.Any(plan => !plan.Retired
@@ -625,32 +618,16 @@ public sealed partial class Rounder
         var pawns = reading.Projection.WorkPawns.Pawns;
         {
             reading = reading.WithFacts(rf => rf with { WorkProfiles = [.. PawnRules.Profiles(pawns)] });
-            var requiredFact = RoundsProjectBill.RoundsProjectWork(definitions, reading.Projection.Definitions);
-            var known = requiredFact.TryGetValue(out var required);
-            if (known)
-            {
-                // Bench work (open bills, a deficit's standing benches) counts toward coverage here so the work
-                // goal assesses a deficit the planner then covers; a failed census leaves coverage unknown.
-                var nativeBench = (IRoundsWorkBenchSource)Native;
-                var benchSource = BenchSource(nativeBench, expected, true);
-                var recovered = ResearchRules.ResourceTargetNeed(resourceTargets, reading.Projection.Facts.Resources).Recovered;
-                var deficitTargets = RoundsProjectBill.RoundsDeficitTargets(resourceTargets, !recovered, reading.Projection.Facts.Gear);
-                Fact<IReadOnlyList<WorkRequirement>> benchWork = default;
-                try
-                {
-                    benchWork = await RoundsProjectBill.RoundsBenchWorkAsync(benchSource, state.Snapshot, plans, deficitTargets, deficitTargets.Count > 0, reading.Projection.Facts.Items.Wort, ct).ConfigureAwait(false);
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    // A failed bench census leaves coverage unknown.
-                }
-                known = benchWork.TryGetValue(out var rows);
-                required = RoundsProjectBill.MergeWorkRequirements([.. required ?? []], rows ?? []);
-                required = RoundsProjectBill.MergeWorkRequirements([.. required], RoundsProjectBill.RoundsResearchWork(needs, reading.Projection.Facts.Research));
-                required = RoundsProjectBill.MergeWorkRequirements([.. required], RoundsFieldPlanner.FishingWork(reading.Projection));
-                required = RoundsProjectBill.MergeWorkRequirements([.. required], EntityStudyRules.StudyWork(reading.Projection.Facts.Containment));
-            }
-            if (known)
+            var required = RoundsProjectBill.RoundsProjectWork(definitions, reading.Projection.Definitions);
+            var nativeBench = (IRoundsWorkBenchSource)Native;
+            var benchSource = BenchSource(nativeBench, expected, true);
+            var recovered = ResearchRules.ResourceTargetNeed(resourceTargets, reading.Projection.Facts.Resources).Recovered;
+            var deficitTargets = RoundsProjectBill.RoundsDeficitTargets(resourceTargets, !recovered, reading.Projection.Facts.Gear);
+            var benchWork = await RoundsProjectBill.RoundsBenchWorkAsync(benchSource, state.Snapshot, plans, deficitTargets, deficitTargets.Count > 0, reading.Projection.Facts.Items.Wort, ct).ConfigureAwait(false);
+            required = RoundsProjectBill.MergeWorkRequirements([.. required], benchWork);
+            required = RoundsProjectBill.MergeWorkRequirements([.. required], RoundsProjectBill.RoundsResearchWork(needs, reading.Projection.Facts.Research));
+            required = RoundsProjectBill.MergeWorkRequirements([.. required], RoundsFieldPlanner.FishingWork(reading.Projection));
+            required = RoundsProjectBill.MergeWorkRequirements([.. required], EntityStudyRules.StudyWork(reading.Projection.Facts.Containment));
             {
                 var demand = RoundsDisease.RoundsDiseaseDemand(reading.Projection, definitions, previous, state.Snapshot);
                 try
@@ -1043,7 +1020,8 @@ partial class Rounder
             }
             if (def.StuffOptions.Count == 0)
             {
-                return def.Costs.TryGetValue(out var costs) ? costs : null;
+                var costs = (def.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).Costs;
+                return costs;
             }
             var stuff = shell is not null && def.MakeableFrom(shell) ? shell : null;
             foreach (var option in def.StuffOptions)
@@ -1086,7 +1064,7 @@ partial class Rounder
         var colonyGround = RoundsBuildingPlanner.ColonyGround(colony);
         var flooringFacts = RoundsBuildingPlanner.FlooringFactsOf(colony) with { Stock = null };
         IReadOnlyList<Amount>? FloorPrice(string name) =>
-            flooringFacts.Definitions.TryGetValue(name, out var floor) && floor.Costs.TryGetValue(out var costs) ? costs : null;
+            flooringFacts.Definitions.TryGetValue(name, out var floor) ? floor.Costs : null;
         // The colony's standing buildings and floors stand in for the clearance census: the reconcile matches the
         // template against them, so a piece or floor that stands is not owed. Nothing is packed, so every other
         // template piece is a build.
@@ -1153,7 +1131,8 @@ partial class Rounder
         }
         if (def.StuffOptions.Count == 0)
         {
-            return def.Costs.TryGetValue(out var costs) ? ("", costs) : null;
+            var costs = (def.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).Costs;
+            return ("", costs);
         }
         var stuff = colony.BulkBuildStuff(name, 1);
         return def.StuffOptions.FirstOrDefault(o => o.Stuff == stuff) is { } option ? (stuff, option.Costs) : null;

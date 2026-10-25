@@ -98,16 +98,13 @@ public sealed partial class RoundsBillPlanner : IPurposeReporter
             case FoodOrderGap.Plan:
                 report = report with { Order = AwaitingFoodPlan(order.Subject) };
                 return report;
-            case FoodOrderGap.Field:
-                report = report with { Order = FieldUnavailable(order.Subject) };
-                return report;
             case FoodOrderGap.NoDeficit:
                 report = report with { Order = BuildingReasonNoDeficit };
                 return report;
             case FoodOrderGap.NoBill:
                 report = report with { Order = NoBill(projection.ProductionBenches) };
                 break;
-            default:
+            case FoodOrderGap.Chosen:
                 report = report with { Order = WaitFor(Cause.MethodUsed, "ledger_bill") };
                 break;
         }
@@ -184,14 +181,22 @@ public sealed partial class RoundsBillPlanner : IPurposeReporter
 partial class RoundsBillPlanner
 {
     /// <summary>The verdict a bill gap reads as; throws for a gap outside the closed set.</summary>
-    internal static Verdict BillGapVerdict(BillGap gap, string subject) => gap switch
+    internal static Verdict BillGapVerdict(BillGap gap, string subject)
     {
-        BillGap.NothingWanted => BuildingReasonNoDeficit,
-        BillGap.InProduction => WaitFor(Cause.ExistingWork, subject),
-        BillGap.NoRecipe => AwaitingPlan(subject, Wire.Name(gap)),
-        BillGap.BenchFull => AwaitingPlan(subject, Wire.Name(gap)),
-        BillGap.Waste => AwaitingPlan("mech_waste", ""),
-        BillGap.NoCharger => AwaitingPlan("mech_charger", ""),
-        _ => throw new InvalidOperationException($"bill gap \"{Wire.Name(gap)}\" is not one of the closed set"),
-    };
+        switch (gap)
+        {
+            case BillGap.NothingWanted:
+                return BuildingReasonNoDeficit;
+            case BillGap.InProduction:
+                return WaitFor(Cause.ExistingWork, subject);
+            case BillGap.NoRecipe:
+            case BillGap.BenchFull:
+                return AwaitingPlan(subject, Wire.Name(gap));
+            case BillGap.Waste:
+                return AwaitingPlan("mech_waste", "");
+            case BillGap.NoCharger:
+                return AwaitingPlan("mech_charger", "");
+        }
+        throw new DomainException($"undefined bill gap {(int)gap}");
+    }
 }

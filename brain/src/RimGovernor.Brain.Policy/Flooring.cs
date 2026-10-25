@@ -231,14 +231,13 @@ public sealed record FloorDeficit
 }
 
 /// <summary>
-/// The per-room review: Deficits lists every room measured short, clean workspaces first and then by key. Known
-/// is false when the census was unread, in which case Deficits is empty.
+/// The per-room review: Deficits lists every room measured short, clean workspaces first and then by key.
+/// The native census is required.
 /// </summary>
 public sealed record FlooringReview
 {
     public bool Active { get; init; }
 
-    public bool Known { get; init; }
 
     public IReadOnlyList<FloorDeficit> Deficits { get; init; } = [];
 }
@@ -249,7 +248,12 @@ public enum FlooringMethod
     [WireName("")]
     None = 0,
 
-    Unknown,
+
+    [WireName("floor_not_offered")]
+    NotOffered,
+
+    [WireName("floor_unsuitable")]
+    Unsuitable,
 
     [WireName("no_deficit")]
     NoMethod,
@@ -283,23 +287,23 @@ public sealed record FlooringProposal
 /// <summary>What the planning census reports for one candidate floor.</summary>
 public sealed record FloorDefinition
 {
-    public Fact<bool> Available { get; init; }
+    public bool Available { get; init; }
 
-    public Fact<bool> Terrain { get; init; }
+    public bool Terrain { get; init; }
 
-    public Fact<double> Cleanliness { get; init; }
+    public double Cleanliness { get; init; }
 
-    public Fact<double> Beauty { get; init; }
+    public double Beauty { get; init; }
 
-    public Fact<double> Flammability { get; init; }
+    public double Flammability { get; init; }
 
     /// <summary>The floor's own pathCost.</summary>
     public int PathCost { get; init; }
 
-    public Fact<EquatableArray<Amount>> Costs { get; init; }
+    public EquatableArray<Amount> Costs { get; init; }
 
     /// <summary>The native WorkToBuild stat in work ticks.</summary>
-    public Fact<double> WorkToBuild { get; init; }
+    public double WorkToBuild { get; init; }
 
     /// <summary>The TerrainDef's tags, for the throne tier's requirement.</summary>
     public IReadOnlyList<string> Tags { get; init; } = [];
@@ -314,7 +318,7 @@ public sealed record FlooringFacts
     /// <summary>Credit floors already laid or ordered inside planned rooms.</summary>
     public FlooringObservation? Observation { get; init; }
 
-    /// <summary>Maps floor definition names to their census row; a floor absent here is unknown.</summary>
+    /// <summary>Maps floor definition names to their census row; a definition without a floor component is not offered.</summary>
     public IReadOnlyDictionary<string, FloorDefinition> Definitions { get; init; } = new Dictionary<string, FloorDefinition>();
 
     /// <summary>The accessible colony stock by resource; null skips the affordability test and leaves it to admission (a template's floors).</summary>
@@ -540,16 +544,17 @@ public static class FlooringRules
         {
             return (name, FloorPriced(v.Floors.GetValueOrDefault(name) ?? new FloorDefinition()));
         }
-        return why == FlooringMethod.Unknown ? ("", false) : ("", true);
+        return ("", true);
     }
 
-    internal static bool FloorPriced(FloorDefinition d) => d.WorkToBuild.IsKnown && d.Costs.IsKnown;
+    internal static bool FloorPriced(FloorDefinition d) => true;
 
     /// <summary>One cell's one-time cost in colony work ticks: the native WorkToBuild plus MaterialTicksPerUnit for every unit of its cost list.</summary>
     private static double FloorTicks(FloorDefinition d, FlooringPolicy p)
     {
-        var work = d.WorkToBuild.ValueOrDefault;
-        _ = d.Costs.TryGetValue(out var costs);
+        var work = d.WorkToBuild;
+        var costs = d.Costs;
+        _ = true;
         double units = 0;
         foreach (var a in costs)
         {
@@ -561,16 +566,12 @@ public static class FlooringRules
     /// <summary>
     /// Measures every tiered room against its requirement. There is no hysteresis:
     /// terrain does not flap. A cell whose floor is already ordered still counts as deficient, so the Need
-    /// stays unmet until the floor is actually laid, but the planner never orders it twice. An unread census
-    /// measures nothing. Throws <see cref="DomainException"/>.
+    /// stays unmet until the floor is actually laid, but the planner never orders it twice. A missing census fails the observation boundary. Throws <see cref="DomainException"/>.
     /// </summary>
-    public static FlooringReview ReviewFlooring(FlooringObservation? fact, RoomObservation rooms, FlooringPolicy p)
+    public static FlooringReview ReviewFlooring(FlooringObservation fact, RoomObservation rooms, FlooringPolicy p)
     {
         DomainException.Require(p.IsValid, "invalid flooring policy");
-        if (fact is not { } v)
-        {
-            return new FlooringReview();
-        }
+        var v = fact;
         v.Validate();
         var census = new Dictionary<string, RoomState>(StringComparer.Ordinal);
         var rc = rooms;
@@ -650,7 +651,7 @@ public static class FlooringRules
             }
         }
         var ordered = deficits.OrderBy(d => FloorTierRank(d.Tier)).ThenBy(d => d.Key, StringComparer.Ordinal).ToList();
-        return new FlooringReview { Known = true, Active = ordered.Count > 0, Deficits = ordered };
+        return new FlooringReview { Active = ordered.Count > 0, Deficits = ordered };
     }
 
     private static List<Cell> SortedCells(List<Cell> cells)
@@ -680,11 +681,11 @@ public static class FlooringRules
     /// <summary>Prices one candidate for a tier; Ok is false when the floor fails the tier's requirement outright.</summary>
     internal static (double Score, bool Ok) FloorScore(FloorTier tier, FloorDefinition d, FloorWeights w)
     {
-        var cleanliness = d.Cleanliness.ValueOrDefault;
-        var beauty = d.Beauty.ValueOrDefault;
-        var fk = d.Flammability.TryGetValue(out var flammability);
+        var cleanliness = d.Cleanliness;
+        var beauty = d.Beauty;
+        var flammability = d.Flammability;
         var pathCost = d.PathCost;
-        if (tier.Fireproof() && (!fk || flammability > 0))
+        if (tier.Fireproof() && (flammability > 0))
         {
             return (0, false);
         }
@@ -693,7 +694,7 @@ public static class FlooringRules
             return (0, false);
         }
         double cost = 0;
-        if (d.Costs.TryGetValue(out var costs))
+        var costs = d.Costs;
         {
             foreach (var a in costs)
             {
@@ -706,7 +707,8 @@ public static class FlooringRules
     /// <summary>How many cells of the floor the stock pays for; -1 when the floor's costs or the stock are unpriced.</summary>
     internal static int AffordableCells(FloorDefinition d, IReadOnlyDictionary<Resource, long>? values, int want)
     {
-        if (values is null || !d.Costs.TryGetValue(out var costs))
+        var costs = d.Costs;
+        if (values is null)
         {
             return -1;
         }
@@ -737,10 +739,7 @@ public static class FlooringRules
         {
             return new FlooringProposal { Method = FlooringMethod.NoMethod };
         }
-        if (!review.Known)
-        {
-            return new FlooringProposal { Method = FlooringMethod.Unknown };
-        }
+
         var deferred = FlooringMethod.None;
         foreach (var d in review.Deficits)
         {
@@ -783,7 +782,6 @@ public static class FlooringRules
         var bestCells = 0;
         var bestScore = 0.0;
         var reason = FlooringMethod.ResearchNeeded;
-        var unknown = false;
         // Only the throne and a priced traffic aisle score a list; every other tier lays the tier style's floor or none.
         List<string> scored;
         if (d.Tier == FloorTier.Throne)
@@ -792,7 +790,7 @@ public static class FlooringRules
             scored = [.. facts.Definitions.Where(kv => HasAnyTag(kv.Value.Tags, d.Tags)).Select(kv => kv.Key).Order(StringComparer.Ordinal)];
             if (scored.Count == 0)
             {
-                unknown = true;
+                reason = FlooringMethod.NotOffered;
             }
         }
         else if (d.Floor.Length != 0)
@@ -815,16 +813,10 @@ public static class FlooringRules
         {
             if (!facts.Definitions.TryGetValue(name, out var def))
             {
-                unknown = true;
-                continue;
+                continue; // Definitions without a native floor component are not floor options.
             }
-            var ak = def.Available.TryGetValue(out var available);
-            var tk = def.Terrain.TryGetValue(out var terrain);
-            if (!ak || !tk)
-            {
-                unknown = true;
-                continue;
-            }
+            var available = def.Available;
+            var terrain = def.Terrain;
             if (!available || !terrain)
             {
                 continue;
@@ -853,7 +845,7 @@ public static class FlooringRules
         }
         if (bestName is null)
         {
-            return ("", 0, unknown ? FlooringMethod.Unknown : reason);
+            return ("", 0, reason);
         }
         return (bestName, bestCells, FlooringMethod.None);
     }
@@ -876,7 +868,7 @@ public static class FlooringRules
     }
 
     private static FlooringMethod FirstFlooringReason(FlooringMethod current, FlooringMethod next) =>
-        current is FlooringMethod.None or FlooringMethod.Unknown ? next : current;
+        current == FlooringMethod.None ? next : current;
 
     /// <summary>
     /// The style's floor for the deficit when it can be laid now: known available terrain that meets the tier's
@@ -896,21 +888,17 @@ public static class FlooringRules
         }
         if (!facts.Definitions.TryGetValue(name, out var def))
         {
-            return ("", FlooringMethod.Unknown);
+            return ("", FlooringMethod.NotOffered);
         }
-        var ak = def.Available.TryGetValue(out var available);
-        var tk = def.Terrain.TryGetValue(out var terrain);
-        if (!ak || !tk)
-        {
-            return ("", FlooringMethod.Unknown);
-        }
+        var available = def.Available;
+        var terrain = def.Terrain;
         if (!available || !terrain)
         {
             return ("", FlooringMethod.ResearchNeeded);
         }
         if (!FloorScore(d.Tier, def, weights).Ok)
         {
-            return ("", FlooringMethod.Unknown);
+            return ("", FlooringMethod.Unsuitable);
         }
         var cells = AffordableCells(def, facts.Stock, batch);
         if (cells >= 0 && cells < batch)

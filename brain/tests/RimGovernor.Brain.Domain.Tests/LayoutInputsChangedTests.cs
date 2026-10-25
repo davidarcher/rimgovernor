@@ -84,7 +84,7 @@ public sealed class LayoutInputsChangedTests
         var f = FirstLayoutPlanTests.Facts(s, 3) with { ExpectedMood = new StationMood.Expected(0.4) };
         var drifted = f with
         {
-            Stock = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new Resource("WoodLog")] = 300 }),
+            Stock = new Dictionary<Resource, long> { [new Resource("WoodLog")] = 300 },
             ExpectedMood = new StationMood.Expected(0.8),
             FoodReserveDays = 12,
             OutdoorCurve = Known(EquatableArray.From(new[] { -22.0, -18, -10, -2, 4, 9, 12, 10, 3, -6, -14, -20 })),

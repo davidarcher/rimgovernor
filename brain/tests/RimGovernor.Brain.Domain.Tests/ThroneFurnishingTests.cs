@@ -53,7 +53,7 @@ public sealed class ThroneFurnishingTests
         }
     }
 
-    private static FurnitureDefinition Definition(string name, int w, int h) => new() { Name = name, Available = Known(true), Size = Known(new Bounds(w, h)) };
+    private static FurnitureDefinition Definition(string name, int w, int h) => new() { Name = name, Available = true, Size = new Bounds(w, h)};
 
     private static PlannedRoom Room() => new()
     {

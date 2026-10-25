@@ -17,6 +17,6 @@ public static partial class RoundsRules
                 throw new DomainException("invalid immediate count");
             }
         }
-        return new RoundsFindings { Latches = previous with { Dash = DashPlanRules.DashLatch(f.Dash) }, Disaster = f.Disaster };
+        return new RoundsFindings { Latches = previous with { Dash = f.Dash }, Disaster = f.Disaster };
     }
 }

@@ -9,7 +9,7 @@ internal static class LayoutProtected
         {
             return core;
         }
-        return facts.Center().TryGetValue(out var center) ? center : null;
+        return facts.Center();
     }
 
     /// <summary>
@@ -24,7 +24,7 @@ internal static class LayoutProtected
         {
             return anchor;
         }
-        return facts.Center().TryGetValue(out var center) ? center : null;
+        return facts.Center();
     }
 
     /// <summary>The centre of the nearest free planned room of the role to the point <paramref name="to"/> (reserve rooms when none is free), else the plan's centre; null until a plan exists.</summary>
@@ -34,7 +34,7 @@ internal static class LayoutProtected
         {
             return anchor;
         }
-        return facts.Center().TryGetValue(out var center) ? center : null;
+        return facts.Center();
     }
 
     /// <summary>Reports whether a rectangle is observed open ground free of player buildings and zones.</summary>

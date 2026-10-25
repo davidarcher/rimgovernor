@@ -329,3 +329,8 @@ The Ritual `begin` verb ([action contracts](action-contracts.md)) names a held r
 `IdeoRitual.id` and fills the role slots of the behavior's `RitualRole`s.
 Building and room planning consumes `RequiredBuildings`:
 [worship room](../architecture/facilities.md#worship-room-ideology).
+
+Ritual sites are a total collection derived from the required building census and
+installed ideoligion. Without Ideology, or without a finished building required by
+a held ritual, the collection is empty. Ritual planning consumes that collection
+directly; an absent total building census fails observation.

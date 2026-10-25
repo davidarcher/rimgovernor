@@ -49,7 +49,7 @@ public sealed class ColonyStatusTests
         public Task<PbLifecycle.LoadedIdentity> IdentityAsync(CancellationToken ct) =>
             Task.FromResult(new PbLifecycle.LoadedIdentity { Context = Context, Paused = false });
 
-        public Task<ColonyFactsSnapshot> ReadColonyFactsAsync(PbCommon.Identity identity, bool full, CancellationToken ct) =>
+        public Task<ColonyFactsSnapshot> ReadColonyFactsAsync(PbCommon.Identity identity, CancellationToken ct) =>
             Task.FromResult(ColonyFactsCoreTests.Snapshot() with { Context = Context, ColonistCount = (uint)roster.Count(r => r.Dead != true) });
 
         public Task<PawnSnapshot> ReadHomeColonistsAsync(PbCommon.Identity identity, CancellationToken ct) =>

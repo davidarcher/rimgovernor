@@ -33,6 +33,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Run the in-process acceptance pilot and its failure exercises | [Rectangle pilot](developers/testing/acceptance-guide.md#in-process-rectangle-pilot) |
 | Replay planner decisions | [Colony snapshots](developers/testing/colony-snapshots.md) |
 
+| Read planning definitions and required native stats | [Stat and planning values](developers/contracts/stat-classes.md) |
 | History: which native reads copied def data | [Static-data census (history)](developers/static-data-census.md) |
 | History: why the Go brain was ported by hand rather than with go2cs | [Port spike (history)](developers/architecture/go-to-csharp-port-spike.md) |
 | History: layout and idiom map of the Go-to-C# port | [Port conventions (history)](developers/architecture/go-to-csharp-port-conventions.md) |
@@ -41,6 +42,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Check native arena lifetime and repeated hunting outcomes | [Real engine](../integrations/rimgovernor-realcombat/README.md#arena-lifetime-and-repeatability) |
 | Request bounded hypothetical encounter estimates and interpret qualification | [Encounter prediction](developers/contracts/encounter-prediction.md) |
 | Read the total colonist census and plan medical care and medicine reserves | [Medical care](developers/contracts/medical-care.md), [pawn work profiles](developers/contracts/work-assignment.md), [journal ownership](developers/contracts/persistence-contracts.md) |
+| Read disaster service recovery, shelter lifecycle states and cold dash bounds | [Disaster planning](developers/contracts/disaster-planning.md) |
 | Read the total room census and royalty housing requirements | [Room observations](developers/contracts/spatial-contracts.md#total-room-observations) |
 | Trace a hunt from the native read through the roster comparison, the drafted formation and its release | [Hunt comparison](developers/contracts/forecast-contracts.md#coherent-coupled-observation-frame), [lone hunts and the hunt gate](developers/contracts/controller-contracts.md), [on-demand hunting evidence](developers/testing/acceptance-guide.md#tiers) |
 | Reach the mod over local HTTP (endpoint file, host/origin checks, `/native/<tool>`, player routes) | [HTTP channel](developers/architecture/http-channel.md) |
@@ -107,5 +109,8 @@ and [persistence](developers/contracts/persistence-contracts.md) define its cons
 Food/shelter investment and unified construction adoption: [essential-service contract](developers/contracts/essential-services.md#autonomous-food-and-shelter-investment).
 
 - [Clock states and recovery](developers/contracts/clock-recovery.md) and [receipt evidence](developers/contracts/action-contracts.md): complete native reads and named operation evidence.
+- [Equipment census](developers/contracts/equipment-upkeep.md#native-observations-and-selection): same-frame gear, growing fields and pawn roles on routine and direct colony reads.
 - [Failed snapshot reads](developers/contracts/clock-recovery.md#failed-snapshot-reads): explicit building-read failures, preserved diagnostics, finished frame labor and same-tick recovery.
 - [Acceptance harness lifecycle](developers/testing/acceptance-guide.md): warm games and request-based idle cleanup.
+
+- [Food storage and refrigeration](developers/contracts/food-storage.md): food censuses, reserve reads and cooling geometry.

@@ -25,16 +25,15 @@ internal static class LayoutFieldShrink
         var output = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var crop in field.Choices)
         {
-            if (!crop.Edible.TryGetValue(out var edible) || !edible)
+            var edible = crop.Edible;
+            if (!edible)
             {
                 continue;
             }
-            if (CropChoiceRules.FieldTarget(field.Colonists, crop, field.ReserveDays, field.Climate.DaysRemaining).TryGetValue(out var n))
-            {
-                output[crop.Name] = n;
-            }
+            output[crop.Name] = CropChoiceRules.FieldTarget(field.Colonists, crop, field.ReserveDays, field.Climate.DaysRemaining);
             // Growth runs to the capacity target, so shrink waits past it.
-            if (FieldCapacityRules.FieldCapacityTarget(field.Colonists, crop, field.ReserveDays).TryGetValue(out var capacity))
+            var capacity = FieldCapacityRules.FieldCapacityTarget(field.Colonists, crop, field.ReserveDays);
+            // Growth runs to the capacity target, so shrink waits past it.
             {
                 output[crop.Name] = Math.Max(output.GetValueOrDefault(crop.Name), capacity);
             }

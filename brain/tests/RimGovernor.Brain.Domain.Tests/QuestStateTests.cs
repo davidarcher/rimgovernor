@@ -137,7 +137,7 @@ public sealed class QuestStateTests
     {
         CurrentConstruction = CurrentConstruction.Empty,
         QuestCalm = QuestCalm.Settled,
-        DefenseCapacity = Known(500.0),
+        DefenseCapacity = 500.0,
     }, offers);
 
     [Fact]

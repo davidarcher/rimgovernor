@@ -274,13 +274,19 @@ public static class EmergencyRules
         {
             return new EmergencyDecision(false, [new EmergencyHold(EmergencyReason.StaleFacts, default)]);
         }
+        return EvaluateFacts(snapshot.Facts);
+    }
+
+    /// <summary>The same safety decision for a boundary-validated, same-frame census.</summary>
+    public static EmergencyDecision EvaluateFacts(EmergencyFacts facts)
+    {
         var holds = new HashSet<EmergencyHold>();
         void Hold(EmergencyReason reason, PawnId pawn) => holds.Add(new EmergencyHold(reason, pawn));
-        foreach (var pawn in snapshot.Facts.Unseen)
+        foreach (var pawn in facts.Unseen)
         {
             Hold(EmergencyReason.StaleFacts, pawn);
         }
-        foreach (var pawn in EmergencyPatientsRules.EmergencyPatients(snapshot.Facts))
+        foreach (var pawn in EmergencyPatientsRules.EmergencyPatients(facts))
         {
             if (BreakResponseRules.AggressiveBreak(pawn))
             {
@@ -294,7 +300,7 @@ public static class EmergencyRules
                 Hold(EmergencyReason.CriticalMedical, pawn.Id);
             }
         }
-        foreach (var threat in snapshot.Facts.Threats)
+        foreach (var threat in facts.Threats)
         {
             // A dead or downed threat, or one the colony has not discovered, is nobody's deficit; a distant animal is
             // watched by the native supervisor's radius, not held, nor is a hostile building that far out.

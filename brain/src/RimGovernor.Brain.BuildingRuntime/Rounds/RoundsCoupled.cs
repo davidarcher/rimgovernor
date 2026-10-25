@@ -297,7 +297,6 @@ public sealed partial class Rounder
         ["final_temperature"] = e.Spans.MaxBy(s => s.End)?.Final
     }).ToArray();
 
-    private static double? Number(Fact<double> value) => value.IsKnown ? value.Value : null;
     private static double? Number(ForecastTerm term) => term is ForecastTerm.Assessed(var value) ? value : null;
     private static double? Number(LedgerTerm term) => term is LedgerTerm.Priced(var loss) ? loss : null;
 

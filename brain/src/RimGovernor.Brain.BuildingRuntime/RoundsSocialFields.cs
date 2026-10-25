@@ -10,28 +10,7 @@ internal static class RoundsSocialFields
         {
             return output;
         }
-        foreach (var d in projection.Definitions)
-        {
-            var crop = RoundsFieldPlanner.WithHarvestFacts(
-                new Pol.CropChoice
-                {
-                    Name = d.Name,
-                    Available = d.Available,
-                    Edible = d.Edible,
-                    GrowDays = d.GrowDays,
-                    FertilityMin = d.FertilityMin,
-                    FertilitySensitivity = d.FertilitySensitivity,
-                    SowTags = d.SowTags,
-                    MinGlow = d.GrowMinGlow,
-                    RequiresPollution = d.RequiresPollution,
-                    RequiresCleanSoil = d.RequiresCleanSoil,
-                },
-                d);
-            if (SocialCropsRules.IsSocialCrop(crop))
-            {
-                output.Add(crop);
-            }
-        }
+        output.AddRange(RoundsFieldPlanner.CropChoices(projection).Where(SocialCropsRules.IsSocialCrop));
         return [.. output.OrderBy(c => c.Name, StringComparer.Ordinal)];
     }
 

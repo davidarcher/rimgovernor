@@ -8,18 +8,18 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class EssentialServicesTests
 {
-    private static RoundsFacts Facts() => new() { Gear = RimGovernor.Brain.Domain.Fact.Known(ColonyModelFixtures.NoGear()), CurrentConstruction = CurrentConstruction.Empty, MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() }, Tick = new(100), Colonists = 2L, Fuel = [] };
+    private static RoundsFacts Facts() => new() { Gear = ColonyModelFixtures.NoGear(), CurrentConstruction = CurrentConstruction.Empty, MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() }, Tick = new(100), Colonists = 2L, Fuel = [] };
 
     /// <summary>Sleeping rooms inside the comfort band: the shelter/temperature Need is met (#3257).</summary>
     private static RoundsFacts Warm() => Facts() with { SleepingTemperature = new SleepingTemperature.Indoor(20.0, 22.0) };
     private static EssentialServiceReview Review(RoundsFacts facts, int budget = 128) =>
         EssentialServicesRules.ReviewEssentialServices(facts, RoundsRules.DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick },
-            MaterialAvailability = Known<IReadOnlyDictionary<Resource, Fact<double>>>(new Dictionary<Resource, Fact<double>> { [new("grain")] = Known(20.0) }) }, budget);
+            MaterialAvailability = new MaterialAvailability.Assessed(new Dictionary<Resource, MaterialUnits> { [new("grain")] = new MaterialUnits.Exact(20.0) }) }, budget);
 
     [Fact]
     public void NormalInspectionExposesEveryServiceWithoutTreatingUnknownStressAsBaselineFailure()
     {
-        var normal = RoundsRules.InspectRounds(new() { Gear = RimGovernor.Brain.Domain.Fact.Known(ColonyModelFixtures.NoGear()), CurrentConstruction = CurrentConstruction.Empty, MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() } }, new(), RoundsRules.DefaultRoundsPolicy());
+        var normal = RoundsRules.InspectRounds(new() { Gear = ColonyModelFixtures.NoGear(), CurrentConstruction = CurrentConstruction.Empty, MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() } }, new(), RoundsRules.DefaultRoundsPolicy());
         Assert.NotNull(normal.EssentialServices);
         Assert.Equal(Enum.GetValues<EssentialService>(), normal.EssentialServices.Coverage.Select(c => c.Service).Distinct().Order().ToArray());
         var known = Review(Warm());
@@ -90,9 +90,9 @@ public sealed class EssentialServicesTests
         ForecastObserved = new() { WorkPawns = new WorkPawnsRead([
             Cook("expert", 8), Cook("learner", 1)]) },
         WorkClaims = new([], [], [], []),
-        WorkAdmission = new() { Recipes = Known<EquatableArray<ProductionRecipeInput>>([
+        WorkAdmission = new() { Recipes = [
             new("advanced-meal", [[new(new("grain"), 5)]], false) { Products = [], WorkAmount = 0 },
-            new("basic-meal", [[new(new("grain"), 5)]], false) { Products = [], WorkAmount = 0 }]) },
+            new("basic-meal", [[new(new("grain"), 5)]], false) { Products = [], WorkAmount = 0 }] },
         EssentialInputs = new() { Benches = EquatableArray.From<ProductionBench>([
             new() { Id = "stove", Token = "stove-token", Usable = true, Recipes = secondChain ? [Recipe("advanced-meal", 6), Recipe("basic-meal", 0)] : [Recipe("advanced-meal", 6)] }]) },
     };
@@ -165,7 +165,7 @@ public sealed class EssentialServicesTests
         var review = EssentialServicesRules.ReviewEssentialServices(facts, RoundsRules.DefaultRoundsPolicy(), new()
         {
             Work = new() { Tick = facts.Tick },
-            MaterialAvailability = Known<IReadOnlyDictionary<Resource, Fact<double>>>(new Dictionary<Resource, Fact<double>> { [new("grain")] = Known(20.0) }),
+            MaterialAvailability = new MaterialAvailability.Assessed(new Dictionary<Resource, MaterialUnits> { [new("grain")] = new MaterialUnits.Exact(20.0) }),
             Needs = new Dictionary<Resource, long> { [new("fuel")] = 10 },
         });
         var proposal = Assert.Single(review.Proposals, p => p.Target.Owner == EconomyFamily.Resource.FilingKey);

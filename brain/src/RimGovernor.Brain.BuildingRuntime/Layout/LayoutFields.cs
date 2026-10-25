@@ -74,11 +74,14 @@ internal static class LayoutFieldPlanning
         var trees = new HashSet<string>(StringComparer.Ordinal);
         foreach (var d in facts.Definitions)
         {
-            if (d.Edible.TryGetValue(out var edible) && !edible)
+            var edible = (d.Harvest ?? throw new RequiredFactException("planning Harvest")).Edible;
+            if (!edible)
             {
                 inedible.Add(d.Name);
             }
-            if (d.BlockAdjacentSow.TryGetValue(out var blocksSow) && blocksSow && d.HarvestDestroysPlant.TryGetValue(out var destroys) && destroys)
+            var blocksSow = (d.Plant ?? throw new RequiredFactException("planning Plant")).BlockAdjacentSow;
+            var destroys = (d.Harvest ?? throw new RequiredFactException("planning Harvest")).HarvestDestroysPlant;
+            if (blocksSow && destroys)
             {
                 trees.Add(d.Name);
             }
@@ -110,7 +113,7 @@ internal static class LayoutFieldPlanning
         }
         HashSet<Cell> FreeFor(HashSet<Cell> block, CropChoice crop)
         {
-            crop.FertilityMin.TryGetValue(out var floor);
+            var floor = crop.FertilityMin;
             var other = TreePlantationRules.IsTreeCrop(crop) ? cropZone : treeZone;
             var free = new HashSet<Cell>();
             foreach (var cell in block)
@@ -251,8 +254,8 @@ internal static class LayoutFieldPlanning
         {
             return true;
         }
-        var known = crop.Edible.TryGetValue(out var edible);
-        return (!known || edible) && !inedible.Contains(zoneCrop);
+        var edible = crop.Edible;
+        return (edible) && !inedible.Contains(zoneCrop);
     }
 
     /// <summary>

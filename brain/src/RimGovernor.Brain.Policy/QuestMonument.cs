@@ -263,10 +263,7 @@ public static class QuestMonumentPolicy
         if ((profile.Demands & QuestDemand.Security) != 0)
         {
             var threat = offer.Threat is Pb.QuestThreat.Points points ? points.Value : 0;
-            if (!f.DefenseCapacity.TryGetValue(out var defense))
-            {
-                return "defense_unknown";
-            }
+            var defense = f.DefenseCapacity;
             if (defense < threat)
             {
                 return "defense_capacity";

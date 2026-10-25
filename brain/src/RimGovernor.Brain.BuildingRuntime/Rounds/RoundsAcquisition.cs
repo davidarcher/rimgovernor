@@ -149,7 +149,7 @@ public sealed partial class RoundsAcquisitionPlanner
         // the resource Need unless a cooldown held it.
         var busy = HoldWorked(projection.Acquisition, undispatched, held);
         var pending = WithoutStalled(projection.PendingFoodNutrition, projection.Acquisition, stalledSources, food);
-        var deficit = Unknown<double>();
+        var deficit = 0.0;
         FoodRunway? runway = null;
         if (food)
         {
@@ -179,7 +179,7 @@ public sealed partial class RoundsAcquisitionPlanner
         }
         catch (DomainException)
         {
-            return new RoundsAcquisitionResult { Verdict = FieldUnavailable(UnreadAcquisitionFact(deficit, pending, stockGoal)) };
+            return new RoundsAcquisitionResult { Verdict = FieldUnavailable("acquisition_sources") };
         }
         if (selected.Count == 0 && existing)
         {
@@ -255,7 +255,7 @@ partial class RoundsAcquisitionPlanner
     /// Only admitted sources can start new work. Pending designations retain their native credit in
     /// SelectAcquisition; the ledger never calls them delivered.
     /// </summary>
-    internal static (EquatableArray<AcquisitionSource> Sources, Fact<double> Deficit) FoodPlanAcquisition(FoodPlan plan, EquatableArray<AcquisitionSource> rows)
+    internal static (EquatableArray<AcquisitionSource> Sources, double Deficit) FoodPlanAcquisition(FoodPlan plan, EquatableArray<AcquisitionSource> rows)
     {
         var open = new HashSet<string>(StringComparer.Ordinal);
         foreach (var entry in plan.Portfolio)
@@ -276,7 +276,7 @@ partial class RoundsAcquisitionPlanner
                 nutrition += row.NutritionYield;
             }
         }
-        return ([.. selected], Known(nutrition));
+        return ([.. selected], nutrition);
     }
 
     /// <summary>
@@ -392,7 +392,7 @@ partial class RoundsAcquisitionPlanner
     /// designates wild food plants for vanilla to harvest and eat (#3668). huntOnly (a forage batch already designated)
     /// keeps only the hunt rows.
     /// </summary>
-    internal static IReadOnlyList<AcquisitionSource> GoalSelection(EquatableArray<AcquisitionSource> sources, bool huntOnly, Fact<double> deficit, Fact<double> pending, bool food, IReadOnlyDictionary<string, bool> held, Fact<int> slots)
+    internal static IReadOnlyList<AcquisitionSource> GoalSelection(EquatableArray<AcquisitionSource> sources, bool huntOnly, double deficit, double pending, bool food, IReadOnlyDictionary<string, bool> held, int slots)
     {
         if (huntOnly)
         {
@@ -445,12 +445,12 @@ partial class RoundsAcquisitionPlanner
     /// yield otherwise): a designation nobody took still counts there, and without this the re-plan would see
     /// its own stalled yield as covering the deficit and propose nothing.
     /// </summary>
-    internal static Fact<double> WithoutStalled(double pending, EquatableArray<AcquisitionSource> sources, HashSet<string> stalled, bool food)
+    internal static double WithoutStalled(double pending, EquatableArray<AcquisitionSource> sources, HashSet<string> stalled, bool food)
     {
         var outstanding = pending;
         if (stalled.Count == 0)
         {
-            return Known(pending);
+            return pending;
         }
         foreach (var row in sources)
         {
@@ -460,7 +460,7 @@ partial class RoundsAcquisitionPlanner
             }
             outstanding -= food ? row.NutritionYield : row.Yield;
         }
-        return Known(Math.Max(0, outstanding));
+        return Math.Max(0, outstanding);
     }
 
     /// <summary>
@@ -482,35 +482,13 @@ partial class RoundsAcquisitionPlanner
     /// <summary>
     /// Says why the selection chose no source although the goal is owed: food in flight already covers the deficit, or no source stands.
     /// </summary>
-    internal static Verdict NoAcquisition(ConcernId need, Fact<double> deficit, Fact<double> pending)
+    internal static Verdict NoAcquisition(ConcernId need, double deficit, double pending)
     {
-        var owedKnown = deficit.TryGetValue(out var owed);
-        var inFlightKnown = pending.TryGetValue(out var inFlight);
-        if (owedKnown && inFlightKnown && inFlight >= owed)
+        if (pending >= deficit)
         {
             return BuildingReasonExistingWork;
         }
         return AwaitingPlan("acquisition_source", need.Value);
-    }
-
-    /// <summary>
-    /// Names what the source selection lacked when it could not choose: (for goals sized by a deficit) the deficit
-    /// and the pending yield, else the source census holding an unusable row.
-    /// </summary>
-    internal static string UnreadAcquisitionFact(Fact<double> deficit, Fact<double> pending, bool withoutDeficit)
-    {
-        if (!withoutDeficit)
-        {
-            if (!deficit.IsKnown)
-            {
-                return "acquisition_deficit";
-            }
-            if (!pending.IsKnown)
-            {
-                return "pending_acquisition";
-            }
-        }
-        return "acquisition_sources";
     }
 
     /// <summary>The first 16 bytes of the SHA-256 of the text, in lowercase hex.</summary>

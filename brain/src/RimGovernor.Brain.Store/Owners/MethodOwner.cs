@@ -64,10 +64,10 @@ public sealed partial class Store
             return null;
         }
         // The prey is the hunt origin's: only a fight with no hostile standing hunts it.
-        var prey = situation == Situation.Active && request.Facts.Hostiles.TryGetValue(out var hostiles) && hostiles == 0
+        var prey = situation == Situation.Active && request.Facts.Hostiles is HostileCensus.Quiet
             ? EquatableArray.From(hunt.Select(p => (PawnId)p))
             : default;
-        var hunters = situation == Situation.Active && request.Facts.Hostiles.TryGetValue(out hostiles) && hostiles == 0
+        var hunters = situation == Situation.Active && request.Facts.Hostiles is HostileCensus.Quiet
             ? EquatableArray.From(HuntPlanningRules.HuntRequestHunters(request.Facts.FoodPlan).Select(p => (PawnId)p))
             : default;
         return new RoundsCombat(situation, prey, hunters);

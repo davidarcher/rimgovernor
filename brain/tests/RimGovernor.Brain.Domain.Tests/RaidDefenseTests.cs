@@ -19,10 +19,10 @@ public sealed class RaidDefenseTests
     }
 
     [Fact]
-    public void AFrameWithoutTheDefenseCapacityThrows()
+    public void ATotalDefenseCapacityCanBeZeroOrPositive()
     {
-        Assert.Equal("defense_capacity", Assert.Throws<RequiredFactException>(() => RaidDefense.Of(new RoundsFacts { RaidPoints = 500.0 })).Fact);
-        Assert.Equal(new RaidDefense(500, 120), RaidDefense.Of(new RoundsFacts { RaidPoints = 500.0, DefenseCapacity = Known(120.0) }));
+        Assert.Equal(new RaidDefense(500, 0), RaidDefense.Of(new RoundsFacts { RaidPoints = 500.0, DefenseCapacity = 0 }));
+        Assert.Equal(new RaidDefense(500, 120), RaidDefense.Of(new RoundsFacts { RaidPoints = 500.0, DefenseCapacity = 120.0 }));
     }
 
     [Fact]
@@ -33,7 +33,7 @@ public sealed class RaidDefenseTests
         Assert.Equal(ArmoryTier.Smithing, ArmoryRules.AssessArmory(new RaidDefense(500, 200), smithing).Tier);
         Assert.Equal(ArmoryTier.Neolithic, ArmoryRules.AssessArmory(new RaidDefense(200, 500), smithing).Tier);
         Assert.Equal("research", Assert.Throws<RequiredFactException>(() =>
-            ArmoryRules.AssessArmory(new RoundsFacts { RaidPoints = 500.0, DefenseCapacity = Known(120.0) })).Fact);
+            ArmoryRules.AssessArmory(new RoundsFacts { RaidPoints = 500.0, DefenseCapacity = 120.0 })).Fact);
     }
 
     private static GearRecipe Recipe() => new() { Available = true, AvailableOn = true, Ingredients = [], RequiredWork = [], WorkAmount = 100 };

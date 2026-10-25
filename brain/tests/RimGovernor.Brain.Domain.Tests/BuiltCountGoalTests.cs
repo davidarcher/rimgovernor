@@ -28,7 +28,7 @@ public sealed class BuiltCountGoalTests
         Assert.Equal(6, demand.Build.Turrets);
         Assert.Equal(6, GoalRules.Stamp(new RoundsFacts(), demand).GoalBuild.Turrets);
 
-        var none = Known<EquatableArray<DefenseTurretFacts>>([]);
+        EquatableArray<DefenseTurretFacts> none = [];
         // With no raid shortfall the budget is the floor; a larger budget from the raid stands.
         Assert.Equal(6, DefenseBudget.TurretBudget(new RaidDefense(0.0, 0.0), none, 6));
         Assert.Equal(0, DefenseBudget.TurretBudget(new RaidDefense(0.0, 0.0), none, 0));
@@ -105,7 +105,7 @@ public sealed class BuiltCountGoalTests
     {
         PowerGeyser Geyser(string id, int x, int z, bool occupied = false) => new() { Id = id, Cell = new Cell(x + 1, z + 1), Occupied = occupied, Cells = [new Cell(x, z), new Cell(x + 1, z), new Cell(x, z + 1), new Cell(x + 1, z + 1)] };
         var geysers = new[] { Geyser("far", 80, 80), Geyser("taken", 21, 20, occupied: true), Geyser("near", 30, 30) };
-        var sites = GoalsRounds.GeyserSites(geysers, Known(new Cell(20, 20)), new Bounds(2, 2)).ToList();
+        var sites = GoalsRounds.GeyserSites(geysers, new Cell(20, 20), new Bounds(2, 2)).ToList();
         Assert.Equal([new Rectangle(30, 30, 2, 2), new Rectangle(80, 80, 2, 2)], sites);
     }
 }

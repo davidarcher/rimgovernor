@@ -46,7 +46,7 @@ internal static class RecoveryArea
         var prepared = await s.FixtureAsync("prepare", Prepare, "", cancellationToken).ConfigureAwait(false);
         s.RecordFixture("prepared", prepared);
 
-        var observed = await s.CallAsync("environment-census", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+        var observed = await s.CallAsync("environment-census", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var hazard = observed.Environment.FirstOrDefault(row => row.DefName == "ToxicFallout")
             ?? throw new AcceptanceException($"environment-census: no ToxicFallout row in {string.Join("; ", observed.Environment)}");
         s.RecordWire("environment_hazard", hazard);

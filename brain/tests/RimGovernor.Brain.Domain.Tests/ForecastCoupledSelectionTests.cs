@@ -17,10 +17,16 @@ public sealed class ForecastCoupledSelectionTests
         Assert.True(new RimGovernor.Brain.Host.BrainFamilies().Work);
         var (_, capabilities) = RimGovernor.Brain.Host.BrainComposition.RoundsCapabilitiesFor(
             new() { Work = work }, false);
-        var facts = Review() with { AvailableNeeds = Known(EquatableArray.From(capabilities.Needs)) };
+        var facts = Review() with { AvailableNeeds = EquatableArray.From(capabilities.Needs) };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon);
         if (work) Assert.NotEmpty(Assert.IsType<ForecastCoupledCandidates>(generated).Alternatives);
         else Assert.Null(generated);
+    }
+
+    [Fact]
+    public void AnUncomposedReviewEnablesNoActivities()
+    {
+        Assert.Null(ForecastCoupledCandidates.GenerateCoupledActivities(Review() with { AvailableNeeds = [] }, Horizon));
     }
 
     private const double Horizon = 300;
@@ -55,7 +61,7 @@ public sealed class ForecastCoupledSelectionTests
                 },
             },
         };
-        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)?.Priced() };
     }
     private static string SourceTask(RoundsFacts facts, string target) => facts.CoupledAlternatives!.Context.Activities.Activities
@@ -79,7 +85,7 @@ public sealed class ForecastCoupledSelectionTests
             Needs = facts.ForecastObserved.Needs with { Pawns = [pawn, pawn with { Pawn = "helper" }] },
             Coupled = facts.ForecastObserved.Coupled! with { Food = facts.ForecastObserved.Coupled.Food with { Options = [] }, FoodUses = [] }
         } };
-        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
         var selected = Select(facts);
         Assert.NotEmpty(selected.Selected.Plan.Allocations);
@@ -165,7 +171,7 @@ public sealed class ForecastCoupledSelectionTests
                 },
             },
         };
-        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)?.Priced() };
     }
 
@@ -557,7 +563,7 @@ public sealed class ForecastCoupledSelectionTests
             Needs = facts.ForecastObserved.Needs with { Pawns = [pawn] },
             Coupled = facts.ForecastObserved.Coupled! with { Food = facts.ForecastObserved.Coupled.Food with { Options = [] }, FoodUses = [] }
         } };
-        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
         var candidates = facts.CoupledAlternatives!;
         Assert.Contains("unsupported_voluntary_state:pawn:chemical_need:Chemical_Smokeleaf", candidates.Findings);
@@ -584,7 +590,7 @@ public sealed class ForecastCoupledSelectionTests
         var root = candidates.Alternatives.First(c => c.ActivityCompletions.Count == 1
             && candidates.Context.NeedTasks.Any(n => n.Task == c.ActivityCompletions[0]));
         root = root with { Outcome = null, ExclusiveOutcome = "",
-            MaterialClaims = effect == "claim" ? [new(new("Rice"), Known(0d), default)] : [] };
+            MaterialClaims = effect == "claim" ? [new(new("Rice"), new MaterialUnits.Exact(0), "")] : [] };
         facts = facts with { CoupledAlternatives = candidates with { Alternatives = [root with { Id = "a" }, root with { Id = "b" }] } };
         var selected = Select(facts);
         Assert.Equal(evaluatePair, selected.Rejected.Any(e => e.Commitments.Count == 2));
@@ -943,8 +949,8 @@ public sealed class ForecastCoupledSelectionTests
         var result = Select(facts, null, work);
         Assert.Contains(result.Selected.Plan.Allocations, a => work.ActivityCompletions.Contains(a.Activity));
         var choices = EffectSourcesRules.GearChoices(facts.CoupledAlternatives, result);
-        var census = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearChoices(new RoundsFacts { Gear = Known(EffectSourceCandidatesTests.Census(pawn)) }, choices).Gear;
-        return (choices, GearLoadoutRules.PlanColonyGear(census.Value.Pawns)[0].Target);
+        var census = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearChoices(new RoundsFacts { Gear = EffectSourceCandidatesTests.Census(pawn) }, choices).Gear;
+        return (choices, GearLoadoutRules.PlanColonyGear(census.Pawns)[0].Target);
     }
 
     [Fact]
@@ -1004,8 +1010,8 @@ public sealed class ForecastCoupledSelectionTests
         var template = facts.ForecastObserved.Needs!.Pawns[0];
         facts = facts with
         {
-            Gear = Known(census),
-            WorkView = WorkRules.WorkResourcesOf(ProductionRules.WorkAdmissionEvidenceOf(roster, Known<EquatableArray<ProductionBatch>>([])), Known<EquatableArray<ProductionBatch>>([]), []),
+            Gear = census,
+            WorkView = WorkRules.WorkResourcesOf(ProductionRules.WorkAdmissionEvidenceOf(roster, new ProductionBatchCensus.Read([])), new ProductionBatchCensus.Read([]), []),
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = facts.ForecastObserved.Needs with { Pawns = [template, template with { Pawn = "tailor" }] },
@@ -1101,12 +1107,12 @@ public sealed class ForecastCoupledSelectionTests
         model = model with { Role = model.Role with { Traits = [] } };
         var facts = Review() with
         {
-            Gear = Known(ColonyModelFixtures.NoGear() with { Stored = [], Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = new GearModel.Modeled(model), Candidates = [] }] }),
+            Gear = ColonyModelFixtures.NoGear() with { Stored = [], Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = new GearModel.Modeled(model), Candidates = [] }] },
             MedicalPawns = [CareFixtures.Patient("pawn")],
         };
         var gear = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)!.Alternatives.Where(a => a.ExclusiveOutcome == "gear/pawn").ToArray();
         Assert.Contains(gear, a => a.Id == "gear/pawn/disallow-tainted/cold30-heat0");
-        var disabled = facts with { AvailableNeeds = Known<EquatableArray<NeedId>>([AdminFamily.WorkAssignments]) };
+        var disabled = facts with { AvailableNeeds = [AdminFamily.WorkAssignments] };
         Assert.DoesNotContain(ForecastCoupledCandidates.GenerateCoupledActivities(disabled, Horizon)!.Alternatives, a => a.ExclusiveOutcome.StartsWith("gear/", StringComparison.Ordinal));
     }
 

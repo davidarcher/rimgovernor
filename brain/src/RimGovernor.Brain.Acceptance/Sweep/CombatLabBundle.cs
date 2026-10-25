@@ -127,9 +127,7 @@ internal static class CombatLabBundle
         }
 
         var turrets = s.Guns.Select(g => new DefenseTurretFacts { Id = g.Id, Powered = g.Powered, Dps = g.Dps, OutOfFuel = false }).ToList();
-        return DefenseCapacityPolicy.DefenseCapacity(Known(EquatableArray.From(defenders)), Known(EquatableArray.From(turrets))).TryGetValue(out var capacity)
-            ? capacity
-            : throw new AcceptanceException("defense capacity of the staged fixture is unknown");
+        return DefenseCapacityPolicy.DefenseCapacity(EquatableArray.From(defenders), EquatableArray.From(turrets));
     }
 
     /// <summary>Adapts one read reply to the scoring rows.</summary>

@@ -3,12 +3,12 @@ namespace RimGovernor.Brain.Policy;
 public sealed record HumanButcherCandidate
 {
     public PawnId ID { get; init; }
-    public Fact<EquatableArray<PawnTrait>> Traits { get; init; }
+    public EquatableArray<PawnTrait> Traits { get; init; }
 
-    /// <summary>The pawn's own ideoligion and precept defNames from its row; unknown when the row carries no policy inputs.</summary>
-    public Fact<HeldPrecepts> Held { get; init; }
+    /// <summary>The pawn's own ideoligion and precept defNames from its row; required from the matching pawn row.</summary>
+    public required HeldPrecepts Held { get; init; }
 
-    public Fact<bool> CanWork { get; init; }
+    public bool CanWork { get; init; }
 }
 
 /// <summary>A pawn's ideoligion load id (empty without one) and the precept defNames of it.</summary>
@@ -53,37 +53,32 @@ public static class HumanFoodRules
     /// <summary>
     /// Whether the pawn's ideoligion costs no mood for butchering a human: it has one, and none of its precepts
     /// has a self-took-action effect on ButcheredHuman with a mood-losing stage. A pawn without an ideoligion is
-    /// not acceptable (only a trait qualifies it); with Ideology absent no precept exists to object. Unknown while
-    /// the pawn row is unread.
+    /// not acceptable (only a trait qualifies it); with Ideology absent no precept exists to object. The matching pawn row is required.
     /// </summary>
-    public static Fact<bool> PreceptAcceptable(Fact<HeldPrecepts> held, IdeologyMode ideology)
+    public static bool PreceptAcceptable(HeldPrecepts held, IdeologyMode ideology)
     {
         if (ideology is not IdeologyMode.Installed { Primary: var i })
         {
-            return Known(true);
+            return true;
         }
-        if (!held.TryGetValue(out var h))
-        {
-            return Unknown<bool>();
-        }
+        var h = held;
         if (h.Ideo.Length == 0)
         {
-            return Known(false);
+            return false;
         }
         foreach (var e in i.HeldBy(h.Defs).EffectsInForce())
         {
             if (e.Kind == PreceptEffectKind.SelfTookAction && e.HistoryEvent == ButcheredHumanEvent && e.Penalises())
             {
-                return Known(false);
+                return false;
             }
         }
-        return Known(true);
+        return true;
     }
 
     /// <summary>
-    /// Picks the lowest-id eligible worker whose ideoligion does not forbid butchering humans. An unread
-    /// ideoligion with Ideology installed holds; without the expansion nothing is forbidden and the native
-    /// disposition still gates the worker.
+    /// Picks the lowest-id eligible worker whose observed ideoligion permits butchering humans. Without
+    /// the expansion no precept forbids the action; native work eligibility still gates the worker.
     /// </summary>
     public static (PawnId Worker, bool Ok) QualifyingHumanButcher(IReadOnlyList<HumanButcherCandidate> rows, IdeologyMode ideology)
     {
@@ -169,73 +164,30 @@ public static class HumanFoodRules
 
     /// <summary>
     /// Whether the precept rule forbids the worker to butcher a human.
-    /// Traits cancel an unwilling effect; unknown traits cancel none.
+    /// Traits may cancel an unwilling effect.
     /// </summary>
-    private static bool ButcherHeld(IdeologyMode ideology, Fact<EquatableArray<PawnTrait>> traits)
+    private static bool ButcherHeld(IdeologyMode ideology, EquatableArray<PawnTrait> traits)
     {
-        var names = new List<string>();
-        if (traits.TryGetValue(out var rows))
-        {
-            foreach (var t in rows)
-            {
-                names.Add(t.Name);
-            }
-        }
+        var names = traits.Select(t => t.Name).ToArray();
         var subject = new PreceptSubject { Pawn = true, Traits = names };
         var stance = ideology.ActionStance(new PreceptAction { HistoryEvent = ButcheredHumanEvent }, subject).Stance;
         return stance is PreceptStance.Forbidden;
     }
 
     /// <summary>Separates the worker's disposition from the colony's response. Other pawns may still receive native butchery memories.</summary>
-    public static bool HumanButcherEligible(Fact<EquatableArray<PawnTrait>> traits, Fact<bool> preceptAcceptable, Fact<bool> canWork)
+    public static bool HumanButcherEligible(EquatableArray<PawnTrait> traits, bool preceptAcceptable, bool canWork)
     {
-        if (!canWork.TryGetValue(out var works) || !works)
+        if (!canWork)
         {
             return false;
         }
-        if (preceptAcceptable.TryGetValue(out var acceptable) && acceptable)
+        if (preceptAcceptable)
         {
             return true;
         }
-        if (!traits.TryGetValue(out var rows))
-        {
-            return false;
-        }
-        foreach (var trait in rows)
+        foreach (var trait in traits)
         {
             if (trait.Effects.HumanButcher)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /// <summary>
-    /// Whether the existing human-butcher gate would take a stranger corpse now: a usable butchery whose recipe is
-    /// available, a worker who qualifies (QualifyingHumanButcher); the morgue holds the corpse. It ignores whether
-    /// the human bill stands.
-    /// </summary>
-    public static bool HumanButcheryOpen(Fact<EquatableArray<ProductionBench>> benches, IdeologyMode ideology)
-    {
-        if (!benches.TryGetValue(out var rows))
-        {
-            return false;
-        }
-        foreach (var b in rows)
-        {
-            var nutrition = b.HumanCorpseNutrition;
-            if (!b.Butcher || !b.Usable || !FoodForecastRules.FoodNumber(nutrition) || nutrition <= 0)
-            {
-                continue;
-            }
-            var available = false;
-            foreach (var recipe in b.Recipes)
-            {
-                available = available || (recipe.Role == RecipeRole.ButcherFlesh && recipe.Available);
-            }
-            var (_, ok) = QualifyingHumanButcher(b.HumanButchers, ideology);
-            if (ok && available)
             {
                 return true;
             }

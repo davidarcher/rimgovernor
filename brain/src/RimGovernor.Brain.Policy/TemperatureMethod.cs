@@ -62,9 +62,9 @@ public sealed record HeatCampfire
 
     public required bool AutoRefuel { get; init; }
 
-    /// <summary>The campfire with its native room and toggle; null while either was not read (it then owes no switch).</summary>
-    public static HeatCampfire? Of(string id, Fact<string> room, Fact<bool> autoRefuel) =>
-        room.TryGetValue(out var r) && autoRefuel.TryGetValue(out var on) ? new HeatCampfire { Id = id, Room = r, AutoRefuel = on } : null;
+    /// <summary>The campfire with its native room and toggle; no room heat source outdoors or before the toggle is read.</summary>
+    public static HeatCampfire? Of(string id, string? room, RimGovernor.Contracts.Wire.Observations.BenchAutoRefuel autoRefuel) =>
+        room is { } r && autoRefuel is RimGovernor.Contracts.Wire.Observations.BenchAutoRefuel.Refuelable { Allowed: var on } ? new HeatCampfire { Id = id, Room = r, AutoRefuel = on } : null;
 }
 
 public sealed record TemperatureProposal
@@ -191,18 +191,8 @@ public abstract record ClimateGear
     public sealed record Placeable(double DrawW) : ClimateGear;
 
     /// <summary>The gear a planning definition describes: not placeable while unavailable, else placeable at its nominal draw. An unread availability, or draw of an available piece, raises <see cref="RequiredFactException"/>.</summary>
-    public static ClimateGear Of(string name, Fact<bool> available, Fact<double> drawW)
-    {
-        if (!available.TryGetValue(out var on))
-        {
-            throw new RequiredFactException(name + " availability");
-        }
-        if (!on)
-        {
-            return new NotPlaceable();
-        }
-        return drawW.TryGetValue(out var draw) ? new Placeable(draw) : throw new RequiredFactException(name + " power draw");
-    }
+    public static ClimateGear Of(string name, bool available, double drawW) =>
+        !available ? new NotPlaceable() : double.IsFinite(drawW) ? new Placeable(drawW) : throw new RequiredFactException(name + " power draw");
 }
 
 /// <summary>The colony power census the powered climate methods read: Census, or NoCensus when the native power section was not read this review.</summary>
@@ -463,10 +453,6 @@ public static partial class TemperatureMethodRules
         }
         return none;
     }
-
-    /// <summary>The cold and warm bounds of the sleeping rooms as facts: unread for <see cref="SleepingTemperature.NoIndoorBed"/>, which has no sleeping room to measure.</summary>
-    public static (Fact<double> Cold, Fact<double> Hot) SleepingBand(SleepingTemperature band) =>
-        band is SleepingTemperature.Indoor indoor ? (Known(indoor.MinC), Known(indoor.MaxC)) : (default, default);
 
     private sealed class ThermalChoice(RoomState room, IReadOnlyList<Cell> cells, string bed, TemperatureMethod method, double temperature)
     {

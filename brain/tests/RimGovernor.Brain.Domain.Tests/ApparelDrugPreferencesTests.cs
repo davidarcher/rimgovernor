@@ -57,7 +57,7 @@ public sealed class ApparelDrugPreferencesTests
             new() { Definition = new("Apparel_Shirt") },
             new() { Definition = new("Apparel_FlakVest") },
         ],
-        Gear = Known(ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Pawn = new("pawn"), Policy = State(), LoadoutModel = new GearModel.NoOutfit() }] }),
+        Gear = ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Pawn = new("pawn"), Policy = State(), LoadoutModel = new GearModel.NoOutfit() }] },
     };
 
     [Fact]
@@ -65,7 +65,7 @@ public sealed class ApparelDrugPreferencesTests
     {
         var facts = GearFacts().WithPreferences(new PreferencesRecord { Apparel = ApparelPreference.Nude });
         Assert.Empty(facts.Garments);
-        Assert.Equal(ApparelPreference.Nude, facts.Gear.TryGetValue(out var gear) ? gear.Pawns[0].Policy is { } state ? state.Preference : default : default);
+        Assert.Equal(ApparelPreference.Nude, facts.Gear.Pawns[0].Policy!.Preference);
     }
 
     [Fact]

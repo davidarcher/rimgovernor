@@ -28,7 +28,7 @@ public sealed partial class RoundsBuildingPlanner
     internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectRoutes(Observation.ColonyProjection facts)
     {
         var p = Reviewer.Policy.Routes;
-        var review = RoutesRules.ReviewRoutes(facts.Facts.Upkeep.Routes ?? throw new RequiredFactException("routes census"), p);
+        var review = RoutesRules.ReviewRoutes(facts.Facts.Upkeep.Routes, p);
         if (!review.Active)
         {
             return (null, BuildingReasonNoDeficit);

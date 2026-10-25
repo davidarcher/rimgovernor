@@ -51,7 +51,7 @@ public static class GoalPaths
         var missing = GoalRules.WornMissing(goal, f);
         if (goal.Qualifier == "" || missing is not > 0)
         {
-            return Unmodelled(goal.Qualifier == "" ? "stuff_unnamed" : "worn_count_unread");
+            return Unmodelled(goal.Qualifier == "" ? "stuff_unnamed" : "worn_count_met");
         }
 
         var stuff = new Resource(goal.Qualifier);
@@ -61,13 +61,13 @@ public static class GoalPaths
             return Unmodelled("no_recipe:" + goal.Target);
         }
 
-        var owed = recipe.Slots[0].First(a => a.Resource == stuff && a.Count > 0).Count * missing.Value;
+        var owed = recipe.Slots[0].First(a => a.Resource == stuff && a.Count > 0).Count * missing;
         var held = input.Stocks.Materials.Where(a => a.Resource == stuff).Sum(a => a.Count);
         var graph = new ProjectGraph();
         string[] after = [];
         if (held < owed)
         {
-            if (input.Crops.FirstOrDefault(c => c.Harvests.TryGetValue(out var yields) && yields == stuff) is not { } crop)
+            if (input.Crops.FirstOrDefault(c => c.Harvests == stuff) is not { } crop)
             {
                 return Unmodelled("no_crop:" + goal.Qualifier);
             }
@@ -86,7 +86,7 @@ public static class GoalPaths
             }
         }
 
-        var craft = ProjectGraph.Craft(input, recipe.Recipe, EquatableArray.From(after), false, missing.Value, stuff);
+        var craft = ProjectGraph.Craft(input, recipe.Recipe, EquatableArray.From(after), false, missing, stuff);
         graph = graph.Then(craft);
         return craft.Nodes.Count == 0
             ? new(new ProjectGraph(), null, Reason("craft_unread", craft))

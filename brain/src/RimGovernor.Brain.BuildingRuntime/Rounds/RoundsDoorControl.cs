@@ -13,7 +13,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             return (new RoundsBuildingResult(), false);
         }
-        foreach (var change in DoorControlRules.DoorChanges(facts.Rooms, facts.Facts.Upkeep.Routes ?? throw new RequiredFactException("routes census"), Reviewer.Policy))
+        foreach (var change in DoorControlRules.DoorChanges(facts.Rooms, facts.Facts.Upkeep.Routes, Reviewer.Policy))
         {
             if (Concern == ShelterFamily.Temperature.FilingKey && !change.Heat)
             {

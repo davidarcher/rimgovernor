@@ -89,8 +89,6 @@ public enum RefrigerationMethod
     [WireName("")]
     None = 0,
 
-    [WireName("unknown")]
-    Unknown,
 
     [WireName("no_deficit")]
     NoMethod,
@@ -257,7 +255,7 @@ public static partial class RefrigerationRules
         {
             if (!rooms.TryGetValue(id, out var room))
             {
-                return new RefrigerationProposal { Method = RefrigerationMethod.Unknown };
+                throw new RequiredFactException("refrigeration room:" + id);
             }
             var roomCells = v.Rooms.CellsOf(room);
             if (!room.Enclosed() || roomCells.Count == 0)
@@ -334,11 +332,7 @@ public static partial class RefrigerationRules
                 waiting = FirstReason(waiting, RefrigerationMethod.PowerNeeded);
                 continue;
             }
-            var (blocked, known) = HeatRejectionBlocked(cooler, rooms, cellRoom, cells);
-            if (!known)
-            {
-                return (new RefrigerationProposal { Method = RefrigerationMethod.Unknown }, RefrigerationMethod.None);
-            }
+            var blocked = HeatRejectionBlocked(cooler, rooms, cellRoom, cells);
             if (blocked)
             {
                 waiting = FirstReason(waiting, RefrigerationMethod.HeatRejectionBlocked);
@@ -366,8 +360,8 @@ public static partial class RefrigerationRules
             {
                 continue;
             }
-            var (blocked, known) = HeatRejectionBlocked(cooler, rooms, cellRoom, cells);
-            if (known && !blocked)
+            var blocked = HeatRejectionBlocked(cooler, rooms, cellRoom, cells);
+            if (!blocked)
             {
                 return (new RefrigerationProposal(), RefrigerationMethod.Wait);
             }
@@ -378,22 +372,22 @@ public static partial class RefrigerationRules
     /// <summary>
     /// True when the cooler's hot side is impassable, or sits indoors in a room measured no warmer than the
     /// room it cools would be useful at: heat pushed into another enclosed room stops the exchange once that
-    /// room saturates. Outdoors or unroofed hot sides are never blocked. Known is false when it cannot be told.
+    /// room saturates. Outdoors or unroofed hot sides are never blocked. Missing hot-side geometry raises RequiredFactException.
     /// </summary>
-    internal static (bool Blocked, bool Known) HeatRejectionBlocked(
+    internal static bool HeatRejectionBlocked(
         RefrigerationCooler cooler, IReadOnlyDictionary<string, RoomState> rooms, IReadOnlyDictionary<Cell, string> cellRoom, IReadOnlyDictionary<Cell, SiteCell> cells)
     {
         var hot = cooler.Hot();
         if (cells.TryGetValue(hot, out var c))
         {
-            return (!c.Walkable || c.Indoors, true);
+            return !c.Walkable || c.Indoors;
         }
         // The room holding the hot cell decides; rooms do not overlap.
         if (cellRoom.TryGetValue(hot, out var id) && rooms.TryGetValue(id, out var room))
         {
-            return (room.Enclosed(), true);
+            return room.Enclosed();
         }
-        return (false, false);
+        throw new RequiredFactException("cooler hot-side cell:" + hot);
     }
 
     // Rotations order by their wire strings: east, north, south, west.

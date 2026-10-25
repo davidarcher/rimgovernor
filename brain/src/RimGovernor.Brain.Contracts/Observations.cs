@@ -2713,6 +2713,10 @@ public abstract record ZoneState
     /// </summary>
     public sealed record Growing : ZoneState
     {
+        public required uint ZoneCells { get; init; }
+
+        public required uint UnroofedCells { get; init; }
+
         public required string Crop { get; init; }
 
         public required uint UsableCells { get; init; }
@@ -5964,18 +5968,6 @@ public sealed record EdibleCrop
 }
 
 /// <summary>
-/// The definitions themselves are the definition catalog's; crops
-/// lists every edible crop, sorted by name.
-/// </summary>
-public sealed record PlanningFacts
-{
-    public required GearSnapshot Gear { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<EdibleCrop>))]
-    public EquatableArray<EdibleCrop> Crops { get; init; }
-}
-
-/// <summary>
 /// The static facts of a product (nutrition, rot days, perishability, baby
 /// edibility) are its def row's in the definition catalog; the frame
 /// carries what varies: count, whether a human can eat it, the colony's demand
@@ -7182,28 +7174,18 @@ public abstract record SleepingTemperature
 }
 
 /// <summary>
-/// The planning section of a colony facts read: its facts when the read asked for them
-/// (<see cref="ColonyFactsRequest.Planning"/>), else NotRequested. A planner that needs them and holds a
-/// NotRequested read fails with <c>RequiredFactException("planning")</c>.
-/// </summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(Planning.Requested), "requested")]
-[JsonDerivedType(typeof(Planning.NotRequested), "not_requested")]
-public abstract record Planning
-{
-    private protected Planning() { }
-
-    public sealed record Requested(PlanningFacts Facts) : Planning;
-
-    public sealed record NotRequested : Planning;
-}
-
-/// <summary>
 /// One colony facts read, all of it from one game-thread frame. A read that cannot produce a member fails whole;
 /// the members a later facts family owns keep their section types until it hardens them.
 /// </summary>
 public sealed record ColonyFactsSnapshot
 {
+    /// <summary>The complete gear census from this game-thread frame.</summary>
+    public required GearSnapshot Gear { get; init; }
+
+    /// <summary>Every edible sowable crop with its current colony diet and nutrition demand.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<EdibleCrop>))]
+    public required EquatableArray<EdibleCrop> Crops { get; init; }
+
     /// <summary>Exact thing identities contributing to Resources.</summary>
     public required EquatableArray<string> ResourceThings { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<WorkResourcePawn>))]
@@ -7246,13 +7228,13 @@ public sealed record ColonyFactsSnapshot
     public required ControlledEnvironment ControlledEnvironment { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<CookingFacts>))]
-    public EquatableArray<CookingFacts> Cooking { get; init; }
+    public required EquatableArray<CookingFacts> Cooking { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<AcquisitionFacts>))]
     public required EquatableArray<AcquisitionFacts> Acquisition { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ButcheringFacts>))]
-    public EquatableArray<ButcheringFacts> Butchering { get; init; }
+    public required EquatableArray<ButcheringFacts> Butchering { get; init; }
 
     public required FoodSupplyFacts FoodSupply { get; init; }
 
@@ -7261,8 +7243,6 @@ public sealed record ColonyFactsSnapshot
     public required UpkeepFacts Upkeep { get; init; }
 
     public required DevelopmentSection Development { get; init; }
-
-    public required Planning Planning { get; init; }
 
     public required RecoverySnapshot Recovery { get; init; }
 
@@ -7635,9 +7615,6 @@ public sealed record JoinerLetter
 public sealed record ColonyFactsRequest
 {
     public ReadScope? Scope { get; init; }
-
-    /// <summary>Whether the read carries the planning facts (<see cref="Observations.Planning.Requested"/>); false when omitted.</summary>
-    public bool Planning { get; init; }
 
     public uint HerdRadius { get; init; } = 25;
 }

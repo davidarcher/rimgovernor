@@ -55,10 +55,7 @@ public static partial class TradePolicyRules
     /// <summary>Uses observed dietary access and rot, leaving every home consumer's reserve. Capacity excludes the observed silver mass.</summary>
     public static (IReadOnlyList<CargoItem> Cargo, QuestSkipReason Reason) TradeMissionFood(RoundsFacts f, IReadOnlyList<PawnId> crew, double roundTripDays, double capacity, RoundsPolicy p)
     {
-        if (!f.AnimalUpkeep.Food.TryGetValue(out var supply))
-        {
-            return ([], "no_food_census");
-        }
+        var supply = f.AnimalUpkeep.Food;
         if (!Finite(capacity) || capacity < 0 || !Finite(roundTripDays) || roundTripDays < 0)
         {
             return ([], "invalid_trip");

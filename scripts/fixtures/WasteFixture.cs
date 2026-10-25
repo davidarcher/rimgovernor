@@ -269,7 +269,7 @@ namespace HomeBridge.BridgeTools
                     try
                     {
                         var request = new RimGovernor.Contracts.Wire.Observations.ColonyFactsRequest {
-                            Scope = new RimGovernor.Contracts.Wire.Observations.ReadScope { ExpectedIdentity = context.Identity }, Planning = true };
+                            Scope = new RimGovernor.Contracts.Wire.Observations.ReadScope { ExpectedIdentity = context.Identity } };
                         return NativeColonyObservationTools.Read(map, request, context);
                     }
                     finally { NativeUpkeepFacts.SharedPass = previous; }

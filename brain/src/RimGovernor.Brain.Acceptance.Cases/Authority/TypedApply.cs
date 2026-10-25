@@ -50,7 +50,7 @@ internal static class TypedApply
     /// <summary>The colony facts' upkeep census (observations_read_colony_facts, planning off).</summary>
     internal static async Task<Observations.UpkeepFacts> UpkeepAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+        var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         return facts.Upkeep;
     }
 

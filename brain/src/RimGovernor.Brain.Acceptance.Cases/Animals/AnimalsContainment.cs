@@ -91,7 +91,7 @@ internal static class AnimalsContainment
             throw new AcceptanceException($"the contained cow carries a release or slaughter designation: {cow}");
         }
 
-        var facts = await s.CallAsync("pet-upkeep", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+        var facts = await s.CallAsync("pet-upkeep", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var pet = facts.Upkeep.Animals.FirstOrDefault(a => a.Pawn.Value == petId)
             ?? throw new AcceptanceException($"pet-upkeep: the staged pet {petId} is not in the upkeep census");
         s.RecordWire("pet", pet);

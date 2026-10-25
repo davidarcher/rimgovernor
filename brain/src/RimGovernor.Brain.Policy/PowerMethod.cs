@@ -94,7 +94,7 @@ public sealed record GeneratorOption
 {
     public string Definition { get; init; } = "";
 
-    public Fact<bool> Available { get; init; }
+    public bool Available { get; init; }
 
     public Resource Fuel { get; init; }
 
@@ -141,11 +141,11 @@ public sealed record PowerPlanning
 {
     public IReadOnlyList<GeneratorOption> Generators { get; init; } = [];
 
-    public Fact<bool> BatteryAvailable { get; init; }
+    public bool BatteryAvailable { get; init; }
 
     public PowerBattery Battery { get; init; }
 
-    public Fact<bool> GeothermalAvailable { get; init; }
+    public bool GeothermalAvailable { get; init; }
 
     /// <summary>The delivery profile of every producer definition the catalog has (DefinitionCatalog.PowerSources); a producer on the map that it lacks is an error.</summary>
     public IReadOnlyDictionary<string, PowerSourceProfile> Sources { get; init; } = new Dictionary<string, PowerSourceProfile>();
@@ -186,7 +186,7 @@ public sealed record PowerPlanning
 /// </summary>
 public sealed record GeneratorRanking
 {
-    public Fact<bool> BatteryAvailable { get; init; }
+    public bool BatteryAvailable { get; init; }
 
     public bool NightOnly { get; init; }
 
@@ -276,7 +276,7 @@ public static partial class PowerRules
     /// sources; a generator with no profile or row is an error (DomainException).
     /// </summary>
     public static IReadOnlyList<GeneratorOption> DefaultGeneratorOptions(
-        Func<string, Fact<bool>> available,
+        Func<string, bool> available,
         Func<Resource, long> stock,
         Func<Resource, bool> renewable,
         IReadOnlyDictionary<string, PowerSourceProfile> sources,
@@ -350,12 +350,14 @@ public static partial class PowerRules
     public static IReadOnlyList<string> RankGenerators(IReadOnlyList<GeneratorOption> options, GeneratorRanking ranking)
     {
         var rows = new List<RankedGenerator>();
-        ranking.BatteryAvailable.TryGetValue(out var battery);
-        var polarNight = ranking.DaylightHours == 0;
+        var battery = ranking.BatteryAvailable;
+        var daylight = ranking.DaylightHours;
+        var polarNight = daylight == 0;
         for (var i = 0; i < options.Count; i++)
         {
             var o = options[i];
-            if (!o.Available.TryGetValue(out var available) || !available)
+            var available = o.Available;
+            if (!available)
             {
                 continue;
             }
@@ -829,7 +831,8 @@ public static partial class PowerRules
     /// </summary>
     private static PowerProposal Store(PowerProposal p, PowerSite target, IReadOnlyList<PowerSite> producers, PowerPlanning planning, IReadOnlyList<PowerGeyser> geysers, HashSet<Cell> route)
     {
-        if (!planning.BatteryAvailable.TryGetValue(out var available) || !available)
+        var available = planning.BatteryAvailable;
+        if (!available)
         {
             return ProposeGenerator(p, target, producers, planning, geysers, route);
         }
@@ -874,7 +877,8 @@ public static partial class PowerRules
     /// <summary>The nearest free geyser a conduit route of at most GeothermalReachCells can reach from start, when the geothermal generator is natively available. Null when none.</summary>
     private static PowerGeyser? ReachableGeyser(Cell start, IReadOnlyList<PowerGeyser> geysers, PowerPlanning planning, HashSet<Cell> route)
     {
-        if (!planning.GeothermalAvailable.TryGetValue(out var available) || !available)
+        var available = planning.GeothermalAvailable;
+        if (!available)
         {
             return null;
         }

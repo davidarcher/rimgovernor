@@ -9,8 +9,8 @@ public sealed class MaterialValueTests
 {
     private static readonly Resource Metal = new("Metal");
     private static readonly Resource Wood = new("Wood");
-    private static Fact<IReadOnlyDictionary<Resource, Fact<double>>> Stock => Known<IReadOnlyDictionary<Resource, Fact<double>>>(
-        new Dictionary<Resource, Fact<double>> { [Metal] = Known(10.0), [Wood] = Known(10.0) });
+    private static MaterialAvailability Stock => new MaterialAvailability.Assessed(
+        new Dictionary<Resource, MaterialUnits> { [Metal] = new MaterialUnits.Exact(10.0), [Wood] = new MaterialUnits.Exact(10.0) });
     private static ForecastMaterialValuation Values(double urgent = 20, double workRate = 0.1) => new(
         new Dictionary<string, ForecastNeedValue> { ["urgent"] = new(1, urgent), ["beauty"] = new(10, 1) },
         new Dictionary<Resource, double> { [Metal] = 0.1, [Wood] = 0.1 }, workRate);
@@ -100,9 +100,9 @@ public sealed class MaterialValueTests
     {
         var art = new LedgerPlacement("a", new() { Recipe = "Art", Mode = BillMode.GearBatch, Target = 1 });
         var machine = new LedgerPlacement("b", new() { Recipe = "Machine", Mode = BillMode.GearBatch, Target = 1 });
-        var view = new ProductionMaterialView(Known<EquatableArray<ProductionRecipeInput>>([
+        var view = new ProductionMaterialView([
             new("Art", [[new(Metal, 10), new(Wood, 10)]], false) { Products = [], WorkAmount = 0 },
-            new("Machine", [[new(Metal, 10)]], false) { Products = [], WorkAmount = 0 }]), Stock);
+            new("Machine", [[new(Metal, 10)]], false) { Products = [], WorkAmount = 0 }], Stock);
         string Key(LedgerPlacement p, Resource r) => (p.Spec with { Ingredients = [r.Value] }).Key();
         var estimates = new Dictionary<string, ForecastProductionEstimate> {
             [Key(art, Metal)] = new([new("beauty", 8)], 1),

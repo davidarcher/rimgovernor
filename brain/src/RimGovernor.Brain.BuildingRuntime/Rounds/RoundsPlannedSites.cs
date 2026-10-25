@@ -71,24 +71,20 @@ public sealed partial class Rounder
     /// A planned site's catalog work per piece (WorkToBuild): its def's for its stuff, a floor's own; unknown where the
     /// catalog does not show it. A roof has no catalog work (PlannedRoomWork reports it apart).
     /// </summary>
-    internal static Fact<double> PlannedSiteWork(ColonyProjection colony, FlooringFacts floors, PlannedBuildSite site)
+    internal static double PlannedSiteWork(ColonyProjection colony, FlooringFacts floors, PlannedBuildSite site)
     {
         if (site.Op == OpKind.FloorIn)
-        {
-            return floors.Definitions.TryGetValue(site.Definition, out var floor) ? floor.WorkToBuild : Unknown<double>();
-        }
-        if (RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, site.Definition) is not { } def)
-        {
-            return Unknown<double>();
-        }
-        if (site.Stuff.Length == 0)
-        {
-            return def.StuffOptions.Count == 0 ? def.WorkToBuild : Unknown<double>();
-        }
-        return def.StuffOptions.FirstOrDefault(o => o.Stuff == site.Stuff) is { } option
-            && option.Stats.TryGetValue(Bridge.Contracts.StatDefNames.StatWorkToBuild, out var work) ? Known(work) : Unknown<double>();
+            return floors.Definitions.TryGetValue(site.Definition, out var floor)
+                ? floor.WorkToBuild : throw new RequiredFactException("floor definition:" + site.Definition);
+        var def = RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, site.Definition)
+            ?? throw new RequiredFactException("construction definition:" + site.Definition);
+        if (!def.Stuffed)
+            return (def.FixedConstruction ?? throw new RequiredFactException("fixed construction:" + site.Definition)).WorkToBuild;
+        var option = def.StuffOptions.FirstOrDefault(o => o.Stuff == site.Stuff)
+            ?? throw new RequiredFactException("construction stuff:" + site.Definition + ":" + site.Stuff);
+        return option.Stats.TryGetValue(Bridge.Contracts.StatDefNames.StatWorkToBuild, out var work)
+            ? work : throw new RequiredFactException("construction work:" + site.Definition + ":" + site.Stuff);
     }
-
     /// <summary>
     /// The stuffs a planned room's ring is read in (PlannedRingStuffs): the wall def's ordinary stuffs the door can be made
     /// from too, priced by the wall's cost list, stocked when the colony holds any of the stuff, else the wood or rock
@@ -176,7 +172,8 @@ public sealed partial class Rounder
         }
         if (def.StuffOptions.Count == 0)
         {
-            return def.Costs.TryGetValue(out var costs) ? ("", costs) : null;
+            var costs = (def.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).Costs;
+            return ("", costs);
         }
         return def.StuffOptions.FirstOrDefault(o => o.Stuff == stuff) is { } option ? (stuff, option.Costs) : null;
     }

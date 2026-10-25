@@ -96,7 +96,7 @@ public sealed partial class RoundsSurgeryPlanner
         {
             stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
         }
-        SilverGapRules.RoundsSilverShort(read.Projection.Facts, _reviewer.Policy, review.Latches.MedicalReserve).TryGetValue(out var shortfall);
+        var shortfall = SilverGapRules.RoundsSilverShort(read.Projection.Facts, _reviewer.Policy, review.Latches.MedicalReserve);
         var needs = OrganHarvestRules.OrganNeeds(read.Projection.Facts.MedicalPawns, selection.Wants, shortfall, stock, read.Projection.Facts.Recipes);
         var harvest = OrganHarvestRules.SelectOrganHarvest(read.Projection.Facts.Population, needs, inFlight);
         if (harvest is null)

@@ -99,7 +99,7 @@ public sealed record RecoveryRequest
 
     public Cell Center { get; init; }
 
-    public bool Threat { get; init; }
+    public HostileCensus Threat { get; init; } = new HostileCensus.AwaitingEmergency();
 
     public EquatableArray<OutdoorHazard> Hazard { get; init; }
 
@@ -178,7 +178,7 @@ public static partial class RecoveryRules
     /// </summary>
     private static string RecoveryHold(RecoveryThing t, RecoveryRequest r)
     {
-        if (r.Threat)
+        if (r.Threat.ThreatCount > 0)
         {
             return RemoteRules.RemoteHoldThreat;
         }
@@ -434,12 +434,7 @@ public static partial class RecoveryRules
     {
         var extent = ColonyExtentRules.DeriveColonyExtent(f.MapBounds, f.CurrentConstruction, f.ConstructionClaims, f.HomeCoverage);
         var shortSet = RecoveryShortResources(p, f);
-        bool threat;
-        if (f.Hostiles.TryGetValue(out var hostiles))
-        {
-            threat = hostiles > 0;
-        }
-        else { throw new RequiredFactException("recovery hostile census"); }
+        var threat = f.Hostiles;
         var origins = new List<Cell>();
         var center = new Cell();
         if (extent is ExtentDerivation.Derived { Extent: var e })

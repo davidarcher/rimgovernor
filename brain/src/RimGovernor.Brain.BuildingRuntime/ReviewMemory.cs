@@ -64,7 +64,7 @@ internal sealed class TradeReviewMemory
 {
     private readonly object _mu = new();
     private GenerationSnapshot _snapshot;
-    private TradeReview _review = new();
+    private TradeReview _review = new TradeReview.AwaitingFoodPlan();
 
     public void Set(GenerationSnapshot snapshot, TradeReview review)
     {
@@ -80,7 +80,7 @@ internal sealed class TradeReviewMemory
     {
         lock (_mu)
         {
-            return _snapshot != snapshot ? new TradeReview() : _review;
+            return _snapshot != snapshot ? throw new RequiredFactException("trade review") : _review;
         }
     }
 }
@@ -170,22 +170,22 @@ public sealed partial class Rounder
     /// acceptance fault <c>Faults.StockDemand</c> raised to at least its count. It reaches the layout only; no
     /// planner acquires it. Unknown until a review of this world derived the demand; an empty one is known.
     /// </summary>
-    internal Fact<IReadOnlyDictionary<Resource, long>> StationNeeds(GenerationSnapshot snapshot)
+    internal IReadOnlyDictionary<Resource, long> StationNeeds(GenerationSnapshot snapshot)
     {
         if (!Demand.Read(snapshot).TryGetValue(out var demand))
         {
-            return Unknown<IReadOnlyDictionary<Resource, long>>();
+            throw new RequiredFactException("resource demand");
         }
         var needs = demand.Needs;
         if (StockDemand is not { Count: > 0 } stockDemand)
         {
-            return Known(needs);
+            return needs;
         }
         var result = new Dictionary<Resource, long>(needs);
         foreach (var (resource, count) in stockDemand)
         {
             result[resource] = Math.Max(result.GetValueOrDefault(resource), count);
         }
-        return Known<IReadOnlyDictionary<Resource, long>>(result);
+        return result;
     }
 }

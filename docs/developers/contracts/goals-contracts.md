@@ -125,7 +125,7 @@ Need is `economy/resource`, and the goal asks three existing channels for help; 
   plant definitions: the plant whose `HarvestedThingDef` is the stuff gives its `Research` (devilstrand cloth to the
   Devilstrand project), unfinished projects only. Sowing and tailoring then follow the field and clothing channels.
 
-`NoMethod` `no_wearer` when no colonist is eligible; an unread gear census raises `RequiredFactException` (`gear`). The
+`NoMethod` `no_wearer` when no colonist is eligible; a missing gear census raises `RequiredFactException` (`gear census`). The
 deficit is `Count` less the wearers.
 
 ## Built-count goals (#3496)

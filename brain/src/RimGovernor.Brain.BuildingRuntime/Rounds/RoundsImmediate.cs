@@ -120,8 +120,8 @@ public sealed partial class Rounder
         var urgent = EmergencyNeedsRules.UrgentPatients(emergency, state.Snapshot, expected.Tick);
         (critical, urgent) = EmergencyNeedsRules.PatientCounts(reading.Emergency, f.MedicalPawns);
         f = f with { Hostiles = hostiles, CriticalPatients = critical, UrgentPatients = urgent };
-        f = f with { DangerSeeds = SafeAreaMemory.DangerSeedFact(f.Hostiles, reading.Emergency.Threats) };
-        f.DangerSeeds.TryGetValue(out var seeds);
+        f = f with { DangerSeeds = EquatableArray.From(ShelterRules.DangerSeeds(reading.Emergency.Threats)) };
+        var seeds = f.DangerSeeds;
         f = f with { DangerWindow = SafeArea.DangerWindow(RoundsStockpilePlanner.StockpileWorld(state.Snapshot), f.Hostiles, seeds, expected.Tick) };
         f = f with { DangerHaulers = ShelterRules.DangerHaulers(projection.WorkPawns) };
         f = f with { Tick = expected.Tick };

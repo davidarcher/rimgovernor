@@ -41,6 +41,27 @@ estimate uses the proposed outbound cargo; buying goods requires a fresh return
 estimate after observing the away inventory. Unknown/unreachable estimates
 cannot admit a safe autonomous mission.
 
+## Required review facts
+
+The trader census, colony wealth, unreserved packed-art count and active meal
+ingredient slots are concrete review inputs. A missing trader section refuses the
+observation; an empty census means no traders. Trade need, purchase price, silver
+gap and recovery calculations carry concrete values through exports, surgery,
+herd sales and mission planning. Missing currency definitions or market prices
+refuse the calculation rather than producing a zero gap.
+
+The review names `AwaitingFoodPlan` until the shared food planner has produced a plan;
+this does not abort unrelated families or certify either trade Need as met.
+Trade uses the shared food plan and its named runway. An absent plan refuses the
+review; NoEaters produces no food purchase. Population capacity is AwaitingFoodPlan
+until that runway exists, then Assessed with the capacity decision. A joiner offer
+or letter requires an assessment only when it is otherwise actionable. Other
+trade purchases remain reviewable while population capacity awaits the plan.
+
+Trader generator compatibility distinguishes Trades, DoesNotTrade and
+UnsupportedGenerator. Unsupported generators authorize no supply promise and
+leave export buyer coverage incomplete. A kind without a currency generator has
+a guaranteed silver lower bound of zero. Missing definitions refuse the read.
 ## Native request rules
 
 Verified against installed RimWorld 1.6 Assembly-CSharp with ilspycmd:
@@ -120,7 +141,7 @@ Settlement purchases use live prices and current home demand, bounded by saved
 authorization, mission silver and native carry capacity. The existing supply
 ranker opens these candidates privately; away offers stay excluded from home
 stock. A mission authorized to buy food holds in Buying while the shared food
-review is unknown: it neither buys a partial plan nor records a return or
+plan is absent: it neither buys a partial plan nor records a return or
 completion. This is an explicit food-plan refusal, not measured zero demand.
 Known zero demand still closes trading and returns, as do empty/unavailable
 sheets. Resource-only missions do not require a food-demand measurement.

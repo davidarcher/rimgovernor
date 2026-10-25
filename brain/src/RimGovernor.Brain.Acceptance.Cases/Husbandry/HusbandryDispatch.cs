@@ -132,7 +132,7 @@ internal static class HusbandryDispatch
         // Tame: the factionless muffalo is only in the colony facts' wild census.
         var wild = await AnimalAsync("wild-before", herd.Wild).ConfigureAwait(false);
         Want(wild is { Tameable: true } && !wild.Tame, "wild-before: want a tameable, undesignated muffalo", wild);
-        var factsReply = await s.CallAsync("colony-facts-wild", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+        var factsReply = await s.CallAsync("colony-facts-wild", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var upkeep = factsReply.Upkeep;
         Want(upkeep.WildAnimals.Any(a => a.Value == herd.Wild) && !upkeep.Animals.Any(a => a.Pawn.Value == herd.Wild), "colony-facts-wild: want the muffalo in the wild census only", herd.Wild);
 

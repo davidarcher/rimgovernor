@@ -8,18 +8,13 @@ public static class ColonyGearReads
     /// <summary>
     /// Decodes the gear census against the frame's definitions: the catalog's apparel rows and stat table give every
     /// garment's layers, groups and stats, and the finished research its bill options need. Each bill option carries the
-    /// arrival of its stuff (<see cref="StuffArrivalFacts"/>), counting the growing <paramref name="fields"/> of the
-    /// <paramref name="crops"/>' plants; unread fields (the projection's FoodFields) offer nothing. A frame without a
-    /// stock census leaves the census unknown; a census whose rows are not the frame's colonists raises
+    /// arrival of its stuff (<see cref="StuffArrivalFacts"/>), counting the complete growing <paramref name="fields"/>.
+    /// A census whose rows are not the frame's colonists raises
     /// <see cref="RequiredFactException"/>. A pawn the loadout model refuses is <see cref="GearModel.Refused"/> with the cause.
     /// </summary>
-    public static Fact<GearObservation> GearFacts(O.ColonyFactsSnapshot v, Tables tables, GearDefinitions defs, Fact<EquatableArray<FoodField>> fields, IReadOnlyList<PlanningDefinition> crops) =>
-        GearFacts(v, tables, defs, fields.TryGetValue(out var read) ? read : [], crops);
-
-    /// <summary><see cref="GearFacts(O.ColonyFactsSnapshot, Tables, GearDefinitions, Fact{EquatableArray{FoodField}}, IReadOnlyList{PlanningDefinition})"/> counting <paramref name="fields"/>.</summary>
-    public static Fact<GearObservation> GearFacts(O.ColonyFactsSnapshot v, Tables tables, GearDefinitions defs, IReadOnlyList<FoodField> fields, IReadOnlyList<PlanningDefinition> crops)
+    public static GearObservation GearFacts(O.ColonyFactsSnapshot v, Tables tables, GearDefinitions defs, IReadOnlyList<FoodField> fields)
     {
-        var gear = PlanningWindowReads.RequirePlanning(v).Gear;
+        var gear = v.Gear ?? throw new BridgeContractException("missing total gear census");
         var catalog = defs.Catalog;
         var finished = defs.Finished;
         var stock = ColonyDecodeReads.StockCensus(v);
@@ -27,7 +22,21 @@ public static class ColonyGearReads
         {
             throw new RequiredFactException("gear census of every colonist");
         }
-        var arrival = StuffArrivalFacts(v, tables, catalog, stock, fields, crops);
+        var emergency = tables.Emergency ?? throw new BridgeContractException("missing total emergency census for gear");
+        if (!emergency.AllSeen || gear.Pawns.Count != emergency.Colonists.Count)
+        {
+            throw new RequiredFactException("gear census of every emergency colonist");
+        }
+        var identities = new HashSet<PawnId>();
+        foreach (var pawn in emergency.Colonists)
+        {
+            if (!identities.Add(pawn.Id)) throw new RequiredFactException("unique emergency colonists");
+        }
+        foreach (var pawn in gear.Pawns)
+        {
+            if (!identities.Remove(pawn.Pawn)) throw new RequiredFactException("gear census of every emergency colonist");
+        }
+        var arrival = StuffArrivalFacts(v, tables, catalog, stock, fields);
         var threat = RaidThreatFacts(v.Threat.Observed, catalog);
         var pawns = new List<GearPawn>(gear.Pawns.Count);
         foreach (var p in gear.Pawns)
@@ -62,7 +71,7 @@ public static class ColonyGearReads
             Outfits = OutfitIds(v.Policies),
             KnowledgeBills = KnowledgeBillOptions(catalog, finished, gear.LockedBills),
         };
-        return Known(result);
+        return result;
     }
 
     /// <summary>
@@ -115,11 +124,10 @@ public static class ColonyGearReads
     /// their butchery yields (none when that census is unknown); the unforbidden animal corpses of the food census (#3622),
     /// each its race's butchery yields after one butchering's work at speed 1 (none without the census, the butcher
     /// recipe's work or the race's row); and the growing <paramref name="fields"/>, each its standing crop (the growing
-    /// cells times the plant's harvest yield) at its harvest lead. A field whose crop the <paramref name="crops"/> lack,
-    /// or whose product or yield is unread, offers nothing.
+    /// cells times the plant's harvest yield) at its harvest lead. A fallow or dormant field offers no harvest arrival.
     /// </summary>
     internal static StuffArrival StuffArrivalFacts(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog catalog, IReadOnlyDictionary<Resource, long> stock,
-        IReadOnlyList<FoodField> fields, IReadOnlyList<PlanningDefinition> crops)
+        IReadOnlyList<FoodField> fields)
     {
         var supply = new List<SupplyCandidate>();
         foreach (var s in AcquisitionReads.ColonyAcquisition(v, tables, catalog))
@@ -142,9 +150,10 @@ public static class ColonyGearReads
         }
         foreach (var f in fields)
         {
-            var crop = crops.FirstOrDefault(d => d.Name == f.Plan.Crop.Name);
-            if (crop is not null && crop.HarvestedThingDef.TryGetValue(out var product) && crop.HarvestYield.TryGetValue(out var yield)
-                && ClothingDemandRules.GrowingFieldCandidate(new Resource(product), f.Id, f.Plan.Sites.Cells * yield, f.RemainingGrowDays) is { } field)
+            var crop = f.Plan.Crop;
+            var product = crop.Harvests;
+            var yield = crop.UnitsPerCell;
+            if (ClothingDemandRules.GrowingFieldCandidate(product, f.Id, f.Plan.Sites.Cells * yield, f.RemainingGrowDays) is { } field)
             {
                 supply.Add(field);
             }
@@ -460,30 +469,6 @@ public static class ColonyGearReads
         return catalog.FindThing(def) is null ? throw new RequiredFactException($"catalog row of gear def {def}") : def;
     }
 
-    internal static Fact<GearObservation> RoundsGear(Fact<GearObservation> v, EmergencyFacts emergency)
-    {
-        if (!v.TryGetValue(out var gear) || !emergency.AllSeen || gear.Pawns.Count != emergency.Colonists.Count)
-        {
-            return Unknown<GearObservation>();
-        }
-        var ids = new HashSet<PawnId>();
-        foreach (var p in emergency.Colonists)
-        {
-            if (!ids.Add(p.Id))
-            {
-                return Unknown<GearObservation>();
-            }
-        }
-        foreach (var p in gear.Pawns)
-        {
-            if (!ids.Remove(p.Pawn))
-            {
-                return Unknown<GearObservation>();
-            }
-        }
-        return v;
-    }
-
     /// <summary>Every outfit policy's load id.</summary>
     public static EquatableArray<string> OutfitIds(O.Policies p)
     {
@@ -495,27 +480,26 @@ public static class ColonyGearReads
         return EquatableArray.From(ids);
     }
 
-    internal static ColonyProjection StampGearCreepjoinersOn(ColonyProjection p, O.PawnSnapshot? pawns, CreepJoinerDownsides downsides) =>
-        p.Facts.Gear.TryGetValue(out var gear) ? p with { Facts = p.Facts with { Gear = Known(StampGearCreepjoiners(gear, pawns, downsides)) } } : p;
-
     /// <summary>
     /// Flags each census colonist that is a creepjoiner with an unrevealed downside
     /// (GearRoleInput.UnrevealedCreepjoiner), from pawn rows, on both the apparel policy state and the loadout model
     /// so every reader derives the same constrained role, and gives each the PreceptDef names of its pawn row's ideo
-    /// (GearRoleInput.Precepts; the temperature cards read them). A pawn with no row is left as it is, as is the census
-    /// without pawn rows: the medical read has no row for such a pawn either, so no card prices it. The census is
-    /// copied, never mutated in place.
+    /// (GearRoleInput.Precepts; the temperature cards read them). Every gear pawn must have a row in the total
+    /// pawn census. The census is copied, never mutated in place.
     /// </summary>
     public static GearObservation StampGearCreepjoiners(GearObservation gear, O.PawnSnapshot? pawns, CreepJoinerDownsides downsides)
     {
         if (pawns is null)
         {
-            return gear;
+            throw new BridgeContractException("missing total pawn census for gear roles");
         }
         var rows = new Dictionary<string, O.PawnState>(pawns.Pawns.Count, StringComparer.Ordinal);
         foreach (var row in pawns.Pawns)
         {
-            rows[row.Pawn.Id ?? ""] = row;
+            if (!rows.TryAdd(row.Pawn.Id, row))
+            {
+                throw new BridgeContractException($"duplicate pawn row for gear roles: {row.Pawn.Id}");
+            }
         }
         var stamped = new List<GearPawn>(gear.Pawns);
         for (var i = 0; i < stamped.Count; i++)
@@ -523,7 +507,7 @@ public static class ColonyGearReads
             var g = stamped[i];
             if (!rows.TryGetValue(g.Pawn.Value, out var row))
             {
-                continue;
+                throw new BridgeContractException($"missing pawn row for gear roles: {g.Pawn.Value}");
             }
             var unrevealed = downsides.Unrevealed(CreepJoinerFacts.CreepJoinerPawn(row));
             var precepts = row.Settings.PolicyInputs.Ideo is O.PawnIdeo.Member ideo ? ideo.Precepts : [];
@@ -585,15 +569,11 @@ public static class ColonyGearReads
     /// recipe's ingredient slots (PlanClothingRunway prices the replacement from them). A definition without a known
     /// available recipe is left out; an unread census yields none.
     /// </summary>
-    public static IReadOnlyList<ClothingGarment> ClothingGarments(GearDefinitions defs, Fact<GearObservation> gear)
+    public static IReadOnlyList<ClothingGarment> ClothingGarments(GearDefinitions defs, GearObservation gear)
     {
-        if (!gear.TryGetValue(out var observed))
-        {
-            return [];
-        }
         var (catalog, finished) = (defs.Catalog, defs.Finished);
         var allowed = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var p in observed.Pawns)
+        foreach (var p in gear.Pawns)
         {
             if (p.Policy is { } state)
             {

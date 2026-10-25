@@ -158,7 +158,7 @@ public sealed partial class RoundsResourcePlanner
                 return output;
             }
         }
-        f.Center().TryGetValue(out var center);
+        var center = f.Center() ?? throw new RequiredFactException("layout center for deep drilling");
         foreach (var site in output.Sites)
         {
             var distance = Math.Sqrt(Math.Pow(site.Centre.X - center.X, 2) + Math.Pow(site.Centre.Z - center.Z, 2));
@@ -271,9 +271,8 @@ partial class RoundsResourcePlanner
     internal static List<PbObservations.DeepResourceLump> DeepDrillSites(ColonyProjection f, IReadOnlyList<ResourceRunway> runways, ItemFacts items)
     {
         var deep = f.DeepResources;
-        var ak = f.DefinitionAvailable("DeepDrill").TryGetValue(out var available);
-        var planned = f.Center().TryGetValue(out var center);
-        if (!planned || ResearchRules.ResearchGate(["DeepDrilling", "GroundPenetratingScanner"], f.Facts.Research) != "" || !ak || !available)
+        var available = f.DefinitionAvailable("DeepDrill");
+        if (f.Center() is not { } center || ResearchRules.ResearchGate(["DeepDrilling", "GroundPenetratingScanner"], f.Facts.Research) != "" || !available)
         {
             return [];
         }

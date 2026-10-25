@@ -284,7 +284,7 @@ public sealed class HuntPlanningTests
         var food = new FoodPlan { Portfolio = [new() { Channel = channel, Decision = FoodPlanDecision.Open }] };
         Assert.Equal(["a"], HuntPlanningRules.HuntRequestHunters(food).Select(p => p.Value));
         var facts = WorkResourceTestFacts.Create("a", "h") with { FoodPlan = food };
-        var reviewed = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        var reviewed = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         Assert.Contains("h", reviewed.WorkClaims!.Pawns);
         Assert.DoesNotContain("a", reviewed.WorkClaims.Pawns);
     }

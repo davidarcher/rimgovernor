@@ -212,7 +212,8 @@ partial class RoundsBuildingPlanner
         {
             return availability;
         }
-        if (!def!.ConstructionSkill.TryGetValue(out var minimum) || minimum < 0)
+        var minimum = def!.ConstructionSkill;
+        if (minimum < 0)
         {
             return FieldUnavailable(definition + "_construction_skill");
         }

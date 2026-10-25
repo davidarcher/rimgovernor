@@ -11,10 +11,10 @@ public sealed class ForecastClaimsTests
 {
     private static readonly Resource Material = new("TestMaterial");
     private static readonly Resource Food = new("TestFood");
-    private static Fact<EquatableArray<Amount>> Stock => Known<EquatableArray<Amount>>([new(Material, 100), new(Food, 20)]);
+    private static EquatableArray<Amount> Stock => [new(Material, 100), new(Food, 20)];
     private static EquatableArray<IngredientReservation> NoReservations => [];
     private static ForecastCommitment Promise(string id, Resource resource, double units, string bill = "") => new(id, default)
-    { MaterialClaims = [new(resource, Known(units), Known(bill))] };
+    { MaterialClaims = [new(resource, new MaterialUnits.Exact(units), bill)] };
     private static EquatableArray<IngredientReservation> Native(string bill = "bill") => [
         new() { Pawn = new RimGovernor.Brain.Domain.PawnId("cook"), Bill = bill, Items = [new(Material, 20)] }];
 
@@ -22,34 +22,34 @@ public sealed class ForecastClaimsTests
     public void NativeHandoffCountsSameBillOnceAndOtherBillsStillCompete()
     {
         var promise = Promise("method", Material, 50, "bill");
-        Assert.Equal(50, ForecastClaims.ForecastMaterialBudgetOf(Stock, Native(), [promise], 1).Value[Material].Value);
-        Assert.Equal(30, ForecastClaims.ForecastMaterialBudgetOf(Stock, Native("other-bill"), [promise], 1).Value[Material].Value);
-        Assert.Equal(30, ForecastClaims.ForecastMaterialBudgetOf(Stock, Native(), [Promise("unplaced", Material, 50)], 1).Value[Material].Value);
-        Assert.Equal(80, ForecastClaims.ForecastMaterialBudgetOf(Stock, Native(), [Promise("small", Material, 10, "bill")], 1).Value[Material].Value);
+        Assert.Equal(50, ForecastClaims.ForecastMaterialBudgetOf(Stock, Native(), [promise], 1)[Material].ExactCount());
+        Assert.Equal(30, ForecastClaims.ForecastMaterialBudgetOf(Stock, Native("other-bill"), [promise], 1)[Material].ExactCount());
+        Assert.Equal(30, ForecastClaims.ForecastMaterialBudgetOf(Stock, Native(), [Promise("unplaced", Material, 50)], 1)[Material].ExactCount());
+        Assert.Equal(80, ForecastClaims.ForecastMaterialBudgetOf(Stock, Native(), [Promise("small", Material, 10, "bill")], 1)[Material].ExactCount());
         Assert.Throws<DomainException>(() => ForecastClaims.ForecastMaterialBudgetOf(Stock, Native(), [promise, promise with { Id = "duplicate-owner" }], 1));
     }
 
     [Fact]
     public void CancellationReleasesPromiseButNotAnObservedNativeReservation()
     {
-        Assert.Equal(50, ForecastClaims.ForecastMaterialBudgetOf(Stock, Native(), [Promise("cook", Material, 50, "bill")], 1).Value[Material].Value);
-        Assert.Equal(80, ForecastClaims.ForecastMaterialBudgetOf(Stock, Native(), [], 1).Value[Material].Value);
-        Assert.Equal(100, ForecastClaims.ForecastMaterialBudgetOf(Stock, NoReservations, [], 1).Value[Material].Value);
+        Assert.Equal(50, ForecastClaims.ForecastMaterialBudgetOf(Stock, Native(), [Promise("cook", Material, 50, "bill")], 1)[Material].ExactCount());
+        Assert.Equal(80, ForecastClaims.ForecastMaterialBudgetOf(Stock, Native(), [], 1)[Material].ExactCount());
+        Assert.Equal(100, ForecastClaims.ForecastMaterialBudgetOf(Stock, NoReservations, [], 1)[Material].ExactCount());
     }
 
     [Fact]
     public void UnknownPromiseLinkOnlyPoisonsItsOwnResource()
     {
-        var unknown = new ForecastCommitment("unknown", default) { MaterialClaims = [new(Food, Unknown<double>(), Known(""))] };
-        var budget = ForecastClaims.ForecastMaterialBudgetOf(Stock, NoReservations, [unknown], 1).Value;
-        Assert.False(budget[Food].IsKnown);
-        Assert.Equal(100, budget[Material].Value);
-        unknown = unknown with { MaterialClaims = [new(Material, Known(50.0), Unknown<string>())] };
-        Assert.False(ForecastClaims.ForecastMaterialBudgetOf(Stock, Native(), [unknown], 1).Value[Material].IsKnown);
+        var unknown = new ForecastCommitment("unknown", default) { MaterialClaims = [new(Food, new MaterialUnits.Open(), "")] };
+        var budget = ForecastClaims.ForecastMaterialBudgetOf(Stock, NoReservations, [unknown], 1);
+        Assert.IsType<MaterialUnits.Open>(budget[Food]);
+        Assert.Equal(100, budget[Material].ExactCount());
+        unknown = unknown with { MaterialClaims = [new(Material, new MaterialUnits.Open(), "")] };
+        Assert.IsType<MaterialUnits.Open>(ForecastClaims.ForecastMaterialBudgetOf(Stock, Native(), [unknown], 1)[Material]);
         // A native hold always names its bill (#3881): one without is a broken read.
         Assert.Throws<DomainException>(() => ForecastClaims.ForecastMaterialBudgetOf(Stock, [Native()[0] with { Bill = "" }], [Promise("linked", Material, 50, "bill")], 1));
         Assert.Equal(100, ForecastClaims.ForecastMaterialBudgetOf(Stock, NoReservations,
-            [new("zero", default) { MaterialClaims = [new(Material, Known(0.0), default)] }], 1).Value[Material].Value);
+            [new("zero", default) { MaterialClaims = [new(Material, new MaterialUnits.Exact(0), "")] }], 1)[Material].ExactCount());
     }
 
     [Fact]
@@ -61,9 +61,9 @@ public sealed class ForecastClaimsTests
             [claim with { StockChanges = [effect] }], 1));
         var future = new ForecastCommitment("future", [effect with { Units = 100.0 }]);
         Assert.Equal(-50, ForecastClaims.ForecastMaterialBudgetOf(Stock, NoReservations,
-            [Promise("a", Material, 75), Promise("b", Material, 75), future], 1).Value[Material].Value);
+            [Promise("a", Material, 75), Promise("b", Material, 75), future], 1)[Material].ExactCount());
         var beyond = future with { StockChanges = [new(Material, 2.0, -10.0)] };
-        Assert.Equal(100, ForecastClaims.ForecastMaterialBudgetOf(Stock, NoReservations, [beyond], 1).Value[Material].Value);
+        Assert.Equal(100, ForecastClaims.ForecastMaterialBudgetOf(Stock, NoReservations, [beyond], 1)[Material].ExactCount());
     }
 
     private static ForecastEquipmentCapacity Tool(string id = "tool", double start = 0) =>
@@ -152,7 +152,7 @@ public sealed class ForecastClaimsTests
         var observed = ConstructionReads.BillReservations(snapshot);
         Assert.Equal("native-bill", observed[0].Bill);
         var promise = Promise("method", Material, 50, "native-bill");
-        Assert.Equal(50, ForecastClaims.ForecastMaterialBudgetOf(Stock, observed, [promise], 1).Value[Material].Value);
+        Assert.Equal(50, ForecastClaims.ForecastMaterialBudgetOf(Stock, observed, [promise], 1)[Material].ExactCount());
         // Native reads the bench census every frame (#3881): a missing census or a reservation without its bill is unread.
         Assert.Throws<RequiredFactException>(() => ConstructionReads.BillReservations(snapshot with { Benches = [snapshot.Benches[0] with { Bills = [bill with { Id = "" }] }] }));
         Assert.Throws<RequiredFactException>(() => ConstructionReads.BillReservations(null));

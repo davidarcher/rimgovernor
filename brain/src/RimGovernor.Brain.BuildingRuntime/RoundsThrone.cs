@@ -114,10 +114,7 @@ partial class RoundsSleepingUpkeepPlanner
         // Everything stands and is assigned: keep its braziers lit.
         var lighting = facts.Facts.Upkeep.Lighting;
         var workers = facts.WorkPawns.Pawns;
-        if (lighting is null)
-        {
-            return step;
-        }
+
         return ThroneRules.NextThroneRefuel(plan, rooms!, need, lighting.Lamps, workers!);
     }
 

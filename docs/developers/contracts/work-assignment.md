@@ -643,3 +643,12 @@ may still inspect timetable availability, but the automatic timetable writer is
 removed and those observations cannot start a competing voluntary job.
 
 Pawn profiles carry the observed work hours, gene effects and work minimum ages directly. A pawn with no timetable has zero scheduled work hours; a malformed nonempty timetable fails the read. Routine and direct colony reads derive the same complete colonist profiles from the native pawn census.
+
+
+Work and bench requirements are total once the frame is read. A project definition, open bill bench or recipe missing from its census fails the planner boundary; it never supplies an empty requirement. Station demand uses the current world's derived resource targets and fails before that review exists. The builder count is a plain count of available, capable construction workers, including zero. Throughput names NoRecipe, Missing and Stocked ingredient states; recipes taking no ingredients are Stocked.
+
+Coupled activity generation reads the exact composed Need set. An uncomposed
+reviewer enables no activities; synthetic reviews must supply the Needs they
+intend to compare. Layout anchors are optional until a layout core exists, and
+placement must use a present layout, room or power-consumer anchor.
+

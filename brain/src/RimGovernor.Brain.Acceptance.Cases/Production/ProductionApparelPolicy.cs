@@ -44,8 +44,8 @@ internal static class ProductionApparelPolicy
 
         async Task<Observations.GearLoadout> ReadAsync(string label)
         {
-            var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = true }, cancellationToken).ConfigureAwait(false);
-            var gear = facts.Planning is Observations.Planning.Requested { Facts.Gear: { } planned } ? planned : throw new AcceptanceException($"{label}: no planning gear section");
+            var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+            var gear = facts.Gear;
             return gear.Pawns.FirstOrDefault(p => p.Pawn.Value == subject.Pawn) ?? throw new AcceptanceException($"{label}: no gear row for {subject.Pawn}");
         }
 

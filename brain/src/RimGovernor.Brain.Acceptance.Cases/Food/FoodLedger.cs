@@ -89,7 +89,7 @@ internal static class FoodLedger
     /// <summary>The colony facts' delivery ledger.</summary>
     internal static async Task<Observations.DeliveryLedger> ReadAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+        var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         return reply.DeliveryLedger;
     }
 }

@@ -49,14 +49,7 @@ public static class ColonyProductionReads
     /// <summary>A growing zone's raw crop facts for policy: the planted plants' means are their totals over the planted count, and an unplanted zone has none.</summary>
     internal static CropGrowth FarmGrowth(O.ZoneState.Growing farm, IEnumerable<PlanningDefinition> definitions)
     {
-        Fact<double> lo = default, loOptimal = default, hiOptimal = default, hi = default;
-        foreach (var d in definitions)
-        {
-            if (d.Name == farm.Crop)
-            {
-                (lo, loOptimal, hiOptimal, hi) = (d.MinGrowthTemperature, d.MinOptimalGrowthTemperature, d.MaxOptimalGrowthTemperature, d.MaxGrowthTemperature);
-            }
-        }
+        var plant = definitions.FirstOrDefault(d => d.Name == farm.Crop)?.Plant ?? throw new RequiredFactException("zone crop definition:" + farm.Crop);
         if (!double.IsFinite(farm.Temperature))
         {
             throw new RequiredFactException("zone temperature");
@@ -76,125 +69,55 @@ public static class ColonyProductionReads
         {
             Stand = stand,
             Temperature = farm.Temperature,
-            MinGrowth = lo,
-            MinOptimal = loOptimal,
-            MaxOptimal = hiOptimal,
-            MaxGrowth = hi,
+            MinGrowth = plant.MinGrowthTemperature,
+            MinOptimal = plant.MinOptimalGrowthTemperature,
+            MaxOptimal = plant.MaxOptimalGrowthTemperature,
+            MaxGrowth = plant.MaxGrowthTemperature,
         };
     }
 
     /// <summary>
     /// Computes each field's harvest lead in policy from the raw growth facts, the current temperature and the
-    /// calendar; an unknown fact leaves the lead unknown. A planted field is future capacity, not an observed
-    /// delivery of edible stock. Exposure reads each zone's roofs from the planning window's cells (unknown
-    /// without the window or with an unread roof) and its blight from the zone's planted and blighted counts.
+    /// calendar. Fallow and dormant fields offer no arrival. A planted field is future capacity, not an observed
+    /// delivery of edible stock. Exposure uses the native whole-zone roof and plant counts.
     /// </summary>
-    internal static Fact<EquatableArray<FoodField>> ColonyFoodFields(IReadOnlyList<O.ZoneState.Growing> farms, IReadOnlyList<PlanningDefinition> definitions, Calendar calendar, IReadOnlyList<SiteCell> cells)
+    internal static EquatableArray<FoodField> ColonyFoodFields(IReadOnlyList<O.ZoneState.Growing> farms, IReadOnlyList<PlanningDefinition> definitions, Calendar calendar)
     {
-        var zones = ZoneRoofs(cells);
         var rows = new List<FoodField>();
         foreach (var farm in farms)
         {
+            if (farm.Crop.Length == 0) continue;
+            var definition = definitions.FirstOrDefault(d => d.Name == farm.Crop) ?? throw new RequiredFactException("zone crop definition:" + farm.Crop);
             var growth = FarmGrowth(farm, definitions);
-            if (!growth.GrowingCells().TryGetValue(out var growing))
-            {
-                return Unknown<EquatableArray<FoodField>>();
-            }
-            var crop = new CropChoice { Name = farm.Crop, Edible = Known(farm.EdibleCrop) };
-            var work = Unknown<double>();
-            foreach (var d in definitions)
-            {
-                if (d.Name != farm.Crop)
-                {
-                    continue;
-                }
-                crop = crop with
-                {
-                    GrowDays = d.GrowDays,
-                    HarvestNutrition = d.HarvestNutrition,
-                    RotDays = d.HarvestRotDays,
-                    Perishable = d.HarvestPerishable,
-                    RawPreferred = d.RawPreferred,
-                };
-                if (d.GrowDays.TryGetValue(out var days) && days > 0 && d.HarvestWork.TryGetValue(out var harvest))
-                {
-                    work = Known(harvest * growing / days);
-                }
-            }
-            zones.TryGetValue(farm.Id, out var roof);
+            if (definition.Harvest is null) continue;
+            var crop = definition.CropChoice();
+            if (CalendarRules.HarvestLeadDays(growth, crop.GrowDays, calendar) is not HarvestTiming.Expected lead) continue;
+            var growing = growth.GrowingCells();
             rows.Add(new FoodField
             {
                 Id = farm.Id,
-                Plan = new FieldPlan { Crop = crop, Sites = new FarmSitePlan { Cells = (int)growing } },
-                RemainingGrowDays = CalendarRules.HarvestLeadDays(growth, crop.GrowDays, calendar),
-                WorkPerDay = work,
-                Exposure = new FieldExposure
-                {
-                    ZoneCells = roof.Cells,
-                    UnroofedCells = roof.Unroofed,
-                    Planted = farm.PlantedCells,
-                    Blighted = farm.BlightedPlants,
-                },
+                Plan = new FieldPlan { Crop = crop, Sites = new FarmSitePlan { Cells = checked((int)growing) } },
+                RemainingGrowDays = lead.Days,
+                WorkPerDay = crop.HarvestWork * growing / crop.GrowDays,
+                Exposure = new FieldExposure { ZoneCells = farm.ZoneCells, UnroofedCells = farm.UnroofedCells, Planted = farm.PlantedCells, Blighted = farm.BlightedPlants },
             });
-        }
-        return Known(EquatableArray.From(rows));
-    }
-
-    /// <summary>Counts a zone's held cells and those under open sky.</summary>
-    internal readonly record struct ZoneRoof(Fact<long> Cells, Fact<long> Unroofed);
-
-    /// <summary>
-    /// Counts each growing zone's cells in the planning window and the ones with no roof. Without the window
-    /// no zone has a row, so every exposure reads unknown.
-    /// </summary>
-    internal static Dictionary<string, ZoneRoof> ZoneRoofs(IEnumerable<SiteCell> cells)
-    {
-        var counts = new Dictionary<string, (long Cells, long Unroofed)>(StringComparer.Ordinal);
-        foreach (var cell in cells)
-        {
-            if (cell.ZoneId is not { } id)
-            {
-                continue;
-            }
-            var t = counts.GetValueOrDefault(id);
-            if (!cell.Roofed)
-            {
-                t.Unroofed++;
-            }
-            t.Cells++;
-            counts[id] = t;
-        }
-        var output = new Dictionary<string, ZoneRoof>(counts.Count, StringComparer.Ordinal);
-        foreach (var (id, t) in counts)
-        {
-            output[id] = new ZoneRoof(Known(t.Cells), Known(t.Unroofed));
-        }
-        return output;
-    }
-
-    internal static EquatableArray<FieldCrop> ColonyFieldCrops(IReadOnlyList<O.ZoneState.Growing> farms, IReadOnlyList<PlanningDefinition> definitions, bool usable = false)
-    {
-        var rows = new List<FieldCrop>(farms.Count);
-        foreach (var farm in farms)
-        {
-            var row = new FieldCrop { Edible = Known(farm.EdibleCrop), GrowingCells = FarmGrowth(farm, definitions).GrowingCells() };
-            if (usable)
-            {
-                row = row with { GrowingCells = Known((long)farm.UsableCells) };
-            }
-            foreach (var definition in definitions)
-            {
-                if (definition.Name == farm.Crop)
-                {
-                    row = row with { GrowDays = definition.GrowDays, HarvestNutrition = definition.HarvestNutrition, Demand = definition.NutritionDemandPerDay };
-                    break;
-                }
-            }
-            rows.Add(row);
         }
         return EquatableArray.From(rows);
     }
-
+    internal static EquatableArray<FieldCrop> ColonyFieldCrops(IReadOnlyList<O.ZoneState.Growing> farms, IReadOnlyList<PlanningDefinition> definitions, bool usable = false)
+    {
+        var rows = new List<FieldCrop>();
+        foreach (var farm in farms)
+        {
+            if (farm.Crop.Length == 0) continue;
+            var definition = definitions.FirstOrDefault(d => d.Name == farm.Crop) ?? throw new RequiredFactException("zone crop definition:" + farm.Crop);
+            if (definition.Plant is null) throw new RequiredFactException("zone plant definition:" + farm.Crop);
+            if (definition.Harvest is null) continue;
+            var crop = definition.CropChoice();
+            rows.Add(new FieldCrop { Edible = crop.Edible, GrowingCells = usable ? farm.UsableCells : FarmGrowth(farm, definitions).GrowingCells(), GrowDays = crop.GrowDays, HarvestNutrition = crop.HarvestNutrition, Demand = crop.Demand });
+        }
+        return EquatableArray.From(rows);
+    }
     internal static RoundsFacts ColonyProduction(O.ColonyFactsSnapshot v, RoundsFacts facts)
     {
         var ready = false;
@@ -241,14 +164,14 @@ public static class ColonyProductionReads
         };
     }
 
-    /// <summary>The pawn's own ideoligion and precepts from its row's policy inputs; unknown while the table lacks the row or the inputs.</summary>
-    private static Fact<HeldPrecepts> HeldPreceptsOf(Pawns pawns, string id)
+    /// <summary>The pawn's own ideoligion and precepts from its required pawn row.</summary>
+    internal static HeldPrecepts HeldPreceptsOf(Pawns pawns, string id)
     {
         if (!pawns.TryGetValue(id, out var row) || row is null)
         {
-            return Unknown<HeldPrecepts>();
+            throw new ObservationContractException($"human butcher {id} has no pawn row");
         }
-        return Known(row.Settings.PolicyInputs.Ideo is O.PawnIdeo.Member m ? new HeldPrecepts { Ideo = m.IdeoId, Defs = [.. m.Precepts] } : new HeldPrecepts());
+        return row.Settings.PolicyInputs.Ideo is O.PawnIdeo.Member m ? new HeldPrecepts { Ideo = m.IdeoId, Defs = [.. m.Precepts] } : new HeldPrecepts();
     }
 
     /// <summary>The definition of the building a bench row names; a bench the frame's building table does not hold breaks the frame's contract.</summary>
@@ -266,8 +189,8 @@ public static class ColonyProductionReads
                 Id = bench.Bench.Id,
                 Definition = BenchDefinition(buildings, bench.Bench),
                 Usable = bench.Usable,
-                Room = ColonyDecodeReads.OptionalRef(bench.Room),
-                AutoRefuel = ColonyDecodeReads.Optional(bench.AutoRefuel is O.BenchAutoRefuel.Refuelable, bench.AutoRefuel is O.BenchAutoRefuel.Refuelable { Allowed: true }),
+                Room = bench.Room?.Id,
+                AutoRefuel = bench.AutoRefuel,
             });
         }
         return EquatableArray.From(benches);
@@ -284,7 +207,7 @@ public static class ColonyProductionReads
                 Id = bench.Bench.Id,
                 Definition = BenchDefinition(buildings, bench.Bench),
                 Usable = bench.Usable,
-                Room = ColonyDecodeReads.OptionalRef(bench.Room),
+                Room = bench.Room?.Id,
             });
         }
         return EquatableArray.From(benches);
@@ -296,7 +219,7 @@ public static class ColonyProductionReads
         var standing = new List<ButcherBench>(butchering.Count);
         foreach (var bench in butchering)
         {
-            standing.Add(new ButcherBench { Definition = bench.Definition, Room = bench.Room.TryGetValue(out var room) ? room : null });
+            standing.Add(new ButcherBench { Definition = bench.Definition, Room = bench.Room });
         }
         return EquatableArray.From(standing);
     }
@@ -361,9 +284,9 @@ public static class ColonyProductionReads
                 butchers.Add(new HumanButcherCandidate
                 {
                     ID = new PawnId(candidate.PawnId),
-                    Traits = Known(EquatableArray.From(traits)),
+                    Traits = EquatableArray.From(traits),
                     Held = HeldPreceptsOf(pawns, candidate.PawnId),
-                    CanWork = ColonyDecodeReads.Present(candidate.CanWork),
+                    CanWork = candidate.CanWork,
                 });
             }
             rows.Add(row with { HumanCorpseNutrition = HumanCorpseNutrition(b.HumanCorpseMeat, catalog), HumanButchers = butchers });
@@ -391,22 +314,8 @@ public static class ColonyProductionReads
 
     internal static RoundsFacts ZoneProduction(IReadOnlyList<O.ZoneState.Growing> farms, IReadOnlyList<PlanningDefinition> definitions, RoundsFacts facts)
     {
-        long growing = 0;
-        var known = true;
-        foreach (var farm in farms)
-        {
-            if (!farm.EdibleCrop)
-            {
-                continue;
-            }
-            if (!FarmGrowth(farm, definitions).GrowingCells().TryGetValue(out var cells))
-            {
-                known = false;
-                continue;
-            }
-            growing += cells;
-        }
-        return known ? facts with { GrowingCells = Known(growing) } : facts;
+        var growing = farms.Where(farm => farm.EdibleCrop).Sum(farm => FarmGrowth(farm, definitions).GrowingCells());
+        return facts with { GrowingCells = growing };
     }
 }
 

@@ -14,7 +14,7 @@ public sealed class ForecastLiveEvidenceTests
     private static readonly GenerationSnapshot Scope = new(new("colony"), new(1), new("load"), new("root"), new(1), new(1));
     private static NeedsForecastRead Needs(long tick, double food = .6) => NeedsFixtures.Empty with { Tick = new(tick), Pawns = [NeedsFixtures.Pawn() with {
         Pawn = "pawn", Mood = NeedsFixtures.Mood with { Level = .7, Target = .99 }, Needs = [NeedsFixtures.Rate("food", food, default, default), NeedsFixtures.Rate("rest", .8, default, default)] }] };
-    private static ForecastCoupledContext Context(long tick) => new() { Activities = new() { Deadline = 0 }, Needs = Needs(tick), Resources = new(new(), new([], [], [], []), default) };
+    private static ForecastCoupledContext Context(long tick) => new() { Activities = new() { Deadline = 0 }, Needs = Needs(tick), Resources = new(new(), new([], [], [], []), new MaterialAvailability.Blocked(MaterialBudgetBlock.AwaitingReview)) };
     private static ForecastCoupledSelection Selection()
     {
         var plan = new ForecastActivityPlan([new("task", "pawn", 0, 0, 0, 50, 0, 0, 50, 50, 0)], 50, 50);

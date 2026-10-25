@@ -57,12 +57,12 @@ public sealed class ClothingChoiceTests
     private static RoundsFacts Facts(double cloth = 30, double wool = 30, double devilstrand = 0) => WorkResourceTestFacts.Create("tailor", "helper") with
     { Resources = [new(new("Cloth"), (long)cloth), new(new("Wool"), (long)wool), new(new("DevilstrandCloth"), (long)devilstrand)] };
     private static WorkResourceView Resources(double cloth = 30, double wool = 30, double devilstrand = 0) => WorkRules.WorkResourcesOf(
-        ProductionRules.WorkAdmissionEvidenceOf(Facts(cloth, wool, devilstrand), Known(default(EquatableArray<ProductionBatch>))), Known(default(EquatableArray<ProductionBatch>)), []);
+        ProductionRules.WorkAdmissionEvidenceOf(Facts(cloth, wool, devilstrand), new ProductionBatchCensus.Read([])), new ProductionBatchCensus.Read([]), []);
     private static RoundsFacts Review(GearObservation census, RecipeActivityRead read, WorkResourceView resources)
     {
         var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0);
         var template = facts.ForecastObserved.Needs!.Pawns[0];
-        return facts with { Gear = Known(census), WorkView = resources, MoodBreak = new() { Threshold = 0.3, Tiers = [new(1, 2), new(1, 3), new(1, 5)] }, ForecastObserved = facts.ForecastObserved with
+        return facts with { Gear = census, WorkView = resources, MoodBreak = new() { Threshold = 0.3, Tiers = [new(1, 2), new(1, 3), new(1, 5)] }, ForecastObserved = facts.ForecastObserved with
         {
             Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "tailor" }, template with { Pawn = "helper" },
                 template with { Pawn = "wearer", Apparel = NeedsFixtures.Apparel(RimGovernor.Contracts.Wire.Defs.Gender.Male, true, true), ThoughtStages = [.. template.ThoughtStages, .. ApparelStages] }] },
@@ -92,12 +92,12 @@ public sealed class ClothingChoiceTests
         var census = Census(0); var read = Read(Option("Cloth"), Option("Wool"));
         Assert.Equal("Cloth", Recipe(Start(census, read, Resources(), out _)!).Stuff);
         var facts = Facts() with { CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long> { [new("Cloth")] = 30 } } };
-        var resources = WorkRules.WorkResourcesOf(ProductionRules.WorkAdmissionEvidenceOf(facts, Known(default(EquatableArray<ProductionBatch>))), Known(default(EquatableArray<ProductionBatch>)), []);
+        var resources = WorkRules.WorkResourcesOf(ProductionRules.WorkAdmissionEvidenceOf(facts, new ProductionBatchCensus.Read([])), new ProductionBatchCensus.Read([]), []);
         Assert.Equal("Cloth", Recipe(Start(census, read, resources, out _)!).Stuff); // A standing site is optional.
-        var evidence = ProductionRules.WorkAdmissionEvidenceOf(Facts(), Known(default(EquatableArray<ProductionBatch>))) with
-        { Buildings = Known<EquatableArray<WorkBuildingCost>>([new("TestWall", "Cloth", Known<EquatableArray<Amount>>([new(new("Cloth"), 30)]))]) };
+        var evidence = ProductionRules.WorkAdmissionEvidenceOf(Facts(), new ProductionBatchCensus.Read([])) with
+        { Buildings = [new("TestWall", "Cloth", [new(new("Cloth"), 30)]) { Size = new(1, 1) }] };
         var wall = DomainAction.NewBuildingAction(new("competing-wall"), new("TestWall", new(3, 3), Rotation.North, "Cloth"), ConstructionTier.Survive);
-        var committed = WorkRules.WorkResourcesOf(evidence, Known(default(EquatableArray<ProductionBatch>)),
+        var committed = WorkRules.WorkResourcesOf(evidence, new ProductionBatchCensus.Read([]),
             [new(new("construction-method"), wall, new() { Action = wall.Id, Stage = Stage.Pending })]);
         Assert.Equal("Wool", Recipe(Start(census, read, committed, out _)!).Stuff);
         Assert.Null(Start(census, read, Resources(0, 0), out _));
@@ -151,17 +151,17 @@ public sealed class ClothingChoiceTests
         // Stock is physical total; a reservation removes availability, not the actual items.
         // The former local selector incorrectly accepted a promise even with zero physical stock.
         var empty = Resources(0, 0).Evidence with
-        { Promises = Known<EquatableArray<ProductionMaterialPromise>>([new("existing", [new(new("Cloth"), Known(10.0), Known("standing-bill"))])]) };
+        { Promises = AdmissionAssertions.MaterialPromises([("existing", [new(new("Cloth"), new MaterialUnits.Exact(10.0), "standing-bill")])]) };
         Assert.Null(Start(Census(), Read(Option("Cloth") with { Bill = "standing-bill" }),
-            WorkRules.WorkResourcesOf(empty, Known(default(EquatableArray<ProductionBatch>)), []), out _));
+            WorkRules.WorkResourcesOf(empty, new ProductionBatchCensus.Read([]), []), out _));
         var evidence = Resources(10, 0).Evidence with { Promises = empty.Promises };
-        var resources = WorkRules.WorkResourcesOf(evidence, Known(default(EquatableArray<ProductionBatch>)), []);
+        var resources = WorkRules.WorkResourcesOf(evidence, new ProductionBatchCensus.Read([]), []);
         var selected = Start(Census(), Read(Option("Cloth") with { Bill = "standing-bill" }), resources, out _)!;
         Assert.Equal("standing-bill", Recipe(selected).Bill);
         Assert.Null(Start(Census(), Read(Option("Cloth")), resources, out _));
         evidence = Resources(100, 0).Evidence with
-        { Promises = Known<EquatableArray<ProductionMaterialPromise>>([new("existing", [new(new("Cloth"), Known(100.0), Known("standing-bill"))])]) };
-        resources = WorkRules.WorkResourcesOf(evidence, Known(default(EquatableArray<ProductionBatch>)), []);
+        { Promises = AdmissionAssertions.MaterialPromises([("existing", [new(new("Cloth"), new MaterialUnits.Exact(100.0), "standing-bill")])]) };
+        resources = WorkRules.WorkResourcesOf(evidence, new ProductionBatchCensus.Read([]), []);
         var other = Option("Cloth", "Pants", pawn: "helper", bench: "other-bench") with
         { Inputs = [Input("other-stack", "Cloth")], Destination = new(16, 15) };
         var bundle = Start(Census(20, Garment("Shirt", "Cloth"), Garment("Pants", "Cloth", group: "Legs")),
@@ -313,7 +313,7 @@ public sealed class ClothingChoiceTests
             Tick = new(100),
             Enabled = true,
             Policy = RoundsRules.DefaultRoundsPolicy(),
-            Facts = Facts() with { Gear = Known(Census()) }
+            Facts = Facts() with { Gear = Census() }
         }, ct);
         var batch = Start(Census(), Read(Option("Cloth")), journal.WorkResources(world, ct), out _)!;
         Assert.NotNull(batch);

@@ -65,17 +65,17 @@ public static class GrowerCropRules
         foreach (var crop in choices)
         {
             var c = new FieldCandidate { Crop = crop };
-            var ak = crop.Available.TryGetValue(out var available);
-            var ek = crop.Edible.TryGetValue(out var edible);
-            var gk = crop.GrowDays.TryGetValue(out var days);
-            var tk = crop.SowTags.TryGetValue(out var tags);
-            var yk = crop.HarvestNutrition.IsKnown;
-            var sk = crop.FertilitySensitivity.IsKnown;
-            if (SiteRules.SiteKnownFalse(crop.DietAllowed) || RoundsRules.Positive(crop.RequiresPollution) || ControlledEnvironmentRules.GrowsInDark(crop))
+            var available = crop.Available;
+            var edible = crop.Edible;
+            var days = crop.GrowDays;
+            var tags = crop.SowTags;
+            var yk = true;
+            var sk = true;
+            if (!crop.DietAllowed || crop.RequiresPollution || ControlledEnvironmentRules.GrowsInDark(crop))
             {
                 c = c with { Reason = "crop needs a compatible soil or dark site" };
             }
-            else if (!ak || !ek || !gk || !FieldCapacityRules.FieldPositive(days) || !tk || !yk || !sk)
+            else if (!FieldCapacityRules.FieldPositive(days) || !yk || !sk)
             {
                 c = c with { Reason = "incomplete crop facts" };
             }
@@ -104,8 +104,8 @@ public static class GrowerCropRules
             {
                 return a.Score > 0 ? -1 : 1;
             }
-            var ad = a.Crop.GrowDays.ValueOrDefault;
-            var bd = b.Crop.GrowDays.ValueOrDefault;
+            var ad = a.Crop.GrowDays;
+            var bd = b.Crop.GrowDays;
             if (urgent && a.Score > 0 && ad != bd)
             {
                 return ad < bd ? -1 : 1;

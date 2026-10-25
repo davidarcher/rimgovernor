@@ -158,9 +158,9 @@ public sealed class TradeAcquisitionTests
     }
 
     [Fact]
-    public void FoodTradeIsOffWhileThePlanIsUnread()
+    public void FoodTradeRequiresTheSharedPlan()
     {
-        Assert.Null(TradePolicyRules.RoundsTradeFood(new RoundsFacts(), new RoundsPolicy()));
+        Assert.Equal("food plan", Assert.Throws<RequiredFactException>(() => TradePolicyRules.RoundsTradeFood(new RoundsFacts(), new RoundsPolicy())).Fact);
     }
 
     [Fact]

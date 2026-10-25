@@ -374,17 +374,10 @@ public static class GearRules
     private static readonly List<(EquatableArray<GearPawn> Pawns, IReadOnlyList<GearLoadout> Loadouts)> s_loadouts = [];
 
     /// <summary>
-    /// <see cref="ReviewGear(GearObservation)"/> of the rounds census (RoundsFacts.Gear, a #3784 container); an unread
-    /// census raises <see cref="RequiredFactException"/>.
+    /// The pawns of the complete census whose loadout search spent its budget.
     /// </summary>
-    public static GearReview ReviewGear(Fact<GearObservation> f) =>
-        ReviewGear(f.TryGetValue(out var v) ? v : throw new RequiredFactException("gear review"));
-
-    /// <summary>
-    /// The pawns of the rounds census whose loadout search spent its budget; none while the census (a #3784 container) is unread.
-    /// </summary>
-    public static IEnumerable<PawnId> ExhaustedGearSearches(Fact<GearObservation> f) =>
-        f.TryGetValue(out var v) ? ReviewGear(v).Loadouts.Where(l => l.SearchBudgetExhausted).Select(l => l.Pawn) : [];
+    public static IEnumerable<PawnId> ExhaustedGearSearches(GearObservation census) =>
+        ReviewGear(census).Loadouts.Where(l => l.SearchBudgetExhausted).Select(l => l.Pawn);
 
     /// <summary>
     /// Matches the complete census used by equipment upkeep. A census with no pawns has none short of gear and owes no
@@ -472,12 +465,6 @@ public static class GearRules
         shared = false;
         return loadouts;
     }
-
-    /// <summary>
-    /// <see cref="GearReplacementNeeds(GearObservation)"/> of the rounds census (RoundsFacts.Gear, a #3784 container);
-    /// none while it is unread, when the equipment Need is not unmet.
-    /// </summary>
-    public static IReadOnlyList<Resource> GearReplacementNeeds(Fact<GearObservation> f) => f.TryGetValue(out var v) ? GearReplacementNeeds(v) : [];
 
     /// <summary>
     /// The definitions the census asks a bench to produce for pawns in deficit (replacement needs with no loose

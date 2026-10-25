@@ -31,9 +31,9 @@ public sealed partial class RoundsBuildingPlanner
         var request = new PasteSiteRequest { Meals = meals, Benches = p.ProductionBenches, Power = p.PowerPlanning };
         foreach (var d in p.Definitions)
         {
-            if (d.Name == "Hopper")
+            if (d.Name == "Hopper" && d.Available)
             {
-                request = request with { Hopper = Known(new Infrastructure { Name = d.Name, Available = d.Available, Costs = d.CheapestCosts() }) };
+                request = request with { Hopper = new Infrastructure { Name = d.Name, Available = d.Available, Costs = d.CheapestCosts() } };
             }
 
             if (d.Name == "NutrientPasteDispenser")
@@ -42,7 +42,7 @@ public sealed partial class RoundsBuildingPlanner
             }
         }
 
-        if (!p.Center().TryGetValue(out var anchor))
+        if (p.Center() is not { } anchor)
         {
             return (this, BuildingReasonNoLayoutPlan);
         }

@@ -21,7 +21,8 @@ public static class BiotechColonyReads
         var output = new List<PlanningDefinition>();
         foreach (var d in defs)
         {
-            if (d.MechCharger.TryGetValue(out var charger) && charger)
+            var charger = d.MechCharger;
+            if (charger)
             {
                 output.Add(d);
             }

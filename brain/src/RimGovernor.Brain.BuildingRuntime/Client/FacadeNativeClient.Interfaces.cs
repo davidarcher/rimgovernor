@@ -53,8 +53,8 @@ public sealed partial class FacadeNativeClient :
     Task<LifecyclePb.LoadedIdentity> IColonySource.IdentityAsync(CancellationToken cancellationToken) =>
         IdentityAsync(cancellationToken);
 
-    Task<O.ColonyFactsSnapshot> IColonySource.ReadColonyFactsAsync(C.Identity identity, bool planning, CancellationToken cancellationToken) =>
-        ReadColonyFactsAsync(identity, planning, cancellationToken);
+    Task<O.ColonyFactsSnapshot> IColonySource.ReadColonyFactsAsync(C.Identity identity, CancellationToken cancellationToken) =>
+        ReadColonyFactsAsync(identity, cancellationToken);
 
     Task<Tables> IColonySource.FrameTablesAsync(C.Identity identity, CancellationToken cancellationToken) =>
         FrameTablesAsync(identity, cancellationToken);
@@ -116,8 +116,8 @@ public sealed partial class FacadeNativeClient :
     Task<LifecyclePb.LoadedIdentity> IColonyStatusNative.IdentityAsync(CancellationToken ct) =>
         IdentityAsync(ct);
 
-    Task<O.ColonyFactsSnapshot> IColonyStatusNative.ReadColonyFactsAsync(C.Identity identity, bool full, CancellationToken ct) =>
-        ReadColonyFactsAsync(identity, full, ct);
+    Task<O.ColonyFactsSnapshot> IColonyStatusNative.ReadColonyFactsAsync(C.Identity identity, CancellationToken ct) =>
+        ReadColonyFactsAsync(identity, ct);
 
     Task<O.PawnSnapshot> IColonyStatusNative.ReadHomeColonistsAsync(C.Identity identity, CancellationToken ct) =>
         ReadHomeColonistsAsync(identity, ct);

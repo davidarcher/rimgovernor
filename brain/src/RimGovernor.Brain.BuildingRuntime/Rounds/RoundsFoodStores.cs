@@ -74,8 +74,8 @@ public sealed partial class FoodStoresRounds
             throw new ControlException("food stores read: the scope is another world or older than the review");
         }
         RoundsReading reading;
-        Fact<EquatableArray<string>> warm = default;
-        Fact<bool> closet = default;
+        EquatableArray<string> warm = [];
+        var closet = false;
         if (_cooler is null)
         {
             reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, ct).ConfigureAwait(false);
@@ -125,7 +125,7 @@ public sealed partial class FoodStoresRounds
         {
             throw new ControlException("food stores read: the read took too long");
         }
-        return facts with { ReserveTargets = Known(EquatableArray.From(targets)) };
+        return facts with { ReserveTargets = new ReserveSupplyRead.Targets(EquatableArray.From(targets)) };
     }
 
     /// <summary>The stock-target meal order that stores food, filed under the food-stores/storage Need.</summary>
@@ -181,8 +181,6 @@ public sealed partial class FoodStoresRounds
 
         switch (choice.Kind)
         {
-            case FoodStorageMethodKind.SiteUnread:
-                return WorkRules.Abstaining(Cause.UnreadFoodStorage);
             case FoodStorageMethodKind.Produce:
                 OrderSpec spec;
                 MedicineMethodKind kind;
@@ -212,25 +210,15 @@ public sealed partial class FoodStoresRounds
     {
         var names = FoodStorageDefNames(facts, _reviewer.Policy.FoodStorage);
         var sites = new List<FoodStorageSite>(names.Count);
-        var unread = false;
         foreach (var name in names)
         {
-            ResourceStorage storage;
-            try
-            {
-                (_, storage) = await _native.ReadResourceSourcesAsync(identity, name, ct).ConfigureAwait(false);
-            }
-            catch (Exception e) when (e is not OperationCanceledException)
-            {
-                unread = true;
-                continue;
-            }
+            var (_, storage) = await _native.ReadResourceSourcesAsync(identity, name, ct).ConfigureAwait(false);
 
             var spare = Math.Max(storage.Capacity - storage.Stored, 0);
             sites.Add(new FoodStorageSite { Id = name, Capacity = spare });
         }
 
-        return FoodStorageUpkeepRules.SelectFoodStorageMethod(new FoodStoragePlanningRequest { Review = review, Sites = EquatableArray.From(sites), SiteUnread = unread, Resource = FoodStorageResourceDefinition });
+        return FoodStorageUpkeepRules.SelectFoodStorageMethod(new FoodStoragePlanningRequest { Review = review, Sites = EquatableArray.From(sites), Resource = FoodStorageResourceDefinition });
     }
 }
 

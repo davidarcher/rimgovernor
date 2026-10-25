@@ -51,14 +51,14 @@ public sealed partial class DisasterRounds
         var f = read.Projection.Facts;
         var emergency = EmergencySnapshot.New(scope.World, expected.Tick, read.Emergency);
         f = f with { Hostiles = EmergencyNeedsRules.EmergencyNeeds(emergency, scope.World, expected.Tick).Hostiles };
-        f = f with { DangerSeeds = SafeAreaMemory.DangerSeedFact(f.Hostiles, read.Emergency.Threats) };
-        f.DangerSeeds.TryGetValue(out var seeds);
+        f = f with { DangerSeeds = EquatableArray.From(ShelterRules.DangerSeeds(read.Emergency.Threats)) };
+        var seeds = f.DangerSeeds;
         f = f with
         {
             DangerWindow = _reviewer.SafeArea.DangerWindow(RoundsStockpilePlanner.StockpileWorld(scope.World), f.Hostiles, seeds, expected.Tick),
             DangerHaulers = ShelterRules.DangerHaulers(read.Projection.WorkPawns),
             Tick = expected.Tick,
-            Dash = Known(review.Latches.Dash),
+            Dash = review.Latches.Dash,
             ShelterCombatants = ShelterCombatants(journal, new StoreWorld(scope.World.Colony, scope.World.Load, scope.World.Map), call),
         };
         return DisasterFacts.From(f, review.Disaster) with { Workers = read.Projection.WorkPawns };
@@ -158,11 +158,7 @@ public sealed partial class DisasterRounds
         }
         foreach (var service in applied)
         {
-            if (!RecoveryRules.RecoveryWorkContinuing(service, facts.Planning.Buildings, facts.Workers).TryGetValue(out var continuing))
-            {
-                return FieldUnavailable("recovery_work");
-            }
-            if (continuing)
+            if (RecoveryRules.RecoveryWorkContinuing(service, facts.Planning.Buildings, facts.Workers))
             {
                 return BuildingReasonExistingWork;
             }
@@ -193,15 +189,17 @@ public sealed partial class DisasterRounds
     /// <summary>Why no service was selected, as the Need's verdict.</summary>
     internal static Verdict RecoverySelectionVerdict(RecoverySelectionReason reason) => reason switch
     {
-        RecoverySelectionReason.FactsUnknown => FieldUnavailable("recovery_observations"),
         RecoverySelectionReason.NoWorker => NoWorker("recovery_service"),
         RecoverySelectionReason.TrackedMissing => SiteBlocked("recovery_infrastructure", reason.ToString()),
         RecoverySelectionReason.NoWork => BuildingReasonNoDeficit,
-        _ => WaitFor(Cause.MethodUsed, "recovery_service_proposal"),
+        RecoverySelectionReason.MethodsSeen => WaitFor(Cause.MethodUsed, "recovery_service_proposal"),
+        RecoverySelectionReason.AdmissionRequired => WaitFor(Cause.MethodUsed, "recovery_service_proposal"),
+        RecoverySelectionReason.None => throw new ControlException("recovery selection has no reason"),
+        RecoverySelectionReason invalid => throw new ControlException($"invalid recovery selection reason {invalid}"),
     };
 
     /// <summary>The colonists an open fight in <paramref name="world"/> has drafted: a threat shelters none of them.</summary>
-    internal static Fact<EquatableArray<PawnId>> ShelterCombatants(StoreJournal journal, StoreWorld world, CancellationToken ct)
+    internal static EquatableArray<PawnId> ShelterCombatants(StoreJournal journal, StoreWorld world, CancellationToken ct)
     {
         var output = new List<PawnId>();
         foreach (var (_, fight) in journal.OpenCombatFights(ct))
@@ -212,7 +210,7 @@ public sealed partial class DisasterRounds
             }
         }
         output.Sort((a, b) => string.CompareOrdinal(a.Value, b.Value));
-        return Known<EquatableArray<PawnId>>([.. output]);
+        return [.. output];
     }
 }
 

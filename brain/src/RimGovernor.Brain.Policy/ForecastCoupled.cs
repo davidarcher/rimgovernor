@@ -79,9 +79,6 @@ public sealed record ForecastCoupledContext
     /// <summary>The builders a room's owed work is projected over (#3744, #3796): the free colonists of the needs census
     /// capable of Construction (LayoutClusterRules.BuildersOf). None free projects nothing.</summary>
     public int PlannedBuilders { get; init; }
-    /// <summary>Whether a work fact <see cref="PlannedBuilders"/> counts was left unread (#3835): a room that then needs
-    /// projecting throws <see cref="RequiredFactException"/> instead of passing for one no builder serves.</summary>
-    public bool PlannedBuildersUnread { get; init; }
     /// <summary>The owed work in ticks (#3744, #3796) of each planned site (by site id: the least finish, a Finishes row's ticks or a
     /// roof's RoofCellWorkTicks per cell, plus the least delivery haul and clearing it was generated with) and of each placed
     /// site and standing removal (by its id: the least work of its finishes). A room owing an item without a row is not projected.</summary>

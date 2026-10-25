@@ -22,6 +22,6 @@ public static class ColonyForecastFactsRules
             Items = f.Items,
             Medicine = f.MedicalReserve,
         };
-        return f.AnimalUpkeep.Food.TryGetValue(out var supply) ? input with { Food = supply } : input with { FoodUnread = true };
+        return input with { Food = f.AnimalUpkeep.Food };
     }
 }

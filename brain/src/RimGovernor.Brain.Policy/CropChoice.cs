@@ -10,109 +10,104 @@ public sealed class OutdoorsDarkUnknownException()
 
 public sealed record CropClimate
 {
-    public Fact<bool> Sowing { get; init; }
+    public bool Sowing { get; init; }
 
-    public Fact<double> DaysRemaining { get; init; }
+    public double DaysRemaining { get; init; }
 
     /// <summary>
     /// The biome's permanent darkness: the sky never lights the ground, so no crop that needs light grows
-    /// outdoors whatever the season says. Unknown refuses: nothing is sown outdoors on a guess.
+    /// outdoors whatever the season says. The native biome read is required.
     /// </summary>
-    public Fact<bool> OutdoorsDark { get; init; }
+    public bool OutdoorsDark { get; init; }
 
     /// <summary>The colony map's biome defName: a species the game only lets a player sow wild (MustBeWildToSow) is planted only where it is native.</summary>
     public string Biome { get; init; } = "";
 
     /// <summary>
     /// Whether a crop that needs light can be sown outdoors now: the native season read, false in a
-    /// permanently dark biome, unknown while the darkness is unknown.
+    /// permanently dark biome.
     /// </summary>
-    public Fact<bool> SowingOutdoors()
+    public bool SowingOutdoors()
     {
-        if (!OutdoorsDark.TryGetValue(out var dark))
-        {
-            return Unknown<bool>();
-        }
-        return dark ? Known(false) : Sowing;
+        var dark = OutdoorsDark;
+        return dark ? false : Sowing;
     }
 }
 
 public sealed record CropChoice
 {
-    /// <summary>The resource one harvest yields; unknown stays unknown, never zero.</summary>
-    public Fact<Resource> Harvests { get; init; }
+    /// <summary>The native resource one harvest yields.</summary>
+    public Resource Harvests { get; init; }
 
-    /// <summary>The units per cell per harvest; unknown stays unknown, never zero.</summary>
-    public Fact<double> UnitsPerCell { get; init; }
+    /// <summary>The native units per cell per harvest.</summary>
+    public double UnitsPerCell { get; init; }
 
     /// <summary>The sowing skill floor.</summary>
-    public Fact<int> SowMinSkill { get; init; }
+    public int SowMinSkill { get; init; }
 
     /// <summary>True when a harvest removes the plant (a tree is felled), so the cell is empty after.</summary>
-    public Fact<bool> HarvestDestroys { get; init; }
+    public bool HarvestDestroys { get; init; }
 
     // BlockAdjacentSow, MustBeWildToSow, HarvestMinGrowth, SowWork and WildBiomes price a tree plantation.
-    public Fact<bool> BlockAdjacentSow { get; init; }
+    public bool BlockAdjacentSow { get; init; }
 
-    public Fact<bool> MustBeWildToSow { get; init; }
+    public bool MustBeWildToSow { get; init; }
 
-    public Fact<double> HarvestMinGrowth { get; init; }
+    public double HarvestMinGrowth { get; init; }
 
-    public Fact<double> SowWork { get; init; }
+    public double SowWork { get; init; }
 
-    public Fact<EquatableArray<string>> WildBiomes { get; init; }
+    public EquatableArray<string> WildBiomes { get; init; }
 
     public string Name { get; init; } = "";
 
-    public Fact<bool> Available { get; init; }
+    public bool Available { get; init; }
 
     /// <summary>The research the crop's sowing waits on (the plant's own prerequisites, Devilstrand and TreeSowing); finished ones are still listed.</summary>
     public EquatableArray<ResearchProjectId> Research { get; init; }
 
-    public Fact<bool> Edible { get; init; }
+    public bool Edible { get; init; }
 
-    public Fact<double> GrowDays { get; init; }
+    public double GrowDays { get; init; }
 
-    public Fact<double> FertilityMin { get; init; }
+    public double FertilityMin { get; init; }
 
-    public Fact<double> FertilitySensitivity { get; init; }
+    public double FertilitySensitivity { get; init; }
 
-    public Fact<double> HarvestNutrition { get; init; }
+    public double HarvestNutrition { get; init; }
 
-    public Fact<double> Demand { get; init; }
+    public double Demand { get; init; }
 
     /// <summary>The native sow tags ("Ground", "Hydroponic").</summary>
-    public Fact<EquatableArray<string>> SowTags { get; init; }
+    public EquatableArray<string> SowTags { get; init; }
 
     /// <summary>The native minimum light for growth, zero for cave crops.</summary>
-    public Fact<double> MinGlow { get; init; }
+    public double MinGlow { get; init; }
 
-    public Fact<double> HarvestWork { get; init; }
+    public double HarvestWork { get; init; }
 
-    public Fact<bool> RawPreferred { get; init; }
+    public bool RawPreferred { get; init; }
 
-    public Fact<bool> DietAllowed { get; init; }
+    public bool DietAllowed { get; init; }
 
-    public Fact<bool> RequiresPollution { get; init; }
+    public bool RequiresPollution { get; init; }
 
-    public Fact<bool> RequiresCleanSoil { get; init; }
+    public bool RequiresCleanSoil { get; init; }
 
     /// <summary>The harvested item's rot days; counts only for a perishable item.</summary>
-    public Fact<double> RotDays { get; init; }
-
-    public Fact<bool> Perishable { get; init; }
+    public HarvestDecay? Decay { get; init; }
 
     /// <summary>The crop's growth temperature band (PlantProperties): no growth below the first or above the last, full rate between the two optimals.</summary>
-    public Fact<double> MinGrowthTemperature { get; init; }
+    public double MinGrowthTemperature { get; init; }
 
-    public Fact<double> MinOptimalGrowthTemperature { get; init; }
+    public double MinOptimalGrowthTemperature { get; init; }
 
-    public Fact<double> MaxOptimalGrowthTemperature { get; init; }
+    public double MaxOptimalGrowthTemperature { get; init; }
 
-    public Fact<double> MaxGrowthTemperature { get; init; }
+    public double MaxGrowthTemperature { get; init; }
 
     /// <summary>The fraction of every day the plant rests and does not grow (<see cref="PlantResting"/>).</summary>
-    public Fact<double> RestingDayFraction { get; init; }
+    public double RestingDayFraction { get; init; }
 }
 
 /// <summary>One expansion decision: which edible crop to sow, and where, so that observed coverage reaches the reserve target.</summary>
@@ -126,9 +121,9 @@ public sealed record FieldRequest
 
     public long Colonists { get; init; }
 
-    public Fact<int> Growers { get; init; }
+    public int Growers { get; init; }
 
-    public Fact<int> Cooks { get; init; }
+    public int Cooks { get; init; }
 
     public Calendar Calendar { get; init; }
 
@@ -138,7 +133,7 @@ public sealed record FieldRequest
     public double ReserveDays { get; init; }
 
     /// <summary>The fraction of the target already growing (FieldCoverage).</summary>
-    public Fact<double> Coverage { get; init; }
+    public double Coverage { get; init; }
 
     public FarmSiteRequest Site { get; init; } = new();
 }
@@ -220,14 +215,14 @@ public static class CropChoiceRules
     /// Chooses the crop and patches jointly. Every available edible crop with complete native facts is a
     /// candidate; its patches come from sitePick over unroofed free soil (the plan field blocks when set) at the
     /// crop's own fertility floor, so a fertility-tolerant crop wins on poor soil where a richer crop would find
-    /// no land. A remaining season shorter than 2.5 grow cycles excludes a crop; an unknown remaining season
-    /// while sowing is possible is treated as short, so the fastest crop that can plant is chosen rather than
-    /// nothing. A stored-food runway shorter than 2.5 cycles of the fastest crop is urgent and also prefers the
+    /// no land. A remaining season shorter than 2.5 grow cycles excludes a crop.
+    /// A stored-food runway shorter than 2.5 cycles of the fastest crop is urgent and also prefers the
     /// fastest crop. Existing zones are never re-cropped: the plan only adds patches.
     /// </summary>
     public static (FieldPlan Plan, bool Ok) PlanField(FieldRequest r)
     {
-        if (!r.Climate.SowingOutdoors().TryGetValue(out var sowing) || !sowing)
+        var sowing = r.Climate.SowingOutdoors();
+        if (!sowing)
         {
             return (new FieldPlan(), false);
         }
@@ -240,8 +235,9 @@ public static class CropChoiceRules
     /// </summary>
     internal static (List<ViableCrop> Viables, List<FieldCandidate> Excluded, bool Ok) ViableCrops(FieldRequest r, bool indoor)
     {
-        var seasonKnown = r.Climate.DaysRemaining.TryGetValue(out var season);
-        if (!r.Coverage.TryGetValue(out var fraction) || !FoodForecastRules.FoodNumber(fraction) || (!indoor && seasonKnown && !FieldCapacityRules.FieldPositive(season)))
+        var season = r.Climate.DaysRemaining;
+        var fraction = r.Coverage;
+        if (!FoodForecastRules.FoodNumber(fraction) || (!indoor && !FieldCapacityRules.FieldPositive(season)))
         {
             return ([], [], false);
         }
@@ -258,19 +254,18 @@ public static class CropChoiceRules
         void Exclude(CropChoice crop, string reason) => excluded.Add(new FieldCandidate { Crop = crop, Reason = reason });
         foreach (var crop in r.Choices)
         {
-            var known = crop.DietAllowed.TryGetValue(out var allowed);
-            if ((known && !allowed) || (ControlledEnvironmentRules.GrowsInDark(crop) && !known))
+            var allowed = crop.DietAllowed;
+            if ((!allowed))
             {
                 Exclude(crop, "crop diet unavailable or penalised");
                 continue;
             }
-            var ak = crop.Available.TryGetValue(out var available);
-            var ek = crop.Edible.TryGetValue(out var edible);
-            var gk = crop.GrowDays.TryGetValue(out var days);
-            if (!ak || !ek || !gk || !FieldCapacityRules.FieldPositive(days))
+            var available = crop.Available;
+            var edible = crop.Edible;
+            var days = crop.GrowDays;
+            if (!FieldCapacityRules.FieldPositive(days))
             {
-                Exclude(crop, "incomplete crop facts");
-                continue;
+                throw new RequiredFactException("crop growth:" + crop.Name);
             }
             if (!available || !edible)
             {
@@ -282,17 +277,13 @@ public static class CropChoiceRules
                 Exclude(crop, "crop needs a dark room");
                 continue;
             }
-            if (!indoor && seasonKnown && days * 2.5 > season)
+            if (!indoor && days * 2.5 > season)
             {
                 Exclude(crop, "season too short");
                 continue;
             }
-            var left = indoor ? Known(FieldYearDays) : r.Climate.DaysRemaining;
-            if (!FieldTarget(r.Colonists, crop, r.ReserveDays, left).TryGetValue(out var count))
-            {
-                Exclude(crop, "field target unknown");
-                continue;
-            }
+            var left = indoor ? FieldYearDays : r.Climate.DaysRemaining;
+            var count = FieldTarget(r.Colonists, crop, r.ReserveDays, left);
             var needed = (int)Math.Ceiling((count * (1 - fraction)) - 1e-9);
             if (needed <= 0)
             {
@@ -304,10 +295,9 @@ public static class CropChoiceRules
     }
 
     /// <summary>
-    /// True when the stored-food runway is shorter than 2.5 cycles of the fastest viable crop, or (outdoors)
-    /// when the remaining season is unknown while sowing is possible.
+    /// True when the stored-food runway is shorter than 2.5 cycles of the fastest viable crop.
     /// </summary>
-    internal static bool FieldUrgency(FieldRequest r, IReadOnlyList<ViableCrop> viables, bool indoor)
+    internal static bool FieldUrgency(FieldRequest r, IReadOnlyList<ViableCrop> viables)
     {
         if (viables.Count == 0)
         {
@@ -318,8 +308,7 @@ public static class CropChoiceRules
         {
             fastest = Math.Min(fastest, v.Days);
         }
-        var seasonKnown = r.Climate.DaysRemaining.IsKnown;
-        return (!indoor && !seasonKnown) || (r.Runway is FoodRunway.Days { Value: var foodDays } && FoodForecastRules.FoodNumber(foodDays) && foodDays < fastest * 2.5);
+        return (r.Runway is FoodRunway.Days { Value: var foodDays } && FoodForecastRules.FoodNumber(foodDays) && foodDays < fastest * 2.5);
     }
 
     /// <summary>PlanField with the indoor switch.</summary>
@@ -335,7 +324,7 @@ public static class CropChoiceRules
         {
             return (plan, false);
         }
-        var urgent = FieldUrgency(r, viables, indoor);
+        var urgent = FieldUrgency(r, viables);
         var candidates = new List<FieldCandidate>(excluded);
         foreach (var v in viables)
         {
@@ -396,8 +385,8 @@ public static class CropChoiceRules
         {
             return a.Sites.Cells > 0;
         }
-        a.Crop.GrowDays.TryGetValue(out var ad);
-        b.Crop.GrowDays.TryGetValue(out var bd);
+        var ad = a.Crop.GrowDays;
+        var bd = b.Crop.GrowDays;
         if (urgent && ad != bd)
         {
             return ad < bd;
@@ -439,27 +428,32 @@ public static class CropChoiceRules
     /// <summary>
     /// The cells of crop that feed the colony: each cell harvests yield every GrowDays, so steady state is
     /// demand*days/yield cells, and the reserve stock is spread over the harvests left in the season (one
-    /// harvest when the season is unknown or shorter than a cycle).
+    /// harvest when the season is shorter than a cycle).
     /// </summary>
-    public static Fact<int> FieldTarget(long colonists, CropChoice crop, double reserve, Fact<double> season)
+    public static int FieldTarget(long colonists,CropChoice crop,double reserve,double season)
     {
-        var dk = crop.Demand.TryGetValue(out var demand);
-        var gk = crop.GrowDays.TryGetValue(out var days);
-        var yk = crop.HarvestNutrition.TryGetValue(out var yield);
-        if (colonists < 0 || !dk || !gk || !yk || !FieldCapacityRules.FieldPositive(demand) || !FieldCapacityRules.FieldPositive(days) || !FieldCapacityRules.FieldPositive(yield) || !FieldCapacityRules.FieldPositive(reserve))
+        var demand = crop.Demand;
+        if (demand == 0) return 0;
+        var days = crop.GrowDays;
+        var yield = crop.HarvestNutrition;
+        if (colonists < 0 || !FieldCapacityRules.FieldPositive(demand) || !FieldCapacityRules.FieldPositive(days) || !FieldCapacityRules.FieldPositive(yield) || !FieldCapacityRules.FieldPositive(reserve))
         {
-            return Unknown<int>();
+            throw new RequiredFactException("field target budget");
         }
         var harvests = 1.0;
-        if (season.TryGetValue(out var left) && FieldCapacityRules.FieldPositive(left))
+        var left = season;
+        if (FieldCapacityRules.FieldPositive(left))
         {
             harvests = Math.Max(1, Math.Floor(left / days));
         }
         var target = Math.Max(colonists * 10.0, Math.Ceiling(demand * (days + (reserve / harvests)) / yield));
         if (!FieldCapacityRules.FieldPositive(target) || target > 65536)
         {
-            return Unknown<int>();
+            throw new RequiredFactException("field target budget");
         }
-        return Known((int)target);
+        return (int)target;
     }
 }
+
+/// <summary>A harvest product with a native rot component, measured in days.</summary>
+public sealed record HarvestDecay(double Days);

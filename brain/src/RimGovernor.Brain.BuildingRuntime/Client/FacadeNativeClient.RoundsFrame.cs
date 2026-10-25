@@ -52,7 +52,7 @@ public sealed partial class FacadeNativeClient
             Rooms = v.Rooms ?? throw BridgeContractException.Contract("frame without its rooms section"),
             Bills = v.Bills,
             Buildings = held.BuildMeta is null ? null : new BuildingCensus(held.BuildMeta.Context, held.Buildings),
-            Tables = new Tables(held.Buildings, pawns, held.Things, [.. research.Finished]) { PawnCensus = v.Pawns, Emergency = prepared.Emergency?.Facts, Rooms = v.Rooms ?? throw BridgeContractException.Contract("routine frame without its rooms section") },
+            Tables = new Tables(held.Buildings, pawns, held.Things, [.. research.Finished]) { PawnCensus = v.Pawns, Emergency = prepared.Emergency?.Facts, Rooms = v.Rooms ?? throw BridgeContractException.Contract("routine frame without its rooms section"), Zones = v.Zones ?? throw BridgeContractException.Contract("routine frame without its zones section") },
             Research = research,
         };
         if (prepared.Emergency is { } emergency)

@@ -29,7 +29,7 @@ public sealed class WornCountGoalTests
 
     private static RoundsFacts Facts(params GearPawn[] pawns) => new()
     {
-        Gear = Known(ColonyModelFixtures.NoGear() with { Pawns = pawns }),
+        Gear = ColonyModelFixtures.NoGear() with { Pawns = pawns },
         Resources = [],
         Items = new ItemFacts { StuffCategories = new Dictionary<Resource, IReadOnlyList<string>> { [Devilstrand] = ["Fabric"] } },
         Garments = [new ClothingGarment { Definition = new(Duster), Groups = ["Torso"], Slots = [[new Amount(Devilstrand, 60)]] }],
@@ -46,7 +46,7 @@ public sealed class WornCountGoalTests
     };
 
     private static IReadOnlyList<string> Required(RoundsFacts f) =>
-        [.. f.Gear.Value.Pawns.Select(p => string.Join(",", p.Policy!.Required.Items))];
+        [.. f.Gear.Pawns.Select(p => string.Join(",", p.Policy!.Required.Items))];
 
     [Fact]
     public void TheGarmentIsRequiredForTheFirstEligibleColonistsByPawnId()
@@ -60,7 +60,7 @@ public sealed class WornCountGoalTests
             Pawn("p6"));
         var stamped = GoalRules.Stamp(rounds, GoalRules.DemandOf(GoalFacts(rounds)));
         // p4, p1 and p6 are eligible; the first two by id are p1 and p4. The soldier, the child and the pawn who cannot wear it get nothing.
-        Assert.Equal(["p1", "p4"], stamped.Gear.Value.Pawns.Where(p => p.Policy!.Required.Items.Contains(Duster)).Select(p => p.Pawn.Value).Order());
+        Assert.Equal(["p1", "p4"], stamped.Gear.Pawns.Where(p => p.Policy!.Required.Items.Contains(Duster)).Select(p => p.Pawn.Value).Order());
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public sealed class WornCountGoalTests
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(Goal(), facts).State);
         var stamped = GoalRules.Stamp(rounds, GoalRules.DemandOf(facts));
         Assert.Empty(stamped.ClothingRunway().Needs);
-        Assert.Equal(2, stamped.Gear.Value.Pawns.Count(p => p.Policy!.Required.Items.Contains(Duster)));
+        Assert.Equal(2, stamped.Gear.Pawns.Count(p => p.Policy!.Required.Items.Contains(Duster)));
     }
 
     [Fact]
@@ -106,8 +106,8 @@ public sealed class WornCountGoalTests
     [Fact]
     public void StuffResearchComesFromThePlantsThatHarvestTheStuff()
     {
-        var plant = new PlanningDefinition { HarvestedThingDef = Known(Devilstrand.Value), Research = ["Devilstrand"] };
-        var other = new PlanningDefinition { HarvestedThingDef = Known("RawRice") };
+        var plant = new PlanningDefinition { Research = ["Devilstrand"] ,Harvest=new PlanningHarvest {HarvestedThingDef = Devilstrand.Value}};
+        var other = new PlanningDefinition { Harvest=new PlanningHarvest {HarvestedThingDef = "RawRice"}};
         var map = GoalsRounds.StuffResearch([plant, other]);
         Assert.Equal(["Devilstrand"], map[Devilstrand.Value]);
         Assert.False(map.ContainsKey("RawRice"));
@@ -120,6 +120,6 @@ public sealed class WornCountGoalTests
         Assert.Equal((GoalState.Pursuing, EconomyFamily.Resource, 2.0), (pursuing.State, pursuing.Owner, ((GoalDeficit.Measured)pursuing.Deficit).Amount));
         var none = GoalRules.Evaluate(Goal(), GoalFacts(Facts(Pawn("p1", canWear: false))));
         Assert.Equal((GoalState.NoMethod, "no_wearer"), (none.State, none.Reason));
-        Assert.Equal("gear", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(Goal(), GoalFacts(new RoundsFacts()))).Fact);
+        Assert.Equal("gear census", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(Goal(), GoalFacts(new RoundsFacts()))).Fact);
     }
 }

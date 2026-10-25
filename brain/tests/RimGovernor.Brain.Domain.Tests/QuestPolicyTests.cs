@@ -25,7 +25,7 @@ public sealed class QuestPolicyTests
     private static RoundsFacts Calm(params Pb.QuestState[] offers) => QuestStateTests.WithQuests(new RoundsFacts
     {
         QuestCalm = QuestCalm.Settled,
-        DefenseCapacity = Known(500.0),
+        DefenseCapacity = 500.0,
         Population = PopulationFixtures.Census(),
         FoodDays = new FoodRunway.Days(20.0),
     }, offers);
@@ -37,7 +37,7 @@ public sealed class QuestPolicyTests
     {
         var f = Calm(JoinerOffer("q9"), JoinerOffer("q2"));
         var capacity = PopulationRules.JoinerCapacity(f.JoinerCapacity());
-        Assert.True(capacity.TryGetValue(out var room) && room);
+        Assert.Equal(new PopulationCapacity.Assessed(true), capacity);
 
         // The lowest quest id, on its first reward choice.
         var choice = PopulationRules.SelectJoinerMethod(Offers(f), capacity, f);
@@ -48,7 +48,7 @@ public sealed class QuestPolicyTests
         Assert.Equal(JoinerPlanReason.NoCapacity, PopulationRules.SelectJoinerMethod(Offers(full), PopulationRules.JoinerCapacity(full.JoinerCapacity()), full).Reason);
         var outgunned = Calm(JoinerOffer("q2", threat: 900));
         Assert.Equal(JoinerPlanReason.NoCapacity, PopulationRules.SelectJoinerMethod(Offers(outgunned), capacity, outgunned).Reason);
-        Assert.Throws<RequiredFactException>(() => PopulationRules.SelectJoinerMethod(Offers(f), Unknown<bool>(), f));
+        Assert.Throws<RequiredFactException>(() => PopulationRules.SelectJoinerMethod(Offers(f), new PopulationCapacity.AwaitingFoodPlan(), f));
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public sealed class QuestPolicyTests
         {
             Sleeping = new SleepingObservation { Beds = [new SleepingBed { Id = "bed", Humanlike = true, Owners = [new PawnId("a")] }] },
         };
-        Assert.Equal(Known(true), PopulationRules.JoinerCapacity(owned.JoinerCapacity()));
+        Assert.Equal(new PopulationCapacity.Assessed(true), PopulationRules.JoinerCapacity(owned.JoinerCapacity()));
     }
 
     private static readonly Pb.QuestObjective Produce = QuestStateTests.Objective(Pb.QuestObjectiveKind.ProduceItem) with
@@ -217,7 +217,7 @@ public sealed class QuestPolicyTests
             Security = new Pb.SiteThreatBudget.Unbounded(),
         };
         SurveyPlan Work(Pb.QuestSurveyScanner scanner) =>
-            QuestSurvey.SurveyWork(SurveyOffer(scanner), site, Surveying, default, RoundsRules.DefaultRoundsPolicy());
+            QuestSurvey.SurveyWork(SurveyOffer(scanner), site, Surveying, new FoodSupply { Larder = new() }, RoundsRules.DefaultRoundsPolicy());
 
         var lost = Work(Scanner with { Scanner = Pb.SurveyScannerCondition.Destroyed });
         Assert.Equal((true, "scanner_destroyed"), (lost.Return, lost.Reason.Value));
@@ -227,7 +227,7 @@ public sealed class QuestPolicyTests
         Assert.Equal("survey_supply_unknown", Work(Scanner).Reason.Value);
         // A second scanner naming the same site leaves the hold unread.
         var twice = SurveyOffer(Scanner) with { Objectives = [.. SurveyOffer(Scanner).Objectives, .. SurveyOffer(Scanner).Objectives] };
-        Assert.Equal("survey_unknown", QuestSurvey.SurveyWork(twice, site, Surveying, default, RoundsRules.DefaultRoundsPolicy()).Reason.Value);
+        Assert.Equal("survey_unknown", QuestSurvey.SurveyWork(twice, site, Surveying, new FoodSupply { Larder = new() }, RoundsRules.DefaultRoundsPolicy()).Reason.Value);
     }
 
     private static RoundsFacts Inspecting(Pb.QuestGravEngine? engine) => QuestStateTests.WithQuests(

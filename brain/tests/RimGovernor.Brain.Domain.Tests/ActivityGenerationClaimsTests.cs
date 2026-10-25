@@ -41,7 +41,7 @@ public sealed class ActivityGenerationClaimsTests
             journal.RecordReceipt(plan.Id, activity.Id, sent.View.Attempt, Receipt.Accepted, ct);
         }
         Assert.Contains("pawn", journal.WorkResources(world, ct).Claims.Pawns);
-        Assert.Equal(8, journal.WorkResources(world, ct).Materials.Value[new("Rice")].Value);
+        Assert.Equal(8, journal.WorkResources(world, ct).Materials.AssessedBalances()[new("Rice")].ExactCount());
         var changed = world with { Native = new(2) };
         journal.ReviewRounds(new() { Revision = review.Review.Revision, Current = changed, Tick = new(110), Enabled = true,
             Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts with { Tick = new(110) } }, ct);
@@ -49,7 +49,7 @@ public sealed class ActivityGenerationClaimsTests
         Assert.Empty(remaining.Claims.Pawns);
         Assert.DoesNotContain("rice-stack", remaining.Claims.Targets);
         Assert.Contains(WorkRules.BuildingClaimTarget(building.Building!), remaining.Claims.Targets);
-        Assert.Equal(14, remaining.Materials.Value[new("Rice")].Value);
+        Assert.Equal(14, remaining.Materials.AssessedBalances()[new("Rice")].ExactCount());
         Assert.False(journal.LoadPlan(plan.Id, ct).Retired); // Historical intent is not an unauthorized release order.
         Assert.False(journal.LoadPlan(construction.Id, ct).Retired);
     }

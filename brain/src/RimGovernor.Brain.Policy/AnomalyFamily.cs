@@ -154,10 +154,6 @@ public sealed class AnomalyFamily : IFamily<AnomalyFacts>
     /// <summary>The lance targets: none while no colonist wears a lance; an unread gear, colony or custody census raises <see cref="RequiredFactException"/>.</summary>
     private static int LanceTargets(RoundsFacts f)
     {
-        if (!f.Gear.TryGetValue(out _))
-        {
-            throw new RequiredFactException("gear");
-        }
         if (!PopulationRules.LanceWorn(f.Gear))
         {
             return 0;

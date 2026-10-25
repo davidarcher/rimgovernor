@@ -109,7 +109,6 @@ public sealed record HusbandryTrainable
 
 public sealed record AnimalUpkeepObservation
 {
-    public Fact<FoodForecast> Forecast { get; init; }
 
     /// <summary>The player herd: every animal of the colony's census, an empty array for a colony without one.</summary>
     public EquatableArray<UpkeepAnimal> Animals { get; init; }
@@ -124,7 +123,7 @@ public sealed record AnimalUpkeepObservation
     /// none. Null when native could not read the census, which a pen credit raises as a required fact.</summary>
     public IReadOnlyList<PenRoamer>? Roamers { get; init; }
 
-    public Fact<FoodSupply> Food { get; init; }
+    public FoodSupply Food { get; init; } = new() { Larder = new() };
 
     public EquatableArray<Resource> DirectedHerds { get; init; }
 }

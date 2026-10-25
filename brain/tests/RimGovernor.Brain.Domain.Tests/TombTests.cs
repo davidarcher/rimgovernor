@@ -43,7 +43,7 @@ public sealed class TombTests
     };
 
     private static bool Owed(params WasteItem[] waste) =>
-        TombRules.TombOwed(Shapes, Known(true), Plan, [.. waste], CurrentConstruction.Empty);
+        TombRules.TombOwed(Shapes, true, Plan, [.. waste], CurrentConstruction.Empty);
 
     [Fact]
     public void AColonistCorpseIsStagedIntoAFreeTombSlot()
@@ -76,8 +76,7 @@ public sealed class TombTests
     public void AnUnreadInputRaisesARequiredFact()
     {
         EquatableArray<WasteItem> waste = [Corpse(CorpseOf.Colonist)];
-        Assert.Equal("current construction", Assert.Throws<RequiredFactException>(() => TombRules.TombOwed(Shapes, Known(true), Plan, waste, null)).Fact);
-        Assert.Equal("layout plan", Assert.Throws<RequiredFactException>(() => TombRules.TombOwed(Shapes, Known(true), null, waste, CurrentConstruction.Empty)).Fact);
-        Assert.Equal("sarcophagus availability", Assert.Throws<RequiredFactException>(() => TombRules.TombOwed(Shapes, default, Plan, waste, CurrentConstruction.Empty)).Fact);
+        Assert.Equal("current construction", Assert.Throws<RequiredFactException>(() => TombRules.TombOwed(Shapes, true, Plan, waste, null)).Fact);
+        Assert.Equal("layout plan", Assert.Throws<RequiredFactException>(() => TombRules.TombOwed(Shapes, true, null, waste, CurrentConstruction.Empty)).Fact);
     }
 }

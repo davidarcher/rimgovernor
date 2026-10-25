@@ -5,26 +5,9 @@ internal static class RoundsHay
 {
     internal static (CropChoice Crop, bool Found) HayCrop(ColonyProjection p)
     {
-        foreach (var d in p.Definitions)
+        foreach (var crop in RoundsFieldPlanner.CropChoices(p))
         {
-            var crop = RoundsFieldPlanner.WithHarvestFacts(
-                new CropChoice
-                {
-                    Name = d.Name,
-                    Available = d.Available,
-                    Edible = Known(false),
-                    GrowDays = d.GrowDays,
-                    HarvestNutrition = d.HarvestNutrition,
-                    FertilityMin = d.FertilityMin,
-                    FertilitySensitivity = d.FertilitySensitivity,
-                    SowTags = d.SowTags,
-                    MinGlow = d.GrowMinGlow,
-                },
-                d);
-            if (SocialCropsRules.IsHayCrop(crop))
-            {
-                return (crop, true);
-            }
+            if (SocialCropsRules.IsHayCrop(crop)) return (crop with { Edible = false }, true);
         }
 
         return (default!, false);
@@ -32,7 +15,8 @@ internal static class RoundsHay
 
     internal static (string Crop, int Needed, bool Found) HayTarget(ColonyProjection p)
     {
-        if (!AnimalFoodRules.HayNutritionNeed(p.Facts.PenGrazing, CalendarRules.HarvestGapDays(p.Facts.Calendar, p.Facts.DisasterConditions)).TryGetValue(out var need) || need <= 0)
+        var need = AnimalFoodRules.HayNutritionNeed(p.Facts.PenGrazing, CalendarRules.HarvestGapDays(p.Facts.Calendar, p.Facts.DisasterConditions));
+        if (need <= 0)
         {
             return ("", 0, false);
         }
@@ -43,13 +27,14 @@ internal static class RoundsHay
             return ("", 0, false);
         }
 
-        var planned = AnimalFoodRules.PlanHayField(Known(need), crop, p.CropClimate, out var plan);
+        var planned = AnimalFoodRules.PlanHayField(need, crop, p.CropClimate, out var plan);
         return (crop.Name, plan.Needed, planned && plan.Needed > 0);
     }
 
     internal static (FieldBlockOption Option, bool Found) HayShortfall(ColonyProjection p)
     {
-        if (!AnimalFoodRules.HayNutritionNeed(p.Facts.PenGrazing, CalendarRules.HarvestGapDays(p.Facts.Calendar, p.Facts.DisasterConditions)).TryGetValue(out var need) || need <= 0)
+        var need = AnimalFoodRules.HayNutritionNeed(p.Facts.PenGrazing, CalendarRules.HarvestGapDays(p.Facts.Calendar, p.Facts.DisasterConditions));
+        if (need <= 0)
         {
             return (default!, false);
         }
@@ -60,10 +45,7 @@ internal static class RoundsHay
             return (default!, false);
         }
 
-        if (!crop.HarvestNutrition.TryGetValue(out var yield))
-        {
-            return (default!, false);
-        }
+        var yield = crop.HarvestNutrition;
 
         foreach (var zone in p.Farms)
         {
@@ -78,7 +60,7 @@ internal static class RoundsHay
             return (default!, false);
         }
 
-        var planned = AnimalFoodRules.PlanHayField(Known(need), crop, p.CropClimate, out var plan);
+        var planned = AnimalFoodRules.PlanHayField(need, crop, p.CropClimate, out var plan);
         if (!planned || plan.Needed <= 0)
         {
             return (default!, false);

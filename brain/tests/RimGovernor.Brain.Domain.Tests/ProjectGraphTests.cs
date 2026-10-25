@@ -206,8 +206,8 @@ public sealed class ProjectGraphTests
     {
         // Mean fertility 0.5 with sensitivity 0.7 is 0.5 x 0.7 + 0.3 = 0.65 of the full rate; the same crop on full soil matures.
         var crop = Colony().Crops.Single();
-        Assert.Equal(0.65, CropGrowthModel.FertilityFactor(crop, 0.5).Value, 9);
-        Assert.Equal(FullGrowth * 0.65, CropGrowthModel.DailyGrowth(crop, 0.5, 20).Value, 9);
+        Assert.Equal(0.65, CropGrowthModel.FertilityFactor(crop, 0.5), 9);
+        Assert.Equal(FullGrowth * 0.65, CropGrowthModel.DailyGrowth(crop, 0.5, 20), 9);
 
         var poor = Colony(fertility: 0.5);
         var trajectory = Run(poor, Chain(poor, craft: false));
@@ -242,19 +242,16 @@ public sealed class ProjectGraphTests
     {
         var crop = ColonyModelFixtures.Devilstrand().Crops.Single();
 
-        Assert.Equal(factor, CropGrowthModel.TemperatureFactor(crop, temperature).Value, 9);
+        Assert.Equal(factor, CropGrowthModel.TemperatureFactor(crop, temperature), 9);
     }
 
     [Fact]
-    public void AnUnreadGrowthFactMakesTheCropGrowthUnknownNotFree()
+    public void AnInvalidGrowthTemperatureBandRefusesTheCropProjection()
     {
         var input = Colony();
         var crop = input.Crops.Single() with { MaxGrowthTemperature = default };
         input = input with { Crops = EquatableArray.From(new[] { crop }) };
 
-        var trajectory = Run(input, Chain(input, craft: false));
-
-        Assert.Contains("crop_growth_unknown:grow:zone1", trajectory.Findings);
-        Assert.DoesNotContain(trajectory.Events, e => e.Id == "grow:zone1");
+        Assert.Equal("crop growth temperature band", Assert.Throws<RequiredFactException>(() => Run(input, Chain(input, craft: false))).Fact);
     }
 }

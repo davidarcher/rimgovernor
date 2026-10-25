@@ -9,7 +9,7 @@ public interface IColonyStatusNative
 {
     Task<PbLifecycle.LoadedIdentity> IdentityAsync(CancellationToken ct);
 
-    Task<PbObservations.ColonyFactsSnapshot> ReadColonyFactsAsync(PbCommon.Identity identity, bool full, CancellationToken ct);
+    Task<PbObservations.ColonyFactsSnapshot> ReadColonyFactsAsync(PbCommon.Identity identity, CancellationToken ct);
 
     Task<PbObservations.PawnSnapshot> ReadHomeColonistsAsync(PbCommon.Identity identity, CancellationToken ct);
 }
@@ -125,7 +125,7 @@ public sealed class ColonyStatus
         var identityReply = await Native.IdentityAsync(call).ConfigureAwait(false);
         var decoded = DecodeReads.DecodeIdentity(identityReply);
         var identity = new PbCommon.Identity { ColonyId = decoded.Colony.Value, LoadToken = decoded.Load.Value, MapId = decoded.Map.Value };
-        var observed = await Native.ReadColonyFactsAsync(identity, false, call).ConfigureAwait(false);
+        var observed = await Native.ReadColonyFactsAsync(identity, call).ConfigureAwait(false);
         var roster = await Native.ReadHomeColonistsAsync(identity, call).ConfigureAwait(false);
         var pawns = roster;
         var report = new ColonyStatusReport

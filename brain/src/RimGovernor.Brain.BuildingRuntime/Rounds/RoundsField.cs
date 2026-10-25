@@ -43,12 +43,11 @@ public sealed partial class RoundsFieldPlanner
     /// </summary>
     internal async Task<RoundsFieldResult> StepAsync(StepArbiter arbiter, NeedOwner owner, CancellationToken call, CancellationToken epoch)
     {
-        NeedOwner? food = owner switch
+        if (owner.Need != FoodRules.FoodSupplyNeed && owner.Need != EconomyFamily.Resource)
         {
-            NeedOwner { Need: var n } when n == FoodRules.FoodSupplyNeed => owner,
-            NeedOwner { Need: var n } when n == EconomyFamily.Resource => null,
-            _ => throw new ControlException("field step: the step runs only under the food/supply or economy/resource Need"),
-        };
+            throw new ControlException("field step: the step runs only under the food/supply or economy/resource Need");
+        }
+        NeedOwner? food = owner.Need == FoodRules.FoodSupplyNeed ? owner : null;
         var p = _reviewer.Player;
         var state = p.Session.State();
         if (!state.Enabled)
@@ -526,41 +525,7 @@ partial class RoundsFieldPlanner
 {
     internal static List<CropChoice> CropChoices(ColonyProjection projection)
     {
-        var choices = new List<CropChoice>();
-        foreach (var d in projection.Definitions)
-        {
-            if (!d.GrowDays.IsKnown)
-            {
-                continue;
-            }
-            var choice = new CropChoice
-            {
-                Name = d.Name,
-                Available = d.Available,
-                Research = EquatableArray.From(d.Research.Select(project => new ResearchProjectId(project))),
-                Edible = d.Edible,
-                GrowDays = d.GrowDays,
-                FertilityMin = d.FertilityMin,
-                FertilitySensitivity = d.FertilitySensitivity,
-                HarvestNutrition = d.HarvestNutrition,
-                Demand = d.NutritionDemandPerDay,
-                SowTags = d.SowTags,
-                MinGlow = d.GrowMinGlow,
-                HarvestWork = d.HarvestWork,
-                RawPreferred = d.RawPreferred,
-                DietAllowed = d.DietAllowed,
-                RequiresPollution = d.RequiresPollution,
-                RequiresCleanSoil = d.RequiresCleanSoil,
-                RotDays = d.HarvestRotDays,
-                Perishable = d.HarvestPerishable,
-                MinGrowthTemperature = d.MinGrowthTemperature,
-                MinOptimalGrowthTemperature = d.MinOptimalGrowthTemperature,
-                MaxOptimalGrowthTemperature = d.MaxOptimalGrowthTemperature,
-                MaxGrowthTemperature = d.MaxGrowthTemperature,
-                RestingDayFraction = d.RestingDayFraction,
-            };
-            choices.Add(WithHarvestFacts(choice, d));
-        }
+        var choices = projection.Definitions.Where(d => d.Plant is not null && d.Harvest is not null).Select(d => d.CropChoice()).ToList();
         return choices;
     }
 
@@ -597,7 +562,8 @@ partial class RoundsFieldPlanner
         var request = new SiteTypeRequest { Field = field, Environment = projection.Environment, LampGrowthRadius = RoundsFieldPlanner.FieldLampGrowthRadius, Items = projection.Facts.Items, Stock = projection.Resources };
         foreach (var d in projection.Definitions)
         {
-            var infrastructure = Known(new Infrastructure { Name = d.Name, Available = d.Available, PowerW = d.PowerW, Fertility = d.GrowerFertility, Costs = d.CheapestCosts() });
+            if (d.Name is not ("SunLamp" or "HydroponicsBasin" or "Heater") || !d.Available) continue;
+            var infrastructure = new Infrastructure { Name = d.Name, Available = d.Available, PowerW = (d.Power ?? throw new RequiredFactException("planning Power")).PowerW, Grower = d.Name == "HydroponicsBasin" ? new InfrastructureGrower((d.Grower ?? throw new RequiredFactException("planning Grower")).GrowerFertility) : null, Costs = d.CheapestCosts() };
             switch (d.Name)
             {
                 case "SunLamp":
@@ -627,20 +593,4 @@ partial class RoundsFieldPlanner
         }
     }
 
-    internal static CropChoice WithHarvestFacts(CropChoice crop, PlanningDefinition d)
-    {
-        if (d.HarvestedThingDef.TryGetValue(out var name))
-        {
-            crop = crop with { Harvests = Known(new Resource(name)) };
-        }
-        crop = crop with { UnitsPerCell = d.HarvestYield };
-        crop = crop with { SowMinSkill = d.SowMinSkill };
-        crop = crop with { HarvestDestroys = d.HarvestDestroysPlant };
-        crop = crop with { BlockAdjacentSow = d.BlockAdjacentSow };
-        crop = crop with { MustBeWildToSow = d.MustBeWildToSow };
-        crop = crop with { HarvestMinGrowth = d.HarvestMinGrowth };
-        crop = crop with { SowWork = d.SowWork };
-        crop = crop with { WildBiomes = d.WildBiomes };
-        return crop;
-    }
 }

@@ -24,7 +24,13 @@ public sealed record ClothingDemandInput
     /// <summary>The catalog's market values the bills' filters read (GearFilter).</summary>
     public ItemFacts Items { get; init; } = new();
 
-    public Fact<GearObservation> Gear { get; init; }
+    private GearObservation? _gear;
+
+    public GearObservation Gear
+    {
+        get => _gear ?? throw new RequiredFactException("gear census");
+        init => _gear = value;
+    }
 
     public required StockReader Stock { get; init; }
 
@@ -176,7 +182,7 @@ public static class ClothingDemandRules
     {
         var bills = new List<OpenBill>();
         var reserve = new Dictionary<Resource, int>();
-        if (!input.Gear.TryGetValue(out var gear)) throw new RequiredFactException("clothing gear census");
+        var gear = input.Gear;
 
         var spare = new Dictionary<Resource, int>();
         foreach (var s in gear.Stored)
@@ -326,15 +332,17 @@ public static class ClothingDemandRules
 
     /// <summary>
     /// A growing field as the arrival of its harvest (<see cref="StuffArrival"/>): the standing crop's
-    /// <paramref name="units"/> of <paramref name="resource"/> at its harvest lead. Null without a positive yield; a positive-yield harvest requires its lead.
+    /// <paramref name="units"/> of <paramref name="resource"/> at its required harvest lead. A field with no whole unit offers no arrival.
     /// </summary>
-    public static SupplyCandidate? GrowingFieldCandidate(Resource resource, string id, double units, Fact<double> lead)
+    public static SupplyCandidate? GrowingFieldCandidate(Resource resource, string id, double units, double lead)
     {
-        if (!(units >= 1))
+        if (!double.IsFinite(units) || units < 0 || !double.IsFinite(lead) || lead < 0)
+            throw new DomainException("A growing field requires finite nonnegative yield and harvest lead.");
+        var days = lead;
+        if (units < 1)
         {
             return null;
         }
-        if (!lead.TryGetValue(out var days)) throw new RequiredFactException("growing field harvest lead");
         return new SupplyCandidate
         {
             Kind = CandidateKind.Harvest,

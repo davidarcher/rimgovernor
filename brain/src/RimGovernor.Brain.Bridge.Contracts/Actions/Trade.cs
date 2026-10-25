@@ -36,6 +36,7 @@ public static class TradeRules
                 break;
         }
         var intent = new Op.TradeIntent { Target = target, NegotiatorId = negotiator };
+        if (!Enum.IsDefined(t.Kind) || !Enum.IsDefined(t.EndKind)) throw BridgeContractException.Contract("invalid trade operation kind");
         switch (t.Kind)
         {
             case TradeOperationKind.Open:
@@ -62,16 +63,16 @@ public static class TradeRules
                 intent = intent with { Step = new Op.TradeIntentStep.AcceptCase(new Op.AcceptTrade { ExpectedDealSignature = t.ExpectedDealSignature, AllowEmpty = t.AllowEmpty, ReceiveQuest = t.ReceiveQuest }) };
                 break;
             case TradeOperationKind.End:
-                var kind = t.EndKind switch
+                Op.EndTradeKind kind = Op.EndTradeKind.Cancel;
+                switch (t.EndKind)
                 {
-                    TradeEndKind.Cancel => Op.EndTradeKind.Cancel,
-                    TradeEndKind.CloseDialog => Op.EndTradeKind.CloseDialog,
-                    _ => throw BridgeContractException.Contract("end trade requires cancel or close_dialog"),
-                };
+                    case TradeEndKind.Cancel: kind = Op.EndTradeKind.Cancel; break;
+                    case TradeEndKind.CloseDialog: kind = Op.EndTradeKind.CloseDialog; break;
+                    case TradeEndKind.None: throw BridgeContractException.Contract("end trade requires cancel or close_dialog");
+                }
                 intent = intent with { Step = new Op.TradeIntentStep.EndCase(new Op.EndTrade { Kind = kind, ReceiveQuest = t.ReceiveQuest }) };
                 break;
-            default:
-                throw BridgeContractException.Contract("unknown trade step");
+
         }
         return new Op.Action { Intent = intent };
     }

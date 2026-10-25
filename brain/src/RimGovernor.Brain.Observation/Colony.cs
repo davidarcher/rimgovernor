@@ -2,133 +2,38 @@ namespace RimGovernor.Brain.Observation;
 
 public sealed partial record PlanningDefinition
 {
-    public Fact<double> HarvestWork { get; init; }
-
-    public Fact<bool> RawPreferred { get; init; }
-
-    public Fact<bool> DietAllowed { get; init; }
-
-    public Fact<bool> RequiresPollution { get; init; }
-
-    public Fact<bool> RequiresCleanSoil { get; init; }
 
     public string Name { get; init; } = "";
 
-    public Fact<bool> Edible { get; init; }
+    public PlanningAvailability Availability { get; init; } = PlanningAvailability.NotInCatalog;
 
-    public Fact<bool> Available { get; init; }
+    public bool Available
+    {
+        get => Availability == PlanningAvailability.Ready;
+        init => Availability = value ? PlanningAvailability.Ready : PlanningAvailability.ResearchLocked;
+    }
 
-    public Fact<int> ConstructionSkill { get; init; }
+    public int ConstructionSkill { get; init; }
 
-    public Fact<bool> NeedsPower { get; init; }
+    public bool NeedsPower { get; init; }
 
     /// <summary>True for a Building_MechCharger definition.</summary>
-    public Fact<bool> MechCharger { get; init; }
+    public bool MechCharger { get; init; }
 
-    /// <summary>
-    /// True for a building with a pollution or wastepack comp (CompToxifier, CompPolluteOverTime,
-    /// CompWasteProducer); unknown when the row did not say.
-    /// </summary>
-    public Fact<bool> Pollutes { get; init; }
-
-    /// <summary>The ResearchProjectDefs the definition requires, as the native definition declares them (unfinished ones make it unavailable).</summary>
+/// <summary>The ResearchProjectDefs the definition requires, as the native definition declares them (unfinished ones make it unavailable).</summary>
     public IReadOnlyList<string> Research { get; init; } = [];
 
-    public Fact<EquatableArray<Amount>> Costs { get; init; }
-
-    public Fact<Bounds> Size { get; init; }
-
-    public Fact<double> GrowDays { get; init; }
-
-    public Fact<double> FertilityMin { get; init; }
-
-    public Fact<double> FertilitySensitivity { get; init; }
-
-    public Fact<double> HarvestNutrition { get; init; }
-
-    public Fact<double> NutritionDemandPerDay { get; init; }
-
-    /// <summary>The harvested item's rot facts.</summary>
-    public Fact<double> HarvestRotDays { get; init; }
-
-    public Fact<bool> HarvestPerishable { get; init; }
-
-    /// <summary>
-    /// What one harvest of the plant yields; SowMinSkill is the sowing skill floor and HarvestDestroysPlant
-    /// whether a harvest removes the plant (a tree is felled, a rice stand is cut). Unknown for a plant that
-    /// names no product.
-    /// </summary>
-    public Fact<string> HarvestedThingDef { get; init; }
-
-    public Fact<double> HarvestYield { get; init; }
-
-    public Fact<int> SowMinSkill { get; init; }
-
-    public Fact<bool> HarvestDestroysPlant { get; init; }
-
-    /// <summary>
-    /// The sowing facts a tree plantation prices: the native sower leaves the cells beside a sown tree empty,
-    /// the game offers only wild species to sow, a tree is harvestable from HarvestMinGrowth, one sowing costs
-    /// SowWork ticks, and WildBiomes are the biome defNames the plant grows wild in.
-    /// </summary>
-    public Fact<bool> BlockAdjacentSow { get; init; }
-
-    public Fact<bool> MustBeWildToSow { get; init; }
-
-    public Fact<double> HarvestMinGrowth { get; init; }
-
-    public Fact<double> SowWork { get; init; }
-
-    public Fact<EquatableArray<string>> WildBiomes { get; init; }
-
-    /// <summary>Crop sow tags and minimum glow; grower sow tag and fertility; building power draw and glow radius, as the native definition declares them.</summary>
-    public Fact<EquatableArray<string>> SowTags { get; init; }
-
-    public Fact<double> GrowMinGlow { get; init; }
-
-    public Fact<double> PowerW { get; init; }
-
-    public Fact<double> GrowerFertility { get; init; }
-
-    public Fact<double> GlowRadius { get; init; }
-
-    public Fact<double> ExplosiveRadius { get; init; }
-
-    /// <summary>The crop's growth temperature range (PlantProperties).</summary>
-    public Fact<double> MinGrowthTemperature { get; init; }
-
-    public Fact<double> MinOptimalGrowthTemperature { get; init; }
-
-    public Fact<double> MaxOptimalGrowthTemperature { get; init; }
-
-    public Fact<double> MaxGrowthTemperature { get; init; }
-
-    /// <summary>The fraction of a day the plant rests (<see cref="PlantResting"/>).</summary>
-    public Fact<double> RestingDayFraction { get; init; }
-
-    public Fact<string> SowTag { get; init; }
+    public Bounds Size { get; init; }
 
     /// <summary>Floor definition facts: Terrain marks a TerrainDef and the stats are what a laid floor carries.</summary>
-    public Fact<bool> Terrain { get; init; }
-
-    public Fact<double> Cleanliness { get; init; }
-
-    public Fact<double> Beauty { get; init; }
-
-    public Fact<double> Flammability { get; init; }
+    public bool Terrain { get; init; }
 
     /// <summary>The def's own pathCost: what a pawn pays to walk over the built thing or the laid floor.</summary>
     public int PathCost { get; init; }
 
-    /// <summary>The native WorkToBuild stat (work ticks) for the row's stuff.</summary>
-    public Fact<double> WorkToBuild { get; init; }
-
-    /// <summary>A TerrainDef's tags (the throne floor requirement).</summary>
-    public IReadOnlyList<string> FloorTags { get; init; } = [];
-
     /// <summary>
     /// Whether the def is made from stuff (it has stuff categories). A stuffed def has no single cost list:
-    /// Costs is unknown and StuffChoice prices it from StuffOptions.
+    /// FixedConstruction is absent and StuffChoice prices it from StuffOptions.
     /// </summary>
     public bool Stuffed { get; init; }
 
@@ -198,7 +103,7 @@ public sealed partial record ColonyProjection
     /// <summary>The catalog's station table (DefinitionCatalog.StationCatalog), set on a rounds reading; without one, the empty table: no station, so no play building either.</summary>
     public StationCatalog Stations { get; init; } = new() { PlayBuildings = [] };
 
-    public Fact<EquatableArray<FoodField>> FoodFields { get; init; }
+    public EquatableArray<FoodField> FoodFields { get; init; }
 
     public FoodChannels FoodChannels { get; init; } = new();
 
@@ -243,8 +148,8 @@ public sealed partial record ColonyProjection
     /// <summary>The Biotech catalog's mech kinds; the zero value without Biotech.</summary>
     public MechCatalog MechCatalog { get; init; } = new();
 
-    /// <summary>The colony's mechanitors and mechs from the pawn table; unknown without a table.</summary>
-    public Fact<MechFleet> Mechs { get; init; }
+    /// <summary>The colony's mechanitors and mechs from the required pawn table, including an empty fleet.</summary>
+    public MechFleet Mechs { get; init; } = new();
 
     public EquatableArray<FieldCrop> FieldCrops { get; init; }
 
@@ -276,7 +181,7 @@ public sealed partial record ColonyProjection
     public ImpressivenessLevels Impressiveness { get; init; } = new();
 
     /// <summary>Every built turret gun in the power census with its observed damage per second.</summary>
-    public Fact<EquatableArray<DefenseTurretFacts>> DefenseTurrets { get; init; }
+    public EquatableArray<DefenseTurretFacts> DefenseTurrets { get; init; }
 
     public required RoomObservation Rooms { get; init; }
 
@@ -341,17 +246,10 @@ public sealed partial record ColonyProjection
     public required O.ThreatFacts Threat { get; init; }
 
     /// <summary>
-    /// The middle of the layout plan's core: unknown until a plan exists, so nothing anchors on where the
+    /// The middle of the layout plan's core: null until a plan exists, so nothing anchors on where the
     /// colonists happen to stand.
     /// </summary>
-    public Fact<Cell> Center()
-    {
-        if (LayoutPlan is { } plan && plan.Center() is { } center)
-        {
-            return Known(center);
-        }
-        return Unknown<Cell>();
-    }
+    public Cell? Center() => LayoutPlan?.Center();
 
     /// <summary>
     /// The first of the definition's stuff options whose cost list the colony stock covers, and how many of the
@@ -391,7 +289,7 @@ public sealed partial record ColonyProjection
     }
 
     /// <summary>One planning definition's native availability, unknown when the census did not describe it.</summary>
-    public Fact<bool> DefinitionAvailable(string name)
+    public bool DefinitionAvailable(string name)
     {
         foreach (var d in Definitions)
         {
@@ -400,19 +298,19 @@ public sealed partial record ColonyProjection
                 return d.Available;
             }
         }
-        return Unknown<bool>();
+        throw new RequiredFactException("planning definition:" + name);
     }
 
     /// <summary>Pairs the power family's generator definitions with their native availability, observed fuel stock and catalog delivery profile.</summary>
     public IReadOnlyList<GeneratorOption> GeneratorOptions(Func<Resource, bool> renewable)
     {
-        var available = new Dictionary<string, Fact<bool>>(StringComparer.Ordinal);
+        var available = new Dictionary<string, bool>(StringComparer.Ordinal);
         foreach (var d in Definitions)
         {
             available[d.Name] = d.Available;
         }
         return PowerRules.DefaultGeneratorOptions(
-            name => available.TryGetValue(name, out var fact) ? fact : Unknown<bool>(),
+            name => available.TryGetValue(name, out var fact) ? fact : throw new RequiredFactException("generator definition:" + name),
             name => Resources.GetValueOrDefault(name),
             renewable,
             PowerSources,
@@ -428,9 +326,9 @@ public sealed record CookingBench
 
     public required bool Usable { get; init; }
 
-    /// <summary>The native room census identity the bench stands in, unknown for a bench outdoors or when the native read left it out.</summary>
-    public Fact<string> Room { get; init; }
+    /// <summary>The native room census identity the bench stands in; null means outdoors.</summary>
+    public string? Room { get; init; }
 
-    /// <summary>A refuelable bench's auto-refuel toggle, unknown for a bench without one.</summary>
-    public Fact<bool> AutoRefuel { get; init; }
+    /// <summary>A bench either has no refuelable component or carries its native auto-refuel toggle.</summary>
+    public RimGovernor.Contracts.Wire.Observations.BenchAutoRefuel AutoRefuel { get; init; } = new RimGovernor.Contracts.Wire.Observations.BenchAutoRefuel.NotRefuelable();
 }

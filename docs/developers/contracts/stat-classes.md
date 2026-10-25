@@ -39,3 +39,24 @@ There is never a guessed default. A stat the game does not define, a subject out
 the def does not allow), and a value the game could not compute (an exception or a non-finite number, kept as that
 failure) are a `StatException` naming it. There is no per-class owner table: the game evaluates every `StatWorker`
 and `StatPart` itself, so no class is re-implemented or tracked in the repository.
+
+## Planning values
+
+A planning definition has total common values and a named availability:
+NotInCatalog, ResearchLocked, or Ready. A name outside the catalog is not an
+offered option. Catalog or research reads that fail throw; they do not produce an
+empty catalog or an unavailable approximation.
+
+Plant, harvest, diet, floor, power, explosive and grower values live in
+nullable component records. A missing component describes a definition that has
+no such native component. Readers select the relevant component before reading
+its required values. A fixed construction recipe holds its costs and build work;
+a definition made from stuff holds the allowed stuff recipes and their computed
+stats instead. Empty costs mean the native recipe is free.
+
+Every colony frame carries the edible crop diet and demand rows, alongside the
+native zone cell and unroofed cell counts. The common colony decoder combines
+these rows with the load catalog and finished research, so direct colony reads
+and review reads use the same complete crop choices. Growth and harvest work
+consume plain values; an unsown field is fallow and a field with no future growing
+window is dormant. Neither is an unread growth rate.

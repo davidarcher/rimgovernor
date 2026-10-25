@@ -3,6 +3,10 @@ using ConditionDuration = RimGovernor.Contracts.Wire.Observations.ConditionDurat
 
 namespace RimGovernor.Brain.Policy;
 
+/// <summary>A survival service observed this review; food awaits the first food plan.</summary>
+public enum DisasterServiceStatus { Restored, Deficit, AwaitingFoodPlan }
+
+
 public enum DisasterPhase
 {
     [WireName("disrupted")]
@@ -315,10 +319,18 @@ public static class DisasterRules
     /// Uses the same survival gates as routine planning. The store resets history on world replacement or rewind
     /// and retains it through Manual. Throws on an invalid observation.
     /// </summary>
+    private static Finding ServiceFinding(DisasterServiceStatus status, DisasterService service)
+    {
+        if (status == DisasterServiceStatus.Restored) return Finding.Met;
+        if (status == DisasterServiceStatus.Deficit) return Finding.Unmet;
+        if (status == DisasterServiceStatus.AwaitingFoodPlan && service == DisasterService.Food) return Finding.Unclear;
+        throw new DomainException("invalid disaster service status");
+    }
+
     public static DisasterHistory? ReviewDisaster(
         EquatableArray<DisasterCondition> currentRows,
         EquatableArray<RecoveryBuilding> rows,
-        IReadOnlyDictionary<DisasterService, Fact<bool>> services,
+        IReadOnlyDictionary<DisasterService, DisasterServiceStatus> services,
         DisasterHistory? previous,
         Tick tick,
         DisasterShortCircuit shortCircuit)
@@ -406,7 +418,7 @@ public static class DisasterRules
         {
             var need = service == DisasterService.Infrastructure
                 ? infrastructure
-                : services.GetValueOrDefault(service).TryGetValue(out var value) ? (value ? Finding.Met : Finding.Unmet) : Finding.Unclear;
+                : ServiceFinding(services[service], service);
             if (need == Finding.Unmet)
             {
                 deficit = true;

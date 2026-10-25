@@ -303,9 +303,9 @@ public static partial class OrganHarvestRules
     /// Reports whether a sale harvest would be queued now: the silver runway is short and some eligible
     /// prisoner's organ clears its cost. It keeps the medical/surgery Need unmet.
     /// </summary>
-    public static bool SaleHarvestWanted(RoundsFacts f, Fact<bool> silverShort)
+    public static bool SaleHarvestWanted(RoundsFacts f, bool silverShort)
     {
-        if (!RoundsRules.Positive(silverShort))
+        if (!silverShort)
         {
             return false;
         }
@@ -321,15 +321,15 @@ public static partial class OrganHarvestRules
     /// Adds each harvested organ in stock to the trade need's surplus while the silver runway is short: the
     /// sale path's organ sells through SelectTrade like any surplus, keeping none.
     /// </summary>
-    public static Fact<TradeNeed> OrganSaleSurplus(
+    public static TradeNeed OrganSaleSurplus(
         ItemFacts items,
-        Fact<TradeNeed> need,
+        TradeNeed need,
         EquatableArray<Amount> resources,
         long colonists,
         RecipeFacts facts)
     {
-        if (!need.TryGetValue(out var n)
-            || !RoundsRules.Positive(SilverGapRules.SilverShort(items, need, SilverGapRules.SilverStock(items, resources), colonists)))
+        var n = need;
+        if (!SilverGapRules.SilverShort(items, need, SilverGapRules.SilverStock(items, resources), colonists))
         {
             return need;
         }
@@ -339,7 +339,7 @@ public static partial class OrganHarvestRules
             stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
         }
         var surplus = n.Surplus.ToList();
-        var retained = n.Retained is null ? new Dictionary<Resource, long>() : new Dictionary<Resource, long>(n.Retained);
+        var retained = new Dictionary<Resource, long>(n.Retained);
         foreach (var organ in facts.HarvestOrgans.OrderBy(o => o, StringComparer.Ordinal))
         {
             var count = stock.GetValueOrDefault(new Resource(organ));
@@ -349,7 +349,7 @@ public static partial class OrganHarvestRules
                 retained[new Resource(organ)] = 0;
             }
         }
-        return Known(n with { Surplus = surplus, Retained = retained });
+        return n with { Surplus = surplus, Retained = retained };
     }
 
     // Artificial part recovery: medical/surgery removes an added part (bionic, prosthetic, archotech) from a
@@ -484,9 +484,10 @@ public static partial class OrganHarvestRules
     /// queue and each bill already queued holds back its best recipe item still in the surplus, so a
     /// harvested organ or recovered part is not sold before its install is queued.
     /// </summary>
-    public static Fact<TradeNeed> ReserveSurgeryStock(Fact<TradeNeed> need, EquatableArray<CarePawn> pawns)
+    public static TradeNeed ReserveSurgeryStock(TradeNeed need, EquatableArray<CarePawn> pawns)
     {
-        if (!need.TryGetValue(out var n) || n.Surplus.Count == 0)
+        var n = need;
+        if (n.Surplus.Count == 0)
         {
             return need;
         }
@@ -511,7 +512,7 @@ public static partial class OrganHarvestRules
             }
         }
         var surplus = n.Surplus.ToList();
-        var retained = n.Retained is null ? new Dictionary<Resource, long>() : new Dictionary<Resource, long>(n.Retained);
+        var retained = new Dictionary<Resource, long>(n.Retained);
         var reserved = false;
         foreach (var items in options)
         {
@@ -543,6 +544,6 @@ public static partial class OrganHarvestRules
         {
             return need;
         }
-        return Known(n with { Surplus = surplus.Where(row => row.Count > 0).ToList(), Retained = retained });
+        return n with { Surplus = surplus.Where(row => row.Count > 0).ToList(), Retained = retained };
     }
 }

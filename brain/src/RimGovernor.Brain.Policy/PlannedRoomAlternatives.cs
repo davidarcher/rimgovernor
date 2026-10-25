@@ -79,25 +79,22 @@ public static partial class PlannedRules
     /// unknown) times the pieces, over the sites of its first-stuff Full alternative (PlannedRoomAlternatives). A roof
     /// has no catalog work: Roof says one is owed and left out of Work. A room that owes nothing has Known(0).
     /// </summary>
-    public static (Fact<double> Work, bool Roof) PlannedRoomWork(IReadOnlyList<PlannedBuildSite> sites, int room, Func<PlannedBuildSite, Fact<double>> work)
+    public static (double Work, bool Roof) PlannedRoomWork(IReadOnlyList<PlannedBuildSite> sites, int room, Func<PlannedBuildSite, double> work)
     {
         var own = sites.Where(s => s.Room == room && s.Zone.Length == 0).ToList();
         var alternatives = PlannedRoomAlternatives(own).Alternatives;
         if (alternatives.Count == 0)
         {
-            return (Known(0.0), false);
+            return (0.0, false);
         }
         var chosen = alternatives.Last(a => a.Stuff == alternatives[0].Stuff);
         var members = own.Where(s => chosen.Sites.Contains(s.Id)).ToList();
         var total = 0.0;
         foreach (var site in members.Where(s => s.Op != OpKind.RoofIn))
         {
-            if (!work(site).TryGetValue(out var each))
-            {
-                return (Unknown<double>(), members.Any(s => s.Op == OpKind.RoofIn));
-            }
+            var each = work(site);
             total += each * site.Positions.Count;
         }
-        return (Known(total), members.Any(s => s.Op == OpKind.RoofIn));
+        return (total, members.Any(s => s.Op == OpKind.RoofIn));
     }
 }

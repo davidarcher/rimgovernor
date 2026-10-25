@@ -165,7 +165,7 @@ public sealed partial class RoundsResourcePlanner
 
         var catalog = await definitions.DefinitionCatalogAsync(identity, call).ConfigureAwait(false);
         var roofs = catalog.RoofRules();
-        if (!facts.Center().TryGetValue(out var anchor))
+        if (facts.Center() is not { } anchor)
         {
             return (new RoundsResourceResult { Verdict = Verdict.BuildingReasonNoLayoutPlan }, false);
         }

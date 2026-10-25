@@ -408,10 +408,11 @@ public sealed partial class RoundsDefenseLayoutPlanner
             {
                 continue;
             }
-            if (!d.ExplosiveRadius.TryGetValue(out var radius) || !DefenseDefinitionAvailable(read, d.Name))
+            if (!DefenseDefinitionAvailable(read, d.Name))
             {
                 continue;
             }
+            var radius = (d.Explosive ?? throw new RequiredFactException("planning Explosive")).ExplosiveRadius;
             ieds.Add(new DefenseIED(d.Name, radius, d.Name == DefenseIedIncendiary));
             var (price, ok) = DefenseUnitPrice(projection, d);
             if (ok)

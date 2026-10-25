@@ -24,7 +24,7 @@ public static class ForecastLiveEvidence
                 yield return Row(ForecastMetric.FoodStock, "unavailable", ForecastStockScope.Food, "items", Unavailable("food_stock_census_unknown"));
             foreach (var resource in resources)
                 yield return Row(ForecastMetric.FoodStock, resource.Value, ForecastStockScope.Food, "items",
-                    terminal.FoodUnread ? Unavailable("food_stock_census_or_lot_unknown") : Of(ForecastStockScope.Count(terminal.Lots, resource), "food_stock_census_or_lot_unknown"));
+                    terminal.FoodUnread ? Unavailable("food_stock_census_or_lot_unknown") : ForecastStockScope.Count(terminal.Lots, resource));
         }
         else yield return Row(ForecastMetric.FoodStock, "unavailable", ForecastStockScope.Food, "items", Unavailable("food_stock_prediction_unavailable"));
         foreach (var pawn in context.Needs.Pawns)
@@ -55,10 +55,6 @@ public static class ForecastLiveEvidence
         string.Join(";", cells.OrderBy(c => c.X).ThenBy(c => c.Z).Select(c => $"{c.X},{c.Z}")))));
 
     private static EvidenceValue.Unavailable Unavailable(string reason) => new(reason);
-
-    /// <summary>A forecast value that the forecast records as a fact (needs, mood and shelter timelines, lot counts).</summary>
-    private static EvidenceValue Of(Fact<double> value, string reason) =>
-        value.TryGetValue(out var known) ? new EvidenceValue.Valued(known) : Unavailable(reason);
 
     public static ForecastObservation Observe(ForecastPrediction prediction, long tick, NeedsForecastRead? needs,
         ForecastCoupledContext? context, ForecastExecution execution, FoodSupply? food = null)

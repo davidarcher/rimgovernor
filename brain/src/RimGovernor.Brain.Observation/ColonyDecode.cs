@@ -36,15 +36,6 @@ public static class ColonyDecodeReads
         return true;
     }
 
-    /// <summary>A proto3 optional scalar as a fact: unknown when the field is absent.</summary>
-    internal static Fact<T> Optional<T>(bool has, T value) => has ? Known(value) : Unknown<T>();
-
-    /// <summary>A required wire scalar as a fact.</summary>
-    internal static Fact<T> Present<T>(T value) => Known(value);
-
-    /// <summary>A reference's id, unknown without a reference.</summary>
-    internal static Fact<string> OptionalRef(C.Ref? r) => r is null ? Unknown<string>() : Optional(r.Id is not null, (r.Id ?? ""));
-
     /// <summary>
     /// The accessible colony stock census by definition, summed over the rows that carry units; a definition absent from
     /// it is zero.
@@ -117,6 +108,8 @@ public static class ColonyDecodeReads
     /// </summary>
     public static ColonyProjection DecodeColony(O.ColonyFactsSnapshot v, Identity expected, Tables tables, DefinitionCatalog? catalog)
     {
+        if (v.Upkeep is not { Lighting: not null, Flooring: not null, Routes: not null })
+            throw new BridgeContractException("missing total upkeep census");
         var climate = v.FoodClimate ?? throw new BridgeContractException("missing total food climate census");
         var environment = v.ControlledEnvironment ?? throw new BridgeContractException("missing total controlled environment census");
         var development = v.Development?.Outcome ?? throw new BridgeContractException("missing total development census");
@@ -139,8 +132,11 @@ public static class ColonyDecodeReads
         var butcheringBenches = ColonyProductionReads.ColonyButcheringBenches(v, buildings);
         var foodSupply = FoodSupplyReads.DecodeFoodSupply(v.FoodSupply, tables.Things, catalog);
         var combinedFoodSupply = FoodSupplyReads.DecodeFoodSupply(v.Forecast.CombinedFoodSupply, tables.Things, catalog);
+        var defs = RequireCatalog(catalog);
+        var definitions = new DefinitionFacts { Catalog = defs, Finished = DefinitionsReads.FinishedSet(tables.FinishedResearch), Crops = DefinitionsReads.CropRows(v.Crops) };
         var r = new ColonyProjection
         {
+            Definitions = definitions.AppendDefinitions([], DefinitionsReads.StarterDefinitions.Concat(defs.SowableCrops())),
             Rooms = RoomsOf(tables, RequireCatalog(catalog)),
             CookingBenches = cookingBenches,
             ButcheringBenches = butcheringBenches,
@@ -200,7 +196,7 @@ public static class ColonyDecodeReads
         {
             Tick = identity.Tick,
             CurrentConstruction = ConstructionReads.ConstructionFromTables(tables),
-            WorkResources = Known(v.WorkResources),
+            WorkResources = v.WorkResources,
             Colonists = v.ColonistCount,
             BedCapacity = v.BedCapacity,
             IndoorCapacity = v.IndoorSleepingCapacity,
@@ -218,7 +214,7 @@ public static class ColonyDecodeReads
             HostileFactions = r.Threat.HostileFactions,
             Storyteller = r.Threat.Storyteller,
             DaysPassed = r.Threat.DaysPassed,
-            Wealth = Known(new WealthFacts(r.Threat.WealthItems, r.Threat.WealthTotal)),
+            Wealth = new WealthFacts(r.Threat.WealthItems, r.Threat.WealthTotal),
             Disease = r.Threat.Disease,
         };
         r = r with { Raids = r.Threat.Raids };
@@ -234,7 +230,6 @@ public static class ColonyDecodeReads
             var turrets = new List<DefenseTurretFacts>();
             var fuel = new List<FuelConsumer>();
             var sites = new List<PowerSite>();
-            var defs = RequireCatalog(catalog);
             foreach (var row in development.Power)
             {
                 buildings.TryGetRow(row.Building, out var b);
@@ -332,7 +327,7 @@ public static class ColonyDecodeReads
                 geysers.Add(new PowerGeyser { Id = reference.Id ?? "", Cell = CellOf(at.Cell), Occupied = row.Occupied, Cells = geyserCells });
             }
             topology = topology with { Conduits = conduits, UnsafeConduits = unsafeConduits, Networks = networks, Geysers = geysers };
-            r = r with { PowerPlanning = topology, DefenseTurrets = Known(EquatableArray.From(turrets)) };
+            r = r with { PowerPlanning = topology, DefenseTurrets = EquatableArray.From(turrets) };
             var coverage = PowerRules.PowerCoverageOf(power);
             f = f with
             {
@@ -351,29 +346,26 @@ public static class ColonyDecodeReads
             {
                 CropClimate = r.CropClimate with
                 {
-                    Sowing = Present(climate.SowingNow),
-                    DaysRemaining = Present(climate.GrowingDaysRemaining),
-                    OutdoorsDark = Known(outdoorsDark),
+                    Sowing = climate.SowingNow,
+                    DaysRemaining = climate.GrowingDaysRemaining,
+                    OutdoorsDark = outdoorsDark,
                 },
             };
             f = f with { Calendar = ColonyProductionReads.ColonyCalendar(climate) };
         }
-        EquatableArray<double>? curve = v.Planning is O.Planning.Requested { Facts.Gear: { } planningGear } ? planningGear.Climate.Temperatures : null;
-        if (curve is { } curveTemps && curveTemps.Count == 12)
+        var curveTemps = (v.Gear ?? throw new BridgeContractException("missing total gear census")).Climate.Temperatures;
+        if (curveTemps.Count != 12)
         {
-            var temps = new double[curveTemps.Count];
-            for (var i = 0; i < curveTemps.Count; i++)
-            {
-                temps[i] = curveTemps[i];
-            }
-            r = r with
-            {
-                ColdMap = Known(LayoutRoofRules.ColdMapCurve(temps)),
-                HotMap = Known(LayoutRoofRules.HotMapCurve(temps)),
-                OutdoorCurve = Known(EquatableArray.From(temps)),
-                FullRotRateC = RequireCatalog(catalog).Derived.FullRotRateC,
-            };
+            throw new BridgeContractException("gear climate must contain twelve seasonal temperatures");
         }
+        var temps = curveTemps.ToArray();
+        r = r with
+        {
+            ColdMap = Known(LayoutRoofRules.ColdMapCurve(temps)),
+            HotMap = Known(LayoutRoofRules.HotMapCurve(temps)),
+            OutdoorCurve = Known(EquatableArray.From(temps)),
+            FullRotRateC = RequireCatalog(catalog).Derived.FullRotRateC,
+        };
         AcquisitionReads.ApplyAcquisition(v, tables, catalog, ref r);
         f = ColonyProductionReads.ColonyProduction(v, f);
         f = f with
@@ -423,7 +415,7 @@ public static class ColonyDecodeReads
                 throw new ObservationContractException("the food forecast refused the colony's food supply: " + e.Message);
             }
         }
-        f = f with { AnimalUpkeep = f.AnimalUpkeep with { Food = Known(combinedFoodSupply) } };
+        f = f with { AnimalUpkeep = f.AnimalUpkeep with { Food = combinedFoodSupply } };
         {
             var rows = new List<Amount>(v.Resources.Count);
             var wood = 0L;
@@ -459,10 +451,16 @@ public static class ColonyDecodeReads
         if (!Headed(buildings, environment.Lights, l => l.Building) || !Headed(buildings, environment.Growers, g => g.Building))
             throw new BridgeContractException("controlled environment building has no head");
         r = r with { Environment = ColonyEnvironment(environment, v.OutdoorTemperatureC, buildings, catalog) };
-        // Facts.Gear needs the catalog: ObserveColony fills it.
         var observedRooms = r.Rooms with { EligibleBeds = [.. f.Sleeping.Beds.Where(b => b.Humanlike && !b.Medical && !b.Prisoners).Select(b => b.Id)] };
         f = f with { Upkeep = f.Upkeep with { Rooms = observedRooms }, Sleeping = f.Sleeping with { Rooms = SleepingUpkeepReads.UpkeepRooms(tables.Rooms!, f.Sleeping.Beds) } };
-        return ColonyPawnReads.WithPawnCensus(r with { Facts = f, Rooms = observedRooms }, v, tables, RequireCatalog(catalog));
+        r = ColonyPawnReads.WithPawnCensus(r with { Facts = f, Rooms = observedRooms }, v, tables, RequireCatalog(catalog));
+        r = ZonesReads.ApplyZones(r, tables.Zones);
+        // Apparel bill options price the actual growing fields, on routine and direct colony reads alike.
+        var gearDefinitions = new GearDefinitions { Catalog = RequireCatalog(catalog), Finished = tables.FinishedResearch.ToHashSet(StringComparer.Ordinal) };
+        var gear = ColonyGearReads.StampGearCreepjoiners(
+            ColonyGearReads.GearFacts(v, tables, gearDefinitions, r.FoodFields),
+            tables.PawnCensus, gearDefinitions.Catalog.CreepJoinerDownsides());
+        return r with { Facts = r.Facts with { Gear = gear, Garments = EquatableArray.From(ColonyGearReads.ClothingGarments(gearDefinitions, gear)) } };
     }
 
     internal static DefinitionCatalog RequireCatalog(DefinitionCatalog? catalog) =>

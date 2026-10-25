@@ -157,13 +157,13 @@ namespace HomeBridge.BridgeTools
             // The pending harvest, wood and hunt values are required: a read that cannot make them fails the colony read.
             var acquisition = NativePlantAcquisition.Read(map, center, humanFood, request, context);
             Span("cf.acquisition");
-            Obs.Planning planning = request.Planning ? new Obs.Planning.Requested(Planning(map, center, request, context)) : new Obs.Planning.NotRequested();
-            Span("cf.planning");
+            var gear = NativeGearFacts.Read(map);
+            Span("cf.gear");
             var environment = Environment(map);
             Span("cf.environment");
-            return new Obs.ColonyFactsSnapshot { Context = context, ColonistCount = (uint)people.Count,
+            return new Obs.ColonyFactsSnapshot { Context = context, Gear = gear, ColonistCount = (uint)people.Count,
                 ResourceThings = RimGovernor.Brain.Domain.EquatableArray.From(items.Select(t => t.GetUniqueLoadID()).OrderBy(id => id, StringComparer.Ordinal)),
-                WorkResources = workResources,
+                WorkResources = workResources, Crops = [.. Crops(map)],
                 WorkerCount = (uint)workers.Count, MapSize = Size(map), Biome = map.Biome.defName,
                 PlayerTechLevel = (Defs.TechLevel)(int)player.def.techLevel,
                 FermentingBarrels = (uint)things.OfType<Building_FermentingBarrel>().Count(b => b.Faction == player && !b.IsForbidden(player) && reachable(b)),
@@ -182,7 +182,7 @@ namespace HomeBridge.BridgeTools
 
                 Acquisition = [.. acquisition.Rows], PendingFoodNutrition = acquisition.PendingFoodNutrition,
                 PendingHunts = acquisition.PendingHunts, HuntCensus = acquisition.HuntCensus,
-                Planning = planning };
+                };
         }
 
         // Whether the biome keeps the sky dark for the map's whole life:
@@ -345,19 +345,6 @@ namespace HomeBridge.BridgeTools
                 butchering.Add(row);
             }
             return (cooking, butchering);
-        }
-
-        private static Obs.PlanningFacts Planning(Map map, IntVec3 center, Obs.ColonyFactsRequest request, Common.ObservationContext context)
-        {
-            // A failed gear or controlled-environment read fails the colony facts read (#3777, #3921): each census is whole or absent.
-            var began = System.Diagnostics.Stopwatch.GetTimestamp();
-            var gear = NativeGearFacts.Read(map);
-            ObservationWork.Detail("cf.gear", System.Diagnostics.Stopwatch.GetTimestamp() - began);
-            began = System.Diagnostics.Stopwatch.GetTimestamp();
-            var result = new Obs.PlanningFacts { Gear = gear };
-            result = result with { Crops = [.. result.Crops, .. Crops(map)] };
-            ObservationWork.Detail("cf.crops", System.Diagnostics.Stopwatch.GetTimestamp() - began);
-            return result;
         }
 
         // The definitions the catalog carries: player-buildable or sowable

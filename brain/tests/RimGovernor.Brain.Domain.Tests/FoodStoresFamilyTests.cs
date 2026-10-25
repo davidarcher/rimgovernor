@@ -72,19 +72,19 @@ public sealed class FoodStoresFamilyTests
     {
         // Warm at-risk nutrition at the floor, colder than the old 10 C entry bar but warmer than the 5 C exit bar:
         // with no latch it is unmet on its own.
-        var warm = Refrigeration(new() { Storage = Census(Warm("a", Policy.AtRiskNutritionThreshold, Policy.ChilledExitC + 2)), WarmRooms = Known<EquatableArray<string>>([]), MealClosetOwed = Known(false) });
+        var warm = Refrigeration(new() { Storage = Census(Warm("a", Policy.AtRiskNutritionThreshold, Policy.ChilledExitC + 2)), WarmRooms = [], MealClosetOwed = false });
         Assert.Equal((FoodStoresRules.RefrigerationNeed, NeedTier.Wellbeing, Satisfaction.Unmet), (warm.Id, warm.Tier, warm.Satisfaction));
         Assert.True(warm.Deficit > 0 && warm.Deficit <= 1);
 
         // The same stock at the exit bar is met, and so is warm stock under the floor.
-        var chilled = Refrigeration(new() { Storage = Census(Warm("a", Policy.AtRiskNutritionThreshold, Policy.ChilledExitC)), WarmRooms = Known<EquatableArray<string>>([]), MealClosetOwed = Known(false) });
+        var chilled = Refrigeration(new() { Storage = Census(Warm("a", Policy.AtRiskNutritionThreshold, Policy.ChilledExitC)), WarmRooms = [], MealClosetOwed = false });
         Assert.Equal(Satisfaction.Met, chilled.Satisfaction);
         var little = Refrigeration(new() { Storage = Census(Warm("a", Policy.AtRiskNutritionThreshold / 2, Policy.ChilledExitC + 2)) });
         Assert.Equal(Satisfaction.Met, little.Satisfaction);
 
         // A warm cooling room or an owed meal closet is unmet on a cold census.
-        Assert.Equal(Satisfaction.Unmet, Refrigeration(new() { Storage = Census(), WarmRooms = Known<EquatableArray<string>>(["tomb-1"]) }).Satisfaction);
-        var closet = Refrigeration(new() { Storage = Census(), MealClosetOwed = Known(true) });
+        Assert.Equal(Satisfaction.Unmet, Refrigeration(new() { Storage = Census(), WarmRooms = ["tomb-1"] }).Satisfaction);
+        var closet = Refrigeration(new() { Storage = Census(), MealClosetOwed = true });
         Assert.Equal(Satisfaction.Unmet, closet.Satisfaction);
         Assert.True(closet.Deficit >= 0.5);
 
@@ -154,7 +154,7 @@ public sealed class FoodStoresFamilyTests
         var census = larder ? Census(Stock("pem-1", 10, roofed: true, "Pemmican"), Corpse()) : Census(Stock("pem-1", 10, roofed: true, "Pemmican"));
         var facts = WorkResourceTestFacts.Create("a", "b", "c") with
         {
-            Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = Known(1.0),
+            Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = 1.0,
             FoodStorageUpkeep = census,
             FoodReserve = new FoodReserveState.Reviewed(Reserve("pem-1")),
         };
@@ -172,7 +172,7 @@ public sealed class FoodStoresFamilyTests
                 Reserve = new FoodReserveState.Reviewed(Reserve("pem-1")),
                 Stockpile = true,
                 StockProtection = true,
-                ReserveTargets = Known<EquatableArray<SupplyAllow>>([SupplyAllow.NewSupplyForbid("pem-1", "Pemmican", new(1, 1)), new SupplyAllow("pem-2", "Pemmican", new(1, 2))]),
+                ReserveTargets = new ReserveSupplyRead.Targets([SupplyAllow.NewSupplyForbid("pem-1", "Pemmican", new(1, 1)), new SupplyAllow("pem-2", "Pemmican", new(1, 2))]),
             },
         };
         return colony;
@@ -210,7 +210,7 @@ public sealed class FoodStoresFamilyTests
 
         // The review rebuild keeps the row; a complete run that no longer derives the Need prunes it.
         colony.Journal.ReviewRounds(new() { Current = World, Tick = new(200), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Revision = colony.Journal.LoadRounds(ct).Revision,
-            Facts = WorkResourceTestFacts.Create("a", "b", "c") with { Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = Known(1.0) } }, ct);
+            Facts = WorkResourceTestFacts.Create("a", "b", "c") with { Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = 1.0} }, ct);
         Assert.Equal(row, Row(colony));
         colony.Journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(), [new FamilyProgress("food-stores", true, [])], ct);
         Assert.Null(Row(colony));
@@ -272,7 +272,7 @@ public sealed class FoodStoresFamilyTests
         Assert.Empty(run.Methods);
         Assert.True(Colony.Report(run).Is(Cause.AwaitingPlan));
 
-        colony.Facts = colony.Facts with { StockProtection = true, ReserveTargets = default };
+        colony.Facts = colony.Facts with { StockProtection = true, ReserveTargets = new ReserveSupplyRead.Targets([]) };
         Assert.Empty(colony.Run().Methods);
     }
 }

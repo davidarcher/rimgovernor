@@ -10,40 +10,42 @@ public static partial class TreePlantationRules
     /// <summary>Whether crop is a tree plantation species: a plant whose harvest fells it and whose neighbours the native sower keeps clear.</summary>
     public static bool IsTreeCrop(CropChoice crop)
     {
-        var bk = crop.BlockAdjacentSow.TryGetValue(out var block);
-        var dk = crop.HarvestDestroys.TryGetValue(out var destroys);
-        return bk && dk && block && destroys;
+        var block = crop.BlockAdjacentSow;
+        var destroys = crop.HarvestDestroys;
+        return block && destroys;
     }
 
     // The fell fraction of crop's growth (its harvestMinGrowth), the wood one tree gives then, and the wood per
     // cell-day of land it earns. False when a crop fact is unknown.
-    internal static (double Fraction, double Wood, double Price, bool Ok) TreePricing(CropChoice crop)
+    internal static (double Fraction, double Wood, double Price) TreePricing(CropChoice crop)
     {
-        var gk = crop.GrowDays.TryGetValue(out var days);
-        var yk = crop.UnitsPerCell.TryGetValue(out var yield);
-        var mk = crop.HarvestMinGrowth.TryGetValue(out var minGrowth);
-        var sk = crop.SowWork.TryGetValue(out var sow);
-        var fk = crop.HarvestWork.TryGetValue(out var fell);
-        if (!gk || !yk || !mk || !sk || !fk || !FieldCapacityRules.FieldPositive(days) || !FieldCapacityRules.FieldPositive(yield) || !(minGrowth > 0 && minGrowth < 1) || sow < 0 || fell < 0)
+        var days = crop.GrowDays;
+        var yield = crop.UnitsPerCell;
+        var minGrowth = crop.HarvestMinGrowth;
+        var sow = crop.SowWork;
+        var fell = crop.HarvestWork;
+        if (!FieldCapacityRules.FieldPositive(days) || !FieldCapacityRules.FieldPositive(yield) || !(minGrowth > 0 && minGrowth < 1) || sow < 0 || fell < 0)
         {
-            return (0, 0, 0, false);
+            throw new RequiredFactException("tree harvest:" + crop.Name);
         }
         var wood = yield * 0.5;
-        return (minGrowth, wood, wood / (ZoneCreateConstants.TreeCellsPerTree * days * minGrowth), true);
+        return (minGrowth, wood, wood / (ZoneCreateConstants.TreeCellsPerTree * days * minGrowth));
     }
 
     // Why crop cannot be sown as a plantation here, empty when it can: not researched, no colonist at the sow
     // skill (the best Plants level among those who sow), or wild-only and not native to the biome.
-    internal static string TreeSowable(CropChoice crop, string biome, Fact<int> skill)
+    internal static string TreeSowable(CropChoice crop, string biome, int skill)
     {
         var reason = CropSowable(crop, skill);
         if (reason.Length != 0)
         {
             return reason;
         }
-        if (!crop.MustBeWildToSow.TryGetValue(out var wild) || wild)
+        var wild = crop.MustBeWildToSow;
+        if (wild)
         {
-            if (!crop.WildBiomes.TryGetValue(out var native) || !native.Contains(biome))
+            var native = crop.WildBiomes;
+            if (!native.Contains(biome))
             {
                 return "not native to the biome";
             }
@@ -52,15 +54,17 @@ public static partial class TreePlantationRules
     }
 
     // The availability and sow-skill gate of any resource crop.
-    internal static string CropSowable(CropChoice crop, Fact<int> skill)
+    internal static string CropSowable(CropChoice crop, int skill)
     {
-        if (!crop.Available.TryGetValue(out var available) || !available)
+        var available = crop.Available;
+        if (!available)
         {
             return "crop not available";
         }
-        if (crop.SowMinSkill.TryGetValue(out var need) && need > 0)
+        var need = crop.SowMinSkill;
+        if (need > 0)
         {
-            if (!skill.TryGetValue(out var have) || have < need)
+            if (skill < need)
             {
                 return "no colonist meets the sow skill";
             }
@@ -73,11 +77,12 @@ public static partial class TreePlantationRules
     /// the condition under which the supply plan can open a field candidate with a rate for it. A resource nothing
     /// sows is a finite stock: wild trees and chemfuel run out.
     /// </summary>
-    public static bool ResourceGrowable(IReadOnlyList<CropChoice> choices, Resource resource, string biome, Fact<int> skill)
+    public static bool ResourceGrowable(IReadOnlyList<CropChoice> choices, Resource resource, string biome, int skill)
     {
         foreach (var crop in choices)
         {
-            if (!crop.Harvests.TryGetValue(out var harvests) || harvests != resource)
+            var harvests = crop.Harvests;
+            if (harvests != resource)
             {
                 continue;
             }
@@ -95,18 +100,19 @@ public static partial class TreePlantationRules
     /// best-priced tree species harvesting resource that can be sown now. False when no species can, so nothing
     /// gates the chop. It is a pure function of the catalog and the colony, recomputed each review.
     /// </summary>
-    public static (double Fraction, bool Ok) TreeFellFraction(IReadOnlyList<CropChoice> choices, Resource resource, string biome, Fact<int> skill)
+    public static (double Fraction, bool Ok) TreeFellFraction(IReadOnlyList<CropChoice> choices, Resource resource, string biome, int skill)
     {
         var best = 0.0;
         var fraction = 0.0;
         foreach (var crop in choices)
         {
-            if (!crop.Harvests.TryGetValue(out var harvests) || harvests != resource || !IsTreeCrop(crop) || TreeSowable(crop, biome, skill).Length != 0)
+            var harvests = crop.Harvests;
+            if (harvests != resource || !IsTreeCrop(crop) || TreeSowable(crop, biome, skill).Length != 0)
             {
                 continue;
             }
-            var (f, _, price, ok) = TreePricing(crop);
-            if (ok && price > best)
+            var (f, _, price) = TreePricing(crop);
+            if (price > best)
             {
                 best = price;
                 fraction = f;
@@ -116,7 +122,7 @@ public static partial class TreePlantationRules
     }
 
     /// <summary>The best Plants level among the colonists who sow: available, able to do growing work. Unknown while any pawn's availability, work or skills were not read.</summary>
-    public static Fact<int> GrowerSkill(WorkPawnsRead fact)
+    public static int GrowerSkill(WorkPawnsRead fact)
     {
         var pawns = fact.Pawns;
         var best = 0;
@@ -143,6 +149,6 @@ public static partial class TreePlantationRules
                 }
             }
         }
-        return Known(best);
+        return best;
     }
 }

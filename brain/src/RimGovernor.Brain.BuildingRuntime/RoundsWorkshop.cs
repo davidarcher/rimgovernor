@@ -87,7 +87,7 @@ public sealed partial class RoundsBuildingPlanner
             throw new ControlException("prepareWorkshop: !ok");
         }
         var identity = Boundary.Identity(state.Snapshot);
-        var observed = await source.ReadColonyFactsAsync(identity, GearLadder(), call).ConfigureAwait(false);
+        var observed = await source.ReadColonyFactsAsync(identity, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(observed.Context, state.Snapshot);
@@ -110,13 +110,9 @@ public sealed partial class RoundsBuildingPlanner
         List<Pol.Resource> products = [];
         if (GearLadder())
         {
-            var things = await RoundsGear.FrameThingsOfAsync(Native, identity, call).ConfigureAwait(false);
-            // The step's own colony facts read reads no zones: a growing field offers no stuff arrival here.
-            var tables = new Tables(Buildings.Of(), Pawns.Of(), things, [.. finished.Order(StringComparer.Ordinal)]);
-            if (!ColonyGearReads.GearFacts(observed, tables, defs, [], []).TryGetValue(out var facts))
-            {
-                return (null, FieldUnavailable("gear_census"));
-            }
+            var tables = await source.FrameTablesAsync(identity, call).ConfigureAwait(false);
+            var projection = ColonyDecodeReads.DecodeColony(observed, DecodeReads.ContextIdentity(observed.Context), tables, defs.Catalog);
+            var facts = projection.Facts.Gear;
             foreach (var pawn in facts.Pawns)
             {
                 if (pawn.Candidates.Count > 0)
@@ -238,7 +234,8 @@ public sealed partial class RoundsBuildingPlanner
         }
         if (Workshop.Barrel)
         {
-            if (!facts.DefinitionAvailable("FermentingBarrel").TryGetValue(out var barrelAvailable) || !barrelAvailable)
+            var barrelAvailable = facts.DefinitionAvailable("FermentingBarrel");
+            if (!barrelAvailable)
             {
                 return (null, BuildingReasonWorkshopUnavailable);
             }
@@ -250,7 +247,7 @@ public sealed partial class RoundsBuildingPlanner
             return (barrel, new Verdict());
         }
         var definitions = new List<Pol.BenchDefinition>(facts.Definitions.Count);
-        var available = new Dictionary<string, Fact<bool>>(StringComparer.Ordinal);
+        var available = new Dictionary<string, bool>(StringComparer.Ordinal);
         foreach (var d in facts.Definitions)
         {
             definitions.Add(new Pol.BenchDefinition { Name = d.Name, Available = d.Available, NeedsPower = d.NeedsPower, ConstructionSkill = d.ConstructionSkill, Research = d.Research });
@@ -287,15 +284,10 @@ public sealed partial class RoundsBuildingPlanner
                 resource = product.Resource;
             }
         }
-        if (choice.Method != Pol.WorkshopMethod.DefinitionUnread)
-        {
-            RecordWorkshopLadder(state, review, resource, choice, call);
-        }
+RecordWorkshopLadder(state, review, resource, choice, call);
         switch (choice.Method)
         {
-            case Pol.WorkshopMethod.DefinitionUnread:
-                return (null, FieldUnavailable("workshop"));
-            case Pol.WorkshopMethod.Existing:
+case Pol.WorkshopMethod.Existing:
                 return (null, BuildingReasonExistingFacility);
             case Pol.WorkshopMethod.Research:
                 return (null, BuildingReasonWorkshopResearch);
@@ -328,19 +320,14 @@ partial class RoundsBuildingPlanner
     /// Whether any generator definition the power family compiles is buildable now, so a powered bench can be
     /// staged and connected; a generator row the census did not describe leaves it unknown.
     /// </summary>
-    internal static Fact<bool> GeneratorAvailable(IReadOnlyDictionary<string, Fact<bool>> available)
+    internal static bool GeneratorAvailable(IReadOnlyDictionary<string, bool> available)
     {
-        var result = Known<bool>(false);
+        var result = false;
         foreach (var name in PowerRules.GeneratorDefinitions)
         {
-            if (!available.TryGetValue(name, out var fact) || !fact.TryGetValue(out var v))
-            {
-                result = Unknown<bool>();
-            }
-            else if (v)
-            {
-                return Known<bool>(true);
-            }
+            if (!available.TryGetValue(name, out var value))
+                throw new RequiredFactException("generator definition:" + name);
+            result |= value;
         }
         return result;
     }

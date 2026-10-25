@@ -23,24 +23,24 @@ public sealed class ProductionAdmissionTests
         Comfort = ComfortTests.NoComfortObservation,
         BasicComfort = ComfortTests.NoComfortObservation,
         Tick = new Tick(100),
-        WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
+        WorkResources = default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>),
         ForecastObserved = new() { WorkPawns = new WorkPawnsRead(default(EquatableArray<WorkPawn>)) },
         WorkProfiles = [new() { Id = new("artist"),
             WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "TestArt" },
             Skills = new Dictionary<string, ProfileSkill> { ["TestArt"] = new() { Name = "TestArt", Level = 8 } } }],
         Resources = [new(Wood, 60), new(Other, 100)],
-        Gear = Known(ColonyModelFixtures.NoGear()), CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long> { [Wood] = 40 } },
+        Gear = ColonyModelFixtures.NoGear(), CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long> { [Wood] = 40 } },
         BillReservations = [],
         WorkAdmission = new()
         {
-            Recipes = Known<EquatableArray<ProductionRecipeInput>>([new("TestRecipe", [[new(Wood, 10)]], false) { Products = [], WorkAmount = 0 }]),
-            Bills = Known(default(EquatableArray<ProductionBatchState>)),
+            Recipes = [new("TestRecipe", [[new(Wood, 10)]], false) { Products = [], WorkAmount = 0 }],
+            Bills = default(EquatableArray<ProductionBatchState>),
         },
     };
     private static WorkAdmissionEvidence Evidence(RoundsFacts? facts = null, params ProductionBatch[] reviewed) =>
-        ProductionRules.WorkAdmissionEvidenceOf(facts ?? Facts, Known(EquatableArray.From(reviewed)));
+        ProductionRules.WorkAdmissionEvidenceOf(facts ?? Facts, new ProductionBatchCensus.Read(EquatableArray.From(reviewed)));
     private static bool Fits(WorkAdmissionEvidence evidence, ProductionBatch[] committed, params ProductionBatch[] proposed) =>
-        ProductionRules.ProductionAdmissionFits(evidence, Known(EquatableArray.From(committed)), EquatableArray.From(proposed));
+        ProductionRules.ProductionAdmissionFits(evidence, new ProductionBatchCensus.Read(EquatableArray.From(committed)), EquatableArray.From(proposed));
     private static PlanSpec Plan(string id) => new(new PlanId(id), new PlanRevision(1),
         [DomainAction.NewProductionBillAction(new ActionId(id), Batch(id).Order)]);
 
@@ -72,10 +72,31 @@ public sealed class ProductionAdmissionTests
     [InlineData(true)]
     public void ObservedJobOccupancySurvivesTheJournalAsABoolean(bool occupied)
     {
-        var pawn = new WorkPawnAvailability("pawn", Known(true), Known(true), occupied, Known("target"))
-        { LocalHour = Known(12d), Schedule = Known<EquatableArray<string>>([]) };
-        var evidence = new WorkAdmissionEvidence { Pawns = Known<EquatableArray<WorkPawnAvailability>>([pawn]) };
-        Assert.Equal(pawn, Assert.Single(RoundTrip(evidence).Pawns.Value));
+        var pawn = new WorkPawnAvailability("pawn", true, true, occupied, "target")
+        { LocalHour = 12d, Schedule = [], Preemptible = true };
+        var evidence = new WorkAdmissionEvidence { Pawns = [pawn] };
+        Assert.Equal(pawn, Assert.Single(RoundTrip(evidence).Pawns));
+    }
+    [Fact]
+    public void FrozenMaterialInputsSurviveTheJournalWithoutLosingUnfinishedWorkOrSpeed()
+    {
+        var recipe = new ProductionRecipeInput("recipe", [[new(Wood, 1)]], true)
+            { Products = [new(Other, 1)], WorkAmount = 20, WorkSpeedStat = "GeneralLaborSpeed" };
+        var pawn = new RimGovernor.Contracts.Wire.Observations.WorkResourcePawn("pawn", "assignment", 1, "started", "", "", 0)
+            { LocalHour = 12, Unfinished = "unfinished", Bill = "bill", Target = "bench" };
+        var exact = new ForecastMaterialClaim(Wood, new MaterialUnits.Exact(4), "bill");
+        var open = new ForecastMaterialClaim(Other, new MaterialUnits.Open(), "bill");
+        var evidence = new WorkAdmissionEvidence
+        {
+            Buildings = [new("wall", "wood", [new(Wood, 5)]) { Size = new(1, 2) }],
+            Recipes = [recipe], WorkResources = [pawn],
+            Promises = new ProductionPromiseSet.Assessed([new("promise", []) { MaterialClaims = [exact, open] }]),
+        };
+        var back = RoundTrip(evidence);
+        Assert.Equal(evidence.Buildings, back.Buildings);
+        Assert.Equal(recipe, Assert.Single(back.Recipes));
+        Assert.Equal(pawn, Assert.Single(back.WorkResources));
+        Assert.Equal(new[] { exact, open }, Assert.Single(back.Promises.AssessedPromises()).MaterialClaims);
     }
     // #3895: a target's quantity is a stack's units or none, and its claimant capacity a plain count.
     [Fact]
@@ -153,7 +174,7 @@ public sealed class ProductionAdmissionTests
         };
         var f = Facts with
         {
-            WorkAdmission = Facts.WorkAdmission with { Bills = Known<EquatableArray<ProductionBatchState>>([new("bill", true, BillRepeat.Count, 1, false, false, new ProductionUnfinishedWork("", default))]) },
+            WorkAdmission = Facts.WorkAdmission with { Bills = [new("bill", true, BillRepeat.Count, 1, false, false, new ProductionUnfinishedWork("", default))] },
             BillReservations = [new() { Bill = "bill", Pawn = new("pawn"), Items = [new(Wood, 10)] }],
         };
         Assert.True(Fits(Evidence(f, first), [first], Batch("new")));
@@ -197,12 +218,12 @@ public sealed class ProductionAdmissionTests
         start.Set();
         var accepted = await Task.WhenAll(tasks);
         Assert.Single(accepted, v => v);
-        Assert.Single(first.ProductionBatches(World, Facts.Tick, ct).Value);
+        Assert.Single(first.ProductionBatches(World, Facts.Tick, ct).ReadBatches());
         var winner = Array.FindIndex(accepted, v => v);
         var loser = 1 - winner;
         first.Cancel(new PlanId("candidate-" + winner), new ActionId("candidate-" + winner), ct);
         // The failed transaction left neither a method binding nor a plan behind; its exact retry can commit.
         Commit(second, loser);
-        Assert.Equal(2, first.ProductionBatches(World, Facts.Tick, ct).Value.Count);
+        Assert.Equal(2, first.ProductionBatches(World, Facts.Tick, ct).ReadBatches().Count);
     }
 }

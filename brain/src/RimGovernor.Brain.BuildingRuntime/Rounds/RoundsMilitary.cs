@@ -148,7 +148,7 @@ public sealed class MilitaryRounds
         }
         var needed = await DraftNeeds.PlannedDraftsAsync(_reviewer.Player.Journal, call).ConfigureAwait(false);
         var hostiles = facts.Hostiles;
-        if (!hostiles.IsKnown)
+        if (hostiles is HostileCensus.AwaitingEmergency)
         {
             var tick = new Tick((long)(frame.Context?.Tick ?? 0));
             hostiles = EmergencyNeedsRules.EmergencyNeeds(EmergencySnapshot.New(world, tick, frame.Emergency.Facts), world, tick).Hostiles;
@@ -185,7 +185,7 @@ public sealed class MilitaryRounds
             undispatched.UnionWith(RoundsAcquisitionPlanner.UndispatchedAcquisitions(plan.Progress));
         }
         facts = facts with { Pests = pests, StaleHunts = [.. stale], HuntingHeld = OutdoorHazardRules.OutdoorAcquisitionHeld(projection.Facts) };
-        if (!pests.TryGetValue(out var count) || count == 0)
+        if (pests == 0)
         {
             return facts;
         }
@@ -260,7 +260,7 @@ public sealed class MilitaryRounds
             verdicts.Add(result.Decision?.Admitted == true ? BuildingReasonAdmitted : result.Verdict);
         }
         // An unread census holds no replacement, as a recovered one does.
-        return EquipmentVerdict(verdicts, !facts.Gear.IsKnown || GearRules.ReviewGear(facts.Gear).Recovered);
+        return EquipmentVerdict(verdicts, GearRules.ReviewGear(facts.Gear).Recovered);
     }
 
     /// <summary>

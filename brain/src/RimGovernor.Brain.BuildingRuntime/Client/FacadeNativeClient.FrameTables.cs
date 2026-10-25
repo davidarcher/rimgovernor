@@ -27,6 +27,7 @@ public sealed partial class FacadeNativeClient
             {
                 PawnCensus = view.Snapshot.Pawns, Emergency = view.Prepared.Emergency?.Facts,
                 Rooms = view.Snapshot.Rooms ?? throw BridgeContractException.Contract("frame without its rooms section"),
+                Zones = view.Snapshot.Zones ?? throw BridgeContractException.Contract("frame without its zones section"),
                 RoomCells = RoomCellsOf(view.Snapshot.Rooms, view.Grid),
                 ConstructionMemo = view.Prepared.Held.BuildMeta is not null ? _frameCensus
                     : throw BridgeContractException.Contract("frame with a pawn table and no building census"),

@@ -382,7 +382,7 @@ public sealed class PlannedRoomCreditTests
         var roster = ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Skills = [new() { Name = "Melee", Level = 1, Learning = learning }] }).ToArray();
         var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, "Melee", "target/" + i, new(i + 1, 1), "RimGovernor_Spar", "RimGovernor_Spar",
             0d, 100d, learning) { Company = [], CallbackIntervalTicks = 10d, RawXpPerCallback = 10d, PreparationTicks = 0, JoyGainPerTick = .0001, Thoughts = [trainedWith], Equipment = [], Findings = [] }).ToArray();
-        facts = facts with { Hostiles = Known(0L), CriticalPatients = 0L, ForecastObserved = facts.ForecastObserved with
+        facts = facts with { Hostiles = HostileCensus.Of(0L), CriticalPatients = 0L, ForecastObserved = facts.ForecastObserved with
         {
             WorkPawns = new WorkPawnsRead(EquatableArray.From(roster)),
             Needs = facts.ForecastObserved.Needs! with { Pawns = EquatableArray.From(facts.ForecastObserved.Needs!.Pawns.Select(p => p with
@@ -410,7 +410,7 @@ public sealed class PlannedRoomCreditTests
         // A fresh colony the production way: native reads the bench census every frame, so the bill reservations are known (here
         // none) and every fact that settles the site's completion is read (#3881).
         var facts = WorkRules.ReviewWorkResources(WithEveryShippedRoom(ForecastCoupledTests.ConstructionReview()),
-            Known<EquatableArray<ProductionBatch>>([]), new([]));
+            new ProductionBatchCensus.Read([]), new([]));
         var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts));
         var sites = generated.Alternatives.Where(c => c.Id.StartsWith("site-", StringComparison.Ordinal) && !c.Id.Contains("/after/", StringComparison.Ordinal)).ToArray();
         var pending = sites.Select(c => c with { MoodMemories = [new("pawn", memory)] }).ToArray();
@@ -735,7 +735,7 @@ public sealed class PlannedRoomCreditTests
             var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, "Shooting", "stand/" + i, new(i + 1, 1), "RimGovernor_TrainRange", "RimGovernor_TrainShooting",
                 0d, 100d, learning) { CallbackIntervalTicks = 10d, RawXpPerCallback = 10d, PreparationTicks = 0, JoyGainPerTick = 0, Thoughts = [trainedWith], Equipment = [], Findings = [],
                     Company = company ? ["stand/" + (1 - i)] : [] }).ToArray();
-            facts = facts with { Hostiles = Known(0L), CriticalPatients = 0L, ForecastObserved = facts.ForecastObserved with
+            facts = facts with { Hostiles = HostileCensus.Of(0L), CriticalPatients = 0L, ForecastObserved = facts.ForecastObserved with
             {
                 WorkPawns = new WorkPawnsRead(EquatableArray.From(roster)),
                 Needs = facts.ForecastObserved.Needs! with { Pawns = EquatableArray.From(facts.ForecastObserved.Needs!.Pawns.Select(p => p with

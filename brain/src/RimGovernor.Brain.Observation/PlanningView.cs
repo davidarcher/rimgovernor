@@ -1,8 +1,6 @@
 namespace RimGovernor.Brain.Observation;
-
 // The planning rows are views over the catalog's generated def rows and stat table: nothing here is read from a
 // native planning writer. A row a view needs and the catalog lacks is an error, never a default.
-
 public static class PlanningViewReads
 {
     /// <summary>
@@ -18,8 +16,10 @@ public static class PlanningViewReads
             {
                 return null;
             }
+
             return ThingView(catalog, name, thing);
         }
+
         var terrain = catalog.FindTerrain(name);
         if (terrain is not null)
         {
@@ -27,15 +27,15 @@ public static class PlanningViewReads
             {
                 return null;
             }
+
             return TerrainView(catalog, name, terrain);
         }
+
         return null;
     }
 
-    internal static Fact<double> FiniteFact(double v) => double.IsNaN(v) || double.IsInfinity(v) ? Unknown<double>() : Known(v);
-
-    internal static Fact<double> NonnegativeFact(double v) => double.IsNaN(v) || double.IsInfinity(v) || v < 0 ? Unknown<double>() : Known(v);
-
+    internal static double Finite(double v) => double.IsFinite(v) ? v : throw new RequiredFactException("finite definition value");
+    internal static double Nonnegative(double v) => double.IsFinite(v) && v >= 0 ? v : throw new RequiredFactException("nonnegative definition value");
     internal static List<Amount> Amounts(IEnumerable<StatCost> rows)
     {
         var output = new List<Amount>();
@@ -43,66 +43,83 @@ public static class PlanningViewReads
         {
             output.Add(new Amount(new Resource(q.Def), q.Units));
         }
+
         return output;
     }
 
     // The stats a stuff option carries for the stuff criteria and the work read.
-    private static readonly CatalogStat[] OptionStats =
-    [
-        CatalogStats.MaxHitPoints, CatalogStats.Flammability, CatalogStats.BedRestEffectiveness,
-        CatalogStats.WorkToBuild, CatalogStats.DoorOpenSpeed,
-    ];
-
+    private static readonly CatalogStat[] OptionStats = [CatalogStats.MaxHitPoints, CatalogStats.Flammability, CatalogStats.BedRestEffectiveness, CatalogStats.WorkToBuild, CatalogStats.DoorOpenSpeed, ];
     private static PlanningDefinition ThingView(DefinitionCatalog catalog, string name, Verse.ThingDef row)
     {
         var v = new PlanningDefinition
         {
             Name = name,
-            Research = [.. (row.researchPrerequisites ?? []).Select(project => project.defName)],
-            ConstructionSkill = Known(row.constructionSkillPrerequisite),
+            Research = [..(row.researchPrerequisites ?? []).Select(project => project.defName)],
+            ConstructionSkill = row.constructionSkillPrerequisite,
             PathCost = row.pathCost,
         };
-        v = v with { Size = Known(new Bounds(row.size.x, row.size.z)) };
+        v = v with
+        {
+            Size = new Bounds(row.size.x, row.size.z)
+        };
         var draw = DefinitionCatalog.PowerDraw(row);
-        v = v with { NeedsPower = Known(draw > 0) };
+        v = v with
+        {
+            NeedsPower = draw > 0
+        };
         if (draw is { } watts)
         {
-            v = v with { PowerW = FiniteFact(watts) };
+            v = v with
+            {
+                Power = (v.Power ?? new PlanningPower())with
+                {
+                    PowerW = Finite(watts)
+                }
+            };
         }
-        if (row.GetCompProperties<RimWorld.CompProperties_Glower>() is { } glow)
+
+        if (row.GetCompProperties<RimWorld.CompProperties_Explosive>()is { } explosive)
         {
-            v = v with { GlowRadius = FiniteFact(glow.glowRadius) };
+            v = v with
+            {
+                Explosive = (v.Explosive ?? new PlanningExplosive())with
+                {
+                    ExplosiveRadius = Nonnegative(explosive.explosiveRadius)
+                }
+            };
         }
-        if (row.GetCompProperties<RimWorld.CompProperties_Explosive>() is { } explosive)
-        {
-            v = v with { ExplosiveRadius = NonnegativeFact(explosive.explosiveRadius) };
-        }
+
         if (typeof(RimWorld.Building_MechCharger).IsAssignableFrom(row.thingClass))
         {
-            v = v with { MechCharger = Known(true) };
+            v = v with
+            {
+                MechCharger = true
+            };
         }
-        if (row.building is not null)
-        {
-            var pollutes = DefinitionCatalog.HasComp<RimWorld.CompProperties_Toxifier>(row)
-                || DefinitionCatalog.HasComp<RimWorld.CompProperties_PolluteOverTime>(row)
-                || DefinitionCatalog.HasComp<RimWorld.CompProperties_WasteProducer>(row);
-            v = v with { Pollutes = Known(pollutes) };
-        }
+
         var sowTag = row.building?.sowTag ?? "";
         if (sowTag != "")
         {
-            v = v with { SowTag = Known(sowTag) };
-            if (row.fertility >= 0)
+            v = v with
             {
-                v = v with { GrowerFertility = FiniteFact(row.fertility) };
-            }
+                Grower = new PlanningGrower
+                {
+                    GrowerFertility = Nonnegative(row.fertility)
+                }
+            };
         }
-        v = v with { RoomRoles = RoomRoles(catalog, name, row) };
+
+        v = v with
+        {
+            RoomRoles = RoomRoles(catalog, name, row)
+        };
         if (row.plant is { } plant)
         {
             PlantView(catalog, ref v, plant);
         }
-        StuffView(catalog, ref v, name, row);
+
+        if (DefinitionCatalog.Buildable(row))
+            StuffView(catalog, ref v, name, row);
         return v;
     }
 
@@ -115,14 +132,23 @@ public static class PlanningViewReads
         if ((row.stuffCategories?.Count ?? 0) == 0)
         {
             var costs = catalog.AdjustedCosts(name, "");
-            v = v with { Costs = Known(EquatableArray.From(Amounts(costs))) };
-            var (work, shown) = catalog.ShownStatValue(name, "", CatalogStats.WorkToBuild);
-            if (shown)
+            v = v with
             {
-                v = v with { WorkToBuild = NonnegativeFact(work) };
-            }
+                FixedConstruction = (v.FixedConstruction ?? new PlanningFixedConstruction())with
+                {
+                    Costs = EquatableArray.From(Amounts(costs))
+                }
+            };
+            v = v with
+            {
+                FixedConstruction = v.FixedConstruction!with
+                {
+                    WorkToBuild = Nonnegative(catalog.PlannerStatValue(name, "", CatalogStats.WorkToBuild))
+                }
+            };
             return;
         }
+
         var options = new List<StuffOption>();
         foreach (var stuff in catalog.AllowedStuffs(name))
         {
@@ -131,22 +157,22 @@ public static class PlanningViewReads
             var stats = new Dictionary<string, double>(StringComparer.Ordinal);
             foreach (var stat in OptionStats)
             {
-                var (shownValue, ok) = catalog.ShownStatValue(name, stuff, stat);
+                var(shownValue, ok) = catalog.ShownStatValue(name, stuff, stat);
                 if (ok)
                 {
                     stats[stat.Name] = shownValue;
                 }
             }
-            options.Add(new StuffOption
-            {
-                Stuff = stuff,
-                Costs = Amounts(costs),
-                Value = value,
-                Stats = stats,
-                Common = (catalog.FindThing(stuff)?.stuffProps?.commonality ?? 0) > 0,
-            });
+
+            stats[CatalogStats.WorkToBuild.Name] = Nonnegative(catalog.PlannerStatValue(name, stuff, CatalogStats.WorkToBuild));
+            options.Add(new StuffOption { Stuff = stuff, Costs = Amounts(costs), Value = value, Stats = stats, Common = (catalog.FindThing(stuff)?.stuffProps ?? throw new RequiredFactException("stuff properties:" + stuff)).commonality > 0, });
         }
-        v = v with { Stuffed = true, StuffOptions = options };
+
+        v = v with
+        {
+            Stuffed = true,
+            StuffOptions = options
+        };
     }
 
     /// <summary>
@@ -160,10 +186,12 @@ public static class PlanningViewReads
         {
             roles.Add(FurnitureRole.BabyBed.Value);
         }
+
         if (DefinitionCatalog.HasComp<RimWorld.CompProperties_DeathrestBindable>(row))
         {
             roles.Add(typeof(RimWorld.Building_Bed).IsAssignableFrom(row.thingClass) ? FurnitureRole.DeathrestCasket.Value : FurnitureRole.DeathrestAccelerator.Value);
         }
+
         roles.Sort(StringComparer.Ordinal);
         return roles;
     }
@@ -173,58 +201,78 @@ public static class PlanningViewReads
         var biomes = new List<string>();
         foreach (var record in plant.wildBiomes ?? [])
         {
-            biomes.Add(record.biome?.defName ?? "");
+            biomes.Add(record.biome?.defName ?? throw new RequiredFactException("wild biome definition"));
         }
+
         v = v with
         {
-            HarvestWork = FiniteFact(plant.harvestWork),
-            RequiresPollution = Known(plant.RequiresPollution),
-            RequiresCleanSoil = Known(plant.RequiresNoPollution),
-            GrowDays = FiniteFact(plant.growDays),
-            FertilityMin = FiniteFact(plant.fertilityMin),
-            FertilitySensitivity = FiniteFact(plant.fertilitySensitivity),
-            GrowMinGlow = FiniteFact(plant.growMinGlow),
-            MinGrowthTemperature = FiniteFact(plant.minGrowthTemperature),
-            MinOptimalGrowthTemperature = FiniteFact(plant.minOptimalGrowthTemperature),
-            MaxOptimalGrowthTemperature = FiniteFact(plant.maxOptimalGrowthTemperature),
-            MaxGrowthTemperature = FiniteFact(plant.maxGrowthTemperature),
-            RestingDayFraction = Known(PlantResting.RestingDayFraction),
-            SowTags = Known(EquatableArray.From(plant.sowTags ?? [])),
-            SowMinSkill = Known(plant.sowMinSkill),
-            BlockAdjacentSow = Known(plant.blockAdjacentSow),
-            MustBeWildToSow = Known(plant.mustBeWildToSow),
-            HarvestMinGrowth = FiniteFact(plant.harvestMinGrowth),
-            SowWork = FiniteFact(plant.sowWork),
-            WildBiomes = Known(EquatableArray.From(biomes)),
             // Sowing waits on the plant's own research (TreeSowing, Devilstrand), which the thing's research
             // prerequisites do not list.
-            Research = [.. v.Research, .. (plant.sowResearchPrerequisites ?? []).Select(project => project.defName)],
+            Research = [..v.Research, ..(plant.sowResearchPrerequisites ?? []).Select(project => project.defName)],
+            Plant = (v.Plant ?? new PlanningPlant())with
+            {
+                HarvestWork = Finite(plant.harvestWork),
+                RequiresPollution = plant.RequiresPollution,
+                RequiresCleanSoil = plant.RequiresNoPollution,
+                GrowDays = Finite(plant.growDays),
+                FertilityMin = Finite(plant.fertilityMin),
+                FertilitySensitivity = Finite(plant.fertilitySensitivity),
+                GrowMinGlow = Finite(plant.growMinGlow),
+                MinGrowthTemperature = Finite(plant.minGrowthTemperature),
+                MinOptimalGrowthTemperature = Finite(plant.minOptimalGrowthTemperature),
+                MaxOptimalGrowthTemperature = Finite(plant.maxOptimalGrowthTemperature),
+                MaxGrowthTemperature = Finite(plant.maxGrowthTemperature),
+                RestingDayFraction = PlantResting.RestingDayFraction,
+                SowTags = EquatableArray.From(plant.sowTags ?? []),
+                SowMinSkill = plant.sowMinSkill,
+                BlockAdjacentSow = plant.blockAdjacentSow,
+                MustBeWildToSow = plant.mustBeWildToSow,
+                HarvestMinGrowth = Finite(plant.harvestMinGrowth),
+                SowWork = Finite(plant.sowWork),
+                WildBiomes = EquatableArray.From(biomes)
+            }
         };
         var product = plant.harvestedThingDef?.defName ?? "";
         if (product == "")
         {
             return;
         }
+
         // The game's PlantProperties.HarvestDestroys is harvestAfterGrowth <= 0.
-        v = v with { HarvestDestroysPlant = Known(plant.harvestAfterGrowth <= 0) };
-        var productRow = catalog.FindThing(product)
-            ?? throw new BridgeContractException($"plant harvests {product}, which the catalog has no def row for");
         v = v with
         {
-            HarvestedThingDef = Known(product),
-            HarvestYield = FiniteFact(plant.harvestYield),
-            RawPreferred = Known(productRow.ingestible is not null && productRow.ingestible.preferability >= RimWorld.FoodPreferability.RawTasty),
-            Edible = Known(catalog.IsFood(product)),
+            Harvest = (v.Harvest ?? new PlanningHarvest())with
+            {
+                HarvestDestroysPlant = plant.harvestAfterGrowth <= 0
+            }
         };
-        var rot = catalog.RotDays(product);
-        v = v with { HarvestPerishable = Known(rot is not null) };
-        if (rot is { } days)
+        var productRow = catalog.FindThing(product) ?? throw new BridgeContractException($"plant harvests {product}, which the catalog has no def row for");
+        v = v with
         {
-            v = v with { HarvestRotDays = FiniteFact(days) };
-        }
+            Harvest = (v.Harvest ?? new PlanningHarvest())with
+            {
+                HarvestedThingDef = product,
+                HarvestYield = Finite(plant.harvestYield),
+                RawPreferred = productRow.ingestible is not null && productRow.ingestible.preferability >= RimWorld.FoodPreferability.RawTasty,
+                Edible = catalog.IsFood(product)
+            }
+        };
+        v = v with
+        {
+            Harvest = v.Harvest!with
+            {
+                Decay = catalog.RotDays(product)is { } days ? new HarvestDecay(Nonnegative(days)) : null,
+            },
+        };
         // A product the game shows no Nutrition stat for gives none.
-        var (nutrition, _) = catalog.ShownStatValue(product, "", CatalogStats.Nutrition);
-        v = v with { HarvestNutrition = FiniteFact(plant.harvestYield * nutrition) };
+        var(nutrition, _) = catalog.ShownStatValue(product, "", CatalogStats.Nutrition);
+        v = v with
+        {
+            Harvest = (v.Harvest ?? new PlanningHarvest())with
+            {
+                HarvestNutrition = Finite(plant.harvestYield * nutrition)
+            }
+        };
     }
 
     private static PlanningDefinition TerrainView(DefinitionCatalog catalog, string name, Verse.TerrainDef row)
@@ -232,25 +280,44 @@ public static class PlanningViewReads
         var v = new PlanningDefinition
         {
             Name = name,
-            Terrain = Known(true),
-            Research = [.. (row.researchPrerequisites ?? []).Select(project => project.defName)],
-            ConstructionSkill = Known(row.constructionSkillPrerequisite),
-            Size = Known(new Bounds(1, 1)),
+            Terrain = true,
+            Research = [..(row.researchPrerequisites ?? []).Select(project => project.defName)],
+            ConstructionSkill = row.constructionSkillPrerequisite,
+            Size = new Bounds(1, 1),
         };
-        v = v with { Costs = Known(EquatableArray.From(Amounts(catalog.TerrainAdjustedCosts(name)))) };
+        v = v with
+        {
+            FixedConstruction = (v.FixedConstruction ?? new PlanningFixedConstruction())with
+            {
+                Costs = EquatableArray.From(Amounts(catalog.TerrainAdjustedCosts(name)))
+            }
+        };
         var floor = catalog.FloorTerrain(name);
         v = v with
         {
-            Cleanliness = FiniteFact(floor.Cleanliness),
-            Beauty = FiniteFact(floor.Beauty),
-            Flammability = FiniteFact(floor.Flammability),
             PathCost = floor.PathCost,
-            WorkToBuild = NonnegativeFact(catalog.TerrainWorkToBuild(name)),
+            Floor = (v.Floor ?? new PlanningFloor())with
+            {
+                Cleanliness = Finite(floor.Cleanliness),
+                Beauty = Finite(floor.Beauty),
+                Flammability = Finite(floor.Flammability)
+            },
+            FixedConstruction = (v.FixedConstruction ?? new PlanningFixedConstruction())with
+            {
+                WorkToBuild = Nonnegative(catalog.TerrainWorkToBuild(name))
+            }
         };
         if (row.tags is { Count: > 0 } floorTags)
         {
-            v = v with { FloorTags = [.. floorTags] };
+            v = v with
+            {
+                Floor = (v.Floor ?? new PlanningFloor())with
+                {
+                    FloorTags = [..floorTags]
+                }
+            };
         }
+
         return v;
     }
 }

@@ -27,14 +27,11 @@ public sealed partial record ColonyProjection
                 ids.Add(c.Id);
             }
             f = f.GateOnColonists(ids, minDays);
-            if (f.RunwayDays is FoodRunway.Days { Value: var raw })
-            {
-                r = r with { RawRunwayDays = Known(raw) };
-            }
+            r = r with { RawRunwayDays = f.RunwayDays };
         }
         catch (DomainException)
         {
-            // A forecast the policy refuses leaves the raw runway unknown.
+            throw new RequiredFactException("meal raw-food forecast");
         }
         var pawns = WorkPawns.Pawns;
         {
@@ -59,7 +56,7 @@ public sealed partial record ColonyProjection
                     }
                 }
             }
-            r = r with { Cooks = Known(EquatableArray.From(cooks)) };
+            r = r with { Cooks = EquatableArray.From(cooks) };
         }
         var moodPawns = Facts.MoodPawns;
         {
@@ -78,7 +75,7 @@ public sealed partial record ColonyProjection
                     }
                 }
             }
-            r = r with { HighExpectations = Known(pressure) };
+            r = r with { HighExpectations = pressure };
         }
         r = r with { Previous = MealRules.ObservedMealTier(ProductionBenches) };
         foreach (var dispenser in FoodChannels.PasteDispenser)
@@ -91,9 +88,9 @@ public sealed partial record ColonyProjection
         }
         foreach (var d in Definitions)
         {
-            if (d.Name == "NutrientPasteDispenser")
+            if (d.Name == "NutrientPasteDispenser" && d.Available)
             {
-                r = r with { Paste = Known(new Infrastructure { Name = d.Name, Available = d.Available, PowerW = d.PowerW, Costs = d.CheapestCosts() }) };
+                r = r with { Paste = new Infrastructure { Name = d.Name, Available = d.Available, PowerW = (d.Power ?? throw new RequiredFactException("planning Power")).PowerW, Costs = d.CheapestCosts() } };
             }
         }
         return r;

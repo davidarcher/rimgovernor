@@ -122,7 +122,7 @@ public static partial class RemoteRules
     /// </summary>
     internal static string RemoteThreatHold(RemoteSafety r)
     {
-        if (r.Threat)
+        if (r.Threat.ThreatCount > 0)
         {
             return RemoteHoldThreat;
         }
@@ -147,7 +147,7 @@ public enum RemoteWorkKind
 /// </summary>
 public sealed record RemoteSafety
 {
-    public bool Threat { get; init; }
+    public HostileCensus Threat { get; init; } = new HostileCensus.AwaitingEmergency();
 
     public EquatableArray<OutdoorHazard> Hazard { get; init; }
 

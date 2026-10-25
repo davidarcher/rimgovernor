@@ -48,7 +48,7 @@ public sealed partial class Store
     {
         var review = LoadRounds(tx);
         if (!review.Enabled || review.Snapshot != current || review.WorkEvidence is not { } evidence)
-            return new(new(), new([], [], [], ["work_resource_review_unavailable"]), default);
+            return new(new(), new([], [], [], ["work_resource_review_unavailable"]), new MaterialAvailability.Blocked(MaterialBudgetBlock.AwaitingReview));
         if (!exclude.IsEmpty && LoadIn(tx, exclude).Spec.Actions.SingleOrDefault()?.PawnActivities is { } continuation)
             evidence = WorkRules.WorkContinuationEvidence(evidence, continuation, observed);
         var actions = WorkActionsIn(tx, current, exclude);
@@ -72,7 +72,7 @@ public sealed partial class Store
             .Select(a => new ProductionBatch(a.ProductionBill!, new ProgressView { Action = a.Id, Stage = Stage.Pending })).ToArray();
         var committed = ProductionBatchesIn(tx, owner.Snapshot, null);
         AdmissionRefusal production = new(RefusalKind.ProductionMaterial, "fixed production batch material is insufficient or unknown, or the claim bound is exhausted");
-        if (proposed.Length != 0 && (!committed.TryGetValue(out var batches) || batches.Count + proposed.Length > MaxProductionClaims))
+        if (proposed.Length != 0 && (committed is not ProductionBatchCensus.Read(var batches) || batches.Count + proposed.Length > MaxProductionClaims))
             return production;
         if (proposed.Length != 0 && !ProductionRules.ProductionAdmissionFits(view.Evidence,
             committed, EquatableArray.From(proposed), view.Claims.Materials))

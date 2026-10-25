@@ -60,8 +60,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 55 reads a resource runway whole (#3926): a journaled runway persists its stock, surface ore and target as plain numbers and its rating as unrated, idle or burning (rate, stock days and days left together) with the deficit flag.
     /// Version 56 reads current work occupancy whole (#3896): the admission pawn row persists Occupied as a plain boolean.
     /// Version 57 reads medical history and pawn profiles whole (#3989): unresolved patients persist by identity, and work hours, inspiration and biotech effects/minimum ages are direct values.
+    /// Version 58 reads admission evidence and recovery workers whole (#3892, #3982): material and production lifecycle states are explicit, and recovery worker rows are required.
     /// </summary>
-    public const int SchemaVersion = 57;
+    public const int SchemaVersion = 58;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

@@ -21,12 +21,16 @@ public static class ColonyPawnReads
         return projection with
         {
             WorkPawns = work,
+            Mechs = RoundsContainmentReads.MechFleetOf(tables.Pawns.Table.Values()),
             Rest = RoundsWorkReads.RoundsRest(pawns),
             MechCatalog = catalog.Biotech?.MechCatalog() ?? new(),
             Facts = projection.Facts with
             {
                 Armed = armed,
                 Unarmed = unarmed,
+                Hostiles = EmergencyNeedsRules.HostilesOf(EmergencyRules.EvaluateFacts(emergency), emergency.PodsOpen.Value > 0 && emergency.PodsOpen >= projection.Identity.Tick),
+                DangerSeeds = EquatableArray.From(ShelterRules.DangerSeeds(emergency.Threats)),
+                DangerHaulers = ShelterRules.DangerHaulers(work),
                 DefenseCapacity = DefenseCapacityPolicy.DefenseCapacity(RoundsMoodReads.RoundsDefenders(colony, emergency, pawns), projection.DefenseTurrets),
                 MedicalPawns = medical,
                 CriticalPatients = critical,
@@ -34,6 +38,7 @@ public static class ColonyPawnReads
                 MedicalCareRecovered = MedicalRules.ReviewMedicalCare(medical, new()).Recovered(),
                 ForecastObserved = projection.Facts.ForecastObserved with { WorkPawns = work, Needs = colony.Forecast.Needs, Coupled = colony.Forecast.Coupled },
                 MoodPawns = mood,
+                RecoveryWorkers = ColonyFramesReads.RecoveryWorkers(mood),
                 MoodLedger = RoundsMoodReads.RoundsMoodLedger(mood, pawns, catalog.AllThoughtFacts()),
                 WorkProfiles = [.. PawnRules.Profiles(work.Pawns)],
                 MedicalReserve = projection.Facts.MedicalReserve with { Catalog = catalog.ItemFacts() },

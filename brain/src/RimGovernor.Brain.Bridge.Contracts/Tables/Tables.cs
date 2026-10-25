@@ -155,6 +155,9 @@ public sealed record Tables(Buildings Buildings, Pawns Pawns, Things Things, Equ
     /// <summary>The same-frame room census and its visible cell footprints.</summary>
     public RoomsSnapshot? Rooms { get; init; }
 
+    /// <summary>The same-frame zone census, including growing fields used to price material arrivals.</summary>
+    public ZonesSnapshot? Zones { get; init; }
+
     public IReadOnlyDictionary<string, IReadOnlyList<RimGovernor.Brain.Domain.Cell>> RoomCells { get; init; } = new Dictionary<string, IReadOnlyList<RimGovernor.Brain.Domain.Cell>>();
 
     /// <summary>

@@ -9,21 +9,21 @@ public static partial class WealthBudgetRules
     /// <summary>
     /// The wealth headroom the colony's defense affords. Raid points scale with wealth, so the wealth the defense
     /// capacity can hold is wealth x capacity / raidPoints; the headroom is that minus wealth: positive means wealth
-    /// may grow by that much, negative means shed it. Raid points are floored at 35. Any unknown, non-finite or
-    /// negative input leaves the budget unknown.
+    /// may grow by that much, negative means shed it. Raid points are floored at 35. Missing, non-finite or
+    /// negative inputs refuse the calculation.
     /// </summary>
-    public static Fact<double> WealthBudget(double points, Fact<double> capacity, Fact<WealthFacts> wealth)
+    public static double WealthBudget(double points, double capacity, WealthFacts wealth)
     {
-        var ck = capacity.TryGetValue(out var strength);
-        var wk = wealth.TryGetValue(out var w);
-        if (!ck || !wk || !TradePolicyRules.Finite(points) || !TradePolicyRules.Finite(strength) || !TradePolicyRules.Finite(w!.Total) || points < 0 || strength < 0 || w.Total < 0)
+        var strength = capacity;
+        var w = wealth ?? throw new RequiredFactException("wealth");
+        if (!TradePolicyRules.Finite(points) || !TradePolicyRules.Finite(strength) || !TradePolicyRules.Finite(w!.Total) || points < 0 || strength < 0 || w.Total < 0)
         {
-            return Unknown<double>();
+            throw new RequiredFactException("finite nonnegative wealth budget inputs");
         }
         points = Math.Max(points, WealthBudgetMinRaidPoints);
-        return Known(w.Total * (strength - points) / points);
+        return w.Total * (strength - points) / points;
     }
 
     /// <summary>The headroom from f's raid points, defense capacity and wealth.</summary>
-    public static Fact<double> WealthBudget(this RoundsFacts f) => WealthBudget(f.RaidPoints, f.DefenseCapacity, f.Wealth);
+    public static double WealthBudget(this RoundsFacts f) => WealthBudget(f.RaidPoints, f.DefenseCapacity, f.Wealth);
 }

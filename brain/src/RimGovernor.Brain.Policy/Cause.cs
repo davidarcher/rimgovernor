@@ -98,18 +98,13 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
     public static readonly Cause UnreadRecipes = new("recipes");
     public static readonly Cause UnreadDefinitions = new("definitions");
     public static readonly Cause UnreadNativeRead = new("native_source");
-    public static readonly Cause UnreadGearRecover = new("gear_recovery");
-    public static readonly Cause UnreadGearDemand = new("gear_demand");
     public static readonly Cause UnreadWeapons = new("weapon_demand");
-    public static readonly Cause UnreadShells = new("shell_targets");
     public static readonly Cause UnreadFoodFacts = new("food_facts");
     public static readonly Cause UnreadFoodPlan = new("food_plan");
     public static readonly Cause UnreadFoodStorage = new("food_storage");
     public static readonly Cause UnreadMechs = new("mech_gestation");
     public static readonly Cause UnreadWort = new("wort");
-    public static readonly Cause UnreadSilverGap = new("silver_gap");
     public static readonly Cause UnreadWorkers = new("workers");
-    public static readonly Cause UnreadTraderCash = new("trader_cash");
     public static readonly Cause UnreadBuyers = new("buyers");
     public static readonly Cause UnreadSurplus = new("surplus");
     public static readonly Cause UnreadRunways = new("runways");
@@ -133,10 +128,11 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
         ExcavationUnsupported, ExcavationGeometryChanged, UnsafeRoute, RoofSupportRisk, StorageMissing,
         UrgentCompetingWork,
         UnreadReview, UnreadBenchDef, UnreadRecipes,
-        UnreadGearRecover, UnreadGearDemand, UnreadWeapons,
-        UnreadShells, UnreadFoodFacts, UnreadFoodPlan, UnreadFoodStorage,
-        UnreadMechs, UnreadWort, UnreadSilverGap,
-        UnreadWorkers, UnreadTraderCash, UnreadBuyers, UnreadSurplus, UnreadRunways,
+        UnreadDefinitions, UnreadNativeRead,
+        UnreadWeapons,
+        UnreadFoodFacts, UnreadFoodPlan, UnreadFoodStorage,
+        UnreadMechs, UnreadWort,
+        UnreadWorkers, UnreadBuyers, UnreadSurplus, UnreadRunways,
         UnreadSupply, UnreadSources,
     ];
 
@@ -272,18 +268,13 @@ public static class CauseRules
         [Cause.UnreadRecipes] = UnreadWording("a recipe's facts"),
         [Cause.UnreadDefinitions] = UnreadWording("the game's definitions"),
         [Cause.UnreadNativeRead] = UnreadWording("something the game could not serve"),
-        [Cause.UnreadGearRecover] = UnreadWording("whether colonists have recovered"),
-        [Cause.UnreadGearDemand] = UnreadWording("the gear census"),
         [Cause.UnreadWeapons] = UnreadWording("the weapon demand"),
-        [Cause.UnreadShells] = UnreadWording("the mortar shell targets"),
         [Cause.UnreadFoodFacts] = UnreadWording("the food facts"),
         [Cause.UnreadFoodPlan] = UnreadWording("the food plan"),
         [Cause.UnreadFoodStorage] = UnreadWording("food storage"),
         [Cause.UnreadMechs] = UnreadWording("the mech gestation"),
         [Cause.UnreadWort] = UnreadWording("which wort makes beer"),
-        [Cause.UnreadSilverGap] = UnreadWording("the silver gap"),
         [Cause.UnreadWorkers] = UnreadWording("the workers' skills"),
-        [Cause.UnreadTraderCash] = UnreadWording("what traders can pay"),
         [Cause.UnreadBuyers] = UnreadWording("which traders buy"),
         [Cause.UnreadSurplus] = UnreadWording("the gear surplus"),
         [Cause.UnreadRunways] = UnreadWording("the ingredient runways"),

@@ -3,15 +3,14 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// Comes from the shared food review, not a second plan made by trade. DesiredIngredients describes the desired
-/// recipe's conjunctive slots (empty while the benches are unread); IngredientNutrition is the nutrition to buy
-/// for each missing slot. RoundsTradeFood yields none while the plan or its runway is unread, which leaves food
-/// trading disabled without suppressing other needs.
+/// recipe's conjunctive slots; IngredientNutrition is the nutrition to buy
+/// for each missing slot. An absent shared plan refuses the review; NoEaters requires no food purchases.
 /// </summary>
 public sealed record TradeFoodContext
 {
     public required FoodPlan Plan { get; init; }
 
-    public double RunwayDays { get; init; }
+    public required FoodRunway Runway { get; init; }
 
     public double MinDays { get; init; }
 
@@ -54,23 +53,16 @@ public static partial class TradePolicyRules
     /// Uses the shared tick plan and the observed active meal recipe. One day's ingredient buffer bridges a
     /// missing source without pretending a proposed channel is already producing stock.
     /// </summary>
-    public static TradeFoodContext? RoundsTradeFood(RoundsFacts f, RoundsPolicy p)
+    public static TradeFoodContext RoundsTradeFood(RoundsFacts f, RoundsPolicy p)
     {
-        if (f.FoodPlan is not { } plan)
-        {
-            return null;
-        }
-        // The plan's forecast runway, else the observed accessible runway; nobody eating leaves neither.
-        var runway = plan.Forecast.RunwayDays is FoodRunway.Days ? plan.Forecast.RunwayDays : f.FoodDays;
-        if (runway is not FoodRunway.Days { Value: var days })
-        {
-            return null;
-        }
+        var plan = f.FoodPlan ?? throw new RequiredFactException("food plan");
+        var runway = plan.Forecast.RunwayDays;
+
         var slots = f.TradeMealIngredients;
         return new TradeFoodContext
         {
             Plan = plan,
-            RunwayDays = days,
+            Runway = runway,
             MinDays = p.FoodMinDays,
             TargetDays = p.FoodTargetDays,
             DesiredIngredients = slots,
@@ -127,7 +119,8 @@ public static partial class TradePolicyRules
     internal static TradeFoodNeed ReviewTradeFood(TradeFoodContext r)
     {
         var plan = r.Plan;
-        var runway = r.RunwayDays;
+        if (r.Runway is FoodRunway.NoEaters) return new TradeFoodNeed();
+        if (r.Runway is not FoodRunway.Days(var runway)) throw new RequiredFactException("food runway");
         if (!FoodForecastRules.FoodNumber(runway) || !FieldCapacityRules.FieldPositive(r.MinDays) || !FieldCapacityRules.FieldPositive(r.TargetDays) || r.TargetDays <= r.MinDays)
         {
             return new TradeFoodNeed();

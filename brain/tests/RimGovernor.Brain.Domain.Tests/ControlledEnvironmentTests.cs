@@ -132,15 +132,15 @@ public sealed class ControlledEnvironmentTests
     private static readonly CropChoice Rice = new()
     {
         Name = "Rice",
-        Available = Known(true),
-        Edible = Known(true),
-        GrowDays = Known(6.0),
-        FertilityMin = Known(0.5),
-        FertilitySensitivity = Known(1.0),
-        HarvestNutrition = Known(0.05),
-        Demand = Known(1.6),
-        SowTags = Known(EquatableArray.From(["Ground", "Hydroponic"])),
-        MinGlow = Known(0.3),
-        DietAllowed = Known(true),
+        Available = true,
+        Edible = true,
+        GrowDays = 6.0,
+        FertilityMin = 0.5,
+        FertilitySensitivity = 1.0,
+        HarvestNutrition = 0.05,
+        Demand = 1.6,
+        SowTags = EquatableArray.From(["Ground", "Hydroponic"]),
+        MinGlow = 0.3,
+        DietAllowed = true,
     };
 }

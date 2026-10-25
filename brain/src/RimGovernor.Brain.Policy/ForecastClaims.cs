@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>Exact promised units, including native-held units. Known empty bill means not handed off; unknown link stays unknown.</summary>
-public sealed record ForecastMaterialClaim(Resource Resource, Fact<double> Units, Fact<string> ReservationBill);
+/// <summary>An exact or open material obligation, including native-held units. Empty bill means no native handoff; an unresolved bill link carries open units.</summary>
+public sealed record ForecastMaterialClaim(Resource Resource, MaterialUnits Units, string ReservationBill);
 
 /// <summary>Exclusive equipment at one service location. Windows exclude external/native occupancy.</summary>
 public sealed record ForecastEquipmentCapacity(string Id, string Location, EquatableArray<ForecastTimeWindow> Windows);
@@ -11,8 +11,8 @@ public sealed record ForecastEquipmentClaim(string Equipment, double Start, doub
 public static class ForecastClaims
 {
     /// <summary>One scenario's free stock after native holds and declared promises; unknowns are resource-local.</summary>
-    public static Fact<IReadOnlyDictionary<Resource, Fact<double>>> ForecastMaterialBudgetOf(
-        Fact<EquatableArray<Amount>> stock, EquatableArray<IngredientReservation> reservations,
+    public static IReadOnlyDictionary<Resource, MaterialUnits> ForecastMaterialBudgetOf(
+        EquatableArray<Amount> stock, EquatableArray<IngredientReservation> reservations,
         IEnumerable<ForecastCommitment> commitments, double horizonDays)
     {
         if (!double.IsFinite(horizonDays) || horizonDays < 0) throw new DomainException("invalid material horizon");
@@ -25,9 +25,9 @@ public static class ForecastClaims
                 throw new DomainException("material claim duplicates construction or stock effects");
             foreach (var claim in commitment.MaterialClaims)
             {
-                if (!AdmissionRules.ValidResource(claim.Resource) || claim.Units.TryGetValue(out var count) && (!double.IsFinite(count) || count < 0))
+                if (!AdmissionRules.ValidResource(claim.Resource) || claim.Units is MaterialUnits.Exact(var count) && (!double.IsFinite(count) || count < 0))
                     throw new DomainException("invalid forecast material claim");
-                if (claim.ReservationBill.TryGetValue(out var bill) && bill.Length != 0 && !linked.Add((bill, claim.Resource)))
+                if (claim.ReservationBill is { Length: > 0 } bill && !linked.Add((bill, claim.Resource)))
                     throw new DomainException("native reservation linked to multiple promises");
             }
         }
@@ -44,7 +44,7 @@ public static class ForecastClaims
                 totals[amount.Resource] = total + amount.Count;
             }
         }
-        if (!stock.TryGetValue(out var observed)) return default;
+        var observed = stock;
         ValidateAmounts(observed);
         ValidateAmounts(native.SelectMany(r => r.Items));
         foreach (var row in native)
@@ -58,15 +58,15 @@ public static class ForecastClaims
             }
         }
         var free = MaterialBudgetRules.MaterialBudget(observed, new Dictionary<Resource, long>(), reservations, default);
-        var result = free.ToDictionary(p => p.Key, p => Known((double)p.Value));
-        void Hold(Resource resource, Fact<double> units)
+        var result = free.ToDictionary(p => p.Key, p => (MaterialUnits)new MaterialUnits.Exact(p.Value));
+        void Hold(Resource resource, MaterialUnits units)
         {
             if (!AdmissionRules.ValidResource(resource)) throw new DomainException("invalid forecast material resource");
-            if (units.TryGetValue(out var count) && (!double.IsFinite(count) || count < 0))
+            if (units is MaterialUnits.Exact(var count) && (!double.IsFinite(count) || count < 0))
                 throw new DomainException("invalid forecast material claim");
-            var before = result.GetValueOrDefault(resource, Known(0.0));
-            var after = before.TryGetValue(out var value) && units.IsKnown ? Known(value - units.Value) : default;
-            if (after.TryGetValue(out var balance) && !double.IsFinite(balance)) throw new DomainException("material claim overflow");
+            var before = result.GetValueOrDefault(resource, new MaterialUnits.Exact(0));
+            MaterialUnits after = before is MaterialUnits.Exact(var value) && units is MaterialUnits.Exact(var debit) ? new MaterialUnits.Exact(value - debit) : new MaterialUnits.Open();
+            if (after is MaterialUnits.Exact(var balance) && !double.IsFinite(balance)) throw new DomainException("material claim overflow");
             result[resource] = after;
         }
         foreach (var commitment in promises)
@@ -74,21 +74,21 @@ public static class ForecastClaims
             foreach (var claim in commitment.MaterialClaims)
             {
                 var units = claim.Units;
-                if (units.TryGetValue(out var count) && count == 0) { Hold(claim.Resource, units); continue; }
-                if (!claim.ReservationBill.TryGetValue(out var bill)) units = default;
-                else if (bill.Length != 0)
+                if (units is MaterialUnits.Exact(var count) && count == 0) { Hold(claim.Resource, units); continue; }
+                var bill = claim.ReservationBill;
+                if (bill.Length != 0)
                 {
                     // Only the same observed bill can cover part of this promise.
-                    if (units.IsKnown) units = Known(Math.Max(0, units.Value - nativeAmounts.GetValueOrDefault((bill, claim.Resource))));
+                    if (units is MaterialUnits.Exact(var exact)) units = new MaterialUnits.Exact(Math.Max(0, exact - nativeAmounts.GetValueOrDefault((bill, claim.Resource))));
                 }
                 Hold(claim.Resource, units);
             }
             foreach (var change in commitment.StockChanges)
             {
-                if (change.Day <= horizonDays && change.Units < 0) Hold(change.Resource, Known(-change.Units));
+                if (change.Day <= horizonDays && change.Units < 0) Hold(change.Resource, new MaterialUnits.Exact(-change.Units));
             }
         }
-        return Known<IReadOnlyDictionary<Resource, Fact<double>>>(result);
+        return result;
     }
 
     /// <summary>Remove declared equipment occupancy once, rebuilding independently for baseline and delta.</summary>

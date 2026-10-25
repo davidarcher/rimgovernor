@@ -108,14 +108,11 @@ public enum FoodStorageMethodKind
     [WireName("")]
     None = 0,
 
-    /// <summary>A candidate site's room could not be read, so producing more is not yet owed.</summary>
-    [WireName("site_unread")]
-    SiteUnread,
 
     [WireName("recovered")]
     Recovered,
 
-    /// <summary>A covered site already has room, so the stock is unstored for a reason FoodStorageStuckReason names, not for lack of space.</summary>
+    /// <summary>A covered site already has room, so the stock is unstored despite available capacity.</summary>
     [WireName("stuck")]
     Stuck,
 
@@ -164,8 +161,6 @@ public sealed record FoodStoragePlanningRequest
 
     public EquatableArray<FoodStorageSite> Sites { get; init; }
 
-    /// <summary>Some candidate site's room could not be read; that site is not among Sites.</summary>
-    public bool SiteUnread { get; init; }
 
     public Resource Resource { get; init; }
 
@@ -305,11 +300,6 @@ public static class FoodStorageUpkeepRules
             {
                 return new FoodStorageMethod { Kind = FoodStorageMethodKind.Stuck };
             }
-        }
-        // A site whose room is unread may have room, so producing more is not yet owed.
-        if (r.SiteUnread)
-        {
-            return new FoodStorageMethod { Kind = FoodStorageMethodKind.SiteUnread };
         }
         if (!AdmissionRules.ValidResource(r.Resource))
         {

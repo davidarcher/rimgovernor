@@ -85,13 +85,14 @@ partial class RoundsBuildingPlanner
         Pol.ClimateGear heaterGear = new Pol.ClimateGear.NotPlaceable();
         foreach (var d in facts.Definitions)
         {
+            if (!d.Available) continue;
             if (d.Name == "Cooler")
             {
-                cooler = Pol.ClimateGear.Of(d.Name, d.Available, d.PowerW);
+                cooler = Pol.ClimateGear.Of(d.Name, d.Available, (d.Power ?? throw new RequiredFactException("planning Power")).PowerW);
             }
             else if (d.Name == heater)
             {
-                heaterGear = Pol.ClimateGear.Of(d.Name, d.Available, d.PowerW);
+                heaterGear = Pol.ClimateGear.Of(d.Name, d.Available, (d.Power ?? throw new RequiredFactException("planning Power")).PowerW);
             }
         }
         return new Pol.TemperatureCooling

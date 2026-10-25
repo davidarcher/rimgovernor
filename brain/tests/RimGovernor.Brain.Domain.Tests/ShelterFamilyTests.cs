@@ -19,7 +19,7 @@ public sealed class ShelterFamilyTests
         SleepingMax = 22.0,
         TemperatureOwed = false,
         HeatDoorOwed = false,
-        SafeAreaOwed = Known(false),
+        SafeAreaOwed = SafeAreaStatus.Clear,
         ColdExit = 10,
         HotExit = 30,
     };
@@ -72,10 +72,10 @@ public sealed class ShelterFamilyTests
     [Fact]
     public void SafeAreaIsSeriousHarmAndRunsInTheImmediatePass()
     {
-        var need = Of(Housed with { SafeAreaOwed = Known(true) }, ShelterFamily.SafeArea);
+        var need = Of(Housed with { SafeAreaOwed = SafeAreaStatus.Edits }, ShelterFamily.SafeArea);
         Assert.Equal(NeedTier.SeriousHarm, need.Tier);
         Assert.Equal(Satisfaction.Unmet, need.Satisfaction);
-        Assert.Equal("safe area edits", Assert.Throws<RequiredFactException>(() => Of(Housed with { SafeAreaOwed = Unknown<bool>() }, ShelterFamily.SafeArea)).Fact);
+        Assert.Equal("safe area edits", Assert.Throws<RequiredFactException>(() => Of(Housed with { SafeAreaOwed = SafeAreaStatus.AwaitingReview }, ShelterFamily.SafeArea)).Fact);
         Assert.NotEmpty(new ShelterFamily(false, false, true).SeriousHarmReads);
         Assert.Empty(new ShelterFamily(true, true, false).SeriousHarmReads);
         // Only the safe area is SeriousHarm: the immediate pass keeps it alone.
@@ -86,14 +86,14 @@ public sealed class ShelterFamilyTests
     public void SafeAreaMemoryOwesNothingKnownBeforeItsReview()
     {
         var memory = new SafeAreaMemory();
-        Assert.False(memory.Owed("w").IsKnown);
+        Assert.Equal(SafeAreaStatus.AwaitingReview, memory.Owed("w"));
         var reviewed = memory.Review("w", ColonyFactsCoreTests.Projection() with { Rooms = RoomTestFacts.NoRooms });
-        Assert.True(reviewed.IsKnown);
+        Assert.NotEqual(SafeAreaStatus.AwaitingReview, reviewed);
         Assert.Equal(reviewed, memory.Owed("w"));
-        Assert.False(memory.Owed("other").IsKnown);
+        Assert.Equal(SafeAreaStatus.AwaitingReview, memory.Owed("other"));
         memory.Commit("w");
-        Assert.Equal(Known(false), memory.Owed("w"));
-        Assert.Equal(Known(false), memory.Review("w", ColonyFactsCoreTests.Projection()));
+        Assert.Equal(SafeAreaStatus.Clear, memory.Owed("w"));
+        Assert.Equal(SafeAreaStatus.Clear, memory.Review("w", ColonyFactsCoreTests.Projection()));
     }
 
     [Fact]

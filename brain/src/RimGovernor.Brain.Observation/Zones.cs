@@ -40,27 +40,26 @@ public static class ZonesReads
         return new Held<O.ZonesSnapshot> { Value = read, AsOf = read.Context.Tick, Complete = true, Source = "rimgovernor/observations_list_zones" };
     }
 
-    /// <summary>Supplies the policy facts intentionally omitted by <see cref="DecodeColony"/>.</summary>
-    public static async Task<ColonyProjection> FillZones(IZonesNative? native, C.Identity id, Identity expected, ColonyProjection p, CancellationToken cancellationToken)
+    /// <summary>Projects the total same-frame zones before crop and gear decisions price their outputs.</summary>
+    internal static ColonyProjection ApplyZones(ColonyProjection p, O.ZonesSnapshot? read)
     {
-        var held = await ReadZoneSection(native, id, cancellationToken).ConfigureAwait(false);
-        var actual = DecodeReads.ContextIdentity(held.Value.Context) with { Paused = expected.Paused };
-        if (!ColonyReads.SameColonyContext(actual, expected))
+        if (read is null)
+        {
+            throw new BridgeContractException("missing total zones census");
+        }
+        var actual = DecodeReads.ContextIdentity(read.Context) with { Paused = p.Identity.Paused };
+        if (!ColonyReads.SameColonyContext(actual, p.Identity))
         {
             throw new ObservationChangedException();
         }
-        return ApplyZones(p with { Zones = held }, held.Value);
-    }
-
-    private static ColonyProjection ApplyZones(ColonyProjection p, O.ZonesSnapshot read)
-    {
+        p = p with { Zones = new Held<O.ZonesSnapshot> { Value = read, AsOf = read.Context.Tick, Complete = true, Source = "rimgovernor/snapshot_frame" } };
         List<O.ZoneState.Growing> farms = [.. read.Zones.OfType<O.ZoneState.Growing>()];
         p = p with { Farms = farms };
         p = p with { Facts = ColonyProductionReads.ZoneProduction(farms, p.Definitions, p.Facts) };
         return p with
         {
             FieldCrops = ColonyProductionReads.ColonyFieldCrops(farms, p.Definitions),
-            FoodFields = ColonyProductionReads.ColonyFoodFields(farms, p.Definitions, p.Facts.Calendar, p.Cells),
+            FoodFields = ColonyProductionReads.ColonyFoodFields(farms, p.Definitions, p.Facts.Calendar),
             FieldCapacityCrops = ColonyProductionReads.ColonyFieldCrops(farms, p.Definitions, true),
         };
     }

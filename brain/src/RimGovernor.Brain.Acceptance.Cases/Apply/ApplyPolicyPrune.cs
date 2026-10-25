@@ -57,7 +57,7 @@ internal static class ApplyPolicyPrune
         await PruneAsync("prune-outfit", Operations.PolicyDatabase.Outfit, before.Outfit, true).ConfigureAwait(false);
         await PruneAsync("prune-area", Operations.PolicyDatabase.AllowedArea, before.Area, true).ConfigureAwait(false);
 
-        var reply = await s.CallAsync("after", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+        var reply = await s.CallAsync("after", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var policies = reply.Policies;
         s.RecordWire("after_outfits", policies.Outfit);
         s.RecordWire("after_areas", policies.AllowedAreas);

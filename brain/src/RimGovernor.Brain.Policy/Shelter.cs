@@ -3,6 +3,10 @@ using System.Globalization;
 
 namespace RimGovernor.Brain.Policy;
 
+/// <summary>The safe-area review lifecycle in this world.</summary>
+public enum SafeAreaStatus { AwaitingReview, Edits, Clear }
+
+
 /// <summary>
 /// What the shelter family reads (#3257): the retained bed-use review, the sleeping rooms' temperatures and the
 /// temperature work the room census owes, and whether the bot-owned areas differ from what they should be. In the
@@ -25,7 +29,7 @@ public sealed record ShelterFacts
     public bool HeatDoorOwed { get; init; }
 
     /// <summary>The bot-owned allowed areas differ from the enclosed roofed rooms and the plan (SafeAreaCells).</summary>
-    public Fact<bool> SafeAreaOwed { get; init; }
+    public SafeAreaStatus SafeAreaOwed { get; init; }
 
     /// <summary>The season's comfort band the sleeping rooms are held inside (<see cref="RoundsPolicy.ColdExit"/>, <see cref="RoundsPolicy.HotExit"/>).</summary>
     public double ColdExit { get; init; }
@@ -44,7 +48,7 @@ public sealed record ShelterFacts
             SleepingMin = f.SleepingTemperature is SleepingTemperature.Indoor indoor ? indoor.MinC : f.OutdoorTemperature,
             SleepingMax = f.SleepingTemperature is SleepingTemperature.Indoor room ? room.MaxC : f.OutdoorTemperature,
             TemperatureOwed = f.TemperatureOwed,
-            HeatDoorOwed = DoorControlRules.DoorChanges(f.Upkeep.Rooms, f.Upkeep.Routes ?? throw new RequiredFactException("routes census"), p).Any(d => d.Heat),
+            HeatDoorOwed = DoorControlRules.DoorChanges(f.Upkeep.Rooms, f.Upkeep.Routes, p).Any(d => d.Heat),
             SafeAreaOwed = f.SafeAreaOwed,
         };
     }
@@ -126,10 +130,11 @@ public static partial class ShelterRules
     /// The safe area (SeriousHarm, the immediate pass): unmet while a bot-owned allowed area edit is owed, met while
     /// none is; an unread room census raises <see cref="RequiredFactException"/>. Its deficit is whole.
     /// </summary>
-    public static Need SafeAreaNeedOf(ShelterFacts f) => Whole(ShelterFamily.SafeArea, NeedTier.SeriousHarm, RoundsRules.NotFact(f.SafeAreaOwed), "safe area edits");
-
-    /// <summary>A Need met by <paramref name="met"/>, with a whole deficit; an unread <paramref name="met"/> raises for <paramref name="fact"/>.</summary>
-    private static Need Whole(NeedId id, NeedTier tier, Fact<bool> met, string fact) =>
-        FoodRules.WholeNeed(id, tier, met.TryGetValue(out var known) ? known : throw new RequiredFactException(fact));
+    public static Need SafeAreaNeedOf(ShelterFacts f)
+    {
+        if (f.SafeAreaOwed == SafeAreaStatus.AwaitingReview) throw new RequiredFactException("safe area edits");
+        DomainException.Require(f.SafeAreaOwed is SafeAreaStatus.Edits or SafeAreaStatus.Clear, "invalid safe area status");
+        return FoodRules.WholeNeed(ShelterFamily.SafeArea, NeedTier.SeriousHarm, f.SafeAreaOwed == SafeAreaStatus.Clear);
+    }
 
 }

@@ -24,8 +24,8 @@ public sealed record DisasterFacts
     /// </summary>
     public static DisasterFacts From(RoundsFacts f, DisasterHistory? history)
     {
-        var (_, known) = ShelterRules.ShelterTriggerOf(f);
-        if (!known)
+        var trigger = ShelterRules.ShelterTriggerOf(f);
+        if (trigger is ShelterTrigger.AwaitingEmergency or ShelterTrigger.NoIndoorBed)
         {
             throw new RequiredFactException("sheltering triggers");
         }

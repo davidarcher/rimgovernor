@@ -142,7 +142,7 @@ internal static class ShelterSheltering
     /// <summary>The pawns the colony facts list as restricted to the Safe area; none when the area is gone.</summary>
     private static async Task<HashSet<string>> SafePawnsAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+        var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         return facts.Policies.AllowedAreas.Items
             .Where(a => a.Label == ShelterRules.SafeAreaLabel)
             .SelectMany(a => a.Pawns.Items.Select(p => p.Value))

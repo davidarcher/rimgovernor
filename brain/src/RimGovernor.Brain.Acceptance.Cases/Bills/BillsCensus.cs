@@ -59,7 +59,7 @@ internal static class BillsCensus
             problems.Add($"bench ids missing or duplicated: {string.Join(' ', duplicated)}");
         }
 
-        var facts = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+        var facts = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var cooking = facts.Cooking.FirstOrDefault(c => c.Bench?.Id == id);
         if (cooking?.BenchSnapshot?.Token != snapshot.Token)
         {

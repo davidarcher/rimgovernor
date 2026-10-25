@@ -160,7 +160,7 @@ public sealed class StockArrivalCatalogTests
         return new TraderKindDef { defName = "Caravan_Outlander_Medic", stockGenerators = [sale] };
     }
 
-    private static DefinitionCatalog TradeCatalog()
+    private static DefinitionCatalog TradeCatalog(params TraderKindDef[] extra)
     {
         ThingDef arm = new() { defName = "BionicArm", tradeTags = ["TechHediff"] }, leg = new() { defName = "BionicLeg", tradeTags = ["TechHediff"] };
         ThingDef silver = new() { defName = "Silver" }, herbal = new() { defName = "MedicineHerbal", statBases = [new RimWorld.StatModifier { stat = Potency, value = 0.6f }] };
@@ -170,22 +170,35 @@ public sealed class StockArrivalCatalogTests
         };
         var shown = new DefStatTable.Value(1000f, true, null);
         var stats = new DefStatTable(
-            new Dictionary<(BuildableDef, ThingDef?), DefStatTable.Cost> { [(arm, null)] = new([], null), [(leg, null)] = new([], null), [(herbal, null)] = new([], null) },
+            new Dictionary<(BuildableDef, ThingDef?), DefStatTable.Cost> { [(arm, null)] = new([], null), [(leg, null)] = new([], null), [(herbal, null)] = new([], null), [(silver, null)] = new([], null) },
             new Dictionary<(BuildableDef, ThingDef?, CatalogStat), DefStatTable.Value>
             {
                 [(arm, null, CatalogStats.MarketValue)] = shown, [(leg, null, CatalogStats.MarketValue)] = shown,
                 [(herbal, null, CatalogStats.MarketValue)] = new(10f, true, null),
+                [(herbal, null, CatalogStats.MedicalQualityMax)] = new(.6f, true, null),
+                [(silver, null, CatalogStats.MarketValue)] = new(1f, true, null),
             },
             new Dictionary<BuildableDef, IReadOnlyList<string>>(),
             new HashSet<CatalogStat>(CatalogStats.All));
         return new DefinitionCatalog(
             [
                 silver, new TerrainDef { defName = "Soil" }, Potency, Arm, arm, leg, herbal, install, FactionArrival, OrbitalVisitor, Misc, ThreatBig, Caravan, Orbital, Visitors,
-                Travelers, Cassandra(), Randy(), Tribe(), Outlander(), Medic(herbal),
+                Travelers, Cassandra(), Randy(), Tribe(), Outlander(), Medic(herbal), .. extra,
             ],
             stats, new CatalogDerived("Silver", "Wort", 10f));
     }
 
+    [Fact]
+    public void TraderCompatibilityNamesSupportedAbsentAndUnsupportedGenerators()
+    {
+        var catalog = TradeCatalog(new TraderKindDef { defName = "unsupported", stockGenerators = [null!] });
+        var arm = new Resource("BionicArm");
+        Assert.Equal(TradeCompatibility.Trades, catalog.TraderKindCanSupply("Caravan_Outlander_Exotic", new ResourceKey { Def = arm }));
+        Assert.Equal(TradeCompatibility.DoesNotTrade, catalog.TraderKindCanSupply("Caravan_Outlander_Medic", new ResourceKey { Def = arm }));
+        Assert.Equal(TradeCompatibility.UnsupportedGenerator, catalog.TraderKindCanSupply("unsupported", new ResourceKey { Def = arm }));
+        Assert.Equal(0, catalog.TraderKindSilver("Caravan_Outlander_Medic"));
+        Assert.Throws<DomainException>(() => catalog.TraderKindCanSupply("missing-kind", new ResourceKey { Def = arm }));
+    }
     [Fact]
     public void TheCatalogDecodesTheTraderCompsAndTheKindsStockByClass()
     {

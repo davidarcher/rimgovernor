@@ -170,10 +170,10 @@ public sealed class GoalsFamilyTests
             Population = PopulationFixtures.Census(custody: Enumerable.Range(0, 100).Select(i => PopulationFixtures.Admitted("c" + i))),
             FoodDays = new FoodRunway.Days(30.0),
         };
-        Assert.False(PopulationRules.JoinerCapacity(full.JoinerCapacity()).Value);
+        Assert.Equal(new PopulationCapacity.Assessed(false), PopulationRules.JoinerCapacity(full.JoinerCapacity()));
         var raised = GoalRules.Apply(full, GoalRules.DemandOf(facts));
         Assert.Equal(150, raised.ColonistGoal);
-        Assert.True(PopulationRules.JoinerCapacity(raised.JoinerCapacity()).Value);
+        Assert.Equal(new PopulationCapacity.Assessed(true), PopulationRules.JoinerCapacity(raised.JoinerCapacity()));
 
         // Without a goal the target is today's.
         Assert.Equal(100, PopulationRules.PopulationTargetFor(0));
@@ -186,7 +186,7 @@ public sealed class GoalsFamilyTests
         var goal = Goal(4, GoalKind.Animals, "Muffalo", 6);
         var facts = Facts(goal);
         Assert.Equal((Satisfaction.Unmet, 5.0), (Derive(facts, goal).Satisfaction, Derive(facts, goal).Deficit));
-        var applied = GoalRules.Apply(new RoundsFacts(), GoalRules.DemandOf(facts));
+        var applied = GoalRules.Apply(new RoundsFacts { Wealth = new(0, 0) }, GoalRules.DemandOf(facts));
         Assert.Equal(new Dictionary<Resource, long> { [new Resource("Muffalo")] = 6 }, applied.AnimalGoals);
         Assert.Equal(applied.AnimalGoals, applied.HerdPlanInput().Goals);
     }

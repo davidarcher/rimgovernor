@@ -82,13 +82,13 @@ partial record struct RoundsProjectBill
     /// <summary>
     /// Resolves each open bill against the fresh bench census: the recipe row on the bill's bench names the
     /// work type and skill floor. A bill whose bench or recipe the census no longer describes, or whose work is
-    /// unobserved, makes the whole requirement Unknown; the planner then waits rather than assigning against a guess.
+    /// absent, fails the planner boundary with a RequiredFactException.
     /// </summary>
-    internal static Fact<IReadOnlyList<Pol.WorkRequirement>> RoundsBillWork(IReadOnlyList<RoundsProjectBill> bills, IReadOnlyList<GearBenchRead> census)
+    internal static IReadOnlyList<Pol.WorkRequirement> RoundsBillWork(IReadOnlyList<RoundsProjectBill> bills, IReadOnlyList<GearBenchRead> census)
     {
         if (bills.Count == 0)
         {
-            return Known<IReadOnlyList<Pol.WorkRequirement>>([]);
+            return Array.Empty<Pol.WorkRequirement>();
         }
         var benches = new Dictionary<string, Pol.GearBench>(StringComparer.Ordinal);
         foreach (var row in census)
@@ -101,7 +101,7 @@ partial record struct RoundsProjectBill
             var exists = benches.TryGetValue(bill.Bench, out var bench);
             if (!exists)
             {
-                return Unknown<IReadOnlyList<Pol.WorkRequirement>>();
+                throw new RequiredFactException("bill bench " + bill.Bench);
             }
             var recipes = bench!.Recipes;
             var found = false;
@@ -117,10 +117,10 @@ partial record struct RoundsProjectBill
             }
             if (!found)
             {
-                return Unknown<IReadOnlyList<Pol.WorkRequirement>>();
+                throw new RequiredFactException("bill recipe " + bill.Recipe + " on " + bill.Bench);
             }
         }
-        return Known<IReadOnlyList<Pol.WorkRequirement>>(output);
+        return output;
     }
 
     /// <summary>Folds rows by work type keeping the highest skill floor, in first-seen order.</summary>
@@ -149,7 +149,7 @@ partial record struct RoundsProjectBill
         return into;
     }
 
-    internal static Fact<IReadOnlyList<Pol.WorkRequirement>> RoundsProjectWork(IReadOnlyList<string> names, IReadOnlyList<Observation.PlanningDefinition> definitions)
+    internal static IReadOnlyList<Pol.WorkRequirement> RoundsProjectWork(IReadOnlyList<string> names, IReadOnlyList<Observation.PlanningDefinition> definitions)
     {
         var byName = new Dictionary<string, Observation.PlanningDefinition>(StringComparer.Ordinal);
         foreach (var d in definitions)
@@ -160,17 +160,18 @@ partial record struct RoundsProjectBill
         foreach (var name in names)
         {
             var exists = byName.TryGetValue(name, out var d);
-            if (!exists || !d!.ConstructionSkill.TryGetValue(out var skill))
+
+            if (!exists)
             {
-                return Unknown<IReadOnlyList<Pol.WorkRequirement>>();
+                throw new RequiredFactException("project definition " + name);
             }
-            minimum = Math.Max(minimum, (int)skill);
+            minimum = Math.Max(minimum, (int)d!.ConstructionSkill);
         }
         if (names.Count == 0)
         {
-            return Known<IReadOnlyList<Pol.WorkRequirement>>([]);
+            return Array.Empty<Pol.WorkRequirement>();
         }
-        return Known<IReadOnlyList<Pol.WorkRequirement>>([new Pol.WorkRequirement { Work = WorkType.Construction, Minimum = minimum }]);
+        return [new Pol.WorkRequirement { Work = WorkType.Construction, Minimum = minimum }];
     }
 
     /// <summary>
@@ -179,10 +180,10 @@ partial record struct RoundsProjectBill
     /// already open, so a freshly built workshop bench would never get a worker. Every standing bench recipe
     /// that is available on its bench and produces a targeted resource contributes its work requirement; a
     /// bench whose recipes are unread is skipped (it cannot host a bill yet either), but a producing recipe
-    /// with unobserved work makes the whole requirement Unknown so the planner waits rather than assigning
+    /// with absent work fails the boundary rather than assigning
     /// against a guess.
     /// </summary>
-    internal static Fact<IReadOnlyList<Pol.WorkRequirement>> RoundsDeficitWork(IReadOnlyDictionary<Pol.Resource, long> targets, IReadOnlyList<GearBenchRead> census, Pol.Resource wort)
+    internal static IReadOnlyList<Pol.WorkRequirement> RoundsDeficitWork(IReadOnlyDictionary<Pol.Resource, long> targets, IReadOnlyList<GearBenchRead> census, Pol.Resource wort)
     {
         var output = new List<Pol.WorkRequirement>();
         foreach (var row in census)
@@ -214,7 +215,7 @@ partial record struct RoundsProjectBill
 
             }
         }
-        return Known<IReadOnlyList<Pol.WorkRequirement>>(output);
+        return output;
     }
 
     /// <summary>
@@ -222,10 +223,9 @@ partial record struct RoundsProjectBill
     /// the economy/resource Need is in deficit, and the replacement needs the equipment census reports (a shirt for a
     /// tattered or missing layer) while the military/equipment Need is unmet. The gear batch previews its bill
     /// against native admission, which refuses a bench nobody works, so the tailoring work type must be enabled
-    /// before the bill is proposed, exactly as a resource deficit's bench work is. An unknown census
-    /// contributes nothing: the equipment Need is not unmet then.
+    /// before the bill is proposed, exactly as a resource deficit's bench work is.
     /// </summary>
-    internal static Dictionary<Pol.Resource, long> RoundsDeficitTargets(IReadOnlyDictionary<Pol.Resource, long> resources, bool resourceDeficit, Fact<Pol.GearObservation> gear)
+    internal static Dictionary<Pol.Resource, long> RoundsDeficitTargets(IReadOnlyDictionary<Pol.Resource, long> resources, bool resourceDeficit, Pol.GearObservation gear)
     {
         var output = new Dictionary<Pol.Resource, long>();
         if (resourceDeficit)
@@ -248,34 +248,25 @@ partial record struct RoundsProjectBill
     /// produce it (RoundsDeficitWork). One census read serves both; no bill and no deficit reads nothing. The
     /// review needs the same rows so the admin/work-assignments Need is owed for a deficit the planner will then cover.
     /// </summary>
-    internal static async Task<Fact<IReadOnlyList<Pol.WorkRequirement>>> RoundsBenchWorkAsync(IRoundsWorkBenchSource? benches, GenerationSnapshot snapshot, IReadOnlyList<Sto.PlanState> plans, IReadOnlyDictionary<Pol.Resource, long> targets, bool deficit, Pol.Resource wort, CancellationToken ct)
+    internal static async Task<IReadOnlyList<Pol.WorkRequirement>> RoundsBenchWorkAsync(IRoundsWorkBenchSource? benches, GenerationSnapshot snapshot, IReadOnlyList<Sto.PlanState> plans, IReadOnlyDictionary<Pol.Resource, long> targets, bool deficit, Pol.Resource wort, CancellationToken ct)
     {
-        var none = Known<IReadOnlyList<Pol.WorkRequirement>>([]);
-        if (benches is null)
-        {
-            return none;
-        }
+        var none = Array.Empty<Pol.WorkRequirement>();
         var bills = RoundsProjectBills(plans, snapshot);
         deficit = deficit && targets.Count > 0;
         if (bills.Count == 0 && !deficit)
         {
             return none;
         }
+        if (benches is null) throw new RequiredFactException("work bench census");
         var census = await benches.ReadGearBenchesAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false);
-        if (!RoundsBillWork(bills, census).TryGetValue(out var output))
-        {
-            return Unknown<IReadOnlyList<Pol.WorkRequirement>>();
-        }
+        var output = RoundsBillWork(bills, census);
         var merged = output.ToList();
         if (deficit)
         {
-            if (!RoundsDeficitWork(targets, census, wort).TryGetValue(out var work))
-            {
-                return Unknown<IReadOnlyList<Pol.WorkRequirement>>();
-            }
+            var work = RoundsDeficitWork(targets, census, wort);
             merged = MergeWorkRequirements(merged, work);
         }
-        return Known<IReadOnlyList<Pol.WorkRequirement>>(merged);
+        return merged;
     }
 
     /// <summary>

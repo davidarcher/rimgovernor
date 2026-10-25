@@ -40,7 +40,7 @@ public sealed partial record ForecastCoupledCandidates
         if (read.Tick != facts.Tick.Value || needs.Tick.Value != read.Tick || resources.Evidence.Tick.Value != read.Tick)
             return null; // A mixed frame cannot certify a consequence; caller retains absence explicitly.
         // A gate is keyed by its owner, a migrated family's NeedId (#3250).
-        bool NeedEnabled(NeedId need) => !facts.AvailableNeeds.TryGetValue(out var available) || available.Contains(need);
+        bool NeedEnabled(NeedId need) => facts.AvailableNeeds.Contains(need);
         if (!NeedEnabled(AdminFamily.WorkAssignments)) return null;
         read = read with
         {
@@ -166,11 +166,10 @@ public sealed partial record ForecastCoupledCandidates
         findings.UnionWith(food.Findings); findings.UnionWith(construction.Findings); findings.UnionWith(composed.Findings); findings.UnionWith(support.Findings);
         truncated |= food.Truncated || construction.Truncated || composed.Truncated || support.Truncated;
         // The worn outfit per pawn with a loadout model: the same options the effect-source facts carry (#3546).
-        var outfits = facts.Gear.TryGetValue(out var worn)
-            ? worn.Pawns.Where(p => p.Model is not null).GroupBy(p => p.Pawn.Value, StringComparer.Ordinal)
-                .Where(g => g.Count() == 1).ToDictionary(g => g.Key, g => g.Single().Model!.Worn, StringComparer.Ordinal)
-            : new Dictionary<string, EquatableArray<GearOption>>();
-        if (NeedEnabled(MilitaryFamily.Equipment) && facts.Gear.TryGetValue(out var gear))
+        var gear = facts.Gear;
+        var outfits = gear.Pawns.Where(p => p.Model is not null).GroupBy(p => p.Pawn.Value, StringComparer.Ordinal)
+                .Where(g => g.Count() == 1).ToDictionary(g => g.Key, g => g.Single().Model!.Worn, StringComparer.Ordinal);
+        if (NeedEnabled(MilitaryFamily.Equipment))
         {
             // The effect-source family (#3285): labor-free (tainted filter, insulation floor) candidates per pawn that verified cards price (GearChoices, #3329).
             var effects = EffectSourcesRules.GenerateEffectSources(EffectSourcesRules.EffectSourceFactsOf(gear, facts.MedicalPawns, facts.Ideology is IdeologyMode.Installed));
@@ -178,9 +177,8 @@ public sealed partial record ForecastCoupledCandidates
                 checked(read.Tick + (long)horizon), resources), effects.Roots);
             alternatives.AddRange(effects.Roots); findings.UnionWith(effects.Findings); truncated |= effects.Truncated;
         }
-        else findings.Add("unknown_clothing_requirements");
         var practice = Methods.Generation.PracticeMethodCandidates.Generate(facts, read.Practice, horizon, CapabilityMaintenanceRules.AssignedCombatCapabilities(facts.Ideology),
-            facts.Hostiles.IsKnown && facts.Hostiles.Value == 0 && facts.CriticalPatients == 0
+            facts.Hostiles is HostileCensus.Quiet && facts.CriticalPatients == 0
             && !needs.Pawns.SelectMany(p => p.Needs).Any(n => n.Kind is "food" or "rest" && n.Level <= 0));
         tasks.AddRange(practice.Tasks); options.AddRange(practice.Options); alternatives.AddRange(practice.Roots);
         foreach (var binding in practice.Bindings) bindings.Add(binding.Key, binding.Value);
@@ -318,8 +316,8 @@ public sealed partial record ForecastCoupledCandidates
             if (LeastWork(item.Finishes) is var work && double.IsFinite(work)) owedWork[item.Item] = work;
         foreach (var (site, finishes) in placedFinishes)
             if (!owedWork.ContainsKey(site) && LeastWork(finishes) is var work && double.IsFinite(work)) owedWork[site] = work;
-        var buildersRead = LayoutClusterRules.BuildersOf(facts.ForecastObserved.WorkPawns,
-            pawn => needs.Pawns.Any(p => p.Pawn == pawn) && !resources.Claims.Pawns.Contains(pawn)).TryGetValue(out var builders);
+        var builders = LayoutClusterRules.BuildersOf(facts.ForecastObserved.WorkPawns,
+            pawn => needs.Pawns.Any(p => p.Pawn == pawn) && !resources.Claims.Pawns.Contains(pawn));
         var closures = shelterEnabled ? ForecastRoofConsequences.PlannedClosuresOf(allPlannedSites, facts.PlannedShelters, facts.PlannedRoomPredictions,
             facts.CurrentConstruction.Sites, placedFinishes) : [];
         ForecastRoofConsequences.AddClosedBenchVariants(closures, productiveRoots, plannedRealized, tasks, options, bindings, alternatives,
@@ -365,8 +363,7 @@ public sealed partial record ForecastCoupledCandidates
             StoreStock = facts.PlannedStoreStock,
             Connectors = PlannedRoomCredits.ConnectorsOf(facts.PlannedShelters, facts.PlannedLinks),
             Closures = closures,
-            PlannedBuilders = buildersRead ? builders : 0,
-            PlannedBuildersUnread = !buildersRead,
+            PlannedBuilders = builders,
             OwedWork = owedWork,
             OptionWork = Worked(options).GroupBy(w => (w.Option.Activity, w.Option.Pawn)).ToDictionary(g => g.Key, g => g.Min(w => w.Ticks)),
             LayoutRooms = LayoutRoomsOf(facts),
@@ -395,10 +392,8 @@ public sealed partial record ForecastCoupledCandidates
             NeedTasks = EquatableArray.From(needTasks),
             Findings = EquatableArray.From(findings),
             // Temperature mood (#3327): the gear census's card facts and the mood census's observed thoughts.
-            CardPawns = facts.Gear.TryGetValue(out var census)
-                ? EffectSourcesRules.EffectSourceFactsOf(census, facts.MedicalPawns, facts.Ideology is IdeologyMode.Installed).Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal)
-                    .Where(g => g.Count() == 1).ToDictionary(g => g.Key, g => g.Single().Card, StringComparer.Ordinal)
-                : new Dictionary<string, CardPawnFacts>(),
+            CardPawns = EffectSourcesRules.EffectSourceFactsOf(gear, facts.MedicalPawns, facts.Ideology is IdeologyMode.Installed).Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal)
+                    .Where(g => g.Count() == 1).ToDictionary(g => g.Key, g => g.Single().Card, StringComparer.Ordinal),
             // The colonists' thoughts read whole (#3805). Two rows for one pawn are contradictory evidence: no row.
             // An unread census gives no pawn a row.
             ColonistThoughts = facts.MoodPawns.GroupBy(m => m.Id.Value, StringComparer.Ordinal)

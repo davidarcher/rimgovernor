@@ -76,23 +76,23 @@ internal sealed class FirebreakMemory
         var tick = projection.Identity.Tick;
         var footprint = FirebreakPlan.Footprint(projection);
         var cells = FirebreakRingRules.FirebreakRing(footprint);
-        var flooring = projection.Facts.Upkeep.Flooring ?? throw new RequiredFactException("flooring census");
+        var flooring = projection.Facts.Upkeep.Flooring;
         var stock = projection.Resources;
         var style = FloorStyle(projection);
         var floorName = style is null ? "" : style(RoomRole.None).Floor;
         var floors = new Dictionary<string, FloorDefinition>(StringComparer.Ordinal);
-        foreach (var d in projection.Definitions)
+        foreach (var d in projection.Definitions.Where(d => d.Floor is not null))
         {
             floors[d.Name] = new FloorDefinition
             {
                 Available = d.Available,
                 Terrain = d.Terrain,
-                Cleanliness = d.Cleanliness,
-                Beauty = d.Beauty,
-                Flammability = d.Flammability,
+                Cleanliness = (d.Floor ?? throw new RequiredFactException("planning Floor")).Cleanliness,
+                Beauty = (d.Floor ?? throw new RequiredFactException("planning Floor")).Beauty,
+                Flammability = (d.Floor ?? throw new RequiredFactException("planning Floor")).Flammability,
                 PathCost = d.PathCost,
-                Costs = d.Costs,
-                WorkToBuild = d.WorkToBuild,
+                Costs = (d.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).Costs,
+                WorkToBuild = (d.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).WorkToBuild,
             };
         }
 

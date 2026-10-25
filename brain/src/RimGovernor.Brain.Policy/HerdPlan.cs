@@ -42,8 +42,8 @@ public sealed record HerdPlanInput
     public EquatableArray<UpkeepAnimal> Animals { get; init; }
     public EquatableArray<UpkeepAnimal> Wild { get; init; }
     public required AnimalRaceCatalog Races { get; init; }
-    public Fact<double> Budget { get; init; }
-    public Fact<WealthFacts> Wealth { get; init; }
+    public double Budget { get; init; }
+    public WealthFacts Wealth { get; init; } = null!;
     public EquatableArray<PenGrazing> Pens { get; init; }
     public FoodPlan? Food { get; init; }
 
@@ -697,9 +697,9 @@ public static class HerdPlanRules
 
     private static (double Share, bool Ok) HerdBudgetCeiling(HerdPlanInput input)
     {
-        var bk = input.Budget.TryGetValue(out var headroom);
-        var wk = input.Wealth.TryGetValue(out var w);
-        if (!bk || !wk || !TradePolicyRules.Finite(headroom) || !TradePolicyRules.Finite(w!.Total))
+        var headroom = input.Budget;
+        var w = input.Wealth ?? throw new RequiredFactException("wealth");
+        if (!TradePolicyRules.Finite(headroom) || !TradePolicyRules.Finite(w!.Total))
         {
             return (0, false);
         }
@@ -733,7 +733,7 @@ public static class HerdPlanRules
     /// headroom, so the defense keeps pace with the wealth the animals add. Held war animals are kept (and cut by
     /// the budget ceiling) whatever this says.
     /// </summary>
-    private static bool HerdWarWanted(HerdPlanInput input) => input.Budget.TryGetValue(out var headroom) && TradePolicyRules.Finite(headroom) && headroom >= 0;
+    private static bool HerdWarWanted(HerdPlanInput input) => TradePolicyRules.Finite(input.Budget) && input.Budget >= 0;
 
     /// <summary>
     /// The races ranked for the job. War candidates the colony does not own also need a handler whose Animals

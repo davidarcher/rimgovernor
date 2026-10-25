@@ -439,6 +439,11 @@ for `AteWithoutTable` and `NeedJoy` defers to `rooms/comfort` while it is active
 
 `rooms/gatherings` is Unmet while observed mood demand owes a party (`policy.PlanGathering`,
 whose cooldown is the AttendedParty memory, with no stored history), after `rooms/party-spot`.
+The review reads the mood ledger, pawn census, calm state, construction census and
+the catalog's party benefit before deciding. Missing required reads raise
+`RequiredFactException`. Its result is `GatheringPlan.NoParty` when a party gate
+refuses, or `GatheringPlan.Ready` with a required organizer; an empty organizer
+cannot represent a party decision. The rooms Need consumes that same decision.
 Ordinary automatic participation is unsupported: the family holds the ready Need with
 `unsupported_forecast_gathering`, and Standard Method admission rejects a direct
 `gathering` action. Starting a lord cannot bypass shared participant availability,

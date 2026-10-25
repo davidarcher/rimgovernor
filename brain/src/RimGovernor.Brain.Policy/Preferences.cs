@@ -31,10 +31,11 @@ public static class PreferenceRules
             };
         }
         var apparel = preferences.Apparel;
-        if ((!leather && apparel == ApparelPreference.Dressed) || !f.Gear.TryGetValue(out var gear))
+        if (!leather && apparel == ApparelPreference.Dressed)
         {
             return f;
         }
+        var gear = f.Gear;
         GearPawn Stamp(GearPawn p)
         {
             if (p.Policy is { } state && apparel != ApparelPreference.Dressed)
@@ -53,7 +54,7 @@ public static class PreferenceRules
                 : p;
         }
         gear = gear with { Pawns = [.. gear.Pawns.Select(Stamp)] };
-        f = f with { Gear = Known(gear) };
+        f = f with { Gear = gear };
         if (apparel == ApparelPreference.Dressed)
         {
             return f;

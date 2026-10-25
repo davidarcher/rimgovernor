@@ -89,12 +89,12 @@ public static class AnimalFoodExtensions
 
 public static class AnimalFoodRules
 {
-    public static Fact<double> HayNutritionNeed(EquatableArray<PenGrazing> rows, Fact<double> gap)
+    public static double HayNutritionNeed(EquatableArray<PenGrazing> rows, double gap)
     {
-        var dk0 = gap.TryGetValue(out var days);
-        if (!dk0 || !FoodForecastRules.FoodNumber(days))
+        var days = gap;
+        if (!FoodForecastRules.FoodNumber(days))
         {
-            return Unknown<double>();
+            throw new RequiredFactException("hay nutrition inputs");
         }
 
         var need = 0.0;
@@ -102,13 +102,13 @@ public static class AnimalFoodRules
         {
             if (!FoodForecastRules.FoodNumber(p.DemandPerDay) || !FoodForecastRules.FoodNumber(p.PasturePerDay) || !FoodForecastRules.FoodNumber(p.StoredNutrition))
             {
-                return Unknown<double>();
+                throw new RequiredFactException("hay nutrition inputs");
             }
 
             need += Math.Max(0, (days * (p.DemandPerDay - p.PasturePerDay)) - p.StoredNutrition);
         }
 
-        return Known(need);
+        return need;
     }
 
     /// <summary>
@@ -116,28 +116,22 @@ public static class AnimalFoodRules
     /// blocks. Existing hay capacity is subtracted by the caller; unknown or nonnegative grazing balance never
     /// opens a field.
     /// </summary>
-    public static bool PlanHayField(Fact<double> need, CropChoice crop, CropClimate climate, out FieldPlan plan)
+    public static bool PlanHayField(double need, CropChoice crop, CropClimate climate, out FieldPlan plan)
     {
-        var nk = need.TryGetValue(out var n);
-        var yk = crop.HarvestNutrition.TryGetValue(out var yield);
-        var dk = crop.GrowDays.TryGetValue(out var days);
-        var sk = climate.SowingOutdoors().TryGetValue(out var sowing);
-        var ck = climate.DaysRemaining.TryGetValue(out var season);
-        var ak = crop.Available.TryGetValue(out var available);
+        var n = need;
+        var yield = crop.HarvestNutrition;
+        var days = crop.GrowDays;
+        var sowing = climate.SowingOutdoors();
+        var season = climate.DaysRemaining;
+        var available = crop.Available;
         if (
-            !nk
-            || !FoodForecastRules.FoodNumber(n)
+            !FoodForecastRules.FoodNumber(n)
             || n <= 0
             || !SocialCropsRules.IsHayCrop(crop)
-            || !yk
             || !FieldCapacityRules.FieldPositive(yield)
-            || !dk
             || !FieldCapacityRules.FieldPositive(days)
-            || !sk
             || !sowing
-            || !ck
             || season < days * CalendarRules.FieldCycles
-            || !ak
             || !available
         )
         {
@@ -145,7 +139,7 @@ public static class AnimalFoodRules
             return false;
         }
 
-        crop = crop with { Edible = Known(false) };
+        crop = crop with { Edible = false};
         plan = new FieldPlan { Crop = crop, Needed = (int)Math.Ceiling(n / yield) };
         return true;
     }

@@ -64,7 +64,7 @@ partial class Rounder
         var sizes = new Dictionary<string, Bounds>(StringComparer.Ordinal);
         foreach (var d in projection.Definitions)
         {
-            if (d.Size.TryGetValue(out var size))
+            var size = d.Size;
             {
                 sizes[d.Name] = size;
             }

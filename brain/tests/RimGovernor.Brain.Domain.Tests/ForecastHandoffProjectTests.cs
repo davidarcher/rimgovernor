@@ -14,7 +14,7 @@ public sealed class ForecastHandoffProjectTests
     public void GeneratedPartialSowingRetainsEachCellsGrowthAndHarvestsBeforeTheUnsownRemainder(double growDays, bool mature)
     {
         var input = ProjectGraphTests.Colony();
-        input = input with { Crops = EquatableArray.From(input.Crops.Select(c => c with { GrowDays = Known(growDays) })) };
+        input = input with { Crops = EquatableArray.From(input.Crops.Select(c => c with { GrowDays = growDays})) };
         var graph = ProjectGraph.CropChain(input, ColonyModelFixtures.Crop, "zone1", []);
         var learning = ProductiveLearningTests.Work() with { Recipe = new("Plants", .085, true), WorkAmount = 2d,
             Rates = [new(0, .005), new(1, .005), new(2, .005)], LearnBeforeWork = true };
@@ -35,8 +35,8 @@ public sealed class ForecastHandoffProjectTests
         if (mature)
         {
             var crop = input.Crops.Single(c => c.Name == ColonyModelFixtures.Crop);
-            var rate = CropGrowthModel.DailyGrowth(crop, 1, input.Climate.Temperatures[input.Climate.CurrentTwelfth]).Value;
-            Assert.Equal(200d / GameTime.TicksPerDay + crop.HarvestMinGrowth.Value / rate,
+            var rate = CropGrowthModel.DailyGrowth(crop, 1, input.Climate.Temperatures[input.Climate.CurrentTwelfth]);
+            Assert.Equal(200d / GameTime.TicksPerDay + crop.HarvestMinGrowth / rate,
                 Assert.Single(result.Completed, d => d.Project == grown[0].Id).Day, 8);
         }
         else Assert.True(result.States[grown[0].Id].Remaining < result.States[grown[1].Id].Remaining);
@@ -75,7 +75,7 @@ public sealed class ForecastHandoffProjectTests
     }
 
     private static ForecastCoupledContext Context(ForecastActivity[] tasks) => new()
-    { Activities = new() { Deadline = 0, Activities = tasks }, Needs = NeedsFixtures.Empty, Resources = new(new(), new([], [], [], []), default) };
+    { Activities = new() { Deadline = 0, Activities = tasks }, Needs = NeedsFixtures.Empty, Resources = new(new(), new([], [], [], []), new MaterialAvailability.Blocked(MaterialBudgetBlock.AwaitingReview)) };
 
     [Fact]
     public void HarvestUsesNativeFieldCellIdentityAndRemovesItsAlreadyPaidCropCycle()

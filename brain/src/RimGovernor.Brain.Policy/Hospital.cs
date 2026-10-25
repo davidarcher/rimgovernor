@@ -6,11 +6,7 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public enum HospitalMethod
 {
-    /// <summary>A native fact the choice depends on is unobserved.</summary>
-    [WireName("")]
-    Unknown = 0,
-
-    /// <summary>Enough hosted medical beds already stand; tending, rescue and the medicine reserve own the deficit from here.</summary>
+/// <summary>Enough hosted medical beds already stand; tending, rescue and the medicine reserve own the deficit from here.</summary>
     [WireName("existing")]
     Existing,
 
@@ -63,7 +59,7 @@ public sealed record HospitalRequest
 
 public sealed record HospitalChoice
 {
-    public HospitalMethod Method { get; init; }
+    public required HospitalMethod Method { get; init; }
 
     /// <summary>The count of hosted medical beds the patients call for.</summary>
     public int Needed { get; init; }
@@ -140,7 +136,7 @@ public static class HospitalRules
     {
         var ill = IllPatients(r.Patients, r.Surgical);
         var surgical = r.Surgical.Count > 0;
-        var choice = new HospitalChoice { Needed = Math.Max(ill.Count, r.MinBeds) };
+        var choice = new HospitalChoice { Method = HospitalMethod.NoDemand, Needed = Math.Max(ill.Count, r.MinBeds) };
         if (choice.Needed == 0)
         {
             return choice with { Method = HospitalMethod.NoDemand };
@@ -204,35 +200,20 @@ public static class HospitalRules
         {
             byName[d.Name] = d;
         }
-        var unknown = false;
         foreach (var name in r.Furniture.HospitalBeds())
         {
             if (surgical && name == SleepingRules.SleepingSpotDefinition)
             {
                 continue;
             }
-            var exists = byName.TryGetValue(name, out var d);
-            var ak = false;
-            var available = false;
-            if (exists)
-            {
-                ak = d!.Available.TryGetValue(out available);
-            }
-            if (!exists || !ak)
-            {
-                unknown = true;
-                continue;
-            }
-            if (available)
+            if (!byName.TryGetValue(name, out var d))
+                throw new RequiredFactException("hospital bed definition:" + name);
+            if (d.Available)
             {
                 return choice with { Method = HospitalMethod.Build, Definition = name };
             }
         }
-        if (unknown)
-        {
-            return choice with { Method = HospitalMethod.Unknown };
-        }
-        return choice with { Method = HospitalMethod.Unavailable };
+return choice with { Method = HospitalMethod.Unavailable };
     }
 
     /// <summary>

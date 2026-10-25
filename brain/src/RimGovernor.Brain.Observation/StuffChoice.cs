@@ -81,11 +81,11 @@ public sealed partial record PlanningDefinition
     {
         if (StuffOptions.Count == 0)
         {
-            if (!Costs.TryGetValue(out var costs) || Stuffed)
+            if (Stuffed)
             {
                 throw new NoStuffDataException($"the definition's rows do not state the stuff choice: {Name} has no stuff options and no cost list");
             }
-            return new StuffPrice("", [.. costs]);
+            return new StuffPrice("", [.. (FixedConstruction ?? throw new RequiredFactException("fixed construction:" + Name)).Costs]);
         }
         StuffOption? best = null;
         double[] bestScores = [];
@@ -145,9 +145,9 @@ public sealed partial record PlanningDefinition
                 return Stat(StatDefNames.StatBedRestEffectiveness);
             case StuffCriterion.MaxDoorOpenSpeed:
                 return Stat(StatDefNames.StatDoorOpenSpeed);
-            default:
-                throw new NoStuffDataException($"the definition's rows do not state the stuff choice: unknown stuff criterion {(int)criterion}");
+
         }
+        throw new NoStuffDataException($"undefined stuff criterion {(int)criterion}");
     }
 
     /// <summary>
@@ -161,26 +161,17 @@ public sealed partial record PlanningDefinition
     /// The cost list of the cheapest way to build the def, whatever is in stock: the planning price of infrastructure a
     /// planner has not yet chosen material for; unknown when the rows cannot state it.
     /// </summary>
-    public Fact<EquatableArray<Amount>> CheapestCosts()
-    {
-        try
-        {
-            return Known(EquatableArray.From(UnstockedStuffChoice(StuffCriterion.CheapestStuff).Costs));
-        }
-        catch (DomainException)
-        {
-            return Unknown<EquatableArray<Amount>>();
-        }
-    }
+    public EquatableArray<Amount> CheapestCosts() =>
+        EquatableArray.From(UnstockedStuffChoice(StuffCriterion.CheapestStuff).Costs);
 
     /// <summary>The cost list of the def built from stuff (empty for a def not made from stuff); false when the def has no such cost list.</summary>
     public bool TryCostsMadeOf(string stuff, out IReadOnlyList<Amount> costs)
     {
         if (StuffOptions.Count == 0)
         {
-            var known = Costs.TryGetValue(out var list);
+            var list = (FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).Costs;
             costs = [.. list];
-            return known && !Stuffed && stuff == "";
+            return !Stuffed && stuff == "";
         }
         foreach (var option in StuffOptions)
         {
@@ -204,7 +195,7 @@ public sealed partial record PlanningDefinition
     {
         bool Shown(string stat) => !StuffOptions.Any(o => !o.Stats.ContainsKey(stat));
         var criteria = new List<StuffCriterion>();
-        NeedsPower.TryGetValue(out var powered);
+        var powered = NeedsPower;
         if (Shown(StatDefNames.StatBedRestEffectiveness))
         {
             criteria.Add(StuffCriterion.MaxRestEffectiveness);

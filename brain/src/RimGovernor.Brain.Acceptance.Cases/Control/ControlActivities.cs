@@ -163,7 +163,7 @@ internal static class ControlActivities
 
     private static async Task ReadWorkResourcesAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+        var reply = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var rows = reply.WorkResources.ToList();
         s.RecordWireRows("work_resources", rows);
         if (rows.Count < 3 || !rows.Any(r => r.Assignment.Length > 0)

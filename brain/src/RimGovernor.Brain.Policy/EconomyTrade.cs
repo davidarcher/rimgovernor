@@ -3,13 +3,13 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// The review's trade facts (#3316), derived by <see cref="RoundsRules.InspectRounds"/> and kept by the Rounder
 /// per world: the silver gap a purchase need leaves open (the economy/trade Need's), and whether the caravans present
-/// leave nothing worth trading (the economy/caravan Need's). Unknown until the first review of a world.
+/// leave nothing worth trading (the economy/caravan Need's). A review before the food planner awaits its plan.
 /// </summary>
-public sealed record TradeReview
+public abstract record TradeReview
 {
-    public Fact<double> SilverGap { get; init; }
-
-    public Fact<bool> CaravanRecovered { get; init; }
+    private protected TradeReview() { }
+    public sealed record AwaitingFoodPlan : TradeReview;
+    public sealed record Assessed(double SilverGap, bool CaravanRecovered) : TradeReview;
 }
 
 /// <summary>
@@ -19,7 +19,7 @@ public sealed record TradeReview
 /// </summary>
 public sealed record TradeMissionFacts
 {
-    public Fact<bool> Active { get; init; }
+    public bool Active { get; init; }
 
     public bool Proposed { get; init; }
 }
@@ -43,7 +43,9 @@ public sealed partial class EconomyFamily
     /// </summary>
     public static Need TradeNeed(TradeReview f)
     {
-        var gap = f.SilverGap.TryGetValue(out var g) ? g : throw new RequiredFactException("silver gap");
+        if (f is not TradeReview.Assessed assessed)
+            throw new RequiredFactException("trade review awaiting food plan");
+        var gap = assessed.SilverGap;
         return FoodRules.WholeNeed(Trade, NeedTier.Development, gap <= 0);
     }
 
@@ -53,8 +55,9 @@ public sealed partial class EconomyFamily
     /// </summary>
     public static Need CaravanNeed(TradeReview f)
     {
-        return FoodRules.WholeNeed(Caravan, NeedTier.Wellbeing,
-            f.CaravanRecovered.TryGetValue(out var recovered) ? recovered : throw new RequiredFactException("caravan trade"));
+        if (f is not TradeReview.Assessed assessed)
+            throw new RequiredFactException("trade review awaiting food plan");
+        return FoodRules.WholeNeed(Caravan, NeedTier.Wellbeing, assessed.CaravanRecovered);
     }
 
     /// <summary>
@@ -63,7 +66,7 @@ public sealed partial class EconomyFamily
     /// </summary>
     public static Need TradeMissionNeed(TradeMissionFacts f)
     {
-        var active = f.Active.TryGetValue(out var a) ? a : throw new RequiredFactException("trade missions");
+        var active = f.Active;
         return FoodRules.WholeNeed(TradeMission, NeedTier.Development, !active && !f.Proposed);
     }
 }

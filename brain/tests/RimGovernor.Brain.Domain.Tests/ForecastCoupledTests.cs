@@ -47,7 +47,7 @@ public sealed class ForecastCoupledTests
                 },
             }
         };
-        return ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+        return ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([])));
     }
     private static CoupledForecastKit Evaluate(RoundsFacts facts, params ForecastCommitment[] selected)
     {
@@ -174,14 +174,14 @@ public sealed class ForecastCoupledTests
                 }
             }
         };
-        return ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+        return ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([])));
     }
 
     [Fact]
     public void ExactSelectedConstructionOwnsItsReservedMaterialOnce()
     {
         var facts = ConstructionReview();
-        Assert.Equal(100, facts.WorkView!.Materials.Value[new("Rice")].Value); // Unselected sites do not reserve stock.
+        Assert.Equal(100, facts.WorkView!.Materials.AssessedBalances()[new("Rice")].ExactCount()); // Unselected sites do not reserve stock.
         var selected = facts.CoupledAlternatives!.Alternatives.Single(c => Original(c, "site-0-finish"));
         Assert.Contains(Evaluate(facts, selected).Proposed.Coupled!.Alternatives, p => p.Feasible);
     }
@@ -309,7 +309,7 @@ public sealed class ForecastCoupledTests
                 }
             }
         };
-        facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+        facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([])));
         var shelter = facts.CoupledAlternatives!.Alternatives.Single(c => c.ExclusiveOutcome == "shelter/planned/1");
         Assert.Equal(10, shelter.ActivityCompletions.Count);
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1000.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
@@ -339,7 +339,7 @@ public sealed class ForecastCoupledTests
                 }
             }
         };
-        facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+        facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([])));
         var generated = facts.CoupledAlternatives!;
         Assert.DoesNotContain(generated.Context.Activities.Activities, t => t.Id.StartsWith("harvest/", StringComparison.Ordinal));
         var batch = generated.Alternatives.Single(c => c.Id.StartsWith("food/", StringComparison.Ordinal) && c.ActivityCompletions.Count == 2);
@@ -460,7 +460,7 @@ public sealed class ForecastCoupledTests
     public void RemovingAProjectedCommitmentDoesNotReleaseAnActiveJournalHold()
     {
         var facts = ConstructionReview(stock: 100);
-        var held = new ForecastCommitment("active-supply", []) { MaterialClaims = [new(new("Rice"), Known(30.0), Known(""))] };
+        var held = new ForecastCommitment("active-supply", []) { MaterialClaims = [new(new("Rice"), new MaterialUnits.Exact(30.0), "")] };
         var context = facts.CoupledAlternatives!.Context;
         context = context with { Resources = context.Resources with { Claims = context.Resources.Claims with { Materials = [held] } } };
         facts = facts with { CoupledAlternatives = facts.CoupledAlternatives with { Context = context } };
@@ -484,7 +484,7 @@ public sealed class ForecastCoupledTests
                 { Pawns = [facts.ForecastObserved.Needs!.Pawns[0] with { Mood = facts.ForecastObserved.Needs!.Pawns[0].Mood! with { Memories = [NeedsFixtures.Memory("happy", 10, expiry, false)] }}] }
             }
         };
-        facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+        facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([])));
         Assert.Equal(expected, Evaluate(facts).Proposed.Coupled!.Alternatives.Single().Needs["pawn"].MemoryAdjustedMoodTarget.Number(), 8);
     }
 
@@ -529,20 +529,20 @@ public sealed class ForecastCoupledTests
             facts = facts with
             {
                 Resources = [new(new("Rice"), rice), new(new("Cloth"), 10)],
-                Gear = Known(ColonyModelFixtures.NoGear() with
+                Gear = ColonyModelFixtures.NoGear() with
                 {
                     Stored = [],
                     Pawns = [new() { Pawn = new("wearer"), Loadout = "load",
                     Candidates = [], Apparel = [],
                     LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Ambient = 0, ComfortableMin = 10, ComfortableMax = 30, Options = [Garment("Rice"),Garment("Cloth")] }) }]
-                }),
+                },
                 ForecastObserved = facts.ForecastObserved with
                 {
                     Coupled = facts.ForecastObserved.Coupled! with
                     { Clothing = new() { Context = Context, Options = [Recipe("Rice"), Recipe("Cloth")], Retained = [] } }
                 }
             };
-            facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+            facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([])));
             var generated = facts.CoupledAlternatives!;
             var wall = generated.Alternatives.Single(c => Original(c, "site-0-finish"));
             foreach (var stuff in new[] { "Rice", "Cloth" })
@@ -587,7 +587,7 @@ public sealed class ForecastCoupledTests
                 }
             }
         };
-        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         if (obligated) facts = facts with { WorkView = facts.WorkView! with { Claims = facts.WorkView!.Claims with { Pawns = ["helper"] } } };
         facts = ForecastCoupledCandidates.ReviewCoupledActivities(facts);
         var batch = facts.CoupledAlternatives!.Alternatives.Single(c => c.Id.StartsWith("food/", StringComparison.Ordinal) && !c.Id.Contains("/eat/", StringComparison.Ordinal) && !c.Id.Contains("/after/", StringComparison.Ordinal));
@@ -621,7 +621,7 @@ public sealed class ForecastCoupledTests
                 { Pawns = [facts.ForecastObserved.Needs!.Pawns[0] with { Mood = null }] }
             }
         };
-        facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+        facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([])));
         var wall = facts.CoupledAlternatives!.Alternatives.Single(c => Original(c, "site-0-finish"));
         var result = Evaluate(facts, wall).Proposed.Coupled!.Alternatives.Single(p => p.Feasible);
         Assert.False(result.Needs["pawn"].MemoryAdjustedMoodTarget is ForecastTerm.Assessed);
@@ -635,9 +635,9 @@ public sealed class ForecastCoupledTests
     {
         var facts = ConstructionReview(stock: stock);
         var legacy = new ForecastCommitment("external", [new(new("Rice"), 0.0, -20.0)]);
-        var held = new ForecastCommitment("external", []) { MaterialClaims = [new(new("Rice"), Known(20.0), Known(""))] };
+        var held = new ForecastCommitment("external", []) { MaterialClaims = [new(new("Rice"), new MaterialUnits.Exact(20.0), "")] };
         var context = facts.CoupledAlternatives!.Context;
-        context = context with { Resources = context.Resources with { Evidence = context.Resources.Evidence with { Promises = Known<EquatableArray<ProductionMaterialPromise>>([new(held.Id, [new(new("Rice"), Known(20.0), Known(""))])]) } } };
+        context = context with { Resources = context.Resources with { Evidence = context.Resources.Evidence with { Promises = AdmissionAssertions.MaterialPromises([(held.Id, [new(new("Rice"), new MaterialUnits.Exact(20.0), "")])]) } } };
         facts = facts with { CoupledAlternatives = facts.CoupledAlternatives with { Context = context } };
         var wall = facts.CoupledAlternatives.Alternatives.Single(c => Original(c, "site-0-finish"));
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [legacy]);
@@ -684,7 +684,7 @@ public sealed class ForecastCoupledTests
                 { FoodSources = [new("rice", "Rice", new(1, 1), 10, new FoodFreshness.Rots(10.0))] }
             }
         };
-        facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
+        facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([])));
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) },
             [new("external", [new(new("Rice"), 20.0 / GameTime.TicksPerDay, -10.0)])]);
         var result = CoupledForecastKit.Forecast(request).Proposed.Coupled!.Alternatives.Single();

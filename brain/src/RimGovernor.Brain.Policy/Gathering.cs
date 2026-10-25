@@ -1,18 +1,18 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>What the gathering review reads. A fact left unknown never starts a party.</summary>
+/// <summary>What the gathering review reads. Every enabled review requires its complete census.</summary>
 public sealed record GatheringInput
 {
-    public MoodLedger Ledger { get; init; } = new();
+    public MoodLedger Ledger { get => field ?? throw new RequiredFactException("gathering mood ledger"); init; }
 
     /// <summary>The mood census: the guests' state and the AttendedParty memory.</summary>
-    public EquatableArray<MoodPawn> Pawns { get; init; }
+    public required EquatableArray<MoodPawn> Pawns { get; init; }
 
     /// <summary>The AttendedParty mood effect from the catalog; a party whose memory is not positive repays nothing and is never held.</summary>
     public required double Benefit { get; init; }
 
     /// <summary>RitualCalm: no hostile threat and no critical patient.</summary>
-    public Fact<bool> Calm { get; init; }
+    public required bool Calm { get; init; }
 
     /// <summary>Holds the built PartySpot.</summary>
     private CurrentConstruction? _construction;
@@ -25,9 +25,25 @@ public sealed record GatheringInput
 }
 
 /// <summary>One party ready to start: the organizer to name.</summary>
-public sealed record GatheringPlan
+public abstract record GatheringPlan
 {
-    public PawnId Organizer { get; init; }
+    private GatheringPlan() { }
+
+    public sealed record NoParty : GatheringPlan;
+
+    public sealed record Ready : GatheringPlan
+    {
+        public Ready(PawnId organizer)
+        {
+            if (organizer.IsEmpty)
+            {
+                throw new ArgumentException("A gathering requires an organizer.", nameof(organizer));
+            }
+            Organizer = organizer;
+        }
+
+        public PawnId Organizer { get; }
+    }
 }
 
 public static class GatheringRules
@@ -61,25 +77,24 @@ public static class GatheringRules
     public const double GatheringGuestShare = 0.65;
 
     /// <summary>
-    /// Returns the party to start now, or the zero plan (Organizer empty) when none is
-    /// due. Unknown while any gate's input is unknown and no known gate already says no.
+    /// Returns a ready party with its organizer, or NoParty when no gathering is due.
     /// </summary>
-    public static Fact<GatheringPlan> PlanGathering(GatheringInput input)
+    public static GatheringPlan PlanGathering(GatheringInput input)
     {
-        var none = Known(new GatheringPlan());
+        var none = new GatheringPlan.NoParty();
         var pawns = input.Pawns;
         var ledger = input.Ledger;
         var benefit = input.Benefit;
-        var ck = input.Calm.TryGetValue(out var calm);
+        var calm = input.Calm;
         var census = input.Census;
-        // Known gates that refuse, whatever else is unread.
-        if (benefit <= 0 || (ck && !calm))
+        // All inputs were read before applying the party gates.
+        if (benefit <= 0 || !calm)
         {
             return none;
         }
-                {
+        {
             var alive = 0;
-            foreach (var p in pawns!)
+            foreach (var p in pawns)
             {
                 if (p.Dead)
                 {
@@ -104,20 +119,11 @@ public static class GatheringRules
         {
             return none;
         }
-        if (!ck || census is null)
-        {
-            return Unknown<GatheringPlan>();
-        }
-        if (!GatheringPressure(ledger!, benefit))
+        if (!GatheringPressure(ledger, benefit))
         {
             return none;
         }
-        var (organizer, ok) = GatheringOrganizer(pawns!);
-        if (!ok)
-        {
-            return none;
-        }
-        return Known(new GatheringPlan { Organizer = organizer });
+        return GatheringOrganizer(pawns);
     }
 
     /// <summary>Reports whether the pawn carries the AttendedParty memory.</summary>
@@ -153,7 +159,7 @@ public static class GatheringRules
     /// highest mood first, then the lowest id. The game's PawnCanStartOrContinueGathering decides the rest and
     /// native refuses otherwise.
     /// </summary>
-    private static (PawnId Organizer, bool Ok) GatheringOrganizer(IReadOnlyList<MoodPawn> pawns)
+    private static GatheringPlan GatheringOrganizer(IReadOnlyList<MoodPawn> pawns)
     {
         var able = new List<(MoodPawn Pawn, double Mood)>();
         foreach (var p in pawns)
@@ -165,13 +171,23 @@ public static class GatheringRules
         }
         if (able.Count == 0)
         {
-            return (default, false);
+            return new GatheringPlan.NoParty();
         }
         var best = able.OrderByDescending(a => a.Mood).ThenBy(a => a.Pawn.Id).First().Pawn;
-        return (best.Id, true);
+        return new GatheringPlan.Ready(best.Id);
     }
 
-    /// <summary>Measures rooms/gatherings: known false when no party is due now, unknown while its inputs are.</summary>
-    public static Fact<bool> GatheringOwed(Fact<GatheringPlan> plan) => plan.TryGetValue(out var p) ? Known(!p.Organizer.IsEmpty) : Unknown<bool>();
+    /// <summary>Measures rooms/gatherings from the complete party decision.</summary>
+    public static bool GatheringOwed(GatheringPlan plan)
+    {
+        switch (plan)
+        {
+            case GatheringPlan.NoParty:
+                return false;
+            case GatheringPlan.Ready ready:
+                return !ready.Organizer.IsEmpty;
+        }
+        throw new ArgumentOutOfRangeException(nameof(plan));
+    }
 
 }

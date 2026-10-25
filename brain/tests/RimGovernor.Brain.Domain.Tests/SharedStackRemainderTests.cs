@@ -42,7 +42,7 @@ public sealed class SharedStackRemainderTests
         {
             Tick = new(tick),
             Resources = [new(new("Rice"), (long)stock)],
-            WorkResources = native.Length == 0 ? roster.WorkResources : Known(EquatableArray.From(native)),
+            WorkResources = native.Length == 0 ? roster.WorkResources : EquatableArray.From(native),
             CoupledAlternatives = null,
             ForecastObserved = facts.ForecastObserved with
             {
@@ -57,7 +57,7 @@ public sealed class SharedStackRemainderTests
         };
     }
     private static RoundsFacts Held(RoundsFacts facts, params PawnActivities[] batches) => WorkRules.ReviewWorkResources(facts,
-        Known<EquatableArray<ProductionBatch>>([]), new(EquatableArray.From(batches.Select((b, i) => new WorkAction(new("held-" + i),
+        new ProductionBatchCensus.Read([]), new(EquatableArray.From(batches.Select((b, i) => new WorkAction(new("held-" + i),
             DomainAction.NewPawnActivitiesAction(new("held-" + i), b), new() { Action = new("held-" + i), Stage = Stage.Pending })))));
     private static ForecastNeedTask[] StackTasks(RoundsFacts reviewed, string pawn) =>
         ForecastCoupledCandidates.GenerateCoupledActivities(reviewed, GameTime.TicksPerDay)!.Context.NeedTasks.Where(n => n.Target == Stack && n.Pawn == pawn).ToArray();
@@ -119,7 +119,7 @@ public sealed class SharedStackRemainderTests
         journal.ReviewRounds(new RoundsRequest { Revision = review.Revision, Current = Root, Tick = new(200), Enabled = true, Policy = Policy, Facts = facts }, ct);
         var view = journal.WorkResources(Root, ct);
         Assert.Equal(15, Owed(view));
-        var reviewed = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), journal.WorkActions(Root, ct));
+        var reviewed = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), journal.WorkActions(Root, ct));
         var bites = StackTasks(reviewed, "helper");
         Assert.NotEmpty(bites);
         Assert.Contains(bites, b => b.Count == 4);

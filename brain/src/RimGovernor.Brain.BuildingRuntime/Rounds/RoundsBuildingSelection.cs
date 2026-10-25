@@ -223,7 +223,7 @@ partial class RoundsBuildingPlanner
         }
         foreach (var bench in benches)
         {
-            if (!bench.Room.TryGetValue(out var room) || !colocated.Contains(room))
+            if (bench.Room is not { } room || !colocated.Contains(room))
             {
                 return false;
             }
@@ -257,7 +257,7 @@ partial class RoundsBuildingPlanner
     }
 
     /// <summary>Whether the stock covers the butcher table's build cost at its cheapest stuff choice; unknown without the definition.</summary>
-    internal static Fact<bool> ButcherTableAffordable(ColonyProjection facts)
+    internal static bool ButcherTableAffordable(ColonyProjection facts)
     {
         var stock = facts.Resources;
         foreach (var d in facts.Definitions)
@@ -269,11 +269,11 @@ partial class RoundsBuildingPlanner
             var (price, ok) = RoundsDefenseLayoutPlanner.DefenseUnitPrice(facts, d);
             if (!ok)
             {
-                return Unknown<bool>();
+                throw new RequiredFactException("butcher table build cost");
             }
-            return Known(price.Costs.All(a => stock.GetValueOrDefault(a.Resource) >= a.Count));
+            return price.Costs.All(a => stock.GetValueOrDefault(a.Resource) >= a.Count);
         }
-        return Unknown<bool>();
+        throw new RequiredFactException("butcher table build cost");
     }
 
     internal static bool ButcherTableWanted(ColonyProjection facts, IReadOnlyList<CookingBench> benches)
@@ -285,7 +285,7 @@ partial class RoundsBuildingPlanner
                 return false;
             }
         }
-        return facts.Facts.ButcherTableAffordable.TryGetValue(out var affordable) && affordable && ComfortBuilderAvailable(facts, "TableButcher");
+        return facts.Facts.ButcherTableAffordable && ComfortBuilderAvailable(facts, "TableButcher");
     }
 
     internal static bool ButcherBenchApart(IReadOnlyList<CookingBench> benches, RoomObservation rooms) =>

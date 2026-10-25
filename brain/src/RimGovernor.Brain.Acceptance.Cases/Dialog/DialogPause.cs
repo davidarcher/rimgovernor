@@ -66,7 +66,7 @@ internal static class DialogPause
         }
 
         // The typed census exposes the open dialog exactly as the service's own review reads it.
-        var facts = await s.CallAsync("colony-facts-dialog", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+        var facts = await s.CallAsync("colony-facts-dialog", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var dialog = facts.Dialog;
         s.RecordWire("dialog", dialog);
         if (dialog?.WindowId != immediate.WindowId || dialog.Options.Count != 2 || dialog.Options[1] is not { Label: "OK", Selectable: true })

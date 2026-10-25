@@ -72,7 +72,8 @@ public sealed class DisasterRecoveryReadTests
     {
         var conditions = EquatableArray.From([Flare(new ConditionDuration.Timed { Ticks = 2500 })]);
         var buildings = EquatableArray.From([Building("battery")]);
-        var services = new Dictionary<DisasterService, Fact<bool>>();
+        var services = Enum.GetValues<DisasterService>().Where(s => s != DisasterService.Infrastructure).ToDictionary(s => s, _ => DisasterServiceStatus.Restored);
+        services[DisasterService.Food] = DisasterServiceStatus.AwaitingFoodPlan;
 
         var open = DisasterRules.ReviewDisaster(conditions, buildings, services, null, new(100), new DisasterShortCircuit.Seen(new Tick(90)));
         Assert.NotNull(open);

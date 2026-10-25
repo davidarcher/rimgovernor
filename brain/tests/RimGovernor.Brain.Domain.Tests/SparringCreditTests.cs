@@ -37,7 +37,7 @@ public sealed class SparringCreditTests
         new ExposureCell("0.5-1", ExposureRoles.Noncombatant, 100, 1, 1, 3, 0.1, 0.05, 0.15),
     ]);
 
-    private static HarmInputs Raids(double raidsPerDay = 1) => ForecastValueTests.RaidDay(Exposure(), raidsPerDay) with { Raid = new HarmRaid.Assessed(new RaidDefense(1000, 990)) };
+    private static HarmInputs Raids(double raidsPerDay = 1) => ForecastValueTests.RaidDay(Exposure(), raidsPerDay) with { Raid = new RaidDefense(1000, 990) };
 
     private static ForecastCoupledContext Context(PracticeTrainees? trainees, HarmInputs? harm = null) =>
         PlannedRoomCreditTests.Context(PlannedRoomCredits.Shipped) with
@@ -104,7 +104,7 @@ public sealed class SparringCreditTests
         Assert.Equal("work pawns", Assert.Throws<RequiredFactException>(() => ForecastSparring.RingCredit(ring, Stub(), [], Context(null), Day)).Fact);
         var unread = Trainee("b") with { Learning = Melee() with { Xp = double.NaN } };
         Assert.StartsWith("melee learning b", Assert.Throws<RequiredFactException>(() => ForecastSparring.RingCredit(ring, Stub(), [], Context(new([Trainee("a"), unread], 0)), Day)).Fact, StringComparison.Ordinal);
-        Assert.StartsWith("raid harm", Assert.Throws<RequiredFactException>(() => ForecastSparring.RingCredit(ring, Stub(), [], Context(Two(), Raids() with { Raid = new HarmRaid.Unassessed("raid_points_unobserved") }), Day)).Fact, StringComparison.Ordinal);
+        Assert.StartsWith("raid harm", Assert.Throws<RequiredFactException>(() => ForecastSparring.RingCredit(ring, Stub(), [], Context(Two(), Raids() with { Raid = new RaidDefense(1000, 0) }), Day)).Fact, StringComparison.Ordinal);
     }
 
     [Fact]

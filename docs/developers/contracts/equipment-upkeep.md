@@ -4,7 +4,7 @@
 
 The `military/equipment` Need (#3259, formerly the `MaintainEquipment` concern) keeps
 gear in the shared ColonyPlan. Hands issues its actions; neither the native read nor an
-adviser independently starts work. Missing observations remain unknown. Selected ordinary tailoring and construction activities are scheduled by policy; bounded Methods
+adviser independently starts work. Missing required observations fail the read. Selected ordinary tailoring and construction activities are scheduled by policy; bounded Methods
 and pawn/item claims prevent duplicate work. The [pawn profile](work-assignment.md#pawn-profile) exports the
 per-pawn apparel and weapon flags (Nudist, Ascetic, Brawler's `MeleeOnly`) the
 loadout planner consumes. The role apparel policies are the
@@ -19,7 +19,13 @@ model below supplies requirements and diagnostics. Its physical-item ranking
 does not authorize a separate pawn job; explicit native operations retain their
 legality and completion contracts. Shared tailoring produces and delivers clothing.
 
-Planning `rimgovernor/observations_read_colony_facts` includes `planning.gear`. The separate typed
+Every `rimgovernor/observations_read_colony_facts` reply includes the required `gear` census.
+Routine reviews and direct colony reads decode it through the same path, after applying the
+same-frame growing zones and finished research. Cloth arrivals therefore include actual fields
+on direct trade reads as well as planning reviews. Missing gear, zone or pawn sections, or a gear
+pawn without its pawn row, fail the observation; an observed empty census remains empty.
+Shell targets and the shell-shortage predicate are direct values derived from the total stock census.
+The separate typed
 `Observations.ReadGear` read reports current-map pawn identities, outfit/loadout
 signatures, worn and primary item identities, condition, quality, armor and thermal
 stats, comfortable temperature bounds, candidates and replacement needs.

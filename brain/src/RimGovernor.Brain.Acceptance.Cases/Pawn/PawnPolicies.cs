@@ -65,14 +65,14 @@ internal static class PawnPolicies
 
     private static string Pawn(TypedSession s, string name) => s.Staged?.Pawns[name].Id ?? throw new AcceptanceException($"the stage made no {name}");
 
-    private static async Task<Observations.ColonyFactsSnapshot> FactsAsync(TypedSession s, string label, bool planning, CancellationToken cancellationToken)
+    private static async Task<Observations.ColonyFactsSnapshot> FactsAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = planning }, cancellationToken).ConfigureAwait(false);
+        var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         return reply;
     }
 
     private static async Task<Observations.Policies> PoliciesAsync(TypedSession s, string label, CancellationToken cancellationToken) =>
-        (await FactsAsync(s, label, false, cancellationToken).ConfigureAwait(false)).Policies;
+        (await FactsAsync(s, label, cancellationToken).ConfigureAwait(false)).Policies;
 
     /// <summary>Writes a policy's contents, then assigns it to each pawn.</summary>
     private static async Task WriteAsync(TypedSession s, string key, Operations.ActionIntent policy, IEnumerable<(string Pawn, Operations.PawnSettingsIntentSetting Setting)> assignments, CancellationToken cancellationToken)
@@ -134,7 +134,7 @@ internal static class PawnPolicies
             throw new AcceptanceException($"policy \"{Label}\" reads entries [{string.Join("; ", policy.DrugEntries)}]");
         }
 
-        var forecast = (await FactsAsync(s, "drug-forecast", true, cancellationToken).ConfigureAwait(false)).Forecast.Needs;
+        var forecast = (await FactsAsync(s, "drug-forecast", cancellationToken).ConfigureAwait(false)).Forecast.Needs;
         var row = forecast.Pawns.SingleOrDefault(p => p.Pawn == colonist) ?? throw new AcceptanceException($"drug-forecast: no needs row for {colonist}");
         s.RecordWire("needs_row_blockers", row.VoluntaryControlBlockers);
         var scheduled = new[] { "Penoxycyline", "Luciferium" };

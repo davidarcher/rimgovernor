@@ -126,7 +126,7 @@ internal static class CombatLabKit
     /// <summary>The colony's allowed areas (the typed colony read's policy section).</summary>
     internal static async Task<IReadOnlyList<Observations.AllowedArea>> AreasAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+        var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         return [.. facts.Policies.AllowedAreas];
     }
 

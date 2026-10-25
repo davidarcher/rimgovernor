@@ -43,7 +43,7 @@ public sealed partial class Rounder
 
     internal ResourceFieldPlanner NewResourceFieldPlanner(ControlState state, Rounds review, Identity expected, ColonyProjection projection, CancellationToken call)
     {
-        var (_, choices) = RoundsFieldPlanner.FieldRequestOf(projection, 0);
+        var choices = RoundsFieldPlanner.CropChoices(projection);
         return new ResourceFieldPlanner(
             choices,
             projection.CropClimate,
@@ -84,7 +84,7 @@ internal sealed class ResourceFieldPlanner
     private bool read;
     private bool sited;
 
-    public ResourceFieldPlanner(IReadOnlyList<CropChoice> choices, CropClimate climate, Fact<int> skill, IReadOnlyList<O.ZoneState.Growing> farms, Func<(FarmSiteRequest Site, bool Ok)> siteRead)
+    public ResourceFieldPlanner(IReadOnlyList<CropChoice> choices, CropClimate climate, int skill, IReadOnlyList<O.ZoneState.Growing> farms, Func<(FarmSiteRequest Site, bool Ok)> siteRead)
     {
         Choices = choices;
         Climate = climate;
@@ -97,7 +97,7 @@ internal sealed class ResourceFieldPlanner
 
     public CropClimate Climate { get; }
 
-    public Fact<int> Skill { get; }
+    public int Skill { get; }
 
     public IReadOnlyList<O.ZoneState.Growing> Farms { get; }
 
@@ -105,7 +105,8 @@ internal sealed class ResourceFieldPlanner
     {
         foreach (var crop in Choices)
         {
-            if (crop.Harvests.TryGetValue(out var harvests) && harvests == resource)
+            var harvests = crop.Harvests;
+            if (harvests == resource)
             {
                 return true;
             }
@@ -154,7 +155,7 @@ internal sealed class ResourceFieldPlanner
         var plan = FieldResourceRules.PlanFieldByResource(new ResourceFieldRequest
         {
             Resource = resource,
-            Deficit = Known((double)need),
+            Deficit = (double)need,
             Choices = Choices,
             Climate = Climate,
             Site = siteRequest,

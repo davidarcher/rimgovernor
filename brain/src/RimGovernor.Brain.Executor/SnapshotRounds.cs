@@ -70,10 +70,6 @@ public sealed class SnapshotRounds
         {
             throw new DomainException("snapshot: inspection scope differs from review");
         }
-        if (Facts.Gear.TryGetValue(out var gear) && gear.Pawns.Any(p => p.LoadoutModel is GearModel.NoOutfit && !p.Blocked))
-        {
-            Facts = Facts with { Gear = Unknown<GearObservation>() };
-        }
         if (Facts.Items.Market is null)
         {
             var items = ItemFactsFixtureRules.CoreItemFacts();

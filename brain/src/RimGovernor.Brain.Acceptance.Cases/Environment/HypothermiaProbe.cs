@@ -72,8 +72,8 @@ internal static class HypothermiaProbe
 
         var held = await s.FixtureAsync("hold", TemperatureProbe.Held, new TemperatureProbe.Hold("cold", Deficit, false), cancellationToken).ConfigureAwait(false);
         var start = await ReadAsync(s, "start", held.Pawn, cancellationToken).ConfigureAwait(false);
-        if (!DashEstimateRules.OutdoorBudgetFor(HazardKind.ExtremeCold, Known(start.CellC), Known(start.ComfyMinC), Known(start.Severity),
-                DashEstimateRules.HypothermiaShivering, published).TryGetValue(out var budget) || budget.Unbounded || budget.Ticks <= 0)
+        if (DashEstimateRules.OutdoorBudgetFor(HazardKind.ExtremeCold, start.CellC, start.ComfyMinC, start.Severity,
+                DashEstimateRules.HypothermiaShivering, published) is not OutdoorBudget.Finite budget || budget.Ticks <= 0)
         {
             throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"OutdoorBudgetFor gives no finite budget at {start.CellC:F2} C (comfy min {start.ComfyMinC:F2}, severity {start.Severity})"));
         }

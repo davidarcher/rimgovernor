@@ -21,9 +21,9 @@ public static partial class LayoutFieldReplanRules
         {
             foreach (var c in choices)
             {
-                var ak = c.Available.TryGetValue(out var avail);
-                var ek = c.Edible.TryGetValue(out var edible);
-                if (c.Name == name && ak && avail && ek && edible)
+                var avail = c.Available;
+                var edible = c.Edible;
+                if (c.Name == name && avail && edible)
                 {
                     return (c, true);
                 }

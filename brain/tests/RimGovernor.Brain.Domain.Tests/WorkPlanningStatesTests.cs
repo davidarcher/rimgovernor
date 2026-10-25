@@ -175,10 +175,9 @@ public sealed class WorkPlanningStatesTests
             Benches = [],
             Hosts = [new RecipeHost { Definition = "MakeCloth", Products = [new("Cloth")], Available = true, Benches = ["TableTailor"], Ingredients = [], Research = [] }],
         };
-        Assert.Equal(WorkshopMethod.DefinitionUnread, WorkRules.SelectWorkshopBench(request).Method);
-        Assert.Equal("definition_unread", Wire.Name(WorkshopMethod.DefinitionUnread));
+        Assert.Throws<RequiredFactException>(() => WorkRules.SelectWorkshopBench(request));
 
-        var census = request with { Definitions = [new BenchDefinition { Name = "TableTailor", Available = Known(true), NeedsPower = Known(false), ConstructionSkill = Known(0) }] };
+        var census = request with { Definitions = [new BenchDefinition { Name = "TableTailor", Available = true, NeedsPower = false, ConstructionSkill = 0}] };
         Assert.Equal(WorkshopMethod.Build, WorkRules.SelectWorkshopBench(census).Method);
     }
 }

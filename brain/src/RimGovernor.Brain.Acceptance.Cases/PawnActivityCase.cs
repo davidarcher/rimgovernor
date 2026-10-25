@@ -58,7 +58,7 @@ internal static class PawnActivityCase
         var crop = s.Staged!.Plants["crop"].Ids.Single();
 
         // The facts read installs the delivery ledger's hooks and stamps the tick the run starts from.
-        var facts = await s.CallAsync("facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+        var facts = await s.CallAsync("facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var from = facts.Context?.Tick
             ?? throw new AcceptanceException("facts: no observation context");
 

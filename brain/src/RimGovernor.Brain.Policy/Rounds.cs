@@ -187,7 +187,7 @@ public sealed record RoundsFacts
 
     public RecoverySafety RecoverySafety { get; init; } = new();
 
-    public Fact<EquatableArray<RecoveryWorker>> RecoveryWorkers { get; init; }
+    public EquatableArray<RecoveryWorker> RecoveryWorkers { get; init; }
 
     public EquatableArray<DisasterCondition> DisasterConditions { get; init; }
 
@@ -204,7 +204,7 @@ public sealed record RoundsFacts
     public Tick Tick { get; init; }
 
     /// <summary>The planned outdoor dash window through extreme cold (#2765); unknown or zero is closed.</summary>
-    public Fact<DashWindow> Dash { get; init; }
+    public DashWindow Dash { get; init; } = new();
 
     public EquatableArray<MoodPawn> MoodPawns { get; init; }
 
@@ -258,10 +258,10 @@ public sealed record RoundsFacts
     public EquatableArray<IngredientReservation> BillReservations { get; init; }
 
     /// <summary>Committed fixed batches reconciled with current native remaining counts.</summary>
-    public Fact<EquatableArray<ForecastCommitment>> ProductionPromises { get; init; }
+    public ProductionPromiseSet ProductionPromises { get; init; } = new ProductionPromiseSet.Blocked(ProductionPromiseBlock.AwaitingReview);
 
     public WorkAdmissionObservation WorkAdmission { get; init; } = new();
-    public Fact<EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>> WorkResources { get; init; }
+    public EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn> WorkResources { get; init; }
     public WorkResourceClaims? WorkClaims { get; init; }
     public WorkResourceView? WorkView { get; init; }
 
@@ -275,16 +275,16 @@ public sealed record RoundsFacts
     public bool BedroomsOwed { get; init; }
 
     /// <summary>The stock covers the butcher table's build cost (its cheapest stuff choice).</summary>
-    public Fact<bool> ButcherTableAffordable { get; init; }
+    public bool ButcherTableAffordable { get; init; }
 
     /// <summary>The warm standing tombs, morgues and meal closets (WarmCoolingRooms); they join the food-stores/refrigeration Need's rooms.</summary>
-    public Fact<EquatableArray<string>> WarmRooms { get; init; }
+    public EquatableArray<string> WarmRooms { get; init; }
 
     /// <summary>The planned meal closet waits to be shelled while its dining room stands; it keeps the food-stores/refrigeration Need unmet.</summary>
-    public Fact<bool> MealClosetOwed { get; init; }
+    public bool MealClosetOwed { get; init; }
 
     /// <summary>A stove kitchen supersedes a cooking campfire; it keeps the food/cooking Need unmet.</summary>
-    public Fact<bool> CampfireRetireOwed { get; init; }
+    public bool CampfireRetireOwed { get; init; }
 
     /// <summary>A heat campfire's auto-refuel should switch, or a sleeping room sits unheated below its sleepers' comfort minimum (TemperatureOwed); it keeps the shelter/temperature Need unmet.</summary>
     public bool TemperatureOwed { get; init; }
@@ -293,36 +293,36 @@ public sealed record RoundsFacts
     public bool SculptureRoomsOwed { get; init; }
 
     /// <summary>The Safe allowed area differs from the enclosed roofed rooms (SafeAreaCells); it keeps the shelter/safe-area Need unmet. Unknown unless that Need is composed.</summary>
-    public Fact<bool> SafeAreaOwed { get; init; }
+    public SafeAreaStatus SafeAreaOwed { get; init; }
 
 
 
     /// <summary>The finished buildings the held rituals' patterns require (observation, from the frame's building census).</summary>
-    public Fact<EquatableArray<RitualSite>> RitualSites { get; init; }
+    public EquatableArray<RitualSite> RitualSites { get; init; }
 
     /// <summary>The Safe allowed area's native load id, "" when the map has none (PlanSheltering).</summary>
     public string ShelterArea { get; init; } = "";
 
     /// <summary>The squad's draft set during a threat: the colonists a raid or manhunter pack does not shelter. Unknown shelters no colonist for a threat.</summary>
-    public Fact<EquatableArray<PawnId>> ShelterCombatants { get; init; }
+    public EquatableArray<PawnId> ShelterCombatants { get; init; }
 
     /// <summary>The NoDanger allowed area's native load id, "" when the map has none.</summary>
     public string NoDangerArea { get; init; } = "";
 
     /// <summary>The threat census's danger seeds (DangerSeeds), unknown with the hostile count.</summary>
-    public Fact<EquatableArray<Cell>> DangerSeeds { get; init; }
+    public EquatableArray<Cell> DangerSeeds { get; init; }
 
     /// <summary>Whether haulers are kept out of the danger cells now (DangerWindowOf).</summary>
-    public Fact<bool> DangerWindow { get; init; }
+    public bool DangerWindow { get; init; }
 
     /// <summary>The pawns with Hauling enabled.</summary>
-    public Fact<EquatableArray<PawnId>> DangerHaulers { get; init; }
+    public EquatableArray<PawnId> DangerHaulers { get; init; }
 
     /// <summary>The Isolation allowed area's native load id, "" when the map has none (the admin/creep-joiners Need).</summary>
     public string IsolationArea { get; init; } = "";
 
     /// <summary>Counts the packed art no owed room reserves (SaleSculptures); read only while the wealth headroom is negative, it opens a trade as the shed_art need.</summary>
-    public Fact<long> SaleArt { get; init; }
+    public long SaleArt { get; init; }
 
     /// <summary>The generic goods the economy/trade Need's last declaration could rank (ExportSaleProducts), held stacks of which sell as surplus while the silver gap is open (ExportSaleSurplus). Set from the Rounder's memory; empty before the first declaration of a world.</summary>
     public EquatableArray<Resource> ExportProducts { get; init; }
@@ -413,19 +413,19 @@ public sealed record RoundsFacts
     public RimGovernor.Contracts.Wire.Observations.DiseaseFacts? Disease { get; init; }
 
     /// <summary>The built mortars' shell targets (ArmoryShellsRules.MortarShellTargets), read once per review: ShellsShort and the armory declarer's shell orders derive from them (#3566). Empty without a built mortar or a known threat.</summary>
-    public Fact<EquatableArray<Amount>> ShellTargets { get; init; }
+    public EquatableArray<Amount> ShellTargets { get; init; }
 
     /// <summary>The armory shell review: a built mortar's shell stock below half its target keeps the military/equipment Need unmet.</summary>
-    public Fact<bool> ShellsShort { get; init; }
+    public bool ShellsShort { get; init; }
 
     /// <summary>The colonists' and powered turrets' observed combat strength in raid-point units (DefenseCapacity).</summary>
-    public Fact<double> DefenseCapacity { get; init; }
+    public double DefenseCapacity { get; init; }
 
     /// <summary>The total native corpse census that MorgueWaiting and the tomb census read.</summary>
     public EquatableArray<WasteItem> Waste { get; init; }
 
     /// <summary>The map trader census (bridge.ListTraders) the economy/caravan Need needs; a source without the read leaves it unknown and the goal off.</summary>
-    public Fact<EquatableArray<RimGovernor.Contracts.Wire.Observations.Trader>> Traders { get; init; }
+    public EquatableArray<RimGovernor.Contracts.Wire.Observations.Trader> Traders { get; init; }
 
     /// <summary>The keys of the tradeable traders whose sheet the offer book has no fresh record of (TradeRecovered's always-browse session); empty until the food plan marks them.</summary>
     public EquatableArray<string> UnpricedTraders { get; init; } = [];
@@ -437,11 +437,17 @@ public sealed record RoundsFacts
     public EquatableArray<StockpileRoleCount> StockpileZones { get; init; }
 
     /// <summary>The migrated families' Needs the runtime composes; supplied by the configured runtime, never native facts.</summary>
-    public Fact<EquatableArray<NeedId>> AvailableNeeds { get; init; }
+    public EquatableArray<NeedId> AvailableNeeds { get; init; }
 
     public UpkeepObservation Upkeep { get; init; } = new();
 
-    public Fact<GearObservation> Gear { get; init; }
+    private GearObservation? _gear;
+
+    public GearObservation Gear
+    {
+        get => _gear ?? throw new RequiredFactException("gear census");
+        init => _gear = value;
+    }
 
     /// <summary>The finished buildings counted by definition: what a built-count goal is judged by (#3496).</summary>
     public EquatableArray<Amount> BuiltBuildings { get; init; }
@@ -505,7 +511,7 @@ public sealed record RoundsFacts
 
     public long IndoorCapacity { get; init; }
 
-    public Fact<long> GrowingCells { get; init; }
+    public long GrowingCells { get; init; }
 
     public long Armed { get; init; }
 
@@ -521,7 +527,7 @@ public sealed record RoundsFacts
     /// <summary>The food runway; a projection no colony decode built raises <see cref="RequiredFactException"/>.</summary>
     public FoodRunway RequireFoodRunway() => FoodDays ?? throw new RequiredFactException("food runway");
 
-    public Fact<double> FieldCoverage { get; init; }
+    public double FieldCoverage { get; init; }
 
     /// <summary>The same plan's construction helper record; null when the plan ran without the helper input.</summary>
     public ConstructionHelpRecord? WorkHelp { get; init; }
@@ -592,7 +598,7 @@ public sealed record RoundsFacts
     public IReadOnlyDictionary<Resource, long>? DrugUsers { get; init; }
 
     /// <summary>The colony wealth split the economy/caravan Need's wealth-driven surplus keys on; unknown leaves that surplus out.</summary>
-    public Fact<WealthFacts> Wealth { get; init; }
+    public WealthFacts Wealth { get; init; } = null!;
 
     /// <summary>The native research state read inside the same paused identity bracket as the other routine facts; every routine frame reads it, so null only on a projection no routine frame built.</summary>
     public ResearchFacts? Research { get; init; }
@@ -637,7 +643,7 @@ public sealed record RoundsFacts
     /// <summary>The operations the player's unmet health goals ask for (#3508): the surgery context carries them to the surgery planner.</summary>
     public EquatableArray<SurgeryGoal> GoalSurgeries { get; init; }
 
-    public Fact<long> Hostiles { get; init; }
+    public HostileCensus Hostiles { get; init; } = new HostileCensus.AwaitingEmergency();
 
     public long CriticalPatients { get; init; }
 
@@ -725,7 +731,7 @@ public sealed record RoundsFindings
 
     /// <summary>The review's trade facts (the silver gap, the caravans' standing) the economy family's trade Needs read; derived, not saved.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
-    public TradeReview Trade { get; set; } = new();
+    public TradeReview Trade { get; set; } = new TradeReview.AwaitingFoodPlan();
 
     /// <summary>Whether the review owes work assignments, settings or coupled activities (WorkAssignmentsOwed), which the admin/work-assignments Need reads; derived, not saved.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
@@ -763,22 +769,20 @@ public static partial class RoundsRules
     /// <summary>The colonist count the foothold sizes for.</summary>
     internal static long FootholdCount(RoundsFacts f) => f.Colonists;
 
-    internal static Fact<bool> FootholdSleeping(RoundsFacts f) => CountCapacity(Known(f.BedCapacity), FootholdCount(f), 1);
+    internal static bool FootholdSleeping(RoundsFacts f) => FootholdCount(f) > 0 && f.BedCapacity >= FootholdCount(f);
 
-    internal static Fact<bool> FootholdShelter(RoundsFacts f) => CountCapacity(Known(f.IndoorCapacity), FootholdCount(f), 1);
+    internal static bool FootholdShelter(RoundsFacts f) => FootholdCount(f) > 0 && f.IndoorCapacity >= FootholdCount(f);
 
-    internal static Fact<bool> FootholdProduction(RoundsFacts f) => CountCapacity(f.GrowingCells, FootholdCount(f), 10);
+    internal static bool FootholdProduction(RoundsFacts f) => f.Colonists > 0 && f.GrowingCells >= f.Colonists * 10;
 
-    internal static Fact<bool> FootholdFood(RoundsFacts f, RoundsPolicy p) => Reached(f.FoodDays, p.FootholdFoodDays);
+    internal static bool FootholdFood(RoundsFacts f, RoundsPolicy p) => Reached(f.FoodDays, p.FootholdFoodDays);
 
-    /// <summary>Whether the runway reaches <paramref name="days"/>; unread when no runway was read.</summary>
-    internal static Fact<bool> Reached(FoodRunway? runway, double days) => runway is null ? default : Known(runway.Reaches(days));
+    /// <summary>Whether the required runway reaches <paramref name="days"/>.</summary>
+    internal static bool Reached(FoodRunway? runway, double days) =>
+        (runway ?? throw new RequiredFactException("food runway")).Reaches(days);
 
-    internal static Fact<bool> FootholdTemperature(RoundsFacts f, RoundsPolicy p)
-    {
-        var (cold, hot) = TemperatureMethodRules.SleepingBand(f.SleepingTemperature);
-        return AllFacts(Measured(cold, v => v >= p.ColdEnter), Measured(hot, v => v <= p.HotEnter));
-    }
+    internal static bool FootholdTemperature(RoundsFacts f, RoundsPolicy p) =>
+        f.SleepingTemperature is RimGovernor.Contracts.Wire.Observations.SleepingTemperature.Indoor indoor && indoor.MinC >= p.ColdEnter && indoor.MaxC <= p.HotEnter;
 
     internal static bool FootholdPower(RoundsFacts f)
     {
@@ -789,17 +793,20 @@ public static partial class RoundsRules
     /// <summary>The armed fighters a colony of n colonists owes: two, every colonist when fewer, never below one. The only place the number lives.</summary>
     internal static long ArmedTarget(long n) => Math.Max(1, Math.Min(2, n));
 
+    private static DisasterServiceStatus ServiceStatus(bool met) => met ? DisasterServiceStatus.Restored : DisasterServiceStatus.Deficit;
+
     /// <summary>The survival services ReviewDisaster tracks, read live from the review's facts (infrastructure is its own).</summary>
-    public static Dictionary<DisasterService, Fact<bool>> DisasterServiceFacts(RoundsFacts f, RoundsPolicy p) => new()
+    public static Dictionary<DisasterService, DisasterServiceStatus> DisasterServiceFacts(RoundsFacts f, RoundsPolicy p) => new()
     {
-        [DisasterService.Food] = FootholdFood(f, p),
-        [DisasterService.Production] = FootholdProduction(f),
-        [DisasterService.Sleeping] = FootholdSleeping(f),
-        [DisasterService.Shelter] = FootholdShelter(f),
-        [DisasterService.Temperature] = FootholdTemperature(f, p),
-        [DisasterService.Cooking] = Known(f.Cooking),
-        [DisasterService.Power] = Known(FootholdPower(f)),
-        [DisasterService.Storage] = Known(StockpileRules.FoodStorageStanding(f)),
+        [DisasterService.Food] = f.FoodDays is { } runway ? ServiceStatus(runway.Reaches(p.FootholdFoodDays)) : DisasterServiceStatus.AwaitingFoodPlan,
+        [DisasterService.Production] = ServiceStatus(FootholdProduction(f)),
+        [DisasterService.Sleeping] = ServiceStatus(FootholdSleeping(f)),
+        [DisasterService.Shelter] = ServiceStatus(FootholdShelter(f)),
+        [DisasterService.Temperature] = ServiceStatus(FootholdTemperature(f, p)),
+        [DisasterService.Cooking] = ServiceStatus(f.Cooking),
+        [DisasterService.Power] = ServiceStatus(FootholdPower(f)),
+        [DisasterService.Storage] = ServiceStatus(StockpileRules.FoodStorageStanding(f)),
+
     };
 
     /// <summary>
@@ -807,61 +814,14 @@ public static partial class RoundsRules
     /// the food plan opens a squad hunt (<paramref name="prey"/> is its prey count); clear otherwise. The review's
     /// combat standing and the <c>military/combat</c> Need both read it, so they cannot disagree.
     /// </summary>
-    public static Situation CombatSituation(Fact<long> hostiles, int prey)
+    public static Situation CombatSituation(HostileCensus hostiles, int prey) => hostiles switch
     {
-        if (!hostiles.TryGetValue(out var n))
-        {
-            return Situation.Unclear;
-        }
-        return n > 0 || prey > 0 ? Situation.Active : Situation.Clear;
-    }
+        HostileCensus.AwaitingEmergency => Situation.Unclear,
+        HostileCensus.Quiet => prey > 0 ? Situation.Active : Situation.Clear,
+        HostileCensus.Active { Count: > 0 } => Situation.Active,
+        HostileCensus unexpected => throw new DomainException($"invalid hostile census state: {unexpected.GetType().Name}"),
+    };
 
-    /// <summary>Whether combat has nothing to answer: <see cref="CombatSituation"/> is clear.</summary>
-    internal static Fact<bool> CombatCleared(RoundsFacts f) =>
-        CombatSituation(f.Hostiles, HuntSquadRules.HuntRequest(f.FoodPlan).Count) switch
-        {
-            Situation.Clear => Known(true),
-            Situation.Active => Known(false),
-            _ => Unknown<bool>(),
-        };
-
-    internal static bool Positive(Fact<bool> v) => v.TryGetValue(out var b) && b;
-
-    internal static bool Negative(Fact<bool> v) => v.TryGetValue(out var b) && !b;
-
-    internal static Fact<bool> Measured<T>(Fact<T> f, Func<T, bool> predicate)
-    {
-        if (!f.TryGetValue(out var v))
-        {
-            return Unknown<bool>();
-        }
-        return Known(predicate(v));
-    }
-
-    internal static Fact<bool> AllFacts(params Fact<bool>[] facts)
-    {
-        var unknown = false;
-        foreach (var f in facts)
-        {
-            var k = f.TryGetValue(out var v);
-            if (k && !v)
-            {
-                return Known(false);
-            }
-            unknown = unknown || !k;
-        }
-        if (unknown)
-        {
-            return Unknown<bool>();
-        }
-        return Known(true);
-    }
-
-    /// <summary>f when measured, else other: an unmeasured sleeping-room temperature reads as the outdoor temperature (sleeping outdoors).</summary>
-    internal static Fact<T> Fallback<T>(Fact<T> f, Fact<T> other) => f.TryGetValue(out _) ? f : other;
-
-    internal static Fact<bool> CountCapacity(Fact<long> capacity, long count, long multiplier) =>
-        capacity.TryGetValue(out var v) ? Known(count > 0 && v >= count * multiplier) : Unknown<bool>();
 
     /// <summary>
     /// The full review: it validates the facts and derives once what the families read (the latches, the resource
@@ -907,13 +867,9 @@ public static partial class RoundsRules
         var medicine = MedicalRules.ReviewMedicalReserve(f.MedicalReserve with { Colonists = f.Colonists }, previous.MedicalReserve, p.MedicalReserve);
         p.Validate();
         // The colonist and capacity counts are native unsigned counts and need no check.
-        foreach (var fact in new[] { f.GrowingCells, f.Hostiles })
-        {
-            if (fact.TryGetValue(out var v) && (v < 0 || v > long.MaxValue / 10))
-            {
-                throw new DomainException("invalid routine count");
-            }
-        }
+        if (f.GrowingCells < 0 || f.GrowingCells > long.MaxValue / 10) throw new DomainException("invalid growing cell count");
+        if (f.Hostiles is not HostileCensus.AwaitingEmergency && f.Hostiles.ThreatCount > long.MaxValue / 10)
+            throw new DomainException("invalid routine hostile count");
         if (f.CriticalPatients < 0 || f.UrgentPatients < 0) throw new DomainException("invalid patient count");
         if (f.Wood < 0 || f.Wood > long.MaxValue / 10)
         {
@@ -923,18 +879,14 @@ public static partial class RoundsRules
         {
             throw new DomainException("nonfinite routine fact");
         }
-        foreach (var fact in new[] { f.FieldCoverage })
-        {
-            if (fact.TryGetValue(out var v) && (double.IsNaN(v) || double.IsInfinity(v)))
-            {
-                throw new DomainException("nonfinite routine fact");
-            }
-        }
+        if (!double.IsFinite(f.FieldCoverage))
+            throw new DomainException("nonfinite routine fact");
         if (!double.IsFinite(f.OutdoorTemperature))
         {
             throw new DomainException("nonfinite routine fact");
         }
-        if (f.FieldCoverage.TryGetValue(out var coverage) && coverage < 0)
+        var coverage = f.FieldCoverage;
+        if (coverage < 0)
         {
             throw new DomainException("negative food fact");
         }
@@ -945,7 +897,7 @@ public static partial class RoundsRules
         var latches = new RoundsLatches
         {
             MedicalReserve = medicine.Active,
-            Dash = DashPlanRules.DashLatch(f.Dash),
+            Dash = f.Dash,
         };
         var demand = ResourceRules.ResourceDemandOf(f, p, latches);
         var r = new RoundsFindings { Latches = latches, ResourceDemand = demand };
@@ -973,12 +925,12 @@ public static partial class RoundsRules
     /// its spot owes the spot's removal. It is wanted whatever the food runway, because hunts and hides are
     /// processed on it.
     /// </summary>
-    internal static Fact<bool> ButcherFacilityMet(RoundsFacts f)
+    internal static bool ButcherFacilityMet(RoundsFacts f)
     {
         var benches = f.ButcherBenches;
         if (benches.Count == 0)
         {
-            return Known(false);
+            return false;
         }
         var shared = KitchenSeparationRules.KitchenSeparation(f.Upkeep.Rooms);
         var colocated = new HashSet<string>(StringComparer.Ordinal);
@@ -998,14 +950,14 @@ public static partial class RoundsRules
         }
         if (!apart)
         {
-            return Known(false);
+            return false;
         }
         if (table)
         {
-            return Known(!spot);
+            return !spot;
         }
         // Only the spot stands apart: with the stock to build the table, the goal stays open for it.
-        return Known(!(f.ButcherTableAffordable.TryGetValue(out var affordable) && affordable));
+        return !f.ButcherTableAffordable;
     }
 
     /// <summary>The free, instant butcher bench that stands in the planned butchery until the table is built.</summary>

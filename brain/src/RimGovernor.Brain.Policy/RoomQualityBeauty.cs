@@ -182,9 +182,8 @@ public static partial class RoomQualityRules
         var census = obs.Rooms;
         foreach (var r in census)
         {
-            var tk = targets.TryGetValue(r.Id, out var t);
             var q = r.Quality;
-            if (tk && !t!.NeverUpgrade && t.Min > 0 && q!.Impressiveness < t.Min && (t.Max <= 0 || q.Impressiveness < t.Max) && WeakestRoomStat(q) == RoomStat.Beauty)
+            if (targets.TryGetValue(r.Id, out var t) && !t!.NeverUpgrade && t.Min > 0 && q!.Impressiveness < t.Min && (t.Max <= 0 || q.Impressiveness < t.Max) && WeakestRoomStat(q) == RoomStat.Beauty)
             {
                 output.Add(r.Id);
             }
@@ -206,10 +205,10 @@ public static partial class RoomQualityRules
         foreach (var name in names)
         {
             var d = floors.Definitions[name];
-            var ak = d.Available.TryGetValue(out var avail);
-            var tk = d.Terrain.TryGetValue(out var terrain);
-            var bk = d.Beauty.TryGetValue(out var beauty);
-            if (!ak || !avail || !tk || !terrain || !bk || FlooringRules.AffordableCells(d, floors.Stock, 1) == 0)
+            var avail = d.Available;
+            var terrain = d.Terrain;
+            var beauty = d.Beauty;
+            if (!avail || !terrain || FlooringRules.AffordableCells(d, floors.Stock, 1) == 0)
             {
                 continue;
             }

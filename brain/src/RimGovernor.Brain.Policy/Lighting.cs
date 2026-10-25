@@ -99,14 +99,13 @@ public enum LampFuel
 }
 
 /// <summary>
-/// The per-bench review: Dark lists the roofed work cells measured below LitGlow, sorted by bench ID. Known is false
-/// when the census was unknown, in which case Dark is empty and nothing is measured.
+/// The per-bench review: Dark lists the roofed work cells measured below LitGlow, sorted by bench ID.
+/// The native census is required.
 /// </summary>
 public sealed record LightingReview
 {
     public bool Active { get; init; }
     public IReadOnlyList<string> Dark { get; init; } = [];
-    public bool Known { get; init; }
 
     /// <summary>
     /// The review measured unroofed work cells too: the sky gives no light by day (an eclipse, or a biome whose map
@@ -128,7 +127,6 @@ public enum LightingMethod
 {
     [WireName("")]
     None = 0,
-    Unknown,
 
     [WireName("no_deficit")]
     NoMethod,
@@ -182,7 +180,7 @@ public sealed record LightingFacts
     public IReadOnlyList<SiteCell> Cells { get; init; } = [];
 
     /// <summary>Maps lamp definition names to their planning availability as read with the census; a lamp absent here is unknown.</summary>
-    public IReadOnlyDictionary<string, Fact<bool>> Available { get; init; } = new Dictionary<string, Fact<bool>>();
+    public IReadOnlyDictionary<string, bool> Available { get; init; } = new Dictionary<string, bool>();
 
     /// <summary>Whether any power network currently has an active source.</summary>
     public bool PoweredSource { get; init; }
@@ -202,18 +200,15 @@ public static class LightingRules
     /// well above the threshold, and unroofed cells are skipped because sky glow would flap the latch with the day,
     /// except while the sky is dark (an eclipse, or a permanently dark biome), when the day is as dark as the night
     /// and every work cell is measured. A light-sensitive cell (its room grows cave fungus) is never dark: lighting
-    /// it would kill the crop. An unknown census measures nothing (Known false).
+    /// it would kill the crop. A missing census fails the observation boundary.
     /// </summary>
-    public static LightingReview ReviewLighting(LightingObservation? fact, LightingPolicy p, bool skyDark)
+    public static LightingReview ReviewLighting(LightingObservation fact, LightingPolicy p, bool skyDark)
     {
         if (!p.IsValid())
         {
             throw new DomainException("invalid lighting policy");
         }
-        if (fact is not { } v)
-        {
-            return new LightingReview { SkyDark = skyDark };
-        }
+        var v = fact;
         var dark = new List<string>();
         foreach (var c in v.Census.WorkCells)
         {
@@ -223,7 +218,7 @@ public static class LightingRules
             }
         }
         dark.Sort(StringComparer.Ordinal);
-        return new LightingReview { Known = true, SkyDark = skyDark, Dark = dark, Active = dark.Count > 0 };
+        return new LightingReview { SkyDark = skyDark, Dark = dark, Active = dark.Count > 0 };
     }
 
     /// <summary>
@@ -234,7 +229,7 @@ public static class LightingRules
     /// stops at walls), and the cell gets its own lamp. Otherwise the first affordable definition is placed on the
     /// nearest free walkable cell of the same room within PlacementRadius.
     /// </summary>
-    public static LightingProposal SelectLightingMethod(LightingReview review, LightingObservation? fact, LightingFacts facts, LightingPolicy p)
+    public static LightingProposal SelectLightingMethod(LightingReview review, LightingObservation fact, LightingFacts facts, LightingPolicy p)
     {
         if (!p.IsValid())
         {
@@ -244,10 +239,7 @@ public static class LightingRules
         {
             return new LightingProposal { Method = LightingMethod.NoMethod };
         }
-        if (fact is not { } v)
-        {
-            return new LightingProposal { Method = LightingMethod.Unknown };
-        }
+        var v = fact;
         var cells = new Dictionary<Cell, SiteCell>();
         foreach (var c in facts.Cells)
         {
@@ -372,7 +364,7 @@ public static class LightingRules
     }
 
     private static LightingMethod FirstLightingReason(LightingMethod current, LightingMethod next) =>
-        current == LightingMethod.None || current == LightingMethod.Unknown ? next : current;
+        current == LightingMethod.None ? next : current;
 
     /// <summary>Classifies why an in-range lamp is dark, most specific first; an unfueled lamp that is neither broken nor switched off needs power.</summary>
     private static LightingMethod LampService(Lamp l)
@@ -399,19 +391,16 @@ public static class LightingRules
     /// </summary>
     private static (string Definition, LightingMethod Method) SelectLampDefinition(LightingFacts facts, LightingPolicy p)
     {
+        bool Available(string name) => facts.Available.TryGetValue(name, out var available)
+            ? available : throw new RequiredFactException("lamp definition:" + name);
         var deferred = LightingMethod.None;
-        if (facts.Styled != "" && facts.Available.GetValueOrDefault(facts.Styled).TryGetValue(out var styledOk) && styledOk)
+        if (facts.Styled != "" && Available(facts.Styled))
         {
             return (facts.Styled, LightingMethod.None);
         }
         foreach (var lamp in p.Lamps)
         {
-            if (!facts.Available.GetValueOrDefault(lamp.Name).TryGetValue(out var ok))
-            {
-                deferred = FirstLightingReason(deferred, LightingMethod.Unknown);
-                continue;
-            }
-            if (!ok)
+            if (!Available(lamp.Name))
             {
                 deferred = FirstLightingReason(deferred, LightingMethod.ResearchNeeded);
                 continue;

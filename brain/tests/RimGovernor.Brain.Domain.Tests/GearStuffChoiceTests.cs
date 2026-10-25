@@ -50,12 +50,12 @@ public sealed class GearStuffChoiceTests
     [Fact]
     public void AGrowingFieldArrivesAtItsHarvest()
     {
-        var field = ClothingDemandRules.GrowingFieldCandidate(Cloth, "zone1", 30, Known(3.5));
+        var field = ClothingDemandRules.GrowingFieldCandidate(Cloth, "zone1", 30, 3.5);
         // The stock and the standing crop together cover the 50 units at the harvest.
         Assert.Equal(new GearArrival.InDays(3.5), Arrival(new() { [Cloth] = 20 }, field).Of(Shirt("Cloth", .1)));
         Assert.IsType<GearArrival.NoKnownDay>(Arrival(new() { [Cloth] = 10 }, field).Of(Shirt("Cloth", .1)));
-        Assert.Null(ClothingDemandRules.GrowingFieldCandidate(Cloth, "zone1", 0, Known(3.5)));
-        Assert.Throws<RequiredFactException>(() => ClothingDemandRules.GrowingFieldCandidate(Cloth, "zone1", 30, Unknown<double>()));
+        Assert.Throws<DomainException>(() => ClothingDemandRules.GrowingFieldCandidate(Cloth, "zone1", 30, double.NaN));
+        Assert.Null(ClothingDemandRules.GrowingFieldCandidate(Cloth, "zone1", 0, 3.5));
     }
 
     [Fact]
@@ -97,9 +97,9 @@ public sealed class GearStuffChoiceTests
         // The better cloth shirt waits on a field; the steel one is in stock.
         GearOption[] options = [Shirt("Cloth", .5), Shirt("Steel", .2)];
         Dictionary<Resource, long> stock = new() { [Steel] = 100 };
-        var later = Arrival(stock, ClothingDemandRules.GrowingFieldCandidate(Cloth, "zone1", 50, Known(ForecastCoupled.TierOneHorizonDays + 2)));
+        var later = Arrival(stock, ClothingDemandRules.GrowingFieldCandidate(Cloth, "zone1", 50, ForecastCoupled.TierOneHorizonDays + 2));
         Assert.Equal(Steel, Planned([.. options.Select(o => Arrived(o, later))]));
-        var soon = Arrival(stock, ClothingDemandRules.GrowingFieldCandidate(Cloth, "zone1", 50, Known(ForecastCoupled.TierOneHorizonDays / 2)));
+        var soon = Arrival(stock, ClothingDemandRules.GrowingFieldCandidate(Cloth, "zone1", 50, ForecastCoupled.TierOneHorizonDays / 2));
         Assert.Equal(Cloth, Planned([.. options.Select(o => Arrived(o, soon))]));
     }
 

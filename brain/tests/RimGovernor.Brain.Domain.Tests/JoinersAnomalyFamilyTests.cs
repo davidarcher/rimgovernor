@@ -53,7 +53,7 @@ public sealed class JoinersAnomalyFamilyTests
         Assert.Equal((Satisfaction.Unmet, 1.0), (unmet.Satisfaction, unmet.Deficit));
 
         // A letter the colony may have no room for, or an unread census, never reads as settled.
-        Assert.Equal("population capacity", Assert.Throws<RequiredFactException>(() => Joiner(Census(Letter(7)) with { FoodDays = default }, JoinersFamily.Letters)).Fact);
+        Assert.Equal("population capacity awaiting food plan", Assert.Throws<RequiredFactException>(() => Joiner(Census(Letter(7)) with { FoodDays = default }, JoinersFamily.Letters)).Fact);
         // With Royalty inactive no ceremony can wait, so the Need is met.
         Assert.Equal(Satisfaction.Met, Joiner(Census() with { Royalty = new RoyaltyState.Inactive() }, JoinersFamily.Ceremony).Satisfaction);
     }
@@ -113,7 +113,7 @@ public sealed class JoinersAnomalyFamilyTests
             Entities = [.. entities],
         },
         Research = Researched,
-        Gear = Known(ColonyModelFixtures.NoGear()),
+        Gear = ColonyModelFixtures.NoGear(),
     };
 
     private static Need Anomaly(RoundsFacts f, NeedId id) => Assert.Single(new AnomalyFamily().Derive(AnomalyFacts.From(f)), n => n.Id == id);
@@ -140,7 +140,7 @@ public sealed class JoinersAnomalyFamilyTests
         Assert.Empty(new AnomalyFamily().Derive(new AnomalyFacts()));
         Assert.Empty(new AnomalyFamily().Derive(AnomalyFacts.From(unmet with { Anomaly = new AnomalyState.Inactive() })));
         Assert.Equal("whether BioferriteExtraction is researched is unread", Assert.Throws<RequiredFactException>(() => Anomaly(unmet with { Research = null }, AnomalyFamily.Bioferrite)).Fact);
-        Assert.Equal("gear", Assert.Throws<RequiredFactException>(() => Anomaly(unmet with { Gear = default }, AnomalyFamily.Lance)).Fact);
+        Assert.Equal("gear census", Assert.Throws<RequiredFactException>(() => Anomaly(unmet with { Gear = null! }, AnomalyFamily.Lance)).Fact);
     }
 
     /// <summary>The Anomaly read of a colony with the expansion and no monolith spawned.</summary>
@@ -193,7 +193,7 @@ public sealed class JoinersAnomalyFamilyTests
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-anomaly-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
-        facts = facts with { Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = Known(1.0) };
+        facts = facts with { Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = 1.0};
         journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         Colony? colony = null;
         var runner = new FamilyRunner<AnomalyFacts>(new AnomalyFamily(), (_, _) => Task.FromResult(colony!.Facts), AnomalyRounds.Schedule);

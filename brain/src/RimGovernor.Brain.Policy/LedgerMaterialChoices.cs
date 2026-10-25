@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
-public sealed record ProductionMaterialView(Fact<EquatableArray<ProductionRecipeInput>> Recipes,
-    Fact<IReadOnlyDictionary<Resource, Fact<double>>> Availability);
+public sealed record ProductionMaterialView(EquatableArray<ProductionRecipeInput> Recipes,
+    MaterialAvailability Availability);
 public sealed record LedgerMaterialSelection(EquatableArray<LedgerPlacement> Selected, int Generated, bool GenerationTruncated, ForecastMaterialComparison Comparison);
 
 public static class LedgerMaterialChoicesRules
@@ -12,7 +12,7 @@ public static class LedgerMaterialChoicesRules
         ForecastProductionValuation? valuation = null)
     {
         if (generationBudget < 1) throw new DomainException("positive material generation budget required");
-        var recipes = view.Recipes.TryGetValue(out var catalog) ? catalog.ToDictionary(r => r.Recipe, StringComparer.Ordinal) : [];
+        var recipes = view.Recipes.ToDictionary(r => r.Recipe, StringComparer.Ordinal);
         var options = new List<ForecastMaterialOption>();
         var variants = new Dictionary<string, LedgerPlacement>(StringComparer.Ordinal);
         var demands = new HashSet<string>(StringComparer.Ordinal);
@@ -47,11 +47,11 @@ public static class LedgerMaterialChoicesRules
                 if (variants.ContainsKey(id)) return;
                 var batch = ProductionRules.Priced(new ProductionBatch(new ProductionBill(placement.Bench, spec.Recipe, spec.Mode, spec.Target, [.. narrowed.Ingredients]),
                     new ProgressView { Action = new ActionId(id), Stage = Stage.Pending }), recipe);
-                var promise = ProductionRules.ProductionPromisesOf(Known<EquatableArray<BatchPricing>>([batch]), default);
+                var promise = ProductionRules.ProductionPromisesOf([batch], default);
                 // Native bills have one global filter. A union that reopens a slot is not a pinned assignment.
-                if (!promise.TryGetValue(out var claims) || claims.Any(c => c.MaterialClaims.Any(m => !m.Units.IsKnown)))
+                if (promise is not ProductionPromiseSet.Assessed(var claims) || claims.Any(c => c.MaterialClaims.Any(m => m.Units is MaterialUnits.Open)))
                 { findings.Add("unrepresentable_or_unknown_filter:" + id); return; }
-                var cost = EquatableArray.From(claims.SelectMany(c => c.MaterialClaims).Select(c => new Amount(c.Resource, checked((long)c.Units.Value))));
+                var cost = EquatableArray.From(claims.SelectMany(c => c.MaterialClaims).Select(c => new Amount(c.Resource, checked((long)((MaterialUnits.Exact)c.Units).Count))));
                 var requirement = spec.Requirements?.Variants.FirstOrDefault(v => v.Ingredients.Order(StringComparer.Ordinal).SequenceEqual(narrowed.Ingredients));
                 if (spec.Requirements is not null && requirement is null)
                 { findings.Add("requirement_variant_unavailable:" + id); return; }
