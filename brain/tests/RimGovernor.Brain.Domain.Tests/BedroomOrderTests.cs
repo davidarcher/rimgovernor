@@ -45,7 +45,7 @@ public sealed class BedroomOrderTests
         Thoughts = pawns.ToDictionary(p => p.Pawn, _ => EquatableArray.From(Array.Empty<MoodThought>()), StringComparer.Ordinal),
         Breaks = new() { Threshold = 0.35, Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
         WellbeingWeight = 0.1,
-        PlannedStages = new Dictionary<int, Fact<int>> { [Bedroom.Id] = Known(2) },
+        PlannedStages = new Dictionary<int, RoomStage> { [Bedroom.Id] = new RoomStage.Staged(2) },
     };
 
     private static SleepingBed SleepingBed(string id, string room, params PawnId[] owners) => new()
@@ -75,7 +75,7 @@ public sealed class BedroomOrderTests
     {
         // a is calm; b sits just under its break threshold, and the bedroom's +6 lifts it clear.
         var gains = Gains(Pawn(A, "s1", 0.8, 0.35), Pawn(B, "s2", 0.33, 0.35));
-        Assert.True(gains.Gain("b", Known(2)) > gains.Gain("a", Known(2)));
+        Assert.True(gains.Gain("b", 2) > gains.Gain("a", 2));
 
         var move = Step(Sharing, gains);
         Assert.Equal((BedroomStepKind.Move, B, "v"), (move.Kind, move.Pawn, move.Bed));
@@ -91,7 +91,7 @@ public sealed class BedroomOrderTests
     {
         // a is an ascetic in the shared hall: its NeverUpgrade room houses it only when it owns that room alone.
         var gains = Gains(Pawn(A, "s1", 0.8, 0.35, ascetic: true), Pawn(B, "s2", 0.8, 0.35));
-        Assert.Equal(gains.Gain("a", Known(2)), gains.Gain("b", Known(2)));
+        Assert.Equal(gains.Gain("a", 2), gains.Gain("b", 2));
         var move = Step(Sharing, gains, new Dictionary<string, RoomTarget> { ["hall"] = new() { NeverUpgrade = true } });
         Assert.Equal((BedroomStepKind.Move, A, "v", 2), (move.Kind, move.Pawn, move.Bed, move.Unhoused));
 
@@ -106,11 +106,21 @@ public sealed class BedroomOrderTests
     }
 
     [Fact]
+    public void AnUnstagedRoomPricesNoGain()
+    {
+        // A staged room prices the gain at its stage; a room unstaged (its stuffs disagree, or no rest target reads the bed) prices none.
+        var gains = Gains(Pawn(A, "s1", 0.8, 0.35), Pawn(B, "s2", 0.33, 0.35));
+        Assert.Equal(gains.Gain("b", 2), gains.Gain("b", new RoomStage.Staged(2)));
+        Assert.Null(gains.Gain("b", new RoomStage.Unstaged()));
+        Assert.IsType<RoomStage.Unstaged>(gains.BedStage("b", "no-such-bed"));
+    }
+
+    [Fact]
     public void AnUnreadGainKeepsIdOrderAndIsNamed()
     {
         // b is near its break, but a has no mood need to price: id order, and a is named.
         var gains = Gains(Pawn(A, "s1", 0.8, null), Pawn(B, "s2", 0.33, 0.35));
-        Assert.Null(gains.Gain("a", Known(2)));
+        Assert.Null(gains.Gain("a", 2));
         Assert.Equal(A, Step(Sharing, gains).Pawn);
 
         var findings = new SortedSet<string>(StringComparer.Ordinal);

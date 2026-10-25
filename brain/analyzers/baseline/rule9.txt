@@ -338,7 +338,7 @@ Policy/ForecastCoupledStock.cs|Fact|80
 Policy/ForecastCurrentWork.cs|Fact|10
 Policy/ForecastHandoff.cs|Fact|29
 Policy/ForecastHandoffProjects.cs|Fact|2
-Policy/ForecastHousing.cs|Fact|16
+Policy/ForecastHousing.cs|Fact|1
 Policy/ForecastIncumbentPreparation.cs|Fact|7
 Policy/ForecastLiveEvidence.cs|Fact|3
 Policy/ForecastMaintenance.cs|Fact|3

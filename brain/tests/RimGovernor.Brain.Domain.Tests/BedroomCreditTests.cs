@@ -79,11 +79,11 @@ public sealed class BedroomCreditTests
     {
         // A shared barracks gives an ascetic no Ascetic thought (observed none); an awful room's stage gives +5.
         var context = Context(Pawn(ascetic: true, barracksStage: 2), bedroomStage: 0);
-        Assert.Equal(Known(5d), ForecastHousing.BedroomMoodDelta(context.Needs.Pawns[0], Known(0), context.ColonistThoughts));
+        Assert.Equal(new RoomMoodDelta.Priced(5d), ForecastHousing.BedroomMoodDelta(context.Needs.Pawns[0], 0, context.ColonistThoughts));
         var row = Credit(context, Closing(0, 0.05));
         Assert.Equal(-(context.Value.WellbeingWeight * 5 / 100 + context.MoodBreaks.DaysLost([Day, 0, 0])!.Value) * Horizon, row.Value, 12);
         // Owning a room alone, its Ascetic thought is lost: an awful room (+5) to another awful one gains nothing.
-        Assert.Equal(Known(0d), ForecastHousing.BedroomMoodDelta(context.Needs.Pawns[0], Known(0),
+        Assert.Equal(new RoomMoodDelta.Priced(0d), ForecastHousing.BedroomMoodDelta(context.Needs.Pawns[0], 0,
             new Dictionary<string, EquatableArray<MoodThought>> { ["pawn"] = EquatableArray.From([new MoodThought("Ascetic", 5)]) }));
     }
 

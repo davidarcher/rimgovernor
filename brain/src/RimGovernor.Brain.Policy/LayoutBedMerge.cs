@@ -138,7 +138,7 @@ public static partial class LayoutClusterRules
             for (var s = 0; s < levels.StageCount; s++)
             {
                 // The stage argument is the housing forecast's to harden (#3897).
-                if (gains.Gain(pawn, Known(s)) is not { } b || gains.Gain(pawn, Known(s), barracks: true) is not { } k)
+                if (gains.Gain(pawn, s) is not { } b || gains.Gain(pawn, s, barracks: true) is not { } k)
                 {
                     return null;
                 }

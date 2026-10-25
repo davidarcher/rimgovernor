@@ -30,8 +30,8 @@ public sealed record BedroomGainFacts
     public MoodBreakModel Breaks { get; init; } = new();
     public double WellbeingWeight { get; init; }
 
-    /// <summary>Per planned room, its closed stage when every stuff's prediction reads the same one; unknown otherwise.</summary>
-    public IReadOnlyDictionary<int, Fact<int>> PlannedStages { get; init; } = new Dictionary<int, Fact<int>>();
+    /// <summary>Per planned room, its closed stage when every stuff's prediction reads the same one; unstaged otherwise.</summary>
+    public IReadOnlyDictionary<int, RoomStage> PlannedStages { get; init; } = new Dictionary<int, RoomStage>();
 
     public static BedroomGainFacts Of(RoundsFacts facts) => new()
     {
@@ -44,16 +44,37 @@ public sealed record BedroomGainFacts
         PlannedStages = facts.PlannedRoomPredictions
             .Where(r => int.TryParse(r.Room, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _))
             .GroupBy(r => int.Parse(r.Room, System.Globalization.CultureInfo.InvariantCulture))
-            .ToDictionary(g => g.Key, g => g.Select(r => r.Stage).Distinct().Count() == 1 ? Known(g.First().Stage) : default),
+            .ToDictionary(g => g.Key, g => g.Select(r => r.Stage).Distinct().Count() == 1 ? new RoomStage.Staged(g.First().Stage) : (RoomStage)new RoomStage.Unstaged()),
     };
 
-    /// <summary>The <see cref="ForecastHousing.BedroomGain"/> of moving <paramref name="pawn"/> into a bedroom (or, with <paramref name="barracks"/>, a barracks) at <paramref name="stage"/>; null when unread.</summary>
-    public double? Gain(string pawn, Fact<int> stage, bool barracks = false) => Pawns.TryGetValue(pawn, out var row)
+    /// <summary>The <see cref="ForecastHousing.BedroomGain"/> of moving <paramref name="pawn"/> into a bedroom (or, with <paramref name="barracks"/>, a barracks) at <paramref name="stage"/>; null when unread or unstaged.</summary>
+    public double? Gain(string pawn, RoomStage stage, bool barracks = false) => stage is RoomStage.Staged { Stage: var index } ? Gain(pawn, index, barracks) : null;
+
+    /// <inheritdoc cref="Gain(string, RoomStage, bool)"/>
+    public double? Gain(string pawn, int stage, bool barracks = false) => Pawns.TryGetValue(pawn, out var row)
         ? ForecastHousing.BedroomGain(row, stage, Thoughts, Breaks, WellbeingWeight, barracks) : null;
 
-    /// <summary>A standing bed's room stage now, as <paramref name="pawn"/>'s rest target for it reads it; unknown without one.</summary>
-    public Fact<int> BedStage(string pawn, string bed) => Pawns.TryGetValue(pawn, out var row)
-        && row.Targets.FirstOrDefault(t => t.Id == bed && t.Bed is not null) is { Bed: { } room } ? Known(room.Stage) : default;
+    /// <summary>A standing bed's room stage now, as <paramref name="pawn"/>'s rest target for it reads it; unstaged without one.</summary>
+    public RoomStage BedStage(string pawn, string bed) => Pawns.TryGetValue(pawn, out var row)
+        && row.Targets.FirstOrDefault(t => t.Id == bed && t.Bed is not null) is { Bed: { } room } ? new RoomStage.Staged(room.Stage) : new RoomStage.Unstaged();
+}
+
+/// <summary>A room's Impressiveness stage as a bedroom gain reads it: staged, or unstaged (no rest target reads the bed, or the
+/// planned room's stuffs predict different stages).</summary>
+public abstract record RoomStage
+{
+    private protected RoomStage() { }
+    public sealed record Staged(int Stage) : RoomStage;
+    public sealed record Unstaged : RoomStage;
+}
+
+/// <summary>A bedroom move's room mood delta (<see cref="ForecastHousing.BedroomMoodDelta"/>): priced from the game's reads, or
+/// unpriced, naming the read it lacks.</summary>
+public abstract record RoomMoodDelta
+{
+    private protected RoomMoodDelta() { }
+    public sealed record Priced(double Delta) : RoomMoodDelta;
+    public sealed record Unpriced(string Missing) : RoomMoodDelta;
 }
 
 /// <summary>
@@ -144,31 +165,34 @@ public static class ForecastHousing
     /// thought it has now. Either loses slept_outside when it sleeps psychologically outdoors now (the closed room is not).
     /// Every offset is the game's read. The bed's own terms are <see cref="BedMoodDelta"/>'s.
     /// </summary>
-    public static Fact<double> BedroomMoodDelta(NeedsForecastPawn pawn, Fact<int> stage, IReadOnlyDictionary<string, EquatableArray<MoodThought>> observed, bool barracks = false)
+    public static RoomMoodDelta BedroomMoodDelta(NeedsForecastPawn pawn, int stage, IReadOnlyDictionary<string, EquatableArray<MoodThought>> observed, bool barracks = false)
     {
-        if (!stage.TryGetValue(out var index) || SleepNow(pawn) is not { } now) return default;
+        if (SleepNow(pawn) is not { } now) return new RoomMoodDelta.Unpriced("sleep place");
         var stages = pawn.ThoughtStages;
         double outside = 0;
         if (now.Read.Outside)
         {
-            if (stages.FirstOrDefault(r => r.Role == "slept_outside" && r.Stage == 0) is not { } row) return default;
+            if (stages.FirstOrDefault(r => r.Role == "slept_outside" && r.Stage == 0) is not { } row) return new RoomMoodDelta.Unpriced("slept_outside thought stage");
             outside = -row.Offset;
         }
         if (pawn.Ascetic)
         {
             var defs = stages.Where(r => r.Role == "ascetic").Select(r => r.Thought).Distinct(StringComparer.Ordinal).ToArray();
-            if (defs.Length == 0) return default;
-            if (!observed.TryGetValue(pawn.Pawn, out var thoughts)) return default;
+            if (defs.Length == 0) return new RoomMoodDelta.Unpriced("ascetic thought stages");
+            if (!observed.TryGetValue(pawn.Pawn, out var thoughts)) return new RoomMoodDelta.Unpriced("observed thoughts");
             double next = 0;
             foreach (var def in barracks ? Array.Empty<string>() : defs)
             {
-                if (stages.FirstOrDefault(r => r.Thought == def && r.Role == "ascetic" && r.Stage == index) is not { } row) return default;
+                if (stages.FirstOrDefault(r => r.Thought == def && r.Role == "ascetic" && r.Stage == stage) is not { } row)
+                    return new RoomMoodDelta.Unpriced("ascetic thought stage " + def + "/" + stage.ToString(System.Globalization.CultureInfo.InvariantCulture));
                 next += row.Offset;
             }
-            return Known(next - thoughts.Where(t => defs.Contains(t.Def, StringComparer.Ordinal)).Sum(t => t.Offset) + outside);
+            return new RoomMoodDelta.Priced(next - thoughts.Where(t => defs.Contains(t.Def, StringComparer.Ordinal)).Sum(t => t.Offset) + outside);
         }
-        if (stages.FirstOrDefault(r => r.Role == (barracks ? "slept_in_barracks" : "slept_in_bedroom") && r.Stage == index) is not { } gained) return default;
-        return Known(gained.Offset - now.RoomThought + outside);
+        var role = barracks ? "slept_in_barracks" : "slept_in_bedroom";
+        if (stages.FirstOrDefault(r => r.Role == role && r.Stage == stage) is not { } gained)
+            return new RoomMoodDelta.Unpriced(role + " thought stage " + stage.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        return new RoomMoodDelta.Priced(gained.Offset - now.RoomThought + outside);
     }
 
     /// <summary>
@@ -289,9 +313,9 @@ public static class ForecastHousing
     /// over a flat mood that holds the observed unclamped target and break threshold constant across tier 1's horizon. Null
     /// when the delta, the target, the threshold or the break curve is unread.
     /// </summary>
-    public static double? BedroomGain(NeedsForecastPawn pawn, Fact<int> stage, IReadOnlyDictionary<string, EquatableArray<MoodThought>> observed, MoodBreakModel breaks, double wellbeingWeight, bool barracks = false)
+    public static double? BedroomGain(NeedsForecastPawn pawn, int stage, IReadOnlyDictionary<string, EquatableArray<MoodThought>> observed, MoodBreakModel breaks, double wellbeingWeight, bool barracks = false)
     {
-        if (!BedroomMoodDelta(pawn, stage, observed, barracks).TryGetValue(out var delta)
+        if (BedroomMoodDelta(pawn, stage, observed, barracks) is not RoomMoodDelta.Priced { Delta: var delta }
             || pawn.Mood is not { UnclampedTarget: var target, BreakThreshold: var threshold } || !double.IsFinite(target)
             || !QuestCapacityForecast.FinitePositive(threshold)) return null;
         var model = new MoodBreakModel { Threshold = threshold };
@@ -372,7 +396,7 @@ public static class ForecastHousing
     {
         if (RestRate(pawn) is not { } rate) return new(pawn, 0, 0, null, null) { Sleeps = false };
         var now = SleepNow(pawn) ?? throw new RequiredFactException("sleep place:" + pawn.Pawn);
-        if (!BedroomMoodDelta(pawn, Known(closure.Prediction.Stage), c.ColonistThoughts, barracks).TryGetValue(out var room))
+        if (BedroomMoodDelta(pawn, closure.Prediction.Stage, c.ColonistThoughts, barracks) is not RoomMoodDelta.Priced { Delta: var room })
             throw new RequiredFactException("bedroom mood delta:" + pawn.Pawn);
         var (ground, comfort, gain) = planned is not null ? (planned.Ground, planned.Comfort, rate.GainPerTickPerEffectiveness * planned.RestEffectiveness)
             : now.Read.Bed.Length != 0 && closure.Prediction.Beds.Contains(now.Read.Bed) ? (now.Read.Ground, now.Read.Comfort, now.Read.GainPerTick)

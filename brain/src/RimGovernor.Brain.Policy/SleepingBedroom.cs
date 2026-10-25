@@ -245,7 +245,7 @@ public static partial class SleepingRules
                 waiting.RemoveRange(0, bunked.Count);
                 continue;
             }
-            var stage = gains?.PlannedStages.GetValueOrDefault(room.Id) ?? default;
+            var stage = gains is not null && gains.PlannedStages.TryGetValue(room.Id, out var planned) ? planned : new RoomStage.Unstaged();
             var first = gains is null ? waiting[0] : ForecastHousing.LargestGainFirst(waiting, p => p.Id.Value, p => gains.Gain(p.Id.Value, stage), findings)[0];
             List<SleepingPerson> housed = [first, .. waiting.Where(p => couples.TryGetValue(first.Id, out var partner) && p.Id == partner)];
             occupants[room.Id] = EquatableArray.From(housed.Select(p => p.Id.Value).ToArray());
@@ -337,7 +337,7 @@ public static partial class SleepingRules
         var retiring = RetiringRooms(plan);
         var pool = plan.Rooms.Where(r => !retiring.Contains(r.Region.Bounds())).ToList();
         var spare = Math.Max(0, pool.Sum(r => r.Role == PlannedRole.Bedroom ? 1 : BedSlotsOf(plan, r, rooms.Shapes.Furniture)?.Count ?? 0) - sleeping.Colonists);
-        var stage = Known(LayoutMoodRules.MoodJudgment.PlannedStage);
+        var stage = LayoutMoodRules.MoodJudgment.PlannedStage;
         foreach (var r in pool)
         {
             if (BedSlotsOf(plan, r, rooms.Shapes.Furniture) is not { } slots)

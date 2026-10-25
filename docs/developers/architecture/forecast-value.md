@@ -963,7 +963,9 @@ from it (`ForecastHousing.LargestGainFirst`, a stable sort, so ties keep id orde
 station facts alone (`BedroomGainFacts.Of`, which the clustering's bed merge also reads): `ForecastHousing.BedroomGain` runs the
 observed `NeedMood.UnclampedTarget` and `BreakThreshold`, held flat over tier 1's horizon, through `MoodBreakModel.AddTierTicks` and
 then `GainPerDay` with `BedroomMoodDelta`. The stage is a standing bed's room stage now (the pawn's rest target), or a planned
-bedroom's predicted stage when every stuff predicts the same one. When any candidate's gain is unread the order stays id order and
+bedroom's predicted stage when every stuff predicts the same one (a `RoomStage`: `Staged`, or `Unstaged` without a rest target
+or when the stuffs disagree). A delta lacking a read is `RoomMoodDelta.Unpriced`, naming the read; the occupant step throws on it.
+When any candidate's gain is unread or unstaged the order stays id order and
 each such pawn is named `bedroom_order_unpriced:<pawn>` in the coupled findings. An ascetic is housed by its NeverUpgrade room only
 while it owns that room alone; in a shared barracks it is unhoused and ranked like anyone else.
 
