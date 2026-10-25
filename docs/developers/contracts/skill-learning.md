@@ -172,6 +172,34 @@ term.
 its `MissingXp` against a held role's requirement stays the requirement route for
 those roles and is not priced by this credit.
 
+### Childhood work value
+
+A child's learning earns work credit when the gained level survives until work
+unlocks inside the existing `InvestmentHorizonDays`. The horizon remains the
+colony model's horizon (60 game days by default); education adds no model runs or
+separate horizon. A child too young to unlock needed work in that time earns no
+work credit for it. A raise lost to decay before the unlock earns none either.
+
+`PawnUpkeepRead.ChildWork` carries the child's observed biological age, native
+child/adult aging rates and gene aging factor, and the work states at integer
+biological ages. Null names a pawn outside childhood. Native aging interpolates
+the child and adult rates between ages 11 and 20. Policy integrates these rates
+to date each boundary and uses the same outcome shortfall and free hours as
+ordinary skill work value. Each age state holds native work speeds and the
+corresponding one-level-higher speeds. Restrictions from backstories, traits,
+health, genes, royalty, ideology, quests and slavery remain observed; reaching a
+work age removes only that age restriction.
+
+The native read substitutes each age before stat parts, postprocess curves,
+nested factors, scenario factors, rounding and clamps, including age changes to
+`WorkSpeedGlobal`. It never scales an already clamped value. Pawn state, definitions
+and stat caches are not rewritten by this read. Health, equipment, environment,
+current skill aptitude and non-age restrictions stay fixed; this is conditional
+work value, not a forecast of future traits or growth choices. Unsupported native
+pipelines fail the read. The existing `lab/skill-stat-curve` differential includes
+child ages, age unlocks and a clamped speed; only its disposable fixture changes
+age, skill or the clamp to compare against live native values.
+
 ## Stat-at-level read
 
 `NativeSkillStat` reads a pawn's stat value at each stored level 0-20 without changing

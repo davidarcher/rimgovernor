@@ -85,20 +85,23 @@ internal static class NativeSkillStat
 
     /// <summary>The finalized stat value at each stored level <see cref="SkillRecord.MinLevel"/>..<see cref="SkillRecord.MaxLevel"/>
     /// (index = stored level, aptitude applied as native GetLevel does), or null with the disqualifying <paramref name="finding"/>.</summary>
-    internal static float[]? Levels(Pawn pawn, StatDef stat, SkillDef skill, out string finding)
+    internal static float[]? Levels(Pawn pawn, StatDef stat, SkillDef skill, out string finding, int? biologicalYears = null)
+        => SelectedLevels(pawn, stat, skill, out finding, biologicalYears, null);
+
+    private static float[]? SelectedLevels(Pawn pawn, StatDef stat, SkillDef skill, out string finding, int? biologicalYears, int? storedLevel)
     {
         // GeneralLaborSpeed is independent of Crafting: native quality changes, native duration does not.
         // Follow the actual stat dependency graph instead of turning a known constant rate into an unknown at level-up.
         if (Independent(pawn, stat, skill))
         {
             finding = "";
-            return Enumerable.Repeat(pawn.GetStatValue(stat), SkillRecord.MaxLevel + 1).ToArray();
+            return Enumerable.Repeat(biologicalYears is { } age ? NativeAgeStat.Value(pawn, stat, age) : pawn.GetStatValue(stat), storedLevel.HasValue ? 1 : SkillRecord.MaxLevel + 1).ToArray();
         }
         finding = Disqualified(pawn, stat, skill) ?? "";
         if (finding.Length > 0) return null;
         var record = pawn.skills.GetSkill(skill);
         var request = StatRequest.For(pawn);
-        var original = stat.Worker.GetValueUnfinalized(request);
+        var original = biologicalYears is { } years ? NativeAgeStat.Unfinalized(pawn, stat, years) : stat.Worker.GetValueUnfinalized(request);
         var offset = stat.skillNeedOffsets?.Count == 1;
         var need = offset ? (stat.skillNeedOffsets ?? throw new System.InvalidOperationException("Required native value is unavailable: stat.skillNeedOffsets."))[0] : (stat.skillNeedFactors ?? throw new System.InvalidOperationException("Required native value is unavailable: stat.skillNeedFactors."))[0];
         var current = need.ValueFor(pawn);
@@ -107,14 +110,15 @@ internal static class NativeSkillStat
             finding = "current skill factor is not positive";
             return null;
         }
-        return Enumerable.Range(SkillRecord.MinLevel, SkillRecord.MaxLevel + 1).Select(level =>
+        return Enumerable.Range(storedLevel ?? SkillRecord.MinLevel, storedLevel.HasValue ? 1 : SkillRecord.MaxLevel + 1).Select(level =>
         {
             var effective = Math.Clamp(level + record.Aptitude, SkillRecord.MinLevel, SkillRecord.MaxLevel);
             var atLevel = need is SkillNeed_Direct direct ? direct.valuesPerLevel[effective] : (float)((BaseBonusAtLevel ?? throw new System.InvalidOperationException("Required native value is unavailable: BaseBonusAtLevel.")).Invoke(need, [effective]) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable."));
             // An offset is additive with nothing multiplied after it (gated); a factor is followed only by linear
             // multipliers (statFactors before it, capacity lerps after it, inspiration gated), so the ratio is exact.
             var value = offset ? original - current + atLevel : (float)(original / (double)current * atLevel);
-            stat.Worker.FinalizeValue(request, ref value, true);
+            if (biologicalYears is { } age) NativeAgeStat.Finalize(pawn, stat, age, ref value);
+            else stat.Worker.FinalizeValue(request, ref value, true);
             return value;
         }).ToArray();
     }
@@ -170,7 +174,7 @@ internal static class NativeSkillStat
     }
 
     // Inspected parts that never read a skill: their observed value is held like capacities and lighting.
-    private static bool AllowedPart(Pawn pawn, StatPart part) => part.GetType() == typeof(StatPart_Glow)
+    internal static bool AllowedPart(Pawn pawn, StatPart part) => part.GetType() == typeof(StatPart_Glow)
         || part.GetType() == typeof(StatPart_Slave) || part.GetType() == typeof(StatPart_Age)
         || part.GetType() == typeof(StatPart_Trainable) // Native Dig training multiplier, independent of skill level.
         || part.GetType() == typeof(StatPart_OverseerStatOffset) && !pawn.RaceProps.IsMechanoid;
@@ -212,16 +216,16 @@ internal static class NativeSkillStat
     /// its observed value. 0 where the stat is disabled for the pawn, as the upkeep speeds are. Throws when the stat reads the
     /// skill by a pipeline the substitution cannot hold exact (<see cref="Disqualified"/>).
     /// </summary>
-    internal static float? OneLevelUp(Pawn pawn, StatDef stat, SkillDef skill)
+    internal static float? OneLevelUp(Pawn pawn, StatDef stat, SkillDef skill, int? biologicalYears = null)
     {
         if (!DependsOn(stat, skill)) return null;
         if (stat.Worker.IsDisabledFor(pawn)) return 0f;
         var record = pawn.skills.GetSkill(skill);
         // A skill the pawn cannot learn (totally disabled) or has no level above (the top) moves nothing: the observed value.
-        if (record.TotallyDisabled || record.levelInt >= SkillRecord.MaxLevel) return pawn.GetStatValue(stat);
+        if (record.TotallyDisabled || record.levelInt >= SkillRecord.MaxLevel) return biologicalYears is { } age ? NativeAgeStat.Value(pawn, stat, age) : pawn.GetStatValue(stat);
         var stored = record.levelInt;
-        var levels = Levels(pawn, stat, skill, out var finding)
+        var levels = SelectedLevels(pawn, stat, skill, out var finding, biologicalYears, stored + 1)
             ?? throw new InvalidOperationException($"{stat.defName} at one level more of {skill.defName} is not exact for {pawn.LabelShort}: {finding}");
-        return levels[stored + 1];
+        return levels[0];
     }
 }

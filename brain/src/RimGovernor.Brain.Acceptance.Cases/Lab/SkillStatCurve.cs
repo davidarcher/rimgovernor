@@ -32,7 +32,7 @@ internal static class LabSkillStatCurve
         Name = "lab/skill-stat-curve",
         Scope = "Native read differential: each medical stat curve on a healthy colonist's biography equals the live native "
             + "stat at every stored Medicine level, its MeleeDPS curve at every stored Melee level and its ranged defense DPS at every stored Shooting level; five productive stat curves also match every native level, including skill-independent tailoring. An anesthetized colonist carries every curve and no finding, equal to the live native stats too, and a Shooting accuracy inspiration disqualifies only the accuracy. "
-            + "A unit test cannot run the game's stat pipeline; using the curves for value is #3635.",
+            + "Child integer-age work states also match live age/skill changes, preserving other disabilities and final clamps. A unit test cannot run the game's stat pipeline; using the curves for value is #3635.",
         Ticks = 0,
         Tier = CaseTier.Nightly,
         Start = new LabStart { Colonists = 3 },
@@ -42,7 +42,7 @@ internal static class LabSkillStatCurve
         {
             var prepared = await s.FixtureAsync("curve-prepare", Prepare, NoArgs.Value, ct).ConfigureAwait(false);
             s.Record("prepare", ServedOps.Json(prepared));
-            if (prepared.Samples != (2 * (Stats + MeleeStats) + ProductiveStats) * Levels || prepared.Failures.Count != 0)
+            if (prepared.Samples != (2 * (Stats + MeleeStats) + ProductiveStats) * Levels || prepared.ChildAgeSamples <= 0 || prepared.Failures.Count != 0)
             {
                 throw new AcceptanceException($"native stat curves: {prepared.Samples} samples (want {(2 * (Stats + MeleeStats) + ProductiveStats) * Levels}), disagreeing: {string.Join(", ", prepared.Failures)}");
             }

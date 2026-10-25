@@ -210,7 +210,7 @@ internal static class NativeNeedsForecast
         var incapable = DefDatabase<WorkTypeDef>.AllDefsListForReading.Where(pawn.WorkTypeIsDisabled).Select(w => w.defName).OrderBy(n => n, StringComparer.Ordinal);
         var food = pawn.needs?.food is { } need ? need.FoodFallPerTickAssumingCategory(HungerCategory.Fed) * GenDate.TicksPerDay : 0;
         var mood = needMood is null ? null : new RimGovernor.Brain.GameFacts.Observations.PawnMoodRead(needMood.UnclampedTarget, needMood.BreakThreshold);
-        return new() { Speeds = speeds, SkillSpeeds = SkillSpeeds(pawn), IncapableWork = EquatableArray.From(incapable), FoodPerDay = food, Mood = mood };
+        return new() { Speeds = speeds, SkillSpeeds = SkillSpeeds(pawn), ChildWork = NativeChildWork.Read(pawn), IncapableWork = EquatableArray.From(incapable), FoodPerDay = food, Mood = mood };
     }
     /// <summary>
     /// For each skill of the pawn and each work speed stat that reads it, the stat's value with the skill one stored level higher

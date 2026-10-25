@@ -77,7 +77,7 @@ internal static class NeedsFixtures
     };
 
     /// <summary>No work speeds, no incapable work, no food and no mood.</summary>
-    public static PawnUpkeepRead Upkeep => new() { Speeds = [], SkillSpeeds = [], IncapableWork = [], FoodPerDay = 0, Mood = null };
+    public static PawnUpkeepRead Upkeep => new() { Speeds = [], SkillSpeeds = [], ChildWork = null, IncapableWork = [], FoodPerDay = 0, Mood = null };
 
     /// <summary>Immunity at 1, no contracts, whole blood pumping, breathing and filtration, and no affected parts.</summary>
     public static PawnDiseaseFacts Disease => new()

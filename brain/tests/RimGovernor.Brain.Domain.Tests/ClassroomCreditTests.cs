@@ -212,6 +212,30 @@ public sealed class ClassroomCreditTests
     }
 
     [Fact]
+    public void AFreshColonyCreditsAChildsLearningWhenItsWorkUnlocksInsideTheSameHorizon()
+    {
+        var review = Of(School(Child("child", "Construction")), realMarginals: true);
+        var context = review.Context with
+        {
+            InvestmentHorizonDays = 60,
+            Needs = review.Context.Needs with
+            {
+                Pawns = [.. review.Context.Needs.Pawns.Select(p => p.Pawn == "child"
+                    ? p with { Upkeep = p.Upkeep with { IncapableWork = ["Construction"], ChildWork = SkillValueTests.Childhood() } } : p)],
+            },
+        };
+        var key = ProjectGraph.SkillKey("child", "Construction");
+        // The real stock's nondecaying raise lasts the model's 60-day horizon. Native work unlock is at day 30.
+        Assert.True(context.SkillRaises[key].Days >= 60);
+        var future = SkillValue.PerXp(review.Outcome, review.Commitments, context, review.Horizon, "child", "Construction");
+        Assert.True(future > context.Investment[key]);
+        var beforeUnlock = context with { InvestmentHorizonDays = 30 };
+        Assert.Equal(beforeUnlock.Investment[key], SkillValue.PerXp(review.Outcome, review.Commitments, beforeUnlock, review.Horizon, "child", "Construction"));
+        var gains = ForecastClassroom.ClassroomCredit(Served, review.Outcome, review.Commitments, context, review.Horizon);
+        Assert.True(double.IsFinite(Assert.Single(gains).PerDay));
+    }
+
+    [Fact]
     public void TheRoomsOneDeskSeatsTheChildTheLessonsAreWorthMostTo()
     {
         var review = Of(School(Child("other"), Child()));

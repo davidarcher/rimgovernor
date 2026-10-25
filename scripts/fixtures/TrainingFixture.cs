@@ -401,8 +401,67 @@ namespace RimGovernor.Native
                 }
                 finally { handler.EndInspiration(frenzy); }
                 return FixtureKit.Reply(new Fx.SkillStatCurvePrepared { Qualified = qualified.GetUniqueLoadID(), Disqualified = disqualified.GetUniqueLoadID(),
-                    Samples = samples, Failures = failures });
+                    Samples = samples, ChildAgeSamples = CompareChildWork(qualified, failures), Failures = failures });
             }, cancellationToken);
+        }
+
+        private static int CompareChildWork(Pawn pawn, List<string> failures)
+        {
+            var originalAge = pawn.ageTracker.AgeBiologicalTicks;
+            var construction = pawn.skills.GetSkill(SkillDefOf.Construction);
+            var originalLevel = construction.levelInt;
+            var stat = StatDefOf.ConstructionSpeed;
+            var originalMax = stat.maxValue;
+            var samples = 0;
+            try
+            {
+                foreach (var clamped in new[] { false, true })
+                {
+                    pawn.ageTracker.AgeBiologicalTicks = 8L * GenDate.TicksPerYear;
+                    pawn.Notify_DisabledWorkTypesChanged();
+                    construction.levelInt = 5;
+                    if (clamped) stat.maxValue = 0.1f;
+                    var before = (pawn.ageTracker.AgeBiologicalTicks, construction.levelInt, construction.xpSinceLastLevel, construction.xpSinceMidnight);
+                    var read = NativeChildWork.Read(pawn) ?? throw new InvalidOperationException("Child work read is absent at age eight.");
+                    if (before != (pawn.ageTracker.AgeBiologicalTicks, construction.levelInt, construction.xpSinceLastLevel, construction.xpSinceMidnight)) failures.Add("child_work_read_mutated_pawn");
+                    foreach (var age in read.Ages.Where(a => a.BiologicalYears <= 20))
+                    {
+                        pawn.ageTracker.AgeBiologicalTicks = (long)age.BiologicalYears * GenDate.TicksPerYear;
+                        pawn.Notify_DisabledWorkTypesChanged();
+                        foreach (var speed in age.Speeds)
+                        {
+                            var def = DefDatabase<StatDef>.GetNamed(speed.Stat); // Fact row names the typed native stat.
+                            var actual = def.Worker.IsDisabledFor(pawn) ? 0 : def.Worker.GetValue(StatRequest.For(pawn));
+                            samples++;
+                            if (Math.Abs(speed.Value - actual) > 1e-4 * Math.Max(1, Math.Abs(actual))) failures.Add($"child_work/{age.BiologicalYears}/{speed.Stat}: {speed.Value} vs {actual}");
+                        }
+                        foreach (var type in DefDatabase<WorkTypeDef>.AllDefsListForReading)
+                            if (age.IncapableWork.Contains(type.defName) != pawn.WorkTypeIsDisabled(type)) failures.Add($"child_work/{age.BiologicalYears}/disabled/{type.defName}");
+                        foreach (var raised in age.SkillSpeeds)
+                        {
+                            var skill = pawn.skills.skills.Single(s => s.def.defName == raised.Skill);
+                            var saved = skill.levelInt;
+                            var def = DefDatabase<StatDef>.GetNamed(raised.Stat); // Fact row names the typed native stat.
+                            try
+                            {
+                                skill.levelInt = Math.Min(SkillRecord.MaxLevel, saved + 1);
+                                var actual = def.Worker.IsDisabledFor(pawn) ? 0 : def.Worker.GetValue(StatRequest.For(pawn));
+                                samples++;
+                                if (Math.Abs(raised.OneLevelUp - actual) > 1e-4 * Math.Max(1, Math.Abs(actual))) failures.Add($"child_work/{age.BiologicalYears}/{raised.Stat}/{raised.Skill}: {raised.OneLevelUp} vs {actual}");
+                            }
+                            finally { skill.levelInt = saved; }
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                stat.maxValue = originalMax;
+                construction.levelInt = originalLevel;
+                pawn.ageTracker.AgeBiologicalTicks = originalAge;
+                pawn.Notify_DisabledWorkTypesChanged();
+            }
+            return samples;
         }
         [Tool("test/training_inspect", Description = "Read-only postcondition of the training fixture: the colonist's skills, hands, job and the range's hit points.")]
         public async Task<object> Inspect(INativeContext ctx, CancellationToken cancellationToken, string pawnId, string dummyId, string sentinels,

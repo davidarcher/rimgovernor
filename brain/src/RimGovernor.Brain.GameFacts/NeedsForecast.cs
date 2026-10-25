@@ -862,6 +862,8 @@ public sealed record PawnUpkeepRead
     /// <summary>The speed at each stat that reads one of the pawn's skills with that skill one stored level higher (#3912; NativeSkillStat.OneLevelUp): what one more level adds to the pawn's work. A stat no skill of the pawn reads has no row.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<SkillSpeedRead>))]
     public required EquatableArray<SkillSpeedRead> SkillSpeeds { get; init; }
+    /// <summary>Future integer-age work states for a child, with the observed native aging rates. Null for a pawn outside childhood.</summary>
+    public required ChildWorkRead? ChildWork { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public required EquatableArray<string> IncapableWork { get; init; }
     public required double FoodPerDay { get; init; }
@@ -871,6 +873,14 @@ public sealed record PawnUpkeepRead
 public sealed record WorkSpeedRead(string Stat, double Value);
 /// <summary>A pawn's value of a work speed stat with one skill one stored level higher (#3912); 0 where the stat is disabled for it.</summary>
 public sealed record SkillSpeedRead(string Skill, string Stat, double OneLevelUp);
+/// <summary>Read-only age counterfactuals; health, genes, equipment and non-age work restrictions are held observed.</summary>
+public sealed record ChildWorkRead(double BiologicalYears, double ChildAgingRate, double AdultAgingRate, double GeneAgingFactor,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<AgeWorkRead>))] EquatableArray<AgeWorkRead> Ages);
+/// <summary>Work speeds and restrictions from this integer biological age until the next row. The last row is age-invariant.</summary>
+public sealed record AgeWorkRead(int BiologicalYears,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<WorkSpeedRead>))] EquatableArray<WorkSpeedRead> Speeds,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<SkillSpeedRead>))] EquatableArray<SkillSpeedRead> SkillSpeeds,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<string>))] EquatableArray<string> IncapableWork);
 /// <summary>The pawn's unclamped mood target (as <see cref="NeedMood.UnclampedTarget"/>) and its minor break threshold (<c>MentalBreaker.BreakThresholdMinor</c>).</summary>
 public sealed record PawnMoodRead(double Target, double Threshold);
 /// <summary>

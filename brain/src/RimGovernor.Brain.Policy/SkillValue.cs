@@ -39,7 +39,8 @@ internal static class SkillValue
         var raise = context.SkillRaises.TryGetValue(key, out var found) ? found : throw new RequiredFactException("skill raise of " + key);
         var upkeep = (context.Needs.Pawns.FirstOrDefault(p => p.Pawn == pawn) ?? throw new RequiredFactException("upkeep of " + pawn)).Upkeep;
         // A stock at the top level, or a skill no work speed of the pawn reads, speeds nothing up: no shortfall or free hours are needed.
-        if (raise.Xp <= 0 || !upkeep.SkillSpeeds.Any(r => r.Skill == skill)) return priced;
+        if (raise.Xp <= 0 || !upkeep.SkillSpeeds.Any(r => r.Skill == skill)
+            && upkeep.ChildWork?.Ages.Any(a => a.SkillSpeeds.Any(r => r.Skill == skill)) != true) return priced;
         var table = Tables.Of(outcome, commitments, context, horizon);
         return priced + table.WorkPerXp.GetOrAdd(key, _ => WorkPerXp(table, context, pawn, skill, upkeep, raise));
     }
@@ -59,15 +60,36 @@ internal static class SkillValue
     internal static double WorkPerXp(string pawn, string skill, PawnUpkeepRead upkeep, SkillRaise raise, double freeTicksPerDay, WorkShortfall shortfall, double horizonDays)
     {
         if (raise.Xp <= 0) return 0;
-        var rows = upkeep.SkillSpeeds.Where(r => r.Skill == skill).ToArray();
-        if (rows.Length == 0) return 0;
-        var speeds = upkeep.Speeds.ToDictionary(s => s.Stat, s => s.Value, StringComparer.Ordinal);
-        double Added(IReadOnlyDictionary<string, double> at) =>
-            PawnValueRules.WorkAdded(new PawnValueFacts(pawn) { Speeds = at, Incapable = upkeep.IncapableWork, FreeTicksPerDay = freeTicksPerDay }, shortfall).Sum(s => s.TicksPerDay);
-        var now = Added(speeds);
-        var raised = new Dictionary<string, double>(speeds, StringComparer.Ordinal);
-        foreach (var row in rows) raised[row.Stat] = row.OneLevelUp;
         var lasts = Math.Min(horizonDays, raise.Days);
-        return lasts <= 0 ? 0 : (Added(raised) - now) / GameTime.TicksPerDay * lasts / raise.Xp;
+        if (lasts <= 0) return 0;
+        if (upkeep.ChildWork is { } child)
+        {
+            if (child.Ages.Count == 0 || child.Ages[0].BiologicalYears != (int)child.BiologicalYears)
+                throw new RequiredFactException("child work ages of " + pawn);
+            var value = 0d;
+            for (var index = 0; index < child.Ages.Count; index++)
+            {
+                var age = child.Ages[index];
+                var from = ChildWorkRules.DayAt(child, age.BiologicalYears);
+                if (from >= lasts) break;
+                var to = index + 1 < child.Ages.Count ? Math.Min(lasts, ChildWorkRules.DayAt(child, child.Ages[index + 1].BiologicalYears)) : lasts;
+                value += At(age.Speeds, age.SkillSpeeds, age.IncapableWork) * (to - from);
+            }
+            return value / GameTime.TicksPerDay / raise.Xp;
+        }
+        return At(upkeep.Speeds, upkeep.SkillSpeeds, upkeep.IncapableWork) * lasts / GameTime.TicksPerDay / raise.Xp;
+
+        double At(EquatableArray<WorkSpeedRead> work, EquatableArray<SkillSpeedRead> gains, EquatableArray<string> incapable)
+        {
+            var rows = gains.Where(r => r.Skill == skill).ToArray();
+            if (rows.Length == 0) return 0;
+            var speeds = work.ToDictionary(s => s.Stat, s => s.Value, StringComparer.Ordinal);
+            double Added(IReadOnlyDictionary<string, double> at) =>
+                PawnValueRules.WorkAdded(new PawnValueFacts(pawn) { Speeds = at, Incapable = incapable, FreeTicksPerDay = freeTicksPerDay }, shortfall).Sum(s => s.TicksPerDay);
+            var now = Added(speeds);
+            var raised = new Dictionary<string, double>(speeds, StringComparer.Ordinal);
+            foreach (var row in rows) raised[row.Stat] = row.OneLevelUp;
+            return Added(raised) - now;
+        }
     }
 }

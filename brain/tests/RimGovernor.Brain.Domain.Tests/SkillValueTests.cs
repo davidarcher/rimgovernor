@@ -2,6 +2,9 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.GameFacts.Observations;
 using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using RimGovernor.Brain.GameFacts;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -63,6 +66,63 @@ public sealed class SkillValueTests
     public void AStockAtTheTopLevelHasNoLevelToGain()
     {
         Assert.Equal(0, Of("Construction", Short(60000), xp: 0), 12);
+    }
+
+    internal static ChildWorkRead Childhood(double years = 8, bool disabled = false) => new(years, 4, 1, 1,
+    [
+        new((int)years, [new("ConstructionSpeed", 0.25)], [new("Construction", "ConstructionSpeed", 0.3)], ["Construction"]),
+        new(10, [new("ConstructionSpeed", 1)], [new("Construction", "ConstructionSpeed", 1.2)], disabled ? ["Construction"] : []),
+        new(11, [new("ConstructionSpeed", 2)], [new("Construction", "ConstructionSpeed", 2.4)], disabled ? ["Construction"] : []),
+    ]);
+
+    private static double ChildValue(ChildWorkRead child, double lasts = 60, double horizon = 60) =>
+        SkillValue.WorkPerXp("child", "Construction", Upkeep with { ChildWork = child, IncapableWork = ["Construction"] },
+            new(1000, lasts), 20000, Short(60000), horizon);
+
+    [Fact]
+    public void AChildEarnsFutureWorkOnlyAfterNativeAgeUnlocksItAtThatAgesSpeeds()
+    {
+        // Native child rate 4: age 10 in 30 game days and age 11 in 45. Work gains 4000/day, then 8000/day.
+        Assert.Equal((4000 * 15 + 8000 * 15) / Day / 1000, ChildValue(Childhood()), 12);
+        Assert.Equal(4000 * 10 / Day / 1000, ChildValue(Childhood(), horizon: 40), 12);
+    }
+
+    [Fact]
+    public void AChildTooYoungWithinTheInvestmentHorizonEarnsNoFutureWork()
+    {
+        Assert.Equal(0, ChildValue(Childhood(years: 3)), 12);
+        Assert.Equal(0, ChildValue(Childhood(), horizon: 30), 12);
+        Assert.Equal(0, ChildValue(Childhood() with { GeneAgingFactor = 0 }), 12);
+    }
+
+    [Fact]
+    public void AgingPreservesPermanentDisabilityAndCannotRecoverADecayedRaise()
+    {
+        Assert.Equal(0, ChildValue(Childhood(disabled: true)), 12);
+        Assert.Equal(0, ChildValue(Childhood(), lasts: 20), 12);
+        Assert.Equal(4000 * 5 / Day / 1000, ChildValue(Childhood(), lasts: 35), 12);
+    }
+
+    [Fact]
+    public void NativeAgingInterpolatesChildAndAdultRatesAndAppliesTheObservedGeneFactor()
+    {
+        var child = Childhood() with { BiologicalYears = 11 };
+        var expected = 60 * Math.Log((4d - 1d / 3) / 4) / (-1d / 3);
+        Assert.Equal(expected, ChildWorkRules.DayAt(child, 12), 10);
+        Assert.Equal(expected / 2, ChildWorkRules.DayAt(child with { GeneAgingFactor = 2 }, 12), 10);
+        Assert.Equal(60, ChildWorkRules.DayAt(child with { BiologicalYears = 20 }, 21), 10);
+        Assert.Throws<RequiredFactException>(() => ChildValue(Childhood() with { Ages = [] }));
+    }
+
+    [Fact]
+    public void ChildWorkStatesRoundTripThroughTheCanonicalFactsCodecAndMissingReadsFail()
+    {
+        var read = Upkeep with { ChildWork = Childhood() };
+        var json = JsonSerializer.Serialize(read, FactsJsonContext.Default.PawnUpkeepRead);
+        Assert.Equal(read, JsonSerializer.Deserialize(json, FactsJsonContext.Default.PawnUpkeepRead));
+        var absent = JsonNode.Parse(json)!.AsObject();
+        absent.Remove("childWork");
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize(absent.ToJsonString(), FactsJsonContext.Default.PawnUpkeepRead));
     }
 
     [Fact]

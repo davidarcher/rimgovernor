@@ -132,6 +132,8 @@ public sealed record SkillLearningProbeRead
 /// <summary><c>test/skill_stat_curve_prepare</c>: the biography's medical stat curves against live native stat calls.</summary>
 public sealed record SkillStatCurvePrepared
 {
+    /// <summary>Read-only child age/work substitutions checked against live native age and skill changes, including a clamped stat.</summary>
+    public int ChildAgeSamples { get; init; }
     /// <summary>The healthy colonist whose curves were compared.</summary>
     public string Qualified { get; init; } = "";
 
