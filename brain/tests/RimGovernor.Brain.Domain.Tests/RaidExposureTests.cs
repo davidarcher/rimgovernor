@@ -154,18 +154,19 @@ public sealed class RaidExposureTests
     private static Fx.StagedPawn Pawn(string id, Fx.StagedPrimary primary, double melee = 0, double ranged = 0, double combatPower = 0) =>
         new() { Id = id, Kind = "k", Health = 1, Primary = primary, MeleeDps = melee, RangedDps = ranged, CombatPower = combatPower, Downed = false, ViolenceCapable = true };
 
-    private static ExposureTable OneCell(int trials) => new(
+    private static ExposureTable OneCell(int raids, int? trials = null, int? hitRaids = null) => new(
         RaidExposure.Schema,
-        [new ExposureCell("1-2", ExposureRoles.Gunner, trials, 1.5, 0.5, 2.5, 0.2, 0.1, 0.3)]);
+        [new ExposureCell("1-2", ExposureRoles.Gunner, trials ?? raids, 1.5, 0.5, 2.5, 0.2, 0.1, 0.3, raids, hitRaids ?? raids)]);
 
     [Fact]
     public void ACalibratedCellAnswersAndTheOthersNameThemselvesUncalibrated()
     {
-        var table = OneCell(trials: 20);
+        var table = OneCell(raids: 20);
 
         var answer = RaidExposure.HitsPerColonist(table, 1.5, ExposureRoles.Gunner);
         Assert.Equal(new HitRange(1.5, 0.5, 2.5), Assert.IsType<ExposureReading.Calibrated>(answer).Range);
-        Assert.Equal([RaidExposure.LayoutUnassessed], answer.Findings);
+        Assert.Equal([RaidExposure.LayoutUnassessed, RaidExposure.EmpiricalEstimate, RaidExposure.StabilityUnconfirmed], answer.Findings);
+        Assert.Equal(answer.Findings, RaidExposure.DownRate(table, 1.5, ExposureRoles.Gunner).Findings);
 
         var otherRole = RaidExposure.HitsPerColonist(table, 1.5, ExposureRoles.Melee);
         Assert.IsType<ExposureReading.Uncalibrated>(otherRole);
@@ -181,12 +182,35 @@ public sealed class RaidExposureTests
     }
 
     [Fact]
-    public void ACellUnderTwentyTrialsIsUncalibrated()
+    public void FourPawnsFromNineteenRaidsCannotQualifyWithSeventySixTrials()
     {
-        var answer = RaidExposure.HitsPerColonist(OneCell(trials: 19), 1.5, ExposureRoles.Gunner);
+        var table = OneCell(raids: 19, trials: 76);
+        var answer = RaidExposure.HitsPerColonist(table, 1.5, ExposureRoles.Gunner);
 
         Assert.IsType<ExposureReading.Uncalibrated>(answer);
         Assert.Equal("exposure_cell_uncalibrated:1-2/gunner", answer.Findings[0]);
+        Assert.IsType<ExposureReading.Uncalibrated>(RaidExposure.DownRate(table, 1.5, ExposureRoles.Gunner));
+    }
+
+    [Theory]
+    [InlineData(0, "exposure_zero_hit_sample:1-2/gunner:0/20")]
+    [InlineData(1, "exposure_sparse_hit_sample:1-2/gunner:1/20")]
+    [InlineData(19, "exposure_sparse_hit_sample:1-2/gunner:19/20")]
+    public void EmpiricalRangesNameZeroAndSparseHitSamplesForBothReadings(int hitRaids, string finding)
+    {
+        var table = OneCell(20, hitRaids: hitRaids);
+        if (hitRaids == 0)
+        {
+            table = table with { Cells = [table.Cells[0] with { MeanHits = 0, HitsLo = 0, HitsHi = 0 }] };
+        }
+        var hits = Assert.IsType<ExposureReading.Calibrated>(RaidExposure.HitsPerColonist(table, 1.5, ExposureRoles.Gunner));
+        var downs = Assert.IsType<ExposureReading.Calibrated>(RaidExposure.DownRate(table, 1.5, ExposureRoles.Gunner));
+        Assert.Equal([RaidExposure.LayoutUnassessed, RaidExposure.EmpiricalEstimate, RaidExposure.StabilityUnconfirmed, finding], hits.Findings);
+        Assert.Equal(hits.Findings, downs.Findings);
+        if (hitRaids == 0)
+        {
+            Assert.Equal(new HitRange(0, 0, 0), hits.Range);
+        }
     }
 
     [Theory]
@@ -210,7 +234,8 @@ public sealed class RaidExposureTests
         var table = RaidExposure.Load();
 
         Assert.Equal(RaidExposure.Schema, table.Schema);
-        Assert.All(table.Cells, c => Assert.True(c.Trials >= RaidExposure.MinTrials));
+        Assert.Equal(22, table.Cells.Count);
+        Assert.All(table.Cells, c => Assert.True(c.Raids >= RaidExposure.MinRaids && c.Trials >= c.Raids));
 
         // A small fight is calibrated too (#3880): lab-ranged-lone with lab-ranged-few for gunners, lab-melee-lone for melee.
         foreach (var (ratio, role) in new[] { (0.7, ExposureRoles.Gunner), (1.5, ExposureRoles.Gunner), (0.05, ExposureRoles.Gunner), (0.05, ExposureRoles.Melee) })
@@ -218,14 +243,26 @@ public sealed class RaidExposureTests
             var reading = RaidExposure.HitsPerColonist(ratio, role);
             var range = Assert.IsType<ExposureReading.Calibrated>(reading).Range;
             Assert.True(range.Lo <= range.Mean && range.Mean <= range.Hi);
-            Assert.Equal([RaidExposure.LayoutUnassessed], reading.Findings);
+            Assert.Contains(RaidExposure.LayoutUnassessed, reading.Findings);
+            Assert.Contains(RaidExposure.EmpiricalEstimate, reading.Findings);
+            Assert.Contains(RaidExposure.StabilityUnconfirmed, reading.Findings);
         }
 
         // A small fight hits a colonist less than a raid matched to the defense does.
         Assert.True(RaidExposure.HitsPerColonist(0.3, ExposureRoles.Gunner) is ExposureReading.Calibrated { Range.Hi: var hi } && hi < 0.5);
 
-        // No committed sweep contains a violence-incapable trial yet (#3969).
-        Assert.Equal("exposure_cell_uncalibrated:0-0.5/noncombatant", RaidExposure.HitsPerColonist(0.3, ExposureRoles.Noncombatant).Findings[0]);
+        // Every civilian role has its own native trials in every ratio bin (#3969), including
+        // observed zero-hit cells. None may borrow another role's exposure or return an uncalibrated default.
+        foreach (var ratio in new[] { 0.3, 0.7, 1.5, 3.0, 5.0 })
+        foreach (var role in new[] { ExposureRoles.Unarmed, ExposureRoles.Noncombatant, ExposureRoles.Downed })
+        {
+            var reading = Assert.IsType<ExposureReading.Calibrated>(RaidExposure.HitsPerColonist(ratio, role));
+            Assert.True(reading.Range.Lo <= reading.Range.Mean && reading.Range.Mean <= reading.Range.Hi);
+            Assert.Contains(RaidExposure.LayoutUnassessed, reading.Findings);
+            Assert.Contains(RaidExposure.EmpiricalEstimate, reading.Findings);
+            Assert.Contains(RaidExposure.StabilityUnconfirmed, reading.Findings);
+            Assert.All(new[] { reading.Range.Mean, reading.Range.Lo, reading.Range.Hi }, value => Assert.True(double.IsFinite(value)));
+        }
     }
 
     [Fact]
@@ -233,14 +270,17 @@ public sealed class RaidExposureTests
     {
         static ExposureTable Parse(string json) => RaidExposure.Parse(new MemoryStream(Encoding.UTF8.GetBytes(json)));
 
-        Assert.ThrowsAny<System.Text.Json.JsonException>(() => Parse("{\"schema\":1,\"cells\":[],\"extra\":1}"));
-        var cell = "{\"bin\":\"1-2\",\"role\":\"gunner\",\"trials\":1,\"meanHits\":0,\"hitsLo\":0,\"hitsHi\":0,\"downRate\":0,\"downLo\":0,\"downHi\":0}";
-        Assert.Throws<DomainException>(() => Parse("{\"schema\":1,\"cells\":[" + cell + "," + cell + "]}"));
-        Assert.Throws<DomainException>(() => Parse("{\"schema\":2,\"cells\":[]}"));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => Parse("{\"schema\":2,\"cells\":[],\"extra\":1}"));
+        var cell = "{\"bin\":\"1-2\",\"role\":\"gunner\",\"trials\":1,\"meanHits\":0,\"hitsLo\":0,\"hitsHi\":0,\"downRate\":0,\"downLo\":0,\"downHi\":0,\"raids\":1,\"hitRaids\":0}";
+        Assert.Single(Parse("{\"schema\":2,\"cells\":[" + cell + "]}").Cells);
+        Assert.Throws<DomainException>(() => Parse("{\"schema\":2,\"cells\":[" + cell + "," + cell + "]}"));
+        Assert.Throws<DomainException>(() => Parse("{\"schema\":1,\"cells\":[]}"));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => Parse("{\"schema\":2,\"cells\":[" + cell.Replace(",\"raids\":1", "", StringComparison.Ordinal) + "]}"));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => Parse("{\"schema\":2,\"cells\":[" + cell.Replace(",\"hitRaids\":0", "", StringComparison.Ordinal) + "]}"));
     }
 
     [Fact]
-    public void TheTableIsBuiltFromRowsWithBootstrapAndWilsonRanges()
+    public void TheTableIsBuiltFromRowsWithRaidClusteredRanges()
     {
         var rows = new List<ExposureRow>();
         for (var i = 0; i < 30; i++)
@@ -255,6 +295,7 @@ public sealed class RaidExposureTests
 
         var gunner = Assert.Single(table.Cells, c => c.Role == ExposureRoles.Gunner);
         Assert.Equal(("1-2", 30, 2.0), (gunner.Bin, gunner.Trials, gunner.MeanHits));
+        Assert.Equal((30, 24), (gunner.Raids, gunner.HitRaids));
         Assert.InRange(gunner.HitsLo, 1.4, 2.0);
         Assert.InRange(gunner.HitsHi, 2.0, 2.6);
         Assert.Equal(6.0 / 30, gunner.DownRate, 4);
@@ -265,10 +306,10 @@ public sealed class RaidExposureTests
         // A second build from the same rows draws the same bootstrap.
         Assert.Equal(gunner, SweepExposure.Build(rows).Cells.Single(c => c.Role == ExposureRoles.Gunner));
 
-        // The report reads each cell back through the policy reader: the 30-trial cell answers, the 1-trial cell is uncalibrated.
+        // The report reads each cell back through the policy reader: the 30-raid cell answers, the 1-raid cell is uncalibrated.
         var report = SweepExposure.Report(table);
-        Assert.Contains("1-2/gunner: 30 trials, hits per colonist 2.00", report, StringComparison.Ordinal);
-        Assert.Contains("4+/melee: 1 trials, hits per colonist uncalibrated", report, StringComparison.Ordinal);
+        Assert.Contains("1-2/gunner: 30 trials, 30 raids, 24 hit raids, hits per colonist 2.00", report, StringComparison.Ordinal);
+        Assert.Contains("4+/melee: 1 trials, 1 raids, 1 hit raids, hits per colonist uncalibrated", report, StringComparison.Ordinal);
         Assert.Contains("exposure_cell_uncalibrated:4+/melee", report, StringComparison.Ordinal);
     }
 

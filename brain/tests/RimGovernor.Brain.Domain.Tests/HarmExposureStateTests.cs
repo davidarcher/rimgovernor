@@ -25,7 +25,7 @@ public sealed class HarmExposureStateTests
         Assert.Equal(role, Assert.Single(CombatLabBundle.Roles(staged)).Value);
 
         // Injected policy data exercises the price plumbing; it makes no claim about native calibration.
-        var table = new ExposureTable(RaidExposure.Schema, [new("1-2", role, 100, 5, 3, 20, .5, .4, .6)]);
+        var table = new ExposureTable(RaidExposure.Schema, [new("1-2", role, 100, 5, 3, 20, .5, .4, .6, 100, 100)]);
         var context = ForecastValueTests.Context(pawn, ForecastValueTests.HarmTables(), ForecastValueTests.RaidDay(table),
             new Dictionary<string, EquatableArray<GearOption>> { [pawn.Pawn] = ForecastValueTests.Cloth });
         var outcome = new ForecastCoupledOutcome(new([], 0, 0), true,
@@ -48,6 +48,31 @@ public sealed class HarmExposureStateTests
         var dead = HarmLedger.ExposureOf(new(RaidExposure.Schema, []), 1, pawn with { State = "dead" }, []);
         Assert.Equal(new HitRange(0, 0, 0), Assert.IsType<ExposureReading.Calibrated>(dead).Range);
         Assert.Contains("exposure_no_hits:dead:pawn", dead.Findings);
+    }
+
+    [Theory]
+    [InlineData("eligible", true)]
+    [InlineData("eligible", false)]
+    [InlineData("downed", true)]
+    public void EmbeddedCivilianEvidenceFlowsThroughFightCareAndRaidValuation(string state, bool violence)
+    {
+        var pawn = ForecastValueTests.HarmPawn() with { State = state, ViolenceCapable = violence };
+        var context = ForecastValueTests.Context(pawn, ForecastValueTests.HarmTables(), ForecastValueTests.RaidDay(RaidExposure.Load()),
+            new Dictionary<string, EquatableArray<GearOption>> { [pawn.Pawn] = ForecastValueTests.Cloth });
+        var outcome = new ForecastCoupledOutcome(new([], 0, 0), true,
+            new Dictionary<string, ForecastNeedsResult> { [pawn.Pawn] = ForecastValueTests.Timeline(pawn) }, []);
+        var rows = new Dictionary<string, NeedsForecastPawn> { [pawn.Pawn] = pawn };
+
+        var findings = new SortedSet<string>(StringComparer.Ordinal);
+        Assert.True(double.IsFinite(HarmLedger.FightLoss(1000, [pawn.Pawn], outcome, context, GameTime.TicksPerDay, new(), rows, null, findings).Loss));
+        Assert.Contains(RaidExposure.EmpiricalEstimate, findings);
+        Assert.Contains(RaidExposure.StabilityUnconfirmed, findings);
+        if (state == "downed") Assert.Contains("exposure_sparse_hit_sample:1-2/downed:2/40", findings);
+        Assert.True(double.IsFinite(Assert.IsType<ForecastTerm.Assessed>(HarmLedger.TreatmentsPerDay(context, rows, 1)).Value));
+        Assert.True(double.IsFinite(HarmLedger.RaidOn(context, pawn, new HarmConsequences.Care(true, 1, 0, 1), GameTime.TicksPerDay).Risk));
+        var reading = Assert.IsType<ExposureReading.Calibrated>(HarmLedger.ExposureOf(context.Harm.Exposure, 1, pawn, ForecastValueTests.Cloth));
+        Assert.Contains(RaidExposure.EmpiricalEstimate, reading.Findings);
+        Assert.Contains(RaidExposure.StabilityUnconfirmed, reading.Findings);
     }
 
     [Theory]

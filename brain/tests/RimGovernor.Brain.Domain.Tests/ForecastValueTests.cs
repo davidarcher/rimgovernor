@@ -89,8 +89,8 @@ public sealed class ForecastValueTests
 
     private static EquatableArray<GearOption> Devilstrand => [Duster(0.8)];
 
-    private static ExposureTable Exposure(int trials = 100) => new(RaidExposure.Schema,
-        [new ExposureCell("1-2", ExposureRoles.Unarmed, trials, 5, 3, 20, 0.5, 0.4, 0.6)]);
+    private static ExposureTable Exposure(int raids = 100) => new(RaidExposure.Schema,
+        [new ExposureCell("1-2", ExposureRoles.Unarmed, raids, 5, 3, 20, 0.5, 0.4, 0.6, raids, raids)]);
 
     internal static HarmInputs RaidDay(ExposureTable? exposure = null, double raidsPerDay = 1) => new()
     {
@@ -645,7 +645,7 @@ public sealed class ForecastValueTests
     [Fact]
     public void AnUncalibratedExposureCellLeavesHarmUnknownWithTheCellFindingAndTheOtherTermsStillCompare()
     {
-        var uncalibrated = Harmed(Cloth, RaidDay(Exposure(trials: 5)));
+        var uncalibrated = Harmed(Cloth, RaidDay(Exposure(raids: 5)));
 
         Assert.False(uncalibrated.Harm.IsPriced());
         Assert.Null(uncalibrated.HarmDetail);
@@ -656,7 +656,7 @@ public sealed class ForecastValueTests
         // The terms both sides assess are compared: a hungrier pawn still loses.
         var pawn = Pawn(foodLevel: 0.5, fall: 0.5 / (Day / 2));
         var starving = Timeline(pawn) with { Mood = Mood(0, [0, 0, 0]) };
-        var worse = ForecastValue.Of(Outcome(starving), Context(HarmPawn(), HarmTables(), RaidDay(Exposure(trials: 5)),
+        var worse = ForecastValue.Of(Outcome(starving), Context(HarmPawn(), HarmTables(), RaidDay(Exposure(raids: 5)),
             new Dictionary<string, EquatableArray<GearOption>> { ["pawn"] = Cloth }), Day, Outcome(Calm()));
         Assert.True(worse.LossAgainst(uncalibrated) > 0);
     }
@@ -751,7 +751,7 @@ public sealed class ForecastValueTests
     [Fact]
     public void TheDeathFloorIsUnassessedAndPassesWhileHarmIsUnknown()
     {
-        var context = HarmContext(Cloth, RaidDay(Exposure(trials: 5)));
+        var context = HarmContext(Cloth, RaidDay(Exposure(raids: 5)));
         var reference = Outcome(Calm());
 
         var explained = ForecastValue.Explain(reference, new ForecastTerm.Assessed(0d), context, Day, reference);

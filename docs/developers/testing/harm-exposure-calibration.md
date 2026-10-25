@@ -68,15 +68,22 @@ for a calibration (H5).
 RimGovernor.cmd acceptance sweep -exposure-table <rows.jsonl> <exposure.json>
 ```
 
-builds `Policy/Harm/exposure.json`, an embedded resource of `RimGovernor.Brain.Policy`. A cell is a ratio bin by role. Bins
+builds `Policy/Harm/exposure.json` (schema 2), an embedded resource of `RimGovernor.Brain.Policy`. A cell is a ratio bin by role. Bins
 include their lower edge and exclude the upper: `0-0.5`, `0.5-1`, `1-2`, `2-4` and `4+` (edges 0.5, 1, 2, 4). A trial is
 one colonist in one seed's raid. A cell holds:
 
-- `trials`;
-- `meanHits` per colonist per raid with a 90% percentile-bootstrap range (`hitsLo`, `hitsHi`; 2000 resamples, seeded, so
-  the same rows give the same table);
-- `downRate`, the share that ended down or dead, with its 95% Wilson interval (`downLo`, `downHi`), the interval
-  `HuntingQualification` uses.
+- `trials`: all recorded pawn rows; `raids`: distinct fixture/seed fights; `hitRaids`: fights with at least one hit on a pawn of this role;
+- `meanHits` per colonist per raid with a 90% empirical percentile-bootstrap range (`hitsLo`, `hitsHi`);
+- `downRate`, the share that ended down or dead, with a 95% empirical percentile-bootstrap range (`downLo`, `downHi`).
+
+Each fixture has a fixed mixture weight equal to its average number of this role's pawns per raid. Its mean uses all
+its recorded pawn rows. Weighted fixture means therefore represent equally sized raid cohorts, even when one fixture
+has more sampling rounds. The 2,000 deterministic bootstrap draws resample whole seed raids within each fixture and
+retain those weights. Four gunners in one raid remain correlated observations. Fixture and seed ordering is canonical.
+
+These are descriptive empirical estimates. The ranges do not certify predictive accuracy, future-batch coverage or
+stability. In particular, resampling all-zero observations produces a zero interval, which is not a bound on unseen
+hits or proof of immunity. No fabricated hits, positive floors or substitute roles are added.
 
 The step then reads the file back through `RaidExposure` and prints what each cell answers.
 
@@ -84,38 +91,31 @@ The step then reads the file back through `RaidExposure` and prints what each ce
 
 `RaidExposure.Load()` parses the embedded table once. `RaidExposure.HitsPerColonist(ratio, role)` returns a
 `ExposureReading.Calibrated` carrying a `HitRange` (mean, low, high) and findings, so the ledger reads a range and never only a mean.
-`ExposureReading.Uncalibrated` names `exposure_cell_uncalibrated:<bin>/<role>` for a cell under 20 trials, an absent cell, or a ratio outside the
+`ExposureReading.Uncalibrated` names `exposure_cell_uncalibrated:<bin>/<role>` for a cell under 20 distinct raids, an absent cell, or a ratio outside the
 table (`outside`). `RaidExposure.DownRate` answers the down rate the same way. Every reading carries
-`exposure_layout_unassessed`: the defense layout is a reported key, not a table axis, in v1.
+`exposure_layout_unassessed`: the defense layout is a reported key, not a table axis. All table-backed readings also
+carry `exposure_empirical_estimate` and `exposure_stability_unconfirmed`. A zero-hit sample adds
+`exposure_zero_hit_sample:<bin>/<role>:0/<raids>`; otherwise fewer than 20 hit raids adds
+`exposure_sparse_hit_sample:<bin>/<role>:<hitRaids>/<raids>`. Both hits and down-rate readings retain these qualifications.
+Only a dead pawn has the separate exact no-future-hits reason. A living sheltered or downed pawn needs its own evidence.
 
 ## Calibration result (H5)
 
-`exposure.json` is built from sweep 1 (seeds 1..20) of the ten plain-raid fixtures below; sweep 2 (seeds 21..40)
-checked it. The rows were recorded in three batches (#3543, #3561, #3880). The rows, commands, revisions, game hashes,
-per-cell trials and ranges, and the stability result are in
+`exposure.json` uses every recorded row from both historical evidence files, including the ten original plain-raid
+fixtures and the five civilian fixtures. There are 22 cells: gunner in every bin, melee in `0-0.5` and `2-4`, and
+unarmed, noncombatant and initially downed in every bin. Other melee bins remain unavailable, without extrapolation.
+The rows, commands, revisions, game hashes, current per-cell values and historical failed stability results are in
 [`Sweep/calibration/exposure/README.md`](../../../brain/src/RimGovernor.Brain.Acceptance/Sweep/calibration/exposure/README.md).
 
-| Cell | Trials | Mean hits | 90% range |
-| --- | --- | --- | --- |
-| 0-0.5 / gunner | 140 | 0.19 | 0.12 to 0.25 |
-| 0-0.5 / melee | 80 | 0.34 | 0.23 to 0.46 |
-| 0.5-1 / gunner | 80 | 1.25 | 0.94 to 1.55 |
-| 1-2 / gunner | 140 | 2.61 | 2.30 to 2.94 |
-| 2-4 / gunner | 200 | 3.34 | 3.05 to 3.65 |
-| 2-4 / melee | 100 | 2.78 | 2.34 to 3.21 |
-| 4+ / gunner | 40 | 5.40 | 5.10 to 5.72 |
-
-These seven cells are stable (sweep 2's mean is inside sweep 1's range). A fixture stages one raid, so it reaches one
-ratio: lab-melee-lone 0.30, lab-ranged-lone 0.30, lab-ranged-few 0.40, lab-ranged-light 0.90, lab-ranged 1.20, lab-open
-1.98, lab-split-ranged 2.41, lab-base 2.48, lab-choke 3.67, lab-ranged-overrun 4.21. The `0-0.5` bin prices the small
+Each fixture stages one raid ratio: lab-melee-lone 0.30, lab-ranged-lone 0.30, lab-ranged-few 0.40, lab-ranged-light
+0.90, lab-ranged 1.20, lab-open 1.98, lab-split-ranged 2.41, lab-base 2.48, lab-choke 3.67,
+lab-ranged-overrun 4.21. The `0-0.5` bin prices the small
 fights a colony has besides raids: a creepjoiner turning aggressive (its kind's `combatPower`, 55 in the game) and a held
-entity escaping (#3880). lab-ranged-lone alone failed stability there (hits are rare at its ratio); with lab-ranged-few
-the gunner cell holds. Uncalibrated: `unarmed`, `noncombatant` and `downed` in every bin (#3969), and every bin for roles other than the
-cells above. Cells are not extrapolated across bins.
+entity escaping (#3880). The fixture mixture remains a modeling approximation; layouts are not an exposure axis.
 
 ### Civilian calibration fixtures
 
-The seven committed cells contain no unarmed, incapable or initially downed trial. In particular,
+The original seven cells contained no unarmed, incapable or initially downed trial. In particular,
 `lab-melee-lone` stages steel longswords, so its melee cell cannot answer for fists.
 The five `lab-civilians-*` fixtures stage four reference riflemen, one unarmed violence-capable colonist,
 one colonist whose native childhood disables violence, and one anesthetized colonist. The planner retains
@@ -130,13 +130,18 @@ refuses a fixture whose measured points/capacity ratio misses its intended bin.
 | lab-civilians-heavy | 12 | 2-4 | unarmed, noncombatant, downed |
 | lab-civilians-overrun | 24 | 4+ | unarmed, noncombatant, downed |
 
-These fixtures define the missing calibration; they supply no committed evidence yet. A one-seed diagnostic
-must first verify bins, contact, planner orders and scored states. A full calibration requires explicit approval:
-20 seeds per fixture for the table and a second 20 for stability, 200 fights total. Existing reference fixtures
-took about 119–244 seconds per 20 seeds; budget roughly 20–40 minutes for these sweeps plus the native rebuild
-(20+ minutes), and diagnose any seed exceeding its expected duration. Do not substitute zero hits or another
-role's rows if a cell fails stability. Record only the new fixtures, append their rows to the committed sweep
-files, and rebuild the table; unaffected fixtures need no re-recording.
+The approved calibration recorded 20 fitting seeds and 20 independent validation seeds per fixture after
+all five one-seed diagnostics passed. Four fixtures then received 20 fresh seeds each: 280 scored civilian fights,
+1,960 pawn rows. Both failed validation rounds are retained in the evidence README. All recorded rounds now contribute
+to the qualified empirical estimate; none is presented as an untouched confirmatory holdout.
+
+The former rule required the validation mean to fall inside the training mean's 90% bootstrap interval. That interval
+omitted sampling uncertainty in the validation mean, became narrower on refitting, and degenerated to zero for all-zero
+samples. Selectively adding training rounds also changed pooled fixture weights. Following review and explicit user
+approval, failed comparisons qualify the estimates rather than veto their use. Predictions can underprice or overprice risk.
+
+A full calibration requires explicit approval. These batches took about 28–30 minutes each, excluding
+the native rebuild (20+ minutes); the additional 80 fights took about 15 minutes. Additional full sweeps need approval.
 
 ### Re-running the calibration
 
@@ -149,7 +154,10 @@ RimGovernor.cmd acceptance sweep lab-ranged lab-open lab-choke lab-split-ranged 
 RimGovernor.cmd acceptance sweep -exposure-table <rows1.jsonl> Policy/Harm/exposure.json
 ```
 
-Build a table from the second rows file as well and check that each cell's mean lies inside the first table's
-`hitsLo`..`hitsHi`. A cell that fails stays uncalibrated in the committed table (remove its cell, or set trials to 0), and
-the README lists it. Commit the rows, the table and the README together. To add fixtures without re-running the others,
-sweep only the new ones, append their rows to both committed rows files and rebuild the table from the first.
+The commands above illustrate recording separate rounds; do not replace production with the first round alone.
+For the committed evidence, concatenate `rows-training.jsonl` and `rows-validation.jsonl` into an ignored temporary
+rows file, then pass that file to `-exposure-table`. The file names retain the historical split, not a current
+train/holdout claim. `SweepFileShapeTests` rebuilds from their union and checks exact equality with the embedded table
+and disjoint fixture/seed fights across the files. Keep every pawn in its recorded fight, including zero-hit pawns.
+Commit the raw rows, generated table and evidence README together. A new claim of confirmed predictive accuracy needs
+a frozen validation protocol, a meaningful error criterion and fresh evidence; these descriptive ranges do not supply it.

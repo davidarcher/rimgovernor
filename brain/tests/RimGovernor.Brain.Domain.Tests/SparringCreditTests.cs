@@ -33,8 +33,8 @@ public sealed class SparringCreditTests
 
     private static ExposureTable Exposure() => new(RaidExposure.Schema,
     [
-        new ExposureCell("1-2", ExposureRoles.Unarmed, 100, 5, 3, 20, 0.5, 0.4, 0.6),
-        new ExposureCell("0.5-1", ExposureRoles.Unarmed, 100, 1, 1, 3, 0.1, 0.05, 0.15),
+        new ExposureCell("1-2", ExposureRoles.Unarmed, 100, 5, 3, 20, 0.5, 0.4, 0.6, 100, 100),
+        new ExposureCell("0.5-1", ExposureRoles.Unarmed, 100, 1, 1, 3, 0.1, 0.05, 0.15, 100, 100),
     ]);
 
     private static HarmInputs Raids(double raidsPerDay = 1) => ForecastValueTests.RaidDay(Exposure(), raidsPerDay) with { Raid = new RaidDefense(1000, 990) };

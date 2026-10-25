@@ -30,49 +30,53 @@ public static class ExposureRoles
         downed ? Downed : !violenceCapable ? Noncombatant : !hasPrimary ? Unarmed : ranged ? Gunner : Melee;
 }
 
-/// <summary>A mean and the 90% range around it. The harm ledger reads the range, never only the mean.</summary>
+/// <summary>A mean and its uncertainty bounds. The harm ledger reads the range, never only the mean.</summary>
 public readonly record struct HitRange(double Mean, double Lo, double Hi);
 
 /// <summary>
-/// One calibrated cell of the exposure table: a ratio bin and a role with the trials behind it (a trial is one colonist in
-/// one seed's raid), the mean hits per colonist per raid and its 90% percentile-bootstrap range, and the share of trials
-/// that ended down or dead with its 95% Wilson interval.
+/// One empirical cell: actual colonist rows (Trials), independent raids (Raids), and raids with any role pawn hit
+/// (HitRaids). Means use the fixed fixture mixture; the hit 90% and down 95% ranges resample whole raids within each fixture.
 /// </summary>
-public sealed record ExposureCell(string Bin, string Role, int Trials, double MeanHits, double HitsLo, double HitsHi, double DownRate, double DownLo, double DownHi);
+public sealed record ExposureCell(string Bin, string Role, int Trials, double MeanHits, double HitsLo, double HitsHi, double DownRate, double DownLo, double DownHi, int Raids, int HitRaids);
 
 /// <summary>The exposure table file: <see cref="RaidExposure.Schema"/> and the cells that have trials.</summary>
 public sealed record ExposureTable(int Schema, IReadOnlyList<ExposureCell> Cells);
 
-/// <summary>An answer from the table: calibrated with the cell's range, or uncalibrated; the findings qualify either.</summary>
+/// <summary>An answer from the table: an empirical range with sufficient raid evidence, or uncalibrated; findings qualify either.</summary>
 public abstract record ExposureReading
 {
     private ExposureReading(IReadOnlyList<string> findings) => Findings = findings;
 
     public IReadOnlyList<string> Findings { get; }
 
-    /// <summary>The cell has <see cref="RaidExposure.MinTrials"/> trials or more: its range.</summary>
+    /// <summary>The cell has <see cref="RaidExposure.MinRaids"/> independent raids or more: its empirical range and evidence limits.</summary>
     public sealed record Calibrated(HitRange Range, IReadOnlyList<string> Findings) : ExposureReading(Findings);
 
-    /// <summary>The cell has too few trials, or the ratio is outside the table; a finding names the cell.</summary>
+    /// <summary>The cell has too few raids, or the ratio is outside the table; a finding names the cell.</summary>
     public sealed record Uncalibrated(IReadOnlyList<string> Findings) : ExposureReading(Findings);
 }
 
 /// <summary>
-/// Raid exposure: hits a colonist takes per raid, calibrated by real-game combat sweeps (harm model, step 3) and keyed by
+/// Raid exposure: hits a colonist takes per raid, estimated from real-game combat sweeps (harm model, step 3) and keyed by
 /// raid points divided by defense capacity (the ratio bin) and the colonist's role. The defense layout is not an axis: every
-/// reading reports <see cref="LayoutUnassessed"/>. The table's cells are calibrated constants (kept-constants.md, Exposure table cells).
+/// reading reports <see cref="LayoutUnassessed"/>. Qualified cells retain empirical and unconfirmed-stability findings
+/// (kept-constants.md, Exposure table cells); a zero-hit sample does not establish immunity.
 /// </summary>
 public static class RaidExposure
 {
     /// <summary>The table file schema.</summary>
-    public const int Schema = 1;
+    public const int Schema = 2;
 
-    /// <summary>A cell with fewer trials is not calibrated.</summary>
-    public const int MinTrials = 20;
+    /// <summary>A cell with fewer independent raids cannot supply an empirical estimate.</summary>
+    public const int MinRaids = 20;
 
     public const string LayoutUnassessed = "exposure_layout_unassessed";
 
     public const string CellUncalibrated = "exposure_cell_uncalibrated";
+
+    public const string EmpiricalEstimate = "exposure_empirical_estimate";
+
+    public const string StabilityUnconfirmed = "exposure_stability_unconfirmed";
 
     /// <summary>The bin edges of the ratio. A ratio on an edge belongs to the bin it starts: bins are [lo, hi).</summary>
     public static IReadOnlyList<double> Edges { get; } = [0.5, 1, 2, 4];
@@ -150,33 +154,42 @@ public static class RaidExposure
 
     /// <summary>
     /// Hits a colonist of <paramref name="role"/> takes per raid at <paramref name="ratio"/> (raid points over defense
-    /// capacity), as the cell's 90% range. A cell under <see cref="MinTrials"/> trials, or a ratio outside the table, is
+    /// capacity), as the cell's 90% empirical range. A cell under <see cref="MinRaids"/> independent raids, or a ratio outside the table, is
     /// uncalibrated and carries <c>exposure_cell_uncalibrated:&lt;bin&gt;/&lt;role&gt;</c>; every reading carries
     /// <see cref="LayoutUnassessed"/>.
     /// </summary>
     public static ExposureReading HitsPerColonist(ExposureTable table, double ratio, string role)
     {
         var cell = CellOf(table, ratio, role, out var finding);
-        return Reading(cell is null ? null : new HitRange(cell.MeanHits, cell.HitsLo, cell.HitsHi), finding);
+        return Reading(cell is null ? null : new HitRange(cell.MeanHits, cell.HitsLo, cell.HitsHi), cell, finding);
     }
 
-    /// <summary>The share of colonists who ended down or dead, as the cell's 95% Wilson interval; the same findings as <see cref="HitsPerColonist(ExposureTable, double, string)"/>.</summary>
+    /// <summary>The empirical share of colonists who ended down or dead, with its raid-clustered 95% range; the same findings as <see cref="HitsPerColonist(ExposureTable, double, string)"/>.</summary>
     public static ExposureReading DownRate(ExposureTable table, double ratio, string role)
     {
         var cell = CellOf(table, ratio, role, out var finding);
-        return Reading(cell is null ? null : new HitRange(cell.DownRate, cell.DownLo, cell.DownHi), finding);
+        return Reading(cell is null ? null : new HitRange(cell.DownRate, cell.DownLo, cell.DownHi), cell, finding);
     }
 
-    private static ExposureReading Reading(HitRange? range, string finding) =>
-        range is { } r ? new ExposureReading.Calibrated(r, Findings(finding)) : new ExposureReading.Uncalibrated(Findings(finding));
+    private static ExposureReading Reading(HitRange? range, ExposureCell? cell, string finding) =>
+        range is { } r && cell is not null ? new ExposureReading.Calibrated(r, Findings(cell)) : new ExposureReading.Uncalibrated([finding, LayoutUnassessed]);
 
     private static ExposureCell? CellOf(ExposureTable table, double ratio, string role, out string finding)
     {
         var bin = BinOf(ratio);
         var cell = bin is null ? null : table.Cells.FirstOrDefault(c => c.Bin == bin && c.Role == role);
-        finding = cell is { Trials: >= MinTrials } ? "" : string.Create(CultureInfo.InvariantCulture, $"{CellUncalibrated}:{bin ?? "outside"}/{role}");
+        finding = cell is { Raids: >= MinRaids } ? "" : string.Create(CultureInfo.InvariantCulture, $"{CellUncalibrated}:{bin ?? "outside"}/{role}");
         return finding.Length == 0 ? cell : null;
     }
 
-    private static string[] Findings(string cellFinding) => cellFinding.Length == 0 ? [LayoutUnassessed] : [cellFinding, LayoutUnassessed];
+    private static string[] Findings(ExposureCell cell)
+    {
+        string[] findings = [LayoutUnassessed, EmpiricalEstimate, StabilityUnconfirmed];
+        if (cell.HitRaids >= MinRaids)
+        {
+            return findings;
+        }
+        var sample = cell.HitRaids == 0 ? "exposure_zero_hit_sample" : "exposure_sparse_hit_sample";
+        return [.. findings, string.Create(CultureInfo.InvariantCulture, $"{sample}:{cell.Bin}/{cell.Role}:{cell.HitRaids}/{cell.Raids}")];
+    }
 }

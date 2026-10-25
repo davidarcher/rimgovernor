@@ -1,0 +1,1717 @@
+{
+  "version": 2,
+  "fixture": "lab-civilians-overrun",
+  "workers": 1,
+  "load": "rimworld processes before dispatch: 0",
+  "wallMs": 244600,
+  "rows": [
+    {
+      "seed": 1,
+      "worker": 1,
+      "stagedDigest": "60952ac1",
+      "runSeedDraws": [
+        -235104240,
+        -1770829539,
+        -1438552120,
+        -1776007489
+      ],
+      "metrics": {
+        "version": 2,
+        "fixture": "lab-civilians-overrun",
+        "ticks": 2557,
+        "colonistDamage": 492,
+        "colonistDowns": 6,
+        "colonistDeaths": 1,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 104,
+        "resolvedTick": 2557,
+        "contactToResolutionTicks": 2453,
+        "winner": "hostile",
+        "friendlyFireHits": 0,
+        "ordersIssued": 35,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 5340,
+        "raidPoints": 2040,
+        "defenseCapacity": 297.8724146007322,
+        "colonists": [
+          {
+            "id": "Thing_Human7519",
+            "role": "gunner",
+            "hits": 6,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7528",
+            "role": "gunner",
+            "hits": 7,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7537",
+            "role": "gunner",
+            "hits": 4,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7540",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7544",
+            "role": "unarmed",
+            "hits": 4,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7556",
+            "role": "noncombatant",
+            "hits": 9,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7565",
+            "role": "downed",
+            "hits": 0,
+            "downed": true,
+            "dead": false
+          }
+        ]
+      }
+    },
+    {
+      "seed": 2,
+      "worker": 1,
+      "stagedDigest": "60952ac1",
+      "runSeedDraws": [
+        -1342498867,
+        680027767,
+        -1516637188,
+        -1527604660
+      ],
+      "metrics": {
+        "version": 2,
+        "fixture": "lab-civilians-overrun",
+        "ticks": 1539,
+        "colonistDamage": 484,
+        "colonistDowns": 4,
+        "colonistDeaths": 3,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 104,
+        "resolvedTick": 1539,
+        "contactToResolutionTicks": 1435,
+        "winner": "hostile",
+        "friendlyFireHits": 0,
+        "ordersIssued": 22,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 531,
+        "raidPoints": 2040,
+        "defenseCapacity": 297.8724146007322,
+        "colonists": [
+          {
+            "id": "Thing_Human7519",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7528",
+            "role": "gunner",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7537",
+            "role": "gunner",
+            "hits": 5,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7540",
+            "role": "gunner",
+            "hits": 7,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7544",
+            "role": "unarmed",
+            "hits": 5,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7556",
+            "role": "noncombatant",
+            "hits": 5,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7565",
+            "role": "downed",
+            "hits": 0,
+            "downed": true,
+            "dead": false
+          }
+        ]
+      }
+    },
+    {
+      "seed": 3,
+      "worker": 1,
+      "stagedDigest": "60952ac1",
+      "runSeedDraws": [
+        2109658768,
+        -1679935835,
+        -85088490,
+        297383587
+      ],
+      "metrics": {
+        "version": 2,
+        "fixture": "lab-civilians-overrun",
+        "ticks": 2178,
+        "colonistDamage": 459,
+        "colonistDowns": 7,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 101,
+        "resolvedTick": 2178,
+        "contactToResolutionTicks": 2077,
+        "winner": "hostile",
+        "friendlyFireHits": 0,
+        "ordersIssued": 20,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 437,
+        "raidPoints": 2040,
+        "defenseCapacity": 297.8724146007322,
+        "colonists": [
+          {
+            "id": "Thing_Human7519",
+            "role": "gunner",
+            "hits": 4,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7528",
+            "role": "gunner",
+            "hits": 7,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7537",
+            "role": "gunner",
+            "hits": 7,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7540",
+            "role": "gunner",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7544",
+            "role": "unarmed",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7556",
+            "role": "noncombatant",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7565",
+            "role": "downed",
+            "hits": 0,
+            "downed": true,
+            "dead": false
+          }
+        ]
+      }
+    },
+    {
+      "seed": 4,
+      "worker": 1,
+      "stagedDigest": "60952ac1",
+      "runSeedDraws": [
+        -1826488659,
+        -1667436116,
+        -1451572079,
+        -952076478
+      ],
+      "metrics": {
+        "version": 2,
+        "fixture": "lab-civilians-overrun",
+        "ticks": 2401,
+        "colonistDamage": 493,
+        "colonistDowns": 4,
+        "colonistDeaths": 3,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 101,
+        "resolvedTick": 2401,
+        "contactToResolutionTicks": 2300,
+        "winner": "hostile",
+        "friendlyFireHits": 0,
+        "ordersIssued": 29,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 543,
+        "raidPoints": 2040,
+        "defenseCapacity": 297.8724146007322,
+        "colonists": [
+          {
+            "id": "Thing_Human7519",
+            "role": "gunner",
+            "hits": 4,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7528",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7537",
+            "role": "gunner",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7540",
+            "role": "gunner",
+            "hits": 4,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7544",
+            "role": "unarmed",
+            "hits": 7,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7556",
+            "role": "noncombatant",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7565",
+            "role": "downed",
+            "hits": 0,
+            "downed": true,
+            "dead": false
+          }
+        ]
+      }
+    },
+    {
+      "seed": 5,
+      "worker": 1,
+      "stagedDigest": "60952ac1",
+      "runSeedDraws": [
+        1580628434,
+        360578704,
+        -222442466,
+        -495534939
+      ],
+      "metrics": {
+        "version": 2,
+        "fixture": "lab-civilians-overrun",
+        "ticks": 1768,
+        "colonistDamage": 369,
+        "colonistDowns": 5,
+        "colonistDeaths": 2,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 104,
+        "resolvedTick": 1768,
+        "contactToResolutionTicks": 1664,
+        "winner": "hostile",
+        "friendlyFireHits": 0,
+        "ordersIssued": 14,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 473,
+        "raidPoints": 2040,
+        "defenseCapacity": 297.8724146007322,
+        "colonists": [
+          {
+            "id": "Thing_Human7519",
+            "role": "gunner",
+            "hits": 4,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7528",
+            "role": "gunner",
+            "hits": 4,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7537",
+            "role": "gunner",
+            "hits": 1,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7540",
+            "role": "gunner",
+            "hits": 6,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7544",
+            "role": "unarmed",
+            "hits": 4,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7556",
+            "role": "noncombatant",
+            "hits": 4,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7565",
+            "role": "downed",
+            "hits": 0,
+            "downed": true,
+            "dead": false
+          }
+        ]
+      }
+    },
+    {
+      "seed": 6,
+      "worker": 1,
+      "stagedDigest": "60952ac1",
+      "runSeedDraws": [
+        2121875065,
+        1305424310,
+        1393260883,
+        2086431044
+      ],
+      "metrics": {
+        "version": 2,
+        "fixture": "lab-civilians-overrun",
+        "ticks": 1883,
+        "colonistDamage": 455,
+        "colonistDowns": 6,
+        "colonistDeaths": 1,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 100,
+        "resolvedTick": 1883,
+        "contactToResolutionTicks": 1783,
+        "winner": "hostile",
+        "friendlyFireHits": 0,
+        "ordersIssued": 27,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 545,
+        "raidPoints": 2040,
+        "defenseCapacity": 297.8724146007322,
+        "colonists": [
+          {
+            "id": "Thing_Human7519",
+            "role": "gunner",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7528",
+            "role": "gunner",
+            "hits": 4,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7537",
+            "role": "gunner",
+            "hits": 5,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7540",
+            "role": "gunner",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7544",
+            "role": "unarmed",
+            "hits": 4,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7556",
+            "role": "noncombatant",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7565",
+            "role": "downed",
+            "hits": 0,
+            "downed": true,
+            "dead": false
+          }
+        ]
+      }
+    },
+    {
+      "seed": 7,
+      "worker": 1,
+      "stagedDigest": "60952ac1",
+      "runSeedDraws": [
+        1072597060,
+        704578319,
+        -824090483,
+        1534904821
+      ],
+      "metrics": {
+        "version": 2,
+        "fixture": "lab-civilians-overrun",
+        "ticks": 1477,
+        "colonistDamage": 495,
+        "colonistDowns": 6,
+        "colonistDeaths": 1,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 110,
+        "resolvedTick": 1477,
+        "contactToResolutionTicks": 1367,
+        "winner": "hostile",
+        "friendlyFireHits": 0,
+        "ordersIssued": 17,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 495,
+        "raidPoints": 2040,
+        "defenseCapacity": 297.8724146007322,
+        "colonists": [
+          {
+            "id": "Thing_Human7519",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7528",
+            "role": "gunner",
+            "hits": 5,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7537",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7540",
+            "role": "gunner",
+            "hits": 7,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7544",
+            "role": "unarmed",
+            "hits": 7,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7556",
+            "role": "noncombatant",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7565",
+            "role": "downed",
+            "hits": 0,
+            "downed": true,
+            "dead": false
+          }
+        ]
+      }
+    },
+    {
+      "seed": 8,
+      "worker": 1,
+      "stagedDigest": "60952ac1",
+      "runSeedDraws": [
+        -446497963,
+        1973108769,
+        -1858171126,
+        985634381
+      ],
+      "metrics": {
+        "version": 2,
+        "fixture": "lab-civilians-overrun",
+        "ticks": 1935,
+        "colonistDamage": 494,
+        "colonistDowns": 6,
+        "colonistDeaths": 1,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 104,
+        "resolvedTick": 1935,
+        "contactToResolutionTicks": 1831,
+        "winner": "hostile",
+        "friendlyFireHits": 0,
+        "ordersIssued": 28,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 529,
+        "raidPoints": 2040,
+        "defenseCapacity": 297.8724146007322,
+        "colonists": [
+          {
+            "id": "Thing_Human7519",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7528",
+            "role": "gunner",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7537",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7540",
+            "role": "gunner",
+            "hits": 4,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7544",
+            "role": "unarmed",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7556",
+            "role": "noncombatant",
+            "hits": 6,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7565",
+            "role": "downed",
+            "hits": 0,
+            "downed": true,
+            "dead": false
+          }
+        ]
+      }
+    },
+    {
+      "seed": 9,
+      "worker": 1,
+      "stagedDigest": "60952ac1",
+      "runSeedDraws": [
+        -1410448947,
+        161651147,
+        59558535,
+        1866365599
+      ],
+      "metrics": {
+        "version": 2,
+        "fixture": "lab-civilians-overrun",
+        "ticks": 2200,
+        "colonistDamage": 551,
+        "colonistDowns": 7,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 108,
+        "resolvedTick": 2200,
+        "contactToResolutionTicks": 2092,
+        "winner": "hostile",
+        "friendlyFireHits": 0,
+        "ordersIssued": 23,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 457,
+        "raidPoints": 2040,
+        "defenseCapacity": 297.8724146007322,
+        "colonists": [
+          {
+            "id": "Thing_Human7519",
+            "role": "gunner",
+            "hits": 8,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7528",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7537",
+            "role": "gunner",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7540",
+            "role": "gunner",
+            "hits": 10,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7544",
+            "role": "unarmed",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7556",
+            "role": "noncombatant",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7565",
+            "role": "downed",
+            "hits": 0,
+            "downed": true,
+            "dead": false
+          }
+        ]
+      }
+    },
+    {
+      "seed": 10,
+      "worker": 1,
+      "stagedDigest": "60952ac1",
+      "runSeedDraws": [
+        398827085,
+        -1221793655,
+        1008620082,
+        -1520335184
+      ],
+      "metrics": {
+        "version": 2,
+        "fixture": "lab-civilians-overrun",
+        "ticks": 2493,
+        "colonistDamage": 524,
+        "colonistDowns": 7,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 111,
+        "resolvedTick": 2493,
+        "contactToResolutionTicks": 2382,
+        "winner": "hostile",
+        "friendlyFireHits": 0,
+        "ordersIssued": 34,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 449,
+        "raidPoints": 2040,
+        "defenseCapacity": 297.8724146007322,
+        "colonists": [
+          {
+            "id": "Thing_Human7519",
+            "role": "gunner",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7528",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7537",
+            "role": "gunner",
+            "hits": 4,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7540",
+            "role": "gunner",
+            "hits": 7,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7544",
+            "role": "unarmed",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7556",
+            "role": "noncombatant",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7565",
+            "role": "downed",
+            "hits": 0,
+            "downed": true,
+            "dead": false
+          }
+        ]
+      }
+    },
+    {
+      "seed": 11,
+      "worker": 1,
+      "stagedDigest": "60952ac1",
+      "runSeedDraws": [
+        -1468614870,
+        -1195630990,
+        -998591070,
+        323350639
+      ],
+      "metrics": {
+        "version": 2,
+        "fixture": "lab-civilians-overrun",
+        "ticks": 1834,
+        "colonistDamage": 470,
+        "colonistDowns": 7,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 103,
+        "resolvedTick": 1834,
+        "contactToResolutionTicks": 1731,
+        "winner": "hostile",
+        "friendlyFireHits": 0,
+        "ordersIssued": 14,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 443,
+        "raidPoints": 2040,
+        "defenseCapacity": 297.8724146007322,
+        "colonists": [
+          {
+            "id": "Thing_Human7519",
+            "role": "gunner",
+            "hits": 7,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7528",
+            "role": "gunner",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7537",
+            "role": "gunner",
+            "hits": 8,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7540",
+            "role": "gunner",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7544",
+            "role": "unarmed",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7556",
+            "role": "noncombatant",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7565",
+            "role": "downed",
+            "hits": 0,
+            "downed": true,
+            "dead": false
+          }
+        ]
+      }
+    },
+    {
+      "seed": 12,
+      "worker": 1,
+      "stagedDigest": "60952ac1",
+      "runSeedDraws": [
+        1801513416,
+        -969431055,
+        833837030,
+        508390438
+      ],
+      "metrics": {
+        "version": 2,
+        "fixture": "lab-civilians-overrun",
+        "ticks": 1960,
+        "colonistDamage": 439,
+        "colonistDowns": 6,
+        "colonistDeaths": 1,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 108,
+        "resolvedTick": 1960,
+        "contactToResolutionTicks": 1852,
+        "winner": "hostile",
+        "friendlyFireHits": 0,
+        "ordersIssued": 17,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 338,
+        "raidPoints": 2040,
+        "defenseCapacity": 297.8724146007322,
+        "colonists": [
+          {
+            "id": "Thing_Human7519",
+            "role": "gunner",
+            "hits": 7,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7528",
+            "role": "gunner",
+            "hits": 7,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7537",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7540",
+            "role": "gunner",
+            "hits": 3,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7544",
+            "role": "unarmed",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7556",
+            "role": "noncombatant",
+            "hits": 4,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7565",
+            "role": "downed",
+            "hits": 0,
+            "downed": true,
+            "dead": false
+          }
+        ]
+      }
+    },
+    {
+      "seed": 13,
+      "worker": 1,
+      "stagedDigest": "60952ac1",
+      "runSeedDraws": [
+        163023724,
+        -550243132,
+        -679036384,
+        281781382
+      ],
+      "metrics": {
+        "version": 2,
+        "fixture": "lab-civilians-overrun",
+        "ticks": 2534,
+        "colonistDamage": 418,
+        "colonistDowns": 7,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 104,
+        "resolvedTick": 2534,
+        "contactToResolutionTicks": 2430,
+        "winner": "hostile",
+        "friendlyFireHits": 0,
+        "ordersIssued": 36,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 5354,
+        "raidPoints": 2040,
+        "defenseCapacity": 297.8724146007322,
+        "colonists": [
+          {
+            "id": "Thing_Human7519",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7528",
+            "role": "gunner",
+            "hits": 4,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7537",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7540",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7544",
+            "role": "unarmed",
+            "hits": 4,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7556",
+            "role": "noncombatant",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7565",
+            "role": "downed",
+            "hits": 0,
+            "downed": true,
+            "dead": false
+          }
+        ]
+      }
+    },
+    {
+      "seed": 14,
+      "worker": 1,
+      "stagedDigest": "60952ac1",
+      "runSeedDraws": [
+        1299933229,
+        -814957564,
+        -1200597146,
+        -1700362327
+      ],
+      "metrics": {
+        "version": 2,
+        "fixture": "lab-civilians-overrun",
+        "ticks": 1755,
+        "colonistDamage": 489,
+        "colonistDowns": 6,
+        "colonistDeaths": 1,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 100,
+        "resolvedTick": 1755,
+        "contactToResolutionTicks": 1655,
+        "winner": "hostile",
+        "friendlyFireHits": 0,
+        "ordersIssued": 20,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 431,
+        "raidPoints": 2040,
+        "defenseCapacity": 297.8724146007322,
+        "colonists": [
+          {
+            "id": "Thing_Human7519",
+            "role": "gunner",
+            "hits": 4,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7528",
+            "role": "gunner",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7537",
+            "role": "gunner",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7540",
+            "role": "gunner",
+            "hits": 8,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7544",
+            "role": "unarmed",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7556",
+            "role": "noncombatant",
+            "hits": 6,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7565",
+            "role": "downed",
+            "hits": 0,
+            "downed": true,
+            "dead": false
+          }
+        ]
+      }
+    },
+    {
+      "seed": 15,
+      "worker": 1,
+      "stagedDigest": "60952ac1",
+      "runSeedDraws": [
+        -876189140,
+        -952120532,
+        430767800,
+        11659082
+      ],
+      "metrics": {
+        "version": 2,
+        "fixture": "lab-civilians-overrun",
+        "ticks": 1823,
+        "colonistDamage": 515,
+        "colonistDowns": 6,
+        "colonistDeaths": 1,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 106,
+        "resolvedTick": 1823,
+        "contactToResolutionTicks": 1717,
+        "winner": "hostile",
+        "friendlyFireHits": 0,
+        "ordersIssued": 24,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 438,
+        "raidPoints": 2040,
+        "defenseCapacity": 297.8724146007322,
+        "colonists": [
+          {
+            "id": "Thing_Human7519",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7528",
+            "role": "gunner",
+            "hits": 7,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7537",
+            "role": "gunner",
+            "hits": 4,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7540",
+            "role": "gunner",
+            "hits": 8,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7544",
+            "role": "unarmed",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7556",
+            "role": "noncombatant",
+            "hits": 5,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7565",
+            "role": "downed",
+            "hits": 0,
+            "downed": true,
+            "dead": false
+          }
+        ]
+      }
+    },
+    {
+      "seed": 16,
+      "worker": 1,
+      "stagedDigest": "60952ac1",
+      "runSeedDraws": [
+        -1771485732,
+        2039932197,
+        -1850968135,
+        583259013
+      ],
+      "metrics": {
+        "version": 2,
+        "fixture": "lab-civilians-overrun",
+        "ticks": 2018,
+        "colonistDamage": 562,
+        "colonistDowns": 5,
+        "colonistDeaths": 2,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 101,
+        "resolvedTick": 2018,
+        "contactToResolutionTicks": 1917,
+        "winner": "hostile",
+        "friendlyFireHits": 0,
+        "ordersIssued": 37,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 475,
+        "raidPoints": 2040,
+        "defenseCapacity": 297.8724146007322,
+        "colonists": [
+          {
+            "id": "Thing_Human7519",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7528",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7537",
+            "role": "gunner",
+            "hits": 7,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7540",
+            "role": "gunner",
+            "hits": 5,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7544",
+            "role": "unarmed",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7556",
+            "role": "noncombatant",
+            "hits": 7,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7565",
+            "role": "downed",
+            "hits": 1,
+            "downed": false,
+            "dead": true
+          }
+        ]
+      }
+    },
+    {
+      "seed": 17,
+      "worker": 1,
+      "stagedDigest": "60952ac1",
+      "runSeedDraws": [
+        318417803,
+        -596845585,
+        -1000007358,
+        -2025163129
+      ],
+      "metrics": {
+        "version": 2,
+        "fixture": "lab-civilians-overrun",
+        "ticks": 1964,
+        "colonistDamage": 484,
+        "colonistDowns": 5,
+        "colonistDeaths": 2,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 100,
+        "resolvedTick": 1964,
+        "contactToResolutionTicks": 1864,
+        "winner": "hostile",
+        "friendlyFireHits": 0,
+        "ordersIssued": 25,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 544,
+        "raidPoints": 2040,
+        "defenseCapacity": 297.8724146007322,
+        "colonists": [
+          {
+            "id": "Thing_Human7519",
+            "role": "gunner",
+            "hits": 8,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7528",
+            "role": "gunner",
+            "hits": 4,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7537",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7540",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7544",
+            "role": "unarmed",
+            "hits": 6,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7556",
+            "role": "noncombatant",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7565",
+            "role": "downed",
+            "hits": 0,
+            "downed": true,
+            "dead": false
+          }
+        ]
+      }
+    },
+    {
+      "seed": 18,
+      "worker": 1,
+      "stagedDigest": "60952ac1",
+      "runSeedDraws": [
+        423972722,
+        -1994762446,
+        -858030191,
+        1309060408
+      ],
+      "metrics": {
+        "version": 2,
+        "fixture": "lab-civilians-overrun",
+        "ticks": 2289,
+        "colonistDamage": 496,
+        "colonistDowns": 5,
+        "colonistDeaths": 2,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 101,
+        "resolvedTick": 2289,
+        "contactToResolutionTicks": 2188,
+        "winner": "hostile",
+        "friendlyFireHits": 0,
+        "ordersIssued": 27,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 582,
+        "raidPoints": 2040,
+        "defenseCapacity": 297.8724146007322,
+        "colonists": [
+          {
+            "id": "Thing_Human7519",
+            "role": "gunner",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7528",
+            "role": "gunner",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7537",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7540",
+            "role": "gunner",
+            "hits": 6,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7544",
+            "role": "unarmed",
+            "hits": 6,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7556",
+            "role": "noncombatant",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7565",
+            "role": "downed",
+            "hits": 0,
+            "downed": true,
+            "dead": false
+          }
+        ]
+      }
+    },
+    {
+      "seed": 19,
+      "worker": 1,
+      "stagedDigest": "60952ac1",
+      "runSeedDraws": [
+        -920186481,
+        244442703,
+        -1796004366,
+        1654517272
+      ],
+      "metrics": {
+        "version": 2,
+        "fixture": "lab-civilians-overrun",
+        "ticks": 1744,
+        "colonistDamage": 476,
+        "colonistDowns": 7,
+        "colonistDeaths": 0,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 99,
+        "resolvedTick": 1744,
+        "contactToResolutionTicks": 1645,
+        "winner": "hostile",
+        "friendlyFireHits": 0,
+        "ordersIssued": 27,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 490,
+        "raidPoints": 2040,
+        "defenseCapacity": 297.8724146007322,
+        "colonists": [
+          {
+            "id": "Thing_Human7519",
+            "role": "gunner",
+            "hits": 7,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7528",
+            "role": "gunner",
+            "hits": 6,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7537",
+            "role": "gunner",
+            "hits": 4,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7540",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7544",
+            "role": "unarmed",
+            "hits": 4,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7556",
+            "role": "noncombatant",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7565",
+            "role": "downed",
+            "hits": 0,
+            "downed": true,
+            "dead": false
+          }
+        ]
+      }
+    },
+    {
+      "seed": 20,
+      "worker": 1,
+      "stagedDigest": "60952ac1",
+      "runSeedDraws": [
+        -1753227894,
+        -2062440609,
+        1317984169,
+        736998608
+      ],
+      "metrics": {
+        "version": 2,
+        "fixture": "lab-civilians-overrun",
+        "ticks": 2352,
+        "colonistDamage": 458,
+        "colonistDowns": 5,
+        "colonistDeaths": 2,
+        "enemyDowns": 0,
+        "enemyDeaths": 0,
+        "enemyFled": 0,
+        "firstContactTick": 107,
+        "resolvedTick": 2352,
+        "contactToResolutionTicks": 2245,
+        "winner": "hostile",
+        "friendlyFireHits": 0,
+        "ordersIssued": 28,
+        "ordersRefused": 0,
+        "stepLatencyP95Ms": 598,
+        "raidPoints": 2040,
+        "defenseCapacity": 297.8724146007322,
+        "colonists": [
+          {
+            "id": "Thing_Human7519",
+            "role": "gunner",
+            "hits": 8,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7528",
+            "role": "gunner",
+            "hits": 5,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7537",
+            "role": "gunner",
+            "hits": 2,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7540",
+            "role": "gunner",
+            "hits": 4,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7544",
+            "role": "unarmed",
+            "hits": 4,
+            "downed": true,
+            "dead": false
+          },
+          {
+            "id": "Thing_Human7556",
+            "role": "noncombatant",
+            "hits": 6,
+            "downed": false,
+            "dead": true
+          },
+          {
+            "id": "Thing_Human7565",
+            "role": "downed",
+            "hits": 0,
+            "downed": true,
+            "dead": false
+          }
+        ]
+      }
+    }
+  ],
+  "summary": {
+    "runs": 20,
+    "seedsWithColonistDeath": 14,
+    "seedsWithColonistDown": 20,
+    "unresolved": 0,
+    "colonistDeaths": {
+      "n": 20,
+      "mean": 1.15,
+      "sd": 0.9880869341680845,
+      "lo": 0.6875663946661041,
+      "hi": 1.6124336053338957
+    },
+    "colonistDowns": {
+      "n": 20,
+      "mean": 5.85,
+      "sd": 0.9880869341680846,
+      "lo": 5.387566394666104,
+      "hi": 6.312433605333895
+    },
+    "colonistDamage": {
+      "n": 20,
+      "mean": 481.15,
+      "sd": 43.23409351547992,
+      "lo": 460.91605393073115,
+      "hi": 501.3839460692688
+    },
+    "enemyDowns": {
+      "n": 20,
+      "mean": 0,
+      "sd": 0,
+      "lo": 0,
+      "hi": 0
+    },
+    "enemyDeaths": {
+      "n": 20,
+      "mean": 0,
+      "sd": 0,
+      "lo": 0,
+      "hi": 0
+    },
+    "contactToResolutionTicks": {
+      "n": 20,
+      "mean": 1931.4,
+      "sd": 324.0309276986738,
+      "lo": 1779.7506005860264,
+      "hi": 2083.049399413974
+    }
+  }
+}

@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Simulation.CombatMetrics;
 
@@ -24,7 +23,8 @@ public sealed record ExposureRow(
 /// <summary>
 /// The exposure calibration (harm model, step 3): the per-colonist rows of a sweep and the table built from them. The cells are
 /// <see cref="RaidExposure"/>'s ratio bins by role; each holds the mean hits per colonist per raid with a 90% percentile
-/// bootstrap range, and the down rate (down or dead) with its 95% Wilson interval.
+/// bootstrap range, and the down rate (down or dead) with its 95% percentile-bootstrap interval. Both resample whole
+/// raids within each fixture and keep the fixture mixture fixed rather than overweighting fixtures with more seeds.
 /// </summary>
 public static class SweepExposure
 {
@@ -102,40 +102,83 @@ public static class SweepExposure
 
     private static ExposureCell Cell(string bin, string role, ExposureRow[] trials)
     {
-        var hits = trials.Select(t => t.Hits).ToArray();
-        var down = trials.Count(t => t.Downed || t.Dead);
-        var (hitsLo, hitsHi) = Bootstrap(hits);
-        var (downLo, downHi) = HuntingQualification.Wilson(down, trials.Length);
+        var fixtures = trials.GroupBy(t => t.Fixture, StringComparer.Ordinal)
+            .OrderBy(f => f.Key, StringComparer.Ordinal)
+            .Select(f => f.GroupBy(t => t.Seed).OrderBy(r => r.Key)
+                .Select(r => new RaidSample(r.Count(), r.Sum(t => (long)t.Hits), r.Count(t => t.Downed || t.Dead), r.Any(t => t.Hits > 0)))
+                .ToArray())
+            .ToArray();
+        // One equally sized raid cohort per fixture: its role-pawn count, not its accumulated sampling rounds,
+        // determines the fixture's contribution to the per-colonist mixture. Bootstrap weights remain fixed.
+        var weights = fixtures.Select(f => f.Average(r => r.Pawns)).ToArray();
+        var totalWeight = weights.Sum();
+        var meanHits = 0.0;
+        var downRate = 0.0;
+        for (var f = 0; f < fixtures.Length; f++)
+        {
+            var pawns = fixtures[f].Sum(r => r.Pawns);
+            meanHits += weights[f] * fixtures[f].Sum(r => r.Hits) / pawns;
+            downRate += weights[f] * fixtures[f].Sum(r => r.Down) / pawns;
+        }
+
+        meanHits /= totalWeight;
+        downRate /= totalWeight;
+        var (hitsMeans, downMeans) = Bootstrap(fixtures, weights, totalWeight);
+        var (hitsLo, hitsHi) = Interval(hitsMeans, 0.05, meanHits);
+        var (downLo, downHi) = Interval(downMeans, 0.025, downRate);
         return new ExposureCell(
             bin,
             role,
             trials.Length,
-            Round(hits.Average()),
+            Round(meanHits),
             Round(hitsLo),
             Round(hitsHi),
-            Round((double)down / trials.Length),
-            Round(Math.Max(0, downLo)),
-            Round(Math.Min(1, downHi)));
+            Round(downRate),
+            Round(downLo),
+            Round(downHi),
+            fixtures.Sum(f => f.Length),
+            fixtures.Sum(f => f.Count(r => r.Hit)));
     }
 
-    // The 5th and 95th percentiles of the resampled mean: a 90% range.
-    private static (double Lo, double Hi) Bootstrap(int[] hits)
+    private sealed record RaidSample(int Pawns, long Hits, int Down, bool Hit);
+
+    private static (double[] Hits, double[] Down) Bootstrap(RaidSample[][] fixtures, double[] weights, double totalWeight)
     {
         var random = new Random(BootstrapSeed);
-        var means = new double[Resamples];
-        for (var b = 0; b < means.Length; b++)
+        var hitsMeans = new double[Resamples];
+        var downMeans = new double[Resamples];
+        for (var b = 0; b < Resamples; b++)
         {
-            var sum = 0L;
-            for (var i = 0; i < hits.Length; i++)
+            for (var f = 0; f < fixtures.Length; f++)
             {
-                sum += hits[random.Next(hits.Length)];
+                var raids = fixtures[f];
+                var pawns = 0;
+                var hits = 0L;
+                var down = 0;
+                for (var i = 0; i < raids.Length; i++)
+                {
+                    var raid = raids[random.Next(raids.Length)];
+                    pawns += raid.Pawns;
+                    hits += raid.Hits;
+                    down += raid.Down;
+                }
+
+                hitsMeans[b] += weights[f] * hits / pawns;
+                downMeans[b] += weights[f] * down / pawns;
             }
 
-            means[b] = (double)sum / hits.Length;
+            hitsMeans[b] /= totalWeight;
+            downMeans[b] /= totalWeight;
         }
 
+        return (hitsMeans, downMeans);
+    }
+
+    private static (double Lo, double Hi) Interval(double[] means, double tail, double observed)
+    {
         Array.Sort(means);
-        return (means[(int)Math.Floor(0.05 * (means.Length - 1))], means[(int)Math.Ceiling(0.95 * (means.Length - 1))]);
+        return (Math.Min(observed, means[(int)Math.Floor(tail * (means.Length - 1))]),
+            Math.Max(observed, means[(int)Math.Ceiling((1 - tail) * (means.Length - 1))]));
     }
 
     private static double Round(double v) => Math.Round(v, 4, MidpointRounding.AwayFromZero);
@@ -189,7 +232,7 @@ public static class SweepExposure
             var ratio = bin == 0 ? 0 : RaidExposure.Edges[bin - 1];
             var hits = RaidExposure.HitsPerColonist(table, ratio, cell.Role);
             var down = RaidExposure.DownRate(table, ratio, cell.Role);
-            _ = text.Append(CultureInfo.InvariantCulture, $"  {cell.Bin}/{cell.Role}: {cell.Trials} trials, hits per colonist ");
+            _ = text.Append(CultureInfo.InvariantCulture, $"  {cell.Bin}/{cell.Role}: {cell.Trials} trials, {cell.Raids} raids, {cell.HitRaids} hit raids, hits per colonist ");
             _ = text.Append(Show(hits)).Append(", down rate ").Append(Show(down)).Append(' ').Append(string.Join(' ', hits.Findings)).Append('\n');
         }
 

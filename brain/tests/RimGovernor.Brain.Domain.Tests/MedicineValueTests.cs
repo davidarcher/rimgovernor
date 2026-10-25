@@ -455,7 +455,7 @@ public sealed class MedicineValueTests
     [Fact]
     public void AnUncalibratedCellOrAMissingCurveGivesAFindingNotANumber()
     {
-        var uncalibrated = new ExposureTable(RaidExposure.Schema, [new ExposureCell("1-2", ExposureRoles.Unarmed, 5, 5, 3, 20, 0.5, 0.4, 0.6)]);
+        var uncalibrated = new ExposureTable(RaidExposure.Schema, [new ExposureCell("1-2", ExposureRoles.Unarmed, 5, 5, 3, 20, 0.5, 0.4, 0.6, 5, 5)]);
         var cell = Marginals(Colony(3, 100_000), ForecastValueTests.RaidDay(uncalibrated));
 
         Assert.Contains($"{RaidExposure.CellUncalibrated}:1-2/{ExposureRoles.Unarmed}", cell.Findings);

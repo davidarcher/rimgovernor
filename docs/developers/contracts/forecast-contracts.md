@@ -22,11 +22,30 @@ definition used by the native sweep: `downed` first, then `noncombatant` for inc
 then `unarmed`, `gunner` or `melee` by primary. Current drafting does not establish what a future
 defense will assign: holds can use unarmed blockers, while squad defense and pod evacuation shelter them.
 
-Each living state requires its own calibrated ratio cell. Neither incapability, downed status,
-retreat intent nor arrival at a shelter proves zero incoming hits. A dead pawn has the explicit
-`exposure_no_hits:dead:<pawn>` reading. Raid loss, medicine demand, hospital credit, creepjoiner
-aggression and entity escapes all use this definition. The missing native cells and the fixture
-matrix are documented in [exposure calibration](../testing/harm-exposure-calibration.md).
+Each living state requires its own empirical ratio cell with at least 20 distinct fixture/seed
+raids; individual pawn rows do not meet that minimum. The embedded schema-2 table holds 22 cells:
+gunners, unarmed, noncombatants and initially downed pawns in all five bins, plus melee in
+`0-0.5` and `2-4`. Missing cells and cells below the raid minimum refuse with
+`exposure_cell_uncalibrated:<bin>/<role>`; no other role or fabricated zero substitutes.
+`ExposureCell.Raids` and `HitRaids` are required provenance alongside pawn-row `Trials`.
+The committed table is policy input, not session journal state.
+
+Fixture weights are their average role-pawn counts per raid, independent of sampled seed count.
+The estimator uses all recorded native rows and 2,000 deterministic draws that resample whole
+raids within each fixture, producing 90% hit and 95% down percentile intervals. These intervals
+are descriptive: they certify neither accuracy nor stability, and a zero-hit interval is not
+a valid upper risk bound. There is no untouched confirmation sample.
+
+Every table reading carries `exposure_layout_unassessed`, `exposure_empirical_estimate` and
+`exposure_stability_unconfirmed`. A cell with no hit raids adds
+`exposure_zero_hit_sample:<bin>/<role>:0/<Raids>`; otherwise fewer than 20 hit raids adds
+`exposure_sparse_hit_sample:<bin>/<role>:<HitRaids>/<Raids>`. Both hit and down-rate readings
+propagate these findings through harm consumers. Forecasts can understate or overstate risk;
+zero observed hits is not immunity. Neither incapability, downed status, retreat intent nor
+arrival at a shelter proves zero incoming hits. A dead pawn alone has the exact named zero
+`exposure_no_hits:dead:<pawn>`. Raid loss, medicine demand, hospital credit, creepjoiner
+aggression and entity escapes all use this definition. The fixture matrix and evidence limits
+are documented in [exposure calibration](../testing/harm-exposure-calibration.md).
 
 The growing calendar and controlled-environment census are total on every colony
 read, including reads without planning. Native failures fail the whole read; a
@@ -821,7 +840,7 @@ The ledger's `Harm` term and the `Death` floor read `ForecastCoupledContext.Harm
 - `Harm` = raids per day (major threats per day × raid fraction) × horizon days × Σ over the outcome's pawns of
   (1 − `HarmRiskWeight`) × E + `HarmRiskWeight` × CVaR`HarmRiskAlpha` of `HarmConsequences.Of` for the pawn. Its inputs are
   `RaidExposure.HitsPerColonist(points ÷ DefenseCapacity, role)` and `ArmorResponseRules.OfOutfit` of the pawn's outfit. The role
-  comes from the worn primary weapon (ranged: `gunner`, melee: `melee`, none: `noncombatant`). The pawn's outfits are the worn one
+  uses native state, violence capability and primary weapon in [combat exposure states](#combat-exposure-states). The pawn's outfits are the worn one
   from the start, then each `OutfitChanges` row for it from its effective tick in tick order (`HarmLedger.OutfitsOf`); each is
   priced for its share of the horizon, the raids of that share meeting it, so a crafted garment's armor counts only from its
   delivery. A change whose tick is unknown leaves the term unknown with `outfit_change_timing_unknown:<pawn>`. The worn primary is a `GearSlot.Primary` option in `GearLoadoutInput.Worn`
@@ -833,7 +852,7 @@ The ledger's `Harm` term and the `Death` floor read `ForecastCoupledContext.Harm
   `defense_capacity_unobserved`, `exposure_cell_uncalibrated:<bin>/<role>`, `outfit_unobserved:<pawn>`,
   `capacities_unobserved:<pawn>`, and `HarmConsequences`' own. A known term adds the illness term's loss and still reports
   `other_threats_unassessed` (the threats other than raids and disease),
-  `adaptation_feedback_unassessed`, `fire_unassessed` and `exposure_layout_unassessed`. An unknown `Harm` makes `Total` unknown;
+  `adaptation_feedback_unassessed` and `fire_unassessed`, plus the exposure reading's empirical, layout, stability and sample-count findings ([combat exposure states](#combat-exposure-states)). An unknown `Harm` makes `Total` unknown;
   a comparison still uses the terms both sides assess (`LossAgainst`).
 - `ForecastValueExplanation.Death` is assessed when the outcome's and the reference's `Harm` are: its excess is the expected deaths per
   day (`HarmDetail.DeathsPerDay`: raids per day × Σ death probability, plus the illness and escape terms' deaths per day) above the reference's, minus `DeathRiskFloor`, floored at 0. The reference wears the
@@ -860,8 +879,7 @@ The ledger's `Harm` term and the `Death` floor read `ForecastCoupledContext.Harm
   and no bound exists for the death and break-risk floors, the ledger or the tiebreaks. The unpruned search is the test control
   `CompareActivityOutcomesUnpruned`; it ranks the same selection, vectors and findings.
 - `ForecastValueResult.HarmDetail` (`raids_per_day`, `exposure_range`, `down_probability`, `death_probability`, `cvar`, `raid_loss`,
-  `illness`, `escape`) is reported as `harm_detail` ([otel-signals](otel-signals.md)). Until the exposure table is calibrated (#3543) every cell is uncalibrated, so
-  a served review reports `exposure_cell_uncalibrated:…` and `harm` null.
+  `illness`, `escape`) is reported as `harm_detail` ([otel-signals](otel-signals.md)). A missing or insufficiently sampled exposure cell reports `exposure_cell_uncalibrated:…` and `harm` null; an empirical estimate retains its evidence-limit findings.
 
 ### Illness term (#3824)
 
@@ -968,7 +986,7 @@ The harm term's held-entity part: how often an entity held on a holding platform
   `HarmLedger.FightLoss` prices it as a raid of those points against `DefenseCapacity`, with the raid's weapon bins and the exposure
   table, Σ over the pawns of the risk transform (`containment_escape_raid_calibration_assumed`). No defender prices the fight at 0;
   a fight fact left unread (the defense ratio, weapon bins, a defender's outfit or capacities, or an exposure cell the table does
-  not calibrate) throws `RequiredFactException` with its findings (#3835).
+  not estimate) throws `RequiredFactException` with its findings (#3835).
 - `HarmDetail.Escape` (`EscapeTerm`: escapes a day, the loss — escapes a day × horizon days × one fight — and deaths a day) is zero
   without a held entity; its loss and deaths join the term's.
 

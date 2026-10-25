@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Acceptance;
+using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Simulation.CombatMetrics;
 using Xunit;
 
@@ -13,6 +14,31 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class SweepFileShapeTests
 {
+    [Fact]
+    public void TheProductionExposureEstimatesUseEveryRecordedRaidFromDisjointEvidenceRounds()
+    {
+        var directory = Path.Combine(RepositoryRoot(), SweepCommand.CalibrationDir, "exposure");
+        var training = SweepExposure.ReadRows(Path.Combine(directory, "rows-training.jsonl"));
+        var validation = SweepExposure.ReadRows(Path.Combine(directory, "rows-validation.jsonl"));
+        // These retain the historical fit/check partition. Both rounds now contribute to the
+        // explicitly qualified empirical estimate; neither is claimed as a new untouched holdout.
+        var fitted = SweepExposure.Build(training.Concat(validation).ToArray());
+        Assert.Equal(fitted.Cells.ToArray(), RaidExposure.Load().Cells.ToArray());
+
+        // A seed's pawns share one fight: no pawn from that fight may leak into the other set.
+        var trainingFights = training.Select(r => (r.Fixture, r.Seed)).ToHashSet();
+        Assert.DoesNotContain(validation.Select(r => (r.Fixture, r.Seed)).Distinct(), trainingFights.Contains);
+        foreach (var cell in fitted.Cells)
+        {
+            Assert.True(cell.Raids >= RaidExposure.MinRaids);
+            var binIndex = RaidExposure.Bins.ToList().IndexOf(cell.Bin);
+            var ratio = binIndex == 0 ? 0 : RaidExposure.Edges[binIndex - 1];
+            var reading = Assert.IsType<ExposureReading.Calibrated>(RaidExposure.HitsPerColonist(ratio, cell.Role));
+            Assert.Contains(RaidExposure.EmpiricalEstimate, reading.Findings);
+            Assert.Contains(RaidExposure.StabilityUnconfirmed, reading.Findings);
+        }
+    }
+
     public static TheoryData<string> SweepFiles()
     {
         var root = RepositoryRoot();

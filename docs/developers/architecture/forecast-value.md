@@ -6,7 +6,7 @@
 Tier-1 selection ranks on the safety floors, then on capability-days ([Comparator](#comparator) describes what runs).
 `ForecastValue.Of` (#3520, #3521) prices hunger, rest, food poisoning, thermal exposure, mood breaks and
 wellbeing per outcome; `ForecastValue.Explain` (#3522) adds the floors; `coupled_selection` reports both ([policy constants](../contracts/kept-constants.md#policy-constants-3469),
-[tables](../contracts/forecast-contracts.md#capacity-penalty-tables-and-per-pawn-capacities)); harm (#3546, [harm model](#harm-model)) is priced when the harm inputs are observed and the exposure table has a calibrated cell for the colony, else unknown with a specific finding (seven cells are calibrated today); investment is the tier-2 credit of research and sowing blocks and of the skill XP work applies, less the medicine it consumes ([Marginal value of progress](#tier-2-event-driven-colony-model)), 0 for any other outcome. The player's goals add a gain term ([Goal value](#goal-value), #3503).
+[tables](../contracts/forecast-contracts.md#capacity-penalty-tables-and-per-pawn-capacities)); harm (#3546, [harm model](#harm-model)) is priced when the harm inputs are observed and the exposure table has a supported empirical cell for the colony, else unknown with a specific finding (22 cells are supported today, with stability unconfirmed); investment is the tier-2 credit of research and sowing blocks and of the skill XP work applies, less the medicine it consumes ([Marginal value of progress](#tier-2-event-driven-colony-model)), 0 for any other outcome. The player's goals add a gain term ([Goal value](#goal-value), #3503).
 The tier-2 model's input (`ColonyModelInput`, assembled per review by `ReviewColonyModel.InputOf` from the review frame, #3523) exists and names
 each section the frame did not carry. The model runs once per review, before the comparison (`ReviewColonyModel.Review`): the engine, the project graph and the
 valuation are in `Policy/ColonyModel`, and the `colony_model` event reports each run.
@@ -38,9 +38,9 @@ search took 5–29 s per review in game while the clock ran.
    pays anything. Plants rest when the day is under 25% or over 80% through
    (`Plant.Resting`), so growth to harvestable takes about 27 calendar days at full rate (41 for full growth). Within
    one day it is pure cost.
-5. **Harm is priced (#3546), once the exposure table is calibrated.** The ledger's `Harm` term and the death floor read the
+5. **Harm is priced (#3546), where the exposure table supplies an empirical estimate.** The ledger's `Harm` term and the death floor read the
    threat schedule, raid composition, exposure and armor response ([contract](../contracts/forecast-contracts.md#harm-term-and-death-floor-3546)).
-   While a cell of the exposure table is uncalibrated (#3543) the term is unknown with a specific finding, and the other
+   When a cell is missing or has fewer than 20 independent raids, the term is unknown with a specific finding, and the other
    terms still compare.
 
 ## Decisions
@@ -53,7 +53,7 @@ search took 5–29 s per review in game while the clock ran.
   Tier 2 is an event-driven model of stocks, flows and projects over about a
   game year.
 - **A real harm model**, built from the game's own threat, armor and health
-  mechanics, with exposure calibrated by simulation.
+  mechanics, with empirical exposure estimated from native game sweeps and its evidence limits reported.
 - **The search becomes allocation-free**, and its budget counts evaluations.
 
 ## Comparator
@@ -450,7 +450,7 @@ needs. A node needs no harvest or hunt prerequisite: it takes its stuff from the
 once its harvest or hunt has delivered. Before the run a node is dropped when another of its slot is known to arrive no later and has
 at least its armor: that one's stuff is in stock, its research a subset of the other's and its work no more. Two sourced garments both
 stay, and the arrival-order walk above credits only the later one's upgrade. With the stuff in stock the garment is made at once, so
-a field of the same stuff adds nothing to it. No fibre stock is priced, and while the exposure table is a placeholder (#3543) the nodes
+a field of the same stuff adds nothing to it. No fibre stock is priced, and when the exposure table cannot estimate the cell the nodes
 exist, the harm is `apparel_harm_unassessed` and the chain's investment credit is 0.
 
 *Skills and medicine (#3634, #3344).* Each pawn's skills are stocks keyed `skill/<pawn>/<skill>` (`SkillStock`), started from
@@ -1177,19 +1177,29 @@ raid harm per day. The output feeds the currency and the death floor.
    closed form: target choice is a weighted random draw, and outcomes depend
    on cover, pathing and projectiles (see
    [combat predictability](combat-predictability-research.md)). It is
-   calibrated from real-game `acceptance sweep` runs of the lab fixtures (no
+   estimated from all recorded real-game `acceptance sweep` rows of the lab fixtures (no
    combat simulator is built), keyed by raid points ÷ defense capacity bin and
    the pawn's native downed and violence-capability state and its worn primary weapon (the defense layout is
    reported, not keyed, in v1). It is stored as ranges, so the uncertainty
    stays explicit. The harm model reads the committed table (`RaidExposure`)
    and duplicates no constants; see
    [raid exposure calibration](../testing/harm-exposure-calibration.md).
-   **Calibrated today:** seven cells, gunners at every ratio (under 0.5, 0.5 to
-   1, 1 to 2, 2 to 4 and over 4) and melee fighters under 0.5 and at 2 to 4,
-   from 20-seed sweeps whose means held in a second sweep. The under-0.5 cells
-   price the small fights: a creepjoiner turning aggressive and a held entity
-   escaping (#3880). Every other cell (unarmed, noncombatants and initially downed, #3969; melee from 0.5 to 2
-   and over 4) is uncalibrated: the harm term is unknown with
+   **Supported empirical estimates:** 22 cells, gunners, unarmed, noncombatants and initially downed
+   pawns at every ratio (under 0.5, 0.5 to 1, 1 to 2, 2 to 4 and over 4), and melee fighters
+   under 0.5 and at 2 to 4. Each cell needs at least 20 distinct fixture/seed raids, not 20 pawn
+   rows; required `Raids` and `HitRaids` retain provenance in the embedded schema-2 table.
+   Each fixture is weighted by average role pawns per raid, independently of seed count.
+   The 90% hit and 95% down percentile intervals use 2,000 deterministic draws resampling whole
+   raids within each fixture. These are descriptive estimates, not certified accuracy, stability
+   or valid upper risk bounds for zero-hit samples. All recorded results are estimation data;
+   there is no untouched confirmation claim. Forecasts can understate or overstate risk, and
+   zero observed hits is not immunity. Every hit and down-rate reading propagates
+   `exposure_layout_unassessed`, `exposure_empirical_estimate` and `exposure_stability_unconfirmed`.
+   No hit raids adds `exposure_zero_hit_sample:<bin>/<role>:0/<Raids>`; otherwise fewer than 20
+   hit raids adds `exposure_sparse_hit_sample:<bin>/<role>:<HitRaids>/<Raids>`.
+   A dead pawn alone retains the exact named zero `exposure_no_hits:dead:<pawn>`.
+   Missing cells (melee from 0.5 to 2 and over 4) or fewer than 20 raids refuse rather than
+   substituting another role or zero: the harm term is unknown with
    `exposure_cell_uncalibrated:<bin>/<role>` and the death floor is unassessed,
    so a colony outside those cells compares on the other terms only.
 4. **Armor response, per pawn and weapon bin.** For each layer covering the
@@ -1223,7 +1233,7 @@ raid harm per day. The output feeds the currency and the death floor.
 The currency moves in the expected direction with armor: with the same
 exposure, a garment that deflects more of the raid's hits lowers the harm term,
 which the acceptance case `apparel/harm_armor_direction` (#3547) shows natively
-(a devilstrand duster against a cloth one, in a colony inside a calibrated
+(a devilstrand duster against a cloth one, in a colony inside a supported empirical
 cell). The direction is the native claim; the magnitudes are the unit tests'
 (`ForecastValueTests`, `HarmConsequencesTests`) and the calibration's.
 
@@ -1344,9 +1354,8 @@ Native does not yet observe:
 
 ## Open questions
 
-- Exposure calibration: how can the under-0.5 gunner cell, where hits are rare,
-  pass the two-sweep stability check, and which raids fill the melee and
-  noncombatant cells outside 2 to 4?
+- Exposure estimation: how well do the empirical cells predict other layouts and rare-hit
+  risk, and which native raids fill the unsupported melee cells? Stability remains unconfirmed.
 - The tier-2 pawn cycle: is one derived day per pawn accurate enough, or does
   it need per-season variants (temperature, daylight)?
 - Initial values for the policy constants.
@@ -1359,9 +1368,9 @@ Each milestone has a GitHub issue.
 2. [#3468](https://github.com/davidarcher/rimgovernor/issues/3468) Search stage 2, including exact mood segments.
 3. [#3469](https://github.com/davidarcher/rimgovernor/issues/3469) Capability-days and floors over today's one-day horizon (implemented; #3519 to #3522). This replaced the
    lexicographic ranking; the vector stays as explanation.
-4. [#3470](https://github.com/davidarcher/rimgovernor/issues/3470) Tier 2: pawn cycle, stocks and flows, project graph, crop growth by twelfth (implemented: `Policy/ColonyModel/` with `ReviewColonyModel.Review`, the research and sowing providers `ResearchMethodCandidates` and `SowingMethodCandidates`, the `colony_model` event; the devilstrand payoff chain is wired by [#3559](https://github.com/davidarcher/rimgovernor/issues/3559) (its apparel value waits on the calibrated exposure table, #3543) and proven in play by `production/devilstrand-investment` ([#3560](https://github.com/davidarcher/rimgovernor/issues/3560)); `production/devilstrand-investment-starving` proves that investment never outranks the urgent floor).
+4. [#3470](https://github.com/davidarcher/rimgovernor/issues/3470) Tier 2: pawn cycle, stocks and flows, project graph, crop growth by twelfth (implemented: `Policy/ColonyModel/` with `ReviewColonyModel.Review`, the research and sowing providers `ResearchMethodCandidates` and `SowingMethodCandidates`, the `colony_model` event; the devilstrand payoff chain is wired by [#3559](https://github.com/davidarcher/rimgovernor/issues/3559) (its apparel value requires a supported empirical exposure cell) and proven in play by `production/devilstrand-investment` ([#3560](https://github.com/davidarcher/rimgovernor/issues/3560)); `production/devilstrand-investment-starving` proves that investment never outranks the urgent floor).
 5. [#3471](https://github.com/davidarcher/rimgovernor/issues/3471) Harm model v1: threat schedule, composition, armor response,
-   consequences, with exposure calibrated from real-game sweeps (implemented, #3539 to #3547; seven exposure cells are calibrated, #3561 and #3880).
+   consequences, with empirical exposure from real-game sweeps (implemented, #3539 to #3547; 22 exposure cells are supported with stability unconfirmed, #3969).
 6. [#3472](https://github.com/davidarcher/rimgovernor/issues/3472) Search stage 3: the outcome-evaluation budget (#3722, shipped), lazy evaluation, proven pruning and the tuned default.
 
 The food-runway diagnostic uses the native annual daily growing pattern at the
