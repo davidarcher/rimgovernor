@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.Policy;
 using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance;
@@ -113,6 +114,12 @@ public static class CombatStage
             output.Guns.AddRange(made.Guns);
         }
 
+        if (f.ExposureBin is { } bin)
+        {
+            var ratio = CombatLabBundle.RaidPoints(output) / CombatLabBundle.DefenseCapacity(output);
+            if (RaidExposure.BinOf(ratio) != bin)
+                throw new AcceptanceException($"{name}: native ratio {ratio} is outside intended exposure bin {bin}");
+        }
         return output;
     }
 
@@ -162,6 +169,8 @@ public static class CombatStage
 
     private static void CheckPawn(LabPawn want, Fx.StagedPawn got, string lord)
     {
+        if (got.Downed != want.Downed || got.ViolenceCapable == want.IncapableOfViolence)
+            throw new AcceptanceException($"pawn exposure state differs: downed={got.Downed}, violence-capable={got.ViolenceCapable}");
         // A pod hostile lands where its arrival mode drops the pod.
         var wantCell = got.Spawned ? new Fx.StageCell(want.X, want.Z) : got.Cell;
         if (got.Cell != wantCell)

@@ -13,6 +13,21 @@ thoughts nor authorize execution. Selected input provenance extends only the
 existing disposable Method task payload; no save preference or progress owner
 is added.
 
+## Combat exposure states
+
+`NeedsForecastPawn.ViolenceCapable` reads `!pawn.WorkTagIsDisabled(WorkTags.Violent)`.
+Its existing `State` names native downed and dead states before drafting and voluntary activity.
+Exposure uses those facts and the primary in each forecast outfit, with the same `ExposureRoles.Of`
+definition used by the native sweep: `downed` first, then `noncombatant` for incapability,
+then `unarmed`, `gunner` or `melee` by primary. Current drafting does not establish what a future
+defense will assign: holds can use unarmed blockers, while squad defense and pod evacuation shelter them.
+
+Each living state requires its own calibrated ratio cell. Neither incapability, downed status,
+retreat intent nor arrival at a shelter proves zero incoming hits. A dead pawn has the explicit
+`exposure_no_hits:dead:<pawn>` reading. Raid loss, medicine demand, hospital credit, creepjoiner
+aggression and entity escapes all use this definition. The missing native cells and the fixture
+matrix are documented in [exposure calibration](../testing/harm-exposure-calibration.md).
+
 The growing calendar and controlled-environment census are total on every colony
 read, including reads without planning. Native failures fail the whole read; a
 missing section is a bridge contract failure. The environment census scans

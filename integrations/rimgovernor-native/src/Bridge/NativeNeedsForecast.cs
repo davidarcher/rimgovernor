@@ -103,7 +103,7 @@ internal static class NativeNeedsForecast
             var sleep = NativeConditionalMood.ReadSleep(pawn);
             var moodRead = NativeConditionalMood.ReadMood(pawn, EquatableArray.From(memories), unsupported);
             var health = pawn.health ?? throw new InvalidOperationException("colonist without a health tracker: " + pawn.GetUniqueLoadID());
-            rows.Add(new() { Pawn = pawn.GetUniqueLoadID(), State = state, Location = new(pawn.Position.x, pawn.Position.z),
+            rows.Add(new() { Pawn = pawn.GetUniqueLoadID(), State = state, ViolenceCapable = !pawn.WorkTagIsDisabled(WorkTags.Violent), Location = new(pawn.Position.x, pawn.Position.z),
                 CurrentService = voluntary ? CurrentService(pawn) : null,
                 RoomUses = new(pawn.Spawned ? DiningSeats(pawn, map) : [], pawn.Spawned ? NativeRecreation.Definitions(pawn) : []),
                 LocalHour = F(GenLocalDate.HourFloat(pawn), "local hour"), Awake = pawn.Awake(), BedThoughts = BedThoughtsOf(pawn),

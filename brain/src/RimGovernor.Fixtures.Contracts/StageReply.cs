@@ -111,6 +111,11 @@ public sealed record StagedPawn
 
     public StagedPrimary Primary { get; init; }
 
+    public required bool Downed { get; init; }
+
+    /// <summary>Native WorkTagIsDisabled(Violent), independently of the fixture request.</summary>
+    public required bool ViolenceCapable { get; init; }
+
     /// <summary>SkillDef to level for each skill the spec's Skills named, as the pawn holds it; null when it named none.</summary>
     public IReadOnlyDictionary<string, int>? Skills { get; init; }
 }

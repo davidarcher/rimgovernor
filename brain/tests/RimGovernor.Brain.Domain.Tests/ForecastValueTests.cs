@@ -90,7 +90,7 @@ public sealed class ForecastValueTests
     private static EquatableArray<GearOption> Devilstrand => [Duster(0.8)];
 
     private static ExposureTable Exposure(int trials = 100) => new(RaidExposure.Schema,
-        [new ExposureCell("1-2", ExposureRoles.Noncombatant, trials, 5, 3, 20, 0.5, 0.4, 0.6)]);
+        [new ExposureCell("1-2", ExposureRoles.Unarmed, trials, 5, 3, 20, 0.5, 0.4, 0.6)]);
 
     internal static HarmInputs RaidDay(ExposureTable? exposure = null, double raidsPerDay = 1) => new()
     {
@@ -649,7 +649,7 @@ public sealed class ForecastValueTests
 
         Assert.False(uncalibrated.Harm.IsPriced());
         Assert.Null(uncalibrated.HarmDetail);
-        Assert.Contains("exposure_cell_uncalibrated:1-2/noncombatant", uncalibrated.Findings);
+        Assert.Contains("exposure_cell_uncalibrated:1-2/unarmed", uncalibrated.Findings);
         Assert.DoesNotContain("harm_capability_unassessed", uncalibrated.Findings);
         Assert.False(uncalibrated.Total.IsPriced());
         Assert.True(uncalibrated.Hunger.IsPriced());

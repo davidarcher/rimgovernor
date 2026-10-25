@@ -34,7 +34,8 @@ public sealed class NotAdmittedException : DomainException
 
 public sealed class NotFoundException() : DomainException("plan or action not found");
 
-public sealed class CapacityException() : DomainException("plan catalog capacity reached");
+public sealed class CapacityException(string detail = "") : DomainException(detail.Length == 0
+    ? "plan catalog capacity reached" : "journal capacity reached: " + detail);
 
 /// <summary>An action Safeguard's dispatch refusal.</summary>
 public sealed class ActionVetoedException : DomainException

@@ -344,6 +344,9 @@ public sealed record StagePawn
     /// <summary>Removes every generated trait; false leaves them generated.</summary>
     public bool ClearTraits { get; init; }
 
+    /// <summary>Replace childhood with a native backstory disabling Violent, for civilian exposure calibration.</summary>
+    public bool IncapableOfViolence { get; init; }
+
     /// <summary>Replaces what the pawn holds; null leaves it.</summary>
     public StageGear? Gear { get; init; }
 

@@ -184,6 +184,7 @@ public sealed partial class DefensePlanner
         }
         var inp = inputs;
         inp.Needed = await DraftNeeds.PlannedDraftsAsync(p.Journal, call).ConfigureAwait(false);
+        inp.Unavailable = CombatUnavailable(p.Journal, state.Snapshot, combat.Emergency.Facts, arbiter, call);
         inp.Preferences = _reviewer.PreferencesOf(state.Snapshot, call);
         var emergency = combat.Emergency;
         var rows = inp.Rows;
@@ -415,6 +416,9 @@ internal sealed class CombatInputs
     public List<string> Hunters = [];
     public HashSet<PawnId> Needed = [];
 
+    /// <summary>Pawns held by open care orders or another planner in this step; observed pawn and threat facts remain whole.</summary>
+    public HashSet<PawnId> Unavailable = [];
+
     /// <summary>The player's preferences: protected pawns are held back from the squad while another defender is eligible.</summary>
     public PreferencesRecord Preferences = new();
     public Dictionary<string, WeaponDef> Weapons = new(StringComparer.Ordinal);
@@ -534,7 +538,19 @@ partial class DefensePlanner
         return (inp, default);
     }
 
-    /// <summary>The policy view of the fight: the defenders, the threats, the structures and the combat read's rooms, doors and mortars.</summary>
+    /// <summary>The current care and step claims that formation must leave to their existing owners.</summary>
+    internal static HashSet<PawnId> CombatUnavailable(JournalStore journal, GenerationSnapshot world, EmergencyFacts emergency, StepArbiter arbiter, CancellationToken ct)
+    {
+        var unavailable = MedicalReview.CareHeld(journal, world,
+            EmergencyPatientsRules.EmergencyPatients(emergency).Select(pawn => pawn.Id).ToList(), ct).ToHashSet();
+        lock (arbiter.Mu)
+        {
+            unavailable.UnionWith(arbiter.Pawns);
+        }
+        return unavailable;
+    }
+
+    /// <summary>The policy view of the fight: the available defenders, the complete pawn and threat facts, the structures and the combat read's rooms, doors and mortars.</summary>
     internal static CombatView CombatView(BridgeCombat combat, CombatInputs inp, IReadOnlyList<PawnId> orderable, CombatLayout? layout)
     {
         var context = combat.Context ?? throw new ObservationContractException("combat frame without its observation context");
@@ -552,6 +568,10 @@ partial class DefensePlanner
         var profiles = new List<PawnProfile>();
         foreach (var pawn in combat.Emergency.Facts.Colonists)
         {
+            if (inp.Unavailable.Contains(pawn.Id))
+            {
+                continue;
+            }
             var row = inp.Rows[pawn.Id.Value];
             // The combat mirror lists every spawned colonist while a hostile stands; a hunt or a break alone has no rows.
             DefenderArmor rating = armor.TryGetValue(pawn.Id, out var a) ? new DefenderArmor.Rated(a) : new DefenderArmor.Unmirrored();

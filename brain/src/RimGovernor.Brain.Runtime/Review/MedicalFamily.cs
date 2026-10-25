@@ -171,7 +171,7 @@ public sealed class MedicalReview
 
         var identity = Boundary.Identity(world);
         var workers = emergency.Colonists.Select(pawn => pawn.Id).ToHashSet();
-        var care = new CriticalCare { Busy = CareHeld(world, patients, ct) };
+        var care = new CriticalCare { Busy = CareHeld(_reviewer.Player.Journal, world, patients, ct) };
         if (_tend is not null)
         {
             var eligible = EmergencyPatientsRules.EmergencyTendPatients(emergency).ToHashSet();
@@ -275,9 +275,8 @@ public sealed class MedicalReview
     }
 
     /// <summary>The doctors, rescuers and patients the critical Needs' open tends and rescues hold.</summary>
-    private IReadOnlyList<PawnId> CareHeld(GenerationSnapshot world, IReadOnlyList<PawnId> patients, CancellationToken ct)
+    internal static IReadOnlyList<PawnId> CareHeld(JournalStore journal, GenerationSnapshot world, IReadOnlyList<PawnId> patients, CancellationToken ct)
     {
-        var journal = _reviewer.Player.Journal;
         var held = new SortedSet<string>(StringComparer.Ordinal);
         foreach (var patient in patients)
         {

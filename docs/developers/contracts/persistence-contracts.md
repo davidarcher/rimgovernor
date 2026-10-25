@@ -8,6 +8,11 @@ transactions. This extends the existing review row, not a second reservation
 store. Native reservations and carried/embedded inputs are reconciled against
 that observation; dispatch alone cannot release an unobserved cost.
 
+The full-review row has a 16 MiB aggregate UTF-8 JSON limit on write and replay.
+Complete native observations can exceed 1 MiB even for seven colonists. Existing
+typed record, identity, history and collection validation still applies; a larger
+serialized observation does not consume additional plan catalog entries.
+
 Mood history and recovery replay retain each complete native pawn row and its actual same-frame patient forecast (absent only for a pawn lacking a mood need), plus grouped derived thought totals. Scalar mood evidence is read from those retained inputs; replay does not reconstruct a native pawn from selected scalars. Recovery replay also retains canonical building rows. Selected recovery candidates retain the native fuel union, including burn state and target. The existing review journal owns these inputs; no separate recovery observation store is introduced.
 
 Live recovery safety uses the native restriction rows directly, including a null

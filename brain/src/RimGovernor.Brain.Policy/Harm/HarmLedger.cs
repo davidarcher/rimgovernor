@@ -293,14 +293,6 @@ internal static class HarmLedger
         IEnumerable<ForecastCommitment>? commitments, SortedSet<string> findings)
     {
         var inputs = context.Harm;
-        var role = RoleOf(wearing);
-        var reading = RaidExposure.HitsPerColonist(inputs.Exposure, ratio, role);
-        findings.UnionWith(reading.Findings);
-        if (reading is not ExposureReading.Calibrated { Range: var hits })
-        {
-            return null;
-        }
-
         var eventDay = inputs.Occurrence is RaidOccurrence.At occurred ? occurred.Day : 0;
         if (OutfitsOf(pawn, wearing, commitments, outcome.OutfitTicks, inputs.Occurrence is RaidOccurrence.At ? Math.BitIncrement(eventDay * GameTime.TicksPerDay) : horizon) is not { } outfits)
         {
@@ -311,10 +303,17 @@ internal static class HarmLedger
         var remaining = horizon - eventDay * GameTime.TicksPerDay;
         var stock = context.Stock.At(eventDay);
 
-        double risked = 0, down = 0, death = 0, cvar = 0;
+        double risked = 0, down = 0, death = 0, cvar = 0, meanHits = 0, loHits = double.PositiveInfinity, hiHits = 0;
         // Each outfit is worn for its share of the horizon, and the fights in that share meet it (#3621).
         foreach (var (outfit, share) in outfits)
         {
+            var role = RoleOf(row, outfit);
+            var reading = ExposureOf(inputs.Exposure, ratio, row, outfit);
+            findings.UnionWith(reading.Findings);
+            if (reading is not ExposureReading.Calibrated { Range: var hits }) return null;
+            meanHits += share * hits.Mean;
+            loHits = Math.Min(loHits, hits.Lo);
+            hiHits = Math.Max(hiHits, hits.Hi);
             HarmFightKey key = (pawn, role, outfit, outcome.Support, hits, EquatableArray.From(bins), eventDay, remaining, context.Stock);
             if (!cache.TryGetValue(key, out var distribution))
             {
@@ -335,7 +334,7 @@ internal static class HarmLedger
             cvar += share * tail;
         }
 
-        return new(risked, down, death, cvar, hits);
+        return new(risked, down, death, cvar, new HitRange(meanHits, loHits, hiHits));
     }
 
     /// <summary>
@@ -472,7 +471,7 @@ internal static class HarmLedger
         foreach (var (pawn, row) in pawns.OrderBy(p => p.Key, StringComparer.Ordinal))
         {
             if (!context.Outfits.TryGetValue(pawn, out var wearing)) return new ForecastTerm.Unassessed("outfit_unobserved:" + pawn);
-            var exposure = RaidExposure.HitsPerColonist(inputs.Exposure, ratio, RoleOf(wearing));
+            var exposure = ExposureOf(inputs.Exposure, ratio, row, wearing);
             if (exposure is not ExposureReading.Calibrated { Range: var hits })
                 return new ForecastTerm.Unassessed(string.Join(",", exposure.Findings));
 
@@ -537,7 +536,7 @@ internal static class HarmLedger
             throw new RequiredFactException("outfit:" + row.Pawn);
         }
 
-        if (RaidExposure.HitsPerColonist(inputs.Exposure, ratio, RoleOf(wearing)) is not ExposureReading.Calibrated { Range: var hits })
+        if (ExposureOf(inputs.Exposure, ratio, row, wearing) is not ExposureReading.Calibrated { Range: var hits })
         {
             throw new RequiredFactException("raid_exposure:" + row.Pawn);
         }
@@ -672,17 +671,23 @@ internal static class HarmLedger
         return at;
     }
 
-    /// <summary>The exposure role of a pawn from what it wears: a ranged primary weapon is a gunner, a melee one a melee fighter, none a noncombatant.</summary>
-    internal static string RoleOf(EquatableArray<GearOption> worn)
+    /// <summary>A dead pawn cannot take another hit; living pawns require their own calibrated cell, including those sheltered or downed.</summary>
+    internal static ExposureReading ExposureOf(ExposureTable table, double ratio, NeedsForecastPawn pawn, EquatableArray<GearOption> worn) =>
+        pawn.State == "dead"
+            ? new ExposureReading.Calibrated(new HitRange(0, 0, 0), ["exposure_no_hits:dead:" + pawn.Pawn])
+            : RaidExposure.HitsPerColonist(table, ratio, RoleOf(pawn, worn));
+
+    /// <summary>The sweep's same capability, downed and primary states. Current drafting does not predict a future defense assignment.</summary>
+    internal static string RoleOf(NeedsForecastPawn pawn, EquatableArray<GearOption> worn)
     {
         foreach (var item in worn)
         {
             if (item.Slot == GearSlot.Primary)
             {
-                return item.Ranged ? ExposureRoles.Gunner : ExposureRoles.Melee;
+                return ExposureRoles.Of(pawn.State == "downed", pawn.ViolenceCapable, true, item.Ranged);
             }
         }
 
-        return ExposureRoles.Noncombatant;
+        return ExposureRoles.Of(pawn.State == "downed", pawn.ViolenceCapable, false, false);
     }
 }

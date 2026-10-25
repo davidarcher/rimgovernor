@@ -249,7 +249,7 @@ namespace RimGovernor.Native
                     Id = pawn.GetUniqueLoadID(), Kind = pawn.kindDef.defName, Cell = Out(pawn.PositionHeld), Spawned = pawn.Spawned,
                     Hostile = pawn.HostileTo(Faction.OfPlayer), Prisoner = pawn.IsPrisonerOfColony, Weapon = pawn.equipment?.Primary?.def.defName,
                     LordJob = pawn.GetLord()?.LordJob?.GetType().Name, MentalState = pawn.MentalStateDef?.defName, Inspiration = pawn.InspirationDef?.defName,
-                    Health = pawn.health.summaryHealth.SummaryHealthPercent,
+                    Health = pawn.health.summaryHealth.SummaryHealthPercent, Downed = pawn.Downed, ViolenceCapable = !pawn.WorkTagIsDisabled(WorkTags.Violent),
                     Worn = pawn.apparel?.WornApparel.Count ?? 0,
                     CombatPower = pawn.kindDef.combatPower, MeleeDps = pawn.GetStatValue(StatDefOf.MeleeDPS), RangedDps = NativeDefenseStats.PawnRangedDps(pawn) * NativeDefenseStats.PawnRangedHitFactor(pawn), Primary = Primary(pawn),
                     Skills = spec.Pawns.First(x => x.Name == name).Skills?.Keys.ToDictionary(k => k, k => pawn.skills.GetSkill(FixtureKit.Def<SkillDef>(k)).Level),
@@ -350,6 +350,14 @@ namespace RimGovernor.Native
         // inventory, stun.
         private static void Equip(Pawn pawn, StagePawn p)
         {
+            if (p.IncapableOfViolence)
+            {
+                if (pawn.story == null) throw new ArgumentException($"Pawn {p.Name} needs a story for violence incapability.");
+                pawn.story.Childhood = DefDatabase<BackstoryDef>.AllDefs
+                    .Where(b => b.slot == BackstorySlot.Childhood && (b.workDisables & WorkTags.Violent) != 0)
+                    .OrderBy(b => b.defName, StringComparer.Ordinal).First();
+                pawn.Notify_DisabledWorkTypesChanged();
+            }
             if (p.Gear != null && pawn.equipment != null) FixtureKit.Arm(pawn, p.Gear.Weapon, p.Gear.WeaponStuff);
             foreach (var name in p.Gear?.Apparel ?? new List<string>())
             {

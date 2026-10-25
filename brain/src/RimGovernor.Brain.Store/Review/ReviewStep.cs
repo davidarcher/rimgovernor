@@ -7,7 +7,9 @@ namespace RimGovernor.Brain.Store;
 
 public sealed partial class Store
 {
-    private const int MaxReviewPayload = 1024 * 1024;
+    // Complete native pawn observations exceed 1 MiB for seven colonists (#4015).
+    // Keep an aggregate bound, with room for larger supported colony censuses.
+    private const int MaxReviewPayload = 16 * 1024 * 1024;
 
     private const int MaxReviewProgress = 306;
 
@@ -382,7 +384,10 @@ public sealed partial class Store
         var data = StoreJson.Serialize(r);
         if (System.Text.Encoding.UTF8.GetByteCount(data) > MaxReviewPayload)
         {
-            throw new CapacityException();
+            throw new CapacityException($"review payload {System.Text.Encoding.UTF8.GetByteCount(data)} > {MaxReviewPayload} bytes; "
+                + $"work evidence {System.Text.Encoding.UTF8.GetByteCount(StoreJson.Serialize(r.WorkEvidence))}, "
+                + $"roster {System.Text.Encoding.UTF8.GetByteCount(StoreJson.Serialize(r.Roster))}, "
+                + $"ready work {System.Text.Encoding.UTF8.GetByteCount(StoreJson.Serialize(r.ReadyWork))}");
         }
         _ = tx.Execute("INSERT INTO rounds(singleton,payload) VALUES(1,$payload) ON CONFLICT(singleton) DO UPDATE SET payload=excluded.payload", ("$payload", data));
         return result with { Review = r };

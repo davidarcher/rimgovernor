@@ -1,5 +1,7 @@
 using System.Text;
 using RimGovernor.Brain.Acceptance;
+using RimGovernor.Brain.Policy;
+using RimGovernor.Brain.Simulation.CombatMetrics;
 using Xunit;
 using SimMetrics = RimGovernor.Brain.Simulation.CombatMetrics.Metrics;
 
@@ -53,6 +55,17 @@ public sealed class UnarmedStopsTests
     [Fact]
     public void AnArmedStopClearsTheSeed() =>
         Assert.Null(Flag(new SimMetrics { ColonistDowns = 1 }, Stop(100, "serious_injury"), Stop(600, "review")));
+
+    [Fact]
+    public void AnUnhitStagedPatientDoesNotPretendTheFightCausedItsDown()
+    {
+        var patient = new ColonistMetrics { Id = "patient", Role = ExposureRoles.Downed, Downed = true };
+        var metrics = new SimMetrics { ColonistDowns = 1, Colonists = [patient] };
+        Assert.Null(Flag(metrics, CombatRun(10), Stop(600, "review")));
+        Assert.NotNull(Flag(metrics with { Colonists = [patient with { Hits = 1 }] }, Stop(600, "review")));
+        Assert.NotNull(Flag(metrics with { ColonistDowns = 0, ColonistDeaths = 1, Colonists = [patient with { Downed = false, Dead = true }] }, Stop(600, "review")));
+        Assert.NotNull(Flag(metrics with { ColonistDowns = 2, Colonists = [patient, new ColonistMetrics { Id = "fighter", Role = ExposureRoles.Gunner, Downed = true }] }, Stop(600, "review")));
+    }
 
     [Fact]
     public void AFightThatHurtNoColonistOrNeverStoppedIsNotFlagged()

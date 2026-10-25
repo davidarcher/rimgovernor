@@ -1179,7 +1179,7 @@ raid harm per day. The output feeds the currency and the death floor.
    [combat predictability](combat-predictability-research.md)). It is
    calibrated from real-game `acceptance sweep` runs of the lab fixtures (no
    combat simulator is built), keyed by raid points ÷ defense capacity bin and
-   the pawn's role, taken from its worn primary weapon (the defense layout is
+   the pawn's native downed and violence-capability state and its worn primary weapon (the defense layout is
    reported, not keyed, in v1). It is stored as ranges, so the uncertainty
    stays explicit. The harm model reads the committed table (`RaidExposure`)
    and duplicates no constants; see
@@ -1188,7 +1188,7 @@ raid harm per day. The output feeds the currency and the death floor.
    1, 1 to 2, 2 to 4 and over 4) and melee fighters under 0.5 and at 2 to 4,
    from 20-seed sweeps whose means held in a second sweep. The under-0.5 cells
    price the small fights: a creepjoiner turning aggressive and a held entity
-   escaping (#3880). Every other cell (noncombatants, #3969; melee from 0.5 to 2
+   escaping (#3880). Every other cell (unarmed, noncombatants and initially downed, #3969; melee from 0.5 to 2
    and over 4) is uncalibrated: the harm term is unknown with
    `exposure_cell_uncalibrated:<bin>/<role>` and the death floor is unassessed,
    so a colony outside those cells compares on the other terms only.

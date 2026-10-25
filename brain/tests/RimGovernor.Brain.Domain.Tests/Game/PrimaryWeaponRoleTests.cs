@@ -76,7 +76,7 @@ public sealed class PrimaryWeaponRoleTests
     {
         var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0) with { Gear = Census(def) };
         var context = ForecastCoupledCandidates.GenerateCoupledActivities(facts)!.Context;
-        return HarmLedger.RoleOf(context.Outfits["pawn"]);
+        return HarmLedger.RoleOf(Assert.Single(context.Needs.Pawns), context.Outfits["pawn"]);
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public sealed class PrimaryWeaponRoleTests
     public void AMeleeWeaponMakesTheColonistAMeleeFighter() => Assert.Equal(ExposureRoles.Melee, Role("MeleeWeapon_Knife"));
 
     [Fact]
-    public void AnUnarmedColonistIsNoncombatant() => Assert.Equal(ExposureRoles.Noncombatant, Role(null));
+    public void AnUnarmedColonistHasItsOwnExposureRole() => Assert.Equal(ExposureRoles.Unarmed, Role(null));
 
     [Fact]
     public void JoinerWeaponTraitsReceiveTheProductionCatalogThroughTheEquipmentRead()

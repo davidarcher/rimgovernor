@@ -126,7 +126,7 @@ public sealed class RaidExposureTests
         var staged = new StagedFixture { Fixture = fixture };
         staged.Pawns.Add(Pawn("g", Fx.StagedPrimary.Ranged, melee: 3, ranged: 10));
         staged.Pawns.Add(Pawn("m", Fx.StagedPrimary.None, melee: 4, ranged: 0));
-        staged.Pawns.Add(Pawn("d", Fx.StagedPrimary.None, melee: 4, ranged: 0));
+        staged.Pawns.Add(Pawn("d", Fx.StagedPrimary.None, melee: 4, ranged: 0) with { Downed = true });
         staged.Pawns.Add(Pawn("x", Fx.StagedPrimary.Ranged, combatPower: 30));
         staged.Pawns.Add(Pawn("y", Fx.StagedPrimary.Melee, combatPower: 25));
         staged.Guns.Add(new Fx.StagedGun(4, true));
@@ -135,8 +135,8 @@ public sealed class RaidExposureTests
         var roles = CombatLabBundle.Roles(staged);
 
         Assert.Equal(ExposureRoles.Gunner, roles["g"]);
-        Assert.Equal(ExposureRoles.Melee, roles["m"]);
-        Assert.Equal(ExposureRoles.Noncombatant, roles["d"]);
+        Assert.Equal(ExposureRoles.Unarmed, roles["m"]);
+        Assert.Equal(ExposureRoles.Downed, roles["d"]);
         Assert.Equal(55, CombatLabBundle.RaidPoints(staged));
 
         // (3 + 10) + 4 melee-and-ranged DPS of the two standing colonists, plus the one powered turret's 4, at 5 points a DPS.
@@ -147,12 +147,12 @@ public sealed class RaidExposureTests
         var read = Fx.FixtureJson.Deserialize<Fx.LabFightRead>(first.ToJsonString());
         Assert.Equal(55, read.RaidPoints);
         Assert.Equal(105, read.DefenseCapacity);
-        Assert.Equal(ExposureRoles.Noncombatant, read.Roles!["d"]);
+        Assert.Equal(ExposureRoles.Downed, read.Roles!["d"]);
         Assert.Equal(Sides.Hostile, read.Staged!["x"]);
     }
 
     private static Fx.StagedPawn Pawn(string id, Fx.StagedPrimary primary, double melee = 0, double ranged = 0, double combatPower = 0) =>
-        new() { Id = id, Kind = "k", Health = 1, Primary = primary, MeleeDps = melee, RangedDps = ranged, CombatPower = combatPower };
+        new() { Id = id, Kind = "k", Health = 1, Primary = primary, MeleeDps = melee, RangedDps = ranged, CombatPower = combatPower, Downed = false, ViolenceCapable = true };
 
     private static ExposureTable OneCell(int trials) => new(
         RaidExposure.Schema,
@@ -224,7 +224,7 @@ public sealed class RaidExposureTests
         // A small fight hits a colonist less than a raid matched to the defense does.
         Assert.True(RaidExposure.HitsPerColonist(0.3, ExposureRoles.Gunner) is ExposureReading.Calibrated { Range.Hi: var hi } && hi < 0.5);
 
-        // No sweep stages a noncombatant who fights: that cell stays uncalibrated (#3969).
+        // No committed sweep contains a violence-incapable trial yet (#3969).
         Assert.Equal("exposure_cell_uncalibrated:0-0.5/noncombatant", RaidExposure.HitsPerColonist(0.3, ExposureRoles.Noncombatant).Findings[0]);
     }
 

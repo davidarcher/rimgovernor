@@ -296,7 +296,7 @@ public sealed class CreepJoinerHarmTests
         Assert.Contains("creepjoiner_hediff_unmodelled:CrumbledMind:disabledWorkTags", findings);
 
         // A game creepjoiner's 55 points against 1000 defense is a small fight: the committed table's 0-0.5 cells price it
-        // against an armed defender (#3880), and an unarmed one is a noncombatant the table does not calibrate (#3835).
+        // against an armed defender (#3880). An unarmed defender needs its own native calibration (#3969).
         var small = Context(inputs with { Values = [Value], Unshown = [new UnshownCreepJoiner("cj", 2.5, 55)] }, cj);
         small = small with { Harm = small.Harm with { Exposure = RaidExposure.Load() } };
         foreach (var weapon in new[] { Rifle, Longsword })
@@ -305,7 +305,7 @@ public sealed class CreepJoinerHarmTests
             Assert.True(Assert.Single(Term(armed, cj).Pawns).Aggressive > 0);
         }
 
-        Assert.Throws<RequiredFactException>(() => Term(small, cj));
+        Assert.Contains("exposure_cell_uncalibrated:0-0.5/unarmed", Assert.Throws<RequiredFactException>(() => Term(small, cj)).Fact);
 
         // The creepjoiner's read without its organs is a required fact.
         Assert.Throws<RequiredFactException>(() => Term(Context(inputs, Cj)));

@@ -40,6 +40,13 @@ tends run side by side and an order that would take a held pawn is a claim confl
 In the ordinary pass a patient's Need first queues a life-saving amputation
 (`amputate-<patient>-<part>-<window>`).
 
+Combat formation leaves the pawns held by these open care orders to their medical
+Method, including across scheduler steps. It also excludes the current step's
+claimed pawns before selecting fighters and shelter roles. All observed pawn and
+threat facts remain in the combat view for safety decisions. Other available
+defenders can therefore admit a fight while rescue or tending proceeds; a care
+claim on one pawn does not refuse the whole colony's defense.
+
 The executor's emergency gate (`policy.EvaluateEmergency`) holds dispatch as
 `critical_medical` on the same terms: a bleeding or downed-untended colonist, or an
 unknown health fact, holds every action. A colonist who only needs tending is the

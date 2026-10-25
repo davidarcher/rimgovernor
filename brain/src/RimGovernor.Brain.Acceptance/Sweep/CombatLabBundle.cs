@@ -58,8 +58,7 @@ internal static class CombatLabBundle
     }
 
     /// <summary>
-    /// Each staged colonist's role: gunner with a ranged primary, melee with a melee primary or unarmed (the defense planner
-    /// drafts every lab colonist that can fight), noncombatant when it is staged downed.
+    /// Each staged colonist's native downed, violence capability and primary facts, using the live forecast's role definition.
     /// </summary>
     internal static Dictionary<string, string> Roles(StagedFixture s)
     {
@@ -71,12 +70,9 @@ internal static class CombatLabBundle
                 continue;
             }
 
-            output[s.Pawns[i].Id] = s.Pawns[i].Primary switch
-            {
-                Fx.StagedPrimary.Ranged => ExposureRoles.Gunner,
-                Fx.StagedPrimary.Melee => ExposureRoles.Melee,
-                _ => s.Fixture.Pawns[i].Downed ? ExposureRoles.Noncombatant : ExposureRoles.Melee,
-            };
+            var pawn = s.Pawns[i];
+            output[pawn.Id] = ExposureRoles.Of(pawn.Downed, pawn.ViolenceCapable,
+                pawn.Primary != Fx.StagedPrimary.None, pawn.Primary == Fx.StagedPrimary.Ranged);
         }
 
         return output;
@@ -98,9 +94,8 @@ internal static class CombatLabBundle
     }
 
     /// <summary>
-    /// The staged defense in raid-point units, by the policy function the colony reads it with: each colonist that is not
-    /// staged downed adds melee DPS (scaled by health) and ranged DPS, each powered turret its DPS. Every staged colonist
-    /// counts as capable of violence.
+    /// The staged defense in raid-point units, by the colony's policy function: native downed and violence facts decide
+    /// which colonists contribute melee DPS (scaled by health) and ranged DPS; each powered turret adds its DPS.
     /// </summary>
     internal static double DefenseCapacity(StagedFixture s)
     {
@@ -117,8 +112,8 @@ internal static class CombatLabBundle
             {
                 Id = new PawnId(pawn.Id),
                 Dead = false,
-                Downed = s.Fixture.Pawns[i].Downed,
-                ViolenceCapable = true,
+                Downed = pawn.Downed,
+                ViolenceCapable = pawn.ViolenceCapable,
                 MeleePower = pawn.MeleeDps * pawn.Health,
                 RangedDps = pawn.RangedDps,
             });
@@ -261,7 +256,10 @@ internal static class CombatLabBundle
             }
         }
 
-        var hurt = m.ColonistDowns + m.ColonistDeaths;
+        // An anesthetized staging is already down before the watch is armed. Its unchanged, unhit
+        // state is an exposure outcome, not evidence that the watch missed a combat casualty.
+        var stagedDowns = m.Colonists?.Count(c => c.Role == ExposureRoles.Downed && c.Downed && !c.Dead && c.Hits == 0) ?? 0;
+        var hurt = m.ColonistDowns - stagedDowns + m.ColonistDeaths;
         if (byEvent.Count == 0 || hurt == 0 || byEvent.Keys.Any(CombatEventKinds.Contains))
         {
             return null;

@@ -11,13 +11,23 @@ public static class ExposureRoles
     /// <summary>A ranged primary weapon.</summary>
     public const string Gunner = "gunner";
 
-    /// <summary>A melee primary weapon, or unarmed and drafted to fight.</summary>
+    /// <summary>A standing violence-capable colonist with a melee primary weapon.</summary>
     public const string Melee = "melee";
 
-    /// <summary>Everyone else: a colonist who does not fight.</summary>
+    /// <summary>A standing colonist incapable of violence, regardless of equipment.</summary>
     public const string Noncombatant = "noncombatant";
 
-    public static IReadOnlyList<string> All { get; } = [Gunner, Melee, Noncombatant];
+    /// <summary>A standing violence-capable colonist without a primary; tactics may fight with or shelter it.</summary>
+    public const string Unarmed = "unarmed";
+
+    /// <summary>A colonist already downed before the fight, independently of violence capability and equipment.</summary>
+    public const string Downed = "downed";
+
+    public static IReadOnlyList<string> All { get; } = [Gunner, Melee, Noncombatant, Unarmed, Downed];
+
+    /// <summary>One definition shared by live forecasts and native sweep staging. Equipment never proves capability.</summary>
+    public static string Of(bool downed, bool violenceCapable, bool hasPrimary, bool ranged) =>
+        downed ? Downed : !violenceCapable ? Noncombatant : !hasPrimary ? Unarmed : ranged ? Gunner : Melee;
 }
 
 /// <summary>A mean and the 90% range around it. The harm ledger reads the range, never only the mean.</summary>

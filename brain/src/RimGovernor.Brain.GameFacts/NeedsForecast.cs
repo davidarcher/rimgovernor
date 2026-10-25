@@ -856,6 +856,8 @@ public sealed record NeedsForecastPawn
     public required string Pawn { get; init; }
     /// <summary>eligible, unsupported_voluntary_state, dead, downed, mental_state, drafted, player_authority or player_work.</summary>
     public required string State { get; init; }
+    /// <summary>Whether WorkTagIsDisabled(WorkTags.Violent) is false, independently of equipment and current drafting.</summary>
+    public required bool ViolenceCapable { get; init; }
     public required Cell Location { get; init; }
     /// <summary>Null means no supported observed continuous incumbent, not a free pawn.</summary>
     public required NeedCurrentService? CurrentService { get; init; }

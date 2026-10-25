@@ -65,6 +65,8 @@ public sealed class LabPawn
     /// <summary>Stages the pawn downed under anesthetic.</summary>
     public bool Downed { get; set; }
 
+    public bool IncapableOfViolence { get; set; }
+
     /// <summary>Extra HediffDef names added at staging, e.g. a drug high or addiction.</summary>
     public List<string> Hediffs { get; set; } = [];
 
@@ -104,6 +106,7 @@ public sealed class LabPawn
             Cell = new Fx.StageCell(X, Z),
             Gear = gear,
             Downed = Downed,
+            IncapableOfViolence = IncapableOfViolence,
             Hediffs = Hediffs,
             Injured = Injured,
             StunTicks = StunTicks,
@@ -159,6 +162,9 @@ public sealed class LabLayout
 public sealed class LabFixture
 {
     public string Name { get; set; } = "";
+
+    /// <summary>Calibration refuses staging outside this intended bin; null for ordinary tactical fixtures.</summary>
+    public string? ExposureBin { get; set; }
 
     public int Colonists { get; set; }
 
@@ -262,12 +268,13 @@ public static class CombatFixtures
     /// <summary>The pirate drifter, a melee raider kind of combatPower 35.</summary>
     public const string Drifter = "Drifter";
 
-    /// <summary>Fixtures with committed metrics baselines. lab-infestation can be built but has no metrics baseline.</summary>
+    /// <summary>Sweep fixtures. The civilian calibration fixtures require recording before baseline comparison.</summary>
     public static readonly IReadOnlyList<string> Names =
     [
         "lab-open", "lab-choke", "lab-ranged", "lab-pods", "lab-breach", "lab-siege", "lab-manhunter", "lab-mech",
         "lab-ranged-shield", "lab-mech-line", "lab-base", "lab-split-ranged", "lab-ranged-light", "lab-ranged-lone",
         "lab-ranged-overrun", "lab-ranged-few", "lab-melee-lone",
+        "lab-civilians-small", "lab-civilians-light", "lab-civilians-even", "lab-civilians-heavy", "lab-civilians-overrun",
     ];
 
     public const int MechStunTicks = 600;
@@ -298,6 +305,11 @@ public static class CombatFixtures
         "lab-ranged-overrun" => RangedLine("lab-ranged-overrun", cx, cz, [-1, 1], [-6, -4, -2, 0, 2, 4, 6]),
         "lab-ranged-few" => RangedLine("lab-ranged-few", cx, cz, [-2, 0, 2], [0]),
         "lab-melee-lone" => MeleeLone(cx, cz),
+        "lab-civilians-small" => Civilians("lab-civilians-small", cx, cz, 1),
+        "lab-civilians-light" => Civilians("lab-civilians-light", cx, cz, 3),
+        "lab-civilians-even" => Civilians("lab-civilians-even", cx, cz, 6),
+        "lab-civilians-heavy" => Civilians("lab-civilians-heavy", cx, cz, 12),
+        "lab-civilians-overrun" => Civilians("lab-civilians-overrun", cx, cz, 24),
         "lab-pods" => Pods(cx, cz),
         "lab-siege" => Siege(cx, cz),
         "lab-manhunter" => ManhunterFixture(cx, cz),
@@ -659,6 +671,26 @@ public static class CombatFixtures
             f.Pawns.Add(P(Hostile, cx + dx, cz + 16, kind: Gunner, weapon: Rifle));
         }
 
+        return f;
+    }
+
+    // Each new state gets its own native trial alongside the reference rifle line. No room or immunity is staged:
+    // the normal defense planner decides which civilians to shelter and which unarmed pawns to use as blockers.
+    private static LabFixture Civilians(string name, int cx, int cz, int hostiles)
+    {
+        var f = RangedLine(name, cx, cz, [-3, -1, 1, 3],
+            Enumerable.Range(0, hostiles).Select(i => (i - hostiles / 2) * 2).ToArray());
+        f.Colonists = 7;
+        f.ExposureBin = hostiles switch { 1 => "0-0.5", 3 => "0.5-1", 6 => "1-2", 12 => "2-4", 24 => "4+", _ => throw new AcceptanceException("unsupported civilian calibration count") };
+        var civilians = new[]
+        {
+            P(Colonist, cx - 2, cz - 12, index: 4),
+            P(Colonist, cx, cz - 12, index: 5),
+            P(Colonist, cx + 2, cz - 12, index: 6),
+        };
+        civilians[1].IncapableOfViolence = true;
+        civilians[2].Downed = true;
+        f.Pawns.AddRange(civilians);
         return f;
     }
 

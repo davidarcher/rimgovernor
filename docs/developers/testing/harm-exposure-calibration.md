@@ -22,9 +22,10 @@ and `defenseCapacity` on the first read of the bundle (`combat_reads.jsonl`), so
 recomputes the same metrics from a committed bundle without a game. A bundle recorded before schema 2 has no stamp and
 gets no colonist rows. Fixtures declare nothing for this.
 
-Roles: `gunner` with a ranged primary; `melee` with a melee primary, or unarmed (the defense planner drafts every lab
-colonist that can fight); `noncombatant` when staged downed. Every staged colonist counts as able to fight in the
-capacity. A staged turret counts only with a power trader that is on, as in the colony read.
+Roles use the native staged read, in priority order: `downed`; `noncombatant` when incapable of violence;
+`unarmed` when standing and violence-capable without a primary; `gunner` with a ranged primary; `melee` with a melee
+primary. This is the same definition the live forecast uses. Capacity counts only standing violence-capable colonists.
+A staged turret counts only with a power trader that is on, as in the colony read. A planned retreat is not immunity.
 
 ## The capacity's ranged hit chance
 
@@ -109,8 +110,33 @@ ratio: lab-melee-lone 0.30, lab-ranged-lone 0.30, lab-ranged-few 0.40, lab-range
 1.98, lab-split-ranged 2.41, lab-base 2.48, lab-choke 3.67, lab-ranged-overrun 4.21. The `0-0.5` bin prices the small
 fights a colony has besides raids: a creepjoiner turning aggressive (its kind's `combatPower`, 55 in the game) and a held
 entity escaping (#3880). lab-ranged-lone alone failed stability there (hits are rare at its ratio); with lab-ranged-few
-the gunner cell holds. Uncalibrated: the `noncombatant` role in every bin (#3969), and every bin for roles other than the
+the gunner cell holds. Uncalibrated: `unarmed`, `noncombatant` and `downed` in every bin (#3969), and every bin for roles other than the
 cells above. Cells are not extrapolated across bins.
+
+### Civilian calibration fixtures
+
+The seven committed cells contain no unarmed, incapable or initially downed trial. In particular,
+`lab-melee-lone` stages steel longswords, so its melee cell cannot answer for fists.
+The five `lab-civilians-*` fixtures stage four reference riflemen, one unarmed violence-capable colonist,
+one colonist whose native childhood disables violence, and one anesthetized colonist. The planner retains
+its normal hold, blocker, shelter and rescue behavior. Native readback checks each requested state and
+refuses a fixture whose measured points/capacity ratio misses its intended bin.
+
+| Fixture | Hostile riflemen | Intended bin | New trial roles per seed |
+| --- | --- | --- | --- |
+| lab-civilians-small | 1 | 0-0.5 | unarmed, noncombatant, downed |
+| lab-civilians-light | 3 | 0.5-1 | unarmed, noncombatant, downed |
+| lab-civilians-even | 6 | 1-2 | unarmed, noncombatant, downed |
+| lab-civilians-heavy | 12 | 2-4 | unarmed, noncombatant, downed |
+| lab-civilians-overrun | 24 | 4+ | unarmed, noncombatant, downed |
+
+These fixtures define the missing calibration; they supply no committed evidence yet. A one-seed diagnostic
+must first verify bins, contact, planner orders and scored states. A full calibration requires explicit approval:
+20 seeds per fixture for the table and a second 20 for stability, 200 fights total. Existing reference fixtures
+took about 119–244 seconds per 20 seeds; budget roughly 20–40 minutes for these sweeps plus the native rebuild
+(20+ minutes), and diagnose any seed exceeding its expected duration. Do not substitute zero hits or another
+role's rows if a cell fails stability. Record only the new fixtures, append their rows to the committed sweep
+files, and rebuild the table; unaffected fixtures need no re-recording.
 
 ### Re-running the calibration
 
