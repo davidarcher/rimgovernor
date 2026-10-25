@@ -688,7 +688,7 @@ public sealed partial class ColonyReview
         fine.Lap("derive/ledger");
         // The ledger's declared batches are read after the declaration above.
         var vOpenBills = await OpenBillsAsync(state.Snapshot, ct).ConfigureAwait(false);
-        reading = reading.WithFacts(rf => rf with { OpenBills = [.. vOpenBills] });
+        reading = reading.WithFacts(rf => rf with { OpenBills = [.. vOpenBills], ProductionOrders = WorkLedgerView() });
         fine.Lap("derive/bills");
         reading = reading.WithFacts(rf => rf with { UrgentSites = UrgentBuilds.Covered });
         // The harm term's creepjoiners and the pawn values their leaving prices (#3844), read before the coupled context's harm inputs.

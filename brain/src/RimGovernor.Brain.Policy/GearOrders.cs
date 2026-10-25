@@ -201,7 +201,7 @@ public static class GearOrdersRules
                 {
                     if (recipe.Available && recipe.AvailableOn && recipe.Products.Contains(t.Resource))
                     {
-                        orders.Add(new OrderSpec { Recipe = recipe.Definition, Mode = BillMode.StockTarget, Target = (int)t.Count, BenchKind = b.Def });
+                        orders.Add(new OrderSpec { Recipe = recipe.Definition, Mode = BillMode.StockTarget, Target = (int)t.Count, BenchKind = b.Def, Product = t.Resource });
                         placed = true;
                         break;
                     }
@@ -213,7 +213,7 @@ public static class GearOrdersRules
             }
             if (!placed && GearRules.UnhostedCrafts(crafts, sorted).FirstOrDefault(c => c.Products.Contains(t.Resource)) is { } craft)
             {
-                orders.Add(new OrderSpec { Recipe = craft.Definition, Mode = BillMode.StockTarget, Target = (int)t.Count, BenchKind = GearRules.CraftBench });
+                orders.Add(new OrderSpec { Recipe = craft.Definition, Mode = BillMode.StockTarget, Target = (int)t.Count, BenchKind = GearRules.CraftBench, Product = t.Resource });
             }
         }
         return orders;

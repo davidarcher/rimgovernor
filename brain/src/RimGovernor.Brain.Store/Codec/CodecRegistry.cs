@@ -162,6 +162,7 @@ internal static class CodecRegistry
         codecs.Register(new PlannedLampConverter());
         codecs.Register(new InteriorPieceConverter());
         codecs.Register(new PlannedRoomConverter());
+        codecs.Register(new PlannedProductionConverter());
         codecs.Register(new FilthRunsConverter());
         codecs.Register(new PlannedSiteConverter());
         codecs.Register(new PodArrivalConverter());

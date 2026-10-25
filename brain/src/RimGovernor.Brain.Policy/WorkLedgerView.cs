@@ -11,7 +11,7 @@ public sealed record LedgerView
 
     /// <summary>
     /// The wanted orders by key, each the spec as the station planner keys it: recipe, ingredients, worker, mode,
-    /// target and product; not the owner (a spec two concerns declare is one order), bench kind, class or requirements.
+    /// target, product, class and bench kind; not the owner (a spec two needs declare is one order) or requirements.
     /// </summary>
     public IReadOnlyList<OrderSpec> Orders { get; init; } = [];
 }
@@ -44,5 +44,5 @@ public static partial class WorkRules
         };
 
     private static OrderSpec StationOrder(OrderSpec o) =>
-        new() { Recipe = o.Recipe, Ingredients = o.Ingredients, Worker = o.Worker, Mode = o.Mode, Target = o.Target, Product = o.Product };
+        new() { Recipe = o.Recipe, Ingredients = o.Ingredients, Worker = o.Worker, Mode = o.Mode, Target = o.Target, Product = o.Product, Class = o.Class, BenchKind = o.BenchKind };
 }

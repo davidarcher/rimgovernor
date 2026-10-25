@@ -198,6 +198,7 @@ public sealed record StationNode
     /// work per run); 0 for a node that is not worked. Conflict costs are priced against it.
     /// </summary>
     public double DailyWork { get; set; }
+    public IReadOnlyList<PlannedProduction> Production { get; set; } = [];
 
     /// <summary>
     /// The food items a day the node's stations make (the runs of the food recipes they work times what a run
@@ -590,7 +591,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
             }
             double runs = o.Target;
             var per = Flow(o.Recipe).ProductCount();
-            if (per > 0)
+            if (per > 0 && WorkRules.WireClass(o.Mode) != BillMode.GearBatch)
             {
                 runs /= per;
             }
@@ -623,6 +624,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
             var count = Math.Max(1, (int)Math.Ceiling(perStation[def] / (GameTime.TicksPerDay * Math.Max(s.Capacity.Slots, 1))));
             var node = Nodes[AddNode(def, StationPurpose.Work, count, s.Needs)];
             node.DailyWork = perStation[def];
+            node.Production = output.Where(l => l.Station == def).Select(l => new PlannedProduction(def, l.Recipe, l.Runs)).ToArray();
             foreach (var l in output)
             {
                 var flow = Flow(l.Recipe);

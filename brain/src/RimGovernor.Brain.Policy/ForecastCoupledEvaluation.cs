@@ -257,7 +257,7 @@ public static partial class ForecastCoupled
         /// <summary>The tick each perishable lot spoils; infinity for a lot that keeps.</summary>
         private readonly Dictionary<string, double> expiry = new(StringComparer.Ordinal);
         private readonly Dictionary<Resource, double> balance = [];
-        private readonly List<(Resource Resource, double Day, double Units)> effects = [];
+        private readonly List<ColonyForecastRules.InventoryChange> effects = [];
         private readonly Dictionary<string, double> finishedAt = new(StringComparer.Ordinal);
         private readonly HashSet<string> decayed = new(StringComparer.Ordinal);
         private readonly List<(string Lot, string Location, Resource Resource)> expiredKeys = [], decayKeys = [];
@@ -330,7 +330,7 @@ public static partial class ForecastCoupled
             if (!outsidePhysical.Contains(lot.Lot))
             {
                 balance[lot.Resource] = balance.GetValueOrDefault(lot.Resource) - count;
-                effects.Add((lot.Resource, at / GameTime.TicksPerDay, -count));
+                effects.Add(new(lot.Resource, at / GameTime.TicksPerDay, -count));
             }
             Finding(reason, lot.Lot);
         }
@@ -608,7 +608,7 @@ public static partial class ForecastCoupled
             if (scheduled.Length > 0)
             {
                 timed = timed.Concat(scheduled).OrderBy(e => e.Change.Day).ThenBy(e => e.Owner, StringComparer.Ordinal).ToArray();
-                effects.AddRange(scheduled.Where(e => !string.IsNullOrEmpty(e.Change.Resource.Value)).Select(e => (e.Change.Resource, e.Change.Day, e.Change.Units)));
+                effects.AddRange(scheduled.Where(e => !string.IsNullOrEmpty(e.Change.Resource.Value)).Select(e => new ColonyForecastRules.InventoryChange(e.Change.Resource, e.Change.Day, e.Change.Units)));
             }
             timedExternal = timed; nextExternal = 0;
             // Observed food stacks that deteriorate (#3339), and the completion tick of every completed activity, which places the
@@ -695,7 +695,8 @@ public static partial class ForecastCoupled
                     foreach (var input in shape.Inputs)
                     {
                         balance[input.Resource] = balance.GetValueOrDefault(input.Resource) - input.Units;
-                        effects.Add((input.Resource, e.Time / GameTime.TicksPerDay, -input.Units));
+                        effects.Add(new(input.Resource, e.Time / GameTime.TicksPerDay, -input.Units)
+                            { Drawn = Math.Max(0, input.Units - task.Outputs.Where(o => o.Resource == input.Resource).Sum(o => o.Units)) });
                     }
                 }
                 else if (completed.GetValueOrDefault(task.Id))
@@ -717,7 +718,7 @@ public static partial class ForecastCoupled
                             lots[key] = lots.GetValueOrDefault(key) + output.Units;
                         }
                         balance[output.Resource] = balance.GetValueOrDefault(output.Resource) + output.Units;
-                        effects.Add((output.Resource, e.Time / GameTime.TicksPerDay, output.Units));
+                        effects.Add(new(output.Resource, e.Time / GameTime.TicksPerDay, output.Units));
                     }
                 }
             }
@@ -957,7 +958,7 @@ public static partial class ForecastCoupled
                 CompletedDevelopmentSites = EquatableArray.Wrap(planned.Sites),
                 ServedRooms = service,
             };
-            return outcome with { Terminal = new(request, commitments, new Dictionary<Resource, double>(inventoryWalk.Terminal), new Dictionary<string, double>(finishedAt, StringComparer.Ordinal), holds)
+            return outcome with { Terminal = new(request, commitments, new Dictionary<Resource, double>(inventoryWalk.Terminal), new Dictionary<string, double>(finishedAt, StringComparer.Ordinal), holds, new Dictionary<Resource, double>(inventoryWalk.Drawn))
                 { Lots = TerminalLots(), FoodUnread = request.Facts.FoodUnread } };
         }
 

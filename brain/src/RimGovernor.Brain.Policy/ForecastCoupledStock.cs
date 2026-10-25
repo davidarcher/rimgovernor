@@ -39,7 +39,7 @@ public static partial class ForecastCoupled
                 lots[key] -= units; needed -= units * row.NutritionPerUnit;
                 if (outsidePhysical.Contains(key.Lot)) continue;
                 balance[key.Resource] = balance.GetValueOrDefault(key.Resource) - units;
-                effects.Add((key.Resource, at / GameTime.TicksPerDay, -units));
+                effects.Add(new(key.Resource, at / GameTime.TicksPerDay, -units));
             }
         }
 
@@ -135,7 +135,7 @@ public static partial class ForecastCoupled
                         if (!outsidePhysical.Contains(key.Lot))
                         {
                             balance[key.Resource] = balance.GetValueOrDefault(key.Resource) - units;
-                            effects.Add((key.Resource, end / GameTime.TicksPerDay, -units));
+                            effects.Add(new(key.Resource, end / GameTime.TicksPerDay, -units));
                         }
                     }
                     if (needed > 1e-8) Finding("food_consumer_shortfall", consumer.Id.Value);

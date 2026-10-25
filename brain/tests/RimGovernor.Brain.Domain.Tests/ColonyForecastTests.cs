@@ -69,7 +69,7 @@ public sealed class ColonyForecastTests
         {
             var findings = new List<ForecastFinding>();
             new ColonyForecastRules.InventoryWalk().Run(new(Stock, ColonyForecastRules.ForecastCommitmentsById(commitments), 3),
-                new[] { (Material, 2.0, 4.0) }, findings);
+                [new(Material, 2.0, 4.0)], findings);
             return findings;
         }
         var before = Walk(Change("use", 1, -12), commitment);

@@ -49,10 +49,11 @@ public sealed class PlannedRoomCleanlinessTests
             Assert.All(floor, p => Assert.Equal("", p.Stuff));
             Assert.Single(s.Pieces, p => p.Definition == "Wall");
         });
-        // A room that owes only its floor is not asked: the read predicts a room its ring would close. A kitchen is, its
-        // cleanliness priced by the kitchen and butchery credits (#3802).
+        // A priced room is asked even when it owes only its floor: kitchen and workshop mechanics read cleanliness.
+        // A room with no planned role remains unpriced and is not asked without ring work.
         var workshop = Kitchen with { Role = PlannedRole.Workshop };
-        Assert.Empty(PlannedRules.PlannedRoomPredictionRequestOf([workshop], sites.Skip(2), []));
+        Assert.Single(PlannedRules.PlannedRoomPredictionRequestOf([workshop], sites.Skip(2), []));
+        Assert.Empty(PlannedRules.PlannedRoomPredictionRequestOf([Kitchen with { Role = PlannedRole.None }], sites.Skip(2), []));
         var floorOnly = Assert.Single(PlannedRules.PlannedRoomPredictionRequestOf([Kitchen], sites.Skip(2), []));
         Assert.Equal(("", 9), (floorOnly.Stuff, floorOnly.Pieces.Count));
     }

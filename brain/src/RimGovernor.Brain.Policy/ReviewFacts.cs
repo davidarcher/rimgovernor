@@ -143,6 +143,9 @@ public sealed partial record ReviewFacts
 
     /// <summary>Per research bench def, its ResearchSpeedFactor as the def data states it (DefinitionCatalog.ResearchBenchSpeeds, #3800); empty without a catalog.</summary>
     public IReadOnlyDictionary<string, BenchSpeedModel> ResearchBenchSpeeds { get; init; } = new Dictionary<string, BenchSpeedModel>();
+    public IReadOnlyDictionary<string, BenchSpeedModel> WorkBenchSpeeds { get; init; } = new Dictionary<string, BenchSpeedModel>();
+    public LedgerView? ProductionOrders { get; init; }
+    public IReadOnlyDictionary<string, RecipeFlow> ProductionRecipes { get; init; } = new Dictionary<string, RecipeFlow>();
 
     /// <summary>The bench a planned laboratory is furnished with (RoomFurniture.BenchFor of Laboratory, #3800); "" without a catalog.</summary>
     public string LaboratoryBench { get; init; } = "";

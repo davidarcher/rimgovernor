@@ -380,6 +380,14 @@ public sealed class ForecastRoofConsequencesTests
         var alternatives = roots.ToList();
         ForecastRoofConsequences.AddClosedBenchVariants([closure], roots, realized, tasks, options, new(), alternatives, new Dictionary<string, (int, string)>());
 
+        var pricedTasks = tasks.Where(t => !t.Id.Contains("/closed/", StringComparison.Ordinal)).ToList();
+        var pricedOptions = options.Where(o => !o.Activity.Contains("/closed/", StringComparison.Ordinal)).ToList();
+        var pricedRoots = roots.ToList();
+        ForecastRoofConsequences.AddClosedBenchVariants([closure], roots, realized, pricedTasks, pricedOptions, new(), pricedRoots,
+            new Dictionary<string, (int, string)>(), new HashSet<int> { 1 });
+        Assert.DoesNotContain(pricedTasks, t => t.Id.Contains("/closed/", StringComparison.Ordinal));
+        Assert.Equal(roots.Length, pricedRoots.Count); // #3801 books its speed consequence only in Investment.
+
         var variant = Assert.Single(tasks, t => t.Id == "cook/closed/1/WoodLog");
         Assert.Equal(["fetch", "wall/finish", "door/finish"], variant.Prerequisites);
         Assert.Equal(800, Assert.Single(options, o => o.Activity == variant.Id).WorkTicks, 6);

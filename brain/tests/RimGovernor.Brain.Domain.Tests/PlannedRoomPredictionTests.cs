@@ -14,7 +14,7 @@ public sealed class PlannedRoomPredictionTests
 {
     /// <summary>A prediction as native answers it; terrains, beds, benches and desks none and cleanliness 0 unless a test sets them.</summary>
     internal static PlannedRoomPrediction Closed(string room, string stuff, string role, double impressiveness, int stage, int cells, int openRoofCells, bool touchesMapEdge) =>
-        new(room, stuff, role, impressiveness, stage, cells, openRoofCells, touchesMapEdge) { Terrains = [], Cleanliness = 0, Beds = [], Benches = [], Desks = [] };
+        new(room, stuff, role, impressiveness, stage, cells, openRoofCells, touchesMapEdge) { WorkBenches = [], ReadingBonus = 1, Terrains = [], Cleanliness = 0, Beds = [], Benches = [], Desks = [] };
 
     [Fact]
     public void JsonRoundTripIsExact()
@@ -31,8 +31,21 @@ public sealed class PlannedRoomPredictionTests
         var json = OrdersJson.Serialize(prediction);
 
         Assert.Equal(
-            """{"room":"3","stuff":"WoodLog","role":"Bedroom","impressiveness":32.5,"stage":3,"cells":9,"openRoofCells":2,"touchesMapEdge":false,"terrains":[{"tags":["Floor"]}],"cleanliness":-0.25,"beds":["Thing_Bed4"],"benches":[{"bench":"Thing_Table5","psychologicallyOutdoors":true}],"desks":[{"learningRate":1.4}]}""",
+            """{"room":"3","stuff":"WoodLog","role":"Bedroom","impressiveness":32.5,"stage":3,"cells":9,"openRoofCells":2,"touchesMapEdge":false,"workBenches":[],"readingBonus":1,"terrains":[{"tags":["Floor"]}],"cleanliness":-0.25,"beds":["Thing_Bed4"],"benches":[{"bench":"Thing_Table5","psychologicallyOutdoors":true}],"desks":[{"learningRate":1.4}]}""",
             json);
         Assert.Equal(prediction, OrdersJson.Deserialize<PlannedRoomPrediction>(json));
+    }
+
+    [Fact]
+    public void BothBenchPlacementStatesAndNativeBonusesSurviveTheRequiredFactsBoundary()
+    {
+        var prediction = Closed("1", "", "Workshop", 0, 0, 9, 0, false) with
+        {
+            ReadingBonus = 1.12,
+            WorkBenches = [new("bench", new(1, 1), .06, .1, false, new BenchPlacement.Planned()),
+                new("bench", new(2, 2), 0, 0, true, new BenchPlacement.Standing(.56))],
+        };
+        Assert.Equal(prediction, OrdersJson.Deserialize<PlannedRoomPrediction>(OrdersJson.Serialize(prediction)));
+        Assert.Equal(prediction, FactsJson.Deserialize<PlannedRoomPrediction>(FactsJson.Serialize(prediction)));
     }
 }

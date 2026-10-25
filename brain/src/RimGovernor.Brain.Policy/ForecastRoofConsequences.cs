@@ -476,10 +476,10 @@ public static class ForecastRoofConsequences
     internal static void AddClosedBenchVariants(IReadOnlyList<ForecastPlannedClosure> closures, IReadOnlyList<ForecastCommitment> roots,
         IReadOnlyList<ForecastPlannedSite> realized, List<ForecastActivity> tasks, List<ForecastActivityOption> options,
         Dictionary<(string, string), Methods.ActivityTaskCandidate> bindings, List<ForecastCommitment> alternatives,
-        IReadOnlyDictionary<string, (int Room, string Stuff)> plannedStuff)
+        IReadOnlyDictionary<string, (int Room, string Stuff)> plannedStuff, IReadOnlySet<int>? pricedRooms = null)
     {
         static string Base(string id) => id.IndexOf("/composition/", StringComparison.Ordinal) is var i and >= 0 ? id[..i] : id;
-        foreach (var closure in closures.OrderBy(c => c.Room).ThenBy(c => c.Stuff, StringComparer.Ordinal))
+        foreach (var closure in closures.Where(c => pricedRooms?.Contains(c.Room) != true).OrderBy(c => c.Room).ThenBy(c => c.Stuff, StringComparer.Ordinal))
         {
             var benches = closure.Prediction.Benches.Where(b => b.PsychologicallyOutdoors).Select(b => b.Bench).ToHashSet(StringComparer.Ordinal);
             if (benches.Count == 0 || closure.Ring.Count == 0

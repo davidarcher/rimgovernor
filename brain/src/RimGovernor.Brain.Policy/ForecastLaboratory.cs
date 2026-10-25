@@ -29,10 +29,7 @@ internal static class ForecastLaboratory
         var research = outcome.Plan.Allocations.Where(a => tasks.TryGetValue(a.Activity, out var work) && context.Investment.ContainsKey(work.Project)).ToArray();
         if (research.Length == 0) return [];
         if (PlannedRoomCredits.Prediction(context, room.Room, room.Stuff) is not { } closure) return [];
-        if (!context.LayoutRooms.TryGetValue(room.Room, out var planned)) throw new RequiredFactException("planned_room_layout:" + room.Room.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        // A modded role RoomRole does not name is a proper room of no vanilla role: a role part's room is not its role.
-        var role = Wire.TryParse<RoomRole>(closure.Prediction.Role, out var named) ? named : RoomRole.Room;
-        var closed = BenchRoom.Closed(role, PlannedRoomCleanlinessRules.Steady(closure.Prediction, planned.FilthRuns.Values, context.Filth).Dirty);
+        var closed = ForecastWorkshop.Closed(context, closure);
         var benches = context.Needs.ResearchBenches.GroupBy(b => b.Bench, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         var standing = benches.Values.Where(b => closure.Interior.Contains(b.Position)).Select(b => b.Bench).ToHashSet(StringComparer.Ordinal);
         // With none standing in the room, its planned bench placed outdoors is what the room changes.
@@ -40,7 +37,9 @@ internal static class ForecastLaboratory
         if (standing.Count == 0)
         {
             if (!context.ResearchBenchSpeeds.TryGetValue(context.LaboratoryBench, out var lab)) throw new RequiredFactException("research bench speed " + context.LaboratoryBench);
-            unhoused = lab.At(closed) - lab.At(BenchRoom.Outside);
+            var plannedBench = closure.Prediction.WorkBenches.FirstOrDefault(b => b.Def == context.LaboratoryBench)
+                ?? throw new RequiredFactException("planned laboratory bench:" + context.LaboratoryBench);
+            unhoused = lab.At(closed, plannedBench.ResearchOffset) - lab.At(BenchRoom.Outside(((ForecastShelterThermal.Estimated)context.Shelters.First(s => s.PlannedRoom == room.Room).Thermal).Outdoors, plannedBench.Powered));
         }
         var perDay = new SortedDictionary<string, double>(StringComparer.Ordinal);
         foreach (var allocation in research)
@@ -52,7 +51,7 @@ internal static class ForecastLaboratory
             double gain;
             if (unhoused is { } outdoors) gain = outdoors;
             else if (!standing.Contains(bench)) continue;
-            else if (context.ResearchBenchSpeeds.TryGetValue(now.Def, out var model)) gain = model.At(closed) - now.Factor;
+            else if (context.ResearchBenchSpeeds.TryGetValue(now.Def, out var model)) gain = model.At(closed, (closure.Prediction.WorkBenches.FirstOrDefault(b => b.Position == now.Position && b.Def == now.Def) ?? throw new RequiredFactException("planned laboratory bench:" + now.Def)).ResearchOffset) - now.Factor;
             else throw new RequiredFactException("research bench speed " + now.Def);
             var points = allocation.Learning?.WorkAmount ?? allocation.WorkTicks * work.PointsPerTick;
             perDay[allocation.Pawn] = perDay.GetValueOrDefault(allocation.Pawn)

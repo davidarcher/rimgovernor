@@ -396,6 +396,7 @@ internal sealed partial class Tiler(TileInput input)
                 WorkChairs = LayoutComfortChooseRules.WorkChairsOf(g, In.Comfort),
                 FilthRuns = g.FilthRuns,
                 Meals = g.Meals,
+                Production = EquatableArray.From(g.Production),
             };
             if (role == LayoutRangeRules.PlannedTrainingRange && LayoutTrainingNodesRules.AwayReference(In.Groups, placed) is { } reference)
             {

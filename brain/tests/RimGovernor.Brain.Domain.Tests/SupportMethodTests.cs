@@ -74,6 +74,7 @@ public sealed class SupportMethodTests
         Assert.Equal(required, delivery.Step.Count); Assert.Equal("useful-chunk", delivery.Step.Target);
         Assert.Equal(0d, result.SelectedVector.Support.UnsuppliedDemand);
         Assert.Equal(0d, ForecastActivities.StockChangesOf(facts.CoupledAlternatives!.Context.Activities, result.Selected.Plan).Where(c => c.Resource.Value == "Chunk").Sum(c => c.Units));
+        Assert.Equal(0, result.Selected.Terminal!.Drawn.GetValueOrDefault(new Resource("Chunk")));
     }
     [Fact]
     public void ChangedDemandAndInfeasibleTravelRetainNoTrip()
@@ -107,6 +108,7 @@ public sealed class SupportMethodTests
         Assert.Equal("medicine", task.Step.Medicine); Assert.Equal("care", task.Step.SupportDemand);
         Assert.Equal(1, Assert.Single(task.Inputs).Count);
         Assert.Equal(-1d, ForecastActivities.StockChangesOf(facts.CoupledAlternatives!.Context.Activities, result.Selected.Plan).Where(c => c.Resource.Value == "Chunk").Sum(c => c.Units));
+        Assert.Equal(1, result.Selected.Terminal!.Drawn[new Resource("Chunk")]);
     }
 
     [Theory]

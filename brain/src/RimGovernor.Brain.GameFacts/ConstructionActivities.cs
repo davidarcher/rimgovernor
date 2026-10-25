@@ -17,6 +17,11 @@ namespace RimGovernor.Brain.GameFacts.Observations;
 public sealed record PlannedRoomPrediction(string Room, string Stuff, string Role, double Impressiveness, int Stage,
     int Cells, int OpenRoofCells, bool TouchesMapEdge)
 {
+    /// <summary>Every planned or standing production/research bench in the shape, with native facility offsets.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedBenchSpeed>))]
+    public required EquatableArray<PlannedBenchSpeed> WorkBenches { get; init; }
+    /// <summary>The native reading bonus of existing bookcase contents in this predicted room. New bookcases are empty.</summary>
+    public required double ReadingBonus { get; init; }
     /// <summary>
     /// The distinct terrains of the closed room's cells with the shape's planned floors laid, each with its TerrainDef
     /// tags (#3808: RoomRequirement_TerrainWithTags reads every cell's), in TerrainDef name order.
@@ -46,6 +51,16 @@ public sealed record PlannedRoomPrediction(string Room, string Stuff, string Rol
 }
 /// <summary>One planned school desk of a predicted room and its learning rate.</summary>
 public sealed record PlannedRoomDesk(double LearningRate);
+public sealed record PlannedBenchSpeed(string Def, Cell Position, double WorkOffset, double ResearchOffset, bool Powered, BenchPlacement Placement);
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(BenchPlacement.Planned), "planned")]
+[JsonDerivedType(typeof(BenchPlacement.Standing), "standing")]
+public abstract record BenchPlacement
+{
+    private protected BenchPlacement() { }
+    public sealed record Planned : BenchPlacement;
+    public sealed record Standing(double WorkFactor) : BenchPlacement;
+}
 public sealed record PlannedRoomBench(string Bench, bool PsychologicallyOutdoors);
 /// <summary>One terrain of a predicted closed room (#3808): its TerrainDef tags.</summary>
 public sealed record PlannedRoomTerrain(

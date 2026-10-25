@@ -325,7 +325,7 @@ public static class FoodOrdersRules
                 def = b.Def;
             }
         }
-        var spec = new OrderSpec { Recipe = picked.Recipe, Mode = BillMode.StockTarget, Target = (int)picked.Target, BenchKind = def };
+        var spec = new OrderSpec { Recipe = picked.Recipe, Mode = BillMode.StockTarget, Target = (int)picked.Target, BenchKind = def, Product = choice.Resource };
         spec = AdequateOrder(spec, benches);
         return (spec, picked.Kind, def.Length != 0);
     }

@@ -159,9 +159,14 @@ internal static class NativeRoomPrediction
             .Select(t => new RimGovernor.Brain.GameFacts.Observations.PlannedRoomTerrain(EquatableArray.From((t.tags ?? new List<string>()).OrderBy(s => s, StringComparer.Ordinal))))
             .ToList();
         var desks = PlannedDesks(map, placed);
+        var speedBenches = PlannedBenchSpeeds(map, placed, contained);
+        var readingRoom = Unregistered(map, contained, edge) ?? throw new InvalidOperationException("predicted reading room unavailable");
+        var readingBonus = RoomStatDefOf.ReadingBonus.Worker.GetScore(readingRoom);
+        if (!float.IsFinite(readingBonus) || readingBonus <= 0) throw new InvalidOperationException("predicted reading bonus unavailable");
         RimGovernor.Brain.GameFacts.Observations.PlannedRoomPrediction Row(string role, float score, double clean) =>
             new(shape.Room, shape.Stuff, role, score, RoomStatDefOf.Impressiveness.GetScoreStageIndex(score), cells.Count, openRoof, edge)
-                { Beds = EquatableArray.From(beds), Benches = EquatableArray.From(benches), Cleanliness = clean, Terrains = EquatableArray.From(terrains), Desks = desks };
+                { Beds = EquatableArray.From(beds), Benches = EquatableArray.From(benches), Cleanliness = clean, Terrains = EquatableArray.From(terrains), Desks = desks,
+                    WorkBenches = speedBenches, ReadingBonus = readingBonus };
 
         // No passable interior cell: closing the ring forms no room.
         if (cells.Count == 0) return null;
@@ -195,6 +200,46 @@ internal static class NativeRoomPrediction
     }
 
     private static readonly Dictionary<IntVec3, TerrainDef> NoFloors = new();
+
+    private static double WorkbenchFactor(Thing bench)
+    {
+        var value = bench.GetStatValue(StatDefOf.WorkTableWorkSpeedFactor);
+        return float.IsFinite(value) && value >= 0 ? value : throw new InvalidOperationException("unread workbench factor:" + bench.GetUniqueLoadID());
+    }
+    // The native facility geometry and active-state checks, for the complete furniture the room will contain.
+    private static EquatableArray<RimGovernor.Brain.GameFacts.Observations.PlannedBenchSpeed> PlannedBenchSpeeds(Map map,
+        List<(ThingDef Def, IntVec3 Anchor, Rot4 Rot)> planned, List<Thing> contained)
+    {
+        var pieces = planned.Concat(contained.OfType<Verse.Building>().Select(b => (Def: b.def, Anchor: b.Position, Rot: b.Rotation)))
+            .DistinctBy(p => (p.Def, p.Anchor)).ToArray();
+        double Offset((ThingDef Def, IntVec3 Anchor, Rot4 Rot) bench, StatDef stat)
+        {
+            var links = bench.Def.GetCompProperties<CompProperties_AffectedByFacilities>()?.linkableFacilities;
+            if (links == null) return 0;
+            double total = 0;
+            foreach (var def in links)
+            {
+                var props = def.GetCompProperties<CompProperties_Facility>() ?? throw new InvalidOperationException("facility comp unavailable: " + def.defName);
+                var count = pieces.Count(f => f.Def == def
+                    && (contained.FirstOrDefault(t => t.def == f.Def && t.Position == f.Anchor) is { } standing
+                        ? standing.TryGetComp<CompFacility>()?.CanBeActive == true : f.Def.GetCompProperties<CompProperties_Power>() is null)
+                    && CompAffectedByFacilities.CanPotentiallyLinkTo_Static(f.Def, f.Anchor, f.Rot, bench.Def, bench.Anchor, bench.Rot, map)
+                    && (!props.requiresLOS || GenAdj.OccupiedRect(bench.Anchor, bench.Rot, bench.Def.size).Cells.Any(a =>
+                        GenAdj.OccupiedRect(f.Anchor, f.Rot, f.Def.size).Cells.Any(b => GenSight.LineOfSight(a, b, map,
+                            GenAdj.OccupiedRect(bench.Anchor, bench.Rot, bench.Def.size), GenAdj.OccupiedRect(f.Anchor, f.Rot, f.Def.size))))));
+                total += Math.Min(count, props.maxSimultaneous) * props.statOffsets.GetStatOffsetFromList(stat);
+            }
+            return total;
+        }
+        return EquatableArray.From(pieces.Where(p => typeof(Building_WorkTable).IsAssignableFrom(p.Def.thingClass)
+                || typeof(Building_ResearchBench).IsAssignableFrom(p.Def.thingClass))
+            .Select(p => new RimGovernor.Brain.GameFacts.Observations.PlannedBenchSpeed(p.Def.defName, new(p.Anchor.x, p.Anchor.z),
+                Offset(p, StatDefOf.WorkTableWorkSpeedFactor), Offset(p, StatDefOf.ResearchSpeedFactor),
+                p.Def.GetCompProperties<CompProperties_Power>() is null || contained.FirstOrDefault(t => t.def == p.Def && t.Position == p.Anchor)?.TryGetComp<CompPowerTrader>()?.PowerOn == true,
+                contained.FirstOrDefault(t => t.def == p.Def && t.Position == p.Anchor) is { } existing
+                    ? new RimGovernor.Brain.GameFacts.Observations.BenchPlacement.Standing(WorkbenchFactor(existing))
+                    : new RimGovernor.Brain.GameFacts.Observations.BenchPlacement.Planned())));
+    }
 
     /// <summary>
     /// The planned school desks among the shape's furniture (#3809), each at LearningUtility.SchoolDeskLearningRate's rate once

@@ -1558,6 +1558,7 @@ internal sealed class PlannedRoomConverter : ObjectCodec<PlannedRoom>
             WorkChairs = e.Get<IReadOnlyDictionary<string, string>>("WorkChairs", o),
             FilthRuns = e.Get<IReadOnlyDictionary<string, FilthRuns>>("FilthRuns", o),
             Meals = e.Dbl("Meals"),
+            Production = e.Get<EquatableArray<PlannedProduction>>("Production", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, PlannedRoom v, Codecs o)
@@ -1588,6 +1589,17 @@ internal sealed class PlannedRoomConverter : ObjectCodec<PlannedRoom>
         w.Put("WorkChairs", v.WorkChairs, o);
         w.Put("FilthRuns", v.FilthRuns, o);
         w.WriteNum("Meals", v.Meals);
+        w.Put("Production", v.Production, o);
+    }
+}
+
+internal sealed class PlannedProductionConverter : ObjectCodec<PlannedProduction>
+{
+    protected override PlannedProduction Read(JsonElement e, Codecs o) => new(e.Str("Bench"), e.Str("Recipe"), e.Dbl("RunsPerDay"));
+    protected override void WriteFields(Utf8JsonWriter w, PlannedProduction v, Codecs o)
+    {
+        w.WriteString("Bench", v.Bench); w.WriteString("Recipe", v.Recipe);
+        w.WriteNum("RunsPerDay", v.RunsPerDay);
     }
 }
 

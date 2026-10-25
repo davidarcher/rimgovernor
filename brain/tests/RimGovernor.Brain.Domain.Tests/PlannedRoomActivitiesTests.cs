@@ -1136,7 +1136,7 @@ public sealed class PlannedRoomActivitiesTests
     [Fact]
     public void OneBuilderLeavesAnUnpricedRingClosedWhileABedroomRingIsOpenAndAfterTheBedroomCloses()
     {
-        var roles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Bedroom, [2] = PlannedRole.Workshop };
+        var roles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Bedroom, [2] = PlannedRole.None };
         var bedroom = new Dictionary<int, string> { [1] = Pawn };
         var b = RoomTwoWall(Day / 3);
         var facts = Rings([Ring(OpKind.WallIn, "WoodLog", 2 * Day), b], roles, bedroom, builders: 1, open: [1]);
@@ -1214,13 +1214,13 @@ public sealed class PlannedRoomActivitiesTests
     /// <summary>
     /// #3828 (option A): the first rounds opened three unpriced rings together over the barracks, each tying on the ledger
     /// and winning on its sites as development. No planned room's unit is development now. One builder, a new bedroom
-    /// (room 1) whose short ring its occupant's credit pays, and three unpriced workshop rings (rooms 2 to 4) the day could
+    /// (room 1) whose short ring its occupant's credit pays, and three rings with no planned role (rooms 2 to 4) the day could
     /// also build: the bedroom is selected and none of the three rings. Alone, the three rings do not beat the baseline.
     /// </summary>
     [Fact]
     public void ThreeUnpricedRingsDoNotBeatAPricedBedroomAndAloneDoNotBeatTheBaseline()
     {
-        var roles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Bedroom, [2] = PlannedRole.Workshop, [3] = PlannedRole.Workshop, [4] = PlannedRole.Workshop };
+        var roles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Bedroom, [2] = PlannedRole.None, [3] = PlannedRole.None, [4] = PlannedRole.None };
         var bedroom = new Dictionary<int, string> { [1] = Pawn };
         PlannedBuildSite[] rings = [RoomWall(2, Day / 16), RoomWall(3, Day / 16), RoomWall(4, Day / 16)];
         PlannedBuildSite[] ring = [Ring(OpKind.WallIn, "WoodLog", Day / 8), Ring(OpKind.DoorIn, "WoodLog", Day / 16)];

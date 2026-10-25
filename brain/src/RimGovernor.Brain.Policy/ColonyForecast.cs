@@ -115,7 +115,16 @@ public static class ColonyForecastRules
 
     /// <summary>One stock effect in projection order, with the finding it always raises (a day beyond the horizon), made
     /// once. Only a schedule's own activity output can carry unread units (#3894's activity yields).</summary>
-    internal readonly record struct InventoryEffect(string Id, Resource Resource, double Day, double Units, ForecastFinding? Note);
+    internal readonly record struct InventoryEffect(string Id, Resource Resource, double Day, double Units, ForecastFinding? Note)
+    {
+        public double Drawn { get; init; } = Math.Max(0, -Units);
+    }
+
+    /// <summary>A physical stock effect, with its consumed quantity distinguished from a conserved movement.</summary>
+    internal readonly record struct InventoryChange(Resource Resource, double Day, double Units)
+    {
+        public double Drawn { get; init; } = Math.Max(0, -Units);
+    }
 
     /// <summary>What a stock projection reads besides a schedule's own timed effects (#3468): the observed stock, the
     /// commitments by id with their effects split where the schedule's own sort, the resources and the findings every
@@ -172,18 +181,19 @@ public static class ColonyForecastRules
     internal sealed class InventoryWalk
     {
         internal readonly Dictionary<Resource, double> Terminal = [];
+        internal readonly Dictionary<Resource, double> Drawn = [];
         private readonly List<InventoryEffect> merged = [];
         private readonly List<Resource> resources = [];
         private readonly HashSet<Resource> extra = [];
         private readonly List<int> timed = [];
 
-        public void Run(InventoryBase stock, ReadOnlySpan<(Resource Resource, double Day, double Units)> own,
+        public void Run(InventoryBase stock, ReadOnlySpan<InventoryChange> own,
             List<ForecastFinding> findings)
         {
             foreach (var finding in stock.Constant) findings.Add(finding);
-            merged.Clear(); resources.Clear(); extra.Clear(); Terminal.Clear();
+            merged.Clear(); resources.Clear(); extra.Clear(); Terminal.Clear(); Drawn.Clear();
             foreach (var e in stock.Before) merged.Add(e);
-            foreach (var e in own) merged.Add(new(TimedEffects, e.Resource, e.Day, e.Units, null));
+            foreach (var e in own) merged.Add(new(TimedEffects, e.Resource, e.Day, e.Units, null) { Drawn = e.Drawn });
             foreach (var e in stock.After) merged.Add(e);
             foreach (var r in stock.Sorted) resources.Add(r);
             foreach (var e in own) if (!stock.Resources.Contains(e.Resource) && extra.Add(e.Resource)) resources.Add(e.Resource);
@@ -214,6 +224,7 @@ public static class ColonyForecastRules
                             throw new DomainException("forecast stock balance overflow");
                         }
                         balance = after;
+                        if (e.Drawn > 0) Drawn[resource] = Drawn.GetValueOrDefault(resource) + e.Drawn;
                         if (after < 0 && e.Units < 0)
                         {
                             findings.Add(new ForecastFinding("stock_shortfall", e.Id));

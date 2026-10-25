@@ -14,17 +14,21 @@ public sealed partial class DefinitionCatalog
     /// Per research bench def (a Building_ResearchBench), its StatDefOf.ResearchSpeedFactor as the def data states it: the
     /// def's statBases value (else the stat's defaultBaseValue), the stat's minValue and its parts in order. Empty without the stat.
     /// </summary>
-    public IReadOnlyDictionary<string, P.BenchSpeedModel> ResearchBenchSpeeds()
+    public IReadOnlyDictionary<string, P.BenchSpeedModel> ResearchBenchSpeeds() => BenchSpeeds(nameof(StatDefOf.ResearchSpeedFactor), row => IsClass(row, typeof(Building_ResearchBench)));
+
+    public IReadOnlyDictionary<string, P.BenchSpeedModel> WorkBenchSpeeds() => BenchSpeeds(nameof(StatDefOf.WorkTableWorkSpeedFactor), row => IsClass(row, typeof(Building_WorkTable)));
+
+    private Dictionary<string, P.BenchSpeedModel> BenchSpeeds(string statName, Func<ThingDef, bool> accepts)
     {
         var speeds = new Dictionary<string, P.BenchSpeedModel>(StringComparer.Ordinal);
-        if (DefRow<StatDef>(nameof(StatDefOf.ResearchSpeedFactor)) is not { } stat)
+        if (DefRow<StatDef>(statName) is not { } stat)
         {
             return speeds;
         }
 
         foreach (var (name, row) in _thingDefs.OrderBy(p => p.Key, StringComparer.Ordinal))
         {
-            if (IsClass(row, typeof(Building_ResearchBench)))
+            if (accepts(row))
             {
                 speeds[name] = new(StatBaseEntry(row, stat.defName) ?? stat.defaultBaseValue, stat.minValue,
                     Domain.EquatableArray.From(stat.parts.Seq().Select(part => BenchPart(row, part))));
@@ -51,8 +55,13 @@ public sealed partial class DefinitionCatalog
                 return Wire.TryParse<RoomRole>(role.defName, out var roomRole)
                     ? new P.BenchRoomRolePart(roomRole, row.building.workTableNotInRoomRoleFactor)
                     : new P.BenchUnreadPart(nameof(StatPart_WorkTableRoomRole) + ":" + role.defName);
+            case StatPart_WorkTableUnpowered:
+                return row.building is { unpoweredWorkTableWorkSpeedFactor: var factor } && factor != 0 && row.GetCompProperties<CompProperties_Power>() is not null
+                    ? new P.BenchPowerPart(factor) : new P.BenchHeldPart();
             case StatPart_WorkTableTemperature:
-                return new P.BenchHeldPart();
+                return new P.BenchTemperaturePart(StatPart_WorkTableTemperature.MinTemp, StatPart_WorkTableTemperature.MaxTemp, StatPart_WorkTableTemperature.WorkRateFactor);
+            case StatPart_WorkTableOutdoors:
+                return new P.BenchWorkOutdoorsPart(StatPart_WorkTableOutdoors.WorkRateFactor);
             case StatPart_RoomStat roomStat:
                 var stat = GameMembers.RoomStat(roomStat);
                 if (stat.workerClass == typeof(RoomStatWorker_FromStatByCurve) && stat.inputStat?.defName == nameof(RoomStatDefOf.Cleanliness)
@@ -61,9 +70,9 @@ public sealed partial class DefinitionCatalog
                     return new P.BenchCleanlinessPart(Domain.EquatableArray.From(curve.Points.Select(point => new P.CurvePoint(point.x, point.y))), stat.roomlessScore);
                 }
 
-                // RoomStatWorker_ReadingBonus scores 1 in a room without a bookcase, which a planned room never holds.
+                // Native room predictions evaluate existing bookcase contents; newly constructed bookcases start empty.
                 return stat.workerClass == typeof(RoomStatWorker_ReadingBonus) && stat.roomlessScore == 1
-                    ? new P.BenchHeldPart()
+                    ? new P.BenchReadingPart(stat.roomlessScore)
                     : new P.BenchUnreadPart(nameof(StatPart_RoomStat) + ":" + stat.defName);
             default:
                 return new P.BenchUnreadPart(part.GetType().Name);

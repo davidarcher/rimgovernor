@@ -46,7 +46,7 @@ public delegate IEnumerable<string> RoomFindings(ForecastRoomService room, Forec
 public static class PlannedRoomCredits
 {
     /// <summary>The shipped credits: Bedroom by its occupant's mood gain (#3655), Barracks by each sleeper's (#3658), Lab by
-    /// the research speed its room gives the bench (#3800), Throne and Suite by the title room thoughts their colonist loses once
+    /// the research speed its room gives the bench (#3800), Workshop by useful bill output its stations gain (#3801), Throne and Suite by the title room thoughts their colonist loses once
     /// the room meets its title's requirement (#3807), Kitchen and Butchery by the food poisoning they prevent (#3802); Storage,
     /// Meal closet, Reserve and Yard by the stock they keep from deteriorating (#3798); Morgue and Tomb by the corpse moods they
     /// remove (#3806); Worship by the ideoligion effects it meets for each believer (#3808); Pen by the roamers it keeps from walking off the map (#3812); DeathrestChamber by the work days and
@@ -59,6 +59,7 @@ public static class PlannedRoomCredits
         [PlannedRole.Bedroom] = ForecastHousing.BedroomCredit,
         [PlannedRole.Barracks] = ForecastHousing.BedroomCredit,
         [PlannedRole.Lab] = ForecastLaboratory.LaboratoryCredit,
+        [PlannedRole.Workshop] = ForecastWorkshop.Credit,
         [PlannedRole.Throne] = ForecastHousing.RoyalRoomCredit,
         [PlannedRole.Suite] = ForecastHousing.RoyalRoomCredit,
         [PlannedRole.Kitchen] = KitchenCredits.KitchenCredit,

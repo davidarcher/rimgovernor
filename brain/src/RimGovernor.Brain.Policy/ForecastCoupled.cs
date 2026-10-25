@@ -132,6 +132,9 @@ public sealed record ForecastCoupledContext
     public FilthModel Filth { get; init; } = new();
     /// <summary>Per research bench def, its ResearchSpeedFactor from the def data (ReviewFacts.ResearchBenchSpeeds, #3800).</summary>
     public IReadOnlyDictionary<string, BenchSpeedModel> ResearchBenchSpeeds { get; init; } = new Dictionary<string, BenchSpeedModel>();
+    public IReadOnlyDictionary<string, BenchSpeedModel> WorkBenchSpeeds { get; init; } = new Dictionary<string, BenchSpeedModel>();
+    public LedgerView? ProductionOrders { get; init; }
+    public IReadOnlyDictionary<string, RecipeFlow> ProductionRecipes { get; init; } = new Dictionary<string, RecipeFlow>();
     /// <summary>The worship room's believers, presence demands and rituals (ReviewFacts.Worship, #3808).</summary>
     public WorshipFacts Worship { get; init; } = new();
     /// <summary>The planned pens by room id, each its herd's key (ReviewFacts.PlannedPens, #3812).</summary>

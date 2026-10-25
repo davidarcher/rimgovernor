@@ -27,11 +27,13 @@ public sealed class ForecastTerminalAccounting
 {
     internal ForecastTerminalAccounting(ColonyForecastRequest request, IReadOnlyDictionary<string, ForecastCommitment> commitments,
         IReadOnlyDictionary<Resource, double> stocks, IReadOnlyDictionary<string, double> finished,
-        ForecastCoupledMaterials.MaterialHolds? holds)
-    { Request = request; Commitments = commitments; Stocks = stocks; Finished = finished; Holds = holds; }
+        ForecastCoupledMaterials.MaterialHolds? holds, IReadOnlyDictionary<Resource, double> drawn)
+    { Request = request; Commitments = commitments; Stocks = stocks; Finished = finished; Holds = holds; Drawn = drawn; }
     internal ColonyForecastRequest Request { get; }
     internal IReadOnlyDictionary<string, ForecastCommitment> Commitments { get; }
     internal IReadOnlyDictionary<Resource, double> Stocks { get; }
+    /// <summary>Actual timed debits inside this outcome's horizon, including replenishment consumed before final stock recovered.</summary>
+    internal IReadOnlyDictionary<Resource, double> Drawn { get; }
     internal IReadOnlyDictionary<string, double> Finished { get; }
     internal ForecastCoupledMaterials.MaterialHolds? Holds { get; }
     public EquatableArray<ForecastTerminalLot> Lots { get; init; }

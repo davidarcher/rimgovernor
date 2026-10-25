@@ -118,6 +118,8 @@ public sealed record GroupLink
 /// <summary>Stations that share a room.</summary>
 public sealed record RoomGroup
 {
+    public IReadOnlyList<PlannedProduction> Production { get; set; } = [];
+
     public int Id { get; set; }
 
     public List<GroupStation> Stations { get; set; } = [];
@@ -741,6 +743,7 @@ public static partial class LayoutClusterRules
             {
                 var node = graph.Nodes[n];
                 g.Stations.Add(new GroupStation(node.Id, node.Def, node.Purpose, byNode[n]));
+                g.Production = [.. g.Production, .. node.Production.Select(p => p with { RunsPerDay = p.RunsPerDay * byNode[n] / node.Count })];
             }
             if (e.Cold)
             {

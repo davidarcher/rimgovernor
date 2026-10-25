@@ -118,3 +118,5 @@ Food/shelter investment and unified construction adoption: [essential-service co
 - [Acceptance harness lifecycle](developers/testing/acceptance-guide.md): warm games and request-based idle cleanup.
 
 - [Food storage, refrigeration and freezer value](developers/contracts/food-storage.md): food censuses, reserve reads and cooling geometry.
+
+Workshop and laboratory productivity: [bench room credits](developers/contracts/forecast-contracts.md#workshop-and-laboratory-bench-credits).

@@ -456,7 +456,7 @@ internal static class StationFactsBuilder
     /// <summary>Adds the catalog rows (recipe flows, stack limits, rot) to <paramref name="f"/>, the facts the colony read. A part the colony has not read stays unknown.</summary>
     public static StationFacts StationFacts(DefinitionCatalog catalog, StationFacts f)
     {
-        var recipes = catalog.StationRecipeFlows(f.Catalog);
+        var recipes = f.Recipes;
         var stock = f.Stock;
         var (stackLimit, perishable) = catalog.StationItemFacts(stock, recipes, LayoutPenNodesRules.PenItems(f.Herds, f.Races));
         return f with { Recipes = recipes, StackLimit = stackLimit, Perishable = perishable };
@@ -472,6 +472,7 @@ internal static class StationFactsBuilder
         var f = new StationFacts
         {
             Catalog = projection.Facts.Stations,
+            Recipes = projection.Facts.ProductionRecipes,
             Furniture = projection.Facts.Shapes.Furniture,
             Items = projection.Facts.Items,
             Colonists = projection.Facts.Census.ColonistCount,

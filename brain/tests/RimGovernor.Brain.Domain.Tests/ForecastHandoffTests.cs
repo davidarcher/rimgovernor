@@ -42,7 +42,7 @@ public sealed class ForecastHandoffTests
     {
         commitments ??= new Dictionary<string, ForecastCommitment>();
         return ForecastHandoffPolicy.Project(request, commitments, outcome ?? Outcome(), stock,
-            new Dictionary<string, double> { ["research"] = 50 }, ForecastCoupledMaterials.MaterialHoldsOf(request, commitments), new(request, commitments, stock, new Dictionary<string, double>(), null) { Lots = EquatableArray.From(stock.Select(p => new ForecastTerminalLot(p.Key.Value, p.Key, p.Value, double.PositiveInfinity, p.Key == Food ? FoodEligibility.Eligible : FoodEligibility.Ineligible, p.Key == Food ? .5 : 0, [], p.Key == Medicine))) });
+            new Dictionary<string, double> { ["research"] = 50 }, ForecastCoupledMaterials.MaterialHoldsOf(request, commitments), new(request, commitments, stock, new Dictionary<string, double>(), null, new Dictionary<Resource, double>()) { Lots = EquatableArray.From(stock.Select(p => new ForecastTerminalLot(p.Key.Value, p.Key, p.Value, double.PositiveInfinity, p.Key == Food ? FoodEligibility.Eligible : FoodEligibility.Ineligible, p.Key == Food ? .5 : 0, [], p.Key == Medicine))) });
     }
 
     [Fact]
@@ -102,7 +102,7 @@ public sealed class ForecastHandoffTests
         var request = Request();
         var inventory = new ColonyForecastRules.InventoryWalk();
         inventory.Run(new(request.Facts.ObservedStock(), new Dictionary<string, ForecastCommitment>(), 1),
-            [(Food, .1, -2d), (Food, .2, 4d), (Food, .8, -1d), (Steel, .3, -5d)], []);
+            [new(Food, .1, -2d), new(Food, .2, 4d), new(Food, .8, -1d), new(Steel, .3, -5d)], []);
         var handoff = Handoff(request, inventory.Terminal);
         Assert.Empty(handoff.Gaps);
         Assert.Equal(5.5, handoff.State!.Nutrition);

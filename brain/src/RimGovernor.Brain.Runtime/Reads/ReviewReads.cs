@@ -86,6 +86,8 @@ public static class ReviewReads
                 },
                 MoodBreak = p.Facts.Stations.Mood.Break,
                 ResearchBenchSpeeds = catalog.ResearchBenchSpeeds(),
+                WorkBenchSpeeds = catalog.WorkBenchSpeeds(),
+                ProductionRecipes = catalog.StationRecipeFlows(p.Facts.Stations),
                 LaboratoryBench = p.Facts.Shapes.Furniture.BenchFor(RoomRole.Laboratory),
                 SleepingBeds = catalog.SleepingBeds(),
                 ComfortCurve = p.Facts.Stations.Comfort.Comfort,

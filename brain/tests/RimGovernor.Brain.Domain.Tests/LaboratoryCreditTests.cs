@@ -33,7 +33,7 @@ public sealed class LaboratoryCreditTests
     /// <summary>The clean laboratory: cleanliness 0.5 is 1.075 on the curve, indoors, in its role.</summary>
     private static readonly double InTheLab = 0.75 * 1.075;
 
-    private static PlannedRoomPrediction Prediction(string role = "Laboratory") => PlannedRoomPredictionTests.Closed("1", "WoodLog", role, 10d, 1, 9, 0, false) with { Cleanliness = 0.5 };
+    private static PlannedRoomPrediction Prediction(string role = "Laboratory") => PlannedRoomPredictionTests.Closed("1", "WoodLog", role, 10d, 1, 9, 0, false) with { Cleanliness = 0.5, WorkBenches = [new(Bench, InRoom, 0, 0, true, new BenchPlacement.Planned())] };
 
     /// <summary>Planned lab 1 (interior 0..2 x 0..2) served from day 3, one researcher at bench1 with the given factor now.</summary>
     private static ForecastCoupledContext Context(Cell bench, double factorNow, PlannedRoomPrediction? prediction = null) =>
@@ -52,6 +52,7 @@ public sealed class LaboratoryCreditTests
             LayoutRooms = new Dictionary<int, PlannedRoom> { [1] = new() { Id = 1, Role = PlannedRole.Lab } },
             ResearchBenchSpeeds = new Dictionary<string, BenchSpeedModel> { [Bench] = SimpleBench() },
             LaboratoryBench = Bench,
+            Shelters = [new(new(ForecastShelterSource.Planned, "1"), [InRoom], [], new ForecastShelterThermal.Estimated(20, 20, 0.01, new ForecastShelterStanding.Open()), [], []) { PlannedRoom = 1 }],
             Investment = new Dictionary<string, double> { ["Project"] = PointValue },
             InvestmentHorizonDays = Horizon,
         };
@@ -73,8 +74,8 @@ public sealed class LaboratoryCreditTests
         var perDay = (InTheLab - Unroofed) * Hour * (PointsPerTick / Unroofed) * PointValue;
         Assert.Equal(("pawn", "lab/1/pawn", Horizon - 3), (row.Pawn, row.Key, row.Units));
         Assert.Equal(-perDay * (Horizon - 3), row.Value, 12);
-        Assert.Equal(InTheLab, SimpleBench().At(BenchRoom.Closed(RoomRole.Laboratory, 0.5)), 12);
-        Assert.Equal(Unroofed, SimpleBench().At(BenchRoom.Outside), 12);
+        Assert.Equal(InTheLab, SimpleBench().At(BenchRoom.Closed(RoomRole.Laboratory, 0.5, 20, 1, true)), 12);
+        Assert.Equal(Unroofed, SimpleBench().At(BenchRoom.Outside(20, true)), 12);
     }
 
     [Fact]
@@ -111,6 +112,24 @@ public sealed class LaboratoryCreditTests
             ResearchBenchSpeeds = new Dictionary<string, BenchSpeedModel> { [Bench] = SimpleBench() with { Parts = [new BenchUnreadPart("StatPart_Glow")] } },
         };
         Assert.Throws<RequiredFactException>(() => Ledger(unread, Outcome()));
+    }
+
+    [Fact]
+    public void LaboratoryTemperatureReadingAndAnalyzerBonusesUseTheSharedBenchModel()
+    {
+        var context = Context(InRoom, .4);
+        context = context with
+        {
+            ResearchBenchSpeeds = new Dictionary<string, BenchSpeedModel> { [Bench] = SimpleBench() with
+                { Parts = [new BenchOutdoorsPart(1, .75), new BenchRoomRolePart(RoomRole.Laboratory, .8),
+                    new BenchTemperaturePart(9, 35, .7), new BenchCleanlinessPart([new(-5, .75), new(-2.5, .85), new(0, 1), new(1, 1.15)], .75), new BenchReadingPart(1)] } },
+            Closures = [context.Closures[0] with { Prediction = context.Closures[0].Prediction with
+                { ReadingBonus = 1.12, WorkBenches = [new(Bench, InRoom, 0, .1, true, new BenchPlacement.Planned())] } }],
+        };
+        var rate = (.75 + .1) * 1.075 * 1.12;
+        Assert.Equal(-(rate - .4) * Hour * PointsPerTick / .4 * PointValue * 7, Assert.Single(Credits(Ledger(context, Outcome()))).Value, 12);
+        var cold = context with { Shelters = [context.Shelters[0] with { Thermal = ShelterOutcomes.Estimated(0, 0, .001) }] };
+        Assert.Equal(-(rate * .7 - .4) * Hour * PointsPerTick / .4 * PointValue * 7, Assert.Single(Credits(Ledger(cold, Outcome()))).Value, 12);
     }
 
     [Fact]

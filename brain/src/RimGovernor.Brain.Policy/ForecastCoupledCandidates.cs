@@ -334,7 +334,8 @@ public sealed partial record ForecastCoupledCandidates
         ForecastRoofConsequences.AddClosedBenchVariants(closures, productiveRoots, plannedRealized, tasks, options, bindings, alternatives,
             planned.Sites.Where(s => s.Stuff.Length != 0).Select(s => (Id: s.Site, s.Room, s.Stuff))
                 .Concat(planned.Rooms.Where(a => a.Stuff.Length != 0).Select(a => (a.Id, a.Room, a.Stuff)))
-                .GroupBy(s => s.Id, StringComparer.Ordinal).ToDictionary(g => g.Key, g => (g.First().Room, g.First().Stuff), StringComparer.Ordinal));
+                .GroupBy(s => s.Id, StringComparer.Ordinal).ToDictionary(g => g.Key, g => (g.First().Room, g.First().Stuff), StringComparer.Ordinal),
+            PlannedRoomRolesOf(facts).Where(r => r.Value == PlannedRole.Workshop).Select(r => r.Key).ToHashSet());
         var equipment = options.SelectMany(o => o.Equipment).Distinct().Order(StringComparer.Ordinal)
             .Select(id => new ForecastEquipmentCapacity(id, tasks.Single(t => t.Id == options.First(o => o.Equipment.Contains(id)).Activity) is var equipmentTask && equipmentTask.EquipmentLocation.Length != 0 ? equipmentTask.EquipmentLocation : equipmentTask.Location, resources.Claims.Targets.Contains(id)
                 ? [] : EquatableArray.From(new ForecastTimeWindow[] { new(0, horizon) }))).ToArray();
@@ -384,6 +385,9 @@ public sealed partial record ForecastCoupledCandidates
             LayoutRooms = LayoutRoomsOf(facts),
             Filth = facts.Filth,
             ResearchBenchSpeeds = facts.ResearchBenchSpeeds,
+            WorkBenchSpeeds = facts.WorkBenchSpeeds,
+            ProductionOrders = facts.ProductionOrders,
+            ProductionRecipes = facts.ProductionRecipes,
             LaboratoryBench = facts.LaboratoryBench,
             PlannedBeds = ForecastHousing.PlannedBedsOf(allPlannedSites, facts.SleepingBeds),
             NurserySites = EquatableArray.From(allPlannedSites.Where(s => s.Op == OpKind.Build && facts.PlannedShelters.Any(r => r.Id == s.Room && r.Role == PlannedRole.Nursery))),

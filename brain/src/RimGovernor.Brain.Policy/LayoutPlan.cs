@@ -81,6 +81,8 @@ public sealed partial record PlannedRoom
     /// poisoning of these meals (KitchenCredits).
     /// </summary>
     public double Meals { get; init; }
+    /// <summary>Useful recipe loads assigned to this room by the station graph; empty means no useful production.</summary>
+    public EquatableArray<PlannedProduction> Production { get; init; }
 
     /// <summary>The herd a pen belongs to: the race of its unit, empty for the misc unit and for every other room.</summary>
     public string Herd { get; init; } = "";
@@ -592,3 +594,6 @@ public static partial class LayoutPlanRules
         return found ? result : null;
     }
 }
+
+/// <summary>One chosen bill load at a planned station; runs and products retain the shared demand, not a new bill choice.</summary>
+public sealed record PlannedProduction(string Bench, string Recipe, double RunsPerDay);
