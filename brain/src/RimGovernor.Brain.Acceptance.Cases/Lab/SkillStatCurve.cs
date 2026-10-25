@@ -34,7 +34,7 @@ internal static class LabSkillStatCurve
             + "stat at every stored Medicine level, its MeleeDPS curve at every stored Melee level and its ranged defense DPS at every stored Shooting level; five productive stat curves also match every native level, including skill-independent tailoring. An anesthetized colonist carries every curve and no finding, equal to the live native stats too, and a Shooting accuracy inspiration disqualifies only the accuracy. "
             + "A unit test cannot run the game's stat pipeline; using the curves for value is #3635.",
         Ticks = 0,
-        Tier = CaseTier.OnDemand,
+        Tier = CaseTier.Nightly,
         Start = new LabStart { Colonists = 3 },
         Ops = [PrepareTool],
         QuietWorld = true,
