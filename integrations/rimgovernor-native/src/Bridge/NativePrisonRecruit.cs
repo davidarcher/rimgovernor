@@ -23,14 +23,18 @@ internal static class NativePrisonRecruit
         // The credit models a plain social memory's fading and stacking (Thought_MemorySocial): another class is a broken read.
         if (rapport.thoughtClass != typeof(Thought_MemorySocial) || rapport.stages.NullOrEmpty())
             throw new InvalidOperationException(rapport.defName + " is not a staged Thought_MemorySocial.");
+        var chitchat = InteractionDefOf.Chitchat.recipientThought ?? throw new InvalidOperationException("Chitchat has no recipient thought.");
+        if (chitchat.thoughtClass != typeof(Thought_MemorySocialCumulative) || chitchat.stages.NullOrEmpty())
+            throw new InvalidOperationException(chitchat.defName + " is not a staged Thought_MemorySocialCumulative.");
         var prisoners = map.mapPawns.PrisonersOfColonySpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)
-            .Select(p => PrisonerOf(p, wardens, rapport, map, climate)).ToArray();
+            .Select(p => PrisonerOf(p, wardens, rapport, chitchat, map, climate)).ToArray();
         return new()
         {
             MoodCurve = Points(WorkerCurve("ResistanceImpactFactorCurve_Mood")), OpinionCurve = Points(WorkerCurve("ResistanceImpactFactorCurve_Opinion")),
             MaxInteractionsPerDay = Pawn_GuestTracker.MaxInteractionsPerDay, ConvertTalks = ConvertTalks(),
             CertaintyDrift = Points(ConversionTuning.CertaintyPerDayByMoodCurve),
             Rapport = new(rapport.defName, rapport.DurationTicks, rapport.stackLimit, rapport.stackLimitForSameOtherPawn, rapport.stackedEffectMultiplier, rapport.lerpOpinionToZeroAfterDurationPct),
+            Chitchat = new(chitchat.defName, chitchat.maxCumulatedOpinionOffset, chitchat.stackedEffectMultiplier, chitchat.stackLimit, chitchat.stackLimitForSameOtherPawn),
             RecruitInspiration = InspirationDefOf.Inspired_Recruitment.defName, TamingInspiration = InspirationDefOf.Inspired_Taming.defName,
             Wardens = EquatableArray.From(wardens.Select(WardenOf)),
             Prisoners = EquatableArray.From(prisoners),
@@ -73,14 +77,14 @@ internal static class NativePrisonRecruit
         };
     }
 
-    private static RimGovernor.Brain.GameFacts.Observations.PrisonerRecruitRead PrisonerOf(Pawn pawn, Pawn[] wardens, ThoughtDef rapport, Map map, Func<NativeRecreation.OutdoorClimate> climate)
+    private static RimGovernor.Brain.GameFacts.Observations.PrisonerRecruitRead PrisonerOf(Pawn pawn, Pawn[] wardens, ThoughtDef rapport, ThoughtDef chitchat, Map map, Func<NativeRecreation.OutdoorClimate> climate)
     {
         var guest = pawn.guest ?? throw new InvalidOperationException("prisoner without a guest tracker: " + pawn.GetUniqueLoadID());
         return new()
         {
             Pawn = pawn.GetUniqueLoadID(), Recruitable = guest.Recruitable, Resistance = F(guest.Resistance, "resistance"),
             PrisonBed = pawn.ownership?.OwnedBed?.ForPrisoners == true, WildMan = pawn.IsWildMan(), Mood = MoodOf(pawn),
-            Opinions = EquatableArray.From(wardens.Select(w => OpinionOf(pawn, w, rapport))),
+            Opinions = EquatableArray.From(wardens.Select(w => OpinionOf(pawn, w, rapport, chitchat))),
             Conversion = ConversionOf(pawn, wardens),
             Joiner = JoinerOf(pawn, map, climate),
         };
@@ -166,7 +170,7 @@ internal static class NativePrisonRecruit
     /// the ages of the rapport memories of other pawns; and, for a wild man, InteractionWorker_RecruitAttempt's taming chance
     /// in a prison cell (no Inspired_Taming).
     /// </summary>
-    private static RimGovernor.Brain.GameFacts.Observations.WardenOpinionRead OpinionOf(Pawn pawn, Pawn other, ThoughtDef rapport)
+    private static RimGovernor.Brain.GameFacts.Observations.WardenOpinionRead OpinionOf(Pawn pawn, Pawn other, ThoughtDef rapport, ThoughtDef chitchat)
     {
         if (!other.RaceProps.Humanlike) throw new InvalidOperationException("warden is not humanlike: " + other.GetUniqueLoadID());
         var relations = 0;
@@ -177,7 +181,9 @@ internal static class NativePrisonRecruit
         var situational = 0;
         var groups = new List<RimGovernor.Brain.GameFacts.Observations.SocialMemoryGroupRead>();
         var others = new List<double>();
+        var otherChitchat = new List<RimGovernor.Brain.GameFacts.Observations.SocialMemoryRead.Cumulative>();
         var chat = 0d;
+        var conversionChat = 0d;
         // OpinionOf counts thoughts only for a humanlike pawn with a mood need.
         if (pawn.RaceProps.Humanlike && pawn.needs?.mood is { } mood)
         {
@@ -193,15 +199,23 @@ internal static class NativePrisonRecruit
                     Members = EquatableArray.From(social.Where(m => m.GroupsWith(head)).Select(m => MemoryOf(pawn, m))),
                 });
             others.AddRange(mood.thoughts.memories.Memories.Where(m => m.def == rapport && m.otherPawn != other).Select(m => (double)m.age));
-            if (ThoughtUtility.CanGetThought(pawn, rapport) && rapport.socialTargetDevelopmentalStageFilter.Has(other.DevelopmentalStage) && !ThoughtUtility.ThoughtNullified(pawn, rapport))
-                chat = F(rapport.stages[0].baseOpinionOffset * other.GetStatValue(StatDefOf.SocialImpact), "rapport opinion offset");
+            otherChitchat.AddRange(mood.thoughts.memories.Memories.OfType<Thought_MemorySocialCumulative>().Where(m => m.def == chitchat && m.otherPawn != other)
+                .Select(m => (RimGovernor.Brain.GameFacts.Observations.SocialMemoryRead.Cumulative)MemoryOf(pawn, m)));
+            chat = InteractionOffset(pawn, other, rapport);
+            conversionChat = InteractionOffset(pawn, other, chitchat);
         }
         return new(other.GetUniqueLoadID(), relations, situational, F(factor, "opinion of others factor"), pawn.HostileTo(other))
         {
             Memories = EquatableArray.From(groups), Rapport = chat, OtherRapport = EquatableArray.From(others.OrderBy(a => a)),
+            Chitchat = conversionChat, OtherChitchat = EquatableArray.From(otherChitchat),
             TameChance = pawn.IsWildMan() ? TameChance(other, pawn) : 0,
         };
     }
+
+    // AddInteractionThought scales the new memory's stage-0 opinionOffset by the other pawn's SocialImpact; TryGainMemory gates it.
+    private static double InteractionOffset(Pawn pawn, Pawn other, ThoughtDef thought) =>
+        ThoughtUtility.CanGetThought(pawn, thought) && thought.socialTargetDevelopmentalStageFilter.Has(other.DevelopmentalStage) && !ThoughtUtility.ThoughtNullified(pawn, thought)
+            ? F(thought.stages[0].baseOpinionOffset * other.GetStatValue(StatDefOf.SocialImpact), "interaction opinion offset") : 0;
 
     // A social memory as OpinionOffset reads it: the opinionOffset (0 while nullified) and its age, by its class. A subclass the
     // credit does not model is a broken read.

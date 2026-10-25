@@ -230,6 +230,7 @@ public sealed record PrisonRecruitRead
     [JsonConverter(typeof(EquatableArrayJsonConverter<CurvePointRead>))]
     public required EquatableArray<CurvePointRead> CertaintyDrift { get; init; }
     public required RapportRead Rapport { get; init; }
+    public required ChitchatRead Chitchat { get; init; }
     public required string RecruitInspiration { get; init; }
     public required string TamingInspiration { get; init; }
     /// <summary>Every colonist given that can do Warden work (not <c>Pawn.WorkTypeIsDisabled</c>), in pawn id order. Empty means none can.</summary>
@@ -248,6 +249,8 @@ public sealed record CurvePointRead(double X, double Y);
 /// <c>Thought_MemorySocial.OpinionOffset</c> fades it.
 /// </summary>
 public sealed record RapportRead(string Thought, double DurationTicks, int StackLimit, int StackLimitPerPawn, double StackedMultiplier, double LerpAfter);
+/// <summary>Conversion's <c>InteractionDefOf.Chitchat.recipientThought</c>: its cumulative class's opinion cap, group multiplier and memory limits.</summary>
+public sealed record ChitchatRead(string Thought, double Cap, double StackedMultiplier, int StackLimit, int StackLimitPerPawn);
 /// <summary>
 /// A colonist who can do Warden work (#3805, #3899): its <c>StatDefOf.NegotiationAbility</c>, its inspiration now (null when it
 /// has none), whether a hediff blocks a new one (<c>InspirationHandler.BlockedByHediff</c>), and each inspiration def that can
@@ -281,6 +284,11 @@ public sealed record WardenOpinionRead(string Warden, int Relations, int Situati
     [JsonConverter(typeof(EquatableArrayJsonConverter<SocialMemoryGroupRead>))]
     public required EquatableArray<SocialMemoryGroupRead> Memories { get; init; }
     public required double Rapport { get; init; }
+    /// <summary>One conversion chitchat's stage offset times this warden's SocialImpact; 0 when blocked or nullified, as for Rapport.</summary>
+    public required double Chitchat { get; init; }
+    /// <summary>The cumulative chitchat memories of other pawns, sharing the def's stack limit; this warden's are in Memories.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<SocialMemoryRead.Cumulative>))]
+    public required EquatableArray<SocialMemoryRead.Cumulative> OtherChitchat { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<double>))]
     public required EquatableArray<double> OtherRapport { get; init; }
     public required double TameChance { get; init; }

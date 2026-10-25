@@ -420,15 +420,18 @@ unknown. What the game does not have is a case, never an unknown:
 - `NeedsForecastRead.Prison` (#3805, #3899, `PrisonRecruitRead`): `InteractionWorker_RecruitAttempt`'s
   private mood and opinion resistance curves, `Pawn_GuestTracker.MaxInteractionsPerDay`, BuildRapport's
   recipient thought (`RapportRead`: its def, duration, stack limits, stackedEffectMultiplier and
-  lerpOpinionToZeroAfterDurationPct), `InspirationDefOf.Inspired_Recruitment` and `Inspired_Taming`, the
+  lerpOpinionToZeroAfterDurationPct), Chitchat's recipient thought (`ChitchatRead`: its cumulative opinion cap,
+  stackedEffectMultiplier and stack limits), `InspirationDefOf.Inspired_Recruitment` and `Inspired_Taming`, the
   Warden-capable colonists (`WardenRead`: `NegotiationAbility`, its inspiration now with its age and duration, whether a
   hediff blocks inspirations, and each def whose `InspirationCanOccur` holds with its `CommonalityFor` and duration), and
   per held prisoner (`PrisonersOfColonySpawned`) `Recruitable`, `Resistance`, whether it owns a prison bed, `IsWildMan`,
   its mood (the unclamped level, its PrisonCell/PrisonBarracks thought now, those thoughts' stage offsets for it, none for
   an Ascetic, and its mood memory groups with their stackedEffectMultiplier), its opinion of each warden by its parts
   (`WardenOpinionRead`: relations, situational social thoughts each rounded away from 0, the hediffs' opinionOfOthersFactor,
-  hostility, its social memory groups of the warden, fading or cumulative, the rapport one chat gives, the ages of its
-  rapport memories of other pawns, and the warden's tame chance for a wild man; rebuilt without `OpinionOf`, whose
+  hostility, its social memory groups of the warden, fading or cumulative, the rapport and conversion chitchat one toil gives
+  (stage-0 opinionOffset times that warden's SocialImpact, 0 without a mood need or when CanGetThought, the social target's
+  developmental filter or nullification blocks it), the ages of its rapport memories of other pawns and their cumulative
+  chitchat memories sharing the def limits, and the warden's tame chance for a wild man; rebuilt without `OpinionOf`, whose
   recalculation drops memories), its conversion (#3915, `PrisonerConversionRead`; null unless Ideology is active outside classic
   mode, the colony has a primary ideoligion and the prisoner holds another: the private
   `CertaintyChangeFactor`, and each warden holding the primary ideoligion who can talk with its
@@ -442,6 +445,10 @@ unknown. What the game does not have is a case, never an unknown:
 - `ForecastCoupledContext.PrisonerPopulation` retains the canonical population census. The prison credit calls
   `PopulationRules.RecruitIntent` (the same recruit and convert rules as the autopilot) and reads certainty from
   the matching pawn's canonical `PawnIdeo.Member`; conversion reads do not duplicate that certainty.
+- Conversion jobs add their three chitchat memories at the toil ticks to the same `ForecastPrison.Opinion` used for recruitment
+  when its converter is its recruiting warden. They merge into the first held memory of that def and pawn without resetting
+  age or adding a member; raw offsets accumulate above the displayed cap and decay one toward zero per day. A discarded
+  memory is recreated at age zero by a later chat. A different converter gives no opinion of the recruiting warden.
 - `NeedsForecastRead.School` (#3809, `SchoolRead`): `Need_Learning.BaseFallPerTick`,
   `LearningUtility.NeedSatisfiedPerTick`, `LearningDesireDefOf.Lessontaking` and its `xpPerTick` ("" and 0 without
   Biotech), every `LearningDesireDef`'s `selectionWeight` and its worker's `CanGiveDesire`, the colony's spawned

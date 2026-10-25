@@ -40,7 +40,7 @@ public sealed class PrisonCreditTests
 
     /// <summary>The prisoner's opinion of the warden "pawn": no relation, situational thought or memory, no rapport a chat gives.</summary>
     private static WardenOpinionRead Opinion(double rapport = 0, double tame = 0) =>
-        new("pawn", 0, 0, 1, false) { Memories = [], Rapport = rapport, OtherRapport = [], TameChance = tame };
+        new("pawn", 0, 0, 1, false) { Memories = [], Rapport = rapport, Chitchat = 0, OtherRapport = [], OtherChitchat = [], TameChance = tame };
 
     /// <summary>The warden "pawn" at NegotiationAbility 1, uninspired, with no inspiration it can start.</summary>
     private static WardenRead Warden(InspirationNowRead? inspired = null) =>
@@ -190,7 +190,7 @@ public sealed class PrisonCreditTests
     public void RapportRaisesTheOpinionTwoAChatAndRecruitsSooner()
     {
         var read = NeedsFixtures.NoPrison;
-        var opinion = new ForecastPrison.Opinion(read.Rapport, Opinion(2));
+        var opinion = new ForecastPrison.Opinion(read, Opinion(2));
         for (var i = 0; i < 5; i++) opinion.Chat(i * 350);
         Assert.Equal(10, opinion.At(1750));
         // Opinion 10 makes the curve 1.05 from the first attempt and more after: fewer than the eight jobs of no rapport.
@@ -201,7 +201,7 @@ public sealed class PrisonCreditTests
     public void RapportStacksToFiftyAPawnAndFadesFromSeventyPercentOfItsDuration()
     {
         var read = NeedsFixtures.NoPrison;
-        var opinion = new ForecastPrison.Opinion(read.Rapport, Opinion(1));
+        var opinion = new ForecastPrison.Opinion(read, Opinion(1));
         for (var i = 0; i < 60; i++) opinion.Chat(i);
         Assert.Equal(50, opinion.At(60));
         // At 85% of the 20 days each memory counts half (InverseLerp(1, 0.7, 0.85)); past the duration none.
@@ -213,7 +213,7 @@ public sealed class PrisonCreditTests
     public void ARapportMemoryOfAnotherPawnOlderThanTheWardensIsTheOneTheDefLimitDrops()
     {
         var read = NeedsFixtures.NoPrison with { Rapport = NeedsFixtures.Rapport with { StackLimit = 2 } };
-        var opinion = new ForecastPrison.Opinion(read.Rapport, Opinion(1) with { OtherRapport = [100] });
+        var opinion = new ForecastPrison.Opinion(read, Opinion(1) with { OtherRapport = [100] });
         opinion.Chat(0);
         opinion.Chat(1);
         Assert.Equal(2, opinion.At(2));
@@ -225,7 +225,7 @@ public sealed class PrisonCreditTests
     public void ACumulativeSocialMemoryMovesOneTowardZeroADay()
     {
         var group = new SocialMemoryGroupRead("Insulted", 1, 0.7) { Members = [new SocialMemoryRead.Cumulative(-5, 0, 100)] };
-        var opinion = new ForecastPrison.Opinion(NeedsFixtures.Rapport, Opinion() with { Memories = [group] });
+        var opinion = new ForecastPrison.Opinion(NeedsFixtures.NoPrison, Opinion() with { Memories = [group] });
         Assert.Equal(-5, opinion.At(0));
         Assert.Equal(-3, opinion.At(2.5 * Day));
         Assert.Equal(0, opinion.At(6 * Day));
@@ -235,9 +235,9 @@ public sealed class PrisonCreditTests
     public void TheOpinionIsTheRoundedPartsTimesTheHediffFactorAndNoPositiveOneOfAHostilePawn()
     {
         var read = NeedsFixtures.NoPrison;
-        Assert.Equal(8, new ForecastPrison.Opinion(read.Rapport, Opinion() with { Relations = 10, Situational = 5, Factor = 0.5 }).At(0));
-        Assert.Equal(0, new ForecastPrison.Opinion(read.Rapport, Opinion() with { Relations = 10, Hostile = true }).At(0));
-        Assert.Equal(-100, new ForecastPrison.Opinion(read.Rapport, Opinion() with { Relations = -150 }).At(0));
+        Assert.Equal(8, new ForecastPrison.Opinion(read, Opinion() with { Relations = 10, Situational = 5, Factor = 0.5 }).At(0));
+        Assert.Equal(0, new ForecastPrison.Opinion(read, Opinion() with { Relations = 10, Hostile = true }).At(0));
+        Assert.Equal(-100, new ForecastPrison.Opinion(read, Opinion() with { Relations = -150 }).At(0));
     }
 
     [Fact]
@@ -331,6 +331,94 @@ public sealed class PrisonCreditTests
         new(factor) { Converters = [new("pawn", reduction)] };
 
     [Fact]
+    public void ConversionJobsGiveThreeSocialImpactScaledChitchatsToTheConvertersOpinionBeforeRecruitment()
+    {
+        var read = NeedsFixtures.NoPrison;
+        // Native Chitchat's stage is 0.66; this converter's observed SocialImpact is 2.
+        var prisoner = Bare(3.05) with { Conversion = Conversion(), Opinions = [Opinion() with { Chitchat = 1.32 }] };
+        var converter = new ConversionReductionRead("pawn", 0.25);
+        var opinion = new ForecastPrison.Opinion(read, prisoner.Opinions[0]);
+        Assert.Equal((2, 2d), ForecastPrison.Converted(read, prisoner, converter, null, 0, 10 * Day, 0.5, opinion));
+        Assert.Equal(8, opinion.At((Day / 2) + (2 * 350))); // six chats, raw 7.92
+        Assert.Equal(7, opinion.At(Day + 1750)); // one daily decay before the first recruit attempt
+        var same = ForecastPrison.Recruitment(read, Warden(), null, prisoner, null, 0, 10, converter, 0.5);
+        var different = ForecastPrison.Recruitment(read, Warden(), null, prisoner, null, 0, 10, converter with { Warden = "other" }, 0.5);
+        Assert.Equal(3, same.Jobs);
+        Assert.Equal(4, different.Jobs);
+        Assert.Equal(0.5, different.Days - same.Days, 12);
+        Assert.Equal(different, ForecastPrison.Recruitment(read, Warden(), null,
+            prisoner with { Opinions = [Opinion()] }, null, 0, 10, converter, 0.5)); // blocked or nullified: native offset 0
+    }
+
+    [Fact]
+    public void ConversionChitchatMergesRawOffsetWithoutResettingAgeOrAddingAGroupMember()
+    {
+        var read = NeedsFixtures.NoPrison;
+        var old = new SocialMemoryGroupRead(read.Chitchat.Thought, 1, 0)
+        {
+            Members = [new SocialMemoryRead.Cumulative(1, Day - 350, 10)],
+        };
+        var opinion = new ForecastPrison.Opinion(read, Opinion() with { Chitchat = 0.66, Memories = [old] });
+        opinion.ConversionChat(0);
+        Assert.Equal(2, opinion.At(0));
+        Assert.Equal(1, opinion.At(350)); // the merge did not reset the memory's almost-day-old age
+
+        var stacked = new ForecastPrison.Opinion(read with { Chitchat = read.Chitchat with { StackedMultiplier = 0.5 } }, Opinion() with
+        {
+            Chitchat = 1, Memories = [old with { StackedMultiplier = 0.5, Members = [new SocialMemoryRead.Cumulative(4, 0, 10), new SocialMemoryRead.Cumulative(2, 0, 10)] }],
+        });
+        stacked.ConversionChat(0);
+        Assert.Equal(6, stacked.At(0)); // (4 + 1) + 2/2; a third member would give another stacked result
+    }
+
+    [Fact]
+    public void ConversionChitchatCapsOnlyTheDisplayedOffsetAndRecreatesDiscardedMemoriesAtAgeZero()
+    {
+        var read = NeedsFixtures.NoPrison;
+        var opinion = new ForecastPrison.Opinion(read, Opinion() with { Chitchat = 5 });
+        for (var i = 0; i < 3; i++) opinion.ConversionChat(i * 350);
+        Assert.Equal(10, opinion.At(1050));
+        Assert.Equal(10, opinion.At(5 * Day)); // raw 15 has decayed to 10
+        Assert.Equal(9, opinion.At(6 * Day));
+
+        var old = new SocialMemoryGroupRead(read.Chitchat.Thought, 1, 0) { Members = [new SocialMemoryRead.Cumulative(0.5, Day - 350, 10)] };
+        var renewed = new ForecastPrison.Opinion(read, Opinion() with { Chitchat = 0.66, Memories = [old] });
+        renewed.ConversionChat(350); // the old memory reached zero; the new one starts at this tick
+        Assert.Equal(1, renewed.At(Day + 349));
+        Assert.Equal(0, renewed.At(Day + 350));
+    }
+
+    [Fact]
+    public void AChitchatDefLimitCanDropTheConvertersOldestMemoryEvenWhenTheChatMergedIntoIt()
+    {
+        var read = NeedsFixtures.NoPrison;
+        var limited = read with { Chitchat = read.Chitchat with { StackLimit = 1 } };
+        var old = new SocialMemoryGroupRead(read.Chitchat.Thought, 1, 0) { Members = [new SocialMemoryRead.Cumulative(2, 500, 10)] };
+        var opinion = new ForecastPrison.Opinion(limited, Opinion() with
+        {
+            Chitchat = 0.66, Memories = [old], OtherChitchat = [new(2, 100, 10)],
+        });
+        opinion.ConversionChat(0);
+        Assert.Equal(0, opinion.At(0)); // native checks def limits after the merge, dropping the oldest (this warden)
+        opinion.ConversionChat(350);
+        Assert.Equal(1, opinion.At(350)); // a new memory; now the other pawn's is older and is dropped
+    }
+
+    [Fact]
+    public void TheProductionPrisonCreditValuesTheRecruitmentAndWorkSavedByConversionChitchats()
+    {
+        var census = ForeignCensus();
+        var withChats = Of(c => [Prisoner(c) with { Resistance = 2.02, Conversion = Conversion(1), Opinions = [Opinion() with { Chitchat = 1.32 }] }], census: census);
+        var blocked = Of(c => [Prisoner(c) with { Resistance = 2.02, Conversion = Conversion(1) }], census: census);
+        var shortfall = JoinerMoodRules.ShortfallOf(withChats.Outcome, withChats.Commitments, withChats.Context, withChats.Horizon);
+        var value = JoinerMoodRules.ValueOf("prisoner", withChats.Context.Needs.Prison.Prisoners[0].Joiner, shortfall, withChats.Context).PerDay;
+        // One conversion job gives opinion 4, then 3 after daily decay; two attempts remove 2.035 instead of 2 resistance,
+        // saving half a day and one recruit job.
+        Assert.Equal((0.5 * value) + LostPerJob(withChats), Assert.Single(withChats.Gains()).Once - Assert.Single(blocked.Gains()).Once, 9);
+        Assert.DoesNotContain("prison_conversion_chitchat", withChats.Findings());
+    }
+
+    [Fact]
     public void AConversionTakesAttemptsUntilCertaintyIsGoneThenTheRecruitJobsStartInTheNextSlots()
     {
         var read = NeedsFixtures.NoPrison;
@@ -392,13 +480,11 @@ public sealed class PrisonCreditTests
         Assert.Equal("prison/1/prisoner", row.Key);
         Assert.Equal(-((value * (Horizon - 1 - days)) - (lost * 8) - (convertLost * 2)), row.Value, 9);
         var findings = review.Findings();
-        Assert.Contains(ForecastPrison.ConversionChitchat, findings);
         Assert.DoesNotContain(ForecastPrison.NoConverter, findings);
 
         // The same prisoner already of the colony's ideoligion is recruited at once: the conversion is the whole difference.
         var own = Of(c => [Prisoner(c) with { Mood = null }]);
         Assert.True(Assert.Single(own.Gains()).Once > gain.Once);
-        Assert.DoesNotContain(ForecastPrison.ConversionChitchat, own.Findings());
     }
 
     [Fact]

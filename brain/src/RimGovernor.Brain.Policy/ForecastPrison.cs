@@ -39,6 +39,10 @@ namespace RimGovernor.Brain.Policy;
 //   also drifts up each tick by ConversionTuning.CertaintyPerDayByMoodCurve at the mood need's CurLevelPercentage (0 without a mood
 //   need) over the factor; CurLevel follows the instant level at the need's seeker rates, so the instant level stands for it. A
 //   failed attempt on a prisoner starts no resentment or fight (InteractionWorker_ConvertIdeoAttempt.Interacted).
+// - Each Chitchat toil gives the recipient InteractionDefOf.Chitchat.recipientThought: AddInteractionThought scales its stage-0
+//   opinionOffset by the converter's SocialImpact. Thought_MemorySocialCumulative.TryMergeWithExistingMemory adds the raw offset
+//   to the first same-def, same-other-pawn memory without resetting age; OpinionOffset caps only the displayed value. The
+//   recruitment opinion includes these memories only when that converter is its recruiting warden (#3985).
 
 /// <summary>
 /// The Prison room credit (#3805, #3899): the recruitment a planned prison enables. A held prisoner without a prison bed is never
@@ -83,9 +87,6 @@ public static class ForecastPrison
 
     /// <summary>The not-modelled finding of a recruit's trait thought whose worker reads its situation (JoinerMoodRead.SituationalTraits, #3965).</summary>
     public const string SituationalTraits = "joiner_situational_trait_thoughts";
-
-    /// <summary>The not-modelled finding of a conversion's chitchat memories (#3915): the converter's Chitchat toils give the prisoner a cumulative opinion memory of it, which the recruitment's opinion leaves out.</summary>
-    public const string ConversionChitchat = "prison_conversion_chitchat";
 
     /// <summary>The mechanics the credit leaves out, named with each served prison.</summary>
     public static readonly EquatableArray<string> NotModelled =
@@ -153,14 +154,14 @@ public static class ForecastPrison
         var interval = (double)GameTime.TicksPerDay / read.MaxInteractionsPerDay;
         var end = servedAt + (units * GameTime.TicksPerDay);
         var inspirations = new Inspirations(read, warden, wardenMood, prisoner.WildMan ? read.TamingInspiration : read.RecruitInspiration, end);
-        var opinionOf = new Opinion(read.Rapport, opinion);
+        var opinionOf = new Opinion(read, opinion);
         var resistance = prisoner.Resistance;
         double alive = 1, days = 0, jobs = 0, converting = 0;
         var first = 0;
         if (converter is not null)
         {
             var (next, attempts) = Converted(read, prisoner, converter, cell, servedAt, end,
-                certainty ?? throw new RequiredFactException("prisoner certainty:" + prisoner.Pawn));
+                certainty ?? throw new RequiredFactException("prisoner certainty:" + prisoner.Pawn), converter.Warden == warden.Pawn ? opinionOf : null);
             converting = attempts;
             if (next is not { } slot) return new(units, 0, converting);
             first = slot;
@@ -197,9 +198,10 @@ public static class ForecastPrison
     /// <c>ConvertTalks x ToilTicks</c> later. Certainty, from its value now, drifts up hourly by the curve at the prisoner's
     /// instant mood (<see cref="Mood"/>; its prison thought now before the room serves) over the change factor, and an attempt takes
     /// <c>Reduction x ChangeFactor</c> from it; at 0 it is converted. Returns the slot of the first recruit job (null when the served
-    /// days end first) and the attempts made.
+    /// days end first) and the attempts made. When the converter is the recruiting warden, <paramref name="opinion"/> receives
+    /// each conversion chitchat at its toil tick before the recruitment starts; a different converter changes no opinion of that warden.
     /// </summary>
-    public static (int? NextSlot, double Attempts) Converted(PrisonRecruitRead read, PrisonerRecruitRead prisoner, ConversionReductionRead converter, double? cell, double servedAt, double end, double certainty)
+    public static (int? NextSlot, double Attempts) Converted(PrisonRecruitRead read, PrisonerRecruitRead prisoner, ConversionReductionRead converter, double? cell, double servedAt, double end, double certainty, Opinion? opinion = null)
     {
         var conversion = prisoner.Conversion ?? throw new RequiredFactException("prisoner conversion:" + prisoner.Pawn);
         DomainException.Require(conversion.ChangeFactor > 0, "certainty change factor");
@@ -209,6 +211,7 @@ public static class ForecastPrison
         {
             var attempt = servedAt + (k * interval) + (read.ConvertTalks * ToilTicks);
             if (attempt > end) return (null, k);
+            for (var i = 0; i < read.ConvertTalks; i++) opinion?.ConversionChat(servedAt + (k * interval) + (i * ToilTicks));
             while (clock < attempt)
             {
                 var step = Math.Min(GameTime.TicksPerHour, attempt - clock);
@@ -265,24 +268,64 @@ public static class ForecastPrison
     /// The prisoner's opinion of one warden over a recruitment (#3899): <see cref="WardenOpinionRead"/>'s relations and situational
     /// parts held at now's, its social memory groups at each tick's age, and the rapport group the warden's chats add to, stacked
     /// as TryGainMemory stacks it against the def's limits (the prisoner's rapport memories of other pawns sharing the def's).
+    /// Conversion chitchats merge into its existing cumulative group without resetting age, adding raw offsets before the
+    /// displayed cap; cumulative memories of other pawns share the def's limit too.
     /// </summary>
     public sealed class Opinion
     {
         private readonly RapportRead rapport;
+        private readonly ChitchatRead chitchat;
         private readonly WardenOpinionRead read;
         private readonly List<(double Born, double Offset, double Duration)> mine = [];
         private readonly List<double> others;
         private readonly SocialMemoryGroupRead[] groups;
+        private readonly List<SocialMemoryRead.Cumulative> cumulative;
+        private readonly List<SocialMemoryRead.Cumulative> otherCumulative;
+        private double cumulativeClock;
 
-        public Opinion(RapportRead rapport, WardenOpinionRead read)
+        public Opinion(PrisonRecruitRead mechanics, WardenOpinionRead read)
         {
-            this.rapport = rapport;
+            rapport = mechanics.Rapport;
+            chitchat = mechanics.Chitchat;
             this.read = read;
-            groups = [.. read.Memories.Where(g => g.Thought != rapport.Thought)];
+            groups = [.. read.Memories.Where(g => g.Thought != rapport.Thought && g.Thought != chitchat.Thought)];
+            cumulative = [.. read.Memories.Where(g => g.Thought == chitchat.Thought).SelectMany(g => g.Members).Select(m =>
+                m as SocialMemoryRead.Cumulative ?? throw new RequiredFactException("chitchat memory class"))];
+            otherCumulative = [.. read.OtherChitchat];
             foreach (var group in read.Memories.Where(g => g.Thought == rapport.Thought))
                 foreach (var member in group.Members)
                     mine.Add(member is SocialMemoryRead.Fading f ? (-f.Age, f.Offset, f.DurationTicks) : throw new RequiredFactException("rapport memory class"));
             others = [.. read.OtherRapport.Select(a => -a)];
+        }
+
+        /// <summary>A conversion chitchat: age and discard cumulative memories, merge raw offset into the first held one without resetting its age, then apply the def's limits.</summary>
+        public void ConversionChat(double tick)
+        {
+            if (read.Chitchat == 0) return;
+            Age(cumulative, tick - cumulativeClock);
+            Age(otherCumulative, tick - cumulativeClock);
+            cumulativeClock = tick;
+            if (cumulative.Count == 0) cumulative.Add(new(read.Chitchat, 0, chitchat.Cap));
+            else cumulative[0] = cumulative[0] with { Offset = cumulative[0].Offset + read.Chitchat };
+            if (chitchat.StackLimitPerPawn >= 0)
+                while (cumulative.Count > chitchat.StackLimitPerPawn) cumulative.Remove(cumulative.MaxBy(m => m.Age)!);
+            if (chitchat.StackLimit < 0) return;
+            while (cumulative.Count + otherCumulative.Count > chitchat.StackLimit)
+            {
+                var oldest = cumulative.Count == 0 ? double.NegativeInfinity : cumulative.Max(m => m.Age);
+                if (otherCumulative.Count != 0 && otherCumulative.Max(m => m.Age) > oldest) otherCumulative.Remove(otherCumulative.MaxBy(m => m.Age)!);
+                else cumulative.Remove(cumulative.MaxBy(m => m.Age)!);
+            }
+        }
+
+        private static void Age(List<SocialMemoryRead.Cumulative> memories, double elapsed)
+        {
+            for (var i = 0; i < memories.Count; i++)
+            {
+                var memory = memories[i];
+                memories[i] = memory with { Offset = CumulativeRaw(memory, elapsed), Age = (memory.Age + elapsed) % GameTime.TicksPerDay };
+            }
+            memories.RemoveAll(m => m.Offset == 0);
         }
 
         /// <summary>A rapport chat at <paramref name="tick"/>: its memory added (none when the prisoner cannot get it), then the def's limits kept, the oldest dropped.</summary>
@@ -307,6 +350,7 @@ public static class ForecastPrison
         public int At(double tick)
         {
             var total = read.Relations + read.Situational + groups.Sum(g => SocialGroupAt(g.StackedMultiplier, g.LerpAfter, g.Members.Select(m => Member(m, tick, g.LerpAfter))))
+                + SocialGroupAt(chitchat.StackedMultiplier, 0, cumulative.Select(m => Member(m, tick - cumulativeClock, 0)))
                 + SocialGroupAt(rapport.StackedMultiplier, rapport.LerpAfter, mine.Select(m => (tick - m.Born, Fading(m.Offset, tick - m.Born, m.Duration, rapport.LerpAfter))));
             if (total != 0) total = (int)Math.Round(total * read.Factor, MidpointRounding.ToEven);
             if (total > 0 && read.Hostile) total = 0;
@@ -329,11 +373,13 @@ public static class ForecastPrison
         }
 
         // Thought_MemorySocialCumulative: 1 toward 0 for each day of age reached (ThoughtInterval at age 60000, then reset), at most its cap.
-        private static double Cumulative(SocialMemoryRead.Cumulative memory, double tick)
+        private static double Cumulative(SocialMemoryRead.Cumulative memory, double tick) => Math.Min(CumulativeRaw(memory, tick), memory.Cap);
+
+        private static double CumulativeRaw(SocialMemoryRead.Cumulative memory, double tick)
         {
             var steps = Math.Floor((memory.Age + tick) / GameTime.TicksPerDay);
             var offset = Math.Sign(memory.Offset) * Math.Max(0, Math.Abs(memory.Offset) - steps);
-            return Math.Min(offset, memory.Cap);
+            return offset;
         }
 
         // ThoughtHandler.OpinionOffsetOfGroup: the nonzero members, by age when the multiplier is not 1, their stacked sum rounded away from 0.
@@ -531,7 +577,6 @@ public static class ForecastPrison
                 certaintyByPawn[prisoner.Pawn] = person.Observed.Settings.PolicyInputs.Ideo is PawnIdeo.Member member ? member.Certainty
                     : throw new RequiredFactException("prisoner certainty:" + prisoner.Pawn);
                 converters[prisoner.Pawn] = converter;
-                states.Add(ConversionChitchat);
             }
 
             valued.Add((prisoner, value.PerDay));

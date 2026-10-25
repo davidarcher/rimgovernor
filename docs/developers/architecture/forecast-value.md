@@ -881,7 +881,11 @@ the same chat slots (`ForecastPrison.Converted`): a job is three chitchat toils 
 takes the converter's `CertaintyReduction` times the tracker's change factor from the prisoner's certainty (read now, drifting up
 hourly by `ConversionTuning.CertaintyPerDayByMoodCurve` at its mood, over the factor), and at 0 it takes the colony's
 ideoligion; the converter is the warden holding the colony's ideoligion with the largest reduction, and the recruit jobs start in
-the slots after the conversion. A conversion the served days do not reach leaves the prisoner unrecruited. A wild man is tamed at the warden's tame chance each attempt. The warden's inspiration is a
+the slots after the conversion. Each chitchat adds the native stage offset times the converter's SocialImpact to the
+prisoner's cumulative memory of it, subject to the native thought gates. When the converter recruits it too, the same opinion
+timeline merges those raw offsets into its existing memory without resetting age, caps only the displayed offset and decays
+one toward zero per day; this raises the following recruitment's opinion. A different converter gives no opinion of the
+recruiting warden. A conversion the served days do not reach leaves the prisoner unrecruited. A wild man is tamed at the warden's tame chance each attempt. The warden's inspiration is a
 renewal process (`ForecastPrison.Inspirations`, one-hour steps): the one it has now runs out, a new one starts at the MTB its mood
 target gives, the def picked by its share of the defs that can occur; `Inspired_Recruitment` (`Inspired_Taming` for a wild man)
 recruits at the next attempt, and any other blocks new ones while it lasts. The prisoner's value is its #3825 value
@@ -896,8 +900,7 @@ charges its teacher), less the converter's work for each conversion job (its 1,4
 (`prison_joiner_costs_more`). Named states, each earning nothing: no prisoner (`prison_no_prisoner`), no recruitable prisoner
 without a bed (`prison_no_recruit`, with `prison_unrecruitable` for a loyal one), no warden (`prison_no_warden`), a prison closing
 no bed (`prison_no_bed`), a prisoner to convert that no warden can convert (`prison_no_converter`) and the review before the first
-layout plan (`prison_awaiting:layout_plan`). Named as not modelled with a converted prisoner: the chitchat opinion memories a conversion
-gives it (`prison_conversion_chitchat`, #3985). Named as not modelled: the
+layout plan (`prison_awaiting:layout_plan`). Named as not modelled: the
 warden's walks (`prison_warden_walk`, #3964), the other trait thoughts whose worker reads the situation
 (`joiner_situational_trait_thoughts`, #3965), memories a bedless prisoner renews until bedded (`prison_bedless_memory_renewal`,
 #3966), the memories the cell gives over the recruitment (`prison_cell_memories`, #3967) and one inspiration counted for every
