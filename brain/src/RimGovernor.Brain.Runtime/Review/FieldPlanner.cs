@@ -562,7 +562,7 @@ partial class FieldPlanner
         foreach (var d in projection.Facts.Definitions)
         {
             if (d.Name is not ("SunLamp" or "HydroponicsBasin" or "Heater") || !d.Available) continue;
-            var infrastructure = new Infrastructure { Name = d.Name, Available = d.Available, PowerW = (d.Power ?? throw new RequiredFactException("planning Power")).PowerW, Grower = d.Name == "HydroponicsBasin" ? new InfrastructureGrower((d.Grower ?? throw new RequiredFactException("planning Grower")).GrowerFertility) : null, Costs = d.CheapestCosts() };
+            var infrastructure = new Infrastructure { Name = d.Name, Available = d.Available, PowerW = (d.Power ?? throw new RequiredFactException("planning Power")).PowerW, Grower = d.Name == "HydroponicsBasin" ? new InfrastructureGrower(d.Grower is RimGovernor.Brain.GameFacts.Observations.GrowerFertility.Fixed(var fertility) ? fertility : throw new RequiredFactException("hydroponics fixed fertility")) : null, Costs = d.CheapestCosts() };
             switch (d.Name)
             {
                 case "SunLamp":

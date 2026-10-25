@@ -123,10 +123,15 @@ internal static class NativeSkillStat
         }).ToArray();
     }
 
+    // Inspected 1.7 overrides: ShootingAccuracy changes explanation text and Mechanitor changes visibility only.
+    // Both inherit the complete StatWorker value pipeline, including finalization.
+    internal static bool HasBaseValuePipeline(StatDef stat) => stat.Worker.GetType() == typeof(StatWorker)
+        || stat.Worker.GetType() == typeof(StatWorker_ShootingAccuracy)
+        || stat.Worker.GetType() == typeof(StatWorker_Mechanitor);
+
     private static string? Disqualified(Pawn pawn, StatDef stat, SkillDef skill)
     {
-        // StatWorker_ShootingAccuracy overrides only the explanation text; its value pipeline is StatWorker's.
-        if (stat.Worker.GetType() != typeof(StatWorker) && stat.Worker.GetType() != typeof(StatWorker_ShootingAccuracy)) return "custom stat worker";
+        if (!HasBaseValuePipeline(stat)) return "custom stat worker";
         var record = pawn.skills?.GetSkill(skill);
         if (record == null || record.TotallyDisabled) return "skill disabled or absent";
         if (BaseBonusAtLevel == null) return "SkillNeed_BaseBonus.ValueAtLevel not found";
@@ -189,7 +194,7 @@ internal static class NativeSkillStat
         if (!path.Add(factor)) return false;
         var independent = factor.skillNeedOffsets?.Any(s => s.skill == skill) != true
             && factor.skillNeedFactors?.Any(s => s.skill == skill) != true
-            && factor.Worker.GetType() == typeof(StatWorker)
+            && HasBaseValuePipeline(factor)
             && factor.parts?.Any(p => !AllowedPart(pawn, p)) != true
             && factor.statFactors?.All(f => Independent(pawn, f, skill, path)) != false
             && factor.postProcessStatFactors?.All(f => Independent(pawn, f, skill, path)) != false

@@ -256,7 +256,7 @@ partial class BuildingPlanner
         return false;
     }
 
-    /// <summary>Whether the stock covers the butcher table's build cost at its cheapest stuff choice; unknown without the definition.</summary>
+    /// <summary>Whether stock covers the butcher table's cheapest stocked stuff choice; unread without the definition.</summary>
     internal static bool ButcherTableAffordable(ColonyReading facts)
     {
         var stock = ResourceStockRules.Count(facts.Snapshot.Resources);
@@ -266,11 +266,13 @@ partial class BuildingPlanner
             {
                 continue;
             }
-            var (price, ok) = DefenseLayoutPlanner.DefenseUnitPrice(facts, d);
-            if (!ok)
+            if (!d.Available) return false;
+            StuffPrice price;
+            try
             {
-                throw new RequiredFactException("butcher table build cost");
+                price = d.StuffChoice(StuffCriterion.CheapestStuff, stock);
             }
+            catch (NoStuffInStockException) { return false; }
             return price.Costs.All(a => stock.GetValueOrDefault(a.Resource) >= a.Count);
         }
         throw new RequiredFactException("butcher table build cost");

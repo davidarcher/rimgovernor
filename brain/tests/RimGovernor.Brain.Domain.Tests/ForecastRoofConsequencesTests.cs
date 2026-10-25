@@ -139,6 +139,28 @@ public sealed class ForecastRoofConsequencesTests
     }
 
     [Fact]
+    public void APlanWithoutObtainableRingStuffDoesNotInventEnclosureOrItsCredits()
+    {
+        // With no ring stuff, PlannedSitesOf supplies no walls or doors. The native prediction request must not
+        // invent them: an open shape has no native closed-room answer, hence no enclosure credit or cell effect.
+        var facts = Review(Closed("Bedroom", 2), plan: f => f with
+        {
+            PlannedSites = new PlannedSiteFacts(), PlannedRoomPredictions = [],
+        });
+        var shapes = PlannedRules.PlannedRoomPredictionRequestOf(
+            facts.PlannedShelters.Select(r => r with { Role = PlannedRole.Bedroom }), [], []);
+        Assert.Empty(Assert.Single(shapes).Pieces);
+        var context = facts.CoupledAlternatives!.Context;
+        Assert.Empty(context.Closures);
+        Assert.Empty(ForecastRoofConsequences.PlannedClosedRooms(context, new Dictionary<string, double>()));
+        var outcome = new ForecastCoupledOutcome(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>(), []);
+        var room = new ForecastRoomService(1, "", 0);
+        Assert.Empty(ForecastHousing.BedroomCredit(room, outcome, [], context, Horizon));
+        Assert.Null(PlannedRoomCredits.Prediction(context, 1, ""));
+        Assert.Empty(ForecastLaboratory.LaboratoryCredit(room, outcome, [], context, Horizon));
+    }
+
+    [Fact]
     public void AClosedPlannedBedroomBeatsItsWallsAloneOnMood()
     {
         // The wall alone leaves the bed outdoors (SleptOutside, -4); wall and door close the predicted bedroom before the

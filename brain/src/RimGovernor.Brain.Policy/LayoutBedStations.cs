@@ -139,6 +139,7 @@ internal sealed partial class Clusterer
             return;
         }
         DisturbedSleep(e, sleepers, share);
+        if (_in.BedMerge?.Facts is BedMergeFacts.NoStuffObtainable) return;
         FilthStage(e, sleepers);
     }
 

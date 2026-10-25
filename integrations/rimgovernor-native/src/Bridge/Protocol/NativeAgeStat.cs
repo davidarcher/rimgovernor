@@ -32,8 +32,8 @@ internal static class NativeAgeStat
 
     internal static float Unfinalized(Pawn pawn, StatDef stat, int age)
     {
-        // Exact base workers only: arbitrary overrides can read age anywhere.
-        if (stat.Worker.GetType() != typeof(StatWorker))
+        // Only inspected workers inheriting the base value pipeline: arbitrary overrides can read age anywhere.
+        if (!NativeSkillStat.HasBaseValuePipeline(stat))
             throw new InvalidOperationException("Age counterfactual needs base StatWorker: " + stat.defName);
         if (stat.parts?.Any(p => !NativeSkillStat.AllowedPart(pawn, p)) == true)
             throw new InvalidOperationException("Age counterfactual has unsupported stat part: " + stat.defName);

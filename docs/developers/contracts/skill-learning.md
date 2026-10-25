@@ -293,8 +293,10 @@ project, later workers fail that research toil before earning another callback; 
 is capped to the project's remaining points. The read observes pending tick-list registration changes
 without writing them. Tailoring's GeneralLaborSpeed is a constant per-level curve when the native stat
 dependency graph is skill-independent: Crafting XP does not fabricate a production-speed increase.
-The native stat differential checks the five productive speed families at every stored level beside
-the four existing medical curves.
+The native stat differential checks eight productive speed families at every stored level beside
+the four existing medical curves, including the three mechanitor speeds. The inspected native
+mechanitor worker changes stat visibility only; its inherited base value pipeline supports the same
+read-only skill and age substitutions even for a pawn whose stat is hidden in the UI.
 
 Terminal learning retains the nominal hash boundary for decay, separately from the tracker
 callback phase. A boundary can be just before the handoff while its callback is still pending;

@@ -308,7 +308,7 @@ public sealed record StationFacts
         try
         {
             var choice = LayoutClusterRules.BedMergeChoiceOf(new ClusterInput { Graph = StationGraph.SleepGraph(input), Catalog = Catalog, RoofDistance = RoofDistance, BedMerge = BedMergePriceOf() });
-            return choice is null ? KeyText.Of([null]) : KeyText.Of(choice.Size, choice.Area, choice.SingleArea);
+            return choice is null ? KeyText.Of([null]) : KeyText.Of(choice.Size, choice.Area, choice.SingleArea, BedMerge is BedMergeFacts.NoStuffObtainable);
         }
         catch (DomainException)
         {

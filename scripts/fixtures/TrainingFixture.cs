@@ -363,7 +363,10 @@ namespace RimGovernor.Native
                 Compare(disqualified);
                 foreach (var pair in new[] { (StatDefOf.ConstructionSpeed, SkillDefOf.Construction),
                     (StatDefOf.PlantWorkSpeed, SkillDefOf.Plants), (StatDefOf.MiningSpeed, SkillDefOf.Mining),
-                    (StatDefOf.ResearchSpeed, SkillDefOf.Intellectual), (StatDefOf.GeneralLaborSpeed, SkillDefOf.Crafting) })
+                    (StatDefOf.ResearchSpeed, SkillDefOf.Intellectual), (StatDefOf.GeneralLaborSpeed, SkillDefOf.Crafting) }
+                    .Concat(DefDatabase<StatDef>.AllDefsListForReading
+                        .Where(s => s.Worker.GetType() == typeof(StatWorker_Mechanitor) && s.skillNeedFactors?.Any(n => n.skill == SkillDefOf.Crafting) == true)
+                        .Select(s => (s, SkillDefOf.Crafting))))
                 {
                     var record = qualified.skills.GetSkill(pair.Item2);
                     var saved = record.levelInt;

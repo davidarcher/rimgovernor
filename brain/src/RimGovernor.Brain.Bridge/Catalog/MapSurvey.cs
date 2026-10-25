@@ -135,7 +135,8 @@ public sealed partial class DefinitionCatalog
     /// <summary>
     /// The materials the cells offer beyond the stock (#3747, #3839), each by def name in order: the items the survey's
     /// trees are cut into (their harvestedThingDef); the blocks the natural rock's stone is cut into (its
-    /// building.mineableThing's butcherProducts: a chunk's stonecutting yield) and what the rock is mined into (its
+    /// building.mineableThing's butcherProducts: a chunk's stonecutting yield), the same yield of loose stone chunks,
+    /// and what the rock is mined into (its
     /// mineableThing: an ore's material); the item stacks lying on the cells; and what deconstructing an unowned building
     /// yields (<see cref="SalvageOf"/>).
     /// </summary>
@@ -171,6 +172,13 @@ public sealed partial class DefinitionCatalog
                 else if (thing.Category == P.ThingCategory.Item)
                 {
                     items.Add(thing.Def);
+                    if (CategoriesWithin(def).Contains(nameof(ThingCategoryDefOf.StoneChunks)))
+                    {
+                        foreach (var product in def.butcherProducts.Seq())
+                        {
+                            blocks.Add(product.thingDef.defName);
+                        }
+                    }
                 }
                 else if (Salvageable(thing))
                 {

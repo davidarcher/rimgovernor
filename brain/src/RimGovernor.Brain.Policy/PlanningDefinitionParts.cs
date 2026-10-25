@@ -7,7 +7,7 @@ public sealed partial record PlanningDefinition
     public PlanningFloor? Floor { get; init; }
     public PlanningPower? Power { get; init; }
     public PlanningExplosive? Explosive { get; init; }
-    public PlanningGrower? Grower { get; init; }
+    public RimGovernor.Brain.GameFacts.Observations.GrowerFertility? Grower { get; init; }
     public PlanningFixedConstruction? FixedConstruction { get; init; }
 }
 
@@ -67,11 +67,6 @@ public sealed record PlanningPower
 public sealed record PlanningExplosive
 {
     public double ExplosiveRadius { get; init; }
-}
-
-public sealed record PlanningGrower
-{
-    public double GrowerFertility { get; init; }
 }
 
 public sealed record PlanningFixedConstruction

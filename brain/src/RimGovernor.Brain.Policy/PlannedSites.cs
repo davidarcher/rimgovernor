@@ -63,9 +63,9 @@ public sealed record PlannedRingStuff(string Stuff, double Value, bool Stocked);
 /// <summary>
 /// The materials the planning window's map offers beyond the stock (#3747, #3839), by def name: Wood the items its
 /// standing trees are cut into (the survey's Tree cells), Blocks the stone blocks its natural rock's stone is cut into
-/// (the rock's mined chunk's products), Mined what its natural rock is mined into (an ore its material, Steel for
+/// (the rock's mined chunk's products, also read from loose stone chunks), Mined what its natural rock is mined into (an ore its material, Steel for
 /// compacted steel), Items the item stacks lying on it, and Salvage what deconstructing an unowned building on it
-/// yields. A ring's stuff is chosen from Wood and Blocks (PlannedRingStuffs); a piece's cost material is obtainable when
+/// yields. A ring's stuff is chosen from these sources (PlannedRingStuffs); a piece's cost material is obtainable when
 /// any of them offers it (<see cref="Offers"/>). Unsalvaged names the buildings whose deconstruction yield the catalog
 /// could not read: while any is listed, a material none of them offers is unread, not unobtainable.
 /// </summary>
@@ -99,8 +99,8 @@ public static partial class PlannedRules
     /// <summary>
     /// The stuffs a planned ring is read in, cheapest available first (PlannedRingStuffCount of them), the first its
     /// sites' stuff (#3747): the stocked stuffs by price, then name; with none stocked, the cheapest wood the map's
-    /// standing trees give; else the cheapest blocks of the map's rock; else none, which the ring's price and placement
-    /// wait on. A ring def made from no stuff (options empty) is read once, with the empty stuff.
+    /// standing trees give; else the cheapest blocks of the map's rock or loose chunks; else the cheapest other stuff
+    /// offered by mining, lying stacks or salvage; else none. A ring def made from no stuff (options empty) is read once, with the empty stuff.
     /// </summary>
     public static IReadOnlyList<string> PlannedRingStuffs(IReadOnlyList<PlannedRingStuff> options, RingStuffSources sources)
     {
@@ -120,6 +120,10 @@ public static partial class PlannedRules
             {
                 return [offered.Stuff];
             }
+        }
+        if (ranked.FirstOrDefault(o => sources.Offers(o.Stuff)) is { } other)
+        {
+            return [other.Stuff];
         }
         return [];
     }

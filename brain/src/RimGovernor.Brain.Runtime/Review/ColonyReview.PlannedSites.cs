@@ -88,7 +88,7 @@ public sealed partial class ColonyReview
     /// <summary>
     /// The stuffs a planned room's ring is read in (PlannedRingStuffs): the wall def's ordinary stuffs the door can be made
     /// from too, priced by the wall's cost list, stocked when the colony holds any of the stuff, else the wood or rock
-    /// blocks the map offers (ReviewFacts.RingSources, #3747).
+    /// blocks the map offers, else another mined, lying or salvage material (ReviewFacts.RingSources).
     /// </summary>
     private static IReadOnlyList<string> PlannedRingStuffsOf(ColonyReading colony, PlannedRoom room)
     {
@@ -106,7 +106,8 @@ public sealed partial class ColonyReview
 
     /// <summary>
     /// <see cref="PlannedRingStuffsOf"/> with whether its facts were read (#3819): the wall's definition, and, unless a
-    /// usable stuff is stocked, the stock and the map's ring sources. An unread one reads as none stocked or offered.
+    /// usable stuff is stocked, the stock and the map's ring sources. A missing door definition or unread salvage cannot
+    /// establish that no shared stuff is obtainable.
     /// </summary>
     internal static (IReadOnlyList<string> Stuffs, bool Read) PlannedRingStuffsRead(ColonyReading colony, string wallDef, string doorDef)
     {
@@ -115,6 +116,10 @@ public sealed partial class ColonyReview
             return ([], false);
         }
         var door = AnimalContainment.AnimalContainmentDefinition(colony.Facts.Definitions, doorDef);
+        if (doorDef.Length > 0 && door is null)
+        {
+            return ([], false);
+        }
         var common = wall.StuffOptions.Any(o => o.Common);
         var (stock, sources) = MapMaterialsOf(colony);
         var options = wall.StuffOptions
@@ -125,7 +130,8 @@ public sealed partial class ColonyReview
         {
             return ([], true);
         }
-        return (PlannedRules.PlannedRingStuffs(options, sources ?? new RingStuffSources()), options.Any(o => o.Stocked) || sources is not null);
+        var stuffs = PlannedRules.PlannedRingStuffs(options, sources ?? new RingStuffSources());
+        return (stuffs, options.Any(o => o.Stocked) || sources is not null && (stuffs.Count > 0 || sources.Unsalvaged.Count == 0));
     }
 
     /// <summary>The colony's stock and the materials the planning window offers (ReviewFacts.RingSources, #3747, #3839); the sources are null while unread.</summary>

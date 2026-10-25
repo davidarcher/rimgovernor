@@ -146,6 +146,15 @@ public sealed class BedStationPriceTests
     }
 
     [Fact]
+    public void UnobtainableWallsDoNotRemoveTheCostOfTrafficPastSleepingBeds()
+    {
+        var cluster = Cluster(Cook, 30, Colony(nightCook: true), Mood, new BedMergeFacts.NoStuffObtainable());
+        var seed = LayoutClusterRules.ClusterStations(cluster);
+        var keep = Assert.Single(seed.Decisions, d => d.A == Pool && d.B == Stove || d.A == Stove && d.B == Pool);
+        Assert.Contains(keep.LostEffects, e => e.Effect == RoleEffect.SleepDisturbed && e.Points == 3);
+    }
+
+    [Fact]
     public void ADayCookDisturbsNobodySoTheBarracksHostsTheKitchen()
     {
         // The cook works while the sleepers are awake and the stove leaves no filth: the merge costs nothing, and the walk it saves wins.

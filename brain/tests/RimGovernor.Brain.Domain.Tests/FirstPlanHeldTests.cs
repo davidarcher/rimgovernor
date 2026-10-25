@@ -73,6 +73,32 @@ public sealed class FirstPlanHeldTests
         Assert.NotEmpty(plan!.RoomsOf(LayoutSurveyRules.PlannedBedroom).Concat(plan!.RoomsOf(PlannedRole.Barracks)));
     }
 
+    [Fact]
+    public void ReadAbsenceOfObtainableShellStuffStillAllowsTheFirstPlan()
+    {
+        PlanningDefinition Shell(string name) => new()
+        {
+            Name = name, Available = true,
+            StuffOptions = [new StuffOption { Stuff = "WoodLog", Common = true }],
+        };
+        var colony = ColonyFactsCoreTests.Reading();
+        colony = colony with { Facts = colony.Facts with
+        {
+            RingSources = new RingStuffSources(),
+            Definitions = [Shell(ContainmentCellRules.ShellWallDefinition), Shell(ContainmentCellRules.ShellDoorDefinition)],
+            Census = colony.Snapshot with { Resources = [] },
+        } };
+        var absence = RimGovernor.Brain.Runtime.ColonyReview.BedMergeFactsOf(colony, null,
+            new Dictionary<Resource, ConstructionMaterialValue>());
+        Assert.IsType<BedMergeFacts.NoStuffObtainable>(absence);
+        var survey = FirstLayoutPlanTests.Survey("mild");
+        var facts = FirstLayoutPlanTests.Priced(FirstLayoutPlanTests.Facts(survey, 3), "mild") with { BedMerge = absence };
+        var (plan, _) = LayoutDeriveRules.DeriveLayoutPlan(survey, facts, []);
+        Assert.NotNull(plan);
+        Assert.NotEmpty(plan.RoomsOf(PlannedRole.Barracks).Concat(plan.RoomsOf(PlannedRole.Bedroom)));
+        Assert.True(Decide("").Run);
+    }
+
     // The game's SleptInBedroom and SleptInBarracks stage offsets (Thoughts_Memory_RoomStats.xml) up to the stages the
     // catalog reads; null is SleptInBedroom's dull stage, where Toils_LayDown.ApplyBedThoughts gains no memory.
     private static readonly double?[] BedroomOffsets = [-2, null, 1, 2, 3, 4, 5, 6, 7, 8];

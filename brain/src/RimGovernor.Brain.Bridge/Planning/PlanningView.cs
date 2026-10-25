@@ -105,15 +105,12 @@ public static class PlanningViewReads
             };
         }
 
-        var sowTag = row.building?.sowTag ?? "";
-        if (sowTag != "")
+        // sowTag also permits plants beneath ordinary buildings (for example ButcherSpot); it is not a grower type.
+        if (typeof(RimWorld.Building_PlantGrower).IsAssignableFrom(row.thingClass))
         {
             v = v with
             {
-                Grower = new PlanningGrower
-                {
-                    GrowerFertility = Nonnegative(row.fertility)
-                }
+                Grower = Finite(row.fertility) >= 0 ? new GrowerFertility.Fixed(row.fertility) : new GrowerFertility.Ground()
             };
         }
 

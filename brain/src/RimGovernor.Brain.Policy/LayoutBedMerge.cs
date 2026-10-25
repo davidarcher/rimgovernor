@@ -8,7 +8,8 @@ public sealed record SleeperGains(EquatableArray<double> Bedroom, EquatableArray
 
 /// <summary>
 /// What the colony reads for the bed merge's price (#3658, #3748), read whole or naming the fact it could not read. Each
-/// is a required planner input (#3747): a chain with a free-bed pool fails naming the one unread.
+/// is a required planner input (#3747): a chain with a free-bed pool fails naming the one unread. A read absence of
+/// obtainable enclosure stuff is a separate state, which keeps future geometry without claiming enclosure benefits.
 /// </summary>
 public abstract record BedMergeFacts
 {
@@ -38,6 +39,10 @@ public abstract record BedMergeFacts
 
     /// <summary>A fact the price needs is unread: <c>sleeper_mood</c> (a sleeper's gain at a stage), <c>impressiveness_levels</c> (no catalog stages), <c>wall_price</c> or <c>door_price</c> (the catalog shows no work or cost list for the ring's piece).</summary>
     public sealed record Unread(string Fact) : BedMergeFacts;
+
+    /// <summary>The catalog, stock and map sources are read and offer no shared wall/door stuff. Rooms retain minimal
+    /// future geometry, with no obtainable enclosure and no housing or heat credit.</summary>
+    public sealed record NoStuffObtainable : BedMergeFacts;
 }
 
 /// <summary>Everything the clustering prices a bed merge with (#3658): the colony's facts, the climate the room's heat is read in, the builders, and the barracks the plan holds.</summary>
@@ -314,6 +319,23 @@ internal sealed partial class Clusterer
     /// </remarks>
     internal BedMergeChoice ChooseBeds(int n, int count, BedMergePrice price)
     {
+        if (price.Facts is BedMergeFacts.NoStuffObtainable)
+        {
+            // No enclosure can be built: retain one footprint-sized room for the bed pool, without buying walls or
+            // valuing a hypothetical room's mood/heat. The normal tiler still proves that the beds fit.
+            var single = FurnishedArea([new ClusterUnit(n, 1)], Eval([new ClusterUnit(n, 1)]));
+            var choice = new BedMergeChoice(1, single, single);
+            for (var k = 2; k <= count; k++)
+            {
+                var units = new[] { new ClusterUnit(n, k) };
+                if (Eval(units).Area > MaxArea) break;
+                var area = FurnishedArea(units, Eval(units));
+                var roofDepth = LayoutClusterRules.RoomLimits(_in.RoofDistance).Depth;
+                if (area <= MaxArea && Furnishes(units, LayoutEmbedRules.BlockShapes(area, roofDepth)[0], true))
+                    choice = new BedMergeChoice(k, area, single);
+            }
+            return choice;
+        }
         if (price.Facts is BedMergeFacts.Unread unread)
         {
             throw new RequiredFactException(unread.Fact);

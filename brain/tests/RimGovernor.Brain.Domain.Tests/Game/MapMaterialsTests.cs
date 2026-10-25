@@ -11,6 +11,47 @@ namespace RimGovernor.Brain.Domain.Tests.Game;
 public sealed class MapMaterialsTests
 {
     [Fact]
+    public void LooseStoneChunksOfferTheirNativeStonecuttingYieldWithoutStandingRock()
+    {
+        var blocks = new ThingDef { defName = "BlocksGranite" };
+        var chunks = new ThingDef
+        {
+            defName = "ChunkGranite", thingCategories = [new ThingCategoryDef { defName = nameof(ThingCategoryDefOf.StoneChunks) }],
+            butcherProducts = [new ThingDefCountClass(blocks, 20)],
+        };
+        var catalog = new DefinitionCatalog([blocks, chunks, new ThingDef { defName = "Silver" }, new TerrainDef { defName = "Soil" }], DefStatTable.Empty, new CatalogDerived("Silver", "Wort", 10f));
+        var sources = catalog.RingStuffSourcesOf([SiteCellFixtures.At(new(0, 0), things: [new P.Thing { Def = chunks.defName, Category = P.ThingCategory.Item, Count = 1 }])]);
+
+        Assert.Equal([blocks.defName], sources.Blocks);
+        Assert.True(sources.Offers(blocks.defName));
+        Assert.Equal([blocks.defName], P.PlannedRules.PlannedRingStuffs([new P.PlannedRingStuff(blocks.defName, 1, false)], sources));
+
+        P.PlanningDefinition Shell(string name, double work, long count) => new()
+        {
+            Name = name, Available = true, StuffOptions = [new P.StuffOption
+            {
+                Stuff = blocks.defName, Common = true, Value = count,
+                Costs = [new P.Amount(new(blocks.defName), count)],
+                Stats = new Dictionary<string, double> { [RimGovernor.Brain.Domain.StatDefNames.StatWorkToBuild] = work },
+            }],
+        };
+        var colony = ColonyFactsCoreTests.Reading();
+        colony = colony with { Facts = colony.Facts with
+        {
+            RingSources = sources,
+            Definitions = [Shell(P.ContainmentCellRules.ShellWallDefinition, 270, 5), Shell(P.ContainmentCellRules.ShellDoorDefinition, 1700, 25)],
+        } };
+        var (wall, door) = RimGovernor.Brain.Runtime.ColonyReview.BedMergeShell(colony);
+        var price = P.LayoutClusterRules.BedMergeFactsOf(BedMergePriceTests.Calm.Sleepers, BedMergePriceTests.Levels, wall, door,
+            new Dictionary<P.Resource, P.ConstructionMaterialValue> { [new(blocks.defName)] = new(P.MaterialValueBasis.Unpriced, 0.001) });
+        Assert.IsType<P.BedMergeFacts.Read>(price);
+        var survey = FirstLayoutPlanTests.Survey("mild");
+        var facts = FirstLayoutPlanTests.Priced(FirstLayoutPlanTests.Facts(survey, 3), "mild") with { BedMerge = price };
+        var (plan, _) = P.LayoutDeriveRules.DeriveLayoutPlan(survey, facts, []);
+        Assert.NotNull(plan);
+    }
+
+    [Fact]
     public void TheWindowOffersOreLyingStacksAndWhatUnownedBuildingsYield()
     {
         var steel = new ThingDef { defName = "Steel" };

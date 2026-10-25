@@ -177,7 +177,7 @@ partial class BuildingPlanner
     /// What the facts say of building a template piece of a definition now (#3754, #3827, #3839), on read evidence only
     /// (#3819). Blocked when its definition is read unavailable or its research is read with a prerequisite unfinished
     /// (DefinitionReadinessOf); when its stuff options, the stock and the map's sources are read and the one stuff chooser
-    /// (PlannedRingStuffsRead) finds none the colony stocks or the map offers as wood or rock blocks; or when a material of
+    /// (PlannedRingStuffsRead) finds none the colony stocks or the map offers; or when a material of
     /// its cost list other than its stuff (a stuff-less stove's Steel, a research bench's Steel beside its stuff) is read
     /// unstocked and read unobtainable (ColonyReview.PieceCostReadiness). Else Unread while any of those facts is unread, and
     /// Available.

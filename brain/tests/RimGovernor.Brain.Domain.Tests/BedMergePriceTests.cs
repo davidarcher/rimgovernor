@@ -345,9 +345,9 @@ public sealed class BedMergePriceTests
         Assert.IsType<StationWorkDay.Priced>(f.BedMergePriceOf().WorkDay);
 
         string Key(StationFacts facts) => facts.InputsKeyParts().Single(p => p.Key == "barracks").Value;
-        // The key carries the size and both areas.
+        // The key carries the size, both areas and shell-material availability.
         Assert.StartsWith("6;", Key(f));
-        Assert.Equal(3, Key(f).TrimEnd(';').Split(';').Length);
+        Assert.Equal(4, Key(f).TrimEnd(';').Split(';').Length);
         // The outdoor curve unread on this cold map (#3747): no size is keyed, and the chain fails naming the curve, so
         // the replan is skipped with the required_fact row and the next hourly check tries again.
         var unread = f with { OutdoorCurve = default };
@@ -477,6 +477,14 @@ public sealed class BedMergePriceTests
         Assert.Equal(wood, WallStuff(Colony(rock, wood)));
         // Neither stocked nor offered: no stuff, so no price and no placement.
         Assert.Equal((null, null), ColonyReview.BedMergeShell(Colony(new RingStuffSources())));
+        Assert.IsType<BedMergeFacts.NoStuffObtainable>(ColonyReview.BedMergeFactsOf(Colony(new RingStuffSources()), Calm.Sleepers, values));
+        var unread = Colony(new RingStuffSources()) with { Facts = Colony(new RingStuffSources()).Facts with { RingSources = null } };
+        Assert.IsType<BedMergeFacts.Unread>(ColonyReview.BedMergeFactsOf(unread, Calm.Sleepers, values));
+        var unsalvaged = Colony(new RingStuffSources { Unsalvaged = ["AncientMachine"] });
+        Assert.IsType<BedMergeFacts.Unread>(ColonyReview.BedMergeFactsOf(unsalvaged, Calm.Sleepers, values));
+        Assert.Equal(granite, WallStuff(Colony(new RingStuffSources { Items = [granite.Value] })));
+        Assert.Equal(granite, WallStuff(Colony(new RingStuffSources { Mined = [granite.Value] })));
+        Assert.Equal(granite, WallStuff(Colony(new RingStuffSources { Salvage = [granite.Value] })));
     }
 
     [Fact]

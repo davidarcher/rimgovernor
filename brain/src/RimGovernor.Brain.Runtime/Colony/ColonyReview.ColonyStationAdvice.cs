@@ -38,7 +38,7 @@ public sealed partial class ColonyReview
     /// catalog's stages (LayoutClusterRules.SleeperGainsOf), and the capability-days and work to build of one wall cell and one
     /// door of a bedroom's ring (BedMergeShell), each priced by LayoutClusterRules.PiecePrice from its WorkToBuild for its
     /// stuff and cost list (LayoutClusterRules.BedMergeFactsOf). A piece the catalog shows no work or cost list for is
-    /// unread, which the chain waits on (#3747).
+    /// unread, which the chain waits on (#3747). Read absence of any obtainable shared stuff names NoStuffObtainable.
     /// </summary>
     internal async Task<BedMergeFacts> BedMergeFactsAsync(GenerationSnapshot snapshot, ColonyReading projection, CancellationToken ct)
     {
@@ -46,13 +46,26 @@ public sealed partial class ColonyReview
         var (wall, door) = BedMergeShell(projection);
         var materials = new[] { wall, door }.SelectMany(p => p?.Costs ?? []).Select(a => a.Resource);
         var values = await MaterialValuesAsync(snapshot, materials, projection.Facts.Stations, projection.Facts.Items, ct).ConfigureAwait(false);
+        return BedMergeFactsOf(projection, sleepers, values);
+    }
+
+    /// <summary>The shared ring chooser distinguishes a read absence of obtainable shell stuff from an unread price.</summary>
+    internal static BedMergeFacts BedMergeFactsOf(ColonyReading projection, EquatableArray<SleeperGains>? sleepers,
+        IReadOnlyDictionary<Resource, ConstructionMaterialValue> values)
+    {
+        var (stuffs, read) = PlannedRingStuffsRead(projection, ContainmentCellRules.ShellWallDefinition, ContainmentCellRules.ShellDoorDefinition);
+        if (read && stuffs.Count == 0)
+        {
+            return new BedMergeFacts.NoStuffObtainable();
+        }
+        var (wall, door) = BedMergeShell(projection);
         return LayoutClusterRules.BedMergeFactsOf(sleepers, projection.Facts.Impressiveness, wall, door, values);
     }
 
     /// <summary>
     /// One wall cell and one door of a bedroom's ring (#3674): the Wall and the Door in the stuff a planned room's base ring
     /// sites are read in (the first of PlannedRingStuffsOf: the cheapest stocked, else the map's wood where trees stand,
-    /// else its rock's blocks, #3747), the door in the wall's stuff as the planned sites build it. Either is null where the
+    /// else its rock's or loose chunks' blocks, else another offered material), the door in the wall's stuff as the planned sites build it. Either is null where the
     /// catalog shows no work or cost list for it.
     /// </summary>
     internal static ((double Work, IReadOnlyList<Amount> Costs)? Wall, (double Work, IReadOnlyList<Amount> Costs)? Door) BedMergeShell(ColonyReading projection)

@@ -568,22 +568,37 @@ Planned rooms are scheduled as construction activities in the coupled portfolio 
 
 ### Planned-site facts
 
+Planning definitions identify growers by the native `Building_PlantGrower` class and preserve
+the census's fixed-fertility or ground-fertility state. A sow tag also permits plants beneath
+ordinary buildings such as the butcher spot; it does not turn those buildings into growers.
+The hydroponics infrastructure model requires the basin's fixed fertility.
+The first review also reads the butcher table's definition before checking its cheapest
+stocked construction option. No stocked option is known unaffordability; missing cost data
+remains unread.
+
 Every round, `ColonyReview.PlannedSitesAsync` turns the same owed diff into `ReviewFacts.PlannedSites`
 (`PlannedSiteFacts`: `Sites` and `Findings`). `PlannedSitesOf` makes one `PlannedBuildSite` per owed operation
 and stuff:
 
 - walls, doors and vents: one site per ring stuff, for up to `PlannedRingStuffCount` (2) stuffs per room. These
   are the stocked stuffs the wall and door can both be made from, cheapest first; with none stocked, the wood the
-  window's standing trees give, else the blocks of its natural rock's stone (`ReviewFacts.RingSources`, #3747),
-  else none.
+  window's standing trees give, else the blocks of its natural rock's stone or loose stone chunks (`ReviewFacts.RingSources`),
+  else the cheapest usable stuff offered by mining, lying stacks or salvage, else none.
   With every scope of the first stuff, that covers the 4 alternatives per room.
+  When the catalog, stock and all map sources are read and offer no shared wall/door stuff,
+  the bed merge names `NoStuffObtainable`. The first plan retains footprint-sized future bed rooms,
+  without pricing nonexistent walls or crediting their heat, bedroom thoughts or enclosure effects.
+  Traffic past sleeping beds still costs disturbed-sleep mood even without walls.
+  Its native room prediction request adds no missing ring pieces; an open shape has no closed-room
+  answer and therefore no enclosure credit. Unread sources or salvage remain unread. A change
+  between this state and obtainable stuff invalidates the layout input key even if room sizes agree.
 - floors: one site per floor def.
 - pieces: one site per piece, in the bulk chooser's stuff. The round marks a piece's site `Blocked` (#3838,
   `ColonyReview.BlockedPiecesOf`) when the one blocked predicate (`BuildingPlanner.PieceReadinessOf`, read evidence
   only, #3819) reads its piece Blocked: research read unfinished or the definition read unavailable; no stuff the ring
   chooser finds; or a material of its cost list beside its stuff (a stove's Steel, a research bench's Steel, #3839)
   read unstocked and read unobtainable. A material is obtainable when the window offers it
-  (`ReviewFacts.RingSources`, `RingStuffSourcesOf`): tree wood, rock blocks, what its natural rock is mined into
+  (`ReviewFacts.RingSources`, `RingStuffSourcesOf`): tree wood, rock or loose-chunk blocks, what its natural rock is mined into
   (compacted steel's Steel), a stack lying on it, or what deconstructing an unowned, deconstructible building outside
   any ancient danger yields for certain (its adjusted cost list at `resourcesFractionWhenDeconstructed`, GenLeaving).
   Trade does not count. An unread stock, unread sources or a building whose yield the catalog cannot read leave the
