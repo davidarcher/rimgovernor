@@ -48,6 +48,7 @@
     <DefaultItemExcludes Condition="'$(GameAvailable)' != 'true'">$(DefaultItemExcludes);Game/**</DefaultItemExcludes>
   </PropertyGroup>
   <ItemGroup Condition="'$(GameAvailable)' == 'true'">
+    <Compile Include="../../../integrations/rimgovernor-native/src/Bridge/NativeTradeSilver.cs" Link="Native/NativeTradeSilver.cs" />
     <Reference Include="Assembly-CSharp"><HintPath>$(RimWorldDir)/Assembly-CSharp.dll</HintPath><Private>true</Private></Reference>
     <Reference Include="Waylith"><HintPath>$(RimWorldDir)/Waylith.dll</HintPath><Private>true</Private></Reference>
     <Reference Include="UnityStubs"><HintPath>$(RimWorldDir)/UnityStubs.dll</HintPath><Private>true</Private></Reference>

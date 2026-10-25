@@ -706,7 +706,7 @@ class the decoder does not know, is named `stock_arrival_trade_comp_unmodelled:<
 kinds by `CalculatedCommonality`, an orbital trader a kind by `CalculatedCommonality` among the kinds whose `CanSpawn` passes (#3910: `GetFaction` draws one of the
 kind's faction def's factions at random, so a kind passes with the share of them a colonist can trade with, `TraderKindWeight.Qualifies`;
 the ship's own faction is a second such draw, and `TradeShip.CanCommunicateWith` lets the colony trade only when that one qualifies too,
-so kind k is traded with at q × w ÷ (w + the other candidates' weight) × q, summed exactly over which other kinds pass); travelers send none (the native `TradeVisitFacts` on the threat section carries both, with each incident's blocked gates). The catalog
+so kind k is traded with at q × w ÷ (w + the other candidates' weight) × q, computed exactly by convolving the distribution of total passing weight, with equal sums merged and no kind-count cap); travelers send none (the native `TradeVisitFacts` on the threat section carries both, with each incident's blocked gates). The catalog
 reads every trader kind's stock (`DefinitionCatalog.TraderStock`): SingleDef, MultiDef, Category and Tag generators by exact class,
 each picking the def with the chance its draw of distinct defs gives and making `StockGenerator.RandomCountOf` of it; the Buy
 generators make nothing, another class handling a stock resource is named `stock_arrival_trade_stock_unmodelled:<kind>:<class>`.
@@ -714,8 +714,9 @@ A visit supplies n units when its kind makes n and n × the buy price (the def's
 (1 + tradePriceFactorLoss) × (1 − the best negotiator's TradePriceImprovement)) is within today's spendable silver (the silver above the routine trade's reserve, `TradePolicyRules.SpendableSilver`: max(200, 100 ×
 colonists) kept, #3855 Q2 A, #3907; an orbital trader is paid only from the silver within a powered trade beacon's range
 (`TradeVisitFacts.BeaconSilver`, `TradeUtility.AllLaunchableThingsForTrade`, #3910) and the routine trade's reserve holds against that
-silver, the trade sheet's own, so the orbital sources see `SpendableSilver(BeaconSilver, colonists)` and the caravans and visitors
-the map's silver; silver income named `stock_arrival_trade_silver_income_unmodelled`). MTB not-arrived chances remain exponential.
+silver, the trade sheet's own, so future orbital sources see `SpendableSilver(BeaconSilver, colonists)` and future caravans and visitors
+see `SpendableSilver(GroundSilver, colonists)`; silver income named `stock_arrival_trade_silver_income_unmodelled`). MTB not-arrived chances remain exponential.
+Future caravan and visitor affordability uses `TradeVisitFacts.GroundSilver`: sellable, unfogged silver in the home area or storage, plus colonist haul-source contents, mirroring `Pawn_TraderTracker.ColonyThingsWillingToBuy`'s item rules. It conditions on the future trader gaining access; its future position and reachability are not guaranteed. Once a trader exists, `TradeVisit.Silver` counts that actual trader's native `ColonyThingsWillingToBuy(negotiator)` set, including its reachability and held contents, for both ground and orbital visits. Requested caravans use the same future ground count. Each count loses the routine silver reserve before purchases are forecast.
 Scheduled visits multiply one miss chance per dated visit. Expected waits integrate between every craft step, source start and native visit date.
 `StockArrival.At` keeps the original native row and excludes visits before a future want; a selected one-time delivery before the want remains held stock. True zeros are
 named: `stock_arrival_trade_no_negotiator`, `stock_arrival_orbital_no_comms_console`, `stock_arrival_orbital_no_trade_beacon`,

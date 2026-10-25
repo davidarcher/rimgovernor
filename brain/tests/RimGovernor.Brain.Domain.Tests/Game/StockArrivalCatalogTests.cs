@@ -257,7 +257,7 @@ public sealed class StockArrivalCatalogTests
     {
         var census = ColonyFactsCoreTests.Snapshot() with
         {
-            Threat = new ThreatSection { Observed = ColonyFactsCoreTests.QuietThreat with { Storyteller = storyteller, Trade = facts ?? Visits(kind), Cycles = cycles ?? [new(0, 60, [5, 20, 35, 50]), new(1, 60, [3, 10, 17, 24, 31, 38, 45, 52, 59]), new(3, 60, [4, 19, 34, 49])] } },
+            Threat = new ThreatSection { Observed = ColonyFactsCoreTests.QuietThreat with { Storyteller = storyteller, Trade = facts ?? Visits(kind) with { GroundSilver = silver }, Cycles = cycles ?? [new(0, 60, [5, 20, 35, 50]), new(1, 60, [3, 10, 17, 24, 31, 38, 45, 52, 59]), new(3, 60, [4, 19, 34, 49])] } },
             Resources = [new Quantity { DefName = "Silver", Units = silver }],
             ColonistCount = 3,
         };
@@ -279,10 +279,22 @@ public sealed class StockArrivalCatalogTests
     }
 
     [Fact]
+    public void GroundArrivalsAndRequestsSpendTheNativeHomeStorageSilverInsteadOfTheMapCensus()
+    {
+        var facts = Visits() with { GroundSilver = 1570, Requests = [ForecastTradeRequestTests.Request(kind: "Caravan_Outlander_Exotic")], CommsConsole = true };
+        var stock = FreshStock(TradeCatalog(), "Cassandra", 9000, facts: facts);
+        Assert.All(stock.Trade, source => Assert.Equal(1270, source.Silver));
+        Assert.All(Assert.Single(stock.Requests).Sources, source => Assert.Equal(1270, source.Silver));
+        var empty = FreshStock(TradeCatalog(), "Cassandra", 9000, facts: facts with { GroundSilver = 300 });
+        Assert.All(empty.Trade, source => Assert.Equal(0, source.Silver));
+        Assert.All(Assert.Single(empty.Requests).Sources, source => Assert.Equal(0, source.Silver));
+    }
+
+    [Fact]
     public void AFreshColonysNativeFrameBuildsARequestPortfolioRootWithoutAnyUnmetDemand()
     {
         var native = ForecastTradeRequestTests.Request(kind: "Caravan_Outlander_Exotic");
-        var stock = FreshStock(TradeCatalog(), "Cassandra", 2000, facts: Visits() with { CommsConsole = true, Requests = [native] });
+        var stock = FreshStock(TradeCatalog(), "Cassandra", 2000, facts: Visits() with { CommsConsole = true, Requests = [native], GroundSilver = 2000 });
         var option = Assert.Single(stock.Requests);
         var arm = new Resource("BionicArm");
         var arrival = Assert.Single(option.Sources, s => s.Resource == arm);
@@ -470,7 +482,7 @@ public sealed class StockArrivalCatalogTests
     {
         // The production way (#3822, #3910): three colonists with 1000 silver, 400 of it within the powered beacon's range, a comms
         // console and the Medic kind everywhere. The routine trade's reserve is 300: the caravan and visitors see 700, the orbital cycle 100.
-        var facts = Visits("Caravan_Outlander_Medic") with { CommsConsole = true, TradeBeacon = true, BeaconSilver = 400 };
+        var facts = Visits("Caravan_Outlander_Medic") with { CommsConsole = true, TradeBeacon = true, BeaconSilver = 400, GroundSilver = 1000 };
         var stock = FreshStock(TradeCatalog(), "Cassandra", 1000, facts: facts);
         var herbal = new Resource("MedicineHerbal");
         var orbital = stock.Trade.Single(s => s.Resource == herbal && s.From == 0);

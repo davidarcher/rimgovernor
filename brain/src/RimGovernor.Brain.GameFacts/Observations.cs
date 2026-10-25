@@ -4491,9 +4491,13 @@ public sealed record Trader
 }
 
 /// <summary>A dated current opportunity. AvailableTicks is the native remaining stationary visit/ship timer;
-/// opening must finish strictly before it. Departing or conditionally paused caravan states supply no visit.</summary>
+/// opening must finish strictly before it. Silver is the actual trader's ColonyThingsWillingToBuy currency count.
+/// Departing or conditionally paused caravan states supply no visit.</summary>
 public sealed record TradeVisit(PawnId Negotiator, Cell Location, int AvailableTicks,
-    [property: JsonConverter(typeof(EquatableArrayJsonConverter<SettlementStockItem>))] EquatableArray<SettlementStockItem> Stock);
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<SettlementStockItem>))] EquatableArray<SettlementStockItem> Stock)
+{
+    public long Silver { get; init; }
+}
 
 /// <summary>
 /// The map's traders, in id order, and the colonists eligible to negotiate (not dead, downed, in a mental state or
@@ -5929,6 +5933,10 @@ public sealed record TradeVisitFacts
     public bool TradeBeacon { get; init; }
 
     public long BeaconSilver { get; init; }
+
+    /// <summary>Unfogged sellable silver in the home area or storage, plus haul-source contents.
+    /// Future ground visits condition on trader access; actual visits read their own reachable set.</summary>
+    public long GroundSilver { get; init; }
 
     public bool Negotiator { get; init; }
 

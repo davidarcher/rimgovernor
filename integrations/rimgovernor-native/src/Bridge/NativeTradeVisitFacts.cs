@@ -38,6 +38,7 @@ internal static class NativeTradeVisitFacts
             TradeBeacon = Building_OrbitalTradeBeacon.AllPowered(map).Any(),
             // TradeUtility.ColonyHasEnoughSilver's count: the silver an orbital trader is paid from.
             BeaconSilver = TradeUtility.AllLaunchableThingsForTrade(map).Where(t => t.def == ThingDefOf.Silver).Sum(t => (long)t.stackCount),
+            GroundSilver = NativeTradeSilver.Ground(map),
             Negotiator = negotiators.Count != 0,
             NegotiatorPriceImprovement = negotiators.Count == 0 ? 0 : negotiators.Max(p => p.GetStatValue(StatDefOf.TradePriceImprovement)),
             PriceFactorLoss = difficulty.tradePriceFactorLoss,

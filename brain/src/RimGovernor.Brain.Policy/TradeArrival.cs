@@ -538,9 +538,6 @@ public static class TradeArrivalRules
     // IncidentWorker_VisitorGroup.TraderChance (private const): a visitor group converts one adult to a trader with this chance.
     internal const double VisitorTraderChance = 0.75;
 
-    // The most orbital kinds of a drawn faction one incident's exact draw enumerates (2^n sets of candidates).
-    private const int MaxFactionKinds = 16;
-
     /// <summary>
     /// The trade sources (#3869, #3909) of <paramref name="storyteller"/>'s trader comps for the colony now. Per comp the events a
     /// day (a FactionInteraction comp's incidents a day × the ally fraction, none below its min wealth or min danger; an OnOffCycle
@@ -550,7 +547,7 @@ public static class TradeArrivalRules
     /// console and trade beacon, travelers, or a colony without a negotiator. Each visit is of a kind drawn as the incident draws it
     /// (a source uniformly, then a kind by weight; a visitor group's trader with <see cref="VisitorTraderChance"/>) and supplies a
     /// resource as <see cref="TradeSource"/> prices it from the silver it is paid from: <paramref name="orbitalSilver"/> for an orbital
-    /// trader (the silver within trade-beacon range, #3910), <paramref name="silver"/> for every other trader, each already above the
+    /// trader (the silver within trade-beacon range, #3910), <paramref name="silver"/> (home-area/storage silver) for every other trader, each already above the
     /// routine trade's reserve (<see cref="TradePolicyRules.SpendableSilver"/>). An incident the read or the catalog does not
     /// carry, or a kind the catalog does not know, leaves the trade unread (the returned Unread).
     /// </summary>
@@ -852,27 +849,23 @@ public static class TradeArrivalRules
             var others = candidates.Where(k => k != kind).ToList();
             var sure = others.Where(k => k.Qualifies >= 1).Sum(k => k.Weight);
             var maybe = others.Where(k => k.Qualifies < 1).ToList();
-            if (maybe.Count > MaxFactionKinds)
+            // Convolve the total passing weight. Equal sums share a state; native commonalities
+            // are floats represented exactly as doubles. No quantisation, truncation or kind cap.
+            var totals = new Dictionary<double, double> { [0] = 1 };
+            foreach (var candidate in maybe)
             {
-                throw new DomainException($"orbital trader kinds of a drawn faction {maybe.Count} past {MaxFactionKinds}");
-            }
-
-            // E[1 ÷ (w + the candidates' weight)] over which of the other kinds' faction draws pass.
-            var share = 0.0;
-            for (var set = 0; set < 1 << maybe.Count; set++)
-            {
-                var chance = 1.0;
-                var weight = kind.Weight + sure;
-                for (var i = 0; i < maybe.Count; i++)
+                var next = new Dictionary<double, double>();
+                foreach (var (weight, probability) in totals)
                 {
-                    var passes = (set >> i & 1) == 1;
-                    chance *= passes ? maybe[i].Qualifies : 1 - maybe[i].Qualifies;
-                    weight += passes ? maybe[i].Weight : 0;
+                    next[weight] = next.GetValueOrDefault(weight) + probability * (1 - candidate.Qualifies);
+                    var passing = weight + candidate.Weight;
+                    next[passing] = next.GetValueOrDefault(passing) + probability * candidate.Qualifies;
                 }
 
-                share += chance / weight;
+                totals = next;
             }
 
+            var share = totals.Sum(t => t.Value / (kind.Weight + sure + t.Key));
             chances[kind.Kind] = kind.Weight * kind.Qualifies * kind.Qualifies * share;
         }
 

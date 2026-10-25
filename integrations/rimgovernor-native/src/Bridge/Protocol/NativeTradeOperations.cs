@@ -623,7 +623,7 @@ namespace RimGovernor.Native
         private static int ColonySilverNow(ITrader? trader, Pawn? negotiator)
         {
             if (trader == null || negotiator == null) throw new InvalidOperationException("Trade silver has no trader or negotiator.");
-            return trader.ColonyThingsWillingToBuy(negotiator).Where(t => t != null && !t.Destroyed && t.def == ThingDefOf.Silver).Sum(t => t.stackCount);
+            return checked((int)NativeTradeSilver.ForTrader(trader, negotiator));
         }
 
         private static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence ApplyEnd(RimGovernor.Brain.GameOrders.Operations.EndTrade command, string traderId, string negotiatorId, RimGovernor.Brain.GameFacts.Common.Identity identity)

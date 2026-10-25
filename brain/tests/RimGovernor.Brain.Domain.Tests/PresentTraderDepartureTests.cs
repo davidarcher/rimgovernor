@@ -8,11 +8,11 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class PresentTraderDepartureTests
 {
     private static readonly Resource Arm = new("Arm");
-    private static Trader Seller(bool orbital, int ticks = 100) => new()
+    private static Trader Seller(bool orbital, int ticks = 100, long silver = 280) => new()
     {
         Id = orbital ? "ship" : "caravan", Orbital = orbital, Kind = "exotic", FactionId = "ally",
         CanTrade = true, Travelling = false, GoodsStacks = 1,
-        Visit = new(new("pawn"), new(5, 6), ticks, [new(Arm.Value, 1, 80)]),
+        Visit = new(new("pawn"), new(5, 6), ticks, [new(Arm.Value, 1, 80)]) { Silver = silver },
     };
 
     [Theory]
@@ -22,7 +22,7 @@ public sealed class PresentTraderDepartureTests
     [InlineData(true, 100, false)]
     public void NativeDeadlineBoundsTheProductionOpeningAcrossWalkAndCrewAvailability(bool orbital, int finish, bool fits)
     {
-        var visit = Assert.Single(ForecastTradeVisits.Options([Seller(orbital)], 80, 80));
+        var visit = Assert.Single(ForecastTradeVisits.Options([Seller(orbital)], 1));
         var work = Assert.Single(ForecastTradeExecution.Work(new() { Visits = [visit] }));
         var compared = ForecastActivities.CompareActivityPlans(new()
         {
@@ -43,7 +43,7 @@ public sealed class PresentTraderDepartureTests
     public void OnlyASelectedAffordablePurchaseBeforeDepartureCanServeALaterWant(bool orbital)
     {
         var seller = Seller(orbital);
-        var visit = Assert.Single(ForecastTradeVisits.Options([seller], 80, 80));
+        var visit = Assert.Single(ForecastTradeVisits.Options([seller], 1));
         StockNeed[] needs = [new([Arm], 1)];
         var unselected = new StockArrival { Visits = [visit] };
         Assert.Equal(1, unselected.At(1).NotArrived(needs[0], 1));
@@ -54,17 +54,20 @@ public sealed class PresentTraderDepartureTests
         var missed = purchased with { Trade = [source with { From = 100d / GameTime.TicksPerDay }] };
         Assert.Empty(ForecastTradeRequests.Authorize(missed, needs));
         Assert.Equal(1, missed.At(1).NotArrived(needs[0], 1));
-        var poor = Assert.Single(ForecastTradeVisits.Options([seller], 79, 79));
+        var poor = Assert.Single(ForecastTradeVisits.Options([Seller(orbital, silver: 279)], 1));
         Assert.Empty(ForecastTradeRequests.Authorize(new() { Trade = poor.Sources }, needs));
         Assert.Equal(1, Assert.Single(poor.Sources).NotArrived(1, 1));
     }
 
     [Fact]
-    public void ShipsSpendBeaconSilverAndADepartedSellerHasNoOpening()
+    public void EachSellerSpendsItsOwnNativeSilverAndADepartedSellerHasNoOpening()
     {
-        var visits = ForecastTradeVisits.Options([Seller(false), Seller(true)], 80, 79);
+        var visits = ForecastTradeVisits.Options([Seller(false), Seller(true, silver: 279)], 1);
         Assert.Equal(0, Assert.Single(visits.Single(v => !v.Native.Orbital).Sources).NotArrived(1, 1));
         Assert.Equal(1, Assert.Single(visits.Single(v => v.Native.Orbital).Sources).NotArrived(1, 1));
-        Assert.Empty(ForecastTradeVisits.Options([Seller(false, 0), Seller(true, 0)], 80, 80));
+        Assert.Empty(ForecastTradeVisits.Options([Seller(false, 0), Seller(true, 0)], 1));
+        var reserved = Assert.Single(ForecastTradeVisits.Options([Seller(false, silver: 379)], 3));
+        Assert.Equal(79, Assert.Single(reserved.Sources).Silver);
+        Assert.Equal(0, Assert.Single(Assert.Single(ForecastTradeVisits.Options([Seller(false)], 0)).Sources).Silver);
     }
 }

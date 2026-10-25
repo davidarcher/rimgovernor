@@ -39,8 +39,8 @@ Dismissed, departing, combat-paused and taking-wounded states offer no dated
 opening. Missing lord/timer structure refuses the read rather than supplying an
 unlimited visit. The shared schedule must finish the walk/comms opening before
 departure, including the negotiator's earlier work and availability. Dispatch
-checks the same bound. Current orbital purchases spend today's beacon silver;
-map purchases spend today's map silver, each after the routine reserve and
+checks the same bound. Each current purchase spends the silver in its actual trader's native
+`ColonyThingsWillingToBuy(negotiator)` set, after the routine reserve and
 shared medicine-first claims.
 
 Held stock contributes only through a selected opening and affordable purchase

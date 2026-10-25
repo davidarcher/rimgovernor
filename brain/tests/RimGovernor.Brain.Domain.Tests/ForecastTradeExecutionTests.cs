@@ -134,10 +134,10 @@ public sealed class ForecastTradeExecutionTests
             Negotiators = [new("pawn")],
             Traders = [new() { Id = "actual", Orbital = channel == 3, Kind = "exotic", FactionId = "ally",
                 CanTrade = true, Travelling = false, GoodsStacks = 1,
-                Visit = new(new("pawn"), request.Native.ConsoleCell, 40000, [new(Arm.Value, 1, 100)]) }],
+                Visit = new(new("pawn"), request.Native.ConsoleCell, 40000, [new(Arm.Value, 1, 100)]) { Silver = 1000 } }],
         };
         var stock = new StockArrival { Requests = settlement || present ? [] : [request], Missions = settlement ? [option] : [],
-            Visits = present ? ForecastTradeVisits.Options(RimGovernor.Brain.Bridge.FrameReads.FrameTraders(census), 800, 800) : [] };
+            Visits = present ? ForecastTradeVisits.Options(RimGovernor.Brain.Bridge.FrameReads.FrameTraders(census), 1) : [] };
         var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0, sourceCount: 0, horizon: GameTime.TicksPerDay);
         facts = facts with { StockArrival = stock, ForecastObserved = facts.ForecastObserved with
         {
@@ -230,9 +230,9 @@ public sealed class ForecastTradeExecutionTests
     {
         var trader = new Trader { Id = "actual-arrival", Kind = "exotic", FactionId = "ally", Orbital = false,
             CanTrade = true, Travelling = false, GoodsStacks = 2,
-            Visit = new(new("pawn"), new(5, 6), 40000, [new("Arm", 1, 700), new("Medicine", 2, 100)]) };
+            Visit = new(new("pawn"), new(5, 6), 40000, [new("Arm", 1, 700), new("Medicine", 2, 100)]) { Silver = 1000 } };
         var other = trader with { Id = "same-faction-other-trader", Visit = trader.Visit! with { Stock = [new("unneeded", 1, 1)] } };
-        var visits = ForecastTradeVisits.Options([other, trader], 800, 800);
+        var visits = ForecastTradeVisits.Options([other, trader], 1);
         var visit = Assert.Single(visits, v => v.Native.Id == trader.Id);
         Assert.Same(trader, visit.Native);
         Assert.NotEqual(visits[0].Id, visits[1].Id);

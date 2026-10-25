@@ -289,9 +289,9 @@ public sealed class TradeArrivalTests
     }
 
     [Fact]
-    public void AnOrbitalTraderIsPaidFromTheSilverWithinBeaconRangeAndACaravanFromTheMaps()
+    public void AnOrbitalTraderIsPaidFromBeaconSilverAndACaravanFromGroundTradeSilver()
     {
-        // #3910: the orbital source prices a unit against the beacon's silver (1260 unaffordable from 100), the caravan against the map's.
+        // #3910: the orbital source prices a unit against the beacon's silver (1260 unaffordable from 100), the caravan against home/storage silver.
         var (sources, _, unread) = TradeArrivalRules.Sources(Schedule, Cassandra, Stock, Facts(), 0, 5000, 100, Cycles);
         Assert.Empty(unread);
         var orbital = sources.Single(s => s.From == 0);
@@ -300,6 +300,32 @@ public sealed class TradeArrivalTests
         Assert.Equal(0, orbital.Supplies(1));
         Assert.Equal(0.125 * 0.3, caravan.Supplies(1), 12);
         Assert.Equal(0.3, TradeArrivalRules.Sources(Schedule, Cassandra, Stock, Facts(), 0, 5000, 1260, Cycles).Sources.Single(s => s.From == 0).Supplies(1), 12);
+    }
+
+    [Fact]
+    public void MoreThanSixteenUncertainOrbitalKindsHaveTheirExactBinomialChances()
+    {
+        // For n identical independent candidates, symmetry gives each 1/n of the chance
+        // at least one passes, followed by the independent ship-faction qualification.
+        const int count = 80;
+        const double qualifies = 0.25;
+        var kinds = Enumerable.Range(0, count).Select(i => new TraderKindWeight("kind/" + i, 0.125) { Qualifies = qualifies }).ToArray();
+        var chances = TradeArrivalRules.OrbitalKindChances(kinds);
+        Assert.Equal(count, chances.Count);
+        var expected = qualifies * (1 - Math.Pow(1 - qualifies, count)) / count;
+        Assert.All(chances.Values, actual => Assert.Equal(expected, actual, 12));
+    }
+
+    [Fact]
+    public void MoreThanSixteenKindsWithDifferentWeightsRetainEveryPassingWeight()
+    {
+        var kinds = Enumerable.Range(0, 24).Select(i => new TraderKindWeight("kind/" + i, (i % 3 + 1) * 0.125) { Qualifies = 0.5 }).ToArray();
+        var chances = TradeArrivalRules.OrbitalKindChances(kinds);
+        // Conditioning on at least one passing kind partitions selection among all kinds.
+        Assert.Equal(0.5 * (1 - Math.Pow(0.5, kinds.Length)), chances.Values.Sum(), 12);
+        Assert.True(chances["kind/2"] > chances["kind/1"]);
+        Assert.True(chances["kind/1"] > chances["kind/0"]);
+        Assert.Equal(chances["kind/0"], chances["kind/21"], 12);
     }
 
     [Fact]

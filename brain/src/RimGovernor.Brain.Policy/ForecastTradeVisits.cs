@@ -15,7 +15,7 @@ public sealed record ForecastTradeVisit(Trader Native, EquatableArray<TradeSourc
 
 public static class ForecastTradeVisits
 {
-    public static EquatableArray<ForecastTradeVisit> Options(IEnumerable<Trader> traders, long silver, long orbitalSilver) => EquatableArray.From(traders
+    public static EquatableArray<ForecastTradeVisit> Options(IEnumerable<Trader> traders, long colonists) => EquatableArray.From(traders
         .Where(t => t.CanTrade && t.Visit is { AvailableTicks: > 0 }).Select(t =>
         {
             var stock = TraderKindStock.Held(t.Visit!.Stock, "trader_stock:" + t.Id);
@@ -23,7 +23,7 @@ public static class ForecastTradeVisits
                 new TradeSource(o.Key, 0, 0)
                 {
                     Once = true, PurchaseUntil = t.Visit.AvailableTicks / (double)GameTime.TicksPerDay,
-                    Silver = t.Orbital ? orbitalSilver : silver, PriceFactor = 1,
+                    Silver = TradePolicyRules.SpendableSilver(t.Visit.Silver, colonists), PriceFactor = 1,
                     Kinds = [new(1, o.Value) { Stock = stock }],
                 })));
         }));

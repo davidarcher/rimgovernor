@@ -40,7 +40,8 @@ namespace RimGovernor.Native
                 var stock = trader.Goods.Where(t => t is not Pawn && t.stackCount > 0 && t.def != ThingDefOf.Silver)
                     .Select(t => new RimGovernor.Brain.GameFacts.Observations.SettlementStockItem(t.def.defName, t.stackCount,
                         TradeUtility.GetPricePlayerBuy(t, trader.TraderKind.PriceTypeFor(t.def, TradeAction.PlayerBuys).PriceMultiplier(), 1, gain, trader.TradePriceImprovementOffsetForPlayer)));
-                return new(new PawnId(negotiator.GetUniqueLoadID()), new(location.x, location.z), availableTicks, RimGovernor.Brain.Domain.EquatableArray.From(stock));
+                return new(new PawnId(negotiator.GetUniqueLoadID()), new(location.x, location.z), availableTicks, RimGovernor.Brain.Domain.EquatableArray.From(stock))
+                { Silver = NativeTradeSilver.ForTrader(trader, negotiator) };
             }
             foreach (var pawn in map.mapPawns.AllPawnsSpawned.ToList())
             {

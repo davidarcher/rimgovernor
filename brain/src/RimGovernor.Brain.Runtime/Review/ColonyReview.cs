@@ -697,8 +697,7 @@ public sealed partial class ColonyReview
         reading = reading.WithFacts(rf => rf with { CreepJoiners = CreepJoiner.CreepJoinerHarmOf(reading.Reading, reading.Frame, reading.Catalog), PreviousPawnValues = PawnValueMemory.Get(state.Snapshot) });
         var settlementOptions = await SettlementForecastOptionsAsync(state.Snapshot, reading.Reading, reading.Catalog, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { StockArrival = (rf.StockArrival with { Missions = settlementOptions,
-            Visits = ForecastTradeVisits.Options(rf.Traders, TradePolicyRules.SpendableSilver(rf.Silver(), rf.Census.ColonistCount),
-                TradePolicyRules.SpendableSilver((rf.Census.Threat.Observed.Trade ?? throw new RequiredFactException("trader visit observation")).BeaconSilver, rf.Census.ColonistCount)) })
+            Visits = ForecastTradeVisits.Options(rf.Traders, rf.Census.ColonistCount) })
                 .WithMedicineClaim(rf.Items, medicine, rf.Census.ColonistCount, Policy.MedicalReserve) });
         var reconsideration = ForecastIncumbentPreparation.PrepareCoupledIncumbents(reading.Reading.Facts, batches, workActions);
         reading = reading.WithFacts(_ => reconsideration.Facts with { PreviousCoupledSelection = CoupledMemory.Get(state.Snapshot).Selected, PreviousPlannedShelters = CoupledMemory.Get(state.Snapshot).Rooms });

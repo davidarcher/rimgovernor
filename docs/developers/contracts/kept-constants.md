@@ -356,7 +356,7 @@ own target, standing in for the player's stock-target bill count.
 | RandomMain ThreatBig fraction (#3909) | 1 ÷ (1 + (1 − p)(1 − e^(−λpM)) ÷ p), 1 ÷ (1 + λM) at p = 0: λ = 1 ÷ `mtbDays`, p = ThreatBig's weight over the drawable weight, M = `maxThreatBigIntervalDays` | `StorytellerComp_RandomMain.MakeIntervalIncidents`, `ChooseRandomCategory` |
 
 The model's own choices, not game rules: a visit's purchases are paid from today's spendable silver (the silver above the routine
-trade's reserve: the map's silver for caravans and visitors, the silver within beacon range for orbital traders, #3910; medicine is
+trade's reserve: home-area/storage silver for future caravans and visitors, conditional on their future access; the actual native trader's reachable set for current visits, the silver within beacon range for orbital traders, #3910; medicine is
 claimed first, parts see the rest, #3907),
 a visit is a fluid expectation rather than a lump (its cheapest-carried medicine and silver cost use the joint native stock draw
 and native buy price, #3981), the accept curves are taken at today's days and points,
