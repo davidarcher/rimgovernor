@@ -53,7 +53,7 @@ public sealed class AnimalsReader
         var (_, reading) = await ReadingAsync(scope, call).ConfigureAwait(false);
         var projection = reading.Projection;
         var f = projection.Facts;
-        var handlers = projection.WorkPawns.TryGetValue(out var pawns)
+        var handlers = projection.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns }
             ? Known<EquatableArray<PawnProfile>>([.. PawnRules.Profiles(pawns)])
             : Unknown<EquatableArray<PawnProfile>>();
         var uncontained = AnimalUpkeepRules.ReviewAnimalUpkeep(f.AnimalUpkeep).Containment;
@@ -124,7 +124,7 @@ public sealed class AnimalsReader
             return await ReconcileAsync(work, review, reading, pen, call).ConfigureAwait(false);
         }
         var projection = reading.Projection;
-        if (!projection.WorkPawns.TryGetValue(out var workPawns))
+        if (projection.WorkPawns is not WorkPawnsRead.Read { Pawns: var workPawns })
         {
             return FieldUnavailable("work_pawns");
         }

@@ -43,7 +43,7 @@ public sealed class TombTests
     };
 
     private static bool Owed(params WasteItem[] waste) =>
-        TombRules.TombOwed(Shapes, Known(true), Known(Plan), Known<EquatableArray<WasteItem>>([.. waste]), CurrentConstruction.Empty);
+        TombRules.TombOwed(Shapes, Known(true), Plan, Known<EquatableArray<WasteItem>>([.. waste]), CurrentConstruction.Empty);
 
     [Fact]
     public void AColonistCorpseIsStagedIntoAFreeTombSlot()
@@ -76,9 +76,9 @@ public sealed class TombTests
     public void AnUnreadInputRaisesARequiredFact()
     {
         var waste = Known<EquatableArray<WasteItem>>([Corpse(CorpseOf.Colonist)]);
-        Assert.Equal("waste census or current construction", Assert.Throws<RequiredFactException>(() => TombRules.TombOwed(Shapes, Known(true), Known(Plan), default, CurrentConstruction.Empty)).Fact);
-        Assert.Equal("waste census or current construction", Assert.Throws<RequiredFactException>(() => TombRules.TombOwed(Shapes, Known(true), Known(Plan), waste, null)).Fact);
-        Assert.Equal("layout plan", Assert.Throws<RequiredFactException>(() => TombRules.TombOwed(Shapes, Known(true), default, waste, CurrentConstruction.Empty)).Fact);
-        Assert.Equal("sarcophagus availability", Assert.Throws<RequiredFactException>(() => TombRules.TombOwed(Shapes, default, Known(Plan), waste, CurrentConstruction.Empty)).Fact);
+        Assert.Equal("waste census or current construction", Assert.Throws<RequiredFactException>(() => TombRules.TombOwed(Shapes, Known(true), Plan, default, CurrentConstruction.Empty)).Fact);
+        Assert.Equal("waste census or current construction", Assert.Throws<RequiredFactException>(() => TombRules.TombOwed(Shapes, Known(true), Plan, waste, null)).Fact);
+        Assert.Equal("layout plan", Assert.Throws<RequiredFactException>(() => TombRules.TombOwed(Shapes, Known(true), null, waste, CurrentConstruction.Empty)).Fact);
+        Assert.Equal("sarcophagus availability", Assert.Throws<RequiredFactException>(() => TombRules.TombOwed(Shapes, default, Plan, waste, CurrentConstruction.Empty)).Fact);
     }
 }

@@ -494,7 +494,7 @@ public sealed partial class Rounder
         var throne = new Pol.PlannedRoom();
         IReadOnlyList<string> tags = [];
         var (need, owed) = RoundsSleepingUpkeepPlanner.ThroneNeed(facts);
-        if (owed && need.FloorTags.Count > 0 && facts.LayoutPlan.TryGetValue(out var plan))
+        if (owed && need.FloorTags.Count > 0 && facts.LayoutPlan is { } plan)
         {
             (throne, _) = plan.ThroneRoomFor(need.MinArea);
             tags = need.FloorTags;
@@ -516,7 +516,7 @@ public sealed partial class RoundsBuildingPlanner
     internal async Task<RoundsBuildingResult> ReconcileRoomAsync(ControlState state, Sto.Rounds review, Sto.NeedOwner goal, Observation.RoundsReading reading, PackedStock? stock, RoomReconcile rr, CancellationToken call, CancellationToken epoch)
     {
         var facts = reading.Projection;
-        if (!facts.LayoutPlan.TryGetValue(out var plan))
+        if (facts.LayoutPlan is not { } plan)
         {
             return new RoundsBuildingResult { Verdict = FieldUnavailable("room_ground") };
         }

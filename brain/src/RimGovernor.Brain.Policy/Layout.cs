@@ -277,14 +277,10 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
 
     /// <summary>
     /// Unmet while the routes census reads a facility no mobile colonist reaches or a traffic door is owed a change;
-    /// an unread census raises <see cref="RequiredFactException"/>. A plain threshold: a facility whose ordered door is framed reads reachable.
+    /// a plain threshold: a facility whose ordered door is framed reads reachable.
     /// </summary>
     public static Need RoutesNeed(RoutesStanding s)
     {
-        if (!s.Review.Known)
-        {
-            throw new RequiredFactException("routes census");
-        }
         var unreachable = s.Review.Deficits.Count;
         return new Need
         {
@@ -296,7 +292,7 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
     }
 
     /// <summary>The routes standing of one read: the census reviewed fresh, and the traffic door changes (not heat) owed.</summary>
-    public static RoutesStanding RoutesStandingOf(Fact<RoutesObservation> routes, Fact<RoomObservation> rooms, RoundsPolicy p) =>
+    public static RoutesStanding RoutesStandingOf(RoutesObservation routes, Fact<RoomObservation> rooms, RoundsPolicy p) =>
         new(RoutesRules.ReviewRoutes(routes, p.Routes), DoorControlRules.DoorChanges(rooms, routes, p).Any(d => !d.Heat));
 
 }

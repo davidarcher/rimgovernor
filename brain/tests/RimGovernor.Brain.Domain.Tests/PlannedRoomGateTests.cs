@@ -186,7 +186,7 @@ public sealed class PlannedRoomGateTests
         {
             Identity = new() { Tick = new(100) },
             Bounds = new(50, 50),
-            LayoutPlan = Known(Plan),
+            LayoutPlan = Plan,
             Rooms = Known(RoomObservation.NoRooms),
             Definitions =
             [
@@ -296,7 +296,7 @@ public sealed class PlannedRoomGateTests
                     },
                 ],
                 Resources = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new("WoodLog")] = wood }),
-                RingSources = Known(new RingStuffSources()),
+                RingSources = new RingStuffSources(),
             };
             projection = projection with
             {
@@ -326,7 +326,7 @@ public sealed class PlannedRoomGateTests
                 new PlanningDefinition { Name = "FueledStove", Available = Known(true) },
             ],
             Resources = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new("WoodLog")] = wood }),
-            RingSources = Known(new RingStuffSources()),
+            RingSources = new RingStuffSources(),
         };
         return projection with { Facts = projection.Facts with { Research = researchRead ? new ResearchFacts() : null } };
     }
@@ -353,7 +353,7 @@ public sealed class PlannedRoomGateTests
         var researched = read with { Facts = read.Facts with { Research = new ResearchFacts { Finished = [new ResearchProjectId("ComplexFurniture")] } } };
         Assert.True(Done(researched));
         Assert.False(Done(researched with { Resources = default }));
-        Assert.False(Done(researched with { RingSources = default }));
+        Assert.False(Done(researched with { RingSources = null }));
         // A definition the census does not describe is unread, not blocked.
         Assert.False(Done(researched with { Definitions = [] }));
     }
@@ -404,7 +404,7 @@ public sealed class PlannedRoomGateTests
             Resources = stockRead
                 ? Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new("WoodLog")] = 300, [new("Steel")] = steel })
                 : default,
-            RingSources = sourcesRead ? Known(sources ?? new RingStuffSources()) : default,
+            RingSources = sourcesRead ? sources ?? new RingStuffSources() : null,
         };
     }
 

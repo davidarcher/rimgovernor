@@ -158,9 +158,9 @@ public static partial class LayoutClusterRules
     /// Unknown while any pawn's availability or work rows are unread. With <paramref name="free"/>, only the pawns it
     /// names free count (#3744: the needs census's colonists no running method claims).
     /// </summary>
-    public static Fact<int> BuildersOf(Fact<EquatableArray<WorkPawn>> fact, Func<string, bool>? free = null)
+    public static Fact<int> BuildersOf(WorkPawnsRead fact, Func<string, bool>? free = null)
     {
-        if (!fact.TryGetValue(out var pawns))
+        if (fact is not WorkPawnsRead.Read { Pawns: var pawns })
         {
             return default;
         }

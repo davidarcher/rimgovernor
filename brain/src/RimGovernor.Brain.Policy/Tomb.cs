@@ -190,7 +190,7 @@ public static partial class TombRules
     public static bool TombOwed(
         PieceShapes shapes,
         Fact<bool> available,
-        Fact<LayoutPlan> plan,
+        LayoutPlan? plan,
         Fact<EquatableArray<WasteItem>> waste,
         CurrentConstruction? built
     )
@@ -199,7 +199,7 @@ public static partial class TombRules
         {
             throw new RequiredFactException("waste census or current construction");
         }
-        if (!plan.TryGetValue(out var p))
+        if (plan is not { } p)
         {
             throw new RequiredFactException("layout plan");
         }

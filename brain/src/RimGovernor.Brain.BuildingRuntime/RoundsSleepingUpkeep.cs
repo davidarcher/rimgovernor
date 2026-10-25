@@ -394,7 +394,7 @@ partial class RoundsSleepingUpkeepPlanner
     /// <summary>Each colonist's trait effects from the work census, null while it is unknown.</summary>
     internal static Dictionary<PawnId, Pol.TraitEffects>? SleepingTraits(Observation.ColonyProjection facts)
     {
-        if (!facts.WorkPawns.TryGetValue(out var pawns))
+        if (facts.WorkPawns is not WorkPawnsRead.Read { Pawns: var pawns })
         {
             return null;
         }
@@ -415,7 +415,7 @@ partial class RoundsSleepingUpkeepPlanner
         {
             return (new Pol.BedroomSwap(), false);
         }
-        if (!facts.LayoutPlan.TryGetValue(out var plan) || !facts.Rooms.TryGetValue(out var rooms))
+        if (facts.LayoutPlan is not { } plan || !facts.Rooms.TryGetValue(out var rooms))
         {
             return (new Pol.BedroomSwap(), false);
         }

@@ -126,9 +126,9 @@ public static partial class MedicineCarryRules
     }
 
     /// <summary>The review's MedicineCarryOwed fact.</summary>
-    public static Fact<bool> MedicineCarryOwed(Fact<EquatableArray<WorkPawn>> pawns, MedicalReserveReview reserve)
+    public static Fact<bool> MedicineCarryOwed(WorkPawnsRead pawns, MedicalReserveReview reserve)
     {
-        if (!pawns.TryGetValue(out var rows))
+        if (pawns is not WorkPawnsRead.Read { Pawns: var rows })
         {
             return Unknown<bool>();
         }

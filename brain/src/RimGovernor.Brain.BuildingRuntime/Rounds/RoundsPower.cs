@@ -37,7 +37,7 @@ public sealed partial class RoundsBuildingPlanner
             GeothermalAvailable = facts.DefinitionAvailable(PowerRules.GeothermalDefinition),
             PendingDemandW = RoundsBuildingPlanner.PendingDemand(facts, pendingConsumers),
         };
-        if (facts.LayoutPlan.TryGetValue(out var plan))
+        if (facts.LayoutPlan is { } plan)
         {
             planning = planning with { Net = PowerRules.PlannedNetOf(plan) };
         }
@@ -200,7 +200,8 @@ public sealed partial class RoundsBuildingPlanner
     internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, bool Ok)> PreviewPlannedPowerAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, long missing, Action check, CancellationToken ct)
     {
         var stock = new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
-        var planned = facts.LayoutPlan.TryGetValue(out var plan);
+        var plan = facts.LayoutPlan;
+        var planned = plan is not null;
         var tk = facts.TechTier.TryGetValue(out var tier);
         if (!planned || !tk || tier < TechTier.Masonry || missing < 1)
         {

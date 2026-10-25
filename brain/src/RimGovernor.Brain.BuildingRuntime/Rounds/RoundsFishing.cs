@@ -84,7 +84,7 @@ public sealed partial class Rounder
                 }
             }
 
-            if (p.LayoutPlan.TryGetValue(out var layout)
+            if (p.LayoutPlan is { } layout
                 && p.Rooms.TryGetValue(out var rooms)
                 && p.Facts.Sleeping.TryGetValue(out var sleeping))
             {

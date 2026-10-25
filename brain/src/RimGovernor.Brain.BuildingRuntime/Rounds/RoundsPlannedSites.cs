@@ -8,14 +8,14 @@ public sealed partial class Rounder
     /// unplaced shelf candidates as one-piece sites, each joined to the native planned-site read. Every site is asked in
     /// one construction activity read, then every route between each room's answered sites and between them and the
     /// nearest need targets in a second (PlannedRouteProbes, #3313, #3676); each read covers every free colonist and caps nothing (#3341). Without a read its sites or routes stay
-    /// unknown. Unknown while the plan or the construction census is.
+    /// unknown. Null while the plan or the construction census is unread.
     /// </summary>
-    internal async Task<Fact<PlannedSiteFacts>> PlannedSitesAsync(GenerationSnapshot snapshot, ColonyProjection colony, PlannedOwed? owed,
+    internal async Task<PlannedSiteFacts?> PlannedSitesAsync(GenerationSnapshot snapshot, ColonyProjection colony, PlannedOwed? owed,
         IReadOnlyList<ShelfCandidate> shelves, CancellationToken ct)
     {
         if (PlannedRoomSitesOf(colony, owed) is not { } roomSites)
         {
-            return Unknown<PlannedSiteFacts>();
+            return null;
         }
         var sites = new List<PlannedBuildSite>(BlockedPiecesOf(colony, roomSites));
         if (shelves.Count > 0)
@@ -34,10 +34,10 @@ public sealed partial class Rounder
         var probes = PlannedRules.PlannedRouteProbes(joined.Sites, needTargets);
         var routes = probes.Count == 0 ? null
             : await ReadPlannedAsync(new O.ConstructionActivityRequest(Boundary.Identity(snapshot), []) { Routes = probes }, ct).ConfigureAwait(false);
-        return Known(PlannedRules.JoinPlannedRoutes(joined, probes, routes) with
+        return PlannedRules.JoinPlannedRoutes(joined, probes, routes) with
         {
             Roles = EquatableArray.From(owed!.Sited.Select(r => (Room: r.Room.Id, r.Room.Role)).Distinct().OrderBy(r => r.Room)),
-        });
+        };
     }
 
     /// <summary>
@@ -134,7 +134,7 @@ public sealed partial class Rounder
 
     /// <summary>The colony's stock and the materials the planning window offers (ColonyProjection.RingSources, #3747, #3839); each null while unread.</summary>
     private static (IReadOnlyDictionary<Resource, long>? Stock, RingStuffSources? Sources) MapMaterialsOf(ColonyProjection colony) =>
-        (colony.TryStock(out var stock) ? stock : null, colony.RingSources.ValueOrDefault);
+        (colony.TryStock(out var stock) ? stock : null, colony.RingSources);
 
     /// <summary>
     /// What the stock and the map say of obtaining the materials of a piece's cost list other than its stuff (#3839,

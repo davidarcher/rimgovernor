@@ -75,14 +75,16 @@ partial class RoundsBuildingPlanner
 {
     internal static (LayoutPlan Plan, RoomObservation Rooms, bool Known) PlannedLayout(ColonyProjection facts)
     {
-        var pk = facts.LayoutPlan.TryGetValue(out var plan);
+        var plan = facts.LayoutPlan;
+        var pk = plan is not null;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         return (plan!, rooms!, pk && rk);
     }
 
     internal static (PlannedRoom Room, bool Owed) PlannedRoomOwed(ColonyProjection facts, PlannedRole module)
     {
-        var known = facts.LayoutPlan.TryGetValue(out var plan);
+        var plan = facts.LayoutPlan;
+        var known = plan is not null;
         var (ground, groundKnown) = ColonyGround(facts);
         if (!known || !groundKnown)
         {
@@ -150,7 +152,7 @@ partial class RoundsBuildingPlanner
 
     internal static IReadOnlyList<InteriorRoom> PlannedInteriorRooms(ColonyProjection facts, Func<PlannedRoom, bool> keep)
     {
-        if (!facts.LayoutPlan.TryGetValue(out var plan))
+        if (facts.LayoutPlan is not { } plan)
         {
             return [];
         }
@@ -198,7 +200,7 @@ partial class RoundsBuildingPlanner
 
     internal static IReadOnlyList<Cell>? PlannedRoomPlanCells(ColonyProjection facts, PlannedRole module)
     {
-        if (!facts.LayoutPlan.TryGetValue(out var plan))
+        if (facts.LayoutPlan is not { } plan)
         {
             return null;
         }

@@ -35,7 +35,7 @@ public static partial class LayoutRoomsRules
     /// is known and none owes the room; the ideoligion is known and requires no building; the containment demand is
     /// zero entities. needs are the rooms still owed.
     /// </summary>
-    public static List<PlannedRole> EndedRoomRoles(Fact<EquatableArray<WorkPawn>> pawns, IdeologyMode ideology, ContainmentPlanning containment, IsolationPlanning isolation, IReadOnlyList<ChildRoomNeed> needs)
+    public static List<PlannedRole> EndedRoomRoles(WorkPawnsRead pawns, IdeologyMode ideology, ContainmentPlanning containment, IsolationPlanning isolation, IReadOnlyList<ChildRoomNeed> needs)
     {
         var owed = needs.Select(n => n.Module).ToHashSet();
         var ended = new List<PlannedRole>();
@@ -49,7 +49,8 @@ public static partial class LayoutRoomsRules
                 }
             }
         }
-        var listKnown = pawns.TryGetValue(out var list);
+        var listKnown = pawns is WorkPawnsRead.Read;
+        var list = pawns is WorkPawnsRead.Read { Pawns: var listRows } ? listRows : default;
         Add(listKnown && list.Count > 0, PlannedRole.Nursery, PlannedRole.Classroom);
         Add(listKnown && list.Count > 0, PlannedRole.DeathrestChamber);
         Add(true, PlannedRole.Worship);

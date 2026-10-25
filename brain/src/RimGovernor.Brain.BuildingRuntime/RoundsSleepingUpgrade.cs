@@ -125,7 +125,7 @@ partial class RoundsSleepingUpkeepPlanner
         {
             definitions[d.Name] = new Pol.FloorDefinition { Available = d.Available, Terrain = d.Terrain, Cleanliness = d.Cleanliness, Beauty = d.Beauty, Flammability = d.Flammability, PathCost = d.PathCost, Costs = d.Costs, WorkToBuild = d.WorkToBuild };
         }
-        return RoomQualityRules.NextBeautyUpgrade(obs!, UpgradeTargetsOf(facts, WithRequirementTargets(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness))), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def), facts.Facts.Upkeep.Flooring, floors);
+        return RoomQualityRules.NextBeautyUpgrade(obs!, UpgradeTargetsOf(facts, WithRequirementTargets(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness))), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def), facts.Facts.Upkeep.Flooring ?? throw new RequiredFactException("flooring census"), floors);
     }
 }
 
@@ -170,7 +170,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         var facts = reading.Projection;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var census = facts.Facts.CurrentConstruction;
-        if (!rk || census is null || !facts.LayoutPlan.TryGetValue(out var plan))
+        if (!rk || census is null || facts.LayoutPlan is not { } plan)
         {
             return new RoundsBuildingResult { Verdict = FieldUnavailable("room_census") };
         }

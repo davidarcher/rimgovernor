@@ -19,7 +19,7 @@ internal static class LayoutFieldPlanning
     /// <summary>The plan's field cells; null with no plan or no field zones.</summary>
     public static HashSet<Cell>? LayoutFieldCells(ColonyProjection facts)
     {
-        if (!facts.LayoutPlan.TryGetValue(out var plan))
+        if (facts.LayoutPlan is not { } plan)
         {
             return null;
         }
@@ -41,7 +41,7 @@ internal static class LayoutFieldPlanning
     /// </summary>
     public static (FieldBlockEdit? Edit, string Reason) PlanFieldBlock(ColonyProjection facts, Cell anchor, IReadOnlyList<FieldBlockOption> options, IReadOnlyList<Cell> protectedCells)
     {
-        if (!facts.LayoutPlan.TryGetValue(out var plan))
+        if (facts.LayoutPlan is not { } plan)
         {
             return (null, "no layout plan");
         }

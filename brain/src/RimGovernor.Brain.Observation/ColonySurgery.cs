@@ -13,7 +13,7 @@ public sealed partial record ColonyProjection
         {
             ctx = ctx with { HospitalBed = true };
         }
-        if (WorkPawns.TryGetValue(out var pawns))
+        if (WorkPawns is WorkPawnsRead.Read { Pawns: var pawns })
         {
             ctx = ctx with { Profiles = PawnRules.Profiles(pawns) };
         }

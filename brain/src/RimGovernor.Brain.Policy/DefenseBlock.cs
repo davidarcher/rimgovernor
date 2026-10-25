@@ -330,7 +330,7 @@ public static class DefenseBlock
     {
         var steel = f.Items.Market.GetValueOrDefault(SiteRules.SiteSteelUnit); // The missing-value error is dropped: an unpriced steel stays 0
         var p = new BlockPricing { Work = LayoutRegroupRules.StationWorkPrice(f), SteelValue = steel, Market = f.Items.Market, UnitCosts = unitCosts, Rows = rows };
-        if (f.WorkPawns.TryGetValue(out var pawns))
+        if (f.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns })
         {
             p = p with { TicksPerWorkDay = ColonistWorkTicksPerDay(pawns) };
         }

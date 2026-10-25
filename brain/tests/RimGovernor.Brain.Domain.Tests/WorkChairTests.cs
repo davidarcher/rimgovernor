@@ -82,7 +82,7 @@ public sealed class WorkChairTests
 
     private static ColonyProjection Projection(PlannedRoom room, CurrentConstruction? census)
     {
-        var projection = ColonyFactsCoreTests.Projection() with { LayoutPlan = Known(new LayoutPlan { Rooms = [room], NextRoomId = 2 }), Shapes = Shapes };
+        var projection = ColonyFactsCoreTests.Projection() with { LayoutPlan = new LayoutPlan { Rooms = [room], NextRoomId = 2 }, Shapes = Shapes };
         return projection with { Facts = projection.Facts with { CurrentConstruction = census, Colonists = 1L } };
     }
 

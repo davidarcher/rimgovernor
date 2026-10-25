@@ -21,14 +21,14 @@ public sealed class BelieverConversionTests
         PolicyInputs = PawnFixtures.Inputs(ideo, certainty, guest: guest),
     };
 
-    private static Fact<EquatableArray<WorkPawn>> Pawns(params WorkPawn[] rows) => Known(EquatableArray.From(rows));
+    private static WorkPawnsRead.Read Pawns(params WorkPawn[] rows) => new WorkPawnsRead.Read(EquatableArray.From(rows));
 
     private static IdeologyMode.Installed Ideo(params HeldRole[] roles) => new IdeologyMode.Installed(new Ideoligion(new IdeologyDefs(), new IdeoligionFacts { IdeoId = Ours, Development = IdeoDevelopment.Fixed, Roles = roles }));
 
     private static HeldRole Guide(string pawn, bool ready = true, bool active = true) =>
         new("role-1", "IdeoRole_Moralist", active, pawn.Length == 0 ? [] : [new PawnId(pawn)]) { Converts = true, ConvertReady = ready };
 
-    private static IdeologyFacts Facts(IdeologyMode ideo, Fact<EquatableArray<WorkPawn>> pawns, params GoalRecord[] goals) =>
+    private static IdeologyFacts Facts(IdeologyMode ideo, WorkPawnsRead pawns, params GoalRecord[] goals) =>
         new() { Installed = true, Roles = [], Conversion = ConversionRules.Owed(goals, ideo, pawns) };
 
     private static readonly WorkPawn Believer = Colonist("guide", Ours, 0.9);
@@ -117,18 +117,18 @@ public sealed class BelieverConversionTests
         Assert.Equal(GoalState.Met, met.State);
 
         // An unread pawn census raises rather than block the goal.
-        Assert.Equal("pawn rows", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(Everyone, GoalFacts(Ideo(Guide("guide")), default))).Fact);
+        Assert.Equal("pawn rows", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(Everyone, GoalFacts(Ideo(Guide("guide")), WorkPawnsRead.NotRead))).Fact);
     }
 
     [Fact]
     public void ShortfallAndOwedRaiseOnlyWhileABelieversGoalReadsUnreadInputs()
     {
         var other = new GoalRecord { Id = 6, Kind = GoalKind.Meme, Target = "Meme_x" };
-        Assert.Equal(0, ConversionRules.Shortfall([other], Ideo(), default));
-        Assert.Equal(ConversionOwed.None, ConversionRules.Owed([other], Ideo(), default));
-        Assert.Equal(0, ConversionRules.Shortfall([Everyone], new IdeologyMode.NotInstalled(), default));
-        Assert.Equal("pawn rows", Assert.Throws<RequiredFactException>(() => ConversionRules.Shortfall([Everyone], Ideo(), default)).Fact);
-        Assert.Equal("pawn rows", Assert.Throws<RequiredFactException>(() => ConversionRules.Owed([Everyone], Ideo(), default)).Fact);
+        Assert.Equal(0, ConversionRules.Shortfall([other], Ideo(), WorkPawnsRead.NotRead));
+        Assert.Equal(ConversionOwed.None, ConversionRules.Owed([other], Ideo(), WorkPawnsRead.NotRead));
+        Assert.Equal(0, ConversionRules.Shortfall([Everyone], new IdeologyMode.NotInstalled(), WorkPawnsRead.NotRead));
+        Assert.Equal("pawn rows", Assert.Throws<RequiredFactException>(() => ConversionRules.Shortfall([Everyone], Ideo(), WorkPawnsRead.NotRead)).Fact);
+        Assert.Equal("pawn rows", Assert.Throws<RequiredFactException>(() => ConversionRules.Owed([Everyone], Ideo(), WorkPawnsRead.NotRead)).Fact);
     }
 
     [Fact]
@@ -170,13 +170,13 @@ public sealed class BelieverConversionTests
         Assert.True(facts.Population.Colony.BelieversWanted);
     }
 
-    private static (GoalState State, string Reason) Status(IdeologyFacts _, Fact<EquatableArray<WorkPawn>> pawns, IdeologyMode ideo)
+    private static (GoalState State, string Reason) Status(IdeologyFacts _, WorkPawnsRead pawns, IdeologyMode ideo)
     {
         var status = GoalRules.Evaluate(Everyone, GoalFacts(ideo, pawns));
         return (status.State, status.Reason);
     }
 
-    private static GoalsFacts GoalFacts(IdeologyMode ideo, Fact<EquatableArray<WorkPawn>> pawns) => new()
+    private static GoalsFacts GoalFacts(IdeologyMode ideo, WorkPawnsRead pawns) => new()
     {
         Goals = [Everyone],
         Ideology = ideo,

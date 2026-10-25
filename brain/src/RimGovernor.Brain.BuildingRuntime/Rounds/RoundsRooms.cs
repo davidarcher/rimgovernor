@@ -167,7 +167,7 @@ public sealed class RoomsRounds
         {
             floors = Known(floorReview);
         }
-        var profiles = projection.WorkPawns.TryGetValue(out var pawns)
+        var profiles = projection.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns }
             ? Known<EquatableArray<PawnProfile>>([.. PawnRules.Profiles(pawns)])
             : Unknown<EquatableArray<PawnProfile>>();
         var hosting = ComfortRules.ReviewComfort(projection.Facts.Comfort, history, projection.Identity.Tick);
@@ -187,7 +187,7 @@ public sealed class RoomsRounds
 
     /// <summary>Whether a standing bench's chosen work chair is missing; unknown while the plan or the census is unread.</summary>
     internal static Fact<bool> WorkChairsOwed(ColonyProjection projection) =>
-        projection.LayoutPlan.TryGetValue(out var plan) && projection.Facts.CurrentConstruction is { } census
+        projection.LayoutPlan is { } plan && projection.Facts.CurrentConstruction is { } census
             ? Known(WorkChairRules.OwedSeats(plan, census, projection.Shapes).Count > 0)
             : Unknown<bool>();
 }

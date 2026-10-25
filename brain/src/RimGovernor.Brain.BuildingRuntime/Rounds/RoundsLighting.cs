@@ -51,11 +51,6 @@ public sealed partial class RoundsBuildingPlanner
             return (null, BuildingReasonNoDeficit);
         }
 
-        if (!review.Known)
-        {
-            return (null, FieldUnavailable("lighting"));
-        }
-
         if (!facts.Rooms.TryGetValue(out var rooms))
         {
             return (null, FieldUnavailable("rooms"));
@@ -70,7 +65,7 @@ public sealed partial class RoundsBuildingPlanner
             Styled = RoundsTierStyle.LampStyle(facts),
         };
 
-        if (facts.LayoutPlan.TryGetValue(out var plan))
+        if (facts.LayoutPlan is { } plan)
         {
             lighting = lighting with { Plan = plan };
         }

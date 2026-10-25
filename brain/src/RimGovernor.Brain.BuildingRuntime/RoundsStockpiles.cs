@@ -137,7 +137,7 @@ partial class RoundsStockpilePlanner
     /// </summary>
     internal static Fact<IReadOnlyList<Pol.PlannedStoreRoom>> StoreRooms(Observation.ColonyProjection projection, Pol.FlooringPolicy flooring)
     {
-        if (!projection.LayoutPlan.TryGetValue(out var plan))
+        if (projection.LayoutPlan is not { } plan)
         {
             return Unknown<IReadOnlyList<Pol.PlannedStoreRoom>>();
         }
@@ -303,7 +303,7 @@ public sealed partial class Rounder
         fine?.Lap("d_stock/stockpile/build");
         var canBuild = Native is IRoundsBuildingSource;
         request = request with { ShelfAvailable = canBuild && RoundsStockpilePlanner.ShelfAvailable(projection) };
-        request = request with { Walkways = projection.LayoutPlan.TryGetValue(out var layout) ? Pol.StorageRules.PlannedWalkways(layout) : Unknown<EquatableArray<Cell>>() };
+        request = request with { Walkways = projection.LayoutPlan is { } layout ? Pol.StorageRules.PlannedWalkways(layout) : Unknown<EquatableArray<Cell>>() };
         request = request with { ShelfStacks = await ShelfStacksAsync(snapshot, ct).ConfigureAwait(false) };
         var shelfSpent = new Dictionary<string, bool>();
         var shelfRecords = new List<Pol.ShelfRecord>();

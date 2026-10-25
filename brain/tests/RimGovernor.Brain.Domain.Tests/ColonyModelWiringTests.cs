@@ -79,11 +79,11 @@ public sealed class ColonyModelWiringTests
         // Anna is now a Medicine-3 doctor with vanilla's tend quality curve, and the catalog reads herbal medicine's numbers.
         var frame = Frame();
         var tend = new SkillStatCurve(ColonyValue.TendQualityStat, "Medicine", EquatableArray.From(Enumerable.Range(0, 21).Select(l => new SkillStatLevel(l, 0.2 + (0.1 * l)))), "test");
-        var anna = frame.WorkPawns.Value[0];
+        var anna = ((WorkPawnsRead.Read)frame.WorkPawns).Pawns[0];
         frame = frame with
         {
             Facts = frame.Facts with { MedicalReserve = frame.Facts.MedicalReserve with { Catalog = ItemFactsFixtureRules.CoreItemFacts() } },
-            WorkPawns = Known(EquatableArray.From(new[]
+            WorkPawns = new WorkPawnsRead.Read(EquatableArray.From(new[]
             {
                 anna with
                 {

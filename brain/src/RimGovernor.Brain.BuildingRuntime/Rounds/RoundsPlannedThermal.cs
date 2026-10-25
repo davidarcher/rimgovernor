@@ -9,9 +9,9 @@ public sealed partial class Rounder
     /// asked). Neither is read while the planned sites are unread or native has no activity source.
     /// </summary>
     internal async Task<(O.CoupledThermalRead? Thermal, EquatableArray<O.PlannedRoomPrediction> Predictions)> PlannedShelterReadsAsync(
-        GenerationSnapshot snapshot, ColonyProjection colony, IEnumerable<PlannedRoom> shelters, Fact<PlannedSiteFacts> sites, CancellationToken ct)
+        GenerationSnapshot snapshot, ColonyProjection colony, IEnumerable<PlannedRoom> shelters, PlannedSiteFacts? planned, CancellationToken ct)
     {
-        if (Native is not IActivityTaskSource source || !sites.TryGetValue(out var planned))
+        if (Native is not IActivityTaskSource source || planned is null)
         {
             return (null, []);
         }

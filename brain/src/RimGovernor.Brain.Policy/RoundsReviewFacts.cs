@@ -7,19 +7,23 @@ public static partial class RoundsRules
     /// <summary>
     /// The admin/work-assignments Need's measure (#3304): owed while a coupled activity runs or is selected or deferred,
     /// a hostility, nickname, medicine carry or medical care setting is owed, a work type is uncovered or a cleanup pawn
-    /// is idle; unknown while the coverage or cleanup census is unread.
+    /// is idle; unknown while the coverage is unread.
     /// </summary>
     public static Fact<bool> WorkAssignmentsOwed(RoundsFacts f, ForecastCoupledSelection? coupled)
     {
-        if (f.CoupledWorkActive || coupled is { Selection.Selected.Length: > 0 } or { Deferred.Count: > 0 })
+        var owed = f.CoupledWorkActive
+            || coupled is { Selection.Selected.Length: > 0 } or { Deferred.Count: > 0 }
+            || f.HostilityOwed
+            || f.CleanupPawns
+            || Positive(f.NamesOwed)
+            || Positive(f.MedicineCarryOwed)
+            || Positive(f.MedicalCareOwed)
+            || f.WorkCoverage == WorkCoverageState.Unmatched;
+        if (owed)
         {
             return Known(true);
         }
-        if (Positive(f.HostilityOwed) || Positive(f.NamesOwed) || Positive(f.MedicineCarryOwed) || Positive(f.MedicalCareOwed))
-        {
-            return Known(true);
-        }
-        return NotFact(AllFacts(f.WorkCoverage, Measured(f.CleanupPawns, v => !v)));
+        return f.WorkCoverage == WorkCoverageState.Matched ? Known(false) : default;
     }
 
     /// <summary>

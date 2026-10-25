@@ -57,13 +57,13 @@ public sealed class CapabilityMaintenanceTests
         var skill = melee ? "Melee" : "Shooting";
         var requirement = new RoleDef(1,[new([new(skill, 1)])]);
         var ideology = Ideology("pawn") with { Defs = new() { Roles = new Dictionary<string, RoleDef> { ["soldier"] = requirement } } };
-        var roster = facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Skills = [new() { Name = skill, Level = 1, Learning = Learning() }] }).ToArray();
+        var roster = ((WorkPawnsRead.Read)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Skills = [new() { Name = skill, Level = 1, Learning = Learning() }] }).ToArray();
         var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, skill, "target/" + i, new(i + 1, 1),
             melee ? "RimGovernor_Spar" : "RimGovernor_TrainRange", melee ? "RimGovernor_Spar" : "RimGovernor_TrainShooting",
             0d, 100d, Learning()) { Company = [], CallbackIntervalTicks = 10d, RawXpPerCallback = 10d, PreparationTicks = 0, JoyGainPerTick = 0, Thoughts = [], Equipment = [], Findings = [] }).ToArray();
         facts = facts with { Hostiles = Known(0L), CriticalPatients = Known(0L), Ideology = new IdeologyMode.Installed(ideology), ForecastObserved = facts.ForecastObserved with
         {
-            WorkPawns = Known(EquatableArray.From(roster)),
+            WorkPawns = new WorkPawnsRead.Read(EquatableArray.From(roster)),
             Needs = facts.ForecastObserved.Needs! with { Pawns = EquatableArray.From(facts.ForecastObserved.Needs!.Pawns.Select(p => p with
             { Needs = EquatableArray.From(p.Needs.Select(n => n with { Level = 1d, FallPerTick = 0d })) })) },
             Coupled = facts.ForecastObserved.Coupled! with { Practice = new() { Workers = EquatableArray.From(workers) } }
@@ -93,7 +93,7 @@ public sealed class CapabilityMaintenanceTests
         var absent = ConstructionFixtures.NoTasks();
         Assert.Equal(ActivityNeed.Owed, ForecastServiceInvestments.ReviewServiceActivityNeed(batch, ActivityNeed.Owed, absent));
         var satisfied = facts with { ForecastObserved = facts.ForecastObserved with
-        { WorkPawns = Known(EquatableArray.From(roster.Select(p => p with { Skills = [new() { Name = skill, Level = 1, Learning = Learning() with { Xp = 100d } }] }))) } };
+        { WorkPawns = new WorkPawnsRead.Read(EquatableArray.From(roster.Select(p => p with { Skills = [new() { Name = skill, Level = 1, Learning = Learning() with { Xp = 100d } }] }))) } };
         var recovered = ForecastCoupledCandidates.GenerateCoupledActivities(satisfied, 300)!;
         Assert.Empty(ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = recovered.Context }, recovered).Selection.Selected);
     }

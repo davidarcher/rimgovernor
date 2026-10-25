@@ -25,7 +25,7 @@ internal static class StockpileSitedRoles
         {
             return null;
         }
-        if (!projection.LayoutPlan.TryGetValue(out var plan) || !projection.Facts.Comfort.TryGetValue(out var comfort))
+        if (projection.LayoutPlan is not { } plan || !projection.Facts.Comfort.TryGetValue(out var comfort))
         {
             return null;
         }

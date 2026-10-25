@@ -167,11 +167,11 @@ public static class QuestCapacity
     /// construction, and follows roster coverage, so a colony with redundant owners may send more. Unplanned when
     /// the roster is not planned or any pawn, mood row, essential coverage or assignment is missing.
     /// </summary>
-    public static QuestRoster QuestRosterOf<TWorkers, TMood>(Fact<TWorkers> workers, Fact<TMood> mood, WorkDecision roster)
-        where TWorkers : IReadOnlyList<WorkPawn>
+    public static QuestRoster QuestRosterOf<TMood>(WorkPawnsRead workers, Fact<TMood> mood, WorkDecision roster)
         where TMood : IReadOnlyList<MoodPawn>
     {
-        var wk = workers.TryGetValue(out var pawns);
+        var wk = workers is WorkPawnsRead.Read;
+        var pawns = workers is WorkPawnsRead.Read { Pawns: var workersRead } ? workersRead : default;
         var mk = mood.TryGetValue(out var states);
         if (!roster.Planned || !wk || !mk)
         {

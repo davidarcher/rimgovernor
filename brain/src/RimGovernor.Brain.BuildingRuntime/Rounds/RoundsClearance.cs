@@ -73,8 +73,7 @@ public sealed partial class HomeUpkeepReader
         var wants = _reviewer.ClearFloors(colony.Projection);
         facts = facts with
         {
-            Clearance = Known<EquatableArray<ClearanceTarget>>([.. others]),
-            Ground = Known<EquatableArray<string>>([.. PlannedGroundWork(colony.Projection, player, census.Floors, wants)]),
+            Clearance = new ClearanceCensus([.. others]) { Ground = [.. PlannedGroundWork(colony.Projection, player, census.Floors, wants)] },
         };
         var step = await RecoveryStepAsync(Boundary.Identity(scope.World), review.RecoveryQueue, others, colony.Projection, call).ConfigureAwait(false);
         Func<PlanId, GroundStep, (string Prefix, IReadOnlyList<DomainAction> Actions)> method;
@@ -126,7 +125,7 @@ partial class HomeUpkeepReader
 
     internal static (GroundStep Step, bool Ok) PlannedGroundStep(ColonyProjection colony, IReadOnlyList<ClearanceTarget> player, IReadOnlyList<ClearanceFloor> floors, RoomFloors wants)
     {
-        if (!colony.LayoutPlan.TryGetValue(out var plan))
+        if (colony.LayoutPlan is not { } plan)
         {
             return (new GroundStep(), false);
         }
@@ -141,7 +140,7 @@ partial class HomeUpkeepReader
 
     internal static IReadOnlyList<string> PlannedGroundWork(ColonyProjection colony, IReadOnlyList<ClearanceTarget> player, IReadOnlyList<ClearanceFloor> floors, RoomFloors wants)
     {
-        if (!colony.LayoutPlan.TryGetValue(out var plan))
+        if (colony.LayoutPlan is not { } plan)
         {
             return [];
         }

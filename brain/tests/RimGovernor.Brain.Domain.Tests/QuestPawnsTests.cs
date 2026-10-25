@@ -29,7 +29,7 @@ public sealed class QuestPawnsTests
     {
         var roster = new WorkDecision { State = WorkDecisionState.ClaimsTruncated, Matches = false };
 
-        var split = QuestCapacity.QuestRosterOf(Known<EquatableArray<WorkPawn>>([]), Known<EquatableArray<MoodPawn>>([]), roster);
+        var split = QuestCapacity.QuestRosterOf(new WorkPawnsRead.Read([]), Known<EquatableArray<MoodPawn>>([]), roster);
 
         Assert.IsType<QuestRoster.Unplanned>(split);
     }

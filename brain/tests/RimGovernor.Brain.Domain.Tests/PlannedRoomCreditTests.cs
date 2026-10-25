@@ -379,12 +379,12 @@ public sealed class PlannedRoomCreditTests
         var trainedWith = NeedsFixtures.Memory("RimGovernor_TrainedWith", 3, Day, false) with { StackLimit = 1 };
         var facts = ForecastPortfolioChoiceTests.Observed([], [], helper: true);
         var learning = CapabilityMaintenanceTests.Learning() with { Xp = 0d };
-        var roster = facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Skills = [new() { Name = "Melee", Level = 1, Learning = learning }] }).ToArray();
+        var roster = ((WorkPawnsRead.Read)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Skills = [new() { Name = "Melee", Level = 1, Learning = learning }] }).ToArray();
         var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, "Melee", "target/" + i, new(i + 1, 1), "RimGovernor_Spar", "RimGovernor_Spar",
             0d, 100d, learning) { Company = [], CallbackIntervalTicks = 10d, RawXpPerCallback = 10d, PreparationTicks = 0, JoyGainPerTick = .0001, Thoughts = [trainedWith], Equipment = [], Findings = [] }).ToArray();
         facts = facts with { Hostiles = Known(0L), CriticalPatients = Known(0L), ForecastObserved = facts.ForecastObserved with
         {
-            WorkPawns = Known(EquatableArray.From(roster)),
+            WorkPawns = new WorkPawnsRead.Read(EquatableArray.From(roster)),
             Needs = facts.ForecastObserved.Needs! with { Pawns = EquatableArray.From(facts.ForecastObserved.Needs!.Pawns.Select(p => p with
             { Needs = EquatableArray.From(p.Needs.Select(n => n with { Level = 1d, FallPerTick = 0d })) })) },
             Coupled = facts.ForecastObserved.Coupled! with { Practice = new() { Workers = EquatableArray.From(workers) } }
@@ -469,9 +469,9 @@ public sealed class PlannedRoomCreditTests
                 review = WithEveryShippedRoom(review);
                 // A pawn asleep in its bed is at the bed (the fixture's inside cell, 1,1): native's route from its start there
                 // costs nothing. The start routes to the wall and door cells keep the walk their site rows price.
-                var sites = review.PlannedSites.Value;
-                return !asleep ? review : review with { PlannedSites = Known(sites with
-                    { Routes = EquatableArray.From(sites.Routes.Select(r => r.FromStart && r.To == new Cell(1, 1) ? r with { Ticks = new RouteTicks.Reachable(0d) } : r)) }) };
+                var sites = review.PlannedSites!;
+                return !asleep ? review : review with { PlannedSites = sites with
+                    { Routes = EquatableArray.From(sites.Routes.Select(r => r.FromStart && r.To == new Cell(1, 1) ? r with { Ticks = new RouteTicks.Reachable(0d) } : r)) } };
             });
         var generated = facts.CoupledAlternatives!;
         var full = generated.Context.NeedTasks.Where(n => n.Kind == "rest").OrderByDescending(n => n.Gain).First();
@@ -746,13 +746,13 @@ public sealed class PlannedRoomCreditTests
         {
             var facts = ForecastPortfolioChoiceTests.Observed([], [], helper: true);
             var learning = CapabilityMaintenanceTests.Learning() with { Xp = 0d };
-            var roster = facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Skills = [new() { Name = "Shooting", Level = 1, Learning = learning }] }).ToArray();
+            var roster = ((WorkPawnsRead.Read)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Skills = [new() { Name = "Shooting", Level = 1, Learning = learning }] }).ToArray();
             var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, "Shooting", "stand/" + i, new(i + 1, 1), "RimGovernor_TrainRange", "RimGovernor_TrainShooting",
                 0d, 100d, learning) { CallbackIntervalTicks = 10d, RawXpPerCallback = 10d, PreparationTicks = 0, JoyGainPerTick = 0, Thoughts = [trainedWith], Equipment = [], Findings = [],
                     Company = company ? ["stand/" + (1 - i)] : [] }).ToArray();
             facts = facts with { Hostiles = Known(0L), CriticalPatients = Known(0L), ForecastObserved = facts.ForecastObserved with
             {
-                WorkPawns = Known(EquatableArray.From(roster)),
+                WorkPawns = new WorkPawnsRead.Read(EquatableArray.From(roster)),
                 Needs = facts.ForecastObserved.Needs! with { Pawns = EquatableArray.From(facts.ForecastObserved.Needs!.Pawns.Select(p => p with
                 { Needs = EquatableArray.From(p.Needs.Select(n => n with { Level = 1d, FallPerTick = 0d })) })) },
                 Coupled = facts.ForecastObserved.Coupled! with { Practice = new() { Workers = EquatableArray.From(workers) } }
@@ -796,7 +796,7 @@ public sealed class PlannedRoomCreditTests
             // each pawn's room memory rows (#3803) and RoundsRead each colonist's thoughts (RoundsMood), none held yet.
             ForecastObserved = review.ForecastObserved with
             {
-                WorkPawns = Known(EquatableArray.From(review.ForecastObserved.WorkPawns.Value.Select(p => p with { Health = 1d }))),
+                WorkPawns = new WorkPawnsRead.Read(EquatableArray.From(((WorkPawnsRead.Read)review.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Health = 1d }))),
                 Needs = needs with { Pawns = EquatableArray.From(needs.Pawns.Select(p => p with { ThoughtStages = EquatableArray.From([.. p.ThoughtStages, .. DiningRecCreditTests.NativeRows]) })) },
             },
             MoodPawns = review.MoodPawns.TryGetValue(out var moods) && moods.Count != 0 ? review.MoodPawns

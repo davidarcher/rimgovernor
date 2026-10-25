@@ -101,7 +101,7 @@ public sealed class RoundsLapInputsTests
             CriticalPatients = Known(1L), UrgentPatients = Known(1L), SleepingMin = Known(1.0), SleepingMax = Known(1.0), OutdoorTemperature = 1.0,
             PowerHeadroom = Known(1.0), OutdoorsDark = true, Tick = new Tick(5), DisasterTick = new Tick(5), BedroomsOwed = Known(true),
             MealClosetOwed = Known(true), CampfireRetireOwed = Known(true), TemperatureOwed = Known(true), ButcherTableAffordable = Known(true),
-            CleanupPawns = Known(true), WorkCoverage = Known(true),
+            CleanupPawns = true, WorkCoverage = WorkCoverageState.Matched,
         };
         var names = RoundsLapInputs.Differences(was, was with { Facts = facts });
         Assert.True(names.Count > RoundsLapInputs.NamesCap, $"{names.Count} differences");

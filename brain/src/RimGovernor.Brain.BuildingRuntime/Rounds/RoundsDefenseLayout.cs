@@ -389,7 +389,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             return new RoundsDefenseLayoutResult { Verdict = BuildingReasonExistingWork };
         }
         verification.Update(world, v => v with { Complete = true, Tick = tick, Combat = combat });
-        read.Projection.WorkPawns.TryGetValue(out var workers);
+        var workers = read.Projection.WorkPawns is WorkPawnsRead.Read { Pawns: var workersRead } ? workersRead : default;
         var upkeep = DefenseRearm.DefenseRearmTurrets(DefenseTurretFactsOf(record, census), workers, DefenseStock(read.Projection), DisasterRules.PowerOutageHold(read.Projection.Facts.DisasterConditions));
         if (upkeep.Rearm)
         {

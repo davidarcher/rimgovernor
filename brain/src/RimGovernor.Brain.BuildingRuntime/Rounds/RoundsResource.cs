@@ -397,7 +397,7 @@ public sealed partial class RoundsResourcePlanner
         var (layout, ok) = await reviewer.LayoutPlanAsync(state.Snapshot, expected.Tick, ct).ConfigureAwait(false);
         if (ok)
         {
-            request = request with { Plan = Known(layout.Plan) };
+            request = request with { Plan = layout.Plan };
         }
 
         return request;

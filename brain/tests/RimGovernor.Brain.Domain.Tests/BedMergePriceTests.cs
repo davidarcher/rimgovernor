@@ -439,7 +439,7 @@ public sealed class BedMergePriceTests
         {
             Definitions = [Def(ContainmentCellRules.ShellWallDefinition, 135, 5), Def(ContainmentCellRules.ShellDoorDefinition, 850, 25)],
             Resources = Known<IReadOnlyDictionary<Resource, long>>(stocked.ToDictionary(r => r, _ => 300L)),
-            RingSources = Known(map),
+            RingSources = map,
         };
         Resource WallStuff(Obs.ColonyProjection colony) => Rounder.BedMergeShell(colony).Wall!.Value.Costs.Single().Resource;
         var trees = new RingStuffSources { Wood = EquatableArray.From([wood.Value]), Blocks = EquatableArray.From([granite.Value]) };

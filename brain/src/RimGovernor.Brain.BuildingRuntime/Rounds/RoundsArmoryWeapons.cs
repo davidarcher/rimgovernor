@@ -8,15 +8,15 @@ public sealed partial class RoundsArmoryPlanner
     /// hunters short of a weapon. The recipes are the benches' and the catalog's crafts no bench lists (#3659), so an
     /// unarmed colonist with no bench standing still wants the weapon a craft makes.
     /// </summary>
-    internal async Task<(IReadOnlyList<Amount> Fighters, IReadOnlyList<Amount> Hunters)> WeaponDemandAsync(GenerationSnapshot snapshot, IReadOnlyList<string> ids, long minTick, Fact<Bounds> mapBounds, IReadOnlyList<GearBench> benches, EquatableArray<GearRecipe> crafts, ArmoryTier tier, CancellationToken ct)
+    internal async Task<(IReadOnlyList<Amount> Fighters, IReadOnlyList<Amount> Hunters)> WeaponDemandAsync(GenerationSnapshot snapshot, IReadOnlyList<string> ids, long minTick, Bounds bounds, IReadOnlyList<GearBench> benches, EquatableArray<GearRecipe> crafts, ArmoryTier tier, CancellationToken ct)
     {
         if (_native is not FacadeNativeClient source)
         {
             return ([], []);
         }
-        if (!mapBounds.TryGetValue(out var bounds) || bounds.Width <= 0 || bounds.Height <= 0)
+        if (bounds.Width <= 0 || bounds.Height <= 0)
         {
-            throw new ControlException("weaponDemand: !bounds.known || bounds.Width <= 0 || bounds.Height <= 0");
+            throw new ControlException("weaponDemand: bounds.Width <= 0 || bounds.Height <= 0");
         }
         var identity = Boundary.Identity(snapshot);
         // The map bounds are the reading's (Facts.MapBounds, read once per step), so the frame things, the combat pawns

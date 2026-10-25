@@ -54,7 +54,7 @@ public static class HomeAreaRules
 
     /// <summary>Derives the home-area diff. Throws <see cref="RequiredFactException"/> when no Home census was read or the colony extent is unread.</summary>
     public static HomeAreaPlan PlanHomeArea(
-        Fact<Bounds> bounds,
+        Bounds bounds,
         CurrentConstruction? construction,
         Fact<EquatableArray<ConstructionClaim>> claims,
         HomeCoverageFacts? home

@@ -73,32 +73,32 @@ public static class LaborRules
     public static IReadOnlyList<WorkType> NeedLabor(NeedId need) => ConcernLabor(NeedId.Of(need.Family, need.Kind).FilingKey);
 
     /// <summary>
-    /// Counts, per native work type, the pawns RoundsWorkers counts whose work settings enable that type
-    /// (priority above zero and not disabled). Any counted pawn with unknown or empty work settings makes the
-    /// whole census unknown: native lists every WorkTypeDef for a pawn whose work applies, so an empty list is
-    /// an unobserved census, and partial labor evidence must not admit or refuse work.
+    /// Counts the available pawns whose work settings enable <paramref name="work"/> (priority above zero and not
+    /// disabled). Any available pawn with an empty work-settings list makes the count unknown: native lists every
+    /// WorkTypeDef for a pawn whose work applies, so an empty list is an unobserved census, and partial labor
+    /// evidence must not admit or refuse work.
     /// </summary>
-    public static Fact<IReadOnlyDictionary<WorkType, int>> RoundsLabor(IReadOnlyList<WorkPawn> pawns)
+    public static Fact<int> WorkersFor(IReadOnlyList<WorkPawn> pawns, WorkType work)
     {
-        var labor = new Dictionary<WorkType, int>();
+        var count = 0;
         foreach (var p in pawns)
         {
-            if (!p.Available || p.Work is not PawnWorkTable.Works { Rows: var work })
+            if (!p.Available || p.Work is not PawnWorkTable.Works { Rows: var rows })
             {
                 continue;
             }
-            if (work.Count == 0)
+            if (rows.Count == 0)
             {
-                return Unknown<IReadOnlyDictionary<WorkType, int>>();
+                return Unknown<int>();
             }
-            foreach (var w in work)
+            foreach (var w in rows)
             {
-                if (w.Priority > 0 && !w.Disabled)
+                if (w.Work == work && w.Priority > 0 && !w.Disabled)
                 {
-                    labor[w.Work] = labor.GetValueOrDefault(w.Work) + 1;
+                    count++;
                 }
             }
         }
-        return Known<IReadOnlyDictionary<WorkType, int>>(labor);
+        return Known(count);
     }
 }

@@ -11,7 +11,7 @@ internal static class RoundsBurialFacts
             return new TombStep();
         }
         SarcophagusAvailable(facts).TryGetValue(out var available);
-        facts.LayoutPlan.TryGetValue(out var plan);
+        var plan = facts.LayoutPlan;
         facts.Facts.Waste.TryGetValue(out var waste);
         return TombRules.NextTombStep(plan ?? new LayoutPlan(), waste, facts.Facts.CurrentConstruction?.Buildings ?? [], facts.Shapes, available);
     }
@@ -38,7 +38,8 @@ internal static class RoundsBurialFacts
 
     internal static (PlannedRoom Room, bool Owed) PlannedMorgue(ColonyProjection facts)
     {
-        var pk = facts.LayoutPlan.TryGetValue(out var plan);
+        var plan = facts.LayoutPlan;
+        var pk = plan is not null;
         var wk = facts.Facts.Waste.TryGetValue(out var waste);
         var (ground, gk) = RoundsBuildingPlanner.ColonyGround(facts);
         if (!pk || !wk || !gk)
@@ -55,7 +56,7 @@ internal static class RoundsBurialFacts
     /// </summary>
     internal static bool MorgueAwaitingRoom(ColonyProjection facts) =>
         facts.Facts.Waste.TryGetValue(out var waste) && MorgueRules.MorgueWaiting(waste)
-        && facts.LayoutPlan.TryGetValue(out var plan) && plan.RoomsOf(PlannedRole.Morgue).Count == 0;
+        && facts.LayoutPlan is { } plan && plan.RoomsOf(PlannedRole.Morgue).Count == 0;
 
     /// <summary>
     /// The burial's asks of the layout plan (RoomDemand.Tomb, RoomDemand.Morgue): another tomb while a dead
@@ -78,7 +79,8 @@ internal static class RoundsBurialFacts
         {
             return (new PlannedRoom(), Known(false));
         }
-        var pk = facts.LayoutPlan.TryGetValue(out var plan);
+        var plan = facts.LayoutPlan;
+        var pk = plan is not null;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         if (!ak || !pk || !rk)
         {

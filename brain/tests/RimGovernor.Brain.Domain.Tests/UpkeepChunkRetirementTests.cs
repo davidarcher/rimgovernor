@@ -15,8 +15,7 @@ public sealed class UpkeepChunkRetirementTests
     {
         var need = Clearance(new HomeUpkeepFacts
         {
-            Clearance = Fact.Known(default(EquatableArray<ClearanceTarget>)),
-            Ground = Fact.Known(default(EquatableArray<string>)),
+            Clearance = new ClearanceCensus(default),
         });
         Assert.Equal(Satisfaction.Met, need.Satisfaction);
         Assert.Equal(0.0, need.Deficit);
@@ -27,18 +26,17 @@ public sealed class UpkeepChunkRetirementTests
     {
         var need = Clearance(new HomeUpkeepFacts
         {
-            Clearance = Fact.Known(EquatableArray.From(new[] { new ClearanceTarget { EntityId = "wall", Deconstructible = true } })),
-            Ground = Fact.Known<EquatableArray<string>>(["floor"]),
+            Clearance = new ClearanceCensus(EquatableArray.From(new[] { new ClearanceTarget { EntityId = "wall", Deconstructible = true } })) { Ground = ["floor"] },
         });
         Assert.Equal(Satisfaction.Unmet, need.Satisfaction);
         Assert.Equal(2.0, need.Deficit);
         Assert.Equal<string>(["wall", "floor"], HomeUpkeepFamily.ClearanceTargets(
-            [new ClearanceTarget { EntityId = "wall", Deconstructible = true }], Fact.Known<EquatableArray<string>>(["floor"])));
+            [new ClearanceTarget { EntityId = "wall", Deconstructible = true }], ["floor"]));
     }
 
     [Fact]
     public void UnknownBuildingCensusCannotCertifyPriorClearanceComplete()
     {
-        Assert.Equal("clearance census", Assert.Throws<RequiredFactException>(() => Clearance(new HomeUpkeepFacts { Ground = Fact.Known(default(EquatableArray<string>)) })).Fact);
+        Assert.Equal("clearance census", Assert.Throws<RequiredFactException>(() => Clearance(new HomeUpkeepFacts())).Fact);
     }
 }

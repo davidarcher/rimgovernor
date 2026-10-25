@@ -47,7 +47,7 @@ public static partial class PlannedRules
     /// operation, def, stuff and anchors; one the facts no longer name is left out.
     /// </summary>
     public static PlannedSelection? PlannedSelectionOf(ForecastCoupledCandidates? candidates, ForecastCoupledSelection? selection,
-        Fact<PlannedSiteFacts> planned)
+        PlannedSiteFacts? planned)
     {
         if (candidates is null || selection is null)
         {
@@ -56,8 +56,8 @@ public static partial class PlannedRules
         var allocated = selection.Selected.Plan.Allocations.Select(a => a.Activity).ToHashSet(StringComparer.Ordinal);
         var chosen = new SortedSet<string>(candidates.Context.PlannedSites
             .Where(s => s.Activities.Concat(s.Finishes).Any(allocated.Contains)).Select(s => s.Site), StringComparer.Ordinal);
-        var facts = planned.TryGetValue(out var known)
-            ? known.Sites.Where(s => s.Room > 0 && s.Zone.Length == 0).ToDictionary(s => s.Id, StringComparer.Ordinal)
+        var facts = planned is not null
+            ? planned.Sites.Where(s => s.Room > 0 && s.Zone.Length == 0).ToDictionary(s => s.Id, StringComparer.Ordinal)
             : [];
         return new PlannedSelection
         {

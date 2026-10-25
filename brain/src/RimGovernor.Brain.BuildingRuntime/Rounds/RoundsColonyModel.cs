@@ -238,7 +238,7 @@ internal static class RoundsColonyModel
                 Cells = [.. colony.Cells.Where(c => c.ZoneId == Known(farm.Id) && c.Zone == Known(true)).Select(c => c.Cell)] });
         }
 
-        if (colony.LayoutPlan.TryGetValue(out var plan))
+        if (colony.LayoutPlan is { } plan)
         {
             var index = 0;
             foreach (var zone in plan.Zones.Where(z => z.Kind == LayoutPlanRules.ZoneField))
@@ -399,7 +399,7 @@ internal static class RoundsColonyModel
         var skills = new Dictionary<string, EquatableArray<WorkSkill>>(StringComparer.Ordinal);
         var hunters = new Dictionary<string, bool>(StringComparer.Ordinal);
         var curves = new Dictionary<string, EquatableArray<SkillStatCurve>>(StringComparer.Ordinal);
-        if (colony.WorkPawns.TryGetValue(out var workers))
+        if (colony.WorkPawns is WorkPawnsRead.Read { Pawns: var workers })
         {
             foreach (var worker in workers)
             {

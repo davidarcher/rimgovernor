@@ -59,7 +59,7 @@ public sealed partial class SafeAreaMemory
         }
 
         IReadOnlyList<Cell> killbox = [], hospital = [], isolation = [];
-        if (projection.LayoutPlan.TryGetValue(out var plan))
+        if (projection.LayoutPlan is { } plan)
         {
             killbox = plan.KillboxCells();
             hospital = plan.HospitalCells();

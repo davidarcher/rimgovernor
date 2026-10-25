@@ -27,7 +27,7 @@ public static class FacilityUpkeepRules
     /// owned construction (<c>current_construction</c>) or the structure census (<c>stone_structures</c>) is unread, and
     /// <see cref="DomainException"/> on an invalid read.
     /// </summary>
-    public static EquatableArray<string> ReviewStoneShell(Fact<EquatableArray<ConstructionClaim>> owned, Fact<EquatableArray<RepairStructure>> structures)
+    public static EquatableArray<string> ReviewStoneShell(Fact<EquatableArray<ConstructionClaim>> owned, EquatableArray<RepairStructure> structures)
     {
         if (!owned.TryGetValue(out var buildings))
         {
@@ -45,13 +45,9 @@ public static class FacilityUpkeepRules
         {
             return [];
         }
-        if (!structures.TryGetValue(out var rows))
-        {
-            throw new RequiredFactException("stone_structures");
-        }
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var result = new List<string>();
-        foreach (var row in rows)
+        foreach (var row in structures)
         {
             var s = row.Structure;
             DomainException.Require(FoodForecastRules.FoodId(s.Id) && seen.Add(s.Id) && AdmissionRules.ValidResource(new Resource(s.Definition)), "invalid structure census");

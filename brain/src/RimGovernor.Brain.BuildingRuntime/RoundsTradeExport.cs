@@ -177,7 +177,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             CashCap = Unknown<long>(),
             Sources = candidateSources,
         };
-        if (projection.WorkPawns.TryGetValue(out var pawns))
+        if (projection.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns })
         {
             request = request with { Profiles = Known<EquatableArray<Pol.PawnProfile>>([.. Pol.PawnRules.Profiles(pawns)]) };
         }

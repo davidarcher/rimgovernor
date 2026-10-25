@@ -75,7 +75,7 @@ public static partial class ProductionRules
                     .Concat(construction.Buildings.Where(b => b.Building is not null).Select(b => b.Building!))),
                     // Standing blueprints are optional work, not reservations: admitted actions below own stock.
                     new Dictionary<Resource, long>()) : null,
-            Pawns = facts.ForecastObserved.WorkPawns.TryGetValue(out var pawns)
+            Pawns = facts.ForecastObserved.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns }
                 ? Known(EquatableArray.From(pawns.Select(p => new WorkPawnAvailability(p.Id.Value, Known(p.Available), Known(p.Applies),
                     ForecastCurrentWork.ForecastCurrentWorkOf(p).Occupied, Known(p.Job.Target.Thing))
                     { Schedule = Known(p.Schedule), Preemptible = p.Job.Preemptible, LocalHour = facts.WorkResources.TryGetValue(out var native)

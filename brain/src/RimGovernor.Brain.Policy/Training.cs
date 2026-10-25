@@ -32,7 +32,7 @@ public static partial class TrainingRules
     /// </summary>
     public static TrainingReview ReviewTraining(RoundsFacts facts)
     {
-        if (!facts.ForecastObserved.WorkPawns.TryGetValue(out var pawns)) throw new RequiredFactException("work pawns");
+        var pawns = facts.ForecastObserved.WorkPawns.Require();
         var shooting = new HashSet<string>(StringComparer.Ordinal); var melee = new HashSet<string>(StringComparer.Ordinal);
         foreach (var pawn in pawns)
         {

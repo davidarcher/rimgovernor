@@ -244,7 +244,7 @@ public static partial class RecoveryRules
     /// create a replacement while that work is still running. This is derived from the census, not a second
     /// commitment ledger. Unknown jobs/targets cannot establish that work stopped.
     /// </summary>
-    public static Fact<bool> RecoveryWorkContinuing(RecoveryService service, EquatableArray<RecoveryBuilding> buildings, Fact<EquatableArray<WorkPawn>> pawns)
+    public static Fact<bool> RecoveryWorkContinuing(RecoveryService service, EquatableArray<RecoveryBuilding> buildings, WorkPawnsRead pawns)
     {
         var work = DisasterRules.RecoveryPending([.. buildings.Where(b => b.Id == service.Thing)]);
         var needed = false;
@@ -259,7 +259,7 @@ public static partial class RecoveryRules
         {
             return Known(false);
         }
-        if (!pawns.TryGetValue(out var rows))
+        if (pawns is not WorkPawnsRead.Read { Pawns: var rows })
         {
             return Unknown<bool>();
         }

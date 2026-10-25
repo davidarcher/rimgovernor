@@ -52,7 +52,7 @@ public static partial class RoomQualityRules
         IReadOnlyDictionary<string, RoomTarget> targets,
         IReadOnlyList<FurnitureRoom> rooms,
         Func<string, bool> available,
-        Fact<FlooringObservation> flooring,
+        FlooringObservation flooring,
         FlooringFacts floors)
     {
         var furniture = new Dictionary<string, FurnitureRoom>(StringComparer.Ordinal);
@@ -61,13 +61,9 @@ public static partial class RoomQualityRules
             furniture[r.Id] = r;
         }
         var floorRooms = new Dictionary<string, FloorRoom>(StringComparer.Ordinal);
-        var fk = flooring.TryGetValue(out var fo);
-        if (fk)
+        foreach (var r in flooring.Rooms)
         {
-            foreach (var r in fo!.Rooms)
-            {
-                floorRooms[r.Id] = r;
-            }
+            floorRooms[r.Id] = r;
         }
         foreach (var id in BeautyRooms(obs, targets))
         {
@@ -88,9 +84,9 @@ public static partial class RoomQualityRules
                     return (new RoomUpgrade { Room = id, Slot = "plant_pot", Def = PlantPotDefinition, Size = new Cell(1, 1), Anchor = cell, Rot = Rotation.North }, true);
                 }
             }
-            if (floorRooms.TryGetValue(id, out var fr) && fk)
+            if (floorRooms.TryGetValue(id, out var fr))
             {
-                var (u, ok) = FloorUpgrade(id, fr, fo!.Terrains, floors);
+                var (u, ok) = FloorUpgrade(id, fr, flooring.Terrains, floors);
                 if (ok)
                 {
                     return (u, true);

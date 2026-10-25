@@ -172,12 +172,12 @@ public sealed partial class AdminRounds
         {
             return BuildingReasonExistingWork;
         }
-        if (!f.LayoutPlan.TryGetValue(out var plan))
+        if (f.LayoutPlan is not { } plan)
         {
             return BuildingReasonNoLayoutPlan;
         }
         var method = new MethodId(string.Create(CultureInfo.InvariantCulture, $"grave-{step.Graves}"));
-        IReadOnlyList<Cell> traffic = f.Facts.Upkeep.Routes.TryGetValue(out var routes) ? [.. routes.Traffic.Select(t => t.Cell)] : [];
+        IReadOnlyList<Cell> traffic = [.. (f.Facts.Upkeep.Routes ?? throw new RequiredFactException("routes census")).Traffic.Select(t => t.Cell)];
         var sites = GraveSitingRules.GraveSites(new GraveSiteInput { Bounds = f.Bounds, Cells = f.Cells, Light = f.LightTerrains, Plan = plan!, Traffic = traffic });
         var planId = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };

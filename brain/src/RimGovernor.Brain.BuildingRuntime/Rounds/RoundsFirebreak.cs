@@ -76,10 +76,7 @@ internal sealed class FirebreakMemory
         var tick = projection.Identity.Tick;
         var footprint = FirebreakPlan.Footprint(projection);
         var cells = FirebreakRingRules.FirebreakRing(footprint);
-        if (!projection.Facts.Upkeep.Flooring.TryGetValue(out var flooring))
-        {
-            throw new RequiredFactException("flooring census");
-        }
+        var flooring = projection.Facts.Upkeep.Flooring ?? throw new RequiredFactException("flooring census");
         if (!projection.Resources.TryGetValue(out var stock))
         {
             throw new RequiredFactException("colony stock");
@@ -347,7 +344,7 @@ partial class FirebreakPlan
 
     /// <summary>The cells of the accepted layout plan's footprints; none while no plan is derived.</summary>
     internal static EquatableArray<Cell> PlannedFootprint(ColonyProjection projection) =>
-        EquatableArray.From(projection.LayoutPlan.TryGetValue(out var plan) ? LayoutFootprint(plan) : []);
+        EquatableArray.From(projection.LayoutPlan is { } plan ? LayoutFootprint(plan) : []);
 
     internal static List<Cell> LayoutFootprint(LayoutPlan plan)
     {

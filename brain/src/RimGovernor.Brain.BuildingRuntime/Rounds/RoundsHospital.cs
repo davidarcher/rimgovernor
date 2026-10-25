@@ -40,12 +40,7 @@ partial class RoundsHospitalPlanner
             .Select(d => new BenchDefinition { Name = d.Name, Available = d.Available, NeedsPower = d.NeedsPower, ConstructionSkill = d.ConstructionSkill })
             .ToList();
         var f = facts.Facts;
-        var doctors = Unknown<int>();
-        if (f.Labor.TryGetValue(out var census))
-        {
-            census.TryGetValue(WorkType.Doctor, out var doctorCount);
-            doctors = Known(doctorCount);
-        }
+        var doctors = facts.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns } ? LaborRules.WorkersFor(pawns, WorkType.Doctor) : Unknown<int>();
 
         return new HospitalRequest
         {

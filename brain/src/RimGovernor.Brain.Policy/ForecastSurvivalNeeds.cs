@@ -14,7 +14,7 @@ public sealed partial record ForecastSurvivalNeeds
         var horizon = request.HorizonDays * GameTime.TicksPerDay;
         if (!double.IsFinite(horizon) || horizon <= 0 || request.Origin.ObservedTick != request.Demand.Work.Tick.Value)
             throw new DomainException("invalid survival forecast horizon or frame");
-        if (!request.Demand.Work.Pawns.TryGetValue(out var pawns)) return new([], ["unknown_survival_roster"]);
+        if (request.Demand.Work.Pawns is not WorkPawnsRead.Read { Pawns: var pawns }) return new([], ["unknown_survival_roster"]);
         if (pawns.Select(p => p.Id).Distinct().Count() != pawns.Count || pawns.Any(p => p.Id.IsEmpty))
             throw new DomainException("invalid survival roster");
         var findings = new SortedSet<string>(StringComparer.Ordinal);

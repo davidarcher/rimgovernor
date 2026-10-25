@@ -33,15 +33,10 @@ public sealed partial class RoundsBuildingPlanner
     internal IReadOnlyList<string> FlooringDefinitions() => Reviewer.Policy.Flooring.Floors;
 
     /// <summary>The flooring census the traffic tier prices, with the firebreak ring's pave cells when composed: the rooms/flooring Need's evidence.</summary>
-    internal Fact<FlooringObservation> FlooringCensus(ColonyProjection facts)
+    internal FlooringObservation FlooringCensus(ColonyProjection facts)
     {
         var census = TrafficFlooringFacts(facts, Reviewer.Policy.Flooring);
-        if (census.TryGetValue(out var v) && FirebreakPave is not null)
-        {
-            census = Known(v with { Firebreak = FirebreakPave() });
-        }
-
-        return census;
+        return FirebreakPave is not null ? census with { Firebreak = FirebreakPave() } : census;
     }
 
     /// <summary>
@@ -57,11 +52,6 @@ public sealed partial class RoundsBuildingPlanner
         if (!review.Active)
         {
             return (null, BuildingReasonNoDeficit);
-        }
-
-        if (!review.Known)
-        {
-            return (null, FieldUnavailable("flooring"));
         }
 
         var proposal = FlooringRules.SelectFlooringMethod(review, FlooringFactsOf(facts), p);
@@ -162,13 +152,8 @@ partial class RoundsBuildingPlanner
     private static string _trafficFindingsLogged = "";
 
     /// <summary>Flags thoroughfares and animals in clean rooms from the traffic layers in the OTLP log ring; no planner acts on them yet.</summary>
-    internal static void LogTrafficFindings(Fact<FlooringObservation> fact)
+    internal static void LogTrafficFindings(FlooringObservation v)
     {
-        if (!fact.TryGetValue(out var v))
-        {
-            return;
-        }
-
         var lines = TrafficRules.TrafficFindings(v).Select(f => f.ToString()).ToList();
         var joined = string.Join("; ", lines);
         bool changed;
@@ -196,14 +181,11 @@ partial class RoundsBuildingPlanner
 
     /// <summary>
     /// Adds what the traffic tier prices its floor from to the flooring census: every policy floor's planning
-    /// row, the accessible stock and the tier style's aisle floor. An unknown census stays unknown.
+    /// row, the accessible stock and the tier style's aisle floor.
     /// </summary>
-    internal static Fact<FlooringObservation> TrafficFlooringFacts(ColonyProjection facts, FlooringPolicy p)
+    internal static FlooringObservation TrafficFlooringFacts(ColonyProjection facts, FlooringPolicy p)
     {
-        if (!facts.Facts.Upkeep.Flooring.TryGetValue(out var v))
-        {
-            return facts.Facts.Upkeep.Flooring;
-        }
+        var v = facts.Facts.Upkeep.Flooring ?? throw new RequiredFactException("flooring census");
 
         var floors = new Dictionary<string, FloorDefinition>();
         foreach (var d in facts.Definitions)
@@ -234,6 +216,6 @@ partial class RoundsBuildingPlanner
             v = v with { TrafficStyle = style(RoomRole.None).Item1 };
         }
 
-        return Known(v);
+        return v;
     }
 }

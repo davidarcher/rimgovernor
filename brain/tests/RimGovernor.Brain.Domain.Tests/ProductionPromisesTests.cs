@@ -199,7 +199,7 @@ public sealed class ProductionPromisesTests
         var facts = Facts(Known(default(EquatableArray<ForecastCommitment>))) with
         {
             Tick = new Tick(100), Resources = Known<EquatableArray<Amount>>([new(Material, 120)]),
-            ForecastObserved = new() { WorkPawns = Known(default(EquatableArray<WorkPawn>)) },
+            ForecastObserved = new() { WorkPawns = new WorkPawnsRead.Read(default(EquatableArray<WorkPawn>)) },
             WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
             WorkAdmission = new() { Recipes = Known<EquatableArray<ProductionRecipeInput>>([new("TestRecipe", Slots, false) { Products = [], WorkAmount = 0 }]),
                 Bills = Known(default(EquatableArray<ProductionBatchState>)) },

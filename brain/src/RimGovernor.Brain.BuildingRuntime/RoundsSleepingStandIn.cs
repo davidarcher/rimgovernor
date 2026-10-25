@@ -12,7 +12,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     internal async Task<RoundsBuildingResult?> StandInSpotsAsync(ControlState state, Sto.Rounds review, Sto.NeedOwner goal, Observation.ColonyProjection facts, CancellationToken call, CancellationToken epoch)
     {
         var (count, missing) = ShelterRules.StandInsOwed(facts.Facts);
-        if (missing == 0 || !facts.LayoutPlan.TryGetValue(out var plan))
+        if (missing == 0 || facts.LayoutPlan is not { } plan)
         {
             return null;
         }

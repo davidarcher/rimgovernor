@@ -85,7 +85,7 @@ public static class EssentialServicesRules
         var stress = new List<ServiceStressAssessment>();
         var truncated = false;
         var spent = 0;
-        var beneficiaries = facts.ForecastObserved.WorkPawns.TryGetValue(out var pawns)
+        var beneficiaries = facts.ForecastObserved.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns }
             ? EquatableArray.From(pawns.Select(p => p.Id.Value).Order(StringComparer.Ordinal)) : default;
         var inactive = facts.Colonists == 0;
         // An owner whose Need raises on an unread fact is coverage the review cannot see: Unknown, never adequate,
@@ -128,7 +128,7 @@ public static class EssentialServicesRules
         NeedOwner(EssentialService.Food, FoodStoresRules.FoodStorageNeed, () => FoodStoresRules.FoodStorageNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
         NeedOwner(EssentialService.Food, FoodStoresRules.RefrigerationNeed, () => FoodStoresRules.RefrigerationNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
         NeedOwner(EssentialService.Power, PowerFamily.Basic, () => PowerRules.PowerNeedOf(PowerFacts.From(facts)));
-        NeedOwner(EssentialService.Logistics, LayoutFamily.Routes, () => LayoutFamily.RoutesNeed(LayoutFamily.RoutesStandingOf(facts.Upkeep.Routes, facts.Upkeep.Rooms, policy)));
+        NeedOwner(EssentialService.Logistics, LayoutFamily.Routes, () => LayoutFamily.RoutesNeed(LayoutFamily.RoutesStandingOf(facts.Upkeep.Routes ?? throw new RequiredFactException("routes census"), facts.Upkeep.Rooms, policy)));
         NeedOwner(EssentialService.Materials, EconomyFamily.Resource, () => EconomyRules.ResourceNeedOf(ResourceFacts.From(facts, demand)));
 
         // The owner already merged overlapping costs. Never add a fuel or service copy to demand.
@@ -197,7 +197,7 @@ public static class EssentialServicesRules
             return;
         }
         var benches = facts.EssentialInputs.Benches;
-        if (!facts.ForecastObserved.WorkPawns.TryGetValue(out var workers))
+        if (facts.ForecastObserved.WorkPawns is not WorkPawnsRead.Read { Pawns: var workers })
         {
             rows.Add(new(EssentialService.Cooking, target, ServiceCoverage.Unknown, [], ["work_pawns"]));
             return;
@@ -292,7 +292,7 @@ public static class EssentialServicesRules
     private static void AssessServiceRoutes(RoundsFacts facts, List<ServiceAssessment> rows,
         Action<ServiceTarget, string, Func<(ServiceCoverage, EquatableArray<string>)>> scenario)
     {
-        if (!facts.Upkeep.Routes.TryGetValue(out var routes)) return;
+        if (facts.Upkeep.Routes is not { } routes) return;
         foreach (var facility in routes.Facilities.OrderBy(f => f.Id, StringComparer.Ordinal))
         {
             var target = ServiceTarget.ForNeed(LayoutFamily.Routes, facility.Id, "observed_facility_reachable");

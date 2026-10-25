@@ -36,7 +36,7 @@ public sealed partial record ColonyProjection
         {
             // A forecast the policy refuses leaves the raw runway unknown.
         }
-        if (WorkPawns.TryGetValue(out var pawns))
+        if (WorkPawns is WorkPawnsRead.Read { Pawns: var pawns })
         {
             var cooks = new List<MealCook>();
             foreach (var pawn in pawns)

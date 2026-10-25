@@ -19,12 +19,12 @@ public static class RoundsWorkReads
             : throw new DomainException($"primary weapon {id}: the frame holds no row for it");
     }
 
-    internal static Fact<EquatableArray<WorkPawn>> RoundsWork(
+    internal static WorkPawnsRead RoundsWork(
         O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot snapshot, DefinitionCatalog? catalog, Things things)
     {
         if (colony is null || (int)colony.ColonistCount != emergency.Colonists.Count || snapshot.Pawns.Count != emergency.Colonists.Count)
         {
-            return Unknown<EquatableArray<WorkPawn>>();
+            return new WorkPawnsRead.Unread("the colony and pawn censuses disagree on the colonist count");
         }
         var byId = new Dictionary<string, O.PawnState>(StringComparer.Ordinal);
         foreach (var row in snapshot.Pawns)
@@ -38,7 +38,7 @@ public static class RoundsWorkReads
             if (!byId.TryGetValue(p.Id.Value, out var row)
                 || row.Dead != p.Dead || row.Downed != p.Downed || !row.Colonist)
             {
-                return Unknown<EquatableArray<WorkPawn>>();
+                return new WorkPawnsRead.Unread($"colonist {p.Id.Value} has no matching pawn row");
             }
             var w = WorkPawnRow(row, catalog, things);
             if (w.Biotech is PawnBiotechStatus.Active { Facts: var bt })
@@ -52,7 +52,7 @@ public static class RoundsWorkReads
             }
             rows.Add(w);
         }
-        return Known(EquatableArray.From(rows));
+        return new WorkPawnsRead.Read(EquatableArray.From(rows));
     }
 
     private static BiotechCatalog RequireBiotech(BiotechCatalog? biotech) =>

@@ -111,7 +111,7 @@ public sealed class TrainingRangeCreditTests
         // the one practice eligibility rule and RangeTraining.DailyXpBudget) and SkillStatCurves (the biography's
         // RangedDefenseDps curve); GenerateCoupledActivities builds the context's range trainees from the review's facts.
         var facts = ForecastCoupledTests.ConstructionReview();
-        var pawns = facts.ForecastObserved.WorkPawns.Value;
+        var pawns = ((WorkPawnsRead.Read)facts.ForecastObserved.WorkPawns).Pawns;
         WorkPawn Capable(WorkPawn pawn, string id, bool capable = true) => pawn with
         {
             Id = new(id), Health = 0.5,
@@ -119,7 +119,7 @@ public sealed class TrainingRangeCreditTests
             SkillStatCurves = [RangedDps],
         };
         WorkPawn[] colony = [Capable(pawns[0], "a"), Capable(pawns[0], "b", capable: false)];
-        var review = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = Known(EquatableArray.From(colony)) } };
+        var review = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead.Read(EquatableArray.From(colony)) } };
         var context = ForecastCoupledCandidates.GenerateCoupledActivities(review)!.Context;
         // A pawn incapable of Shooting (a Brawler, or Shooting disabled) is no trainee and gains nothing.
         Assert.Equal(["a"], context.Range!.Trainees.Select(t => t.Pawn));
@@ -128,13 +128,13 @@ public sealed class TrainingRangeCreditTests
         // The range is planned for every capable shooter below the ceiling.
         Assert.Equal(1, TrainingRules.ReviewTraining(review).ShootingTrainees);
         // A capable pawn without the curve is a named not-modelled finding, not a trainee.
-        var uncurved = review with { ForecastObserved = review.ForecastObserved with { WorkPawns = Known(EquatableArray.From([Capable(pawns[0], "a") with { SkillStatCurves = [] }])) } };
+        var uncurved = review with { ForecastObserved = review.ForecastObserved with { WorkPawns = new WorkPawnsRead.Read(EquatableArray.From<WorkPawn>([Capable(pawns[0], "a") with { SkillStatCurves = [] }])) } };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(uncurved)!;
         Assert.Empty(generated.Context.Range!.Trainees);
         Assert.Contains("training_range_shooting_not_modelled:a", generated.Findings);
         // A fresh colony (its colonist's skills read, none capable of Shooting practice) credits its planned range nothing and throws nothing.
         var brawler = pawns[0] with { Skills = [new WorkSkill { Name = "Shooting", Level = 3, Learning = Shooting() with { Practice = new SkillPractice.Range(false, true, 2, 3000, 3000) } }] };
-        var fresh = ForecastCoupledCandidates.GenerateCoupledActivities(facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = Known(EquatableArray.From([brawler])) } })!.Context;
+        var fresh = ForecastCoupledCandidates.GenerateCoupledActivities(facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead.Read(EquatableArray.From<WorkPawn>([brawler])) } })!.Context;
         Assert.Empty(fresh.Range!.Trainees);
         Assert.Empty(ForecastTrainingRange.RangeCredit(new(1, "", 0), Stub(), [], fresh with { PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.TrainingRange } }, Day));
     }

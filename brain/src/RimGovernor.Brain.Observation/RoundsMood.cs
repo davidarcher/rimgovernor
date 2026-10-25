@@ -95,7 +95,7 @@ public static class RoundsMoodReads
         {
             Emergency = new Held<EmergencyFacts> { Value = emergency, AsOf = tick, Complete = emergency.AllSeen, Source = "rimgovernor/observations_read_status" },
         };
-        if (projection.WorkPawns.TryGetValue(out var work))
+        if (projection.WorkPawns is WorkPawnsRead.Read { Pawns: var work })
         {
             projection.Facts.MedicalPawns.TryGetValue(out var medical);
             projection.Facts.MoodPawns.TryGetValue(out var mood);

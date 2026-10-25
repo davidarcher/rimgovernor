@@ -1369,7 +1369,7 @@ partial class RoundsBuildingPlanner
     internal static List<Cell> NonSleepingPlannedCells(Observation.ColonyProjection facts)
     {
         var cells = new List<Cell>();
-        if (!facts.LayoutPlan.TryGetValue(out var plan))
+        if (facts.LayoutPlan is not { } plan)
         {
             return cells;
         }
@@ -1406,7 +1406,7 @@ partial class RoundsBuildingPlanner
     internal static List<Cell> SleepingPlannedCells(Observation.ColonyProjection facts)
     {
         var cells = new List<Cell>();
-        if (!facts.LayoutPlan.TryGetValue(out var plan))
+        if (facts.LayoutPlan is not { } plan)
         {
             return cells;
         }

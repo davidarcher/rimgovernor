@@ -132,7 +132,7 @@ public sealed partial class LayoutRounds
             if (_needs.Routes)
             {
                 var projection = rooms.Projection;
-                facts = facts with { Routes = LayoutFamily.RoutesStandingOf(projection.Facts.Upkeep.Routes, projection.Rooms, _reviewer.Policy) };
+                facts = facts with { Routes = LayoutFamily.RoutesStandingOf(projection.Facts.Upkeep.Routes ?? throw new RequiredFactException("routes census"), projection.Rooms, _reviewer.Policy) };
             }
         }
         if (_firebreak is not null)

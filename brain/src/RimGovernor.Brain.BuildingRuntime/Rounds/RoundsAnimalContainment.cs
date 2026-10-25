@@ -70,7 +70,8 @@ internal static class RoundsAnimalContainment
     /// <summary>Whether the planned animal pens stand.</summary>
     internal static bool PensStand(ColonyProjection facts)
     {
-        var pk = facts.LayoutPlan.TryGetValue(out var plan);
+        var plan = facts.LayoutPlan;
+        var pk = plan is not null;
         var census = facts.Facts.CurrentConstruction;
         var (ground, gk) = RoundsBuildingPlanner.ColonyGround(facts);
         if (!pk || census is null || !gk)

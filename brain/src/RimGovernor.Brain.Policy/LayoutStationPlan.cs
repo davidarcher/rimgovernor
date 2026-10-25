@@ -48,7 +48,7 @@ public sealed record StationFacts
     public PastureTable Pasture { get; init; } = new(new Dictionary<string, double>());
 
     /// <summary>Says who is a baby.</summary>
-    public Fact<EquatableArray<WorkPawn>> WorkPawns { get; init; }
+    public WorkPawnsRead WorkPawns { get; init; } = WorkPawnsRead.NotRead;
 
     /// <summary>The colony's rest schedule from its workers' timetables (#3750); null while unread, which fails the disturbed-sleep price that needs it.</summary>
     public RestSchedule? Rest { get; init; }
@@ -490,7 +490,7 @@ public static partial class LayoutStationPlanRules
         {
             throw new RequiredFactException("prisoners");
         }
-        if (!f.WorkPawns.TryGetValue(out var pawns))
+        if (f.WorkPawns is not WorkPawnsRead.Read { Pawns: var pawns })
         {
             throw new RequiredFactException("pawn stages");
         }

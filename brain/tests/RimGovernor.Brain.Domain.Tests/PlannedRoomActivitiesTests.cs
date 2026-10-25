@@ -106,7 +106,7 @@ public sealed class PlannedRoomActivitiesTests
             // The colony holds what the stacks hold.
             Resources = Known(EquatableArray.From(planned.SelectMany(s => s.Options).Where(o => o.Input.Length > 0).DistinctBy(o => o.Input)
                 .GroupBy(o => o.Resource).Select(g => new RimGovernor.Brain.Policy.Amount(new Resource(g.Key), (long)g.Sum(o => o.AvailableInput))))),
-            PlannedSites = Known(PlannedFacts(planned, routes)),
+            PlannedSites = PlannedFacts(planned, routes),
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = EquatableArray.From(others.Select(p => Idle(p)).Append(Idle(Pawn, level, fall))) },
@@ -272,8 +272,8 @@ public sealed class PlannedRoomActivitiesTests
         Assert.Equal(["planned/room1/WoodLog/Shell"], Assert.Single(result.Selected.PlannedRooms).Complete);
         string[] deliveries = ["planned/room1/wall/WoodLog/delivery/wood-a", "planned/room1/wall/WoodLog/delivery/wood-b"];
         Assert.All(deliveries, delivery => Assert.Contains(result.Selected.Plan.Allocations, a => a.Activity.StartsWith(delivery + "/composition/", StringComparison.Ordinal)));
-        Assert.Equal((35, 40), (ConstructionMethodCandidates.StackShares(facts.PlannedSites.Value.Sites.Single(s => s.Op == OpKind.WallIn).Options, _ => 0)!["wood-a"],
-            ConstructionMethodCandidates.StackShares(facts.PlannedSites.Value.Sites.Single(s => s.Op == OpKind.WallIn).Options, _ => 0)!["wood-b"]));
+        Assert.Equal((35, 40), (ConstructionMethodCandidates.StackShares(facts.PlannedSites!.Sites.Single(s => s.Op == OpKind.WallIn).Options, _ => 0)!["wood-a"],
+            ConstructionMethodCandidates.StackShares(facts.PlannedSites!.Sites.Single(s => s.Op == OpKind.WallIn).Options, _ => 0)!["wood-b"]));
     }
 
     [Fact]
@@ -775,7 +775,7 @@ public sealed class PlannedRoomActivitiesTests
         var facts = Review([Ring(OpKind.WallIn, "WoodLog", 200)]);
         facts = facts with
         {
-            PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Storage)] }),
+            PlannedSites = facts.PlannedSites! with { Roles = [(1, PlannedRole.Storage)] },
             PlannedShelters = [room],
             ForecastObserved = facts.ForecastObserved with
             {
@@ -815,7 +815,7 @@ public sealed class PlannedRoomActivitiesTests
         Assert.Equal(0, unpriced.SelectedVector.Development);
         Assert.DoesNotContain(unpriced.Selection.Selected, id => id.StartsWith("planned/", StringComparison.Ordinal));
         var counted = Select(Credited(facts));
-        var bedroom = facts with { PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Bedroom)] }) };
+        var bedroom = facts with { PlannedSites = facts.PlannedSites! with { Roles = [(1, PlannedRole.Bedroom)] } };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(bedroom, Horizon)!.Priced().BuildersRead()!;
         Assert.Equal(PlannedRole.Bedroom, generated.Context.PlannedRoomRoles[1]);
         Assert.True(generated.Context.Priced(1));
@@ -846,7 +846,7 @@ public sealed class PlannedRoomActivitiesTests
     public void ACorridorABedroomOpensOnIsPricedWithTheBedroom()
     {
         var facts = Review([Ring(OpKind.WallIn, "WoodLog", 200), Ring(OpKind.DoorIn, "WoodLog", 60)]);
-        var corridor = facts with { PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Circulation)] }) };
+        var corridor = facts with { PlannedSites = facts.PlannedSites! with { Roles = [(1, PlannedRole.Circulation)] } };
         Assert.Empty(ForecastCoupledCandidates.GenerateCoupledActivities(corridor, Horizon)!.Context.Connectors);
         var joined = corridor with
         {
@@ -866,7 +866,7 @@ public sealed class PlannedRoomActivitiesTests
     public void APricedRoomsComposedDeliveryIsChargedItsMaterial()
     {
         var facts = Review([Ring(OpKind.WallIn, "WoodLog", 200, count: 20, available: 20)]);
-        var bedroom = facts with { PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Bedroom)] }) };
+        var bedroom = facts with { PlannedSites = facts.PlannedSites! with { Roles = [(1, PlannedRole.Bedroom)] } };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(bedroom, Horizon)!.Priced().BuildersRead()!;
         const double perUnit = 0.001;
         IEnumerable<ForecastConsequenceVector> Vectors(ForecastCoupledSelection result) =>
@@ -913,7 +913,7 @@ public sealed class PlannedRoomActivitiesTests
         });
         facts = facts with
         {
-            PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Bedroom)] }),
+            PlannedSites = facts.PlannedSites! with { Roles = [(1, PlannedRole.Bedroom)] },
             PlannedShelters = [new PlannedRoom { Id = 1, Role = PlannedRole.Bedroom, Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = 5, Z = 5, Width = 3, Height = 3 }) }],
             PlannedRoomPredictions = EquatableArray.From(stages.Select(s => PlannedRoomPredictionTests.Closed("1", s.Key, "Bedroom", 30d, s.Value, 9, 0, false)
                 with { Beds = inside ? ["bed"] : [] })),
@@ -960,7 +960,7 @@ public sealed class PlannedRoomActivitiesTests
         };
         facts = facts with
         {
-            PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Kitchen)] }),
+            PlannedSites = facts.PlannedSites! with { Roles = [(1, PlannedRole.Kitchen)] },
             PlannedShelters = [new PlannedRoom { Id = 1, Role = PlannedRole.Kitchen, Meals = 6,
                 Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = 5, Z = 5, Width = 3, Height = 3 }) }],
             PlannedRoomPredictions = EquatableArray.From([PlannedRoomPredictionTests.Closed("1", "WoodLog", "Kitchen", 30d, 2, 9, 0, false) with { Cleanliness = -1 }]),
@@ -1100,7 +1100,7 @@ public sealed class PlannedRoomActivitiesTests
         });
         facts = facts with
         {
-            PlannedSites = Known(facts.PlannedSites.Value with { Roles = EquatableArray.From(roles.Select(r => (r.Key, r.Value))) }),
+            PlannedSites = facts.PlannedSites! with { Roles = EquatableArray.From(roles.Select(r => (r.Key, r.Value))) },
             PlannedShelters = [.. occupants.Keys.Select(room => new PlannedRoom { Id = room, Role = roles[room],
                 Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = 5 + (10 * (room - 1)), Z = 5, Width = 3, Height = 3 }) })],
             PlannedRoomPredictions = EquatableArray.From(occupants.Keys.Select(room => PlannedRoomPredictionTests.Closed(

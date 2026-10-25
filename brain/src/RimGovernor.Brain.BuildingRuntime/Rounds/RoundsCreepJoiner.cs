@@ -169,7 +169,8 @@ internal static class RoundsCreepJoiner
     internal static bool IsolationReady(ColonyProjection facts)
     {
         var (need, owed) = RoundsSleepingUpkeepPlanner.IsolationRoomNeed(facts);
-        var pk = facts.LayoutPlan.TryGetValue(out var plan);
+        var plan = facts.LayoutPlan;
+        var pk = plan is not null;
         var (ground, gk) = RoundsBuildingPlanner.ColonyGround(facts);
         var census = facts.Facts.CurrentConstruction;
         if (!owed || !pk || !gk || census is null)

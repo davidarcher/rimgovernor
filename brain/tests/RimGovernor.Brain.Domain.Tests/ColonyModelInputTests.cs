@@ -102,7 +102,7 @@ public sealed class ColonyModelInputTests
         var plan = new LayoutPlan { Zones = [new LayoutZone { Kind = LayoutPlanRules.ZoneField, Runs = [new RowRun(0, 2, 4)] }] };
         projection = projection with
         {
-            LayoutPlan = Known(plan),
+            LayoutPlan = plan,
             Cells = [.. projection.Cells, new SiteCell { Cell = new Cell(4, 0), Fertility = Known(1.1) }, new SiteCell { Cell = new Cell(5, 0), Fertility = Known(0.9) }],
         };
 
@@ -118,7 +118,7 @@ public sealed class ColonyModelInputTests
     {
         var projection = ColonyModelFixtures.Projection();
         var plan = new LayoutPlan { Zones = [new LayoutZone { Kind = LayoutPlanRules.ZoneField, Runs = [new RowRun(0, 4, 2)] }] };
-        projection = projection with { LayoutPlan = Known(plan), Cells = [.. projection.Cells, new SiteCell { Cell = new Cell(4, 0), Fertility = Known(1.1) }] };
+        projection = projection with { LayoutPlan = plan, Cells = [.. projection.Cells, new SiteCell { Cell = new Cell(4, 0), Fertility = Known(1.1) }] };
 
         var unknowns = ColonyModelFixtures.GapsOf(projection);
 

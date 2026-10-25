@@ -56,7 +56,9 @@ public sealed partial class RoundsBuildingPlanner
             return (new RoundsBuildingResult(), false);
         }
 
-        var planned = s.Facts.LayoutPlan.TryGetValue(out var plan);
+        var plan = s.Facts.LayoutPlan;
+
+        var planned = plan is not null;
         var tk = s.Facts.TechTier.TryGetValue(out var tier);
         if (!planned || !tk || tier < TechTier.Masonry)
         {

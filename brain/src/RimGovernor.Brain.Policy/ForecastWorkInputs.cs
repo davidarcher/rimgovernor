@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 public sealed record ForecastWorkInputs
 {
     public Tick Tick { get; init; }
-    public Fact<EquatableArray<WorkPawn>> Pawns { get; init; }
+    public WorkPawnsRead Pawns { get; init; } = WorkPawnsRead.NotRead;
     public EquatableArray<IngredientReservation> IngredientReservations { get; init; }
 
     /// <summary>The observed work roster and bill reservations at the review tick.</summary>

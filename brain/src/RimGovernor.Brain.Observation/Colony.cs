@@ -235,7 +235,7 @@ public sealed partial record ColonyProjection
 
     public required double PendingFoodNutrition { get; init; }
 
-    public Fact<EquatableArray<WorkPawn>> WorkPawns { get; init; }
+    public WorkPawnsRead WorkPawns { get; init; } = WorkPawnsRead.NotRead;
 
     /// <summary>The colony's rest schedule from its workers' timetables (#3750); null while unread.</summary>
     public RestSchedule? Rest { get; init; }
@@ -292,7 +292,7 @@ public sealed partial record ColonyProjection
     public Fact<TechTier> TechTier { get; init; }
 
     /// <summary>The persisted v2 layout, served by the routine review; unknown until one is derived.</summary>
-    public Fact<LayoutPlan> LayoutPlan { get; init; }
+    public LayoutPlan? LayoutPlan { get; init; }
 
     public RoundsFacts Facts { get; init; } = new();
 
@@ -308,9 +308,9 @@ public sealed partial record ColonyProjection
     /// <summary>
     /// The materials the window's cells offer beyond the stock (#3747, #3839, DefinitionCatalog.RingStuffSourcesOf): the
     /// wood of its standing trees, the blocks and mined items of its natural rock, its lying stacks and what its unowned
-    /// buildings yield on deconstruction. Unknown without a planning window or the catalog.
+    /// buildings yield on deconstruction. Null without a planning window or the catalog.
     /// </summary>
-    public Fact<RingStuffSources> RingSources { get; init; }
+    public RingStuffSources? RingSources { get; init; }
 
     /// <summary>The hostile lords the map has seen since load (the native RaidArrivalState tracks), the defense layout's arrivals.</summary>
     public IReadOnlyList<O.RaidTrack> Raids { get; init; } = [];
@@ -346,7 +346,7 @@ public sealed partial record ColonyProjection
     /// </summary>
     public Fact<Cell> Center()
     {
-        if (LayoutPlan.TryGetValue(out var plan) && plan.Center() is { } center)
+        if (LayoutPlan is { } plan && plan.Center() is { } center)
         {
             return Known(center);
         }

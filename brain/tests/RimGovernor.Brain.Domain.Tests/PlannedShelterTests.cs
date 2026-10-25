@@ -81,9 +81,9 @@ public sealed class PlannedShelterTests
         {
             PlannedShelters = [new() { Id = 1, Region = RegionRules.RectRegion(new(1, 1, 1, 1)), Door = DoorCell }],
             // The planned-site read's routes between the sites (#3313): the roof is worked at its own cell.
-            PlannedSites = Known(new PlannedSiteFacts { Sites = EquatableArray.From(planned), Routes = EquatableArray.From(cells
+            PlannedSites = new PlannedSiteFacts { Sites = EquatableArray.From(planned), Routes = EquatableArray.From(cells
                 .SelectMany(a => cells.Where(b => a != b).Select(b => new CoupledRoute("pawn", a, b, new RouteTicks.Reachable(1d)) { FromStart = false }))
-                .Concat(cells.Select(b => new CoupledRoute("pawn", b, b, new RouteTicks.Reachable(1d)) { FromStart = true }))) }),
+                .Concat(cells.Select(b => new CoupledRoute("pawn", b, b, new RouteTicks.Reachable(1d)) { FromStart = true }))) },
             PlannedThermal = plannedThermal,
             CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long>() },
             ForecastObserved = facts.ForecastObserved with
@@ -169,7 +169,7 @@ public sealed class PlannedShelterTests
         };
         var barracks = facts with
         {
-            PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Barracks)] }),
+            PlannedSites = facts.PlannedSites! with { Roles = [(1, PlannedRole.Barracks)] },
             PlannedShelters = [facts.PlannedShelters[0] with { Role = PlannedRole.Barracks }],
             PlannedRoomPredictions = EquatableArray.From([PlannedRoomPredictionTests.Closed("1", "WoodLog", "Barracks", 30d, 0, 1, 0, false)]),
             ForecastObserved = facts.ForecastObserved with { Needs = facts.ForecastObserved.Needs with { Pawns = [sleeper] } },
@@ -212,7 +212,7 @@ public sealed class PlannedShelterTests
         };
         var barracks = facts with
         {
-            PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Barracks)] }),
+            PlannedSites = facts.PlannedSites! with { Roles = [(1, PlannedRole.Barracks)] },
             PlannedShelters = [facts.PlannedShelters[0] with { Role = PlannedRole.Barracks }],
             PlannedRoomPredictions = EquatableArray.From([PlannedRoomPredictionTests.Closed("1", "WoodLog", "Barracks", 30d, 0, 1, 0, false)]),
             ForecastObserved = facts.ForecastObserved with { Needs = facts.ForecastObserved.Needs with { Pawns = [sleeper] } },

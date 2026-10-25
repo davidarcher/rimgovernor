@@ -30,7 +30,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal static (DefenseCut Cut, bool Known) DefensePerimeterCut(RoundsReading read)
     {
         var projection = read.Projection;
-        if (!projection.LayoutPlan.TryGetValue(out var plan))
+        if (projection.LayoutPlan is not { } plan)
         {
             return (new DefenseCut(), false);
         }

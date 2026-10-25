@@ -112,7 +112,7 @@ public sealed class FirstLayoutPlanTests
         Colonists = colonists,
         Patients = Fact.Known(EquatableArray.From<CarePawn>([])),
         Prisoners = Fact.Known(0),
-        WorkPawns = Fact.Known(EquatableArray.From<WorkPawn>([])),
+        WorkPawns = new WorkPawnsRead.Read(EquatableArray.From<WorkPawn>([])),
         Rest = RestSchedule.Of([]),
         Food = new FoodSupply
         {

@@ -22,7 +22,7 @@ internal sealed record PracticeMethodCandidates(ForecastActivity[] Tasks, Foreca
         if (facts.Ideology is IdeologyMode.Installed { Primary: var ideology })
             foreach (var role in ideology.Facts.Roles.Where(r => r.Active && r.Pawns.Count == 0))
                 findings.Add("acquisition_requires_assignment:" + role.Id);
-        var pawns = facts.ForecastObserved.WorkPawns.TryGetValue(out var rows) ? rows : [];
+        var pawns = facts.ForecastObserved.WorkPawns is WorkPawnsRead.Read { Pawns: var rows } ? rows : [];
         foreach (var requirement in assigned)
         {
             findings.Add("ideology_role_skill_requirement_not_modelled:" + requirement.Id);
@@ -83,7 +83,7 @@ internal sealed record PracticeMethodCandidates(ForecastActivity[] Tasks, Foreca
     /// </summary>
     internal static PracticeTrainees? TraineesOf(RoundsFacts facts, PracticeActivityRead read, SortedSet<string> findings, string skill)
     {
-        if (!facts.ForecastObserved.WorkPawns.TryGetValue(out var pawns)) return null;
+        if (facts.ForecastObserved.WorkPawns is not WorkPawnsRead.Read { Pawns: var pawns }) return null;
         var melee = skill == "Melee";
         var (stat, finding) = melee ? ("MeleeDPS", "sparring_ring_melee_not_modelled:") : (SkillStatCurve.RangedDefenseDps, "training_range_shooting_not_modelled:");
         var trainees = new List<PracticeTrainee>();

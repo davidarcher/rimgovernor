@@ -72,9 +72,9 @@ public sealed class ForecastRoofConsequencesTests
         facts = facts with
         {
             PlannedShelters = [new() { Id = 1, Region = RegionRules.RectRegion(new(1, 1, 1, 1)), Door = DoorCell }],
-            PlannedSites = Known(new PlannedSiteFacts { Sites = [Ring(OpKind.WallIn, 40), Ring(OpKind.DoorIn, 30)], Routes = EquatableArray.From(cells
+            PlannedSites = new PlannedSiteFacts { Sites = [Ring(OpKind.WallIn, 40), Ring(OpKind.DoorIn, 30)], Routes = EquatableArray.From(cells
                 .SelectMany(a => cells.Where(b => a != b).Select(b => new CoupledRoute("pawn", a, b, new RouteTicks.Reachable(1d)) { FromStart = false }))
-                .Concat(cells.Select(b => new CoupledRoute("pawn", b, b, new RouteTicks.Reachable(1d)) { FromStart = true }))) }),
+                .Concat(cells.Select(b => new CoupledRoute("pawn", b, b, new RouteTicks.Reachable(1d)) { FromStart = true }))) },
             PlannedRoomPredictions = [prediction],
             CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long>() },
             ForecastObserved = facts.ForecastObserved with

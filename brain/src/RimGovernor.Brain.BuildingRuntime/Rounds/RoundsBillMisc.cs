@@ -39,7 +39,7 @@ partial class Rounder
     /// </summary>
     internal static async Task<MechGestation?> MechGestationAsync(object native, C.Identity identity, ColonyProjection projection, CancellationToken call)
     {
-        if (projection.BiotechSection is not PbObservations.BiotechSection.Active { Facts: var colony } || !projection.WorkPawns.TryGetValue(out var pawns))
+        if (projection.BiotechSection is not PbObservations.BiotechSection.Active { Facts: var colony } || projection.WorkPawns is not WorkPawnsRead.Read { Pawns: var pawns })
         {
             return null;
         }
@@ -62,7 +62,7 @@ partial class Rounder
             }
             g = g with { Mechs = await source.ReadMechsAsync(identity, ids, call).ConfigureAwait(false) };
         }
-        if (projection.Facts.WorkRoster.TryGetValue(out var roster))
+        if (projection.Facts.WorkRoster is WorkRosterRead.Read { Coverage: var roster })
         {
             g = g with { Coverage = roster };
         }

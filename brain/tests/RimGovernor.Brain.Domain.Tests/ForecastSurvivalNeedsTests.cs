@@ -13,7 +13,7 @@ public sealed class ForecastSurvivalNeedsTests
     {
         Origin = new(42), HorizonDays = 2000.0 / GameTime.TicksPerDay,
         Demand = new DerivedDemand { Work = new ForecastWorkInputs { Tick = new(42),
-            Pawns = Known(EquatableArray.From(new[] {
+            Pawns = new WorkPawnsRead.Read(EquatableArray.From(new[] {
                 PawnFixtures.Worker(Builder) with { Body = PawnFixtures.Body with { CellTemperatureC = temperature,
                     ComfortableMinC = comfort, ComfortableMaxC = 30.0, Hypothermia = 0.335 } },
                 PawnFixtures.Worker(Helper) with { Body = PawnFixtures.Body with { CellTemperatureC = 20.0,
@@ -47,8 +47,8 @@ public sealed class ForecastSurvivalNeedsTests
     {
         var frame = Frame();
         var unknown = frame with { Facts = frame.Facts with { Food = new() { Larder = new() }, FoodUnread = true },
-            Demand = frame.Demand with { Work = frame.Demand.Work with { Pawns = Known(EquatableArray.From(
-                frame.Demand.Work.Pawns.Value.Select(p => p with { Body = p.Body with { CellTemperatureC = double.NaN } }))) } } };
+            Demand = frame.Demand with { Work = frame.Demand.Work with { Pawns = new WorkPawnsRead.Read(EquatableArray.From(
+                ((WorkPawnsRead.Read)frame.Demand.Work.Pawns).Pawns.Select(p => p with { Body = p.Body with { CellTemperatureC = double.NaN } }))) } } };
         var result = ForecastSurvivalNeeds.SurvivalNeedsOf(unknown);
         Assert.Contains("unknown_survival_food", result.Findings);
         Assert.Contains("unknown_need_window:cold/builder", result.Findings);
@@ -59,9 +59,9 @@ public sealed class ForecastSurvivalNeedsTests
     public void AlreadySeriousColdIsImmediateEvenInAWarmCell()
     {
         var frame = Frame(temperature: 20);
-        var pawns = frame.Demand.Work.Pawns.Value.Select(p => p.Id == Builder
+        var pawns = ((WorkPawnsRead.Read)frame.Demand.Work.Pawns).Pawns.Select(p => p.Id == Builder
             ? p with { Body = p.Body with { Hypothermia = DashEstimateRules.HypothermiaSerious } } : p);
-        frame = frame with { Demand = frame.Demand with { Work = frame.Demand.Work with { Pawns = Known(EquatableArray.From(pawns)) } } };
+        frame = frame with { Demand = frame.Demand with { Work = frame.Demand.Work with { Pawns = new WorkPawnsRead.Read(EquatableArray.From(pawns)) } } };
         Assert.Equal(0, ForecastSurvivalNeeds.SurvivalNeedsOf(frame).Needs.Single(n => n.Id == "cold/builder").Window.Value.Ticks);
     }
 

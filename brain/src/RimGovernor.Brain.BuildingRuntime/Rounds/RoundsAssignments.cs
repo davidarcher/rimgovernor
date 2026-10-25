@@ -52,7 +52,7 @@ public sealed partial class RoundsWorkPlanner
         }
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, definitions, call).ConfigureAwait(false);
-        if (!read.Projection.WorkPawns.TryGetValue(out var pawns))
+        if (read.Projection.WorkPawns is not WorkPawnsRead.Read { Pawns: var pawns })
         {
             return Existing(FieldUnavailable("work_pawns"));
         }
@@ -362,8 +362,8 @@ partial class RoundsWorkPlanner
 
     internal static List<HostilityPawn> HostilityRows(IReadOnlyList<WorkPawn> pawns) => [.. pawns.Select(p => p.HostilityPawn()).OfType<HostilityPawn>()];
 
-    internal static Fact<EquatableArray<HostilityPawn>> HostilityPawns(Fact<EquatableArray<WorkPawn>> pawns) =>
-        pawns.TryGetValue(out var rows) ? Known<EquatableArray<HostilityPawn>>([.. HostilityRows(rows)]) : Unknown<EquatableArray<HostilityPawn>>();
+    internal static Fact<EquatableArray<HostilityPawn>> HostilityPawns(WorkPawnsRead pawns) =>
+        pawns is WorkPawnsRead.Read { Pawns: var rows } ? Known<EquatableArray<HostilityPawn>>([.. HostilityRows(rows)]) : Unknown<EquatableArray<HostilityPawn>>();
 
     /// <summary>The reading-policy writes and assignments the review's policies, books and skill goals call for.</summary>
     internal static IReadOnlyList<ReadingPolicyChange> RoundsReadingChanges(PbObservations.Policies policies, IReadOnlyList<Book> books, PrisonerCensus census, IReadOnlyList<WorkPawn> pawns, IReadOnlyList<SkillGoal> training)

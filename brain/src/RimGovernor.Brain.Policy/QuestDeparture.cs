@@ -83,7 +83,8 @@ public static class QuestDeparture
     internal static (IReadOnlyList<PawnId> Squad, QuestSkipReason Reason) DepartureSquadFor(QuestId self, QuestFamily family, long need, RoundsFacts f, bool strongestFirst, bool allowNonfighters)
     {
         IReadOnlyList<PawnId> none = [];
-        var covk = f.WorkRoster.TryGetValue(out var coverage);
+        var covk = f.WorkRoster is WorkRosterRead.Read;
+        var coverage = f.WorkRoster is WorkRosterRead.Read { Coverage: var coverageRead } ? coverageRead : default;
         if (f.QuestCalm is QuestCalm.Unsettled || f.QuestPawns is not QuestPawns.Seen { AtHome: var homeCount, Departures: var rows }
             || f.QuestRoster is not QuestRoster.Planned { HomeFloor: var floor, Spare: var spare, Work: var work } || !covk)
         {

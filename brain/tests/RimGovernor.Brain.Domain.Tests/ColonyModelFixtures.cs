@@ -101,14 +101,14 @@ internal static class ColonyModelFixtures
                 })),
             },
             CurrentConstruction = CurrentConstruction.Empty,
-            PlannedSites = Known(new PlannedSiteFacts()),
+            PlannedSites = new PlannedSiteFacts(),
         },
         CombinedFoodSupply = new FoodSupply { Larder = new(), Consumers = [new() { Id = new("Anna"), NutritionPerDay = 1d }], Stocks = [new RimGovernor.Brain.Policy.FoodStock { Id = "meal", Nutrition = 12.5, Place = new FoodPlace.Stands(true, ""), Form = new FoodForm.Item(), Rot = new FoodRot.Keeps(), Eaters = [new("Anna")] }] },
         Resources = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new Resource("Steel")] = 120, [new Resource(Cloth)] = 0 }),
         Definitions = [CropRow()],
         Farms = [ZoneFixtures.Growing("zone1", Crop)],
         Cells = [.. Enumerable.Range(0, 4).Select(x => new SiteCell { Cell = new Cell(x, 0), Zone = Known(true), ZoneId = Known("zone1"), Fertility = Known(0.5 + (0.1 * x)) })],
-        WorkPawns = Known(EquatableArray.From(new[] { PawnFixtures.Worker("Anna") with { Skills = [new WorkSkill { Name = "Plants", Level = 10 }] } })),
+        WorkPawns = new WorkPawnsRead.Read(EquatableArray.From(new[] { PawnFixtures.Worker("Anna") with { Skills = [new WorkSkill { Name = "Plants", Level = 10 }] } })),
         Acquisition = [],
     };
 

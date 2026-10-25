@@ -25,7 +25,7 @@ public sealed class SkillHealthGoalTests
     };
 
     private static GoalsFacts SkillFacts(GoalRecord goal, params WorkPawn[] pawns) =>
-        new() { Goals = [goal], Pawns = Known(EquatableArray.From(pawns)) };
+        new() { Goals = [goal], Pawns = new WorkPawnsRead.Read(EquatableArray.From(pawns)) };
 
     private static int Priority(WorkDecision decision, string pawn, WorkType work) =>
         decision.Assignments.Single(a => a.Pawn.Value == pawn).Priorities.Single(p => p.Work == work).Priority;

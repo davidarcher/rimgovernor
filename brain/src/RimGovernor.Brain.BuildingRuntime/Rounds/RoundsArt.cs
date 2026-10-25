@@ -35,7 +35,7 @@ public sealed class RoundsArtPlanner : IPurposeReporter
     internal Declared DeclareOrdersAll(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         var sculpting = ArtOrdersRules.SculptureInProgress(benches);
-        var pawns = projection.WorkPawns.TryGetValue(out var rows) ? rows : throw new RequiredFactException("pawn rows");
+        var pawns = projection.WorkPawns.Require();
         var profiles = PawnRules.Profiles(pawns);
         var request = new ArtOrderRequest
         {

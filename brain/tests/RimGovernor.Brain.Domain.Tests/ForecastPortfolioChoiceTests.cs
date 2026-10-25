@@ -47,7 +47,7 @@ public sealed class ForecastPortfolioChoiceTests
                     // Native reads a meal use per ingredient a batch can be cooked from (#3872).
                     FoodUses = EquatableArray.From(conversions.Select(c => c.Ingredient).Distinct().Select(ingredient =>
                         new CoupledFoodUse("pawn", "Meal", Destination, true, .8, 10d, 1, new FoodFreshness.Rots(1000d)) { Thoughts = [], Ingredient = ingredient })),
-                    Routes = EquatableArray.From(roster.ForecastObserved.WorkPawns.Value.SelectMany(p => Cells.SelectMany(a => Cells.Where(b => b != a)
+                    Routes = EquatableArray.From(((WorkPawnsRead.Read)roster.ForecastObserved.WorkPawns).Pawns.SelectMany(p => Cells.SelectMany(a => Cells.Where(b => b != a)
                         .Select(b => new CoupledRoute(p.Id.Value, a, b, new RouteTicks.Reachable(1d)) { FromStart = false }))
                         .Concat(Cells.Select(c => new CoupledRoute(p.Id.Value, new(0, 0), c, new RouteTicks.Reachable(0d)) { FromStart = true })))),
                 },

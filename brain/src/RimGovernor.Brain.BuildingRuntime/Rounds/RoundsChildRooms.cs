@@ -67,7 +67,7 @@ partial class RoundsSleepingUpkeepPlanner
     internal static List<ChildRoomNeed> ChildRoomNeeds(ColonyProjection facts)
     {
         var needs = new List<ChildRoomNeed>();
-        if (facts.WorkPawns.TryGetValue(out var pawns))
+        if (facts.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns })
         {
             needs.AddRange(ChildRoomsRules.ChildRoomNeeds(pawns, facts.Facts.ForecastObserved.Needs?.Deathrest));
         }
@@ -113,7 +113,8 @@ partial class RoundsSleepingUpkeepPlanner
 
     internal static ChildRoomStep ChildRoomStep(ColonyProjection facts)
     {
-        var pk = facts.LayoutPlan.TryGetValue(out var plan);
+        var plan = facts.LayoutPlan;
+        var pk = plan is not null;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var census = facts.Facts.CurrentConstruction;
         var (ground, gk) = RoundsBuildingPlanner.ColonyGround(facts);

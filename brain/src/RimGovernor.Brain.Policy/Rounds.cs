@@ -218,14 +218,14 @@ public sealed record RoundsFacts
     /// <summary>The construction census (#3879); null only on a projection that no routine frame read built.</summary>
     public CurrentConstruction? CurrentConstruction { get; init; }
 
-    /// <summary>The material the whole layout plan still owes its walls, doors, floors and stations, per room id (PlannedShellDemandByRoom and kin); unknown while the plan or the construction census is.</summary>
+    /// <summary>The material the whole layout plan still owes its walls, doors, floors and stations, per room id (PlannedShellDemandByRoom and kin); null while the plan or the construction census is unread.</summary>
     public Fact<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>> PlannedConstruction { get; init; }
 
     /// <summary>
     /// The same owed operations as hypothetical sites, one per op x stuff, plus the unplaced shelf candidates, each joined to
     /// the native planned-site read (PlannedSitesOf, JoinPlannedSites); unknown while the plan or the construction census is.
     /// </summary>
-    public Fact<PlannedSiteFacts> PlannedSites { get; init; }
+    public PlannedSiteFacts? PlannedSites { get; init; }
 
     /// <summary>
     /// The stock each planned storage room, yard and meal closet would keep from deteriorating, by room id
@@ -452,17 +452,14 @@ public sealed record RoundsFacts
     /// <summary>The loot census: every visible haulable stack with its forbid state, hauling verdict and storage headroom.</summary>
     public EquatableArray<LootItem> EventLoot { get; init; }
 
-    public Fact<Bounds> MapBounds { get; init; }
+    public Bounds MapBounds { get; init; }
 
     public Fact<EquatableArray<CarePawn>> MedicalPawns { get; init; }
 
     public Fact<bool> MedicalCareRecovered { get; init; }
 
-    /// <summary>The per-work-type census of the colony workers (RoundsLabor); unknown labor remains unavailable evidence.</summary>
-    public Fact<IReadOnlyDictionary<WorkType, int>> Labor { get; init; }
-
     /// <summary>The planner's per-work-type coverage (PlanWork): the owners each type wanted and found and the pawns capable of it, so a goal can name a missing capability instead of stalling.</summary>
-    public Fact<EquatableArray<WorkCoverage>> WorkRoster { get; init; }
+    public WorkRosterRead WorkRoster { get; init; } = WorkRosterRead.NotRead;
 
     // Quest capacity is derived from the current roster, world census and emergency review.
     /// <summary>The roster split the work plan implies: spare pawns, the home floor and the intended priorities; Unplanned until the review plans work.</summary>
@@ -638,10 +635,11 @@ public sealed record RoundsFacts
     /// </summary>
     public Fact<long> UrgentPatients { get; init; }
 
-    public Fact<bool> CleanupPawns { get; init; }
+    /// <summary>A drafted colonist no live plan needs waits for the undraft sweep.</summary>
+    public bool CleanupPawns { get; init; }
 
     /// <summary>A colonist whose hostility response differs from the one it should hold; the admin/work-assignments Need writes it.</summary>
-    public Fact<bool> HostilityOwed { get; init; }
+    public bool HostilityOwed { get; init; }
 
     /// <summary>A pawn whose medical care differs from its cap.</summary>
     public Fact<bool> MedicalCareOwed { get; init; }
@@ -658,7 +656,7 @@ public sealed record RoundsFacts
     /// <summary>A stocked kitchen stands ready to cook.</summary>
     public bool Cooking { get; init; }
 
-    public Fact<bool> WorkCoverage { get; init; }
+    public WorkCoverageState WorkCoverage { get; init; }
 
     public Fact<bool> PowerRequired { get; init; }
 

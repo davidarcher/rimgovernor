@@ -30,12 +30,9 @@ public static partial class PsylinkRules
     /// one). Raises <see cref="RequiredFactException"/> without the pawn rows, and none when the game has no
     /// psylink neuroformer def. Sorted by id.
     /// </summary>
-    public static EquatableArray<PawnId> PsylinkCandidates(RoyaltyFacts facts, Fact<EquatableArray<WorkPawn>> pawns)
+    public static EquatableArray<PawnId> PsylinkCandidates(RoyaltyFacts facts, WorkPawnsRead pawns)
     {
-        if (!pawns.TryGetValue(out var rows))
-        {
-            throw new RequiredFactException("work pawns");
-        }
+        var rows = pawns.Require();
         var output = new List<PawnId>();
         if (!facts.Neuroformers.ContainsKey(PsylinkRules.PsylinkNeuroformer))
         {
@@ -60,12 +57,9 @@ public static partial class PsylinkRules
     /// without the pawn rows, and none when the game has no psylink neuroformer def. Sorted by id. These
     /// colonists never raise NeuroformerNeeds: only existing stock serves them.
     /// </summary>
-    public static EquatableArray<PawnId> PsylinkLevelUps(RoyaltyFacts facts, Fact<EquatableArray<WorkPawn>> pawns)
+    public static EquatableArray<PawnId> PsylinkLevelUps(RoyaltyFacts facts, WorkPawnsRead pawns)
     {
-        if (!pawns.TryGetValue(out var rows))
-        {
-            throw new RequiredFactException("work pawns");
-        }
+        var rows = pawns.Require();
         var output = new List<PawnId>();
         if (!facts.Neuroformers.ContainsKey(PsylinkRules.PsylinkNeuroformer))
         {

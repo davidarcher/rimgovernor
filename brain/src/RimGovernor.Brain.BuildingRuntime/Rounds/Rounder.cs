@@ -461,7 +461,7 @@ public sealed partial class Rounder
         reading = reading.WithProjection(await ReviewLayoutPlanAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false));
         Lap("layout");
         reading = reading.WithColonySection(c => c with { LayoutPlan = reading.Projection.LayoutPlan });
-        reading.Projection.LayoutPlan.TryGetValue(out var layoutPlan);
+        var layoutPlan = reading.Projection.LayoutPlan;
         Census.RememberLayout(reading.Projection.Identity, reading.Projection.LayoutPlan);
         reading = reading.WithFacts(rf => rf with { TitleClaimQuests = [.. RoundsSleepingUpkeepPlanner.TitleClaimQuests(reading.Projection)] });
         reading = reading.WithFacts(rf => rf with { BedroomsOwed = RoundsSleepingUpkeepPlanner.BedroomsOwedOf(reading.Projection) });
@@ -523,7 +523,8 @@ public sealed partial class Rounder
         Lap("d_stock");
         // The owed diff over every built room is taken once a review; the pricing and the sites read it.
         var plannedOwed = PlannedOwedOf(reading.Projection, Policy.Flooring);
-        IReadOnlyList<PlannedRoom> plannedRooms = reading.Projection.LayoutPlan.TryGetValue(out var layout) ? layout.Rooms : [];
+        var layout = reading.Projection.LayoutPlan;
+        IReadOnlyList<PlannedRoom> plannedRooms = layout is not null ? layout.Rooms : [];
         reading = reading.WithFacts(rf => rf with
         {
             PlannedConstruction = PlannedConstructionOf(reading.Projection, plannedOwed),
@@ -584,7 +585,7 @@ public sealed partial class Rounder
         // its plan still holds is working, not stranded.
         var needed = await DraftNeeds.PlannedDraftsAsync(p.Journal, ct).ConfigureAwait(false);
         var stray = DraftNeeds.IdleDrafts(state, reading.Emergency, reading.Frame.Pawns, needed);
-        reading = reading.WithFacts(rf => rf with { CleanupPawns = Known(stray.Count > 0) });
+        reading = reading.WithFacts(rf => rf with { CleanupPawns = stray.Count > 0 });
         reading = reading.WithFacts(rf => rf with { HostilityOwed = HostilityRules.HostilityOwed(RoundsWorkPlanner.HostilityPawns(reading.Projection.WorkPawns), reading.Emergency.Threats) });
         reading = reading.WithFacts(rf => rf with { MedicalCareOwed = MedicalRules.MedicalCareOwed(reading.Projection.Facts, Policy.MedicalReserve) });
         reading = reading.WithFacts(rf => rf with { NamesOwed = PawnRules.NamesOwed(reading.Projection.Facts.Population) });
@@ -622,9 +623,8 @@ public sealed partial class Rounder
         }
         // The work goal's coverage reads the demand the last review derived: the value the work planner dispatches on.
         var resourceTargets = ResourceTargets(state.Snapshot);
-        if (reading.Projection.WorkPawns.TryGetValue(out var pawns))
+        if (reading.Projection.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns })
         {
-            reading = reading.WithFacts(rf => rf with { Labor = LaborRules.RoundsLabor(pawns) });
             reading = reading.WithFacts(rf => rf with { WorkProfiles = Known<EquatableArray<PawnProfile>>([.. PawnRules.Profiles(pawns)]) });
             var requiredFact = RoundsProjectBill.RoundsProjectWork(definitions, reading.Projection.Definitions);
             var known = requiredFact.TryGetValue(out var required);
@@ -658,14 +658,14 @@ public sealed partial class Rounder
                 try
                 {
                     var work = WorkRules.PlanWork(pawns, required!, demand);
-                    reading = reading.WithFacts(rf => rf with { WorkCoverage = work.Planned ? Known(work.Matches) : default });
+                    reading = reading.WithFacts(rf => rf with { WorkCoverage = work.Planned ? (work.Matches ? WorkCoverageState.Matched : WorkCoverageState.Unmatched) : WorkCoverageState.Unread });
                     if (ConstructionSkillRules.ConstructionSkillChoices(reading.Projection.Facts.CurrentConstruction, pawns).Count > 0)
                     {
-                        reading = reading.WithFacts(rf => rf with { WorkCoverage = Known(false) });
+                        reading = reading.WithFacts(rf => rf with { WorkCoverage = WorkCoverageState.Unmatched });
                     }
                     if (work.Planned)
                     {
-                        reading = reading.WithFacts(rf => rf with { WorkRoster = Known<EquatableArray<WorkCoverage>>([.. work.Coverage]) });
+                        reading = reading.WithFacts(rf => rf with { WorkRoster = new WorkRosterRead.Read([.. work.Coverage]) });
                         reading = reading.WithFacts(rf => rf with { QuestRoster = QuestCapacity.QuestRosterOf(reading.Projection.WorkPawns, reading.Projection.Facts.MoodPawns, work) });
                         reading = reading.WithFacts(rf => rf with { WorkHelp = work.Help });
                     }
@@ -695,7 +695,7 @@ public sealed partial class Rounder
             var census = await clearanceSource.ReadClearanceAsync(expected, true, ground, ct).ConfigureAwait(false);
             var blueprints = HomeUpkeepReader.GroundBlueprints(reading.Projection);
             var (others, player) = ClearanceGroundRules.SplitGroundRows(ClearanceReads.Targets(census).Concat(blueprints ?? []), reading.Projection.Facts.Preferences);
-            reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Clearance = Known<EquatableArray<ClearanceTarget>>([.. others]) } });
+            reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Clearance = new ClearanceCensus([.. others]) } });
             reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { RoomObstructions = RecoveryRules.RoomObstructionIDs(others, ground) } });
             // Retired ground is clear only once its blueprints are known gone too (#3742).
             if (blueprints is not null)
@@ -1011,7 +1011,7 @@ partial class Rounder
     /// </summary>
     internal static List<Rectangle> PlannedGround(ColonyProjection colony)
     {
-        if (!colony.LayoutPlan.TryGetValue(out var plan))
+        if (colony.LayoutPlan is not { } plan)
         {
             return [];
         }
@@ -1088,7 +1088,7 @@ partial class Rounder
     /// </summary>
     internal static PlannedOwed? PlannedOwedOf(ColonyProjection colony, FlooringPolicy flooring)
     {
-        if (!colony.LayoutPlan.TryGetValue(out var plan))
+        if (colony.LayoutPlan is not { } plan)
         {
             return null;
         }
@@ -1124,7 +1124,7 @@ partial class Rounder
             }
         }
         var floors = new List<ClearanceFloor>();
-        if (flooringFacts.Observation.TryGetValue(out var observed))
+        if (flooringFacts.Observation is { } observed)
         {
             foreach (var cell in observed.Rooms.SelectMany(r => r.Cells))
             {
@@ -1181,7 +1181,7 @@ partial class Rounder
     /// <summary>The recorded plan's retired ground with its kept rooms' walls; empty while the plan is unknown.</summary>
     internal static RetiredGround RetiredGroundOfColony(ColonyProjection colony)
     {
-        colony.LayoutPlan.TryGetValue(out var plan);
+        var plan = colony.LayoutPlan;
         return ClearanceGroundRules.RetiredGroundOf(plan ?? new LayoutPlan());
     }
 }
@@ -1193,7 +1193,7 @@ public sealed partial class Rounder
     /// </summary>
     internal ColonyProjection DropClearedRetiredGround(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<ClearanceTarget> player, IReadOnlyList<ClearanceFloor> floors, CancellationToken ct)
     {
-        if (!projection.LayoutPlan.TryGetValue(out var plan) || plan.RetiredGround.Count == 0)
+        if (projection.LayoutPlan is not { } plan || plan.RetiredGround.Count == 0)
         {
             return projection;
         }
@@ -1204,6 +1204,6 @@ public sealed partial class Rounder
         }
         var next = plan.WithoutRetiredGround(done);
         Player.Journal.RecordLayoutPlan(snapshot, projection.Identity.Tick, next, ct);
-        return projection with { LayoutPlan = Known(next) };
+        return projection with { LayoutPlan = next };
     }
 }

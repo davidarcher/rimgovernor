@@ -536,14 +536,15 @@ public static partial class SleepingRules
 
     /// <summary>The review's bedroom deficit: known true while a bedroom step is due, unknown while the plan, room or sleeping census is.</summary>
     public static Fact<bool> BedroomsOwed(
-        Fact<LayoutPlan> plan,
+        LayoutPlan? plan,
         Fact<RoomObservation> rooms,
         Fact<SleepingObservation> sleeping,
         IReadOnlyDictionary<string, RoomTarget>? targets,
         IReadOnlyDictionary<PawnId, TraitEffects>? traits,
         IReadOnlyDictionary<PawnId, double>? pressure)
     {
-        var pk = plan.TryGetValue(out var p);
+        var p = plan;
+        var pk = p is not null;
         var rk = rooms.TryGetValue(out var r);
         var sk = sleeping.TryGetValue(out var s);
         if (!pk || !rk || !sk)

@@ -163,6 +163,28 @@ public abstract record PawnBiotechStatus
     public sealed record Inactive : PawnBiotechStatus;
 }
 
+/// <summary>
+/// The colony's workers as the routine pawn census read them: <see cref="Read"/> with every colonist's row, or
+/// <see cref="Unread"/> with the reason no whole census was served (no routine pawn frame, a colonist count or row that
+/// disagrees between the reads). A reader that needs the workers matches Read and refuses or defers on Unread.
+/// </summary>
+public abstract record WorkPawnsRead
+{
+    private WorkPawnsRead()
+    {
+    }
+
+    /// <summary>The state of a projection no routine pawn frame built.</summary>
+    public static readonly WorkPawnsRead NotRead = new Unread("no routine pawn census");
+
+    public sealed record Read(EquatableArray<WorkPawn> Pawns) : WorkPawnsRead;
+
+    public sealed record Unread(string Reason) : WorkPawnsRead;
+
+    /// <summary>The pawn rows of a whole census; throws <see cref="RequiredFactException"/> (pawn rows) while it is <see cref="Unread"/>.</summary>
+    public EquatableArray<WorkPawn> Require() => this is Read read ? read.Pawns : throw new RequiredFactException("pawn rows");
+}
+
 public sealed record WorkPawn
 {
     public required PawnId Id { get; init; }
@@ -336,6 +358,34 @@ public sealed record WorkCoverage
     public int Owners { get; init; }
 
     public int Capable { get; init; }
+}
+
+/// <summary>Whether the roster planner's assignments cover the colony's work, as the review's planning pass read it.</summary>
+public enum WorkCoverageState
+{
+    /// <summary>The planner did not plan this review (no census, an invalid read): nothing is known of the coverage.</summary>
+    Unread,
+
+    /// <summary>The planner planned and every wanted owner was found.</summary>
+    Matched,
+
+    /// <summary>The planner planned and work is uncovered, or a construction skill choice is owed.</summary>
+    Unmatched,
+}
+
+/// <summary>The planner's per-work-type coverage rows as the review read them: <see cref="Read"/> once PlanWork planned, <see cref="Unread"/> with the reason it did not.</summary>
+public abstract record WorkRosterRead
+{
+    private WorkRosterRead()
+    {
+    }
+
+    /// <summary>The state of a review the planner did not run for.</summary>
+    public static readonly WorkRosterRead NotRead = new Unread("no work plan");
+
+    public sealed record Read(EquatableArray<WorkCoverage> Coverage) : WorkRosterRead;
+
+    public sealed record Unread(string Reason) : WorkRosterRead;
 }
 
 /// <summary>

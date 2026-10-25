@@ -11,7 +11,8 @@ partial class RoundsSleepingUpkeepPlanner
     /// </summary>
     internal static Pol.BedroomStep BedroomStepOf(Observation.ColonyProjection facts)
     {
-        var pk = facts.LayoutPlan.TryGetValue(out var plan);
+        var plan = facts.LayoutPlan;
+        var pk = plan is not null;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
         if (!pk || !rk || !sk)
@@ -30,7 +31,7 @@ partial class RoundsSleepingUpkeepPlanner
     internal static (IReadOnlyDictionary<int, EquatableArray<string>> Bedrooms, IReadOnlyDictionary<int, Pol.RoyalRoomNeed> Royal) PlannedOccupantsOf(
         Observation.ColonyProjection facts, ISet<string> findings)
     {
-        if (!facts.LayoutPlan.TryGetValue(out var plan) || !facts.Rooms.TryGetValue(out var rooms) || !facts.Facts.Sleeping.TryGetValue(out var sleeping))
+        if (facts.LayoutPlan is not { } plan || !facts.Rooms.TryGetValue(out var rooms) || !facts.Facts.Sleeping.TryGetValue(out var sleeping))
         {
             return (new Dictionary<int, EquatableArray<string>>(), new Dictionary<int, Pol.RoyalRoomNeed>());
         }
@@ -46,7 +47,8 @@ partial class RoundsSleepingUpkeepPlanner
     /// <summary>The projection's next wing migration step: none without the layout plan, the room census or the sleeping census.</summary>
     internal static Pol.BedroomStep MigrateStep(Observation.ColonyProjection facts)
     {
-        var pk = facts.LayoutPlan.TryGetValue(out var plan);
+        var plan = facts.LayoutPlan;
+        var pk = plan is not null;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
         if (!pk || !rk || !sk)
@@ -90,7 +92,8 @@ partial class RoundsSleepingUpkeepPlanner
     /// <summary>Excludes pawns awaiting a suite; their current rooms receive no in-place quality upgrade.</summary>
     internal static IReadOnlyDictionary<string, Pol.RoomTarget> UpgradeTargetsOf(Observation.ColonyProjection facts, IReadOnlyDictionary<string, Pol.RoomTarget>? targets)
     {
-        var pk = facts.LayoutPlan.TryGetValue(out var plan);
+        var plan = facts.LayoutPlan;
+        var pk = plan is not null;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
         var traits = SleepingTraits(facts);
@@ -187,7 +190,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             return new RoundsBuildingResult { Verdict = FieldUnavailable("room_census") };
         }
-        if (!facts.LayoutPlan.TryGetValue(out var plan))
+        if (facts.LayoutPlan is not { } plan)
         {
             return new RoundsBuildingResult { Verdict = FieldUnavailable("layout_plan") };
         }

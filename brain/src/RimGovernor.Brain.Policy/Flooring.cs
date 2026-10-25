@@ -232,7 +232,7 @@ public sealed record FloorDeficit
 
 /// <summary>
 /// The per-room review: Deficits lists every room measured short, clean workspaces first and then by key. Known
-/// is false when the census was unknown, in which case Deficits is empty.
+/// is false when the census was unread, in which case Deficits is empty.
 /// </summary>
 public sealed record FlooringReview
 {
@@ -309,10 +309,10 @@ public sealed record FloorDefinition
 public sealed record FlooringFacts
 {
     /// <summary>Credit floors already laid or ordered inside planned rooms.</summary>
-    public Fact<LayoutPlan> Layout { get; init; }
+    public LayoutPlan? Layout { get; init; }
 
     /// <summary>Credit floors already laid or ordered inside planned rooms.</summary>
-    public Fact<FlooringObservation> Observation { get; init; }
+    public FlooringObservation? Observation { get; init; }
 
     /// <summary>Maps floor definition names to their census row; a floor absent here is unknown.</summary>
     public IReadOnlyDictionary<string, FloorDefinition> Definitions { get; init; } = new Dictionary<string, FloorDefinition>();
@@ -561,13 +561,13 @@ public static class FlooringRules
     /// <summary>
     /// Measures every tiered room against its requirement. There is no hysteresis:
     /// terrain does not flap. A cell whose floor is already ordered still counts as deficient, so the Need
-    /// stays unmet until the floor is actually laid, but the planner never orders it twice. An unknown census
-    /// Measures nothing. Throws <see cref="DomainException"/>.
+    /// stays unmet until the floor is actually laid, but the planner never orders it twice. An unread census
+    /// measures nothing. Throws <see cref="DomainException"/>.
     /// </summary>
-    public static FlooringReview ReviewFlooring(Fact<FlooringObservation> fact, Fact<RoomObservation> rooms, FlooringPolicy p)
+    public static FlooringReview ReviewFlooring(FlooringObservation? fact, Fact<RoomObservation> rooms, FlooringPolicy p)
     {
         DomainException.Require(p.IsValid, "invalid flooring policy");
-        if (!fact.TryGetValue(out var v))
+        if (fact is not { } v)
         {
             return new FlooringReview();
         }

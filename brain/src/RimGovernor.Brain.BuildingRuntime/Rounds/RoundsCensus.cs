@@ -33,7 +33,7 @@ internal sealed class RoundsCensusStore
     internal string HuntNote = "";
     internal ResourceSupplyState? Supply;
     internal ResourceSupplyKey SupplyKey;
-    internal Fact<LayoutPlan> Layout;
+    internal LayoutPlan? Layout;
     internal Identity LayoutScope = new();
 
     /// <summary>The latest review's royalty read with Royalty active; null with Royalty inactive or before the first review.</summary>
@@ -78,7 +78,7 @@ internal sealed class RoundsCensusStore
         return ok && table.Version == version;
     }
 
-    internal void RememberLayout(Identity identity, Fact<LayoutPlan> layout)
+    internal void RememberLayout(Identity identity, LayoutPlan? layout)
     {
         lock (Mu)
         {
@@ -108,7 +108,7 @@ internal sealed class RoundsCensusStore
     {
         lock (Mu)
         {
-            return Layout.TryGetValue(out var plan) ? WorkChairRules.ChairDefinitions(plan) : [];
+            return Layout is { } plan ? WorkChairRules.ChairDefinitions(plan) : [];
         }
     }
 
@@ -131,7 +131,7 @@ internal sealed class RoundsCensusStore
     /// <summary>Serves the remembered layout plan into a projection that did not read it, within one colony/map/load.</summary>
     internal ColonyProjection ServeLayout(ColonyProjection projection)
     {
-        Fact<LayoutPlan> layout;
+        LayoutPlan? layout;
         Identity scope;
         lock (Mu)
         {
@@ -140,7 +140,7 @@ internal sealed class RoundsCensusStore
         }
         var id = projection.Identity;
         bool Same(Identity s) => s.Colony == id.Colony && s.Map == id.Map && s.Load == id.Load;
-        if (!projection.LayoutPlan.IsKnown && layout.IsKnown && Same(scope))
+        if (projection.LayoutPlan is null && layout is not null && Same(scope))
         {
             projection = projection with { LayoutPlan = layout };
         }

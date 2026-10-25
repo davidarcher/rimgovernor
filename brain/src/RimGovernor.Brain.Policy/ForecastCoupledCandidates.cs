@@ -21,7 +21,7 @@ public sealed partial record ForecastCoupledCandidates
     /// </summary>
     private static Dictionary<int, PlannedRole> PlannedRoomRolesOf(RoundsFacts facts)
     {
-        var roles = facts.PlannedSites.TryGetValue(out var planned) ? planned.Roles.ToDictionary(r => r.Room, r => r.Role) : new Dictionary<int, PlannedRole>();
+        var roles = facts.PlannedSites is { } planned ? planned.Roles.ToDictionary(r => r.Room, r => r.Role) : new Dictionary<int, PlannedRole>();
         foreach (var room in facts.PlannedShelters) roles.TryAdd(room.Id, room.Role);
         return roles;
     }
@@ -72,7 +72,7 @@ public sealed partial record ForecastCoupledCandidates
         var routes = new Dictionary<(string, string, string), ForecastActivityRoute>();
         // Planned rooms are construction (#3276): the same gate as placed sites, from the round's planned-site facts.
         var plannedFindings = new List<string>();
-        var plannedFacts = shelterEnabled && facts.PlannedSites.TryGetValue(out var plannedRead) ? plannedRead : null;
+        var plannedFacts = shelterEnabled ? facts.PlannedSites : null;
         var allPlannedSites = plannedFacts is null ? [] : plannedFacts.Sites;
         var plannedSites = urgent.Count == 0 ? allPlannedSites : [];
         if (shelterEnabled && plannedFacts is null) plannedFindings.Add("planned_sites_unknown");

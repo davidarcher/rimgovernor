@@ -99,7 +99,10 @@ For each:
   combat skill target with budget left.
 
 `WorkDecision.Coverage` lists demand, owners and capable count per type
-(`RoundsFacts.WorkRoster`). `Capacity` is false when a required type or a core
+(`RoundsFacts.WorkRoster`: `WorkRosterRead.Read` once the planner planned, `Unread` otherwise;
+`RoundsFacts.WorkCoverage` is the `WorkCoverageState` Unread, Matched or Unmatched).
+The pawn census the planner reads is `ColonyProjection.WorkPawns`, a `WorkPawnsRead`: `Read` with
+every colonist's row, or `Unread` with the reason no whole census was served. `Capacity` is false when a required type or a core
 role (Doctor, Cooking, Construction, Growing) found no owner. `Matches`
 compares the proposal to the readback with checkbox semantics when manual
 priorities are off (enabled or not, never the rank).

@@ -38,7 +38,7 @@ public static class ConversionRules
     /// colonists whose rows show an ideoligion. With a Believers goal, an unread ideoligion or pawn census raises
     /// <see cref="RequiredFactException"/>.
     /// </summary>
-    public static int Shortfall(IEnumerable<GoalRecord> goals, IdeologyMode ideology, Fact<EquatableArray<WorkPawn>> pawns)
+    public static int Shortfall(IEnumerable<GoalRecord> goals, IdeologyMode ideology, WorkPawnsRead pawns)
     {
         var wanted = goals.Where(g => g.Kind == GoalKind.Believers).Select(g => g.Count).ToList();
         if (wanted.Count == 0 || ideology is not IdeologyMode.Installed)
@@ -55,7 +55,7 @@ public static class ConversionRules
     /// to, and the moral guide who converts. With nobody convertible the target is empty. With a Believers goal, an
     /// unread ideoligion or pawn census raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static ConversionOwed Owed(IEnumerable<GoalRecord> goals, IdeologyMode ideology, Fact<EquatableArray<WorkPawn>> pawns)
+    public static ConversionOwed Owed(IEnumerable<GoalRecord> goals, IdeologyMode ideology, WorkPawnsRead pawns)
     {
         var wanted = goals.Where(g => g.Kind == GoalKind.Believers).Select(g => g.Count).ToList();
         if (wanted.Count == 0 || ideology is not IdeologyMode.Installed)
@@ -107,9 +107,9 @@ public static class ConversionRules
     /// <summary>The Need that converts <paramref name="target"/>: <c>ideology/convert/&lt;pawn&gt;</c>.</summary>
     public static NeedId NeedOf(PawnId target) => NeedId.Of(IdeologyFamily.FamilyId, IdeologyFamily.ConvertKind, target.Value);
 
-    private static (Ideoligion Ideology, EquatableArray<WorkPawn> Pawns) Inputs(IdeologyMode ideology, Fact<EquatableArray<WorkPawn>> pawns) =>
+    private static (Ideoligion Ideology, EquatableArray<WorkPawn> Pawns) Inputs(IdeologyMode ideology, WorkPawnsRead pawns) =>
         (ideology is IdeologyMode.Installed { Primary: var ideo } ? ideo : throw new RequiredFactException("ideoligion"),
-         pawns.TryGetValue(out var rows) ? rows : throw new RequiredFactException("pawn rows"));
+         pawns.Require());
 
     private static int Lacking(IReadOnlyList<int> wanted, Ideoligion ideo, EquatableArray<WorkPawn> rows)
     {

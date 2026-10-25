@@ -11,14 +11,14 @@ public static class ColonyUpkeepReads
         var u = v.Upkeep;
         var r = new UpkeepObservation
         {
-            Structures = Known(RepairStructures(u, ColonyDecodeReads.RequireCatalog(catalog))),
-            Lighting = Known(ColonyLighting(u.Lighting, tables.Buildings, catalog)),
-            Routes = Known(ColonyRoutes(u.Routes)),
+            Structures = RepairStructures(u, ColonyDecodeReads.RequireCatalog(catalog)),
+            Lighting = ColonyLighting(u.Lighting, tables.Buildings, catalog),
+            Routes = ColonyRoutes(u.Routes),
         };
         try
         {
             // The flooring census joins the routes census's traffic evidence.
-            return r with { Flooring = Known(ColonyFlooring(u.Flooring, u.Routes, catalog)) };
+            return r with { Flooring = ColonyFlooring(u.Flooring, u.Routes, catalog) };
         }
         catch (DomainException e)
         {

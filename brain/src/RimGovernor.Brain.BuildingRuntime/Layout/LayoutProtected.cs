@@ -5,7 +5,7 @@ internal static class LayoutProtected
     /// <summary>The persisted layout plan's core; null until a plan exists.</summary>
     public static Cell? PlanCore(ColonyProjection facts)
     {
-        if (facts.LayoutPlan.TryGetValue(out var plan) && plan.Core() is { } core)
+        if (facts.LayoutPlan is { } plan && plan.Core() is { } core)
         {
             return core;
         }
@@ -20,7 +20,7 @@ internal static class LayoutProtected
     /// </summary>
     public static Cell? FieldAnchor(ColonyProjection facts)
     {
-        if (facts.LayoutPlan.TryGetValue(out var plan) && plan.FieldAnchor(LayoutFree(facts)) is { } anchor)
+        if (facts.LayoutPlan is { } plan && plan.FieldAnchor(LayoutFree(facts)) is { } anchor)
         {
             return anchor;
         }
@@ -30,7 +30,7 @@ internal static class LayoutProtected
     /// <summary>The centre of the nearest free planned room of the role to the point <paramref name="to"/> (reserve rooms when none is free), else the plan's centre; null until a plan exists.</summary>
     public static Cell? RoomAnchor(ColonyProjection facts, PlannedRole role, Cell to)
     {
-        if (facts.LayoutPlan.TryGetValue(out var plan) && plan.NearestAnchor(role, to, LayoutFree(facts)) is { } anchor)
+        if (facts.LayoutPlan is { } plan && plan.NearestAnchor(role, to, LayoutFree(facts)) is { } anchor)
         {
             return anchor;
         }

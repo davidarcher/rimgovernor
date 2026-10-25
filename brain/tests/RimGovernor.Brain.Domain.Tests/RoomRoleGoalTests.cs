@@ -181,7 +181,7 @@ public sealed class RoomRoleGoalTests
             Colonists = 4L,
             Patients = Known<EquatableArray<CarePawn>>([]),
             Prisoners = Known(0),
-            WorkPawns = Known<EquatableArray<WorkPawn>>([]),
+            WorkPawns = new WorkPawnsRead.Read([]),
             GoalBuild = build,
         };
 

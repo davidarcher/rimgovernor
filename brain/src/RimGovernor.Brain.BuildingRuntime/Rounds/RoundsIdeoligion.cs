@@ -58,7 +58,7 @@ public sealed partial class Rounder
         // The believers' needs are read only when the improvement search runs.
         DesignNeeds Needs() => IdeoligionDesignRules.IdeoligionNeeds(
             ideo.Facts,
-            read.Projection.WorkPawns.TryGetValue(out var workers) ? workers : throw new RequiredFactException("work pawns"),
+            read.Projection.WorkPawns.Require(),
             read.Projection.Facts.MoodPawns.TryGetValue(out var moods) ? moods : []);
         return IdeoligionDesignRules.ChooseIdeoligionReform(options, current, ideo.Facts.Development, calm, Needs, targets);
     }

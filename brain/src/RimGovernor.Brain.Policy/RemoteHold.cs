@@ -177,5 +177,5 @@ public sealed record RemoteWorkRequest
     public AcquisitionCompetition Competition { get; init; } = new();
 
     /// <summary>Plan orders mine sources by LayoutPlan.MineTier.</summary>
-    public Fact<LayoutPlan> Plan { get; init; }
+    public LayoutPlan? Plan { get; init; }
 }

@@ -232,7 +232,7 @@ public static partial class ResourceRules
                 {
                     continue;
                 }
-                if (r.Plan.TryGetValue(out var plan))
+                if (r.Plan is { } plan)
                 {
                     source = source with { Tier = plan.MineTier(source.Cell) };
                 }

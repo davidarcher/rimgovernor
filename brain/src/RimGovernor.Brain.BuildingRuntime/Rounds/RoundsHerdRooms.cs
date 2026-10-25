@@ -62,7 +62,8 @@ internal static class RoundsHerdRooms
     internal static (HerdStep Step, bool Known) PenStepOf(ColonyProjection facts)
     {
         var animals = facts.Facts.AnimalUpkeep.Animals;
-        var pk = facts.LayoutPlan.TryGetValue(out var plan);
+        var plan = facts.LayoutPlan;
+        var pk = plan is not null;
         var census = facts.Facts.CurrentConstruction;
         if (!pk || census is null)
         {
@@ -91,7 +92,8 @@ internal static class RoundsHerdRooms
     internal static (HerdStep Step, bool Known) WardStepOf(ColonyProjection facts)
     {
         var animals = facts.Facts.AnimalUpkeep.Animals;
-        var pk = facts.LayoutPlan.TryGetValue(out var plan);
+        var plan = facts.LayoutPlan;
+        var pk = plan is not null;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var census = facts.Facts.CurrentConstruction;
         var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
@@ -118,7 +120,8 @@ internal static class RoundsHerdRooms
     /// <summary>Whether the hospital ward is ready; a ward the frame cannot show standing (plan, rooms, construction or sleeping census unread) is not.</summary>
     internal static bool WardReadyOf(ColonyProjection facts)
     {
-        var pk = facts.LayoutPlan.TryGetValue(out var plan);
+        var plan = facts.LayoutPlan;
+        var pk = plan is not null;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var census = facts.Facts.CurrentConstruction;
         var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);

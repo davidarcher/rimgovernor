@@ -61,7 +61,8 @@ partial class RoundsSleepingUpkeepPlanner
             return [];
         }
         var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
-        var pk = facts.LayoutPlan.TryGetValue(out var plan);
+        var plan = facts.LayoutPlan;
+        var pk = plan is not null;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var census = facts.Facts.CurrentConstruction;
         if (!sk || !pk || !rk || census is null)
@@ -93,7 +94,8 @@ partial class RoundsSleepingUpkeepPlanner
     internal static Pol.ThroneStep ThroneStepOf(Observation.ColonyProjection facts)
     {
         var (need, owed) = ThroneNeed(facts);
-        var pk = facts.LayoutPlan.TryGetValue(out var plan);
+        var plan = facts.LayoutPlan;
+        var pk = plan is not null;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var census = facts.Facts.CurrentConstruction;
         if (!owed || !pk || !rk || census is null)
@@ -122,13 +124,14 @@ partial class RoundsSleepingUpkeepPlanner
             return step;
         }
         // Everything stands and is assigned: keep its braziers lit.
-        var lk = facts.Facts.Upkeep.Lighting.TryGetValue(out var lighting);
-        var wk = facts.WorkPawns.TryGetValue(out var workers);
-        if (!lk || !wk)
+        var lighting = facts.Facts.Upkeep.Lighting;
+        var workers = facts.WorkPawns is WorkPawnsRead.Read { Pawns: var workersRead } ? workersRead : default;
+        var wk = facts.WorkPawns is WorkPawnsRead.Read;
+        if (lighting is null || !wk)
         {
             return step;
         }
-        return ThroneRules.NextThroneRefuel(plan, rooms!, need, lighting!.Lamps, workers!);
+        return ThroneRules.NextThroneRefuel(plan, rooms!, need, lighting.Lamps, workers!);
     }
 
     /// <summary>
@@ -138,7 +141,8 @@ partial class RoundsSleepingUpkeepPlanner
     internal static Dictionary<string, Pol.RoomTarget>? WithRequirementTargets(Observation.ColonyProjection facts, Dictionary<string, Pol.RoomTarget>? targets)
     {
         var (need, owed) = ThroneNeed(facts);
-        var pk = facts.LayoutPlan.TryGetValue(out var plan);
+        var plan = facts.LayoutPlan;
+        var pk = plan is not null;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         if (!pk || !rk)
         {
@@ -167,7 +171,7 @@ partial class RoundsSleepingUpkeepPlanner
     internal static Pol.FlooringObservation WithThroneFloor(Observation.ColonyProjection facts, Pol.FlooringObservation v)
     {
         var (need, owed) = ThroneNeed(facts);
-        if (!owed || !facts.LayoutPlan.TryGetValue(out var plan) || !facts.Rooms.TryGetValue(out var rooms) || need.FloorTags.Count == 0)
+        if (!owed || facts.LayoutPlan is not { } plan || !facts.Rooms.TryGetValue(out var rooms) || need.FloorTags.Count == 0)
         {
             return v;
         }

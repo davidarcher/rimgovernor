@@ -21,7 +21,7 @@ public sealed class ProductionAdmissionTests
     {
         Tick = new Tick(100),
         WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
-        ForecastObserved = new() { WorkPawns = Known(default(EquatableArray<WorkPawn>)) },
+        ForecastObserved = new() { WorkPawns = new WorkPawnsRead.Read(default(EquatableArray<WorkPawn>)) },
         WorkProfiles = Known<EquatableArray<PawnProfile>>([new() { Id = new("artist"),
             WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "TestArt" },
             Skills = new Dictionary<string, ProfileSkill> { ["TestArt"] = new() { Name = "TestArt", Level = 8 } } }]),

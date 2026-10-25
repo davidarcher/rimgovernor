@@ -211,13 +211,13 @@ public static class LightingRules
     /// and every work cell is measured. A light-sensitive cell (its room grows cave fungus) is never dark: lighting
     /// it would kill the crop. An unknown census measures nothing (Known false).
     /// </summary>
-    public static LightingReview ReviewLighting(Fact<LightingObservation> fact, LightingPolicy p, bool skyDark)
+    public static LightingReview ReviewLighting(LightingObservation? fact, LightingPolicy p, bool skyDark)
     {
         if (!p.IsValid())
         {
             throw new DomainException("invalid lighting policy");
         }
-        if (!fact.TryGetValue(out var v))
+        if (fact is not { } v)
         {
             return new LightingReview { SkyDark = skyDark };
         }
@@ -241,7 +241,7 @@ public static class LightingRules
     /// stops at walls), and the cell gets its own lamp. Otherwise the first affordable definition is placed on the
     /// nearest free walkable cell of the same room within PlacementRadius.
     /// </summary>
-    public static LightingProposal SelectLightingMethod(LightingReview review, Fact<LightingObservation> fact, LightingFacts facts, LightingPolicy p)
+    public static LightingProposal SelectLightingMethod(LightingReview review, LightingObservation? fact, LightingFacts facts, LightingPolicy p)
     {
         if (!p.IsValid())
         {
@@ -251,7 +251,7 @@ public static class LightingRules
         {
             return new LightingProposal { Method = LightingMethod.NoMethod };
         }
-        if (!fact.TryGetValue(out var v))
+        if (fact is not { } v)
         {
             return new LightingProposal { Method = LightingMethod.Unknown };
         }
@@ -504,9 +504,9 @@ public static class LightingRules
     /// no active source lists nothing (the lamps are electric); an unknown plan, room census, lamp census or source
     /// is unknown.
     /// </summary>
-    public static Fact<EquatableArray<int>> PlanLitRooms(Fact<LayoutPlan> plan, Fact<RoomObservation> rooms, Fact<LightingObservation> lamps, Fact<bool> powered)
+    public static Fact<EquatableArray<int>> PlanLitRooms(LayoutPlan? plan, Fact<RoomObservation> rooms, LightingObservation? lamps, Fact<bool> powered)
     {
-        if (!plan.TryGetValue(out var p) || !rooms.TryGetValue(out var r) || !lamps.TryGetValue(out var l) || !powered.TryGetValue(out var source))
+        if (plan is not { } p || !rooms.TryGetValue(out var r) || lamps is not { } l || !powered.TryGetValue(out var source))
         {
             return Unknown<EquatableArray<int>>();
         }

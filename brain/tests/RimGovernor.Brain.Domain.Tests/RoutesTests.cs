@@ -37,16 +37,16 @@ public sealed class RoutesTests
     public void ASkippedOrUnpathedPairStillReachesTheFacility()
     {
         var p = RoutesRules.DefaultRoutesPolicy();
-        Assert.False(RoutesRules.ReviewRoutes(Known(Census(new RouteTravel.Skipped { Pawn = "a" }, new RouteTravel.Unreachable { Pawn = "b" })), p).Active);
-        Assert.False(RoutesRules.ReviewRoutes(Known(Census(new RouteTravel.Unpathed { Pawn = "a" })), p).Active);
-        Assert.False(RoutesRules.ReviewRoutes(Known(Census(new RouteTravel.Measured { Pawn = "a", Cost = 40, Cells = 12 })), p).Active);
+        Assert.False(RoutesRules.ReviewRoutes(Census(new RouteTravel.Skipped { Pawn = "a" }, new RouteTravel.Unreachable { Pawn = "b" }), p).Active);
+        Assert.False(RoutesRules.ReviewRoutes(Census(new RouteTravel.Unpathed { Pawn = "a" }), p).Active);
+        Assert.False(RoutesRules.ReviewRoutes(Census(new RouteTravel.Measured { Pawn = "a", Cost = 40, Cells = 12 }), p).Active);
     }
 
     [Fact]
     public void AFacilityNoPawnReachesIsADeficitWithItsUnorderedBreachesNearestFirst()
     {
         var p = RoutesRules.DefaultRoutesPolicy();
-        var review = RoutesRules.ReviewRoutes(Known(Census(new RouteTravel.Unreachable { Pawn = "a" }, new RouteTravel.Unreachable { Pawn = "b" })), p);
+        var review = RoutesRules.ReviewRoutes(Census(new RouteTravel.Unreachable { Pawn = "a" }, new RouteTravel.Unreachable { Pawn = "b" }), p);
         var deficit = Assert.Single(review.Deficits);
         Assert.True(review.Active);
         Assert.Equal(1, deficit.Pending);
@@ -60,7 +60,7 @@ public sealed class RoutesTests
     public void AnUnreadDoorAvailabilityIsARequiredFact()
     {
         var p = RoutesRules.DefaultRoutesPolicy();
-        var review = RoutesRules.ReviewRoutes(Known(Census(new RouteTravel.Unreachable { Pawn = "a" })), p);
+        var review = RoutesRules.ReviewRoutes(Census(new RouteTravel.Unreachable { Pawn = "a" }), p);
         Assert.Equal("Door availability", Assert.Throws<RequiredFactException>(() => RoutesRules.SelectRoutesMethod(review, new RoutesFacts(), p)).Fact);
     }
 

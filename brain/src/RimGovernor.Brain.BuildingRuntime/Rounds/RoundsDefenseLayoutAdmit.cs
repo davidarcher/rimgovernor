@@ -288,7 +288,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal static (DefenseKillbox Killbox, BridgeCellRect Region, Cell Home, bool Ok) DefenseKillbox(ColonyProjection projection)
     {
-        if (!projection.LayoutPlan.TryGetValue(out var plan))
+        if (projection.LayoutPlan is not { } plan)
         {
             return (new DefenseKillbox(), new BridgeCellRect(), default, false);
         }

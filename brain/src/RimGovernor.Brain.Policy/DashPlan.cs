@@ -219,7 +219,7 @@ public static class DashPlanRules
     internal static DashWindow DashLatch(Fact<DashWindow> f) => f.TryGetValue(out var w) ? w : new DashWindow();
 
     /// <summary>Plans a window afresh: ReviewDash with none held.</summary>
-    public static Fact<DashWindow> DashWindowOf(RoundsFacts f, Fact<EquatableArray<WorkPawn>> pawns, Tick now, HypothermiaTuning tuning) =>
+    public static Fact<DashWindow> DashWindowOf(RoundsFacts f, WorkPawnsRead pawns, Tick now, HypothermiaTuning tuning) =>
         ReviewDash(new DashWindow(), f, pawns, now, tuning);
 
     /// <summary>
@@ -231,11 +231,12 @@ public static class DashPlanRules
     /// Otherwise each available colonist with a readable body is planned and the plan with the most value
     /// wins, ties to the lowest pawn id. Unknown while the hazards, hostiles or the roster are unknown.
     /// </summary>
-    public static Fact<DashWindow> ReviewDash(DashWindow held, RoundsFacts f, Fact<EquatableArray<WorkPawn>> pawns, Tick now, HypothermiaTuning tuning)
+    public static Fact<DashWindow> ReviewDash(DashWindow held, RoundsFacts f, WorkPawnsRead pawns, Tick now, HypothermiaTuning tuning)
     {
         var hazards = OutdoorHazardRules.OutdoorHazardsOf(f);
         var ok = f.Hostiles.TryGetValue(out var hostiles);
-        var pk = pawns.TryGetValue(out var rows);
+        var pk = pawns is WorkPawnsRead.Read;
+        var rows = pawns is WorkPawnsRead.Read { Pawns: var rowsRead } ? rowsRead : default;
         if (!ok || !pk)
         {
             return Unknown<DashWindow>();

@@ -148,7 +148,8 @@ public static class QuestSurvey
     {
         reserve = f;
         var ck = f.DefenseCapacity.TryGetValue(out var capacity);
-        var covk = f.WorkRoster.TryGetValue(out var roster);
+        var covk = f.WorkRoster is WorkRosterRead.Read;
+        var roster = f.WorkRoster is WorkRosterRead.Read { Coverage: var rosterRead } ? rosterRead : default;
         if (f.QuestPawns is not QuestPawns.Seen seen || f.QuestRoster is not QuestRoster.Planned planned || !ck || !covk)
         {
             return false;
@@ -195,7 +196,7 @@ public static class QuestSurvey
         {
             QuestPawns = seen with { AtHome = home - crew.Count, Departures = EquatableArray.From(rows.Where(row => !crew.Items.Contains((Domain.PawnId)row.Id))) },
             DefenseCapacity = Known(capacity),
-            WorkRoster = Known(EquatableArray.From(coverage)),
+            WorkRoster = new WorkRosterRead.Read(EquatableArray.From(coverage)),
             QuestRoster = planned with { Spare = EquatableArray.From(planned.Spare.Where(id => !crew.Items.Contains((Domain.PawnId)id))) },
         };
         return true;

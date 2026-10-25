@@ -34,7 +34,7 @@ public sealed class RetiredWallsTests
 
     private static ColonyProjection Colony(Fact<RoomObservation> rooms) => ColonyFactsCoreTests.Projection() with
     {
-        LayoutPlan = Known(Plan),
+        LayoutPlan = Plan,
         Rooms = rooms,
         Facts = new() { CurrentConstruction = CurrentConstruction.Empty },
     };

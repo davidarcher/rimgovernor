@@ -6,9 +6,9 @@ public static class CropResilienceRules
     /// Counts observed enabled growers and capable cooks. Unknown pawn availability or work rows cannot
     /// establish that the colony has no cook.
     /// </summary>
-    public static (Fact<int> Growers, Fact<int> Cooks) CropWorkers(Fact<EquatableArray<WorkPawn>> fact)
+    public static (Fact<int> Growers, Fact<int> Cooks) CropWorkers(WorkPawnsRead fact)
     {
-        if (!fact.TryGetValue(out var pawns))
+        if (fact is not WorkPawnsRead.Read { Pawns: var pawns })
         {
             return default;
         }

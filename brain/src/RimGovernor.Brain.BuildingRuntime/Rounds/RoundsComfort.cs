@@ -57,7 +57,7 @@ public sealed partial class RoundsBuildingPlanner
     /// </summary>
     internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectWorkChair(ColonyProjection facts)
     {
-        if (!facts.LayoutPlan.TryGetValue(out var plan))
+        if (facts.LayoutPlan is not { } plan)
         {
             return (null, FieldUnavailable("layout_plan"));
         }
@@ -236,7 +236,7 @@ partial class RoundsBuildingPlanner
         {
             return FieldUnavailable(definition + "_construction_skill");
         }
-        if (!facts.WorkPawns.TryGetValue(out var pawns))
+        if (facts.WorkPawns is not WorkPawnsRead.Read { Pawns: var pawns })
         {
             return FieldUnavailable("work_pawns");
         }

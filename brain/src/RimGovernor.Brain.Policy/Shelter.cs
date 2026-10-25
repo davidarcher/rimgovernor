@@ -43,7 +43,7 @@ public sealed record ShelterFacts
             SleepingMin = f.SleepingMin.TryGetValue(out var coldest) ? coldest : f.OutdoorTemperature,
             SleepingMax = f.SleepingMax.TryGetValue(out var warmest) ? warmest : f.OutdoorTemperature,
             TemperatureOwed = f.TemperatureOwed,
-            HeatDoorOwed = f.Upkeep.Rooms.IsKnown ? Known(DoorControlRules.DoorChanges(f.Upkeep.Rooms, f.Upkeep.Routes, p).Any(d => d.Heat)) : Unknown<bool>(),
+            HeatDoorOwed = f.Upkeep.Rooms.IsKnown ? Known(DoorControlRules.DoorChanges(f.Upkeep.Rooms, f.Upkeep.Routes ?? throw new RequiredFactException("routes census"), p).Any(d => d.Heat)) : Unknown<bool>(),
             SafeAreaOwed = f.SafeAreaOwed,
         };
     }

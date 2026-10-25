@@ -121,13 +121,7 @@ public static class HostilityRules
         return @out;
     }
 
-    /// <summary>The review's HostilityOwed fact: a change is owed. Unknown pawns owe nothing.</summary>
-    public static Fact<bool> HostilityOwed(Fact<EquatableArray<HostilityPawn>> pawns, IReadOnlyList<EmergencyThreat> threats)
-    {
-        if (!pawns.TryGetValue(out var rows))
-        {
-            return Unknown<bool>();
-        }
-        return Known(HostilityChanges(rows, threats).Count > 0);
-    }
+    /// <summary>The review's HostilityOwed: a change is owed. Pawns the census did not read owe nothing.</summary>
+    public static bool HostilityOwed(Fact<EquatableArray<HostilityPawn>> pawns, IReadOnlyList<EmergencyThreat> threats) =>
+        pawns.TryGetValue(out var rows) && HostilityChanges(rows, threats).Count > 0;
 }

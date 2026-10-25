@@ -13,19 +13,27 @@ namespace RimGovernor.Brain.Policy;
 public sealed record ClearanceCandidate(MethodId Method, bool ReplacesWithWall, Func<PlanId, IReadOnlyList<DomainAction>> Actions);
 
 /// <summary>
+/// The clearance census one native read returned: the rows that are not the player's own buildings and the
+/// planned-ground clearance work of the same read (PlannedGroundWork): unplanned buildings and floors on the ground
+/// of planned rooms not yet standing. Ground is empty on a read that did not derive the planned-ground work.
+/// </summary>
+public sealed record ClearanceCensus(EquatableArray<ClearanceTarget> Targets)
+{
+    public EquatableArray<string> Ground { get; init; }
+}
+
+/// <summary>
 /// What the home-upkeep family reads: the damaged-structure census, the clearance census of the non-player rows,
 /// the planned-ground work of the same read and the clearance step those support. Each section is a complete
 /// native read; an unknown section cannot prove its old targets disappeared, while a known empty one can.
 /// </summary>
 public sealed record HomeUpkeepFacts
 {
-    public Fact<EquatableArray<RepairStructure>> Structures { get; init; }
+    /// <summary>The damaged-structure census of the same read; empty on a pass that does not review repairs.</summary>
+    public EquatableArray<RepairStructure> Structures { get; init; }
 
-    /// <summary>The clearance census rows that are not the player's own buildings.</summary>
-    public Fact<EquatableArray<ClearanceTarget>> Clearance { get; init; }
-
-    /// <summary>The planned-ground clearance work of the same read (PlannedGroundWork): unplanned buildings and floors on the ground of planned rooms not yet standing.</summary>
-    public Fact<EquatableArray<string>> Ground { get; init; }
+    /// <summary>The clearance census of the same read; null when the pass did not read it, and the clearance Need then refuses.</summary>
+    public ClearanceCensus? Clearance { get; init; }
 
     /// <summary>The next clearance step, or null when none is supported or every target of it is already designated.</summary>
     public ClearanceCandidate? Candidate { get; init; }
@@ -73,7 +81,7 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
         }
         if (clearance)
         {
-            needs.Add(ClearanceNeed(facts.Clearance, facts.Ground));
+            needs.Add(ClearanceNeed(facts.Clearance));
         }
         return needs;
     }
@@ -142,7 +150,7 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
     /// The clearance targets: every census row nothing about the thing itself refuses (<see cref="ClearanceRules.ClearanceHoldReason"/>),
     /// then the planned-ground work. Throws on an invalid or repeated id.
     /// </summary>
-    public static IReadOnlyList<string> ClearanceTargets(IReadOnlyList<ClearanceTarget> rows, Fact<EquatableArray<string>> ground)
+    public static IReadOnlyList<string> ClearanceTargets(IReadOnlyList<ClearanceTarget> rows, EquatableArray<string> ground)
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var selected = new List<string>();
@@ -157,27 +165,20 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
                 selected.Add(row.EntityId);
             }
         }
-        if (ground.TryGetValue(out var planned))
+        foreach (var id in ground)
         {
-            foreach (var id in planned)
+            if (!FoodForecastRules.FoodId(id) || !seen.Add(id))
             {
-                if (!FoodForecastRules.FoodId(id) || !seen.Add(id))
-                {
-                    throw new DomainException("invalid planned ground target");
-                }
-                selected.Add(id);
+                throw new DomainException("invalid planned ground target");
             }
+            selected.Add(id);
         }
         return selected;
     }
 
-    private static Need RepairsNeed(Fact<EquatableArray<RepairStructure>> census)
+    private static Need RepairsNeed(EquatableArray<RepairStructure> census)
     {
-        if (!census.TryGetValue(out var structures))
-        {
-            throw new RequiredFactException("repair census");
-        }
-        var (targets, missing) = DamagedStructures(structures);
+        var (targets, missing) = DamagedStructures(census);
         return new Need
         {
             Id = Repairs,
@@ -187,13 +188,13 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
         };
     }
 
-    private static Need ClearanceNeed(Fact<EquatableArray<ClearanceTarget>> census, Fact<EquatableArray<string>> ground)
+    private static Need ClearanceNeed(ClearanceCensus? census)
     {
-        if (!census.TryGetValue(out var rows))
+        if (census is null)
         {
             throw new RequiredFactException("clearance census");
         }
-        var targets = ClearanceTargets(rows, ground);
+        var targets = ClearanceTargets(census.Targets, census.Ground);
         return new Need
         {
             Id = Clearance,

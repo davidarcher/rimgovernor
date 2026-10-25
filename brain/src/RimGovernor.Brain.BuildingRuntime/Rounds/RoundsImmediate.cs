@@ -106,7 +106,7 @@ public sealed partial class Rounder
         var projection = reading.Projection;
         if (layout is { Plan: { } layoutPlan })
         {
-            projection = projection with { LayoutPlan = Known(layoutPlan) };
+            projection = projection with { LayoutPlan = layoutPlan };
         }
 
         if (Needs.Contains(ShelterFamily.SafeArea))

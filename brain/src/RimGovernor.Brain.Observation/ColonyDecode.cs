@@ -226,7 +226,7 @@ public static class ColonyDecodeReads
         };
         f = f with
         {
-            MapBounds = Known(r.Bounds),
+            MapBounds = r.Bounds,
             ShelterArea = AllowedAreaID(r.Policies, ShelterRules.SafeAreaLabel),
             NoDangerArea = AllowedAreaID(r.Policies, ShelterRules.NoDangerAreaLabel),
             AnimalWard = f.AnimalWard with { Area = AllowedAreaID(r.Policies, HerdWardRules.HospitalAreaLabel) },

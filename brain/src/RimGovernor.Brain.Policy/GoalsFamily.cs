@@ -195,7 +195,7 @@ public sealed record GoalsFacts
     public IdeologyMode Ideology { get; init; } = new IdeologyMode.NotInstalled();
 
     /// <summary>The colonists' pawn rows: the believer census a Believers goal is judged by.</summary>
-    public Fact<EquatableArray<WorkPawn>> Pawns { get; init; }
+    public WorkPawnsRead Pawns { get; init; } = WorkPawnsRead.NotRead;
 
     /// <summary>The reform the ideoligion goals plan (#3500); unknown while the ideoligion or catalog is unread.</summary>
     public DesignChoice? Reform { get; init; }
@@ -222,7 +222,7 @@ public sealed record GoalsFacts
     public IReadOnlyDictionary<NeedId, OwnerProgress> Owners { get; init; } = new Dictionary<NeedId, OwnerProgress>();
 
     /// <summary>The facts a review already holds, with the goals and the owners' rows.</summary>
-    public static GoalsFacts From(RoundsFacts f, Fact<TechTier> tier, Fact<EquatableArray<WorkPawn>> pawns, IReadOnlyList<GoalRecord> goals, IReadOnlyList<ThemeRecord> themes, IReadOnlyDictionary<NeedId, OwnerProgress> owners, IReadOnlyDictionary<string, IReadOnlyList<string>>? stuffResearch = null) => new()
+    public static GoalsFacts From(RoundsFacts f, Fact<TechTier> tier, WorkPawnsRead pawns, IReadOnlyList<GoalRecord> goals, IReadOnlyList<ThemeRecord> themes, IReadOnlyDictionary<NeedId, OwnerProgress> owners, IReadOnlyDictionary<string, IReadOnlyList<string>>? stuffResearch = null) => new()
     {
         Pawns = pawns,
         Goals = goals,
@@ -485,7 +485,7 @@ public static partial class GoalRules
     private static GoalStatus Skill(GoalRecord goal, GoalsFacts f)
     {
         var owner = AdminFamily.WorkAssignments;
-        if (!f.Pawns.TryGetValue(out var pawns))
+        if (f.Pawns is not WorkPawnsRead.Read { Pawns: var pawns })
         {
             throw new RequiredFactException("pawn census");
         }

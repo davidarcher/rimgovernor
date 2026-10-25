@@ -177,7 +177,7 @@ public static class ContainmentCellRules
 
     /// <summary>The layout plan's containment cells; none while the plan is unread.</summary>
     public static IEnumerable<PlannedRoom> PlannedCells(FlooringFacts floors) =>
-        floors.Layout.TryGetValue(out var plan) && plan is not null ? plan.Rooms.Where(r => r.Role == PlannedRole.ContainmentCell) : [];
+        floors.Layout is { } plan ? plan.Rooms.Where(r => r.Role == PlannedRole.ContainmentCell) : [];
 
     /// <summary>
     /// The strength the catalog's platform predicts in planned cell <paramref name="room"/> once it is built (#3811): its
@@ -232,7 +232,7 @@ public static class ContainmentCellRules
         {
             return false;
         }
-        if (facts.Observation.TryGetValue(out var observed))
+        if (facts.Observation is { } observed)
         {
             foreach (var r in observed.Rooms)
             {

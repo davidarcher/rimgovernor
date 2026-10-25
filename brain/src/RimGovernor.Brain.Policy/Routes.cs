@@ -114,14 +114,11 @@ public sealed record RouteDeficit
 
 /// <summary>
 /// One review of the routes census: Deficits lists every unreachable facility by kind precedence (storage and
-/// stockpiles first, then benches, dining, beds, defence) and then id. Known is false when the census was
-/// unknown, in which case Deficits is empty.
+/// stockpiles first, then benches, dining, beds, defence) and then id.
 /// </summary>
 public sealed record RoutesReview
 {
     public bool Active { get; init; }
-
-    public bool Known { get; init; }
 
     public EquatableArray<RouteDeficit> Deficits { get; init; }
 }
@@ -195,20 +192,16 @@ public static partial class RoutesRules
     /// game's own answer, read fresh every review. A door frame is walkable, so a facility reads reachable once its
     /// ordered door is framed; the open door Method then continues on its own and nothing holds the facility.
     /// </summary>
-    public static RoutesReview ReviewRoutes(Fact<RoutesObservation> fact, RoutesPolicy p)
+    public static RoutesReview ReviewRoutes(RoutesObservation v, RoutesPolicy p)
     {
         if (!p.Valid())
         {
             throw new DomainException("invalid routes policy");
         }
-        if (!fact.TryGetValue(out var v))
-        {
-            return new RoutesReview();
-        }
         v.Validate();
         if (v.Pawns.Count == 0)
         {
-            return new RoutesReview { Known = true };
+            return new RoutesReview();
         }
         var deficits = new List<RouteDeficit>();
         foreach (var f in v.Facilities)
@@ -241,7 +234,6 @@ public static partial class RoutesRules
             .ToList();
         return new RoutesReview
         {
-            Known = true,
             Deficits = EquatableArray.From(sorted),
             Active = sorted.Count > 0,
         };

@@ -329,7 +329,7 @@ public sealed class MilitaryRounds
             throw new ControlException("training work: the native boundary moved");
         }
         var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), TrainingDefinitions, call).ConfigureAwait(false);
-        if (!reading.Projection.LayoutPlan.TryGetValue(out var layout))
+        if (reading.Projection.LayoutPlan is not { } layout)
         {
             return FieldUnavailable("layout_plan");
         }

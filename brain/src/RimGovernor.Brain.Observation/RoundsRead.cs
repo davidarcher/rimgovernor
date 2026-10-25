@@ -165,7 +165,7 @@ public static class RoundsReads
         var pawns = RoundsPawnsOf(frame, id);
         p = p with
         {
-            WorkPawns = default,
+            WorkPawns = WorkPawnsRead.NotRead,
             Rest = null,
             Facts = p.Facts with { Armed = default, Unarmed = default, DefenseCapacity = default, MedicalPawns = default, MoodPawns = default },
         };

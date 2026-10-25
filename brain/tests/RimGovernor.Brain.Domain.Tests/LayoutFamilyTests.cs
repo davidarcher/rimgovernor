@@ -202,14 +202,13 @@ public sealed class LayoutFamilyTests
             Facilities = [new() { Id = "store", Kind = RouteFacilityKind.Storage, Cell = new(4, 4), Travel = [reachable ? new RouteTravel.Measured { Pawn = "a", Cost = 30, Cells = 12 } : new RouteTravel.Unreachable { Pawn = "a" }], Breaches = [] }],
         };
         LayoutFacts Facts(RoutesObservation census) =>
-            new() { Routes = LayoutFamily.RoutesStandingOf(Known(census), default, RoundsRules.DefaultRoundsPolicy()) };
+            new() { Routes = LayoutFamily.RoutesStandingOf(census, default, RoundsRules.DefaultRoundsPolicy()) };
 
         var unmet = Single(composed, Facts(Census(reachable: false)));
         Assert.Equal((LayoutFamily.Routes, NeedTier.Development, Satisfaction.Unmet, 1.0), (unmet.Id, unmet.Tier, unmet.Satisfaction, unmet.Deficit));
         var met = Single(composed, Facts(Census(reachable: true)));
         Assert.Equal((Satisfaction.Met, 0.0), (met.Satisfaction, met.Deficit));
         Assert.Equal("routes census", Assert.Throws<RequiredFactException>(() => Single(composed, new())).Fact);
-        Assert.Equal("routes census", Assert.Throws<RequiredFactException>(() => Single(composed, new() { Routes = LayoutFamily.RoutesStandingOf(default, default, RoundsRules.DefaultRoundsPolicy()) })).Fact);
         Assert.Equal([WorkType.Construction], LaborRules.NeedLabor(LayoutFamily.Routes));
     }
 

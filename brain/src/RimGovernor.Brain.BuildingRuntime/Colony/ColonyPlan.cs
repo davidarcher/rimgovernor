@@ -323,7 +323,7 @@ public sealed partial class Rounder
         }
         if (haveLayout)
         {
-            projection = projection with { LayoutPlan = Known(layout.Plan) };
+            projection = projection with { LayoutPlan = layout.Plan };
         }
         await DrawLayoutOverlayAsync(snapshot, projection, layout, haveLayout, ct).ConfigureAwait(false);
         return projection;
@@ -579,8 +579,8 @@ public sealed partial class Rounder
     /// <summary>Redraws a "heat.&lt;layer&gt;" overlay layer per traffic layer from the census's busiest cells, on its own hourly cadence; with the overlay off it removes them once. Output only, like the layout.</summary>
     internal async Task DrawHeatOverlayAsync(FacadeNativeClient native, GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
     {
-        var known = projection.Facts.Upkeep.Flooring.TryGetValue(out var census);
-        var on = LayoutOverlay && known;
+        var census = projection.Facts.Upkeep.Flooring;
+        var on = LayoutOverlay && census is not null;
         if (!on && HeatCleared)
         {
             return;

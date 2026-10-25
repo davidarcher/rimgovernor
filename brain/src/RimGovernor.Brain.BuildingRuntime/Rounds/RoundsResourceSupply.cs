@@ -392,14 +392,14 @@ public sealed partial class RoundsResourcePlanner
     /// <summary>The labor the food plan leaves the resource supply; the planner needs it read (RequiredFactException).</summary>
     internal static double ResourceLabor(ColonyProjection p)
     {
-        var workers = Known(p.WorkPawns.TryGetValue(out var pawns) ? ResearchRules.RoundsWorkers(pawns) : p.Workers);
+        var workers = Known(p.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns } ? ResearchRules.RoundsWorkers(pawns) : p.Workers);
         return ResourceRules.ResidualSupplyLabor(workers, p.Facts.FoodPlan ?? throw new RequiredFactException("food plan")).TryGetValue(out var labor) ? labor : throw new RequiredFactException("resource supply labor");
     }
 
     internal static (Fact<int> Slots, bool NoHunter) HuntSlots(ColonyProjection projection)
     {
         var slots = Unknown<int>();
-        if (projection.WorkPawns.TryGetValue(out var pawns))
+        if (projection.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns })
         {
             var profiles = PawnRules.Profiles(pawns);
             if (PawnRules.HunterFor(profiles) is null)

@@ -16,7 +16,7 @@ public sealed record DisasterFacts
     public RecoveryPlanning Planning { get; init; } = new();
 
     /// <summary>The colonists' work rows: the area step's live pawns and the service step's running jobs.</summary>
-    public Fact<EquatableArray<WorkPawn>> Workers { get; init; }
+    public WorkPawnsRead Workers { get; init; } = WorkPawnsRead.NotRead;
 
     /// <summary>
     /// The family's facts from one reading of the colony and the review's <paramref name="history"/>; a shelter

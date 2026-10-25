@@ -51,7 +51,7 @@ partial class LayoutRounds
     /// <summary>The planned rooms whose ring or roof the envelope still has to build; not known without a layout plan or colony ground.</summary>
     internal static (List<PlannedRoom> Rooms, bool Known) EnvelopeWork(ColonyProjection facts)
     {
-        if (!facts.LayoutPlan.TryGetValue(out var plan))
+        if (facts.LayoutPlan is not { } plan)
         {
             return ([], false);
         }

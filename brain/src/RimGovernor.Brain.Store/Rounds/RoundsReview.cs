@@ -234,7 +234,7 @@ public sealed partial class Store
             // planners cannot flip them.
             loot = loot with { Held = held };
             loot = loot with { Pending = EquatableArray.From(FoodReserveRules.DropReserveHeld(loot.Pending, facts.FoodReserve)) };
-            if (facts.Upkeep.Clearance.TryGetValue(out var rows))
+            if (facts.Upkeep.Clearance is { Targets: var rows })
             {
                 var req = RecoveryRules.ReviewRecoveryRequest(request.Policy, facts, rows, facts.Upkeep.RoomObstructions);
                 recovery = req;
@@ -245,7 +245,7 @@ public sealed partial class Store
                     working[e.ID] = e.Status is RecoveryStatus.Admitted or RecoveryStatus.Queued;
                 }
                 var workable = rows.Where(row => working.TryGetValue(row.EntityId, out var ok) && ok).ToList();
-                facts = facts with { Upkeep = facts.Upkeep with { Clearance = Known(EquatableArray.From(workable)) } };
+                facts = facts with { Upkeep = facts.Upkeep with { Clearance = new ClearanceCensus(EquatableArray.From(workable)) } };
             }
             medical = MedicalRules.ReviewMedicalCare(facts.MedicalPawns, medical);
             facts = facts with { MedicalCareRecovered = medical.Recovered() };
@@ -366,7 +366,7 @@ public sealed partial class Store
             };
             r = r with { Recovery = RoundsRecoveryFor(tx, request.Facts, disaster, r, request.Tick) };
         }
-        if (!request.Immediate && request.Facts.Upkeep.Clearance.TryGetValue(out var clearance))
+        if (!request.Immediate && request.Facts.Upkeep.Clearance is { Targets: var clearance })
         {
             // A disabled review never filtered the census.
             recovery ??= RecoveryRules.ReviewRecoveryRequest(request.Policy, request.Facts, clearance, request.Facts.Upkeep.RoomObstructions);
@@ -401,7 +401,7 @@ public sealed partial class Store
     /// </summary>
     private static WorkRosterReport? RoundsRoster(RoundsRequest request, Rounds previous, bool reset)
     {
-        if (!request.Enabled || !request.Facts.WorkRoster.TryGetValue(out var coverage))
+        if (!request.Enabled || request.Facts.WorkRoster is not WorkRosterRead.Read { Coverage: var coverage })
         {
             return reset ? null : previous.Roster;
         }

@@ -86,7 +86,7 @@ public sealed class EssentialServicesTests
     private static RoundsFacts Kitchen(bool secondChain = false) => Facts() with
     {
         FoodPlan = new FoodPlan { Portfolio = [new() { Channel = CandidateRules.FoodCandidate(CandidateKind.Cook, "cooking-capacity", new YieldSupply.Steady(0), CandidateState.Closed, new CandidateLead.Days(0), new CandidateWork.PerDay(0)), Decision = FoodPlanDecision.Open }] },
-        ForecastObserved = new() { WorkPawns = Known<EquatableArray<WorkPawn>>([
+        ForecastObserved = new() { WorkPawns = new WorkPawnsRead.Read([
             Cook("expert", 8), Cook("learner", 1)]) },
         WorkClaims = new([], [], [], []),
         WorkAdmission = new() { Recipes = Known<EquatableArray<ProductionRecipeInput>>([
@@ -144,7 +144,7 @@ public sealed class EssentialServicesTests
     [Fact]
     public void LogisticsUsesObservedReachabilityAndAlternatePawns()
     {
-        var facts = Facts() with { Upkeep = new() { Routes = Known(new RoutesObservation { Pawns = ["a", "b"],
+        var facts = Facts() with { Upkeep = new() { Routes = (new RoutesObservation { Pawns = ["a", "b"],
             Facilities = [new() { Id = "medicine-store", Kind = RouteFacilityKind.Storage, Cell = new(4, 4), Travel = [new RouteTravel.Measured { Pawn = "a", Cost = 30, Cells = 12 }, new RouteTravel.Unreachable { Pawn = "b" }], Breaches = [] }] }) } };
         var review = Review(facts);
         Assert.Contains(review.Stress, s => s.Unavailable == "pawn/a" && s.Coverage == ServiceCoverage.Shortfall);
