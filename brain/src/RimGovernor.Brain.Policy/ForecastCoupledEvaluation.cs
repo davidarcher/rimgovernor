@@ -875,7 +875,7 @@ public static partial class ForecastCoupled
                         context.PlannedRoomRoles.Values.Any(r => (r is PlannedRole.Dining or PlannedRole.Rec) && context.RoomCredits.ContainsKey(r))
                         || context.RoomCredits.ContainsKey(PlannedRole.Nursery) && context.PlannedRoomRoles.Values.Contains(PlannedRole.Nursery)
                             && context.Needs.Babies.Babies.Any(b => b.Pawn == pawn.Pawn || b.Hearers.Any(h => h.Pawn == pawn.Pawn)))));
-                needsByPawn[pawn.Pawn] = Projected(projectedNeeds, mood, roof);
+                needsByPawn[pawn.Pawn] = Projected(projectedNeeds, mood, roof) with { Services = choiceKeys.Array(choicesId) };
             }
             // Removing impossible work may invalidate its meals and therefore later work. Each pass removes at least one task.
             if (rejectedWork is not null && rejectedWork.Count > (unavailableWork?.Count ?? 0))

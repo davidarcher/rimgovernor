@@ -5,7 +5,8 @@ using RimGovernor.Brain.GameFacts;
 namespace RimGovernor.Brain.GameFacts.Observations;
 
 /// <summary>
-/// Physical samples, never a copy of save-owned room intent: the cells around every site and heater, every heat source,
+/// Physical samples, never a copy of save-owned room intent: the cells around every site and heater and at generated activity
+/// locations, every heat source,
 /// the colonists who can roof and every colonist's route to every open cell marked to roof, and the map's exchange
 /// constants. Outdoors is the map's current outdoor temperature; the roof rates are RoomTempTracker's private constants
 /// (ThinRoofEqualizeRate; NoRoofEqualizeRate, an unroofed cell's share of the room's exchange with outdoors a tick, #3534)
@@ -29,7 +30,11 @@ public sealed record CoupledThermalRead
 /// <summary>A cell's sample. <see cref="DoorHeldOpen"/> is a door's hold-open toggle, not whether it stands open this tick.</summary>
 public sealed record ThermalCell(Cell Cell, double Temperature, string Roof,
     bool Solid, bool DoorHeldOpen, string Site,
-    bool FutureSolid, bool FutureDoor, double DoorExchangePerTick, bool BuildRoof);
+    bool FutureSolid, bool FutureDoor, double DoorExchangePerTick, bool BuildRoof)
+{
+    /// <summary>Native roof, enclosure and nearby fire facts at this sampled stationary work location.</summary>
+    public NeedCell? MoodCell { get; init; }
+}
 /// <summary>
 /// Heater mechanics at current conditions: an electric heater's or a fueled heat pusher's (#3673: a campfire) heat a tick
 /// and the temperature it pushes toward, and where its energy comes from (<see cref="HeatSupply"/>).

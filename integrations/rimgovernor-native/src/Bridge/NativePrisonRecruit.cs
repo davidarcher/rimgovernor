@@ -318,13 +318,14 @@ internal static class NativePrisonRecruit
     /// The joiner's own mood parts (RimGovernor.Brain.GameFacts.Observations.JoinerMoodRead); null without a mood need or a mental breaker. A trait thought is a
     /// situational non-social def whose requiredTraits the pawn has (CanGetThought's trait clause) and its traits do not disallow:
     /// an always-active one at its unattached MoodOffset, an <see cref="OwnStateWorkers"/> one at its worker's state now, an
-    /// own-bedroom one (NativeNeedsForecast.RoomTraitWorkers) as its stage rows, any other named. The memories are its live memory groups.
+    /// own-bedroom or gear/awake/location one as its stage rows, any other named. The memories are its live memory groups.
     /// </summary>
     private static RimGovernor.Brain.GameFacts.Observations.JoinerMoodRead? JoinerMoodOf(Pawn pawn)
     {
         if (pawn.needs?.mood is not { } mood || pawn.mindState?.mentalBreaker is not { } breaker) return null;
         var traits = new List<RimGovernor.Brain.GameFacts.Observations.ThoughtOffsetRead>();
         var room = new List<ThoughtDef>();
+        var stages = new List<RimGovernor.Brain.GameFacts.Observations.JoinerSituationThought>();
         var situational = new List<string>();
         foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => !d.IsMemory && !d.IsSocial && !d.requiredTraits.NullOrEmpty())
             .OrderBy(d => d.defName, StringComparer.Ordinal))
@@ -332,6 +333,8 @@ internal static class NativePrisonRecruit
             if (pawn.story?.traits is not { } has || has.IsThoughtDisallowed(def)) continue;
             if (!def.requiredTraits.Any(t => has.HasTrait(t) && (!def.RequiresSpecificTraitsDegree || def.requiredTraitsDegree == has.DegreeOfTrait(t)))) continue;
             if (NativeNeedsForecast.RoomTraitWorkers.Any(w => w.Worker == def.workerClass)) { room.Add(def); continue; }
+            var situation = NativeJoinerTraits.Workers.FirstOrDefault(w => w.Worker == def.workerClass);
+            if (situation.Worker != null) { stages.Add(NativeJoinerTraits.Stages(pawn, def, situation.Kind)); continue; }
             double offset;
             if (def.workerClass == typeof(ThoughtWorker_AlwaysActive)) offset = NativeNeedsForecast.StageOffset(pawn, def, 0);
             else if (OwnStateWorkers.Contains(def.workerClass))
@@ -349,6 +352,7 @@ internal static class NativePrisonRecruit
         return new(F(pawn.health.hediffSet.OverrideMoodBase ?? mood.def.baseLevel, "mood base level"), Find.Storyteller.difficulty.colonistMoodOffset, breaker.BreakThresholdMinor)
         {
             Traits = EquatableArray.From(traits), RoomTraits = EquatableArray.From(NativeNeedsForecast.RoomTraitStages(pawn, room.Contains)),
+            SituationStages = EquatableArray.From(stages),
             SituationalTraits = EquatableArray.From(situational), Memories = EquatableArray.From(memories),
         };
     }
@@ -357,8 +361,11 @@ internal static class NativePrisonRecruit
     /// The trait thought workers whose state is the pawn's own body or the map's head count, which joining leaves as they are
     /// (#3899): ThoughtWorker_Pain (MasochistPain, the pawn's PainTotal), ThoughtWorker_HasAddedBodyPart (the Prosthophile and
     /// Prosthophobe thoughts, its added and implanted parts) and ThoughtWorker_Recluse (FreeColonistsAndPrisonersSpawnedCount,
-    /// which counts a prisoner as it counts a colonist). Their worker classes are the typed route.
+    /// which counts a prisoner as it counts a colonist). Chemical desire reads only the pawn's drugsDesire.MoodBuffForCurrentLevel;
+    /// VoidFascination reads the current map's occupied entity holders. Joining on this map changes neither. These are conditional
+    /// observed states, not forecasts of future drug service or captures. Their worker classes are the typed route.
     /// </summary>
-    private static readonly Type[] OwnStateWorkers = [typeof(ThoughtWorker_Pain), typeof(ThoughtWorker_HasAddedBodyPart), typeof(ThoughtWorker_Recluse)];
+    private static readonly Type[] OwnStateWorkers = [typeof(ThoughtWorker_Pain), typeof(ThoughtWorker_HasAddedBodyPart), typeof(ThoughtWorker_Recluse),
+        typeof(ThoughtWorker_DrugDesireUnsatisfied), typeof(ThoughtWorker_DrugDesireSatisfied), typeof(ThoughtWorker_VoidFascination)];
     private static double F(double value, string what) => double.IsFinite(value) ? value : throw new InvalidOperationException(what + " is not finite.");
 }

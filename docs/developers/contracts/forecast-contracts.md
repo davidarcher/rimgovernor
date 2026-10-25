@@ -1916,6 +1916,37 @@ Storage reviews require native zone and shelf stack counts, shelf costs and stor
 
 Each loot row that can deteriorate includes required `LootDeterioration.BaseRatePerDay`, computed by native from that stack's def and actual stuff before environmental exposure. Storage options use it with their destination exposure; a stack that cannot deteriorate has no deterioration relation. No per-def catalog rate is retained. An unplanned successor room generates no capacity option. Roof work remains explicitly unassessed apart from catalog construction work.
 
+### Joiner situational traits
+
+`JoinerMoodRead.SituationStages` carries each applicable joiner trait thought's native worker family, eligibility,
+inversion, stack limit and mood offset at every stage. `JoinerMoodRules.ValueOf` prices these through the selected
+outcome, commitments and tier-1 horizon, retaining the existing median over colonists served. It evaluates the
+joiner's traits against each colonist's own selected service and gear; it creates no joiner assignment.
+
+Nudity and human-leather apparel use the selected outfit timeline (`HarmLedger.OutfitsOf`), including each
+commitment's actual effective tick. Brawler and incendiary-weapon thoughts use that outfit's primary. The catalog
+retains the native `ThingDef.IsRangedWeapon` and every incendiary verb, melee extra damage or equippable ability;
+combat weapon classification is independent. Stage selection clamps to the thought def's last stage, as native
+`ThoughtState.StageIndexFor` does. Apparel minimum quality is title-driven, not a trait worker.
+
+Night Owl uses local integer hours over the selected awake/sleep spans. The evaluator retains references to its
+interned need-service rows on `ForecastNeedsResult.Services`; `SleepServiceEnds` supplies actual wakes, including
+retained observed sleep. Undergrounder uses each verified stationary service/work cell's native roof and enclosure,
+changed by the existing selected closed-room projection. `NeedCell.NearbyFires` counts unfogged fires within radius
+eight in the same room, matching the Pyromaniac worker; sampled work cells carry that same `NeedCell` on `ThermalCell.MoodCell`.
+The thermal capture samples all existing activity locations as well as its site/heater neighborhoods; the actual retained
+lie-down carries its cell on `NeedLyingIn.Cell`, including ground sleep outside selectable bed targets.
+Fire effects apply the def's stack limit and the joiner's per-fire offset. A changed enclosure invalidates the old
+same-room fire count. Transit, idle and chew locations without verified occupancy stay conditional, with
+`joiner_trait_location_unprojected`, `joiner_trait_awake_unprojected` or `joiner_trait_sleep_unprojected` as applicable;
+they inherit no prison location or guessed timetable. Missing required gear or selected-outcome records fail the read.
+
+Chemical Interest/Fascination retain the native drug-desire workers' current stage, and VoidFascination retains the
+native occupied-entity-holder result on the same colony map. Joining changes neither input. These are conditional
+observed desire/held-entity states; the forecast invents no future drug service, capture or encounter. Their offsets
+use the existing own-state trait rows. Supported families leave `SituationalTraits`; its generic finding is emitted
+only when an applicable worker remains outside these supported families.
+
 ### Workshop and laboratory bench credits
 
 A served Workshop earns Investment for the useful production its planned stations gain from a closed room. The station graph's existing chosen recipe loads travel through clustering and tiling into `PlannedRoom.Production`; this includes a first bench before any bench stands. The latest reconciled ledger remains the owner of useful bill demand. A removed bill, a stock target with full stock and no selected consumption, or a completed finite batch earns zero. The selected outcome's InventoryWalk retains actual consumed quantities alongside final stock; conserved deliveries and equipment movements do not count as consumption. Stock-target useful output includes actual within-horizon consumption even when production restored final stock. The existing dispatcher refill window determines its rate; unsized orders have no refill window. Both are capped by useful units over remaining service days and by the existing chosen load, so one brief stock dip never becomes perpetual production. Finite targets count recipe iterations, subtract completed iterations, and spread only the remaining iterations across the service period.

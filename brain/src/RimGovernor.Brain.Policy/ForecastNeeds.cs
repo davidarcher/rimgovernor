@@ -30,6 +30,8 @@ public sealed record ForecastNeedsResult(EquatableArray<ForecastNeedMetric> Need
     ForecastTerm ThoughtOffsetAtHorizon, ForecastTerm MemoryAdjustedMoodTarget,
     ForecastCapacityResult Capacity, EquatableArray<string> Findings)
 {
+    /// <summary>The evaluator's selected services, including the retained observed sleep. Shares its interned choice rows.</summary>
+    public IReadOnlyList<ForecastNeedChoice> Services { get; init; } = [];
     public ForecastMoodResult? Mood { get; init; }
     public IReadOnlyDictionary<string, double> UsefulFoodGain { get; init; } = new Dictionary<string, double>();
 }

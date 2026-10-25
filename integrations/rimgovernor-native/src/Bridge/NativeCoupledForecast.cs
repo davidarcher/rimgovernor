@@ -43,7 +43,6 @@ internal static class NativeCoupledForecast
                 (Rotation)t.Rotation.AsInt, t.Stuff?.defName ?? "")))), legs); Lap("construction");
         var clothing = NativeRecipeActivity.Read(context.Identity, legs); Lap("clothing");
         var future = NativeCoupledFood.Read(map, food, legs); Lap("future");
-        var thermal = NativeCoupledThermal.Read(map, sites, legs); Lap("thermal");
         var support = NativeSupportActivities.Read(map, legs); Lap("support");
         var practice = NativePracticeActivities.Read(map, legs); Lap("practice");
         var research = NativeResearchActivities.Read(map); Lap("research");
@@ -60,10 +59,14 @@ internal static class NativeCoupledForecast
             future.Conversions.SelectMany(o => new[] { o.SourceCell,o.BenchCell,o.Destination }),
             clothing.Options.SelectMany(o => new[] { o.Location,o.Destination }.Concat(o.Inputs.Select(i => i.Location))),
             needs.Pawns.SelectMany(p => p.Targets).Select(t => t.Location),
-            thermal.Cells.Where(c => c.BuildRoof && c.Roof == "none").Select(c => c.Cell),
             support.Workers.Select(w => w.Location).Concat(support.Deliveries.SelectMany(d => new[] { d.Source, d.Destination }))
         };
-        var locations = families.SelectMany(f => f).Distinct().OrderBy(c => c.X).ThenBy(c => c.Z).ToArray(); Lap("locations");
+        var activityLocations = families.SelectMany(f => f).Distinct().OrderBy(c => c.X).ThenBy(c => c.Z).ToArray();
+        // The same physical sample owner covers every generated stationary work location, not only sites near heaters.
+        var thermal = NativeCoupledThermal.Read(map, sites, legs,
+            activityLocations.Concat(sowing.Workers.SelectMany(w => w.Cells)).Concat(support.Demands.Select(d => d.Location))); Lap("thermal");
+        var locations = activityLocations.Concat(thermal.Cells.Where(c => c.BuildRoof && c.Roof == "none").Select(c => c.Cell))
+            .Distinct().OrderBy(c => c.X).ThenBy(c => c.Z).ToArray(); Lap("locations");
         var pawns = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         // Each pawn's id, cell and move ticks once: a route between two cells is one leg, found once and priced per
         // pawn (NativePathLegs.Found), not a lookup per pawn (#3556). The routes are built batched after the floods: the

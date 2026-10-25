@@ -32,6 +32,7 @@ public sealed class PrimaryWeaponRoleTests
         var gun = new ThingDef
         {
             defName = "Gun_Revolver",
+            category = Verse.ThingCategory.Item,
             statBases =
             [
                 new RimWorld.StatModifier { stat = new StatDef { defName = "RangedWeapon_Cooldown" }, value = 2 },
@@ -43,14 +44,14 @@ public sealed class PrimaryWeaponRoleTests
         return gun;
     }
 
-    private static DefinitionCatalog Catalog() =>
+    private static DefinitionCatalog Catalog(ThingDef? gun = null) =>
         new(
-            [new ThingDef { defName = "Silver" }, new TerrainDef { defName = "Soil" }, Projectile, Revolver(), new ThingDef { defName = "MeleeWeapon_Knife" }],
+            [new ThingDef { defName = "Silver" }, new TerrainDef { defName = "Soil" }, Projectile, gun ?? Revolver(), new ThingDef { defName = "MeleeWeapon_Knife" }],
             DefStatTable.Empty,
             new CatalogDerived("Silver", "Wort", 10f));
 
     // The census of one colonist wielding <paramref name="def"/> (or unarmed), decoded by the observation read.
-    private static GearObservation Census(string? def)
+    private static GearObservation Census(string? def, DefinitionCatalog? catalog = null)
     {
         var equipment = GearFixtures.NoEquipment;
         var things = new List<RimGovernor.Brain.GameFacts.Observations.Thing>();
@@ -62,7 +63,7 @@ public sealed class PrimaryWeaponRoleTests
         }
         var tables = new Tables(default, default, Things.Of(things), []);
         var row = GearFixtures.Loadout("pawn") with { ApparelPolicy = PoliciesTests.EmptyOutfit };
-        var defs = new GearDefinitions { Catalog = Catalog(), Finished = new HashSet<string>() };
+        var defs = new GearDefinitions { Catalog = catalog ?? Catalog(), Finished = new HashSet<string>() };
         var model = ColonyGearReads.GearLoadoutModelFacts(defs, tables, 20, row, new RimGovernor.Brain.Policy.ApparelPolicyState() { Observed = PoliciesTests.EmptyOutfit, Role = new GearRoleInput { Observed = GearFixtures.Loadout("") with { ApparelPolicy = PoliciesTests.EmptyOutfit }, Pawn = EmergencyFixtures.Placed("") with { Equipment = equipment } } }, ColonyModelFixtures.NoThreat, new StuffArrival(new Dictionary<Resource, long>(), []));
         return ColonyModelFixtures.NoGear() with
         {
@@ -86,4 +87,25 @@ public sealed class PrimaryWeaponRoleTests
 
     [Fact]
     public void AnUnarmedColonistIsNoncombatant() => Assert.Equal(ExposureRoles.Noncombatant, Role(null));
+
+    [Fact]
+    public void JoinerWeaponTraitsReceiveTheProductionCatalogThroughTheEquipmentRead()
+    {
+        var model = Assert.IsType<GearModel.Modeled>(Assert.Single(Census("Gun_Revolver").Pawns).LoadoutModel);
+        var primary = Assert.Single(model.Input.Worn, o => o.Slot == GearSlot.Primary);
+        Assert.True(primary.Weapon.TraitRanged);
+        Assert.False(primary.Weapon.TraitIncendiary);
+        Assert.Equal(Catalog().WeaponOf("Gun_Revolver"), primary.Weapon);
+    }
+
+    [Fact]
+    public void ABeamIncendiaryVerbReachesTheJoinerWithoutUsingTheCombatProjectileFlag()
+    {
+        var gun = Revolver();
+        Members.Verbs(gun)![0].ai_BeamIsIncendiary = true;
+        var model = Assert.IsType<GearModel.Modeled>(Assert.Single(Census("Gun_Revolver", Catalog(gun)).Pawns).LoadoutModel);
+        var primary = Assert.Single(model.Input.Worn, o => o.Slot == GearSlot.Primary);
+        Assert.True(primary.Weapon.TraitIncendiary);
+        Assert.False(primary.Weapon.Incendiary);
+    }
 }

@@ -329,7 +329,8 @@ internal static class NativeNeedsForecast
     {
         var roof = map.roofGrid.RoofAt(cell);
         return new(roof != null, roof?.isThickRoof == true, roof?.isNatural == true,
-            cell.UsesOutdoorTemperature(map), cell.GetRoom(map)?.PsychologicallyOutdoors ?? true);
+            cell.UsesOutdoorTemperature(map), cell.GetRoom(map)?.PsychologicallyOutdoors ?? true)
+            { NearbyFires = new RimGovernor.Brain.GameFacts.Observations.NeedNearbyFires.Counted(NativeJoinerTraits.FiresAt(map, cell)) };
     }
     /// <summary>
     /// The bed's room as ApplyBedThoughts reads it: Room.Role and RoomStatDefOf.Impressiveness.GetScoreStageIndex(room.GetStat(Impressiveness));
@@ -432,7 +433,7 @@ internal static class NativeNeedsForecast
     /// </summary>
     private static RimGovernor.Brain.GameFacts.Observations.NeedLyingIn? LyingInOf(Pawn pawn, Map map) => pawn.needs?.rest == null || !pawn.Spawned || !pawn.GetPosture().Laying() ? null
         : new(SleepAt(pawn, map, pawn.CurrentBed(), pawn.Position), pawn.health.hediffSet.HasHediffBlocksSleeping(), DeathrestOf(pawn, map))
-        { DeathrestWakeStage = pawn.Deathresting ? DeathrestWakeStageOf(pawn) : -1 };
+        { DeathrestWakeStage = pawn.Deathresting ? DeathrestWakeStageOf(pawn) : -1, Cell = CellAt(map, pawn.Position) };
 
     // Toils_LayDown.UpdateDeathrestThoughtIndex is private and mutates the gene. Read its typed inputs without changing it.
     private static int DeathrestWakeStageOf(Pawn pawn)

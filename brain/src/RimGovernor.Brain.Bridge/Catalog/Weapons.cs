@@ -41,7 +41,10 @@ public sealed partial class DefinitionCatalog
         }
 
         var row = ThingRow(name);
-        weapon = weapon with { ByTrade = CategoriesWithin(row).Contains(CategoryWeapons) };
+        weapon = weapon with { ByTrade = CategoriesWithin(row).Contains(CategoryWeapons), TraitRanged = row.IsRangedWeapon,
+            TraitIncendiary = row.Verbs.Seq().Any(v => v.ai_BeamIsIncendiary || v.defaultProjectile?.projectile?.ai_IsIncendiary == true)
+                || row.tools.Seq().Any(t => t.extraMeleeDamages.Seq().Any(d => d.def == DamageDefOf.Flame))
+                || row.GetCompProperties<CompProperties_EquippableAbility>()?.abilityDef?.ai_IsIncendiary == true };
         var ranged = false;
         foreach (var verb in row.Verbs.Seq())
         {

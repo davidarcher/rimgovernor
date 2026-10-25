@@ -85,7 +85,7 @@ public static class ForecastPrison
     /// <summary>The named state before the colony's first layout plan (#3857): a joiner's food walks are the plan's, so no recruit is valued.</summary>
     public const string AwaitingPlan = "prison_awaiting:" + PawnValueRules.AwaitingLayoutPlan;
 
-    /// <summary>The not-modelled finding of a recruit's trait thought whose worker reads its situation (JoinerMoodRead.SituationalTraits, #3965).</summary>
+    /// <summary>A trait worker outside the supported native room, own-state and selected-situation families.</summary>
     public const string SituationalTraits = "joiner_situational_trait_thoughts";
 
     /// <summary>The mechanics the credit leaves out, named with each served prison.</summary>
@@ -554,7 +554,7 @@ public static class ForecastPrison
         var converters = new Dictionary<string, ConversionReductionRead>(StringComparer.Ordinal);
         foreach (var (prisoner, person, intent) in recruits)
         {
-            var value = JoinerMoodRules.ValueOf(prisoner.Pawn, prisoner.Joiner, shortfall, context);
+            var value = JoinerMoodRules.ValueOf(prisoner.Pawn, prisoner.Joiner, shortfall, context, outcome, commitments, horizon);
             states.UnionWith(value.NotModelled);
             if (prisoner.Joiner.Mood is { SituationalTraits.Count: > 0 }) states.Add(SituationalTraits);
             if (value.PerDay <= 0)

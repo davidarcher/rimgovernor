@@ -254,11 +254,13 @@ public static class ColonyGearReads
         var item = equipment.Equipped.FirstOrDefault(e => e.Thing.Id == id) ?? throw new DomainException($"primary weapon {id}: not among the pawn's equipment");
         var entity = tables.Entity(item.Thing) ?? throw new DomainException($"primary weapon {id}: the frame holds no row for it");
         var def = entity.DefName;
+        var weapon = catalog.WeaponOf(def);
         return new GearOption
         {
             Origin = new GearOptionOrigin.Equipped(item, entity),
             Slot = GearSlot.Primary,
-            Ranged = catalog.WeaponOf(def).Ranged,
+            Ranged = weapon.Ranged,
+            Weapon = weapon,
         };
     }
 

@@ -13,10 +13,11 @@ namespace RimGovernor.Native;
 internal static class NativeCoupledThermal
 {
     /// <summary>
-    /// The cells around every site and heater, every heater as a source, and every free colonist's route to every cell
+    /// The cells around every site and heater and at the capture's activity locations, every heater as a source, and every free colonist's route to every cell
     /// marked to roof (#3341). A colonist's routes run from its own cell, so each is its own search.
     /// </summary>
-    internal static RimGovernor.Brain.GameFacts.Observations.CoupledThermalRead Read(Map map, Thing[] sites, NativePathLegs? legs = null)
+    internal static RimGovernor.Brain.GameFacts.Observations.CoupledThermalRead Read(Map map, Thing[] sites, NativePathLegs? legs = null,
+        IEnumerable<Cell>? activityLocations = null)
     {
         legs ??= new(map);
         var heaters = map.listerThings.AllThings.Where(t => t is Building_Heater or Building_Cooler
@@ -28,6 +29,7 @@ internal static class NativeCoupledThermal
         for (var x = origin.x - 6; x <= origin.x + 6; x++)
         for (var z = origin.z - 6; z <= origin.z + 6; z++)
             Add(map, cells, x, z);
+        foreach (var cell in activityLocations ?? []) Add(map, cells, cell.X, cell.Z);
         var rows = cells.Select(c => Row(map, c)).ToArray();
         var sources = heaters.Select(t =>
         {
@@ -134,7 +136,7 @@ internal static class NativeCoupledThermal
             edifice?.def.Fillage == FillCategory.Full, door?.HoldOpen == true,
             site?.GetUniqueLoadID() ?? "", future?.Fillage == FillCategory.Full,
             future?.IsDoor == true, doorDef == null ? 0 : doorDef.building.doorTempEqualizeRate / (double)doorDef.building.doorTempEqualizeIntervalClosed,
-            map.areaManager.BuildRoof[cell]);
+            map.areaManager.BuildRoof[cell]) { MoodCell = NativeNeedsForecast.CellAt(map, cell) };
     }
 
     // A heater's mechanics at position: built (ready, its own power comp), a blueprint/frame or a planned site (neither).

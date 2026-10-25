@@ -33,7 +33,7 @@ public sealed class PrisonCreditTests
         Joiner = new()
         {
             Upkeep = context.Needs.Pawns[0].Upkeep,
-            Mood = new(0.6, 0, 0.35) { Traits = [], RoomTraits = [], SituationalTraits = [], Memories = [] },
+            Mood = new(0.6, 0, 0.35) { Traits = [], RoomTraits = [], SituationalTraits = [], SituationStages = [], Memories = [] },
             Needs = context.Needs.Pawns[0].Needs,
         },
     };
@@ -149,7 +149,7 @@ public sealed class PrisonCreditTests
         var context = review.Context;
         var shortfall = JoinerMoodRules.ShortfallOf(review.Outcome, review.Commitments, context, review.Horizon);
         Assert.NotEmpty(shortfall.Rows);
-        var value = JoinerMoodRules.ValueOf("prisoner", context.Needs.Prison.Prisoners[0].Joiner, shortfall, context).PerDay;
+        var value = JoinerMoodRules.ValueOf("prisoner", context.Needs.Prison.Prisoners[0].Joiner, shortfall, context, review.Outcome, review.Commitments, review.Horizon).PerDay;
         Assert.True(value > 0);
         // An attempt lowers 1 × curve(0.5) 1 × curve(0) 1: ten jobs to 0, the eleventh recruits, its attempt 1,750 ticks in,
         // jobs half a day apart from the room's service.
@@ -384,7 +384,7 @@ public sealed class PrisonCreditTests
         Assert.Null(PopulationRules.RecruitIntent(person, census.Colony));
         var held = Of(c => [Prisoner(c)], census: census);
         var shortfall = JoinerMoodRules.ShortfallOf(held.Outcome, held.Commitments, held.Context, held.Horizon);
-        Assert.True(JoinerMoodRules.ValueOf("prisoner", held.Context.Needs.Prison.Prisoners[0].Joiner, shortfall, held.Context).PerDay > 0);
+        Assert.True(JoinerMoodRules.ValueOf("prisoner", held.Context.Needs.Prison.Prisoners[0].Joiner, shortfall, held.Context, held.Outcome, held.Commitments, held.Horizon).PerDay > 0);
         Assert.Empty(held.Gains());
         Assert.Contains(ForecastPrison.NotRecruited, held.Findings());
         Assert.Contains(ForecastPrison.NoRecruit, held.Findings());
@@ -485,7 +485,8 @@ public sealed class PrisonCreditTests
         var withChats = Of(c => [Prisoner(c) with { Resistance = 2.02, Conversion = Conversion(1), Opinions = [Opinion() with { Chitchat = 1.32 }] }], census: census);
         var blocked = Of(c => [Prisoner(c) with { Resistance = 2.02, Conversion = Conversion(1) }], census: census);
         var shortfall = JoinerMoodRules.ShortfallOf(withChats.Outcome, withChats.Commitments, withChats.Context, withChats.Horizon);
-        var value = JoinerMoodRules.ValueOf("prisoner", withChats.Context.Needs.Prison.Prisoners[0].Joiner, shortfall, withChats.Context).PerDay;
+        var value = JoinerMoodRules.ValueOf("prisoner", withChats.Context.Needs.Prison.Prisoners[0].Joiner, shortfall,
+            withChats.Context, withChats.Outcome, withChats.Commitments, withChats.Horizon).PerDay;
         // One conversion job gives opinion 4, then 3 after daily decay; two attempts remove 2.035 instead of 2 resistance,
         // saving half a day and one recruit job.
         Assert.Equal((0.5 * value) + LostPerJob(withChats), Assert.Single(withChats.Gains()).Once - Assert.Single(blocked.Gains()).Once, 9);
@@ -538,7 +539,7 @@ public sealed class PrisonCreditTests
         // The production census made it a conversion: the autopilot's rule, called.
         Assert.Same(census, review.Context.PrisonerPopulation);
         var shortfall = JoinerMoodRules.ShortfallOf(review.Outcome, review.Commitments, review.Context, review.Horizon);
-        var value = JoinerMoodRules.ValueOf("prisoner", review.Context.Needs.Prison.Prisoners[0].Joiner, shortfall, review.Context).PerDay;
+        var value = JoinerMoodRules.ValueOf("prisoner", review.Context.Needs.Prison.Prisoners[0].Joiner, shortfall, review.Context, review.Outcome, review.Commitments, review.Horizon).PerDay;
         Assert.True(value > 0);
         // Certainty 0.5 is gone in two attempts; no mood need: the mood curve at 1 (1.5), so seven recruit jobs lower resistance 10 and
         // the eighth, in slot 2 + 7, recruits.
@@ -621,10 +622,26 @@ public sealed class PrisonCreditTests
     [Fact]
     public void AJoinersTraitThoughtTheColonistsAlsoHaveCountsOnceAtItsOwnOffset()
     {
-        var mood = new JoinerMoodRead(0.5, 0, 0.35) { Traits = [new("Greedy_Room", -4)], RoomTraits = [], SituationalTraits = [], Memories = [new("AteFine", 2)] };
+        var mood = new JoinerMoodRead(0.5, 0, 0.35) { Traits = [new("Greedy_Room", -4)], RoomTraits = [], SituationalTraits = [], SituationStages = [], Memories = [new("AteFine", 2)] };
         var colony = new Dictionary<string, double>(StringComparer.Ordinal) { ["Greedy_Room"] = 6, ["AteWithoutTable"] = -3 };
         Assert.Equal(0.5 + ((-3 - 4 + 2) / 100d), JoinerMoodRules.MoodOf(mood, colony, [NeedsFixtures.Pawn()])!.Target, 12);
         Assert.Null(JoinerMoodRules.MoodOf(null, colony, [NeedsFixtures.Pawn()]));
+    }
+
+    [Fact]
+    public void PrisonCreditPricesTheJoinersSelectedSituationAndClearsTheGenericFinding()
+    {
+        var review = Of(c =>
+        {
+            var prisoner = Prisoner(c);
+            return [prisoner with { Joiner = prisoner.Joiner with { Mood = prisoner.Joiner.Mood! with
+            {
+                SituationStages = [new("HappyNude", JoinerSituationKind.Nude, true, false, 1, [20])],
+            } } }];
+        });
+        review = review with { Context = review.Context with { Outfits = new Dictionary<string, EquatableArray<GearOption>> { ["pawn"] = [] } } };
+        Assert.NotEmpty(review.Gains());
+        Assert.DoesNotContain(ForecastPrison.SituationalTraits, review.Findings());
     }
 
     [Fact]
@@ -644,7 +661,7 @@ public sealed class PrisonCreditTests
             NeedsFixtures.Pawn("c") with { OwnedRoom = new(60, 2), RivalRooms = [40] },
         };
         Assert.Equal(-13, JoinerMoodRules.RoomTraits(rows, colonists), 12);
-        var mood = new JoinerMoodRead(0.5, 0, 0.35) { Traits = [], RoomTraits = rows, SituationalTraits = [], Memories = [] };
+        var mood = new JoinerMoodRead(0.5, 0, 0.35) { Traits = [], RoomTraits = rows, SituationalTraits = [], SituationStages = [], Memories = [] };
         var colony = new Dictionary<string, double>(StringComparer.Ordinal) { ["Greedy"] = -20 };
         Assert.Equal(0.5 - 0.13, JoinerMoodRules.MoodOf(mood, colony, colonists)!.Target, 12);
         Assert.Throws<RequiredFactException>(() => JoinerMoodRules.RoomTraits(rows, [NeedsFixtures.Pawn() with { OwnedRoom = new(500, 5) }]));

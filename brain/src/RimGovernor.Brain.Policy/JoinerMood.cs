@@ -23,7 +23,7 @@ public sealed record JoinerBasis
 /// and memories; its needs are its own falls served as the colonists' are; its value is <see cref="PawnValueRules.Of"/> of the
 /// work an outcome leaves short.
 /// </summary>
-public static class JoinerMoodRules
+public static partial class JoinerMoodRules
 {
     /// <summary>
     /// Whether the colony's situation gives a colonist the thought (the food, room and recreation thoughts, from the audit table
@@ -67,18 +67,46 @@ public static class JoinerMoodRules
 
     /// <summary>
     /// The joiner's mood as a colonist (#3805, #3899): its base level plus, over 100, the colony's thoughts, its trait thoughts,
-    /// its own-bedroom trait thoughts served as the colonists are (<see cref="RoomTraits"/>), its memories and the
+    /// its own-bedroom trait thoughts served as the colonists are (<see cref="RoomTraits"/>), its selected trait exposure
+    /// (<paramref name="situationOffset"/> from SelectedSituationTraits), its memories and the
     /// colonistMoodOffset (unclamped, as <see cref="PawnMoodRead.Target"/>), at its own break threshold; null without a mood (it
     /// never breaks). A colony thought that is one of the joiner's trait thoughts counts once, at the joiner's own offset: its
     /// traits decide it, not the colonists'.
     /// </summary>
-    public static PawnMoodRead? MoodOf(JoinerMoodRead? mood, IReadOnlyDictionary<string, double> colony, IReadOnlyList<NeedsForecastPawn> colonists)
+    public static PawnMoodRead? MoodOf(JoinerMoodRead? mood, IReadOnlyDictionary<string, double> colony, IReadOnlyList<NeedsForecastPawn> colonists, double? situationOffset = null)
     {
         if (mood is null) return null;
-        var own = mood.Traits.Select(t => t.Thought).Concat(mood.RoomTraits.Select(r => r.Thought)).ToHashSet(StringComparer.Ordinal);
+        var own = mood.Traits.Select(t => t.Thought).Concat(mood.RoomTraits.Select(r => r.Thought))
+            .Concat(mood.SituationStages.Select(r => r.Thought)).ToHashSet(StringComparer.Ordinal);
         var shared = colony.Where(c => !own.Contains(c.Key)).Sum(c => c.Value);
         var room = mood.RoomTraits.Count == 0 ? 0 : RoomTraits(mood.RoomTraits, colonists);
-        return new(mood.BaseLevel + ((shared + mood.Traits.Sum(t => t.Offset) + room + mood.Memories.Sum(m => m.Offset) + mood.ColonistOffset) / 100), mood.Threshold);
+        var situation = mood.SituationStages.Count == 0 ? 0 : situationOffset ?? throw new RequiredFactException("selected joiner trait exposure");
+        return new(mood.BaseLevel + ((shared + mood.Traits.Sum(t => t.Offset) + room + situation + mood.Memories.Sum(m => m.Offset) + mood.ColonistOffset) / 100), mood.Threshold);
+    }
+
+    private static double SituationOffset(JoinerSituationThought row, JoinerTraitService pawn)
+    {
+        var situation = pawn.TraitSituation;
+        var stage = row.Kind switch
+        {
+            JoinerSituationKind.Nude => !situation.Clothed ? 0 : -1,
+            JoinerSituationKind.HumanLeather => situation.HumanLeather > 0 ? Math.Min(4, situation.HumanLeather - 1) : -1,
+            JoinerSituationKind.RangedWeapon => situation.RangedWeapon ? 0 : -1,
+            JoinerSituationKind.IncendiaryWeapon => situation.IncendiaryWeapon ? 0 : -1,
+            JoinerSituationKind.Flames => situation.Fires > 0 ? 0 : -1,
+            JoinerSituationKind.Day => pawn.Awake && (int)pawn.LocalHour is >= 11 and <= 17 ? 0 : -1,
+            JoinerSituationKind.Night => pawn.Awake && ((int)pawn.LocalHour >= 23 || (int)pawn.LocalHour <= 5) ? 0 : -1,
+            JoinerSituationKind.Indoors => pawn.Awake && situation.Indoor && !situation.NaturalRoof ? 0 : -1,
+            JoinerSituationKind.Underground => pawn.Awake && situation.Indoor && situation.NaturalRoof ? 0 : -1,
+            JoinerSituationKind.Outdoors => pawn.Awake && !situation.Indoor ? 0 : -1,
+            var invalid => throw new ArgumentOutOfRangeException(nameof(row), invalid, "Invalid joiner trait situation."),
+        };
+        if (!row.CanGet) stage = -1;
+        if (row.Invert) stage = stage >= 0 ? -1 : 0;
+        if (stage < 0) return 0;
+        if (row.Stages.Count == 0) throw new RequiredFactException("joiner trait stages:" + row.Thought);
+        return row.Stages[Math.Min(stage, row.Stages.Count - 1)]
+            * (row.Kind == JoinerSituationKind.Flames ? Math.Min(situation.Fires, row.StackLimit) : 1);
     }
 
     /// <summary>
@@ -155,7 +183,8 @@ public static class JoinerMoodRules
     /// food work, break curve, bed and planned food walks. A colonist the joiner served as it has no free hours, no colonist, or a
     /// context without the model basis, the joiner basis or the layout's food walks, throws <see cref="RequiredFactException"/>.
     /// </summary>
-    public static PawnValue ValueOf(string pawn, JoinerRead joiner, WorkShortfall shortfall, ForecastCoupledContext context)
+    public static PawnValue ValueOf(string pawn, JoinerRead joiner, WorkShortfall shortfall, ForecastCoupledContext context,
+        ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, double horizon)
     {
         var basis = context.ModelBasis ?? throw new RequiredFactException("colony model basis");
         var joiners = context.Joiners ?? throw new RequiredFactException("joiner basis");
@@ -169,11 +198,14 @@ public static class JoinerMoodRules
         });
         if (colonists.Count == 0) throw new RequiredFactException("colony model pawns");
         var free = Median([.. colonists.Select(c => hours.TryGetValue(pawn + "@" + c, out var h) ? h : throw new RequiredFactException("free hours of " + pawn + " served as " + c))]);
-        return PawnValueRules.Of(new PawnValueFacts(pawn)
+        var findings = new SortedSet<string>(StringComparer.Ordinal);
+        var situation = SelectedSituationTraits(joiner.Mood?.SituationStages ?? [], outcome, commitments, context, horizon, findings);
+        var value = PawnValueRules.Of(new PawnValueFacts(pawn)
         {
             Speeds = joiner.Upkeep.Speeds.ToDictionary(s => s.Stat, s => s.Value, StringComparer.Ordinal), Incapable = joiner.Upkeep.IncapableWork,
-            FoodPerDay = joiner.Upkeep.FoodPerDay, Mood = MoodOf(joiner.Mood, ColonyThoughts(context), context.Needs.Pawns), FreeTicksPerDay = free * GameTime.TicksPerHour,
+            FoodPerDay = joiner.Upkeep.FoodPerDay, Mood = MoodOf(joiner.Mood, ColonyThoughts(context), context.Needs.Pawns, situation), FreeTicksPerDay = free * GameTime.TicksPerHour,
         }, new PawnValueColony { Shortfall = shortfall, Food = joiners.Food, Breaks = context.MoodBreaks, Bed = context.Bed, Haul = haul, HorizonDays = context.InvestmentHorizonDays });
+        return value with { NotModelled = [.. value.NotModelled, .. findings] };
     }
 
     /// <summary>

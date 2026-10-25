@@ -7,6 +7,10 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record WeaponDef
 {
+    /// <summary>ThingDef.IsRangedWeapon, as the Brawler thought worker tests it.</summary>
+    public bool TraitRanged { get; init; }
+    /// <summary>Any incendiary verb/tool or equippable ability, as the Pyromaniac thought worker tests it.</summary>
+    public bool TraitIncendiary { get; init; }
     /// <summary>A weapon with a non-melee verb.</summary>
     public bool Ranged { get; init; }
 

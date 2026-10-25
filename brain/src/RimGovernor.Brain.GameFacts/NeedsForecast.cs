@@ -408,7 +408,9 @@ public sealed record JoinerRead
 /// <c>ThoughtWorker_HasAddedBodyPart</c>, <c>ThoughtWorker_Recluse</c>), at the MoodOffset of its worker's state now (0 inactive).
 /// In <see cref="RoomTraits"/>: the own-bedroom ones (<c>ThoughtWorker_Greedy</c>, <c>ThoughtWorker_BedroomJealous</c>,
 /// <c>ThoughtWorker_Ascetic</c>, which give a non-colonist nothing), every stage priced as <see cref="NeedsForecastPawn.ThoughtStages"/>'
-/// greedy, jealous and ascetic rows. Any other is named in <see cref="SituationalTraits"/>. The colony's part is the colonists'
+/// greedy, jealous and ascetic rows. Gear, awake-hour and location workers carry their joiner-priced stage rows in
+/// <see cref="SituationStages"/>; chemical desire and VoidFascination retain their native state on the same map in Traits.
+/// Any remaining worker is named in <see cref="SituationalTraits"/>. The colony's part is the colonists'
 /// (JoinerMoodRules).
 /// </summary>
 public sealed record JoinerMoodRead(double BaseLevel, double ColonistOffset, double Threshold)
@@ -417,6 +419,9 @@ public sealed record JoinerMoodRead(double BaseLevel, double ColonistOffset, dou
     public required EquatableArray<ThoughtOffsetRead> Traits { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedThoughtStage>))]
     public required EquatableArray<NeedThoughtStage> RoomTraits { get; init; }
+    /// <summary>Trait thought stages evaluated against each colonist's selected gear, awake state and located services (#3965).</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<JoinerSituationThought>))]
+    public required EquatableArray<JoinerSituationThought> SituationStages { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public required EquatableArray<string> SituationalTraits { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<ThoughtOffsetRead>))]
@@ -424,6 +429,10 @@ public sealed record JoinerMoodRead(double BaseLevel, double ColonistOffset, dou
 }
 /// <summary>A thought def's mood offset for one pawn.</summary>
 public sealed record ThoughtOffsetRead(string Thought, double Offset);
+/// <summary>The native worker family, its inversion and stage offsets for the joiner's own traits.</summary>
+public sealed record JoinerSituationThought(string Thought, JoinerSituationKind Kind, bool CanGet, bool Invert, int StackLimit,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<double>))] EquatableArray<double> Stages);
+public enum JoinerSituationKind { Nude, HumanLeather, RangedWeapon, IncendiaryWeapon, Flames, Day, Night, Indoors, Underground, Outdoors }
 /// <summary>
 /// The deathrest defs (#3810): <c>Need_Deathrest.FallPerDay</c> and <c>GainPerDayDeathresting</c> (the need a day awake loses, and a
 /// day of deathrest gains at efficiency 1), every building def with a <c>CompProperties_DeathrestBindable</c>, and the minScore of each
@@ -472,7 +481,20 @@ public sealed record NeedDeteriorationPart(double UnroofedOffset, double Outdoor
 /// One cell's roof and room facts now (#3339): Roofed and the roof def's isThickRoof/isNatural, the cell room's
 /// UsesOutdoorTemperature and PsychologicallyOutdoors (no room reads as outdoors, as BeautyUtility does).
 /// </summary>
-public sealed record NeedCell(bool Roofed, bool ThickRoof, bool NaturalRoof, bool OutdoorTemperature, bool PsychologicallyOutdoors);
+public sealed record NeedCell(bool Roofed, bool ThickRoof, bool NaturalRoof, bool OutdoorTemperature, bool PsychologicallyOutdoors)
+{
+    /// <summary>Same-room unfogged fires within radius 8 (ThoughtWorker_PyromaniacNearFlames).</summary>
+    public NeedNearbyFires NearbyFires { get; init; } = new NeedNearbyFires.Unread();
+}
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "kind")]
+[JsonDerivedType(typeof(NeedNearbyFires.Unread), "unread")]
+[JsonDerivedType(typeof(NeedNearbyFires.Counted), "counted")]
+public abstract record NeedNearbyFires
+{
+    private protected NeedNearbyFires() { }
+    public sealed record Unread : NeedNearbyFires;
+    public sealed record Counted(int Count) : NeedNearbyFires;
+}
 /// <summary>
 /// Where JobGiver_GetRest lays the pawn now and what Toils_LayDown gives it there (#3840): the bed RestUtility.FindBedFor
 /// picks (its rest target id, the owned bed first), else the ground at the pawn's cell (TryFindGroundSleepSpotFor's first
@@ -493,6 +515,8 @@ public sealed record NeedSleep(string Bed, bool Outside, bool Ground, double Gai
 /// </summary>
 public sealed record NeedLyingIn(NeedSleep Place, bool HediffBlocksSleeping, LyingInDeathrest Deathrest)
 {
+    /// <summary>The observed lie-down's actual cell, including ground sleep outside the selectable bed targets.</summary>
+    public NeedCell? Cell { get; init; }
     /// <summary>Toils_LayDown's chamber stage if the observed deathrest ended in its current room; -1 means no thought.
     /// Also -1 for a lie-down that is not a deathrest.</summary>
     public required int DeathrestWakeStage { get; init; }
