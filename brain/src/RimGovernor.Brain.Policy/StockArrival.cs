@@ -53,6 +53,11 @@ public sealed record MedicineTradeSource(Resource Kind, double From, double PerD
 
     public IEnumerable<double> Dates(double through)
     {
+        if (Timing is IncidentTiming.Process)
+        {
+            foreach (var item in Timing.Events(through)) if (item.Day >= From) yield return item.Day;
+            yield break;
+        }
         if (Timing is not IncidentTiming.Scheduled timed) yield break;
         foreach (var day in IncidentTiming.Covered(timed.Cycle, through + timed.OriginDay))
             if (day >= Math.Max(timed.From, timed.OriginDay) && day < timed.Until && day - timed.OriginDay >= From && day - timed.OriginDay <= through)
@@ -97,7 +102,13 @@ public sealed record StockArrival
         {
             From = s.From - day,
             PurchaseUntil = s.PurchaseUntil - day,
-            Timing = s.Timing is IncidentTiming.Scheduled timed ? timed with { OriginDay = timed.OriginDay + day } : s.Timing,
+            Timing = s.Timing switch
+            {
+                IncidentTiming.Scheduled timed => timed with { OriginDay = timed.OriginDay + day },
+                IncidentTiming.Process process => process with { OriginDay = process.OriginDay + day },
+                IncidentTiming.Mtb => s.Timing,
+                var invalid => throw new ArgumentOutOfRangeException(nameof(day), invalid, "Invalid incident timing."),
+            },
         })),
     };
 
@@ -126,7 +137,7 @@ public sealed record StockArrival
     /// <summary>The medicine kinds (ItemFacts.MedicalPotency): a surgery's medicine need takes any of them.</summary>
     public EquatableArray<Resource> Medicines { get; init; }
 
-    /// <summary>The chance <paramref name="need"/> has not arrived <paramref name="t"/> days after the want: the product over every source of a resource it may take.</summary>
+    /// <summary>The chance <paramref name="need"/> has not arrived <paramref name="t"/> days after the want: shared incident competitors and alternative stock draws are joined before independent craft/other streams.</summary>
     public double NotArrived(StockNeed need, double t)
     {
         Require();
@@ -139,9 +150,17 @@ public sealed record StockArrival
             }
         }
 
+        foreach (var program in Trade.Where(s => need.AnyOf.Contains(s.Resource) && s.Timing is IncidentTiming.Process)
+            .GroupBy(s => (((IncidentTiming.Process)s.Timing).Program, ((IncidentTiming.Process)s.Timing).OriginDay)))
+        {
+            var qualifying = program.GroupBy(s => (((IncidentTiming.Process)s.Timing).CompIndex, ((IncidentTiming.Process)s.Timing).Incident))
+                .ToDictionary(g => g.Key, g => TradeSource.SuppliesAny(g.ToArray(), need.Count));
+            chance *= program.Key.Program.NotArrived(program.Key.OriginDay, t, qualifying);
+        }
+
         foreach (var source in Trade)
         {
-            if (need.AnyOf.Contains(source.Resource))
+            if (need.AnyOf.Contains(source.Resource) && source.Timing is not IncidentTiming.Process)
             {
                 chance *= source.NotArrived(need.Count, t);
             }
@@ -150,7 +169,7 @@ public sealed record StockArrival
         return chance;
     }
 
-    /// <summary>The chance some of <paramref name="needs"/> has not arrived <paramref name="t"/> days after the want: 1 − Π(1 − not arrived).</summary>
+    /// <summary>The chance some separate want has not arrived, under the model's existing independence assumption between StockNeeds: 1 − Π(1 − not arrived).</summary>
     public double NotReady(IReadOnlyList<StockNeed> needs, double t)
     {
         var ready = 1.0;
@@ -190,6 +209,7 @@ public sealed record StockArrival
             var after = NotReady(needs, at);
             if (before > after) yield return (at, before - after);
             var until = Math.BitDecrement(cuts[i + 1]);
+            if (!Trade.Any(s => s.Rate(1) > 0)) continue;
             for (var j = 0; j < HarmConsequences.GridPoints; j++)
             {
                 var left = at + (until - at) * j / HarmConsequences.GridPoints;
@@ -310,6 +330,8 @@ public sealed record StockArrival
                 var perDay = source.VisitsPerDay * kind.Chance * units;
                 if (source.Timing is IncidentTiming.Scheduled timed && units > 0)
                     visits.Add(new(source.Resource, source.From, 0, 0) { Timing = timed, Visit = new(stock, Medicines, timed.Chance * kind.Chance, price, source.PriceFactor) });
+                else if (source.Timing is IncidentTiming.Process process && units > 0)
+                    visits.Add(new(source.Resource, source.From, 0, 0) { Timing = process, Visit = new(stock, Medicines, kind.Chance, price, source.PriceFactor) });
                 else if (perDay > 0) visits.Add(new(source.Resource, source.From, perDay, perDay * price));
             }
         }

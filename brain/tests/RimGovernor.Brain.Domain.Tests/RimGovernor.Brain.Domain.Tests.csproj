@@ -49,6 +49,7 @@
   </PropertyGroup>
   <ItemGroup Condition="'$(GameAvailable)' == 'true'">
     <Compile Include="../../../integrations/rimgovernor-native/src/Bridge/NativeTradeSilver.cs" Link="Native/NativeTradeSilver.cs" />
+    <Compile Include="../../../integrations/rimgovernor-native/src/Bridge/IncidentCategoryReader.cs" Link="Native/IncidentCategoryReader.cs" />
     <Reference Include="Assembly-CSharp"><HintPath>$(RimWorldDir)/Assembly-CSharp.dll</HintPath><Private>true</Private></Reference>
     <Reference Include="Waylith"><HintPath>$(RimWorldDir)/Waylith.dll</HintPath><Private>true</Private></Reference>
     <Reference Include="UnityStubs"><HintPath>$(RimWorldDir)/UnityStubs.dll</HintPath><Private>true</Private></Reference>

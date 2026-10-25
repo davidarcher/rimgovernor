@@ -201,11 +201,9 @@ public sealed class TradeArrivalTests
                 {
                     Categories =
                     [
-                        new("Misc", 3.5, false), new("OrbitalVisitor", 1.1, true), new("FactionArrival", 2.4, true), new("ThreatSmall", 0.6, false),
-                        new("ShipChunkDrop", 0.22, false),
+                        new("Misc", false), new("OrbitalVisitor", true), new("FactionArrival", true), new("ThreatSmall", false),
+                        new("ShipChunkDrop", false),
                     ],
-                    ThreatBigWeight = 1.4,
-                    MaxThreatBigIntervalDays = 13,
                     MinPopulationIntentFactor = 0.2,
                 },
             },
@@ -215,39 +213,32 @@ public sealed class TradeArrivalTests
     [Fact]
     public void ARandomMainDrawSendsEachTraderIncidentWithItsCategoryShareAfterThreatBigAndItsSelectChance()
     {
-        var (sources, _, unread) = TradeArrivalRules.Sources(Schedule, Randy, Stock, Facts(), 0, 5000, 5000, Cycles);
+        var facts = RandyFacts(Facts());
+        var (sources, findings, unread) = TradeArrivalRules.Sources(Schedule, Randy, Stock, facts, 0, 5000, 5000, Cycles);
         Assert.Empty(unread);
-
-        // ThreatBig's long-run fraction: p = 1.4 ÷ 9.22 of the drawn events, one forced after 13 days without one.
-        var lambda = 1 / 1.35;
-        var p = 1.4 / 9.22;
-        var threatBig = 1 / (1 + ((1 - p) * (1 - Math.Exp(-lambda * p * 13)) / p));
-        Assert.Equal(threatBig, TradeArrivalRules.ThreatBigFraction(p, lambda, 13), 12);
-        Assert.InRange(threatBig, p, 1);
-        var factionArrival = lambda * (1 - threatBig) * 2.4 / 7.82;
-        var orbitalVisitor = lambda * (1 - threatBig) * 1.1 / 7.82;
-
-        // FactionArrival: caravans, visitors and travelers at 4 each, none changing the population: a third each; a visitor group
-        // trades with 0.75. The comp starts on day 1, the colony settled 2 days ago.
+        Assert.All(RandomMainProcess.Conditions, condition => Assert.Contains(condition, findings));
+        Assert.All(sources, source => Assert.IsType<IncidentTiming.Process>(source.Timing));
         var caravan = sources.Single(s => s.Kinds.Any(k => k.Chance == 0.125));
-        Assert.Equal(0, caravan.From);
-        Assert.Equal(factionArrival / 3, caravan.VisitsPerDay, 12);
-        var visitor = sources.Single(s => s.Kinds.Any(k => k.Chance == 0.75));
-        Assert.Equal(factionArrival / 3, visitor.VisitsPerDay, 12);
-        var orbital = sources.Single(s => s.Kinds.Any(k => k.Chance == 1));
-        Assert.Equal(orbitalVisitor, orbital.VisitsPerDay, 12);
-
-        // A blocked caravan leaves the category to visitors and travelers; a blocked category (no usable incident) is redrawn.
-        var noCaravan = Facts() with { Incidents = [.. Facts().Incidents.Select(i => i.Incident == "TraderCaravanArrival" ? i with { Blocked = ["no_faction"] } : i)] };
-        var visitorAlone = TradeArrivalRules.Sources(Schedule, Randy, Stock, noCaravan, 0, 5000, 5000, Cycles).Sources.Single(s => s.Kinds.Any(k => k.Chance == 0.75));
-        Assert.Equal(factionArrival / 2, visitorAlone.VisitsPerDay, 12);
-        var noOrbital = Facts() with { Incidents = [.. Facts().Incidents.Select(i => i.Incident == "OrbitalTraderArrival" ? i with { Blocked = ["ships_full"] } : i)] };
-        var others = 7.82 - 1.1;
-        var redrawn = 1 - TradeArrivalRules.ThreatBigFraction(1.4 / (1.4 + others), lambda, 13);
-        var caravanRedrawn = TradeArrivalRules.Sources(Schedule, Randy, Stock, noOrbital, 0, 5000, 5000, Cycles).Sources.Single(s => s.Kinds.Any(k => k.Chance == 0.125));
-        Assert.Equal(lambda * redrawn * 2.4 / others / 3, caravanRedrawn.VisitsPerDay, 12);
+        var timing = Assert.IsType<IncidentTiming.Process>(caravan.Timing);
+        // One native roll: all five categories and Big are usable, then one of three FactionArrival incidents.
+        var first = Assert.Single(timing.Events(1001.0 / 60000));
+        Assert.Equal(0.5 * 2.4 / 9.22 / 3, first.Chance, 12);
+        Assert.Equal(1 - first.Chance * caravan.Supplies(1), caravan.NotArrived(1, 1000.0 / 60000), 12);
     }
 
+    private static TradeVisitFacts RandyFacts(TradeVisitFacts facts) => facts with
+    {
+        Clock = new(0, 0, 0, 60, [new(0, 0, 0.5, 13 * 60000, 0)], []),
+        Categories =
+        [
+            new(0, "ThreatBig", [new(1, [new("Raid", 1, false)])]) { Weight = 1.4, ThreatBig = true },
+            new(0, "Misc", [new(1, [new("MiscIncident", 1, false)])]) { Weight = 3.5 },
+            new(0, "ThreatSmall", [new(1, [new("SmallIncident", 1, false)])]) { Weight = 0.6 },
+            new(0, "ShipChunkDrop", [new(1, [new("ShipIncident", 1, false)])]) { Weight = 0.22 },
+            new(0, "OrbitalVisitor", [new(1, EquatableArray.From(facts.Incidents.Where(i => i.Incident == "OrbitalTraderArrival" && i.Blocked.Count == 0).Select(i => new UsableIncidentWeight(i.Incident, i.Weight, false))))]) { Weight = 1.1 },
+            new(0, "FactionArrival", [new(1, EquatableArray.From(facts.Incidents.Where(i => i.Incident != "OrbitalTraderArrival" && i.Blocked.Count == 0).Select(i => new UsableIncidentWeight(i.Incident, i.Weight, false))))]) { Weight = 2.4 },
+        ],
+    };
     [Fact]
     public void TrySelectRandomIncidentSplitsByThePopulationIntentAndVisitorsPriceTheAdultChance()
     {
@@ -261,7 +252,7 @@ public sealed class TradeArrivalTests
         var withoutTravelers = schedule with { Incidents = schedule.Incidents.Where(i => i.Key != "TravelerGroup").ToDictionary() };
         var mtb = new StorytellerTrade
         {
-            Comps = [new TradeVisitComp(TradeCompRate.Mtb, 0) { IncidentsPerDay = 0.1, Draw = new TradeCategoryDraw(TradeDrawRule.CategoryMtb) { Categories = [new("FactionArrival", 1, true)], MinPopulationIntentFactor = 0.05 } }],
+            Comps = [new TradeVisitComp(TradeCompRate.Mtb, 0) { IncidentsPerDay = 0.1, Draw = new TradeCategoryDraw(TradeDrawRule.CategoryMtb) { Categories = [new("FactionArrival", true)], MinPopulationIntentFactor = 0.05 } }],
         };
         var sources = TradeArrivalRules.Sources(withoutTravelers, mtb, Stock, facts, 0, 5000, 5000, Cycles).Sources;
         Assert.Equal(0.1 * 0.7, sources.Single(s => s.Kinds.Any(k => k.Chance == 0.125)).VisitsPerDay, 12);
@@ -270,14 +261,14 @@ public sealed class TradeArrivalTests
         // An on-off cycle by category draws by weight alone.
         var cycle = new StorytellerTrade
         {
-            Comps = [new TradeVisitComp(TradeCompRate.OnOffCycle, 0) { CompIndex = 0, Draw = new TradeCategoryDraw(TradeDrawRule.OnOffCycle) { Categories = [new("FactionArrival", 1, true)] } }],
+            Comps = [new TradeVisitComp(TradeCompRate.OnOffCycle, 0) { CompIndex = 0, Draw = new TradeCategoryDraw(TradeDrawRule.OnOffCycle) { Categories = [new("FactionArrival", true)] } }],
         };
         var cycled = TradeArrivalRules.Sources(withoutTravelers, cycle, Stock, facts, 0, 5000, 5000, Cycles).Sources;
         Assert.Equal(0.5, Assert.IsType<IncidentTiming.Scheduled>(cycled.Single(s => s.Kinds.Any(k => k.Chance == 0.75)).Timing).Chance, 12);
 
         // A mixed visitor group contributes its exact adult-in-group chance through the complete stock-arrival source.
         var child = Facts() with { Incidents = [.. Facts().Incidents.Select(i => i.Incident == "VisitorGroup" ? i with { Sources = [new() { Faction = "TribeCivil", Visitors = VisitorAdultChanceTests.Generation(new("adult", 50, 50, 1, true, int.MaxValue, false), new("child", 50, 50, 1, false, int.MaxValue, false)), Kinds = [new TraderKindWeight("Outlander", 1)] }] } : i)] };
-        var (childSources, childFindings, _) = TradeArrivalRules.Sources(Schedule, Randy, Stock, child, 0, 5000, 5000, Cycles);
+        var (childSources, childFindings, _) = TradeArrivalRules.Sources(Schedule, Randy, Stock, RandyFacts(child), 0, 5000, 5000, Cycles);
         Assert.DoesNotContain(childSources, s => s.Kinds.Any(k => k.Chance == 0.75));
         var generation = child.Incidents.Single(i => i.Incident == "VisitorGroup").Sources[0].Visitors!;
         var visitor = childSources.Single(s => s.Kinds.Any(k => Math.Abs(k.Chance - (0.75 * VisitorAdultChance.Of(generation))) < 1e-12));
@@ -285,7 +276,7 @@ public sealed class TradeArrivalTests
         Assert.DoesNotContain(childFindings, f => f.Contains("visitor_child", StringComparison.Ordinal));
         var missing = child with { Incidents = [.. child.Incidents.Select(i => i.Incident == "VisitorGroup"
             ? i with { Sources = [i.Sources[0] with { Visitors = null }] } : i)] };
-        Assert.Throws<RequiredFactException>(() => TradeArrivalRules.Sources(Schedule, Randy, Stock, missing, 0, 5000, 5000, Cycles));
+        Assert.Throws<RequiredFactException>(() => TradeArrivalRules.Sources(Schedule, Randy, Stock, RandyFacts(missing), 0, 5000, 5000, Cycles));
     }
 
     [Fact]
@@ -302,6 +293,31 @@ public sealed class TradeArrivalTests
         Assert.Equal(0.3, TradeArrivalRules.Sources(Schedule, Cassandra, Stock, Facts(), 0, 5000, 1260, Cycles).Sources.Single(s => s.From == 0).Supplies(1), 12);
     }
 
+    [Fact]
+    public void AJointIncidentProcessConditionsTheUncappedOrbitalKindDrawOnSuccessfulExecution()
+    {
+        const int count = 20;
+        const double qualifies = 0.25;
+        var kinds = Enumerable.Range(0, count).Select(i => new TraderKindWeight("kind/" + i, 0.125) { Qualifies = qualifies }).ToArray();
+        var success = 1 - Math.Pow(1 - qualifies, count);
+        var facts = RandyFacts(Facts()) with
+        {
+            Incidents = [.. Facts().Incidents.Select(i => i.Incident == "OrbitalTraderArrival"
+                ? i with { Sources = [new() { Kinds = EquatableArray.From(kinds) }] } : i)],
+            Categories =
+            [
+                new(0, "ThreatBig", []) { ThreatBig = true },
+                new(0, "OrbitalVisitor", [new(1, [new("OrbitalTraderArrival", 1, false) { ExecutionChance = success }])]) { Weight = 1 },
+            ],
+        };
+        var stock = Stock with { Kinds = Stock.Kinds.Concat(kinds.Select(k => new KeyValuePair<string, TraderKindStock>(k.Kind, Outlander))).ToDictionary() };
+        var source = TradeArrivalRules.Sources(Schedule, Randy, stock, facts, 0, 5000, 5000, Cycles).Sources.Single(s => s.Kinds.Count == count);
+        var timing = Assert.IsType<IncidentTiming.Process>(source.Timing);
+        var emission = Assert.Single(timing.Events(1001.0 / 60000));
+        Assert.Equal(0.5 * success, emission.Chance, 12);
+        Assert.All(source.Kinds, kind => Assert.Equal(qualifies / count, kind.Chance, 12));
+        Assert.Equal(1 - 0.5 * success * qualifies * 0.3, source.NotArrived(1, 1000.0 / 60000), 12);
+    }
     [Fact]
     public void MoreThanSixteenUncertainOrbitalKindsHaveTheirExactBinomialChances()
     {

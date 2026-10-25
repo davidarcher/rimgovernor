@@ -264,15 +264,16 @@ internal static class ForecastHospital
         {
             Harm = harm with
             {
-                ScheduledRaids = [.. harm.ScheduledRaids.Where(r => (r.Timing is IncidentTiming.Scheduled) == scheduled)],
+                ScheduledRaids = [.. harm.ScheduledRaids.Where(r => (r.Timing is not IncidentTiming.Mtb) == scheduled)],
                 Schedule = harm.Schedule with
                 {
-                    Raids = [.. harm.Schedule.Raids.Where(r => (r.Timing is IncidentTiming.Scheduled) == scheduled)],
+                    Raids = [.. harm.Schedule.Raids.Where(r => (r.Timing is not IncidentTiming.Mtb) == scheduled)],
                     MajorThreatsPerDay = scheduled || hasBudgets ? 0 : harm.Schedule.MajorThreatsPerDay,
                 },
                 Illness = harm.Illness with
                 {
-                    Incidents = [.. harm.Illness.Incidents.Select(i => i with { Rates = scheduled ? [] : i.Rates, Scheduled = scheduled ? i.Scheduled : [] })],
+                    Incidents = [.. harm.Illness.Incidents.Select(i => i with
+                    { Rates = scheduled ? [] : i.Rates, Scheduled = scheduled ? i.Scheduled : [], Processes = scheduled ? i.Processes : [] })],
                 },
             },
         };

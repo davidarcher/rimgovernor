@@ -45,7 +45,6 @@ public sealed partial class DefinitionCatalog
     private P.StorytellerDiseases StorytellerDiseases(StorytellerDef def)
     {
         const string human = nameof(IncidentCategoryDefOf.DiseaseHuman);
-        const string big = nameof(IncidentCategoryDefOf.ThreatBig);
         List<double> comps = [];
         List<P.DiseaseDrawComp> draws = [];
         List<P.DiseaseBiomeComp> biomes = [];
@@ -76,11 +75,7 @@ public sealed partial class DefinitionCatalog
                     {
                         draws.Add(new P.DiseaseDrawComp(P.DiseaseDrawRule.RandomMain, Decimal32(random.minDaysPassed))
                         {
-                            MtbDays = Decimal32(random.mtbDays),
-                            CategoryWeight = entries.Where(e => e.category.defName == human).Sum(e => Decimal32(e.weight)),
-                            OtherWeight = entries.Where(e => e.category.defName != human && e.category.defName != big).Sum(e => Decimal32(e.weight)),
-                            ThreatBigWeight = entries.Where(e => e.category.defName == big).Sum(e => Decimal32(e.weight)),
-                            MaxThreatBigIntervalDays = Decimal32(random.maxThreatBigIntervalDays),
+                            CompIndex = def.comps.IndexOf(random),
                             MinPopulationIntentFactor = Decimal32(random.minIncChancePopulationIntentFactor),
                         });
                     }

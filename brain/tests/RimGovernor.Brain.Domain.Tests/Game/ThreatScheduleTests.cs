@@ -29,7 +29,8 @@ public sealed class ThreatScheduleTests
         var schedule = Of(Table(), storyteller, 30.0, horizon: 600);
 
         Assert.True(schedule.Assessed);
-        Assert.Empty(schedule.Findings);
+        if (storyteller == "Randy") Assert.Equal(P.RandomMainProcess.Conditions, schedule.Findings);
+        else Assert.Empty(schedule.Findings);
         Assert.InRange(schedule.MajorThreatsPerDay, 0.9 / daysPerThreat, 1.1 / daysPerThreat);
     }
 
@@ -39,7 +40,8 @@ public sealed class ThreatScheduleTests
         Assert.Equal(0, Of(Table(), "Cassandra", 10.9, horizon: 0.1).MajorThreatsPerDay);
         Assert.True(Of(Table(), "Cassandra", 11.0).MajorThreatsPerDay > 0);
         Assert.Equal(0, Of(Table(), "Phoebe", 12.0, horizon: 0.1).MajorThreatsPerDay);
-        Assert.Equal(0, Of(Table(), "Randy", 0.5).MajorThreatsPerDay);
+        Assert.Equal(0, Of(Table(), "Randy", 0.5, horizon: 0.5).MajorThreatsPerDay);
+        Assert.True(Of(Table(), "Randy", 0.5, horizon: 1).MajorThreatsPerDay > 0);
     }
 
     [Fact]
@@ -95,7 +97,7 @@ public sealed class ThreatScheduleTests
         var schedule = Of(table, "Assembled", 30.0);
 
         Assert.True(schedule.Assessed);
-        Assert.Empty(schedule.Findings);
+        Assert.Equal(P.RandomMainProcess.Conditions, schedule.Findings);
         var observed = IncidentCycleTests.Read(cycle, 1, ColonyFactsCoreTests.QuietThreat with { DaysPassed = 30, RaidPoints = 500 });
         Assert.Equal(observed.Days.Count / 60.0 + 0.25 + (1 / 15.0) + 0.05, schedule.MajorThreatsPerDay, 9);
         // The threat-points curve reads the observed raid points: at 1000 its accept is 0 and the cycle adds nothing.

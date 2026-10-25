@@ -29,13 +29,12 @@ public enum DiseaseDrawRule
 /// A storyteller comp other than StorytellerComp_Disease that draws DiseaseHuman incidents (#3860), from <see cref="MinDaysPassed"/>
 /// days after settling (an on-off cycle sends raids before forceRaidEnemyBeforeDaysPassed, which the decoder folds into it). Its
 /// rate: <see cref="Cycle"/>'s incidents a day for an OnOffCycle, 1 ÷ <see cref="MtbDays"/> (over <see cref="MtbFactorByDaysPassed"/>)
-/// otherwise. A RandomMain comp draws DiseaseHuman at <see cref="CategoryWeight"/> among <see cref="OtherWeight"/> (its other
-/// categories bar ThreatBig, counted always drawable) and <see cref="ThreatBigWeight"/> (forced after
-/// <see cref="MaxThreatBigIntervalDays"/>); a SingleMTB comp fires <see cref="Incident"/>. <see cref="MinPopulationIntentFactor"/> is
-/// IncidentChanceFactor_PopulationIntent's floor.
+/// for MTB comps. RandomMain uses its comp-indexed native joint interval process; a SingleMTB comp fires <see cref="Incident"/>.
+/// <see cref="MinPopulationIntentFactor"/> is IncidentChanceFactor_PopulationIntent's floor.
 /// </summary>
 public sealed record DiseaseDrawComp(DiseaseDrawRule Rule, double MinDaysPassed)
 {
+    public int CompIndex { get; init; }
     public string Incident { get; init; } = "";
 
     public ThreatCycleComp? Cycle { get; init; }
@@ -44,13 +43,6 @@ public sealed record DiseaseDrawComp(DiseaseDrawRule Rule, double MinDaysPassed)
 
     public IReadOnlyList<(double Days, double Factor)> MtbFactorByDaysPassed { get; init; } = [];
 
-    public double CategoryWeight { get; init; }
-
-    public double OtherWeight { get; init; }
-
-    public double ThreatBigWeight { get; init; }
-
-    public double MaxThreatBigIntervalDays { get; init; }
 
     public double MinPopulationIntentFactor { get; init; }
 }
@@ -214,6 +206,7 @@ public sealed record IllnessIncident(string Incident, IReadOnlyList<(double Star
 {
     public double ThroughDays { get; init; } = double.PositiveInfinity;
     public IReadOnlyList<IncidentTiming.Scheduled> Scheduled { get; init; } = [];
+    public IReadOnlyList<IncidentTiming.Process> Processes { get; init; } = [];
     /// <summary>The incidents of this disease a day over <paramref name="days"/> from now: each comp's rate for the share of the days it runs.</summary>
     public double PerDay(double days)
     {
@@ -236,9 +229,9 @@ public sealed record IllnessIncident(string Incident, IReadOnlyList<(double Star
 
         if (rate > 0) yield return (0, rate * days);
         foreach (var timing in Scheduled)
-            foreach (var day in IncidentTiming.Covered(timing.Cycle, days + timing.OriginDay)
-                .Where(d => d >= Math.Max(timing.From, timing.OriginDay) && d < Math.Min(days + timing.OriginDay, timing.Until)))
-                yield return (day - timing.OriginDay, timing.Chance);
+            foreach (var occurrence in timing.Events(days)) yield return occurrence;
+        foreach (var timing in Processes)
+            foreach (var occurrence in timing.Events(days)) yield return occurrence;
     }
 }
 
@@ -253,6 +246,7 @@ public sealed record IllnessIncident(string Incident, IReadOnlyList<(double Star
 /// </summary>
 public sealed record IllnessSchedule
 {
+    private static readonly string[] FutureStateFindings = ["disease_future_state_unprojected"];
     public double ThroughDays { get; init; } = double.PositiveInfinity;
     public bool Assessed { get; init; }
 
@@ -352,6 +346,9 @@ public sealed record IllnessSchedule
             [.. open.Where(o => o.Rules.EarliestDay <= Math.Floor(start))];
         var rates = new Dictionary<string, List<(double StartDay, double PerDay)>>(StringComparer.Ordinal);
         var scheduled = new Dictionary<string, List<IncidentTiming.Scheduled>>(StringComparer.Ordinal);
+        var processes = new Dictionary<string, List<IncidentTiming.Process>>(StringComparer.Ordinal);
+        var process = teller.Draws.Any(c => c.Rule == DiseaseDrawRule.RandomMain)
+            ? new RandomMainProcess(threat.Trade, table.PopulationChanceByIntent) : null;
         void Send(string incident, double minDaysPassed, double perDay)
         {
             if (!(perDay > 0))
@@ -384,6 +381,19 @@ public sealed record IllnessSchedule
 
         foreach (var comp in teller.Draws)
         {
+            if (comp.Rule == DiseaseDrawRule.RandomMain)
+            {
+                if (!process!.Contains(comp.CompIndex)) throw new RequiredFactException("random_main_comp_unobserved:" + comp.CompIndex);
+                var drawn = threat.Trade.Categories.Where(c => c.CompIndex == comp.CompIndex)
+                    .SelectMany(c => c.Outcomes).SelectMany(o => o.Incidents).Select(i => i.Incident).ToHashSet(StringComparer.Ordinal);
+                foreach (var (rules, _) in open.Where(o => drawn.Contains(o.Rules.Incident)))
+                {
+                    if (!rates.ContainsKey(rules.Incident)) rates[rules.Incident] = [];
+                    if (!processes.TryGetValue(rules.Incident, out var events)) processes[rules.Incident] = events = [];
+                    events.Add(new IncidentTiming.Process(process, comp.CompIndex, rules.Incident));
+                }
+                continue;
+            }
             var start = Math.Max(facts.DaysSinceSettle, comp.MinDaysPassed);
             if (comp.Rule == DiseaseDrawRule.OnOffCycle)
             {
@@ -447,17 +457,19 @@ public sealed record IllnessSchedule
                 VictimChance(facts.Candidates, read.Potential, rules.FractionMin, rules.FractionMax, rules.MaxVictims), rules.Course)
             {
                 Scheduled = scheduled.GetValueOrDefault(rules.Incident) ?? [],
-                ThroughDays = teller.Draws.Where(c => c.Rule == DiseaseDrawRule.OnOffCycle)
-                    .Select(c => IncidentTiming.RequireCycle(threat!.Cycles, c.Cycle!.CompIndex).ThroughDays).DefaultIfEmpty(double.PositiveInfinity).Min(),
+                Processes = processes.GetValueOrDefault(rules.Incident) ?? [],
+                ThroughDays = Math.Min(process is null ? double.PositiveInfinity : threat.Trade.Clock!.ThroughDays, teller.Draws.Where(c => c.Rule == DiseaseDrawRule.OnOffCycle)
+                    .Select(c => IncidentTiming.RequireCycle(threat!.Cycles, c.Cycle!.CompIndex).ThroughDays).DefaultIfEmpty(double.PositiveInfinity).Min()),
             });
         }
 
         return new IllnessSchedule
         {
-            Assessed = true, Findings = futureStart ? [.. unmodelled, "disease_future_state_unprojected"] : unmodelled, Incidents = usable,
-            ThroughDays = teller.Draws.Where(c => c.Rule == DiseaseDrawRule.OnOffCycle)
+            Assessed = true, Findings = unmodelled.Concat(process is null ? [] : RandomMainProcess.Conditions)
+                .Concat(futureStart ? FutureStateFindings : []).ToArray(), Incidents = usable,
+            ThroughDays = Math.Min(process is null ? double.PositiveInfinity : threat.Trade.Clock!.ThroughDays, teller.Draws.Where(c => c.Rule == DiseaseDrawRule.OnOffCycle)
                 .Select(c => IncidentTiming.RequireCycle(threat.Cycles, c.Cycle!.CompIndex).ThroughDays)
-                .DefaultIfEmpty(double.PositiveInfinity).Min(),
+                .DefaultIfEmpty(double.PositiveInfinity).Min()),
         };
     }
 
@@ -506,20 +518,7 @@ public sealed record IllnessSchedule
 
                 return;
             case DiseaseDrawRule.RandomMain:
-                if (usable.Count == 0)
-                {
-                    return;
-                }
-
-                // The other categories count as always drawable; ThreatBig is forced after maxThreatBigIntervalDays (TradeArrivalRules).
-                var others = comp.OtherWeight + comp.CategoryWeight;
-                var notThreatBig = 1 - TradeArrivalRules.ThreatBigFraction(comp.ThreatBigWeight / (comp.ThreatBigWeight + others), 1 / comp.MtbDays, comp.MaxThreatBigIntervalDays);
-                foreach (var (incident, chance) in TradeArrivalRules.SelectRandomIncident([.. usable], populationIntent, table.PopulationChanceByIntent))
-                {
-                    send(incident, comp.MinDaysPassed, notThreatBig * comp.CategoryWeight / others * chance / comp.MtbDays);
-                }
-
-                return;
+                throw new DomainException("RandomMain must use the observed joint interval process");
         }
     }
 

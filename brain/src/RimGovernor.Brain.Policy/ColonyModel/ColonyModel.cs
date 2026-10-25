@@ -363,14 +363,16 @@ public static class ColonyModel
                     tradeOn = Others(held, bestHeld) < trade.Reserve.Threshold(trade.Colonists, tradeOn) - Epsilon;
                     if (tradeOn && tradeSilverLeft > Epsilon)
                     {
-                        foreach (var visitGroup in arrivals.GroupBy(source => ((IncidentTiming.Scheduled)source.Timing).Cycle.CompIndex).OrderBy(group => group.Key))
+                        foreach (var visitGroup in arrivals.GroupBy(source => source.Timing.CompKey).OrderBy(group => group.Key))
                         {
                             var gap = Math.Max(0, trade.Reserve.Threshold(trade.Colonists, true) - Others(held, bestHeld));
                             var purchases = visitGroup.Select(source =>
                             {
                                 var visit = source.Visit ?? throw new RequiredFactException("medicine_scheduled_visit_stock");
                                 var cap = Math.Min(gap, Math.Floor(tradeSilverLeft / visit.Price));
-                                return (source.Kind, Units: visit.Units(source.Kind, cap), visit.Price);
+                                var chance = source.Timing is IncidentTiming.Process process
+                                    ? process.Program.ExpectedAt(process.CompIndex, process.Incident, now + process.OriginDay) : 1;
+                                return (source.Kind, Units: chance * visit.Units(source.Kind, cap), visit.Price);
                             }).ToArray();
                             foreach (var purchase in purchases)
                                 held[Array.IndexOf(kinds, purchase.Kind)] += purchase.Units;

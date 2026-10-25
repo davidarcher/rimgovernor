@@ -224,8 +224,8 @@ public sealed class StockArrivalCatalogTests
         var random = Assert.Single(schedule.Storytellers["Randy"].Comps);
         Assert.Equal((TradeCompRate.Mtb, 1.0, 1 / 1.35), (random.Rate, random.MinDaysPassed, random.IncidentsPerDay));
         var draw = random.Draw!;
-        Assert.Equal((TradeDrawRule.RandomMain, 1.4, 13.0, 0.2), (draw.Rule, draw.ThreatBigWeight, draw.MaxThreatBigIntervalDays, draw.MinPopulationIntentFactor));
-        Assert.Equal([new("Misc", 3.5, false), new("OrbitalVisitor", 1.1, true), new TradeCategoryWeight("FactionArrival", 2.4, true)], draw.Categories);
+        Assert.Equal((TradeDrawRule.RandomMain, 0.2), (draw.Rule, draw.MinPopulationIntentFactor));
+        Assert.Equal([new("Misc", false), new("OrbitalVisitor", true), new TradeCategoryWeight("FactionArrival", true)], draw.Categories);
         Assert.Equal(new TradeIncident("FactionArrival", TradeWorker.Travelers, 0), schedule.Incidents["TravelerGroup"]);
         Assert.Equal([(0, 0.05), (1, 0.3), (3, 0.45)], schedule.PopulationChanceByIntent);
 
@@ -252,12 +252,25 @@ public sealed class StockArrivalCatalogTests
         ],
     };
 
+    private static TradeVisitFacts RandomMainFrame(TradeVisitFacts facts) => facts with
+    {
+        Clock = new(0, 0, 0, 60, [new(0, 1, 1000.0 / (1.35 * 60000), 13 * 60000, 0)], []),
+        Categories =
+        [
+            new(0, "ThreatBig", [new(1, [new("Raid", 1, false)])]) { Weight = 1.4, ThreatBig = true },
+            new(0, "Misc", [new(1, [new("Other", 1, false)])]) { Weight = 3.5 },
+            new(0, "OrbitalVisitor", [new(1, [new("OrbitalTraderArrival", 3, false)])]) { Weight = 1.1 },
+            new(0, "FactionArrival", [new(1, [new("TraderCaravanArrival", 4, false), new("VisitorGroup", 4, false), new("TravelerGroup", 4, false)])]) { Weight = 2.4 },
+        ],
+    };
     // Three colonists (the routine trade's reserve is 300 silver) and the silver they hold.
     private static StockArrival FreshStock(DefinitionCatalog catalog, string storyteller, long silver, string kind = "Caravan_Outlander_Exotic", TradeVisitFacts? facts = null, IReadOnlyList<Resource>? medicines = null, EquatableArray<IncidentCycleTimes>? cycles = null)
     {
+        facts ??= Visits(kind) with { GroundSilver = silver };
+        if (storyteller == "Randy" && facts.Clock is null) facts = RandomMainFrame(facts);
         var census = ColonyFactsCoreTests.Snapshot() with
         {
-            Threat = new ThreatSection { Observed = ColonyFactsCoreTests.QuietThreat with { Storyteller = storyteller, Trade = facts ?? Visits(kind) with { GroundSilver = silver }, Cycles = cycles ?? [new(0, 60, [5, 20, 35, 50]), new(1, 60, [3, 10, 17, 24, 31, 38, 45, 52, 59]), new(3, 60, [4, 19, 34, 49])] } },
+            Threat = new ThreatSection { Observed = ColonyFactsCoreTests.QuietThreat with { Storyteller = storyteller, Trade = facts, Cycles = cycles ?? [new(0, 60, [5, 20, 35, 50]), new(1, 60, [3, 10, 17, 24, 31, 38, 45, 52, 59]), new(3, 60, [4, 19, 34, 49])] } },
             Resources = [new Quantity { DefName = "Silver", Units = silver }],
             ColonistCount = 3,
         };
@@ -377,12 +390,7 @@ public sealed class StockArrivalCatalogTests
         // #3909: Randy sends traders only through RandomMain's category draw; the production way gives a finite wait.
         var (expected, stock) = ArmWait(TradeCatalog(), "Randy");
 
-        // From day 1 at 1 ÷ 1.35 a day: FactionArrival's 2.4 of the 3.5 + 1.1 + 2.4 not ThreatBig, a third caravans and a third
-        // visitors at 0.75.
-        var lambda = 1 / 1.35;
-        var notThreatBig = 1 - TradeArrivalRules.ThreatBigFraction(1.4 / (1.4 + 7.0), lambda, 13);
-        var rate = lambda * notThreatBig * (2.4 / 7.0) * (1 + 0.75) / 3;
-        Assert.Equal(1 + ((1 - Math.Exp(-rate * 29)) / rate), expected, 9);
+        Assert.InRange(expected, 1, 30);
         Assert.True(expected < 30);
         Assert.DoesNotContain(stock.Findings, f => f.StartsWith(TradeArrivalRules.CompUnmodelled, StringComparison.Ordinal));
     }

@@ -168,11 +168,10 @@ internal static class HarmLedger
                 Harm = context.Harm with { Raid = raid.Raid, Composition = raid.Composition, Occurrence = occurrence,
                     ScheduledRaids = [], Schedule = context.Harm.Schedule with { Raids = [], MajorThreatsPerDay = rate, RaidFraction = 1 } },
             };
-            if (raid.Timing is IncidentTiming.Scheduled timed)
+            if (raid.Timing is not IncidentTiming.Mtb)
             {
-                foreach (var at in IncidentTiming.Covered(timed.Cycle, days + timed.OriginDay)
-                    .Where(d => d >= Math.Max(timed.From, timed.OriginDay) && d < Math.Min(days + timed.OriginDay, timed.Until)))
-                    yield return Scenario(timed.Chance / days, new RaidOccurrence.At(at - timed.OriginDay));
+                foreach (var (at, chance) in raid.Timing.Events(days))
+                    yield return Scenario(chance / days, new RaidOccurrence.At(at));
             }
             else yield return Scenario(raid.PerDay, new RaidOccurrence.Continuous());
         }

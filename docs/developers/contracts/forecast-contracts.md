@@ -709,24 +709,49 @@ Crafting reads the actual `BillStackRow` and `PawnState` records. Work eligibili
 come from those rows; work hours are calculated from the native timetable. No separate bench, crafter or skill census
 copies are stored. An incomplete timetable retains the existing named stock-arrival schedule refusal.
 
+### Conditional local incident process
+
+The native `TradeVisitFacts.Clock` owns the observed target LastThreatBigTick, storyteller LastIncidentTick and local interval
+streams. The pure `RandomMainProcess` advances a joint probability distribution on the game's 1000-tick grid. It uses the native
+Bernoulli MTB probability, enabled comps, space MTB factor and minimum spacing, native comp order, and strict ThreatBig forcing.
+The comp start gate is strictly after `minDaysPassed`; an incident's whole-day `earliestDay` gate is inclusive. A horizon
+ending at an event date excludes that event. Illness consumers register only diseases present in that comp's observed category
+outcomes. The MTB probability includes the rounded native float distribution and its inclusive small-probability pre-gate;
+it can differ slightly from the continuous `1000 / (mtbDays * 60000)` probability in either direction.
+An unusable category redraws; a selected incident that fails execution consumes that attempt without a redraw or clock reset.
+Unforced local ThreatBigs reset the shared Big clock; every successful local incident resets the any-incident clock. Forced
+ThreatsGenerator incidents reset only the any-incident clock, following StoryState.Notify_IncidentFired's forced-parms return.
+
+The local streams include on-off and faction cycles, disease commonality draws, each usable deep drill's independent roll,
+Gauranlen's countdown (including other targets' deterministic decrements), ship chunks' native future time curve, single and
+individual-biome MTB incidents, fixed introductions and ThreatsGenerator attempts. Active NoxiousHaze carries its own last-fire
+renewal clock. Common RandomMain spacing uses cooldown cohorts with a release queue and a shared scale for local resets;
+differing custom comp spacings and an active haze renewal retain the full joint state. Neither representation multiplies marginal
+per-source survivor curves. One resource-alternative want joins all competing incident and trader-stock outcomes in that process.
+A want starting later inherits the preceding clock distribution. Separate StockNeeds retain the existing independence assumption in NotReady/ExpectedWait; this is not a joint inventory-history model across different wants. Raid, illness, hospital and medicine consumers keep dated event
+atoms; no harm-grid bucketing replaces those dates.
+
+These are **conditional local forecasts**: no intervening incidents from other maps, caravans or quest streams; the observed
+non-time eligibility, weights, population intent and colony inputs continue to apply; spatial entry, placement, generated groups
+and travel resolution succeed. They do not simulate the future map. The trade forecast can therefore overestimate availability.
+These conditions travel in trade, threat and illness findings, including harm consumers:
+`incident_process_conditional_no_other_maps_caravans_or_quests`,
+`incident_process_conditional_observed_eligibility_and_successful_spatial_execution`, and
+`incident_process_trade_may_be_overestimated`. Local non-trade incidents remain in the process despite this external condition.
+Known native random selection failures are still integrated: habitat/pollution animal eligibility is drawn again at execution,
+and an orbital incident with an empty CanSpawn candidate set fires nothing. This execution failure does not trigger category redraw.
+Unknown custom workers or unsupported custom quest-point semantics fail with a named unmodelled fact instead of a sampled point
+or an assumed probability. The fact JSON contract carries the category outcomes, native clocks and reset identities together.
 Trader visits are the second source (#3869, #3909, `TradeArrivalRules.Sources` into `StockArrival.Trade`). The catalog decodes the
 storyteller's trader comps by exact class (`DefinitionCatalog.TradeSchedule`), and the incidents they draw by exact worker class
 (`IncidentWorker_TraderCaravanArrival`, `_OrbitalTraderArrival`, `_VisitorGroup`, `_CaravanArrivalTributeCollector`,
 `_TravelerGroup`). FactionInteraction and OnOffCycle comps consume their canonical `ThreatFacts.Cycles` rows by storyteller comp index.
 The native seeded dates already include spacing, cycle acceptance, progress and ally acceptance. The pure source applies the incident and trader-kind draw chances once at each date;
-it never converts these visits to a Poisson rate. An unobserved comp row or an uncovered requested horizon raises `RequiredFactException`. MTB comps retain their continuous 1 ÷ mtbDays law. A comp drawing a category that
-holds a trader incident (#3909) draws as its class does, at today's facts (#3909 Q3): `RandomMain` at 1 ÷ mtbDays sends ThreatBig
-with its long-run fraction (a renewal from each ThreatBig, forced after maxThreatBigIntervalDays: 1 ÷ (1 + (1 − p)(1 − e^(−λpM)) ÷
-p) for ThreatBig's weight share p over the drawable weight), each other category with its weight over the drawable weight
-(a trader category with no usable incident is redrawn; every other category counts as always drawable, #3909 Q2 B); `CategoryMTB`
-its category at 1 ÷ (mtbDays × its days-passed factor); an `OnOffCycle` by category its cycle. Within a trader category an
-incident is usable when no gate blocks it, its earliestDay has come by the comp's start or today, and its `IncidentChanceFinal`
-(the native weight × the population-intent factor) is above 0; `RandomMain` and `CategoryMTB` pick by `TrySelectRandomIncident`
-(with the `IncreasesPopChanceByPopIntentCurve` chance one that changes the population, else one that does not, each falling back
-to all), an `OnOffCycle` by weight. Each comp starts at max(minDaysPassed, a single incident's earliestDay) − the days since
-settling. A comp of a trader-like worker of another class, or drawing a trader category that holds one, an incident with a
-threat-points range or an Anomaly-chance split, and a comp
-class the decoder does not know, is named `stock_arrival_trade_comp_unmodelled:<comps>`. A visit's kind is drawn as the incident draws it: a source faction uniformly
+it never converts these visits to a Poisson rate. RandomMain uses the [conditional local incident process](#conditional-local-incident-process): all
+categories carry native usable-incident sets, including point-range and Anomaly branches, and late earliestDay boundaries are evaluated
+at every native interval. Empty categories are redrawn and ThreatBig is attempted first after its maximum interval. Fixed incidents and
+other category comps retain their own native draw. Unknown comp or worker semantics remain named unmodelled facts.
+A visit's kind is drawn as the incident draws it: a source faction uniformly
 (`FactionCanBeGroupSource`), then a kind by `TraderKindCommonality` (a visitor group: its visitorTraderKinds by
 `CalculatedCommonality`, with `TraderChance` 0.75 times the exact probability its generated Peaceful group contains an adult, #3946), a tribute collector the Empire's TributeCollector
 kinds by `CalculatedCommonality`, an orbital trader a kind by `CalculatedCommonality` among the kinds whose `CanSpawn` passes (#3910: `GetFaction` draws one of the

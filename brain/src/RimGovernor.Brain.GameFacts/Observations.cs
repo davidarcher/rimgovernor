@@ -5885,6 +5885,57 @@ public sealed record ThreatFacts
 public sealed record IncidentCycleTimes(int CompIndex, double ThroughDays,
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<double>))] EquatableArray<double> Days);
 
+/// <summary>A RandomMain category's native usable-incident sets, integrating its points and Anomaly branches.</summary>
+public sealed record IncidentCategoryRead(int CompIndex, string Category,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<UsableIncidentSet>))] EquatableArray<UsableIncidentSet> Outcomes)
+{
+    public double Weight { get; init; }
+    public bool ThreatBig { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public EquatableArray<string> Unmodelled { get; init; }
+}
+
+/// <summary>One mutually exclusive native eligibility outcome; an empty set is a failed category attempt.</summary>
+public sealed record UsableIncidentSet(double Probability,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<UsableIncidentWeight>))] EquatableArray<UsableIncidentWeight> Incidents);
+
+/// <summary>IncidentChanceFinal at the observed population intent and the comp's floor, before population-group selection.</summary>
+public sealed record UsableIncidentWeight(string Incident, double Weight, bool ChangesPopulation)
+{
+    public double ExecutionChance { get; init; } = 1;
+    public double ExecuteAfterDay { get; init; }
+    public double EarliestDay { get; init; }
+    public bool Raid { get; init; }
+}
+
+/// <summary>A native RandomMain interval roll and its target-specific forcing/spacing thresholds.</summary>
+public sealed record RandomMainIntervalRead(int CompIndex, double MinDaysPassed, double ChancePerCheck,
+    int ForceThreatAfterTicks, int MinSpacingTicks);
+
+/// <summary>A dated incident from another local comp, in native comp order; forced parms do not reset LastThreatBigTick.</summary>
+public sealed record IncidentClockReset(double Day, int CompIndex, double Chance)
+{
+    /// <summary>Mutually exclusive successful incident selections within the interval roll.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<IncidentResetOutcome>))]
+    public EquatableArray<IncidentResetOutcome> Outcomes { get; init; }
+    public bool Renewal { get; init; }
+    public int RenewalMinTicks { get; init; }
+    public int RenewalMaxTicks { get; init; }
+}
+
+public sealed record IncidentResetOutcome(string Incident, double Chance, bool ResetsThreatBig);
+
+/// <summary>The observed clocks and conditional local incident process on the native 1000-tick check grid.</summary>
+public sealed record IncidentClockRead(int Tick, int LastThreatBigTick, int LastIncidentTick, double ThroughDays,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<RandomMainIntervalRead>))] EquatableArray<RandomMainIntervalRead> RandomMain,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<IncidentClockReset>))] EquatableArray<IncidentClockReset> Resets)
+{
+    public string RenewalIncident { get; init; } = "";
+    public int LastRenewalTick { get; init; } = -1;
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public EquatableArray<string> Unmodelled { get; init; }
+}
+
 /// <summary>
 /// One incident a ThreatsGenerator draws (#3860). ThreatsGenerator.MakeThreat takes the incidents whose worker CanFireNow for its
 /// forced parms (IncidentWorker.CanFireNow skips every gate but CanFireNowSub, and an active void awakening) and picks one by
@@ -5914,6 +5965,11 @@ public sealed record ThreatBiomeIncidentRead(string Incident, bool CanFire);
 /// </summary>
 public sealed record TradeVisitFacts
 {
+    public IncidentClockRead? Clock { get; init; }
+    /// <summary>Shared RandomMain eligibility for the trader and threat decoders; one row per category and comp.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<IncidentCategoryRead>))]
+    public EquatableArray<IncidentCategoryRead> Categories { get; init; }
+
     /// <summary>Native request options, read on every frame independently of demand.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<TradeRequestOption>))]
     public EquatableArray<TradeRequestOption> Requests { get; init; }

@@ -31,8 +31,7 @@ public sealed class DiseaseDrawCompTests
         Assert.Equal(20, decoded.Draws[0].MinDaysPassed);
         Assert.Equal((0, 20d), (decoded.Draws[0].Cycle!.CompIndex, decoded.Draws[0].Cycle!.ForceRaidBeforeDays));
         var main = decoded.Draws[1];
-        Assert.Equal((4.0, 1.0, 3.5, 2.0), (main.MtbDays, main.CategoryWeight, main.OtherWeight, main.ThreatBigWeight));
-        Assert.Equal(13, main.MaxThreatBigIntervalDays);
+        Assert.Equal(1, main.CompIndex);
         Assert.Equal(30, decoded.Draws[2].MtbDays);
         Assert.Equal(("Disease_Flu", 50.0), (decoded.Draws[3].Incident, decoded.Draws[3].MtbDays));
         Assert.Equal(40.0, decoded.BiomeComps[0].ByBiome["TemperateForest"].Single(i => i.Incident == "Disease_Flu").MtbDays);
@@ -66,14 +65,17 @@ public sealed class DiseaseDrawCompTests
     public void ARandomMainDrawsDiseaseAmongItsCategoriesWithThreatBigForcedPastItsInterval()
     {
         var schedule = Schedule(RandomMain(4), Reads(flu: 1));
+        Assert.All(RandomMainProcess.Conditions, condition => Assert.Contains(condition, schedule.Findings));
 
-        // 1 event per 4 days; DiseaseHuman weight 1 of 1 + 3.5 + 2 with ThreatBig redrawn past 13 days.
-        var share = 2 / (2 + 4.5);
-        var events = 1 + ((1 - share) * -double.ExpM1(-0.25 * share * 13) / share);
-        var notThreatBig = 1 - (1 / events);
-        Assert.Equal(0.25 * notThreatBig * 1 / 4.5, schedule.IncidentsPerDay(30), 12);
+        // Before forcing, one 1000-tick native roll chooses DiseaseHuman's weight 1 of 6.5.
+        var flu = Assert.Single(schedule.Incidents);
+        Assert.Equal("Disease_Flu", flu.Incident);
+        var first = Assert.Single(flu.Occurrences(1001.0 / 60000));
+        Assert.Equal(1000.0 / 60000, first.Day);
+        Assert.Equal(1000.0 / (4 * 60000) / 6.5, first.Chance, 12);
+        Assert.Equal(0, schedule.IncidentsPerDay(1000.0 / 60000));
+        Assert.InRange(schedule.IncidentsPerDay(30), 0, 1 / 26.0);
     }
-
     [Fact]
     public void ASingleMtbFiresItsIncidentOnlyWhileItsWorkerCanFire()
     {
@@ -122,15 +124,29 @@ public sealed class DiseaseDrawCompTests
             if (def.defName == "Disease_Flu") def.earliestDay = 30;
         }
 
-        // The first comp starts on whole day 29; the second starts on day 30. Today is day 20.
+        // The comps start strictly after days 29.5 and 30; flu's earliestDay gate opens inclusively at day 30.
+        // Today is day 20, so only the first comp may emit flu exactly 10 days from now.
         var schedule = Schedule([Comp(29.5f), Comp(30)], Reads(flu: 3, worms: 1), configure: Gate);
         var atStart = Schedule([Comp(30)], Reads(flu: 3, worms: 1),
             facts => facts with { Disease = facts.Disease with { DaysSinceSettle = 30 } }, Gate);
         var flu = schedule.Incidents.Single(i => i.Incident == "Disease_Flu");
 
         Assert.True(schedule.Assessed);
-        Assert.Equal(["disease_future_state_unprojected"], schedule.Findings);
-        Assert.Empty(atStart.Findings);
+        Assert.Contains("disease_future_state_unprojected", schedule.Findings);
+        Assert.DoesNotContain("disease_future_state_unprojected", atStart.Findings);
+        if (kind == 5)
+        {
+            Assert.Empty(flu.Rates);
+            Assert.NotEmpty(flu.Processes);
+            Assert.Equal(0, flu.PerDay(10));
+            Assert.Equal(10, flu.Occurrences(30).First().Day);
+            Assert.All(flu.Occurrences(30), occurrence => Assert.True(occurrence.Day >= 10));
+            var startedFlu = atStart.Incidents.Single(i => i.Incident == "Disease_Flu");
+            Assert.Empty(startedFlu.Occurrences(1000.0 / 60000));
+            Assert.Equal(1000.0 / 60000, Assert.Single(startedFlu.Occurrences(1001.0 / 60000)).Day);
+            Assert.True(flu.PerDay(30) > 0);
+            return;
+        }
         if (kind == 4)
         {
             Assert.Empty(flu.Rates);
@@ -232,6 +248,23 @@ public sealed class DiseaseDrawCompTests
         facts = facts with { DaysPassed = facts.Disease.DaysSinceSettle };
         var table = catalog.DiseaseTable();
         facts = facts with { Cycles = [.. comps.OfType<StorytellerCompProperties_OnOffCycle>().Select(c => IncidentCycleTests.Read(c, Array.IndexOf(comps, c), facts, progress: progress, noTree: noTree))] };
+        if (comps.Any(c => c is StorytellerCompProperties_RandomMain))
+        {
+            var now = (int)(facts.Disease.DaysSinceSettle * 60000);
+            var mains = comps.Select((c, index) => (Comp: c as StorytellerCompProperties_RandomMain, Index: index)).Where(c => c.Comp != null).ToArray();
+            facts = facts with { Trade = facts.Trade with
+            {
+                DaysSinceSettle = facts.Disease.DaysSinceSettle,
+                Clock = new(now, now, now, 60, EquatableArray.From(mains.Select(c => new RandomMainIntervalRead(c.Index, c.Comp!.minDaysPassed, 1000.0 / (c.Comp.mtbDays * 60000), (int)(c.Comp.maxThreatBigIntervalDays * 60000), 0))), []),
+                Categories = EquatableArray.From(mains.SelectMany(c => new IncidentCategoryRead[]
+                {
+                    new(c.Index, "ThreatBig", [new(1, [new("Raid", 1, false)])]) { Weight = 2, ThreatBig = true },
+                    new(c.Index, "Misc", [new(1, [new("MiscIncident", 1, false)])]) { Weight = 3.5 },
+                    new(c.Index, "DiseaseHuman", [new(1, EquatableArray.From(reads.Where(r => r.Blocked.Count == 0 && r.Potential > 0 && r.Weight > 0)
+                        .Select(r => new UsableIncidentWeight(r.Incident, r.Weight, false) { EarliestDay = table.Incidents[r.Incident].EarliestDay })))]) { Weight = 1 },
+                })),
+            } };
+        }
         return HarmInputs.Of(new ReviewFacts { DiseaseTable = table, Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = facts } } }).Illness;
     }
 

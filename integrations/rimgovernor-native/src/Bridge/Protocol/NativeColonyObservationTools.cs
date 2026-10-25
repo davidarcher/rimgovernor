@@ -234,7 +234,7 @@ namespace RimGovernor.Native
                 Cycles = [.. NativeStorytellerFacts.Cycles(map, incidentHorizonDays)],
                 BiomeIncidents = [.. NativeStorytellerFacts.BiomeIncidents(map)],
                 Disease = NativeDiseaseFacts.Read(map),
-                Trade = NativeTradeVisitFacts.Read(map),
+                Trade = NativeTradeVisitFacts.Read(map, incidentHorizonDays),
             };
             return new RimGovernor.Brain.GameFacts.Observations.ThreatSection { Observed = facts };
         }

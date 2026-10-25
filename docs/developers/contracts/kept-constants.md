@@ -160,7 +160,7 @@ doc's three rates are the test oracle, not an input.
 | Literal | Value | 1.7 member |
 | --- | --- | --- |
 | A cycle of `onDays + offDays` holds a hit count drawn from `numIncidentsRange`, each kept with the accept curve's fraction at the days passed; expected count is the range mean × fraction, so the rate is that over the cycle length. Cycle lengths round to whole 1/60 days. Nothing fires before `minDaysPassed`. | 60 intervals a day | `StorytellerComp_OnOffCycle.MakeIntervalIncidents`, `IncidentCycleUtility.IncidentCountThisInterval`, `GenerateHitList`, `DaysToIntervals` |
-| A random main fires at a rate of 1 / `mtbDays` a day; the threat share is the `ThreatBig` weight over the sum of `categoryWeights`. The forced `ThreatBig` after `maxThreatBigIntervalDays` is left out (it would move Randy from about 1 per 9 days to about 1 per 7). | 1 / `mtbDays` | `StorytellerComp_RandomMain.MakeIntervalIncidents`, `ChooseRandomCategory`, `Rand.MTBEventOccurs` |
+| RandomMain advances on native 1000-tick checks; unusable categories redraw and ThreatBig is attempted first after its maximum interval. Shared local resets and space spacing use the joint conditional process. | native MTB Bernoulli draw | `StorytellerComp_RandomMain.MakeIntervalIncidents`, `ChooseRandomCategory`, `Rand.MTBEventOccurs` |
 | Every incident of an on-off cycle is a raid before `forceRaidEnemyBeforeDaysPassed` (20 in the Core comps) | 20 days | `StorytellerComp_OnOffCycle.GenerateIncident` |
 | After it, raids are about half of the major threats: `RaidEnemy` against the other `ThreatBig` incidents by base weight | 0.5 | `IncidentDef.baseChance` (`RaidEnemy` 7.4 in Core), `StorytellerComp.IncidentChanceFinal` |
 
@@ -353,16 +353,13 @@ own target, standing in for the player's stock-target bill count.
 | Pawn cost-fraction selection weight (#3946) | (0.2, 0.01), (0.3, 0.3), (0.5, 1); highest affordable cost retained across draws | `PawnGroupMakerUtility.PawnWeightFactorByMostExpensivePawnCostFractionCurve`, `ChoosePawnGenOptionsByPoints` |
 | Faction per-pawn cost floor (#3946) | 1.2 × minimum points to generate the group | `PawnGroupMakerUtility.MaxPawnCost` |
 | Population-intent offsets (#3909) | IncreaseHard 0.4, IncreaseMedium 0, IncreaseEasy −0.4, floored at the comp's `minIncChancePopulationIntentFactor` | `StorytellerComp.IncidentChanceFactor_PopulationIntent` |
-| RandomMain ThreatBig fraction (#3909) | 1 ÷ (1 + (1 − p)(1 − e^(−λpM)) ÷ p), 1 ÷ (1 + λM) at p = 0: λ = 1 ÷ `mtbDays`, p = ThreatBig's weight over the drawable weight, M = `maxThreatBigIntervalDays` | `StorytellerComp_RandomMain.MakeIntervalIncidents`, `ChooseRandomCategory` |
 
 The model's own choices, not game rules: a visit's purchases are paid from today's spendable silver (the silver above the routine
 trade's reserve: home-area/storage silver for future caravans and visitors, conditional on their future access; the actual native trader's reachable set for current visits, the silver within beacon range for orbital traders, #3910; medicine is
 claimed first, parts see the rest, #3907),
 a visit is a fluid expectation rather than a lump (its cheapest-carried medicine and silver cost use the joint native stock draw
 and native buy price, #3981), the accept curves are taken at today's days and points,
-the category draws at today's gates, weights, danger and population intent (#3909 Q3, `minRefireDays` among the gates), a
-RandomMain comp's last ThreatBig is its own (another comp's ThreatBig resets the game's one clock), its space-layer factors are
-left out, every non-trader category counts as always drawable (#3909 Q2 B), and the Tag pool's `PlayerAcquirable` reads only `destroyOnDrop` (a def requiring a faction absent
+the category draws condition on observed gates, weights, danger and population intent (#3909 Q3, `minRefireDays` among the gates); the [joint local incident process](forecast-contracts.md#conditional-local-incident-process) names the no-external-incidents and successful-spatial-execution conditions and possible trade overestimate; the Tag pool's `PlayerAcquirable` reads only `destroyOnDrop` (a def requiring a faction absent
 from the world stays in the pool).
 
 ## Mirrored game rules: food hauling (#3849)

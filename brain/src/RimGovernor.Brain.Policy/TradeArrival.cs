@@ -74,24 +74,16 @@ public enum TradeDrawRule
 }
 
 /// <summary>
-/// One category a category comp draws, at its weight (RandomMain's categoryWeights; 1 for the one category of the others).
-/// <see cref="Trader"/>: it holds a trader incident, so the decoder reads its incidents' usability exactly (#3909 Q2 B); any other
-/// category counts as always drawable.
+/// A category identity used to join trader incidents to their native comp observations.
 /// </summary>
-public sealed record TradeCategoryWeight(string Category, double Weight, bool Trader);
+public sealed record TradeCategoryWeight(string Category, bool Trader);
 
 /// <summary>
-/// A comp's draw of an incident from categories (#3909): <see cref="Categories"/> other than ThreatBig, whose RandomMain weight is
-/// <see cref="ThreatBigWeight"/> (forced after <see cref="MaxThreatBigIntervalDays"/> since the last), and the comp's
-/// minIncChancePopulationIntentFactor (<see cref="MinPopulationIntentFactor"/>, IncidentChanceFactor_PopulationIntent's floor).
+/// A comp's trader categories and population-intent weight floor. RandomMain probabilities come from the observed interval process.
 /// </summary>
 public sealed record TradeCategoryDraw(TradeDrawRule Rule)
 {
     public EquatableArray<TradeCategoryWeight> Categories { get; init; }
-
-    public double ThreatBigWeight { get; init; }
-
-    public double MaxThreatBigIntervalDays { get; init; }
 
     public double MinPopulationIntentFactor { get; init; }
 }
@@ -338,6 +330,74 @@ public sealed record TraderOffer
 /// </summary>
 public sealed record TraderKindStock
 {
+    /// <summary>One visit carries enough of at least one requested alternative. Shared generator choices are drawn once.</summary>
+    internal double SuppliesAny(IReadOnlyList<Resource> requested, long count)
+    {
+        var resources = requested.Distinct().Where(r => Offers.TryGetValue(r, out var offer) && offer.MaxCount >= count).ToArray();
+        if (resources.Length == 0) return 0;
+        if (resources.Length == 1) return Offers[resources[0]].AtLeast(count);
+        var n = checked((int)count);
+        var zero = EquatableArray.From(Enumerable.Repeat(0, resources.Length));
+        var distribution = new Dictionary<EquatableArray<int>, double> { [zero] = 1 };
+        foreach (var group in resources.SelectMany((resource, index) => Offers[resource].Draws.Select(draw => (Index: index, Draw: draw))).GroupBy(r => r.Draw.Generator))
+        {
+            var candidates = group.ToArray();
+            var law = candidates[0].Draw;
+            var generator = new Dictionary<EquatableArray<int>, double>();
+            void Choose(int item, List<int> picked, double probability)
+            {
+                if (item < candidates.Length)
+                {
+                    Choose(item + 1, picked, probability);
+                    picked.Add(item);
+                    Choose(item + 1, picked, probability);
+                    picked.RemoveAt(picked.Count - 1);
+                    return;
+                }
+                var excluded = Enumerable.Range(0, candidates.Length).Except(picked).ToArray();
+                double Exact(int at, List<StockDraw> selected, double sign)
+                {
+                    if (at == excluded.Length) return sign * PickedTogether(law, selected);
+                    var sum = Exact(at + 1, selected, sign);
+                    selected.Add(candidates[excluded[at]].Draw);
+                    sum += Exact(at + 1, selected, -sign);
+                    selected.RemoveAt(selected.Count - 1);
+                    return sum;
+                }
+                var chance = Exact(0, picked.Select(p => candidates[p].Draw).ToList(), 1);
+                var counts = new int[resources.Length];
+                void Counts(int at, double mass)
+                {
+                    if (at == picked.Count)
+                    {
+                        var key = EquatableArray.From(counts);
+                        generator[key] = generator.GetValueOrDefault(key) + mass;
+                        return;
+                    }
+                    var candidate = candidates[picked[at]];
+                    var values = candidate.Draw.Counts(n);
+                    for (var c = 0; c <= n; c++)
+                    {
+                        if (!(values[c] > 0)) continue;
+                        counts[candidate.Index] = c;
+                        Counts(at + 1, mass * values[c]);
+                    }
+                    counts[candidate.Index] = 0;
+                }
+                if (chance > 0) Counts(0, chance * probability);
+            }
+            Choose(0, [], 1);
+            var next = new Dictionary<EquatableArray<int>, double>();
+            foreach (var held in distribution)
+                foreach (var incoming in generator)
+                {
+                    var key = EquatableArray.From(Enumerable.Range(0, resources.Length).Select(i => Math.Min(n, held.Key[i] + incoming.Key[i])));
+                    next[key] = next.GetValueOrDefault(key) + held.Value * incoming.Value;
+                }
+            distribution = next;
+        }
+        return distribution.Where(p => p.Key.Any(c => c >= n)).Sum(p => p.Value);
+    }
     /// <summary>One deterministic held-stock draw, shared by settlement previews and present trader visits.</summary>
     public static TraderKindStock Held(IEnumerable<SettlementStockItem> stock, string read)
     {
@@ -444,6 +504,19 @@ public sealed record TradeKindChance(double Chance, TraderOffer Offer)
 /// </summary>
 public sealed record TradeSource(Resource Resource, double From, double VisitsPerDay)
 {
+    internal static double SuppliesAny(IReadOnlyList<TradeSource> sources, long count)
+    {
+        if (sources.Count == 1) return sources[0].Supplies(count);
+        IEqualityComparer<TraderKindStock> identity = ReferenceEqualityComparer.Instance;
+        foreach (var source in sources)
+            foreach (var kind in source.Kinds)
+                if (kind.Offer.Unread.Length != 0) throw new RequiredFactException(kind.Offer.Unread);
+        var kinds = sources.Where(source => source.CanPurchase).SelectMany(source => source.Kinds.Where(kind => count <= source.Authorized
+                && count * UnitPrice(kind.Offer.UnitValue, source.PriceFactor) <= source.Silver - kind.MedicineSilverClaim)
+            .Select(kind => (Source: source, Kind: kind)));
+        return kinds.GroupBy(k => k.Kind.Stock ?? throw new RequiredFactException("joint_trade_kind_stock"), identity)
+            .Sum(group => group.First().Kind.Chance * group.Key.SuppliesAny(group.Select(k => k.Source.Resource).Distinct().ToArray(), count));
+    }
     public IncidentTiming Timing { get; init; } = new IncidentTiming.Mtb();
 
     public EquatableArray<TradeKindChance> Kinds { get; init; }
@@ -492,11 +565,18 @@ public sealed record TradeSource(Resource Resource, double From, double VisitsPe
     }
 
     /// <summary>The rate a day at which visits supply <paramref name="count"/> units.</summary>
-    public double Rate(long count) => Once || Timing is IncidentTiming.Scheduled ? 0 : VisitsPerDay * Supplies(count);
+    public double Rate(long count) => Once || Timing is not IncidentTiming.Mtb ? 0 : VisitsPerDay * Supplies(count);
 
     /// <summary>Native visit dates on this want's timeline. Earlier native visits cannot satisfy a later want.</summary>
     public IEnumerable<double> Dates(double through)
     {
+        if (Timing is IncidentTiming.Process process)
+        {
+            foreach (var day in process.Program.Dates)
+                if (day >= process.OriginDay && day - process.OriginDay >= From && day - process.OriginDay < through)
+                    yield return day - process.OriginDay;
+            yield break;
+        }
         if (Timing is not IncidentTiming.Scheduled timed) yield break;
         foreach (var day in IncidentTiming.Covered(timed.Cycle, through + timed.OriginDay))
             if (day >= Math.Max(timed.From, timed.OriginDay) && day < timed.Until && day - timed.OriginDay >= From && day - timed.OriginDay <= through)
@@ -505,6 +585,8 @@ public sealed record TradeSource(Resource Resource, double From, double VisitsPe
 
     /// <summary>The chance stock has not arrived: an MTB exponential, discrete native visit misses, or one selected delivery.</summary>
     public double NotArrived(long count, double t) => count <= 0 ? 0 : Once ? t < From ? 1 : 1 - Supplies(count)
+        : Timing is IncidentTiming.Process process ? process.Program.NotArrived(process.OriginDay, t,
+            new Dictionary<(int Comp, string Incident), double> { [(process.CompIndex, process.Incident)] = Supplies(count) })
         : Timing is IncidentTiming.Scheduled timed ? Math.Pow(1 - timed.Chance * Supplies(count), Dates(t).Count())
         : t <= From ? 1 : Math.Exp(-Rate(count) * (t - From));
 }
@@ -575,9 +657,15 @@ public static class TradeArrivalRules
 
         var priceFactor = (1 + facts.PriceFactorLoss) * (1 - facts.NegotiatorPriceImprovement);
         var sources = new List<TradeSource>();
+        var process = facts.Clock is not null || storyteller.Comps.Any(c => c.Draw?.Rule == TradeDrawRule.RandomMain)
+            ? new RandomMainProcess(facts, schedule.PopulationChanceByIntent) : null;
+        if (process is not null) findings.UnionWith(RandomMainProcess.Conditions);
         foreach (var comp in storyteller.Comps)
         {
-            var (chances, unread) = IncidentChances(schedule, comp, reads, facts);
+            var random = process?.Contains(comp.CompIndex) == true;
+            var (chances, unread) = random
+                ? ((IReadOnlyList<(string Incident, double Chance)>)[.. schedule.Incidents.Where(i => comp.Draw is { } draw ? draw.Categories.Any(c => c.Trader && c.Category == i.Value.Category) : i.Key == comp.Incident).Select(i => (i.Key, 1.0))], "")
+                : IncidentChances(schedule, comp, reads, facts);
             if (unread.Length != 0)
             {
                 return ([], [], unread);
@@ -615,6 +703,12 @@ public static class TradeArrivalRules
                 }
 
                 var kinds = KindChances(incident, read);
+                if (random && incident.Worker == TradeWorker.Orbital)
+                {
+                    var success = 1 - read.Sources.SelectMany(s => s.Kinds).Where(k => k.Weight > 0)
+                        .Aggregate(1.0, (none, kind) => none * (1 - kind.Qualifies));
+                    if (success > 0) kinds = kinds.ToDictionary(k => k.Key, k => k.Value / success, StringComparer.Ordinal);
+                }
                 if (kinds.Count == 0)
                 {
                     findings.Add(NoTraderKind + ":" + name);
@@ -652,7 +746,8 @@ public static class TradeArrivalRules
 
                 foreach (var (resource, list) in offers.OrderBy(o => o.Key.Value, StringComparer.Ordinal))
                 {
-                    var timing = comp.Rate == TradeCompRate.Mtb ? (IncidentTiming)new IncidentTiming.Mtb()
+                    var timing = random ? (IncidentTiming)new IncidentTiming.Process(process!, comp.CompIndex, name)
+                        : comp.Rate == TradeCompRate.Mtb ? new IncidentTiming.Mtb()
                         : new IncidentTiming.Scheduled(IncidentTiming.RequireCycle(cycles, comp.CompIndex), chance) { From = from };
                     sources.Add(new TradeSource(resource, from, perDay * chance) { Timing = timing, Kinds = EquatableArray.From(list), PriceFactor = priceFactor, Silver = incident.Worker == TradeWorker.Orbital ? orbitalSilver : silver });
                 }
@@ -663,13 +758,7 @@ public static class TradeArrivalRules
     }
 
     /// <summary>
-    /// The chance each event of <paramref name="comp"/> is each incident (#3909), at today's facts (#3909 Q3). A comp of one incident
-    /// sends it. A category comp draws as its class does: a trader category's incident is usable when it is not blocked, its
-    /// earliestDay has come by the comp's start or today, and its IncidentChanceFinal (the read weight × the population-intent factor)
-    /// is above 0; any other category counts as always drawable (#3909 Q2 B). RandomMain draws ThreatBig with its long-run fraction
-    /// (<see cref="ThreatBigFraction"/>) and each other category by its weight over the usable categories' weight, then
-    /// TrySelectRandomIncident; CategoryMTB TrySelectRandomIncident of its category; an OnOffCycle by category the usable incidents by
-    /// weight.
+    /// The incident draw of category or fixed-incident comps without a native interval observation. RandomMain requires its joint process.
     /// </summary>
     internal static (IReadOnlyList<(string Incident, double Chance)> Chances, string Unread) IncidentChances(TradeScheduleTable schedule, TradeVisitComp comp,
         IReadOnlyDictionary<string, TraderIncidentRead> reads, TradeVisitFacts facts)
@@ -710,24 +799,7 @@ public static class TradeArrivalRules
         switch (draw.Rule)
         {
             case TradeDrawRule.RandomMain:
-            {
-                var drawable = draw.Categories.Where(c => !c.Trader || usable[c.Category].Count > 0).ToList();
-                var others = drawable.Sum(c => Math.Max(0, c.Weight));
-                var threatBig = Math.Max(0, draw.ThreatBigWeight);
-                if (!(others > 0))
-                {
-                    break;
-                }
-
-                var notThreatBig = 1 - ThreatBigFraction(threatBig / (threatBig + others), comp.IncidentsPerDay, draw.MaxThreatBigIntervalDays);
-                foreach (var category in drawable.Where(c => c.Trader && c.Weight > 0))
-                {
-                    chances.AddRange(SelectRandomIncident([.. usable[category.Category].Select(i => (i.Incident, i.Def.ChangesPopulation, i.Weight))], facts.PopulationIntent, schedule.PopulationChanceByIntent)
-                        .Select(i => (i.Incident, notThreatBig * category.Weight / others * i.Chance)));
-                }
-
-                break;
-            }
+                throw new RequiredFactException("incident_clock_unobserved");
 
             case TradeDrawRule.CategoryMtb:
                 foreach (var category in draw.Categories.Where(c => c.Trader))
@@ -747,20 +819,6 @@ public static class TradeArrivalRules
         }
 
         return (chances, "");
-    }
-
-    /// <summary>
-    /// The long-run fraction of a RandomMain comp's events that are ThreatBig: a renewal from each ThreatBig, whose events before
-    /// <paramref name="maxIntervalDays"/> are ThreatBig with <paramref name="share"/> (its weight over the usable weight) and whose
-    /// first event after is forced ThreatBig. At <paramref name="eventsPerDay"/> λ and share p the cycle holds
-    /// 1 + (1 − p)(1 − e^(−λpM)) ÷ p events (1 + λM at p = 0), one of them ThreatBig.
-    /// </summary>
-    internal static double ThreatBigFraction(double share, double eventsPerDay, double maxIntervalDays)
-    {
-        var events = share > 0
-            ? 1 + ((1 - share) * -double.ExpM1(-eventsPerDay * share * maxIntervalDays) / share)
-            : 1 + (eventsPerDay * maxIntervalDays);
-        return 1 / events;
     }
 
     /// <summary>

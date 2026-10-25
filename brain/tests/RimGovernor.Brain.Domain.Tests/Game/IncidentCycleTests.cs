@@ -164,6 +164,26 @@ public sealed class IncidentCycleTests
                 Min = g.numIncidentsRange.min * factor, Max = g.numIncidentsRange.max * factor,
             }, 17, 23, (int)(facts.DaysPassed * 60000), horizon));
         }
-        return facts with { Cycles = [.. rows] };
+        var mains = teller.comps.Select((comp, index) => (Comp: comp as StorytellerCompProperties_RandomMain, Index: index))
+            .Where(c => c.Comp != null && decoded.RandomMains.Contains(c.Index)).ToArray();
+        if (mains.Length == 0) return facts with { Cycles = [.. rows] };
+        var now = (int)(facts.DaysPassed * 60000) + 1;
+        return facts with
+        {
+            Cycles = [.. rows],
+            Trade = facts.Trade with
+            {
+                DaysSinceSettle = facts.DaysPassed,
+                Clock = new(now, now, now, horizon, EquatableArray.From(mains.Select(c => new RandomMainIntervalRead(c.Index,
+                    c.Comp!.minDaysPassed, 1000.0 / (c.Comp.mtbDays * 60000),
+                    c.Comp.maxThreatBigIntervalDays * 60000f >= int.MaxValue ? int.MaxValue : (int)(c.Comp.maxThreatBigIntervalDays * 60000f), 0))), []),
+                Categories = EquatableArray.From(mains.SelectMany(c => c.Comp!.categoryWeights.Select(entry =>
+                    new IncidentCategoryRead(c.Index, entry.category.defName,
+                        entry.category == ThreatScheduleTests.ThreatBig
+                            ? [new(1, [new("Raid", 1, false) { Raid = true }, new("OtherBig", 1, false)])]
+                            : [new(1, [new(entry.category.defName + "Incident", 1, false)])])
+                    { Weight = entry.weight, ThreatBig = entry.category == ThreatScheduleTests.ThreatBig }))),
+            },
+        };
     }
 }

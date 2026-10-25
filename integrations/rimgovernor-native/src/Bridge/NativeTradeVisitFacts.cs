@@ -7,7 +7,7 @@ namespace RimGovernor.Native;
 
 /// <summary>
 /// The colony facts of trader visits as a stock-arrival source (#3869, #3909), read without changing game state: never
-/// IncidentWorker.CanFireNow (it caches its result per tick) nor an incident's TryExecute. The gates mirror IncidentWorker.CanFireNow
+/// an incident's TryExecute. Category eligibility uses detached workers so CanFireNow cannot change live tick caches. Trade gates mirror IncidentWorker.CanFireNow
 /// and the workers' CanFireNowSub over public members; the trader kind weights mirror
 /// IncidentWorker_TraderCaravanArrival.TraderKindCommonality (protected) and IncidentWorker_OrbitalTraderArrival.CanSpawn (private),
 /// and an incident's weight StorytellerComp.IncidentChanceFinal (protected) but its population-intent factor.
@@ -17,9 +17,10 @@ internal static class NativeTradeVisitFacts
     // IncidentWorker_OrbitalTraderArrival.MaxShips (private const): CanFireNowSub fails at this many passing ships.
     private const int MaxShips = 5;
 
-    internal static RimGovernor.Brain.GameFacts.Observations.TradeVisitFacts Read(Map map)
+    internal static RimGovernor.Brain.GameFacts.Observations.TradeVisitFacts Read(Map map, double incidentHorizonDays)
     {
         var difficulty = Find.Storyteller.difficulty;
+        var categories = IncidentCategoryReader.Read(map).ToArray();
         var negotiators = map.mapPawns.FreeColonistsSpawned
             .Where(p => NativeTradeObservation.EligibleNegotiator(p) && p.health.capacities.CapableOf(PawnCapacityDefOf.Talking)).ToList();
         // The exact worker classes the trader decoder models (Catalog/Storyteller.cs): their gates are mirrored here.
@@ -29,6 +30,8 @@ internal static class NativeTradeVisitFacts
                 || d.workerClass == typeof(IncidentWorker_CaravanArrivalTributeCollector))
             .OrderBy(d => d.defName, System.StringComparer.Ordinal);
         return new RimGovernor.Brain.GameFacts.Observations.TradeVisitFacts {
+            Categories = [.. categories],
+            Clock = NativeStorytellerFacts.IncidentClock(map, incidentHorizonDays, categories),
             Danger = map.dangerWatcher.DangerRating switch { StoryDanger.High => RimGovernor.Brain.GameFacts.Observations.StoryDangerLevel.High, StoryDanger.Low => RimGovernor.Brain.GameFacts.Observations.StoryDangerLevel.Low, _ => RimGovernor.Brain.GameFacts.Observations.StoryDangerLevel.None },
             PopulationIntent = StorytellerUtilityPopulation.PopulationIntent,
             AllyFraction = StorytellerUtility.AllyIncidentFraction(fullAlliesOnly: false),
@@ -55,7 +58,7 @@ internal static class NativeTradeVisitFacts
         {
             if (map.passingShipManager.passingShips.Count >= MaxShips) blocked.Add("ships_full");
             var kinds = DefDatabase<TraderKindDef>.AllDefsListForReading.Where(k => k.orbital)
-                .Select(k => new RimGovernor.Brain.GameFacts.Observations.TraderKindWeight(k.defName, k.CalculatedCommonality) { Qualifies = Qualifies(map, k) }).Where(k => k.Weight > 0 && k.Qualifies > 0)
+                .Select(k => new RimGovernor.Brain.GameFacts.Observations.TraderKindWeight(k.defName, k.CalculatedCommonality) { Qualifies = IncidentCategoryReader.TradeKindQualifies(map, k) }).Where(k => k.Weight > 0 && k.Qualifies > 0)
                 .OrderBy(k => k.Kind, System.StringComparer.Ordinal).ToList();
             // No kind that can spawn fails TryExecuteWorker, not CanFireNow: the incident still takes its share of a category draw.
             sources.Add(new RimGovernor.Brain.GameFacts.Observations.TraderSourceRead { Kinds = [.. kinds] });
@@ -159,15 +162,4 @@ internal static class NativeTradeVisitFacts
         return kind.CalculatedCommonality;
     }
 
-    // IncidentWorker_OrbitalTraderArrival.CanSpawn (an orbital kind, of no faction or of the faction GetFaction draws if some free
-    // colonist can trade with it) and TradeShip.CanCommunicateWith (the ship's own faction, drawn again by GetFaction, must be one the
-    // negotiator can trade with): each draw picks one of the def's factions at random, so each passes with the share of them that
-    // qualify (0 for a def with no faction, 1 for a kind of no faction).
-    private static double Qualifies(Map map, TraderKindDef kind)
-    {
-        if (kind.faction == null) return 1;
-        var factions = Find.FactionManager.AllFactions.Where(f => f.def == kind.faction).ToList();
-        if (factions.Count == 0) return 0;
-        return factions.Count(f => map.mapPawns.FreeColonists.Any(p => p.CanTradeWith(f, kind).Accepted)) / (double)factions.Count;
-    }
 }

@@ -41,6 +41,7 @@ public sealed partial class DefinitionCatalog
     private P.ThreatScheduleTable BuildThreatSchedule() => new()
     {
         Storytellers = Rows<StorytellerDef>().ToDictionary(row => row.Key, row => StorytellerThreats(row.Value), StringComparer.Ordinal),
+        PopulationChanceByIntent = CurvePoints(StorytellerComp.IncreasesPopChanceByPopIntentCurve),
     };
 
     private P.StorytellerThreats StorytellerThreats(StorytellerDef def)
@@ -48,6 +49,7 @@ public sealed partial class DefinitionCatalog
         const string big = nameof(IncidentCategoryDefOf.ThreatBig);
         List<P.ThreatCycleComp> cycles = [];
         List<P.ThreatMtbComp> mtbs = [];
+        List<int> randomMains = [];
         List<P.ThreatGeneratorComp> generators = [];
         List<P.ThreatBiomeComp> biomes = [];
         SortedSet<string> unmodelled = new(StringComparer.Ordinal);
@@ -91,10 +93,7 @@ public sealed partial class DefinitionCatalog
                     });
                     break;
                 case StorytellerCompProperties_RandomMain random when kind == nameof(StorytellerCompProperties_RandomMain):
-                    var weights = random.categoryWeights.Seq().Where(e => e.category is not null).ToList();
-                    var total = weights.Sum(e => (double)e.weight);
-                    var share = weights.Where(e => e.category.defName == big).Sum(e => (double)e.weight);
-                    mtbs.Add(new P.ThreatMtbComp(Decimal32(random.minDaysPassed), Decimal32(random.mtbDays), total > 0 ? share / total : 0));
+                    randomMains.Add(def.comps.IndexOf(random));
                     break;
                 case StorytellerCompProperties_CategoryMTB mtb when kind == nameof(StorytellerCompProperties_CategoryMTB):
                     if (mtb.category?.defName == big)
@@ -136,7 +135,7 @@ public sealed partial class DefinitionCatalog
             }
         }
 
-        return new P.StorytellerThreats { Cycles = cycles, Mtbs = mtbs, Generators = generators, Biomes = biomes, Unmodelled = [.. unmodelled] };
+        return new P.StorytellerThreats { Cycles = cycles, Mtbs = mtbs, RandomMains = randomMains, Generators = generators, Biomes = biomes, Unmodelled = [.. unmodelled] };
     }
 
     // An OnOffCycle comp's cycle with its accept curves (days passed, threat points, progress score) and tree-connector days.
@@ -211,14 +210,12 @@ public sealed partial class DefinitionCatalog
             }
         }
 
-        // A trader category holds a trader-like incident (an exact trader worker or a subclass of one). It is drawn exactly when every
-        // incident in it is of a modelled worker, its threat points are unbounded (a category comp scales the points it passes) and
-        // the category does not split by the Anomaly chance; otherwise a comp drawing it is named unmodelled.
+        // Native category observations own point ranges, Anomaly branches and non-trader competitors.
+        // This join only requires a supported stock interpretation for each trader-like worker.
         var traderCategories = new Dictionary<string, bool>(StringComparer.Ordinal);
         foreach (var group in incidents.GroupBy(d => d.category.defName, StringComparer.Ordinal).Where(g => g.Any(d => TraderLike(d.workerClass))))
         {
-            traderCategories[group.Key] = !group.First().category.canUseAnomalyChance && group.All(d => modelled.ContainsKey(d.defName)
-                && d.minThreatPoints == float.MinValue && d.maxThreatPoints == float.MaxValue);
+            traderCategories[group.Key] = group.Where(d => TraderLike(d.workerClass)).All(d => modelled.ContainsKey(d.defName));
         }
 
         return new P.TradeScheduleTable
@@ -309,13 +306,12 @@ public sealed partial class DefinitionCatalog
 
                     comps.Add(new P.TradeVisitComp(P.TradeCompRate.Mtb, Decimal32(random.minDaysPassed))
                     {
+                        CompIndex = def.comps.IndexOf(random),
                         IncidentsPerDay = 1 / Decimal32(random.mtbDays),
                         Draw = new P.TradeCategoryDraw(P.TradeDrawRule.RandomMain)
                         {
                             Categories = Domain.EquatableArray.From(entries.Where(e => e.category.defName != big)
-                                .Select(e => new P.TradeCategoryWeight(e.category.defName, Decimal32(e.weight), traderCategories.ContainsKey(e.category.defName)))),
-                            ThreatBigWeight = entries.Where(e => e.category.defName == big).Sum(e => Decimal32(e.weight)),
-                            MaxThreatBigIntervalDays = Decimal32(random.maxThreatBigIntervalDays),
+                                .Select(e => new P.TradeCategoryWeight(e.category.defName, traderCategories.ContainsKey(e.category.defName)))),
                             MinPopulationIntentFactor = Decimal32(random.minIncChancePopulationIntentFactor),
                         },
                     });
@@ -374,7 +370,7 @@ public sealed partial class DefinitionCatalog
 
         return new P.TradeCategoryDraw(rule)
         {
-            Categories = [new P.TradeCategoryWeight(category, 1, true)],
+            Categories = [new P.TradeCategoryWeight(category, true)],
             MinPopulationIntentFactor = Decimal32(comp.minIncChancePopulationIntentFactor),
         };
     }

@@ -14,6 +14,9 @@ namespace RimGovernor.Native;
 /// </summary>
 internal static class NativeStorytellerFacts
 {
+    internal static RimGovernor.Brain.GameFacts.Observations.IncidentClockRead IncidentClock(Map map, double horizon,
+        IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.IncidentCategoryRead> categories) =>
+        NativeIncidentClockReader.Read(map, horizon, categories);
     internal static IEnumerable<RimGovernor.Brain.GameFacts.Observations.IncidentCycleTimes> Cycles(Map map, double horizon)
     {
         var points = StorytellerUtility.DefaultThreatPointsNow(map);
@@ -27,8 +30,9 @@ internal static class NativeStorytellerFacts
             var comp = Find.Storyteller.def.comps[index];
             var liveIndex = Find.Storyteller.storytellerComps.FindIndex(c => c.props == comp);
             if (liveIndex < 0) continue;
-            if (comp.disallowedTargetTags?.Contains(IncidentTargetTagDefOf.Map_PlayerHome) == true
-                || comp.allowedTargetTags is { Count: > 0 } tags && !tags.Contains(IncidentTargetTagDefOf.Map_PlayerHome)) continue;
+            var targetTags = map.IncidentTargetTags().ToArray();
+            if (targetTags.Any(tag => comp.disallowedTargetTags?.Contains(tag) == true)
+                || comp.allowedTargetTags is { Count: > 0 } tags && !targetTags.Any(tags.Contains)) continue;
             IncidentCycleReader.Parameters? input = null;
             if (comp.GetType() == typeof(StorytellerCompProperties_OnOffCycle) && comp is StorytellerCompProperties_OnOffCycle cycle)
             {

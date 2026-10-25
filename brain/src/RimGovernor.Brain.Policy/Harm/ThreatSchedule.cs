@@ -66,6 +66,7 @@ public sealed record StorytellerThreats
     public IReadOnlyList<ThreatCycleComp> Cycles { get; init; } = [];
 
     public IReadOnlyList<ThreatMtbComp> Mtbs { get; init; } = [];
+    public IReadOnlyList<int> RandomMains { get; init; } = [];
 
     public IReadOnlyList<ThreatGeneratorComp> Generators { get; init; } = [];
 
@@ -77,6 +78,7 @@ public sealed record StorytellerThreats
 /// <summary>Every storyteller def's threat comps by defName; empty without a catalog (every storyteller is then unread).</summary>
 public sealed record ThreatScheduleTable
 {
+    public IReadOnlyList<(double X, double Y)> PopulationChanceByIntent { get; init; } = [];
     public IReadOnlyDictionary<string, StorytellerThreats> Storytellers { get; init; } = new Dictionary<string, StorytellerThreats>();
 }
 
@@ -127,6 +129,23 @@ public sealed record ThreatSchedule
         var flat = days < RaidsForcedBeforeDays ? 1.0 : RaidFractionAfterForced;
         double perDay = 0, raids = 0, defaultRaids = 0;
         var generatedRaids = new List<ScheduledRaid>();
+        if (threats.RandomMains.Count > 0)
+        {
+            var process = new RandomMainProcess(threat.Trade, table.PopulationChanceByIntent);
+            var horizon = threat.Trade.Clock!.ThroughDays;
+            foreach (var comp in threats.RandomMains)
+            {
+                if (!process.Contains(comp)) throw new RequiredFactException("random_main_comp_unobserved:" + comp);
+                foreach (var incident in threat.Trade.Categories.Where(c => c.CompIndex == comp && c.ThreatBig)
+                    .SelectMany(c => c.Outcomes).SelectMany(o => o.Incidents).DistinctBy(i => i.Incident))
+                {
+                    var timing = new IncidentTiming.Process(process, comp, incident.Incident);
+                    var rate = timing.PerDay(0, horizon);
+                    perDay += rate;
+                    if (incident.Raid) { raids += rate; generatedRaids.Add(new(threat.RaidPoints, 0) { Timing = timing }); }
+                }
+            }
+        }
         foreach (var cycle in threats.Cycles)
         {
             var times = IncidentTiming.RequireCycle(threat.Cycles, cycle.CompIndex);
@@ -214,6 +233,7 @@ public sealed record ThreatSchedule
         }
 
         List<string> findings = [];
+        if (threats.RandomMains.Count > 0) findings.AddRange(RandomMainProcess.Conditions);
         if (threats.Unmodelled.Count > 0)
         {
             findings.Add("threat_comp_unmodelled:" + string.Join(",", threats.Unmodelled));
@@ -224,7 +244,7 @@ public sealed record ThreatSchedule
             Assessed = true,
             MajorThreatsPerDay = perDay,
             RaidFraction = perDay > 0 ? raids / perDay : flat,
-            Raids = generatedRaids.Append(new ScheduledRaid(threat.RaidPoints, defaultRaids)).Where(r => r.Timing is IncidentTiming.Scheduled || r.PerDay > 0).ToArray(),
+            Raids = generatedRaids.Append(new ScheduledRaid(threat.RaidPoints, defaultRaids)).Where(r => r.Timing is not IncidentTiming.Mtb || r.PerDay > 0).ToArray(),
             Findings = findings,
         };
     }
