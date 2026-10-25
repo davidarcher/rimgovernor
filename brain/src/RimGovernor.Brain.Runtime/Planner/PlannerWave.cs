@@ -153,7 +153,7 @@ internal sealed class PlannerWave : IDisposable
             {
                 throw failure;
             }
-        });
+        }, entry.After);
     }
 
     /// <summary>

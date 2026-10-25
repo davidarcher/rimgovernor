@@ -41,7 +41,13 @@ In the ordinary pass a patient's Need first queues a life-saving amputation
 (`amputate-<patient>-<part>-<window>`).
 
 Combat formation leaves the pawns held by these open care orders to their medical
-Method, including across scheduler steps. It also excludes the current step's
+Method, including across scheduler steps. In a wave selecting both planners,
+defense starts after the medical family returns, so a care read still in flight
+cannot claim a pawn between combat's availability read and formation admission.
+The dependency waits outside the planner concurrency limit, including at width
+one. A failed medical run releases the dependency too: defense reads the actual
+claims and forms from the available defenders. A wave that does not select medical
+does not wait for it. It also excludes the current step's
 claimed pawns before selecting fighters and shelter roles. All observed pawn and
 threat facts remain in the combat view for safety decisions. Other available
 defenders can therefore admit a fight while rescue or tending proceeds; a care

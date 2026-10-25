@@ -39,7 +39,6 @@ Runtime/Worker.ArrivalHold.cs|Worker.ResendMoveAsync
 Runtime/Clock/PlannerScheduler.cs|PlannerScheduler.RunPlannerWaveAsync
 Runtime/Colony/ColonyReview.ColonyPlan.cs|ColonyReview.DrawLayoutOverlayAsync
 Runtime/Colony/ColonyReview.ColonyStationAdvice.cs|StationFactsBuilder.StationFactsOf
-Runtime/Planner/PlannerGroup.cs|PlannerGroup.RunQueueAsync
 Runtime/PlannerSnapshot.cs|PlannerRecording.Finish
 Runtime/PlannerSnapshot.cs|PlannerSnapshot.RecordStepRead
 Runtime/Player.cs|Player.Player

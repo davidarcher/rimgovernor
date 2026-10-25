@@ -20,6 +20,9 @@ internal sealed record PlannerEntry
     /// <summary>Says whether the admission cycle waits on the planner: critical for the preempt and critical priority classes, optional for the development reviews.</summary>
     public PlannerClass Class { get; init; }
 
+    /// <summary>Selected planners whose claims must settle before this planner reads its available resources.</summary>
+    public IReadOnlyList<string> After { get; init; } = [];
+
     /// <summary>The action kinds the planner dispatches (or, where commented on its entry, deliberately waits on). A terminal outcome of one of these kinds is the planner's own work completing, so a wake carrying it re-runs the planner (and only planners of that kind).</summary>
     public IReadOnlyList<ActionKind> Kinds { get; init; } = [];
 
@@ -181,7 +184,8 @@ internal static class PlannerCatalog
     public static readonly IReadOnlyList<PlannerEntry> Entries =
     [
         E(PlannerScheduler.DefensePlanner, C, [ActionKind.OwnedDraft, ActionKind.Subdue, ActionKind.Ability], SectionsThreat,
-            c => c.Defense is not null, (s, ct, e, a) => s.Config.Defense!.StepAsync(a, ct, e), (o, m) => o.Defense = m, immediate: true),
+            c => c.Defense is not null, (s, ct, e, a) => s.Config.Defense!.StepAsync(a, ct, e), (o, m) => o.Defense = m, immediate: true)
+            with { After = [MedicalRules.MedicalFamilyId] },
     ];
 
     /// <summary>

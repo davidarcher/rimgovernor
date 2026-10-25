@@ -31,8 +31,8 @@ internal enum CriticalWait
 /// </summary>
 /// <remarks>
 /// <see cref="Go"/> only queues; <see cref="Start"/> runs the queue critical class first, then in queue order
-/// with at most <c>width</c> planners at once, taking a slot before the next
-/// planner starts. Native reads execute one at a time on the game's main thread, so the wave overlaps round
+/// with at most <c>width</c> planners at once. A planner waits for its selected prerequisites before taking a
+/// slot; independent planners take slots in queue order. Native reads execute one at a time on the game's main thread, so the wave overlaps round
 /// trips, and the order slots are taken decides which goals' reads go first when the step budget is tight.
 /// <see cref="WaitCriticalAsync"/> returns once every critical planner has returned; <see cref="WaitUntilAsync"/>
 /// joins the rest up to a cutoff.
@@ -42,7 +42,7 @@ internal sealed class PlannerGroup
     /// <summary>Bounds how many planners a step runs at once. It matches the bridge's in-flight call cap so admission order, not gate queueing, decides whose native reads go first.</summary>
     public static int PlannerWidth => CombatCalls.MaxConcurrentCalls;
 
-    private sealed record QueuedPlanner(string Name, PlannerClass Class, Func<Task> Run);
+    private sealed record QueuedPlanner(string Name, PlannerClass Class, Func<Task> Run, IReadOnlyList<string> After);
 
     private readonly CancellationToken _ctx;
     private readonly int _width;
@@ -57,6 +57,7 @@ internal sealed class PlannerGroup
     // critical ones among them and _critical completes when it reaches zero.
     private readonly List<string> _names = [];
     private readonly HashSet<string> _pending = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, TaskCompletionSource> _done = new(StringComparer.Ordinal);
     private int _criticalLeft;
     private bool _started;
 
@@ -70,10 +71,12 @@ internal sealed class PlannerGroup
     /// <summary>
     /// Queues <paramref name="fn"/> as the named planner of <paramref name="cls"/>.
     /// Each fn wraps its planner's error with the planner's name, so a recorded failure names its source.
+    /// <paramref name="after"/> names selected runs whose claims must settle first, even if they fail.
     /// </summary>
-    public void Go(string name, PlannerClass cls, Func<Task> fn)
+    public void Go(string name, PlannerClass cls, Func<Task> fn, IReadOnlyList<string>? after = null)
     {
-        _queued.Add(new QueuedPlanner(name, cls, fn));
+        _queued.Add(new QueuedPlanner(name, cls, fn, after ?? []));
+        _done.Add(name, new(TaskCreationOptions.RunContinuationsAsynchronously));
         _names.Add(name);
         _pending.Add(name);
         if (cls == PlannerClass.Critical)
@@ -83,8 +86,8 @@ internal sealed class PlannerGroup
     }
 
     /// <summary>
-    /// Runs the queue in the background: critical planners first, then in queue order, each taking a slot before the
-    /// next starts. A planner queued behind a finished step context is skipped, not run.
+    /// Runs the queue in the background: critical planners first, then in queue order, subject to their selected
+    /// prerequisites. A planner queued behind a finished step context is skipped, not run.
     /// </summary>
     public void Start()
     {
@@ -113,49 +116,45 @@ internal sealed class PlannerGroup
     {
         using var slots = new SemaphoreSlim(_width, _width);
         var running = new List<Task>();
-        for (var i = 0; i < ordered.Count; i++)
+        foreach (var planner in ordered)
         {
-            try
-            {
-                await slots.WaitAsync(_ctx).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                // the step context ended before a slot came free
-            }
-            if (_ctx.IsCancellationRequested)
-            {
-                for (var j = i; j < ordered.Count; j++)
-                {
-                    Finish(ordered[j], null);
-                }
-                break;
-            }
-            var planner = ordered[i];
-            running.Add(Task.Run(async () =>
-            {
-                try
-                {
-                    Exception? error = null;
-                    try
-                    {
-                        await planner.Run().ConfigureAwait(false);
-                    }
-                    catch (Exception e)
-                    {
-                        error = e;
-                    }
-                    Finish(planner, error);
-                }
-                finally
-                {
-                    slots.Release();
-                }
-            }));
+            running.Add(RunPlannerAsync(planner, slots));
         }
         await Task.WhenAll(running).ConfigureAwait(false);
         _all.TrySetResult();
         _contextRegistration.Dispose();
+    }
+
+    private async Task RunPlannerAsync(QueuedPlanner planner, SemaphoreSlim slots)
+    {
+        var entered = false;
+        Exception? error = null;
+        try
+        {
+            // A dependency waits outside the width limit: defense is queued before medical, and must not
+            // occupy the last slot while waiting for medical's claim to settle. Unselected owners have no run.
+            await Task.WhenAll(planner.After.Where(_done.ContainsKey).Select(name => _done[name].Task)).WaitAsync(_ctx).ConfigureAwait(false);
+            await slots.WaitAsync(_ctx).ConfigureAwait(false);
+            entered = true;
+            await Task.Run(planner.Run, _ctx).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (_ctx.IsCancellationRequested)
+        {
+            // The step ended before this planner could finish or take a slot.
+            return;
+        }
+        catch (Exception e)
+        {
+            error = e;
+        }
+        finally
+        {
+            Finish(planner, error);
+            if (entered)
+            {
+                slots.Release();
+            }
+        }
     }
 
     /// <summary>Records a planner's return (or skip) and releases the waiters it was the last of.</summary>
@@ -168,6 +167,7 @@ internal sealed class PlannerGroup
                 _failures.Add(error);
             }
             _pending.Remove(planner.Name);
+            _done[planner.Name].TrySetResult();
             if (planner.Class == PlannerClass.Critical && --_criticalLeft == 0)
             {
                 _critical.TrySetResult();
