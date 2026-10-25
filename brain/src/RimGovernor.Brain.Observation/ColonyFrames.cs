@@ -102,23 +102,22 @@ public static class ColonyFramesReads
         }
     }
     /// <summary>
-    /// Decodes the colony read's corpse census (its embedded WasteReply) into the rows MorgueWaiting and the
-    /// tomb census read. A missing observed snapshot, or a row whose corpse the frame's entity table does not
-    /// hold, stays unknown.
+    /// Decodes the total corpse census into the rows MorgueWaiting and the tomb census read.
+    /// An absent census or a corpse missing from the frame's entity table is a contract failure.
     /// </summary>
-    internal static Fact<EquatableArray<WasteItem>> ColonyWaste(O.ColonyFactsSnapshot v, Tables tables)
+    internal static EquatableArray<WasteItem> ColonyWaste(O.ColonyFactsSnapshot v, Tables tables)
     {
-        var snapshot = v.Waste?.Outcome;
-        if (snapshot is null || !ColonyDecodeReads.Headed(tables, snapshot.Items, row => row.Thing))
-        {
-            return Unknown<EquatableArray<WasteItem>>();
-        }
+        var snapshot = v.Waste ?? throw new BridgeContractException("waste census is absent");
         var items = new List<WasteItem>(snapshot.Items.Count);
         foreach (var row in snapshot.Items)
         {
+            if (tables.Entity(row.Thing) is null)
+            {
+                throw new BridgeContractException($"waste corpse {row.Thing.Id}: the frame holds no row for it");
+            }
             items.Add(new WasteItem { CorpseOf = (CorpseOf)row.CorpseClass, Grave = row.Grave?.Id ?? "" });
         }
-        return Known(EquatableArray.From(items));
+        return EquatableArray.From(items);
     }
 
     /// <summary>

@@ -42,7 +42,7 @@ public sealed class ColonyFactsCoreTests
         Development = new() { Outcome = new() { ShortCircuit = new ObservedShortCircuit.NoneSeen() } },
         Planning = new Planning.NotRequested(),
         Recovery = new() { Restrictions = [], Buildings = [] },
-        Waste = new(),
+        Waste = new() { Items = [] },
         PlayerTechLevel = Defs.TechLevel.Neolithic,
         Threat = new() { Observed = QuietThreat },
         EventLoot = new(),

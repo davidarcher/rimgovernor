@@ -185,19 +185,19 @@ public static partial class TombRules
 
     /// <summary>
     /// The review's tomb deficit: true while a tomb step is due. Raises <see cref="RequiredFactException"/> while the
-    /// waste census, the current construction, the layout plan or the sarcophagus availability the step reads is unread.
+    /// current construction, the layout plan or the sarcophagus availability the step reads is unread.
     /// </summary>
     public static bool TombOwed(
         PieceShapes shapes,
         Fact<bool> available,
         LayoutPlan? plan,
-        Fact<EquatableArray<WasteItem>> waste,
+        EquatableArray<WasteItem> waste,
         CurrentConstruction? built
     )
     {
-        if (!waste.TryGetValue(out var w) || built is not { } b)
+        if (built is not { } b)
         {
-            throw new RequiredFactException("waste census or current construction");
+            throw new RequiredFactException("current construction");
         }
         if (plan is not { } p)
         {
@@ -207,6 +207,6 @@ public static partial class TombRules
         {
             throw new RequiredFactException("sarcophagus availability");
         }
-        return NextTombStep(p, w, b.Buildings, shapes, a).Kind != TombStepKind.None;
+        return NextTombStep(p, waste, b.Buildings, shapes, a).Kind != TombStepKind.None;
     }
 }

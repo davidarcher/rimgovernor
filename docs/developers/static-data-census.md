@@ -488,7 +488,6 @@ Kept, reason recorded:
 | HusbandryReply | message | 967 | 3 | state | Reply envelope (observed, absent when the read failed) |  |  |
 | WasteItem | message | 969 | 3 | state | Corpse census row (class, grave) |  |  |
 | WasteSnapshot | message | 975 | 2 | state | Waste items |  |  |
-| WasteReply | message | 976 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | RecoveryRestriction | message | 977 | 4 | state | Recovery area restriction/lease on a pawn |  |  |
 | RecoverySnapshot | message | 978 | 3 | state | Recovery restrictions and buildings |  |  |
 | RecoveryReply | message | 980 | 3 | state | Reply envelope (observed, absent when the read failed) |  |  |

@@ -309,7 +309,7 @@ namespace HomeBridge.BridgeTools
                     resourcesOffMs = System.Math.Round(offMs, 1), resourcesOnMs = System.Math.Round(onMs, 1), offBytes = offBytes.Length, onBytes = onBytes.Length,
                     upkeepItems = upkeep.Items.Count, upkeepStructures = upkeep.Structures.Count,
                     upkeepBeds = upkeep.Beds.Count,
-                    wasteRows = on.Waste?.Outcome?.Items.Count ?? 0 };
+                    wasteRows = on.Waste.Items.Count };
             }
         }
 

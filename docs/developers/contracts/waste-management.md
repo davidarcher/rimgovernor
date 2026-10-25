@@ -9,8 +9,11 @@ The waste census is a native corpse read the observation layer decodes into `Was
 
 ## Read
 
-The colony read's waste census (`WasteReply`) returns every visible spawned corpse with its inner
+The colony read always carries its total waste census (`WasteSnapshot`), returning every visible spawned corpse with its inner
 pawn's class (colonist, stranger or animal), then every corpse a visible grave holds, with that
-grave. Fogged corpses are not listed.
+grave. Fogged corpses are not listed. An empty census means no visible corpses. An absent census,
+a corpse reference missing from the frame's entity table, or a native corpse without its inner pawn
+is a contract failure. The census scans the native corpse list and visible grave contents each frame;
+it does not depend on which Needs currently read it.
 
 Rotten things and waste store in the materials yard, a declared, native-filtered zone (`outdoor_safe_waste`): see [storage](../architecture/storage.md).

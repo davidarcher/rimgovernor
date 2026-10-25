@@ -143,7 +143,7 @@ namespace HomeBridge.BridgeTools
             Span("cf.dialogs");
             var recovery = NativeRecoveryFacts.Read(map, context);
             Span("cf.recovery");
-            var waste = HomeWasteTools.Project(map, context);
+            var waste = HomeWasteTools.Project(map);
             Span("cf.waste");
             issues.Add(Issue("food_corpses"));
             Obs.FoodClimate? foodClimate = null;

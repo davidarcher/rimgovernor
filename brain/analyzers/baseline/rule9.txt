@@ -37,7 +37,7 @@ BuildingRuntime/Rounds/RoundsBillMisc.cs|Fact|2
 BuildingRuntime/Rounds/RoundsBiotech.cs|Fact|8
 BuildingRuntime/Rounds/RoundsBuildingSelection.cs|Fact|9
 BuildingRuntime/Rounds/RoundsBuildingSelection.cs|Unknown|2
-BuildingRuntime/Rounds/RoundsBurialFacts.cs|Fact|16
+BuildingRuntime/Rounds/RoundsBurialFacts.cs|Fact|12
 BuildingRuntime/Rounds/RoundsBurialFacts.cs|Unknown|2
 BuildingRuntime/Rounds/RoundsCensus.cs|Fact|14
 BuildingRuntime/Rounds/RoundsCensus.cs|Unknown|2
@@ -173,8 +173,8 @@ Observation/Colony.cs|Fact|63
 Observation/Colony.cs|Unknown|3
 Observation/ColonyDecode.cs|Fact|16
 Observation/ColonyDecode.cs|Unknown|2
-Observation/ColonyFrames.cs|Fact|12
-Observation/ColonyFrames.cs|Unknown|3
+Observation/ColonyFrames.cs|Fact|10
+Observation/ColonyFrames.cs|Unknown|2
 Observation/ColonyGear.cs|Fact|14
 Observation/ColonyGear.cs|Unknown|3
 Observation/ColonyProduction.cs|Fact|25
@@ -422,7 +422,7 @@ Policy/Ritual.cs|Unknown|1
 Policy/RoomQualityBeauty.cs|Fact|3
 Policy/RoomsFamily.cs|Fact|16
 Policy/Rounds.cs|Discard|1
-Policy/Rounds.cs|Fact|97
+Policy/Rounds.cs|Fact|96
 Policy/Rounds.cs|Unknown|4
 Policy/RoundsImmediate.cs|Fact|1
 Policy/RoundsReviewFacts.cs|Fact|7
@@ -465,7 +465,7 @@ Policy/Throne.cs|Fact|4
 Policy/TitleClaim.cs|Fact|14
 Policy/TitleClaim.cs|Unknown|2
 Policy/TitleClaim.cs|UnknownMember|1
-Policy/Tomb.cs|Fact|4
+Policy/Tomb.cs|Fact|2
 Policy/TombCooling.cs|Fact|9
 Policy/TombCooling.cs|Unknown|1
 Policy/TradeFavor.cs|Fact|16

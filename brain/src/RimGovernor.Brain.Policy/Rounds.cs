@@ -415,8 +415,8 @@ public sealed record RoundsFacts
     /// <summary>The colonists' and powered turrets' observed combat strength in raid-point units (DefenseCapacity).</summary>
     public Fact<double> DefenseCapacity { get; init; }
 
-    /// <summary>The native corpse census (the WasteReply the colony read carries) that MorgueWaiting and the tomb census read.</summary>
-    public Fact<EquatableArray<WasteItem>> Waste { get; init; }
+    /// <summary>The total native corpse census that MorgueWaiting and the tomb census read.</summary>
+    public EquatableArray<WasteItem> Waste { get; init; }
 
     /// <summary>The map trader census (bridge.ListTraders) the economy/caravan Need needs; a source without the read leaves it unknown and the goal off.</summary>
     public Fact<EquatableArray<RimGovernor.Contracts.Wire.Observations.Trader>> Traders { get; init; }

@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
@@ -25,19 +26,18 @@ namespace HomeBridge.BridgeTools
         // Project is the corpse census on the typed wire
         // (ColonyFactsSnapshot.waste): every visible spawned corpse in load
         // ID order, then every buried corpse with its grave.
-        internal static Obs.WasteReply Project(Map map, Common.ObservationContext context)
+        internal static Obs.WasteSnapshot Project(Map map)
         {
             var items = new List<Obs.WasteItem>();
             var spawned = new List<Corpse>();
             foreach (var thing in map.listerThings.ThingsInGroup(ThingRequestGroup.Corpse))
-                if (thing is Corpse corpse && corpse.InnerPawn != null && !corpse.Position.Fogged(map)) spawned.Add(corpse);
+                if (thing is Corpse corpse && !corpse.Position.Fogged(map)) spawned.Add(corpse);
             foreach (var corpse in spawned.OrderBy(Id))
-                items.Add(new Obs.WasteItem { Thing = NativeRef.Thing(corpse), CorpseClass = CorpseOf(corpse.InnerPawn) });
+                items.Add(new Obs.WasteItem { Thing = NativeRef.Thing(corpse), CorpseClass = CorpseOf(corpse.InnerPawn ?? throw new InvalidOperationException("Corpse pawn unavailable.")), Grave = null });
             foreach (var grave in map.listerThings.AllThings.OfType<Building_Grave>().Where(g => !g.Position.Fogged(map)))
                 foreach (var body in grave.GetDirectlyHeldThings().OfType<Corpse>())
-                    if (body.InnerPawn != null)
-                        items.Add(new Obs.WasteItem { Thing = NativeRef.Thing(body), CorpseClass = CorpseOf(body.InnerPawn), Grave = NativeRef.Of(Id(grave)) });
-            return new Obs.WasteReply { Outcome = new Obs.WasteSnapshot { Items = [.. items] } };
+                    items.Add(new Obs.WasteItem { Thing = NativeRef.Thing(body), CorpseClass = CorpseOf(body.InnerPawn ?? throw new InvalidOperationException("Buried corpse pawn unavailable.")), Grave = NativeRef.Of(Id(grave)) });
+            return new Obs.WasteSnapshot { Items = [.. items] };
         }
     }
 }

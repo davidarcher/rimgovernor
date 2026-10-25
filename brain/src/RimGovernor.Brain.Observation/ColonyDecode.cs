@@ -16,19 +16,6 @@ public static class ColonyDecodeReads
         return true;
     }
 
-    /// <summary>Whether <paramref name="tables"/> hold the head every row refers to: the def and position a family reads from the table.</summary>
-    internal static bool Headed<TRow>(Tables tables, IEnumerable<TRow> rows, Func<TRow, C.Ref?> reference)
-    {
-        foreach (var row in rows)
-        {
-            if (tables.Entity(reference(row)) is null)
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
     /// <summary>Whether the building table holds the head every row refers to.</summary>
     internal static bool Headed<TRow>(Buildings buildings, IEnumerable<TRow> rows, Func<TRow, C.Ref?> reference)
     {

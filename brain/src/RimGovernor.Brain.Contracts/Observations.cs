@@ -3476,22 +3476,17 @@ public sealed record StorageOccupancyRequest
 /// </summary>
 public sealed record WasteItem
 {
-    public Common.Ref Thing { get; init; } = new();
+    public required Common.Ref Thing { get; init; }
 
-    public Common.CorpseClass CorpseClass { get; init; }
+    public required Common.CorpseClass CorpseClass { get; init; }
 
-    public Common.Ref? Grave { get; init; }
+    public required Common.Ref? Grave { get; init; }
 }
 
 public sealed record WasteSnapshot
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<WasteItem>))]
-    public EquatableArray<WasteItem> Items { get; init; }
-}
-
-public sealed record WasteReply
-{
-    public WasteSnapshot Outcome { get; init; } = null!;
+    public required EquatableArray<WasteItem> Items { get; init; }
 }
 
 /// <summary>One free colonist's player area restriction on the map.</summary>
@@ -7262,7 +7257,7 @@ public sealed record ColonyFactsSnapshot
 
     public required RecoverySnapshot Recovery { get; init; }
 
-    public required WasteReply Waste { get; init; }
+    public required WasteSnapshot Waste { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
     public EquatableArray<ReadIssue> Issues { get; init; }
