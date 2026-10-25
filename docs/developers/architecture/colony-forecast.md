@@ -1095,31 +1095,11 @@ carry no priority. The legacy activity-only `CompareActivityOutcomes` overload, 
 estimates against an alternative labor budget, was deleted in #3894 with its unread benefit, deadline and
 choice-identity members: the coupled trajectory was its only consumer and never read them.
 
-## Observed deadlines for shelter and food
+## Shelter and food selection
 
-`SurvivalNeedsOf` derives per-pawn deadline evidence from a `ColonyForecastRequest`.
-The shared work roster and forecast origin must have the same tick. It reuses
-`ForecastFood` allocation over the full food census, including competing eaters,
-ownership, eligibility and rot. Its food deadline is eligible stock exhaustion,
-not time to starvation injury: stomach contents, eating jobs and existing hunger
-are not modeled. Incomplete food evidence leaves the deadline unknown.
-
-Cold uses observed cell temperature, worn-apparel comfortable minimum and current
-hypothermia with the existing `OutdoorBudgetFor` model and published tuning.
-The limit is serious hypothermia, assuming unchanged temperature and clothing.
-Already-serious hypothermia has a zero deadline even in a warm cell; this is an
-immediate-attention finding, not evidence that treatment is unnecessary. A
-known non-growing hazard or a limit beyond the requested horizon is marked not
-due. Missing or invalid body readings remain unknown. Heat, weather transitions,
-frostbite and recovery trajectories are outside this component.
-
-No caller compares relief activities against these deadlines any more: `CompareSurvivalActivities` and its typed
-food and shelter effect assessment were deleted in #3894, and `SurvivalNeedsOf` is now read only by its tests. The
-coupled trajectory owns selection, including the planned-room thermal envelope, work-time estimation,
-construction/delivery adapters and observed replanning (see the
-[pawn activity contract](../contracts/pawn-activities.md)). `ForecastSurvivalNeedsTests` covers the deadline
-derivation from native-shaped fact fixtures: food stock, competing consumption, rot, temperature, apparel,
-already-serious cold and unknown evidence.
+The coupled trajectory owns food and shelter selection, including the planned-room thermal envelope,
+work-time estimation, construction and delivery adapters, and observed replanning. See the
+[pawn activity contract](../contracts/pawn-activities.md).
 
 ## Food candidates from acquisition and recipe observations
 

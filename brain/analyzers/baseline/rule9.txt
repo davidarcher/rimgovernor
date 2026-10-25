@@ -246,8 +246,6 @@ Policy/ForecastHousing.cs|Fact|1
 Policy/ForecastIncumbentPreparation.cs|Fact|6
 Policy/ForecastLiveEvidence.cs|Fact|2
 Policy/ForecastMaterialChoices.cs|Fact|5
-Policy/ForecastServiceInvestments.cs|Fact|2
-Policy/ForecastSurvivalNeeds.cs|Fact|10
 Policy/ForecastTerminalStock.cs|Fact|6
 Policy/Gathering.cs|Fact|13
 Policy/Gathering.cs|Unknown|2

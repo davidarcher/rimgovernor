@@ -47,17 +47,9 @@ Policy|ForecastMoodPoint.Tick
 Policy|ForecastMoodResult.Projected.Trajectory
 Policy|ForecastNeedMetric.DeficitTicks
 Policy|ForecastNeedMetric.WastedGain
-Policy|ForecastNeedWindow.Due
-Policy|ForecastNeedWindow.Ticks
 Policy|ForecastNeedsResult.MemoryAdjustedMoodTarget
 Policy|ForecastNeedsResult.ThoughtOffsetAtHorizon
 Policy|ForecastNeedsReview.Alternatives
-Policy|ForecastSurvivalNeed.Basis
-Policy|ForecastSurvivalNeed.Id
-Policy|ForecastSurvivalNeed.Pawn
-Policy|ForecastSurvivalNeed.Window
-Policy|ForecastSurvivalNeeds.Findings
-Policy|ForecastSurvivalNeeds.Needs
 Policy|ForecastWorkInputs.IngredientReservations
 Policy|ForecastWorkInputs.Pawns
 Policy|FuelConsumer.Definition
