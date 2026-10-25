@@ -67,7 +67,7 @@ public static partial class MealRules
     /// tier until runway drops below target. Lavish additionally requires observed expectations pressure and strict
     /// surplus. Losing a cook or an ingredient source overrides the runway latch.
     /// </summary>
-    public static MealTierReview ReviewMealTier(MealTierRequest r, Fact<EquatableArray<ProductionBench>> benches)
+    public static MealTierReview ReviewMealTier(MealTierRequest r, EquatableArray<ProductionBench> rows)
     {
         var plan = r.Plan;
         var dk = r.RawRunwayDays.TryGetValue(out var days);
@@ -115,7 +115,7 @@ public static partial class MealRules
                 };
             }
         }
-        if (!benches.TryGetValue(out var rows) || !ck)
+        if (!ck)
         {
             throw new MealTierFactsException();
         }
@@ -367,7 +367,7 @@ public static partial class MealRules
         MealTierReview review;
         try
         {
-            review = ReviewMealTier(request, Known(EquatableArray.From(rows)));
+            review = ReviewMealTier(request, EquatableArray.From(rows));
         }
         catch (MealTierFactsException)
         {

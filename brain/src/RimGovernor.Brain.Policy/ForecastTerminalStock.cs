@@ -8,9 +8,8 @@ public static class ForecastStockScope
 {
     public const string Food = "map_food_supply/eligible_nonreserve/holder_and_diet/v1";
 
-    public static Fact<double> OtherDemand(Fact<FoodSupply> supply, IEnumerable<string> modeledPawns)
+    public static Fact<double> OtherDemand(FoodSupply food, IEnumerable<string> modeledPawns)
     {
-        if (!supply.TryGetValue(out var food)) return default;
         var modeled = modeledPawns.ToHashSet(StringComparer.Ordinal);
         var other = food.Consumers.Where(c => !modeled.Contains(c.Id.Value)).ToArray();
         return other.All(c => double.IsFinite(c.NutritionPerDay) && c.NutritionPerDay >= 0)

@@ -11,17 +11,10 @@ public static class FoodSupplyReads
 {
     /// <summary>
     /// Joins <paramref name="v"/>'s stocks to their things table rows and to their def rows in the definition
-    /// catalog; null when the table misses a stock or no catalog is held, and the supply is then unknown until a
-    /// later frame. A stock whose def the catalog lacks is a contract error.
+    /// catalog. A stock the table misses, a stock whose def the catalog lacks, or no catalog held is a contract error.
     /// </summary>
-    public static FoodSupply? DecodeFoodSupply(O.FoodSupplyFacts v, Things things, DefinitionCatalog? catalog)
-    {
-        if (FoodSupplyRules.JoinFoodSupply(v, things) is not { } rows || catalog is null)
-        {
-            return null;
-        }
-        return DecodeFoodSupply(v, rows, catalog);
-    }
+    public static FoodSupply DecodeFoodSupply(O.FoodSupplyFacts v, Things things, DefinitionCatalog? catalog) =>
+        DecodeFoodSupply(v, FoodSupplyRules.JoinFoodSupply(v, things), ColonyDecodeReads.RequireCatalog(catalog));
 
     private static FoodDefFacts FoodDefFactsOf(DefinitionCatalog catalog, string def, bool corpse) =>
         new(catalog.RawFoodClass(def), catalog.RawMeat(def), catalog.Vegetable(def), corpse && catalog.HumanlikeCorpse(def));

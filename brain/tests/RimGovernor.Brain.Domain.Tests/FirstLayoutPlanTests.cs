@@ -114,11 +114,11 @@ public sealed class FirstLayoutPlanTests
         Prisoners = Fact.Known(0),
         WorkPawns = Fact.Known(EquatableArray.From<WorkPawn>([])),
         Rest = RestSchedule.Of([]),
-        Food = Fact.Known(new FoodSupply
+        Food = new FoodSupply
         {
             Larder = new(),
             Consumers = [.. Enumerable.Range(0, (int)colonists).Select(i => new FoodConsumer { Id = new PawnId("c" + i), NutritionPerDay = 1.6 })],
-        }),
+        },
         Ledger = WorkRules.NewLedgerView(WorkRules.LedgerViewInactive),
         Stock = Fact.Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),
         Survey = s,

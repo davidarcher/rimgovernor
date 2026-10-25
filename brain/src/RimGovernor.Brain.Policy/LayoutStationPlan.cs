@@ -54,7 +54,7 @@ public sealed record StationFacts
     public RestSchedule? Rest { get; init; }
 
     /// <summary>The colonists' food census; its consumers' rates sum to the nutrition a day.</summary>
-    public Fact<FoodSupply> Food { get; init; }
+    public FoodSupply Food { get; init; } = new() { Larder = new() };
 
     /// <summary>The work ledger as the latest review filed it: its wanted orders are read once a review reconciled it or found no planner declaring (LedgerOrders).</summary>
     public LedgerView Ledger { get; init; } = WorkRules.NewLedgerView(WorkRules.LedgerViewNone);
@@ -210,11 +210,7 @@ public sealed record StationFacts
     public StationGraphInput GraphInput()
     {
         var population = LayoutStationPlanRules.StationPopulationOf(this);
-        if (!Food.TryGetValue(out var supply))
-        {
-            throw new RequiredFactException("food census");
-        }
-        var nutrition = LayoutStationPlanRules.HumanNutritionPerDay(supply);
+        var nutrition = LayoutStationPlanRules.HumanNutritionPerDay(Food);
         var orders = LedgerOrders();
         if (!Stock.TryGetValue(out var stock))
         {

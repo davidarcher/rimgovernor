@@ -309,7 +309,7 @@ public sealed partial class Store
         if (request.Enabled && !request.Immediate)
         {
             var reserveSupplies = new List<ReserveSupply>();
-            if (request.Facts.FoodReserve.TryGetValue(out var reserve))
+            if (request.Facts.FoodReserve is FoodReserveState.Reviewed { Review: var reserve })
             {
                 var wanted = new Dictionary<string, bool>(StringComparer.Ordinal);
                 foreach (var id in reserve.Hold)
@@ -320,8 +320,7 @@ public sealed partial class Store
                 {
                     wanted[id] = false;
                 }
-                _ = request.Facts.FoodStorageUpkeep.Stocks.TryGetValue(out var stocks);
-                foreach (var row in stocks)
+                foreach (var row in request.Facts.FoodStorageUpkeep.Stocks)
                 {
                     if (wanted.TryGetValue(row.Stock.Id, out var forbid) && FoodReserveRules.ReserveFoodDefinition(row.Stock.DefName))
                     {

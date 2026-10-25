@@ -39,7 +39,7 @@ public sealed record EssentialServiceReview(Tick Observed, EquatableArray<Servic
 /// <summary>Existing decoded owners; no duplicate observations or persisted goals.</summary>
 public sealed record EssentialServiceInputs
 {
-    public Fact<EquatableArray<ProductionBench>> Benches { get; init; }
+    public EquatableArray<ProductionBench> Benches { get; init; }
     public Fact<PowerTopology> Power { get; init; }
 }
 
@@ -196,9 +196,10 @@ public static class EssentialServicesRules
                 [], facts.FoodPlan is not null ? [] : ["food_plan_cooking_dependency"]));
             return;
         }
-        if (!facts.EssentialInputs.Benches.TryGetValue(out var benches) || !facts.ForecastObserved.WorkPawns.TryGetValue(out var workers))
+        var benches = facts.EssentialInputs.Benches;
+        if (!facts.ForecastObserved.WorkPawns.TryGetValue(out var workers))
         {
-            rows.Add(new(EssentialService.Cooking, target, ServiceCoverage.Unknown, [], ["production_benches_or_work_pawns"]));
+            rows.Add(new(EssentialService.Cooking, target, ServiceCoverage.Unknown, [], ["work_pawns"]));
             return;
         }
         // This is feasibility of one useful meal iteration, not a throughput or future-food claim.

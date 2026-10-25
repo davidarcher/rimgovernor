@@ -5,33 +5,21 @@ public sealed partial class Rounder
 {
     internal void ReviewReserve(ref ColonyProjection p)
     {
-        p = p with { Facts = p.Facts with { FoodReserve = Unknown<FoodReserveReview>() } };
-        var known = p.FoodSupply.TryGetValue(out var supply);
         var staged = Policy;
-        if (!known || staged.FoodReserveDays == 0)
-        {
-            return;
-        }
-
-        try
-        {
-            var reserve = FoodReserveRules.ReviewFoodReserve(supply!, null, staged.FoodReserveDays, Seasonal(p.Facts).FoodMinDays, FoodDeliveryDays(p.Facts.FoodPlan));
-            p = p with { Facts = p.Facts with { FoodReserve = Known(reserve) } };
-        }
-        catch (DomainException)
-        {
-            // An unreadable review leaves the reserve unknown.
-        }
+        FoodReserveState reserve = staged.FoodReserveDays == 0
+            ? new FoodReserveState.Disabled()
+            : FoodReserveRules.ReviewFoodReserve(p.FoodSupply, null, staged.FoodReserveDays, Seasonal(p.Facts).FoodMinDays, FoodDeliveryDays(p.Facts.FoodPlan));
+        p = p with { Facts = p.Facts with { FoodReserve = reserve } };
     }
 }
 
 partial class Rounder
 {
-    internal static Fact<EquatableArray<double>> FoodDeliveryDays(FoodPlan? plan)
+    internal static FoodDeliveries FoodDeliveryDays(FoodPlan? plan)
     {
         if (plan is null || plan.Unknown.Count > 0)
         {
-            return Unknown<EquatableArray<double>>();
+            return new FoodDeliveries.Unconfirmed();
         }
 
         var days = new List<double>();
@@ -44,12 +32,12 @@ partial class Rounder
 
             if (row.Channel.Lead is not CandidateLead.Days { Value: var lead })
             {
-                return Unknown<EquatableArray<double>>();
+                return new FoodDeliveries.Unconfirmed();
             }
 
             days.Add(lead);
         }
 
-        return Known(EquatableArray.From(days));
+        return new FoodDeliveries.Confirmed(EquatableArray.From(days));
     }
 }

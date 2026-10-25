@@ -25,7 +25,7 @@ public sealed partial class Rounder
                 pasteReady = pasteReady || (dispenser.Powered && dispenser.HopperNutrition > 0);
             }
 
-            return p with { Facts = p.Facts with { Cooking = Known(pasteReady) } };
+            return p with { Facts = p.Facts with { Cooking = pasteReady } };
         }
 
         if (review.Recipes.Count == 0)
@@ -33,11 +33,10 @@ public sealed partial class Rounder
             return p;
         }
 
-        p.ProductionBenches.TryGetValue(out var benches);
         var ready = false;
         foreach (var choice in review.Recipes)
         {
-            foreach (var bench in benches)
+            foreach (var bench in p.ProductionBenches)
             {
                 if (bench.Id != choice.Bench)
                 {
@@ -51,6 +50,6 @@ public sealed partial class Rounder
             }
         }
 
-        return p with { Facts = p.Facts with { Cooking = Known(ready) } };
+        return p with { Facts = p.Facts with { Cooking = ready } };
     }
 }

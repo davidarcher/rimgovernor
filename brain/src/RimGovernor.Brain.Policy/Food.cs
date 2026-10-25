@@ -9,8 +9,8 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record FoodFacts
 {
-    /// <summary>The babies' food against their need (<see cref="RoundsFacts.BabyFeeding"/>); unknown while the biotech census or food supply is unread.</summary>
-    public Fact<BabyFeeding> BabyFeeding { get; init; }
+    /// <summary>The babies' food against their need (<see cref="RoundsFacts.BabyFeeding"/>); the empty review without Biotech baby care.</summary>
+    public BabyFeeding BabyFeeding { get; init; } = new();
 
     /// <summary>The blighted plants standing in growing zones or on home ground (<see cref="RoundsFacts.Blight"/>); unknown while the planning window is unread.</summary>
     public Fact<EquatableArray<BlightedPlant>> Blight { get; init; }
@@ -19,7 +19,7 @@ public sealed record FoodFacts
     public EquatableArray<string> BlightRefused { get; init; }
 
     /// <summary>A meal of the picked tier can be made now: an active bill of the tier's recipe, or a stocked, powered paste dispenser.</summary>
-    public Fact<bool> Cooking { get; init; }
+    public bool Cooking { get; init; }
 
     /// <summary>A stove kitchen supersedes a cooking campfire that is not yet deconstructed; unknown while the benches, rooms or construction are unread.</summary>
     public Fact<bool> CampfireRetireOwed { get; init; }
@@ -149,13 +149,12 @@ public static class FoodRules
 
     /// <summary>
     /// The cooking Need, a plain threshold: unmet while a superseded cooking campfire is owed its deconstruction or
-    /// no meal of the picked tier can be made, and met otherwise; without a retire, an unread cooking fact raises
-    /// <see cref="RequiredFactException"/>. Its deficit is whole while unmet.
+    /// no meal of the picked tier can be made, and met otherwise. Its deficit is whole while unmet.
     /// </summary>
     public static Need CookingNeedOf(FoodFacts f)
     {
         var retire = RoundsRules.Positive(f.CampfireRetireOwed);
-        return WholeNeed(CookingNeed, NeedTier.Wellbeing, !retire && (f.Cooking.TryGetValue(out var ready) ? ready : throw new RequiredFactException("cooking")));
+        return WholeNeed(CookingNeed, NeedTier.Wellbeing, !retire && f.Cooking);
     }
 
     /// <summary>The food family's baby feeding Need (#3254).</summary>
@@ -166,11 +165,11 @@ public static class FoodRules
 
     /// <summary>
     /// The baby feeding Need, a plain threshold: unmet while no colonist can breastfeed and the baby-edible stock is
-    /// below the game's low-baby-food floor (<see cref="BabyFeeding.IsShort"/>), met otherwise (no babies included); an
-    /// unread review raises <see cref="RequiredFactException"/>. Its deficit is whole while unmet.
+    /// below the game's low-baby-food floor (<see cref="BabyFeeding.IsShort"/>), met otherwise (no babies included).
+    /// Its deficit is whole while unmet.
     /// </summary>
     public static Need BabyFeedingNeedOf(FoodFacts f) =>
-        WholeNeed(BabyFeedingNeed, NeedTier.Wellbeing, f.BabyFeeding.TryGetValue(out var review) ? !review.IsShort : throw new RequiredFactException("baby feeding"));
+        WholeNeed(BabyFeedingNeed, NeedTier.Wellbeing, !f.BabyFeeding.IsShort);
 
     /// <summary>
     /// The blight Need, a plain threshold over the census: unmet while any blighted plant stands, designated or not

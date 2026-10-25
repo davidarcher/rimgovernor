@@ -9,8 +9,7 @@ internal static class StockpileBenchInputs
     /// </summary>
     internal static IReadOnlyList<Pol.BenchInput> BenchInputs(IReadOnlyList<GearBenchRead> census, Observation.ColonyProjection projection)
     {
-        if (projection.Facts.CurrentConstruction is not { } built
-            || !projection.ProductionBenches.TryGetValue(out var food))
+        if (projection.Facts.CurrentConstruction is not { } built)
         {
             return [];
         }
@@ -23,7 +22,7 @@ internal static class StockpileBenchInputs
             }
         }
         var excluded = new Dictionary<string, bool>(StringComparer.Ordinal);
-        foreach (var b in food)
+        foreach (var b in projection.ProductionBenches)
         {
             excluded[b.Id] = true;
         }

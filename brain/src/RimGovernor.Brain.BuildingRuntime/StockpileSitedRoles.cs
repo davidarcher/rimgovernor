@@ -57,21 +57,13 @@ internal static class StockpileSitedRoles
         {
             return retired;
         }
-        if (!projection.ProductionBenches.TryGetValue(out var benches))
-        {
-            return null;
-        }
         // The meal is what the active bills cook; none cooked, no warm spot.
-        var (meal, nutrition, cooked) = Pol.MealRules.ObservedMeal(benches);
+        var (meal, nutrition, cooked) = Pol.MealRules.ObservedMeal(projection.ProductionBenches);
         if (!cooked)
         {
             return retired;
         }
-        var (perDay, known) = MealsPerDay(projection.FoodSupply, nutrition);
-        if (!known)
-        {
-            return null;
-        }
+        var perDay = MealsPerDay(projection.FoodSupply, nutrition);
         if (perDay < MealSpotMinPerDay)
         {
             return retired;
@@ -81,20 +73,16 @@ internal static class StockpileSitedRoles
 
     /// <summary>
     /// The meals the colonists eat a day: their nutrition need over one meal's (the cooked meal's nutrition);
-    /// unknown while any colonist's need is.
+    /// the census is whole.
     /// </summary>
-    internal static (double PerDay, bool Known) MealsPerDay(Fact<Pol.FoodSupply> supply, double mealNutrition)
+    internal static double MealsPerDay(Pol.FoodSupply s, double mealNutrition)
     {
-        if (!supply.TryGetValue(out var s))
-        {
-            return (0, false);
-        }
         var total = 0.0;
         foreach (var c in s.Consumers)
         {
             total += c.NutritionPerDay;
         }
-        return (total / mealNutrition, true);
+        return total / mealNutrition;
     }
 
     internal static bool InRectangle(Pol.Rectangle r, Cell c) =>

@@ -56,10 +56,7 @@ public static class CorpseLarderRules
     public static CorpseLarderMethod SelectCorpseLarder(FoodStorageObservation v)
     {
         var none = new CorpseLarderMethod();
-        if (!v.Stocks.TryGetValue(out var stocks))
-        {
-            return none;
-        }
+        var stocks = v.Stocks;
         var larder = v.Larder;
         DomainException.Require(FoodForecastRules.FoodNumber(larder.RawMeatNutrition) && FoodForecastRules.FoodNumber(larder.CookDemandNutrition), "invalid corpse larder");
         v.Validate();

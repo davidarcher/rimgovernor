@@ -28,7 +28,7 @@ public sealed class ForecastStockHandoffTests
             Medicine = new() { Items = Known<EquatableArray<MedicineStackRow>>([new() { Id = "med", Definition = Medicine, Count = 5, Perishable = Known(false) }, new() { Id = "barred-med", Definition = Medicine, Count = 100, Forbidden = true, Perishable = Known(false) }]) },
             Items = new() { Nutrition = new Dictionary<Resource, double> { [Meal] = .5 }, MedicalPotency = new Dictionary<Resource, double> { [Medicine] = 1 } }
         };
-        var input = ProjectGraphTests.Colony() with { OtherNutritionPerDay = ForecastStockScope.OtherDemand(Known(facts.Food), []).Value, Stocks = new() { Materials = physical, Nutrition = ForecastStockScope.Nutrition(facts.Food).Value, Medicine = [new(Medicine, 5)] }, Pawns = [] };
+        var input = ProjectGraphTests.Colony() with { OtherNutritionPerDay = ForecastStockScope.OtherDemand(facts.Food, []).Value, Stocks = new() { Materials = physical, Nutrition = ForecastStockScope.Nutrition(facts.Food).Value, Medicine = [new(Medicine, 5)] }, Pawns = [] };
         return new() { Origin = new(0), HorizonDays = 1, Facts = facts, Coupled = new()
         {
             Activities = new() { Deadline = 0 }, Needs = NeedsFixtures.Empty, ModelBasis = new(input, new()),

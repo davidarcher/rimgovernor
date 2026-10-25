@@ -118,7 +118,7 @@ public sealed record FoodField
 /// <summary>The cooking a harvest can use: the benches and the number of cooks who can work them. Unread benches leave a crop raw.</summary>
 public sealed record CropKitchen
 {
-    public Fact<EquatableArray<ProductionBench>> Benches { get; init; }
+    public EquatableArray<ProductionBench> Benches { get; init; }
 
     public double Cooks { get; init; }
 
@@ -129,14 +129,13 @@ public sealed record CropKitchen
     /// </summary>
     public Fact<CropCooking> Cooking()
     {
-        var bk = Benches.TryGetValue(out var benches);
-        if (!bk || !FoodForecastRules.FoodNumber(Cooks))
+        if (!FoodForecastRules.FoodNumber(Cooks))
         {
             return Unknown<CropCooking>();
         }
         var usable = 0;
         var best = new CropCooking();
-        foreach (var b in benches!)
+        foreach (var b in Benches)
         {
             if (!b.Usable)
             {

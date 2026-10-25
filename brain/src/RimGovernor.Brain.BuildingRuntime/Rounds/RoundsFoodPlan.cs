@@ -125,10 +125,7 @@ partial class Rounder
 
     internal static FoodPlan ReviewFoodPlan(ColonyProjection p, RoundsPolicy thresholds, DeliveryCredit credit, HuntAdmission hunt, FoodTrade trade, Action<HuntPlan, string>? onHunt = null)
     {
-        if (!p.CombinedFoodSupply.TryGetValue(out var supply))
-        {
-            throw new RequiredFactException("combined food supply");
-        }
+        var supply = p.CombinedFoodSupply;
 
         if (!p.Acquisition.TryGetValue(out var sources))
         {
@@ -139,10 +136,8 @@ partial class Rounder
 
         var forecast = FoodForecastRules.ForecastFood(supply, null);
 
-        if (p.FoodSupply.TryGetValue(out var human))
-        {
-            forecast = forecast.GateOnColonists(FoodConsumerIds(human), thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodMinDays);
-        }
+        var human = p.FoodSupply;
+        forecast = forecast.GateOnColonists(FoodConsumerIds(human), thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodMinDays);
 
         var gunners = 0;
         var hunters = 0;
@@ -166,13 +161,10 @@ partial class Rounder
         channels.AddRange(HuntSquadRules.HuntCandidates(sources, gunners, formation));
         channels.AddRange(HuntPrerequisiteRules.HuntPrerequisiteCandidates(p.HuntHolds));
         channels = HuntCreditRules.HuntThroughput(channels, hunters, HuntCreditRules.HuntCadence(p.DeliveryLedger.Kills, hunters, p.Identity.Tick.Value)).ToList();
-        if (p.ProductionBenches.TryGetValue(out var benches) && p.FoodSupply.TryGetValue(out human))
+        var ids = human.Consumers.Select(c => c.Id).ToList();
+        if (HumanFoodPlanRules.HumanFoodChannel(p.ProductionBenches, supply, ids, thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays, p.Facts.Ideology) is { } channel)
         {
-            var ids = human.Consumers.Select(c => c.Id).ToList();
-            if (HumanFoodPlanRules.HumanFoodChannel(benches, supply, ids, thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays, p.Facts.Ideology) is { } channel)
-            {
-                channels.Add(channel);
-            }
+            channels.Add(channel);
         }
 
         if (p.FoodChannels.FishableWater is { } water)
@@ -286,15 +278,7 @@ partial class Rounder
             delivered[k] = delivered.GetValueOrDefault(k) + count.Nutrition;
         }
 
-        IReadOnlyList<FoodStock> stocks = [];
-        var complete = false;
-        if (p.CombinedFoodSupply.TryGetValue(out var supply))
-        {
-            stocks = supply.Stocks;
-            complete = true;
-        }
-
-        delivered[HuntCreditRules.HuntSource] = credit.HuntDelivered(ledger.Kills, ledger.Butchers, stocks, complete);
+        delivered[HuntCreditRules.HuntSource] = credit.HuntDelivered(ledger.Kills, ledger.Butchers, p.CombinedFoodSupply.Stocks, true);
         return new CreditInput { Tick = p.Identity.Tick, LoadToken = ledger.LoadToken, Delivered = delivered };
     }
 

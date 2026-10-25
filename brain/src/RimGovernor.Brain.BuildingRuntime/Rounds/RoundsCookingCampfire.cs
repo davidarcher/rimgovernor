@@ -75,16 +75,16 @@ partial class RoundsBuildingPlanner
     /// <summary>The standing campfire the colony no longer needs once a usable stove stands in a kitchen, excluding the heat campfires.</summary>
     internal static (CurrentBuilding Building, bool Retire) CampfireRetirement(ColonyProjection facts, IReadOnlyList<ConstructionClaim> claims)
     {
-        var bk = facts.CookingBenches.TryGetValue(out var benches);
+        var benches = facts.CookingBenches;
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var census = facts.Facts.CurrentConstruction;
-        if (!bk || !rk || census is null)
+        if (!rk || census is null)
         {
             return (default!, false);
         }
         var heat = HeatCampfireCells(claims);
         var stove = false;
-        foreach (var bench in benches!)
+        foreach (var bench in benches)
         {
             if (bench.Definition != "FueledStove" && bench.Definition != "ElectricStove")
             {
@@ -130,15 +130,15 @@ partial class RoundsBuildingPlanner
     internal static List<HeatCampfire> HeatCampfires(ColonyProjection facts)
     {
         facts.Facts.ConstructionClaims.TryGetValue(out var claims);
-        var bk = facts.CookingBenches.TryGetValue(out var benches);
+        var benches = facts.CookingBenches;
         var census = facts.Facts.CurrentConstruction;
         var heat = HeatCampfireCells(claims);
-        if (!bk || census is null || heat.Count == 0)
+        if (census is null || heat.Count == 0)
         {
             return [];
         }
         var output = new List<HeatCampfire>();
-        foreach (var bench in benches!)
+        foreach (var bench in benches)
         {
             if (bench.Definition != "Campfire")
             {
@@ -161,7 +161,7 @@ partial class RoundsBuildingPlanner
     internal static Fact<bool> CampfireRetireOwed(ColonyProjection facts)
     {
         facts.Facts.ConstructionClaims.TryGetValue(out var claims);
-        if (!facts.CookingBenches.IsKnown || !facts.Rooms.IsKnown || facts.Facts.CurrentConstruction is null)
+        if (!facts.Rooms.IsKnown || facts.Facts.CurrentConstruction is null)
         {
             return Unknown<bool>();
         }

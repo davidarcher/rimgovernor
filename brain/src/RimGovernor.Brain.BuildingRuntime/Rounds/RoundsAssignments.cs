@@ -364,15 +364,14 @@ partial class RoundsWorkPlanner
     }
 
     /// <summary>The food-policy writes and assignments the review's policies and reserve call for.</summary>
-    internal static IReadOnlyList<FoodPolicyChange> RoundsDietChanges(IdeologyMode ideology, PbObservations.Policies policies, IReadOnlyList<Food> foods, IReadOnlyList<FoodEater> eaters, PrisonerCensus census, IReadOnlyList<WorkPawn> pawns, Fact<FoodReserveReview> reserve, PreferencesRecord preferences)
+    internal static IReadOnlyList<FoodPolicyChange> RoundsDietChanges(IdeologyMode ideology, PbObservations.Policies policies, IReadOnlyList<Food> foods, IReadOnlyList<FoodEater> eaters, PrisonerCensus census, IReadOnlyList<WorkPawn> pawns, FoodReserveState reserve, PreferencesRecord preferences)
     {
         if (foods.Count == 0)
         {
             return [];
         }
         var entries = policies.Food.Select(e => new FoodPolicyEntry { Label = e.Label, Pawns = e.Pawns, Allowed = e.AllowedDefs }).ToList();
-        reserve.TryGetValue(out var stock);
-        return FoodPolicyRules.DietPolicyChanges(ideology, pawns, eaters, census.Names, entries, foods, stock?.IsShort ?? false, preferences);
+        return FoodPolicyRules.DietPolicyChanges(ideology, pawns, eaters, census.Names, entries, foods, reserve is FoodReserveState.Reviewed { Review.IsShort: true }, preferences);
     }
 
     /// <summary>Every native drug policy as the drug planners read it: its label, holders and the entries that allow anything.</summary>

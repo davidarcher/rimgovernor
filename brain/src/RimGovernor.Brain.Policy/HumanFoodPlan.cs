@@ -235,15 +235,11 @@ public static class HumanFoodPlanRules
         > 0;
 
     /// <summary>Explicit human-meat/vegetable membership isolates trade output from ordinary meal bills. Native admission verifies every slot and protects sale products.</summary>
-    public static (BillSelection Selection, bool Ok) SelectHumanSurvivalBill(Fact<EquatableArray<ProductionBench>> benches, FoodSupply supply, FoodPlan plan)
+    public static (BillSelection Selection, bool Ok) SelectHumanSurvivalBill(EquatableArray<ProductionBench> rows, FoodSupply supply, FoodPlan plan)
     {
         var none = (new BillSelection(), false);
         var budget = HumanRouteNutrition(plan, HumanMeatRoute.SurvivalTrade);
         if (budget <= 0)
-        {
-            return none;
-        }
-        if (!benches.TryGetValue(out var rows))
         {
             return none;
         }

@@ -85,9 +85,6 @@ public abstract record StationWorkDay
         public double W => ClimateRules.UnitsW(SiteRules.DefaultSiteTypeWeights(), Upkeep / Unit);
     }
 
-    /// <summary>The food census is unread.</summary>
-    public sealed record FoodUnread : StationWorkDay;
-
     /// <summary>The colony has no colonist.</summary>
     public sealed record NoColonist : StationWorkDay;
 
@@ -317,11 +314,7 @@ public static partial class LayoutLightRules
     /// </summary>
     internal static StationWorkDay StationWorkDayOf(StationFacts f)
     {
-        // The food census is the food family's read to harden (#3786).
-        if (!f.Food.TryGetValue(out var supply))
-        {
-            return new StationWorkDay.FoodUnread();
-        }
+        var supply = f.Food;
         var colonists = f.Colonists;
         if (colonists <= 0)
         {

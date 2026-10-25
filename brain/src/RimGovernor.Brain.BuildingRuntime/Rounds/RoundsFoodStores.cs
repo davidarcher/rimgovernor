@@ -92,7 +92,7 @@ public sealed partial class FoodStoresRounds
             WarmRooms = warm,
             MealClosetOwed = closet,
         };
-        if (!facts.StockProtection || !facts.Reserve.TryGetValue(out var reserve) || !FoodStoresRules.ReserveAccessPending(facts.Reserve)
+        if (!facts.StockProtection || facts.Reserve is not FoodReserveState.Reviewed { Review: var reserve } || !FoodStoresRules.ReserveAccessPending(facts.Reserve)
             || _native is not FacadeNativeClient supplies)
         {
             return facts;
@@ -181,7 +181,7 @@ public sealed partial class FoodStoresRounds
 
         switch (choice.Kind)
         {
-            case FoodStorageMethodKind.Unknown:
+            case FoodStorageMethodKind.SiteUnread:
                 return WorkRules.Abstaining(Cause.UnreadFoodStorage);
             case FoodStorageMethodKind.Produce:
                 OrderSpec spec;
@@ -247,13 +247,8 @@ partial class FoodStoresRounds
 
     internal static IReadOnlyList<string> FoodStorageDefNames(FoodStorageObservation observed, FoodStoragePolicy p)
     {
-        if (!observed.Stocks.TryGetValue(out var stocks))
-        {
-            return [];
-        }
-
         var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var entry in stocks)
+        foreach (var entry in observed.Stocks)
         {
             if (!FoodStorageUpkeepRules.FoodStorageUnstored(entry, observed.ChilledMaxC, p))
             {

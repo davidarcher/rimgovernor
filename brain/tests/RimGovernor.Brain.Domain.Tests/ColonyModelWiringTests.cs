@@ -31,7 +31,7 @@ public sealed class ColonyModelWiringTests
             },
             // 20 cells of 6 cloth each cover the duster's 80.
             Cells = [.. Enumerable.Range(0, 20).Select(x => new SiteCell { Cell = new Cell(x, 0), Zone = Known(true), ZoneId = Known("zone1"), Fertility = Known(0.8) })],
-            CombinedFoodSupply = Known(projection.CombinedFoodSupply.Value with { Stocks = [projection.CombinedFoodSupply.Value.Stocks[0] with { Nutrition = 10_000.0 }] }),
+            CombinedFoodSupply = projection.CombinedFoodSupply with { Stocks = [projection.CombinedFoodSupply.Stocks[0] with { Nutrition = 10_000.0 }] },
         };
     }
 

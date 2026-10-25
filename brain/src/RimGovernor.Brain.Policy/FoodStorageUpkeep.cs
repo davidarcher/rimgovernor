@@ -26,14 +26,14 @@ public sealed record FoodStorageStock(FoodStock Stock)
 }
 
 /// <summary>
-/// The complete per-cycle census the food stores family's storage Need reviews. An unknown Stocks fact leaves the
-/// Need unknown, never met.
+/// The complete per-cycle census the food stores family's storage Need reviews: every observed stock, the barred
+/// ones included.
 /// </summary>
 public sealed record FoodStorageObservation
 {
-    public Fact<EquatableArray<FoodStorageStock>> Stocks { get; init; }
+    public EquatableArray<FoodStorageStock> Stocks { get; init; }
 
-    /// <summary>The larder facts beside the census; read only while Stocks is known.</summary>
+    /// <summary>The larder facts beside the census.</summary>
     public FoodLarder Larder { get; init; } = new();
 
     /// <summary>
@@ -42,16 +42,12 @@ public sealed record FoodStorageObservation
     /// </summary>
     public double ChilledMaxC { get; init; }
 
-    /// <summary>Rejects malformed or duplicate stock rows; an unknown census is valid. Throws <see cref="DomainException"/>.</summary>
+    /// <summary>Rejects malformed or duplicate stock rows. Throws <see cref="DomainException"/>.</summary>
     public void Validate()
     {
-        if (!Stocks.TryGetValue(out var stocks))
-        {
-            return;
-        }
         DomainException.Require(FoodStorageUpkeepRules.Celsius(ChilledMaxC), "invalid food storage facts");
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var entry in stocks)
+        foreach (var entry in Stocks)
         {
             var s = entry.Stock;
             DomainException.Require(FoodForecastRules.FoodId(s.Id) && seen.Add(s.Id), "invalid food storage facts");
@@ -91,8 +87,7 @@ public sealed record FoodStoragePolicy
 
 /// <summary>
 /// The storage review over what stands now, with no latch (#3251): Active while the stored share is under
-/// TargetStoredFraction or a larder corpse change is due; an unknown census leaves the nutrition facts unknown
-/// and Active false, which the Need reads as unknown.
+/// TargetStoredFraction or a larder corpse change is due.
 /// </summary>
 public sealed record FoodStorageReview
 {
@@ -101,11 +96,11 @@ public sealed record FoodStorageReview
     /// <summary>Whether the larder has a corpse change due (part of Active).</summary>
     public bool Larder { get; init; }
 
-    public Fact<double> TotalNutrition { get; init; }
+    /// <summary>The nutrition that should sit in adequate storage.</summary>
+    public double Target { get; init; }
 
-    public Fact<double> Target { get; init; }
-
-    public Fact<double> Deficit { get; init; }
+    /// <summary>The nutrition short of Target, 0 while the review is inactive.</summary>
+    public double Deficit { get; init; }
 }
 
 public enum FoodStorageMethodKind
@@ -113,8 +108,9 @@ public enum FoodStorageMethodKind
     [WireName("")]
     None = 0,
 
-    [WireName("unknown")]
-    Unknown,
+    /// <summary>A candidate site's room could not be read, so producing more is not yet owed.</summary>
+    [WireName("site_unread")]
+    SiteUnread,
 
     [WireName("recovered")]
     Recovered,
@@ -182,7 +178,7 @@ public static class FoodStorageUpkeepRules
     public static FoodStorageObservation FoodStorageStocks(FoodSupply supply, double chilledMaxC) =>
         new()
         {
-            Stocks = Known<EquatableArray<FoodStorageStock>>([.. supply.Stocks.Concat(supply.Barred).Select(stock => new FoodStorageStock(stock))]),
+            Stocks = EquatableArray.From(supply.Stocks.Concat(supply.Barred).Select(stock => new FoodStorageStock(stock))),
             Larder = supply.Larder,
             ChilledMaxC = chilledMaxC,
         };
@@ -215,8 +211,7 @@ public static class FoodStorageUpkeepRules
     /// splitting it into stored and unstored piles. It is active while the unstored pile clears
     /// AtRiskNutritionThreshold and the stored share of total perishable nutrition is under TargetStoredFraction,
     /// with no latch (#3251). Non-perishable and already-rotted stock never contributes: it is not at risk of being
-    /// lost to inadequate storage. An unknown fact anywhere in the census leaves the review unmeasured (inactive,
-    /// Nutrition unknown). Throws <see cref="DomainException"/>.
+    /// lost to inadequate storage. Throws <see cref="DomainException"/> for malformed rows.
     /// </summary>
     public static FoodStorageReview ReviewFoodStorage(FoodStorageObservation v, FoodStoragePolicy p)
     {
@@ -230,14 +225,10 @@ public static class FoodStorageUpkeepRules
         {
             throw new DomainException("invalid food storage facts or thresholds");
         }
-        if (!v.Stocks.TryGetValue(out var stocks))
-        {
-            return r;
-        }
         double stored = 0;
         double unstored = 0;
         double total = 0;
-        foreach (var entry in stocks)
+        foreach (var entry in v.Stocks)
         {
             var s = entry.Stock;
             var nutrition = s.Nutrition;
@@ -258,16 +249,15 @@ public static class FoodStorageUpkeepRules
             }
         }
         DomainException.Require(FoodForecastRules.FoodNumber(stored) && FoodForecastRules.FoodNumber(unstored) && FoodForecastRules.FoodNumber(total), "invalid food storage facts or thresholds");
-        r = r with { TotalNutrition = Known(total) };
         if (total == 0)
         {
-            return r with { Active = false, Target = Known(0.0), Deficit = Known(0.0) };
+            return r;
         }
         var threshold = p.TargetStoredFraction * total;
         var isActive = unstored >= p.AtRiskNutritionThreshold && stored < threshold;
         var deficit = isActive ? Math.Min(unstored, Math.Max(0, threshold - stored)) : 0.0;
         var larder = CorpseLarderRules.SelectCorpseLarder(v).Kind.Length != 0;
-        return r with { Active = isActive || larder, Larder = larder, Target = Known(threshold), Deficit = Known(deficit) };
+        return r with { Active = isActive || larder, Larder = larder, Target = threshold, Deficit = deficit };
     }
 
     private static MethodId FoodStorageMethodId(string kind, string resource, long target)
@@ -291,10 +281,7 @@ public static class FoodStorageUpkeepRules
         {
             return new FoodStorageMethod { Kind = FoodStorageMethodKind.Recovered };
         }
-        if (!r.Review.Deficit.TryGetValue(out var deficit))
-        {
-            return new FoodStorageMethod { Kind = FoodStorageMethodKind.Unknown };
-        }
+        var deficit = r.Review.Deficit;
         if (deficit <= 0)
         {
             return new FoodStorageMethod { Kind = FoodStorageMethodKind.Recovered };
@@ -322,7 +309,7 @@ public static class FoodStorageUpkeepRules
         // A site whose room is unread may have room, so producing more is not yet owed.
         if (r.SiteUnread)
         {
-            return new FoodStorageMethod { Kind = FoodStorageMethodKind.Unknown };
+            return new FoodStorageMethod { Kind = FoodStorageMethodKind.SiteUnread };
         }
         if (!AdmissionRules.ValidResource(r.Resource))
         {

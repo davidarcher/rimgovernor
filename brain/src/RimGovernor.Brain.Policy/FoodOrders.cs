@@ -38,13 +38,13 @@ public sealed record FoodOrderRequest
 {
     public BillPurpose Purpose { get; init; }
 
-    public Fact<EquatableArray<ProductionBench>> Benches { get; init; }
+    public required EquatableArray<ProductionBench> Benches { get; init; }
 
     public RoundsFacts Facts { get; init; } = new();
 
-    public Fact<FoodSupply> Supply { get; init; }
+    public required FoodSupply Supply { get; init; }
 
-    public Fact<FoodSupply> Humans { get; init; }
+    public required FoodSupply Humans { get; init; }
 
     /// <summary>The cooking purpose's meal request.</summary>
     public MealTierRequest Meals { get; init; } = new();
@@ -53,7 +53,7 @@ public sealed record FoodOrderRequest
     public double TargetDays { get; init; }
 
     /// <summary>The cook-ahead purpose's at-risk nutrition (the refrigeration review's warm stock).</summary>
-    public Fact<double> Warm { get; init; }
+    public double Warm { get; init; }
 }
 
 /// <summary>The selection of one food purpose: the bills that should stand, with the bench each was chosen on.</summary>
@@ -97,14 +97,8 @@ public static class FoodOrdersRules
     }
 
     /// <summary>Copies the census with every bench's bills dropped: the selections then ignore what already stands, which the ledger reconciles.</summary>
-    private static Fact<EquatableArray<ProductionBench>> WithoutBills(Fact<EquatableArray<ProductionBench>> benches)
-    {
-        if (!benches.TryGetValue(out var rows))
-        {
-            return benches;
-        }
-        return Known<EquatableArray<ProductionBench>>([.. rows.Select(b => b with { Bills = [] })]);
-    }
+    private static EquatableArray<ProductionBench> WithoutBills(EquatableArray<ProductionBench> benches) =>
+        EquatableArray.From(benches.Select(b => b with { Bills = [] }));
 
     /// <summary>
     /// Chooses the food orders a purpose wants standing. A selector that cannot say
@@ -116,9 +110,8 @@ public static class FoodOrdersRules
         var census = WithoutBills(r.Benches);
         var selections = new List<BillSelection>();
         FoodOrder Gap(FoodOrderGap g, string subject) => new() { Gap = g, Subject = subject };
-        // An unread bench census selects no bill.
         (BillSelection, bool) Bill(BillPurpose purpose, double atRisk, params ProductionBillContext[] context) =>
-            census.TryGetValue(out var rows) ? ProductionRules.SelectProductionBill(purpose, rows, f.Colonists, atRisk, r.TargetDays, context) : (new BillSelection(), false);
+            ProductionRules.SelectProductionBill(purpose, census, f.Colonists, atRisk, r.TargetDays, context);
         switch (r.Purpose)
         {
             case var purpose when purpose == ProductionRules.CookFood:
@@ -127,11 +120,11 @@ public static class FoodOrdersRules
                 {
                     return Gap(FoodOrderGap.Plan, "cooking-capacity");
                 }
-                var context = new ProductionBillContext { Meals = r.Meals };
-                if (r.Supply.TryGetValue(out var supply) && r.Humans.TryGetValue(out var humans))
+                var context = new ProductionBillContext
                 {
-                    context = context with { Ingredients = HumanFoodPlanRules.HumanCookingIngredients(supply, humans.Consumers, f.RequireFoodPlan(), HumanMeatRoute.Meals) };
-                }
+                    Meals = r.Meals,
+                    Ingredients = HumanFoodPlanRules.HumanCookingIngredients(r.Supply, r.Humans.Consumers, f.RequireFoodPlan(), HumanMeatRoute.Meals),
+                };
                 var (selected, known) = Bill(ProductionRules.CookFood, 0, context);
                 if (known)
                 {
@@ -145,22 +138,20 @@ public static class FoodOrdersRules
                 {
                     return Gap(FoodOrderGap.Plan, "stock-protection");
                 }
-                if (!f.FoodReserve.TryGetValue(out var reserve))
+                if (f.FoodReserve is not FoodReserveState.Reviewed { Review: var reserve })
                 {
-                    return Gap(FoodOrderGap.Field, "food_reserve");
+                    // No reserve is kept or owed: the bills that already stand for it stay.
+                    return Gap(FoodOrderGap.NoDeficit, "");
                 }
                 var (selected, known) = Bill(ProductionRules.PreserveFood, 0, new ProductionBillContext { Reserve = reserve });
                 if (known)
                 {
                     selections.Add(selected);
                 }
-                if (r.Supply.TryGetValue(out var supply))
+                var (sale, ok) = HumanFoodPlanRules.SelectHumanSurvivalBill(census, r.Supply, f.RequireFoodPlan());
+                if (ok)
                 {
-                    var (sale, ok) = HumanFoodPlanRules.SelectHumanSurvivalBill(census, supply, f.RequireFoodPlan());
-                    if (ok)
-                    {
-                        selections.Add(sale);
-                    }
+                    selections.Add(sale);
                 }
                 break;
             }
@@ -195,11 +186,7 @@ public static class FoodOrdersRules
                 {
                     return Gap(FoodOrderGap.NoDeficit, "");
                 }
-                if (!r.Warm.TryGetValue(out var warm))
-                {
-                    break;
-                }
-                var (selected, known) = Bill(ProductionRules.CookAheadFood, warm);
+                var (selected, known) = Bill(ProductionRules.CookAheadFood, r.Warm);
                 if (known)
                 {
                     selections.Add(selected);
@@ -234,9 +221,8 @@ public static class FoodOrdersRules
         {
             return WorkRules.Abstaining(Cause.UnreadFoodPlan);
         }
-        _ = r.Benches.TryGetValue(out var census);
         var kinds = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var b in census)
+        foreach (var b in r.Benches)
         {
             kinds[b.Id] = b.Definition;
         }

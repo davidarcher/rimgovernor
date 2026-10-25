@@ -84,7 +84,7 @@ public sealed class PreferencesFactsTests
     [Fact]
     public void ForbiddenHumanButcheryProposesNoButcherBill()
     {
-        var benches = Known(EquatableArray.From([Bench()]));
+        var benches = EquatableArray.From([Bench()]);
         var ideology = new IdeologyMode.NotInstalled();
 
         var (selection, ok) = HumanFoodRules.SelectHumanButcher(benches, ideology, None);

@@ -108,9 +108,9 @@ public static class HumanFoodRules
     }
 
     /// <summary>Native candidates already establish disposition, assignment and reachability; execution rechecks them before the write. Never substitute another worker.</summary>
-    public static (BillSelection Selection, bool Ok) SelectHumanButcher(Fact<EquatableArray<ProductionBench>> benches, IdeologyMode ideology, PreferencesRecord preferences)
+    public static (BillSelection Selection, bool Ok) SelectHumanButcher(EquatableArray<ProductionBench> rows, IdeologyMode ideology, PreferencesRecord preferences)
     {
-        if (preferences.Forbids(ForbiddenMethod.HumanButchery) || !benches.TryGetValue(out var rows))
+        if (preferences.Forbids(ForbiddenMethod.HumanButchery))
         {
             return (new BillSelection(), false);
         }

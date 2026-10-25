@@ -154,8 +154,17 @@ public static class ColonyDecodeReads
         }
         // The race rows are static for a load and come from the catalog; an unbuildable race table fails the reading.
         var races = RequireCatalog(catalog).AnimalRaces();
+        var cookingBenches = ColonyProductionReads.ColonyCookingBenches(v, buildings);
+        var butcheringBenches = ColonyProductionReads.ColonyButcheringBenches(v, buildings);
+        var foodSupply = FoodSupplyReads.DecodeFoodSupply(v.FoodSupply, tables.Things, catalog);
+        var combinedFoodSupply = FoodSupplyReads.DecodeFoodSupply(v.Forecast.CombinedFoodSupply, tables.Things, catalog);
         var r = new ColonyProjection
         {
+            CookingBenches = cookingBenches,
+            ButcheringBenches = butcheringBenches,
+            ProductionBenches = ColonyProductionReads.ColonyProductionBenches(v, buildings, tables.Pawns, catalog),
+            FoodSupply = foodSupply,
+            CombinedFoodSupply = combinedFoodSupply,
             Identity = identity,
             Bounds = new Bounds((int)v.MapSize.Width, (int)v.MapSize.Height),
             PlayerTechLevel = v.PlayerTechLevel,
@@ -396,29 +405,11 @@ public static class ColonyDecodeReads
         }
         AcquisitionReads.ApplyAcquisition(v, tables, catalog, ref r);
         f = ColonyProductionReads.ColonyProduction(v, f);
-        r = r with { ProductionBenches = ColonyProductionReads.ColonyProductionBenches(v, buildings, tables.Pawns, catalog) };
-        f = f with { TradeMealIngredients = TradePolicyRules.TradeMealIngredients(r.ProductionBenches) };
-        if (!HasIssue(v.Issues, "butchering") && Headed(buildings, v.Butchering, b => b.Bench))
+        f = f with
         {
-            var benches = new List<CookingBench>();
-            foreach (var b in v.Butchering)
-            {
-                benches.Add(new CookingBench
-                {
-                    Id = b.Bench.Id,
-                    Definition = buildings.Entity(b.Bench)?.DefName ?? "",
-                    Usable = b.Usable,
-                    Room = OptionalRef(b.Room),
-                });
-            }
-            var standing = new List<ButcherBench>();
-            foreach (var b in benches)
-            {
-                standing.Add(new ButcherBench { Definition = b.Definition, Room = b.Room });
-            }
-            f = f with { ButcherBenches = Known(EquatableArray.From(standing)) };
-            r = r with { ButcheringBenches = Known(EquatableArray.From(benches)) };
-        }
+            TradeMealIngredients = TradePolicyRules.TradeMealIngredients(r.ProductionBenches),
+            ButcherBenches = ColonyProductionReads.ColonyButcherBenches(butcheringBenches),
+        };
         f = ColonyFramesReads.ColonyDisaster(v, f, buildings, conditions);
         var comfort = ColonyFramesReads.ColonyComfort(v, catalog);
         f = f with { Comfort = comfort, BasicComfort = comfort, HomeCoverage = v.Upkeep.HomeCoverage };
@@ -438,61 +429,30 @@ public static class ColonyDecodeReads
         f = f with { OutdoorsDark = outdoorsDark };
         f = f with { MedicalReserve = ColonyFramesReads.ColonyMedicalReserve(v, tables, catalog) };
         f = f with { JoinerLetters = v.JoinerLetters };
-        if (!HasIssue(v.Issues, "cooking") && Headed(buildings, v.Cooking, b => b.Bench))
-        {
-            var benches = new List<CookingBench>();
-            foreach (var bench in v.Cooking)
-            {
-                benches.Add(new CookingBench
-                {
-                    Id = bench.Bench.Id,
-                    Definition = buildings.Entity(bench.Bench)?.DefName ?? "",
-                    Usable = bench.Usable,
-                    Room = OptionalRef(bench.Room),
-                    AutoRefuel = Optional(bench.AutoRefuel is O.BenchAutoRefuel.Refuelable, bench.AutoRefuel is O.BenchAutoRefuel.Refuelable { Allowed: true }),
-                });
-            }
-            r = r with { CookingBenches = Known(EquatableArray.From(benches)) };
-        }
-        // A food supply whose stock the things table misses stays unknown until a later frame.
-        if (FoodSupplyReads.DecodeFoodSupply(v.FoodSupply, tables.Things, catalog) is { } supply)
-        {
-            r = r with { FoodSupply = Known(supply) };
-            f = f with { FoodStorageUpkeep = FoodStorageUpkeepRules.FoodStorageStocks(supply, RequireCatalog(catalog).Derived.FullRotRateC) };
-        }
-        var combined = FoodSupplyReads.DecodeFoodSupply(v.Forecast.CombinedFoodSupply, tables.Things, catalog);
-        if (combined is not null)
-        {
-            r = r with { CombinedFoodSupply = Known(combined) };
-        }
-        if (combined is null || !r.FoodSupply.TryGetValue(out var human))
-        {
-            throw new ObservationContractException("the food runway needs the colonists' food supply and the combined food supply");
-        }
-        if (human.Consumers.Count == 0)
+        f = f with { FoodStorageUpkeep = FoodStorageUpkeepRules.FoodStorageStocks(foodSupply, RequireCatalog(catalog).Derived.FullRotRateC) };
+        if (foodSupply.Consumers.Count == 0)
         {
             f = f with { FoodDays = new FoodRunway.NoEaters() };
         }
         else
         {
-            var selected = new List<PawnId>(human.Consumers.Count);
-            foreach (var consumer in human.Consumers)
+            var selected = new List<PawnId>(foodSupply.Consumers.Count);
+            foreach (var consumer in foodSupply.Consumers)
             {
                 selected.Add(consumer.Id);
             }
             // The forecast over the colonists who eat; one the policy refuses fails the reading.
             try
             {
-                var forecastFood = FoodForecastRules.ForecastFood(combined, selected);
+                var forecastFood = FoodForecastRules.ForecastFood(combinedFoodSupply, selected);
                 f = f with { FoodDays = forecastFood.RunwayDays };
-                r = r with { FoodAtRiskNutrition = Known(forecastFood.AtRiskNutrition) };
             }
             catch (DomainException e)
             {
                 throw new ObservationContractException("the food forecast refused the colony's food supply: " + e.Message);
             }
         }
-        f = f with { AnimalUpkeep = f.AnimalUpkeep with { Food = r.CombinedFoodSupply } };
+        f = f with { AnimalUpkeep = f.AnimalUpkeep with { Food = Known(combinedFoodSupply) } };
         if (!HasIssue(v.Issues, "resources"))
         {
             var rows = new List<Amount>(v.Resources.Count);

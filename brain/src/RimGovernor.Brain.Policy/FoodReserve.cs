@@ -24,6 +24,36 @@ public sealed record FoodReserveReview
     public bool IsShort { get; init; }
 }
 
+/// <summary>What the travel reserve's review found: kept off, no one to feed, or reviewed.</summary>
+public abstract record FoodReserveState
+{
+    private protected FoodReserveState() { }
+
+    /// <summary>The policy keeps no reserve (zero reserve days).</summary>
+    public sealed record Disabled : FoodReserveState;
+
+    /// <summary>No consumer eats, so no reserve is owed.</summary>
+    public sealed record NoConsumers : FoodReserveState;
+
+    /// <summary>The reserve against the consumers' daily demand.</summary>
+    public sealed record Reviewed(FoodReserveReview Review) : FoodReserveState;
+}
+
+/// <summary>
+/// The delivery times of the food plan's producing channels: Confirmed when every one has a known lead, else
+/// Unconfirmed, which cannot authorize releasing stock.
+/// </summary>
+public abstract record FoodDeliveries
+{
+    private protected FoodDeliveries() { }
+
+    /// <summary>The leads in days of every producing channel.</summary>
+    public sealed record Confirmed(EquatableArray<double> Days) : FoodDeliveries;
+
+    /// <summary>A producing channel's lead, or the food plan itself, is not known.</summary>
+    public sealed record Unconfirmed : FoodDeliveries;
+}
+
 /// <summary>
 /// What one standing target-count food bill wants: the products of its family, the product count that
 /// satisfies it (native counts the product's stock toward the bill), and optionally one product ranked ahead of
@@ -53,9 +83,9 @@ public static class FoodReserveRules
     /// reserve-food stack it keeps (anything outside Release). Without it both planners flipped the same
     /// Pemmican stack forever, each ending "no longer has the requested forbid state".
     /// </summary>
-    public static IReadOnlyList<StartingSupply> DropReserveHeld(IReadOnlyList<StartingSupply> rows, Fact<FoodReserveReview> reserve)
+    public static IReadOnlyList<StartingSupply> DropReserveHeld(IReadOnlyList<StartingSupply> rows, FoodReserveState reserve)
     {
-        if (!reserve.TryGetValue(out var review))
+        if (reserve is not FoodReserveState.Reviewed { Review: var review })
         {
             return rows;
         }
@@ -66,10 +96,11 @@ public static class FoodReserveRules
 
     /// <summary>
     /// Counts shared reserve foods, roofed or not, at observed nutrition.
-    /// deliveryDays contains confirmed channel delivery times; unknown channel facts cannot authorize releasing
-    /// stock. The caller supplies the selected home census. Throws <see cref="FoodFactsException"/>.
+    /// deliveries holds the channel delivery times; unconfirmed ones cannot authorize releasing stock. The caller
+    /// supplies the selected home census. NoConsumers when no consumer eats; throws
+    /// <see cref="FoodFactsException"/> for facts that break the contract.
     /// </summary>
-    public static FoodReserveReview ReviewFoodReserve(FoodSupply supply, IReadOnlyList<PawnId>? selected, double reserveDays, double minimumDays, Fact<EquatableArray<double>> deliveryDays)
+    public static FoodReserveState ReviewFoodReserve(FoodSupply supply, IReadOnlyList<PawnId>? selected, double reserveDays, double minimumDays, FoodDeliveries deliveries)
     {
         // Evaluate the runway without prospective reserve food too. Otherwise releasing the last reserve would
         // immediately make it eligible to hold again, alternating forbid writes while the colony is still short.
@@ -94,19 +125,22 @@ public static class FoodReserveRules
         }
         if (!FieldCapacityRules.FieldPositive(target))
         {
-            throw new FoodFactsException();
+            return new FoodReserveState.NoConsumers();
         }
         // A positive target means some consumer eats, so the forecast has a runway.
         var days = forecast.RunwayDays is FoodRunway.Days { Value: var runway } ? runway : throw new FoodFactsException();
-        var complete = deliveryDays.TryGetValue(out var deliveries);
+        var complete = deliveries is FoodDeliveries.Confirmed;
         var arriving = false;
-        foreach (var lead in deliveries)
+        if (deliveries is FoodDeliveries.Confirmed { Days: var leads })
         {
-            if (!FoodForecastRules.FoodNumber(lead))
+            foreach (var lead in leads)
             {
-                throw new FoodFactsException();
+                if (!FoodForecastRules.FoodNumber(lead))
+                {
+                    throw new FoodFactsException();
+                }
+                arriving = arriving || lead < days;
             }
-            arriving = arriving || lead < days;
         }
         var isShort = days < minimumDays;
         var emergency = complete && days < minimumDays && !arriving;
@@ -169,7 +203,7 @@ public static class FoodReserveRules
         }
         hold.Sort(StringComparer.Ordinal);
         release.Sort(StringComparer.Ordinal);
-        return new FoodReserveReview
+        return new FoodReserveState.Reviewed(new FoodReserveReview
         {
             TargetNutrition = target,
             StockNutrition = stockNutrition,
@@ -179,7 +213,7 @@ public static class FoodReserveRules
             Release = release,
             Emergency = emergency,
             IsShort = isShort,
-        };
+        });
     }
 
     /// <summary>

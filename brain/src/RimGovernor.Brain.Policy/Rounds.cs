@@ -171,12 +171,13 @@ public sealed record RoundsFacts
     /// <summary>The food plan; a pass that holds none raises <see cref="RequiredFactException"/>.</summary>
     public FoodPlan RequireFoodPlan() => FoodPlan ?? throw new RequiredFactException("food plan");
 
-    public Fact<FoodReserveReview> FoodReserve { get; init; }
+    /// <summary>The travel reserve's review; Disabled until the review reads it.</summary>
+    public FoodReserveState FoodReserve { get; init; } = new FoodReserveState.Disabled();
 
-    /// <summary>The babies' food review; unknown without Biotech baby care or consumer facts.</summary>
-    public Fact<BabyFeeding> BabyFeeding { get; init; }
+    /// <summary>The babies' food review; the empty review (nothing owed) without Biotech baby care.</summary>
+    public BabyFeeding BabyFeeding { get; init; } = new();
 
-    public Fact<EquatableArray<FoodIngredientSlot>> TradeMealIngredients { get; init; }
+    public EquatableArray<FoodIngredientSlot> TradeMealIngredients { get; init; }
 
     public EquatableArray<PenGrazing> PenGrazing { get; init; }
 
@@ -651,9 +652,10 @@ public sealed record RoundsFacts
     public Fact<bool> NamesOwed { get; init; }
 
     /// <summary>The standing butcher benches and the room each stands in; the food/supply Need's butcher facility is met once a table stands outside the kitchen.</summary>
-    public Fact<EquatableArray<ButcherBench>> ButcherBenches { get; init; }
+    public EquatableArray<ButcherBench> ButcherBenches { get; init; }
 
-    public Fact<bool> Cooking { get; init; }
+    /// <summary>A stocked kitchen stands ready to cook.</summary>
+    public bool Cooking { get; init; }
 
     public Fact<bool> WorkCoverage { get; init; }
 
@@ -796,7 +798,7 @@ public static partial class RoundsRules
         [DisasterService.Sleeping] = FootholdSleeping(f),
         [DisasterService.Shelter] = FootholdShelter(f),
         [DisasterService.Temperature] = FootholdTemperature(f, p),
-        [DisasterService.Cooking] = f.Cooking,
+        [DisasterService.Cooking] = Known(f.Cooking),
         [DisasterService.Power] = FootholdPower(f),
         [DisasterService.Storage] = StockpileRules.FoodStorageStanding(f),
     };
@@ -965,10 +967,7 @@ public static partial class RoundsRules
     /// </summary>
     internal static Fact<bool> ButcherFacilityMet(RoundsFacts f)
     {
-        if (!f.ButcherBenches.TryGetValue(out var benches))
-        {
-            return Unknown<bool>();
-        }
+        var benches = f.ButcherBenches;
         if (benches.Count == 0)
         {
             return Known(false);
@@ -985,7 +984,7 @@ public static partial class RoundsRules
         bool apart = false, table = false, spot = false;
         foreach (var bench in benches)
         {
-            if (!bench.Room.TryGetValue(out var room) || !colocated.Contains(room))
+            if (bench.Room is not { } room || !colocated.Contains(room))
             {
                 apart = true;
                 table = table || bench.Definition != ButcherSpotDefinition;
@@ -1008,10 +1007,10 @@ public static partial class RoundsRules
     public const string ButcherSpotDefinition = "ButcherSpot";
 }
 
-/// <summary>A standing butcher bench and the room it stands in (unknown outdoors).</summary>
+/// <summary>A standing butcher bench and the room it stands in (none outdoors).</summary>
 public sealed record ButcherBench
 {
     public string Definition { get; init; } = "";
 
-    public Fact<string> Room { get; init; }
+    public string? Room { get; init; }
 }

@@ -10,37 +10,31 @@ public sealed partial record ColonyProjection
     public MealTierRequest MealRequest(double minDays, double targetDays)
     {
         var r = new MealTierRequest { Plan = Facts.FoodPlan, MinDays = minDays, TargetDays = targetDays, Environment = Environment };
-        if (CombinedFoodSupply.TryGetValue(out var supply))
+        var kept = new List<FoodStock>();
+        foreach (var stock in CombinedFoodSupply.Stocks)
         {
-            var kept = new List<FoodStock>();
-            foreach (var stock in supply.Stocks)
+            if (stock.RawClass != FoodIngredientClass.None && !stock.Reserve && !stock.Corpse)
             {
-                if (stock.RawClass != FoodIngredientClass.None && !stock.Reserve && !stock.Corpse)
-                {
-                    kept.Add(stock);
-                }
+                kept.Add(stock);
             }
-            try
+        }
+        try
+        {
+            var f = FoodForecastRules.ForecastFood(CombinedFoodSupply with { Stocks = kept }, null);
+            var ids = new List<PawnId>(FoodSupply.Consumers.Count);
+            foreach (var c in FoodSupply.Consumers)
             {
-                var f = FoodForecastRules.ForecastFood(supply with { Stocks = kept }, null);
-                if (FoodSupply.TryGetValue(out var human))
-                {
-                    var ids = new List<PawnId>(human.Consumers.Count);
-                    foreach (var c in human.Consumers)
-                    {
-                        ids.Add(c.Id);
-                    }
-                    f = f.GateOnColonists(ids, minDays);
-                }
-                if (f.RunwayDays is FoodRunway.Days { Value: var raw })
-                {
-                    r = r with { RawRunwayDays = Known(raw) };
-                }
+                ids.Add(c.Id);
             }
-            catch (DomainException)
+            f = f.GateOnColonists(ids, minDays);
+            if (f.RunwayDays is FoodRunway.Days { Value: var raw })
             {
-                // A forecast the policy refuses leaves the raw runway unknown.
+                r = r with { RawRunwayDays = Known(raw) };
             }
+        }
+        catch (DomainException)
+        {
+            // A forecast the policy refuses leaves the raw runway unknown.
         }
         if (WorkPawns.TryGetValue(out var pawns))
         {
@@ -86,10 +80,7 @@ public sealed partial record ColonyProjection
             }
             r = r with { HighExpectations = Known(pressure) };
         }
-        if (ProductionBenches.TryGetValue(out var benches))
-        {
-            r = r with { Previous = MealRules.ObservedMealTier(benches) };
-        }
+        r = r with { Previous = MealRules.ObservedMealTier(ProductionBenches) };
         foreach (var dispenser in FoodChannels.PasteDispenser)
         {
             if (dispenser.Powered && dispenser.HopperNutrition > 0)

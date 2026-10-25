@@ -125,7 +125,6 @@ public sealed partial class RoundsBillPlanner : IPurposeReporter
             Supply = projection.CombinedFoodSupply,
             Humans = projection.FoodSupply,
             TargetDays = seasonal.FoodTargetDays,
-            Warm = Unknown<double>(),
         };
         if (_purpose == ProductionRules.CookFood)
         {
@@ -168,14 +167,10 @@ public sealed partial class RoundsBillPlanner : IPurposeReporter
         return FoodOrdersRules.DeclareFoodOrders(request, benches);
     }
 
-    internal Verdict NoBill(Fact<EquatableArray<ProductionBench>> benches)
+    internal Verdict NoBill(EquatableArray<ProductionBench> benches)
     {
-        if (!benches.TryGetValue(out var rows))
-        {
-            return FieldUnavailable("production_benches");
-        }
         var butcher = _purpose == ProductionRules.ButcherFood;
-        foreach (var bench in rows)
+        foreach (var bench in benches)
         {
             if (bench.Usable && bench.Butcher == butcher)
             {

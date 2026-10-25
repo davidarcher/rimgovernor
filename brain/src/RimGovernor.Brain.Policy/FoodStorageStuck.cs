@@ -34,8 +34,7 @@ public static class FoodStorageStuckRules
     /// </summary>
     public static FoodStuckReason FoodStorageStuckReason(FoodStorageObservation observed, FoodStoragePolicy p, Fact<EquatableArray<PawnId>> haulers)
     {
-        _ = observed.Stocks.TryGetValue(out var stocks);
-        foreach (var entry in stocks)
+        foreach (var entry in observed.Stocks)
         {
             if (!FoodStorageUpkeepRules.FoodStorageUnstored(entry, observed.ChilledMaxC, p))
             {

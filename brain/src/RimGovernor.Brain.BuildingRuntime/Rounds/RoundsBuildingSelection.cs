@@ -47,10 +47,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return (0, default, FieldUnavailable("butcher_table_definition"));
             }
-            if (!facts.ButcheringBenches.TryGetValue(out var benches))
-            {
-                return (0, default, FieldUnavailable("butchering_benches"));
-            }
+            var benches = facts.ButcheringBenches;
             if (!ButcherBenchApart(benches, facts.Rooms))
             {
                 return (1, new MethodId("butcher-spot"), default);
@@ -189,19 +186,11 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return (0, default, AwaitingFoodPlan("cooking-capacity"));
             }
-            if (!facts.Facts.Cooking.TryGetValue(out var ready))
-            {
-                return (0, default, FieldUnavailable("cooking"));
-            }
-            if (ready)
+            if (facts.Facts.Cooking)
             {
                 return (0, default, BuildingReasonNoDeficit);
             }
-            if (!facts.CookingBenches.TryGetValue(out var cooking))
-            {
-                return (0, default, FieldUnavailable("cooking_benches"));
-            }
-            foreach (var bench in cooking)
+            foreach (var bench in facts.CookingBenches)
             {
                 if (bench.Definition == "Campfire" || bench.Usable)
                 {
@@ -314,7 +303,8 @@ partial class RoundsBuildingPlanner
 
     internal static (CurrentBuilding Building, bool Retire) StandingButcherSpot(ColonyProjection facts)
     {
-        if (!facts.ButcheringBenches.TryGetValue(out var benches) || facts.Facts.CurrentConstruction is not { } census)
+        var benches = facts.ButcheringBenches;
+        if (facts.Facts.CurrentConstruction is not { } census)
         {
             return (new CurrentBuilding(), false);
         }

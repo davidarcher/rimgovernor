@@ -197,16 +197,13 @@ partial class HomeUpkeepReader
                 inUse[bed.Id] = (inUse.TryGetValue(bed.Id, out var was) && was) || bed.Owners.Count > 0;
             }
         }
-        if (colony.ProductionBenches.TryGetValue(out var benches))
+        foreach (var bench in colony.ProductionBenches)
         {
-            foreach (var bench in benches)
+            foreach (var bill in bench.Bills)
             {
-                foreach (var bill in bench.Bills)
+                if (bill.Active)
                 {
-                    if (bill.Active)
-                    {
-                        inUse[bench.Id] = true;
-                    }
+                    inUse[bench.Id] = true;
                 }
             }
         }

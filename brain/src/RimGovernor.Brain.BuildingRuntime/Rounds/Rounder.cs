@@ -774,7 +774,7 @@ public sealed partial class Rounder
         var result = await p.Journal.ReviewRoundsAsync(new RoundsRequest { Revision = previous.Revision, Current = state.Snapshot, Tick = reading.Projection.Identity.Tick, Enabled = true, Policy = Policy, Facts = reading.Projection.Facts }, ct).ConfigureAwait(false);
         stages.Lap("review");
         p.ForecastEvidence.Review(state.Snapshot, reading.Projection.Facts.Tick.Value, reading.Projection.Facts.ForecastObserved.Needs, reading.Projection.Facts.CoupledAlternatives?.Context,
-            reading.Projection.CombinedFoodSupply.TryGetValue(out var observedFood) ? observedFood : null);
+            reading.Projection.CombinedFoodSupply);
         Demand.Set(result.Review.Snapshot, result.Needs.ResourceDemand);
         TradeMemory.Set(result.Review.Snapshot, result.Needs.Trade);
         WorkAssignments.Set(result.Review.Snapshot, result.Needs.WorkAssignments);
@@ -955,7 +955,7 @@ partial class Rounder
     internal static List<(string Key, object? Value)> RoundsFoodAttrs(RoundsFacts f, RoundsPolicy seasonal)
     {
         var attrs = new List<(string Key, object? Value)> { ("food_min_days", seasonal.FoodMinDays), ("food_target_days", seasonal.FoodTargetDays) };
-        if (f.FoodReserve.TryGetValue(out var reserve))
+        if (f.FoodReserve is FoodReserveState.Reviewed { Review: var reserve })
         {
             attrs.AddRange([("food_reserve_days", seasonal.FoodReserveDays), ("food_reserve_target", reserve.TargetNutrition),
                 ("food_reserve_stock", reserve.StockNutrition), ("food_reserve_deficit", reserve.DeficitNutrition), ("food_reserve_emergency", reserve.Emergency)]);

@@ -66,7 +66,7 @@ public static partial class TradePolicyRules
         {
             return null;
         }
-        EquatableArray<FoodIngredientSlot> slots = f.TradeMealIngredients.TryGetValue(out var read) ? read : [];
+        var slots = f.TradeMealIngredients;
         return new TradeFoodContext
         {
             Plan = plan,
@@ -82,17 +82,13 @@ public static partial class TradePolicyRules
     /// Reads the active fine/lavish recipe's native slots. Observed bills express the intended tier even when a
     /// protein shortage makes that recipe temporarily unavailable; trade does not promote the meal tier.
     /// </summary>
-    public static Fact<EquatableArray<FoodIngredientSlot>> TradeMealIngredients(Fact<EquatableArray<ProductionBench>> benches)
+    public static EquatableArray<FoodIngredientSlot> TradeMealIngredients(EquatableArray<ProductionBench> rows)
     {
-        if (!benches.TryGetValue(out var rows))
-        {
-            return Unknown<EquatableArray<FoodIngredientSlot>>();
-        }
         IReadOnlyList<FoodIngredientSlot> chosen = [];
         var best = 0.0;
         var name = "";
         var supported = new HashSet<FoodIngredientClass> { FoodIngredientClass.Meat, FoodIngredientClass.AnimalProduct, FoodIngredientClass.Vegetable };
-        foreach (var bench in rows!)
+        foreach (var bench in rows)
         {
             if (bench.Butcher || !bench.Usable)
             {
@@ -120,7 +116,7 @@ public static partial class TradePolicyRules
                 }
             }
         }
-        return Known(EquatableArray.From(chosen));
+        return EquatableArray.From(chosen);
     }
 
     /// <summary>

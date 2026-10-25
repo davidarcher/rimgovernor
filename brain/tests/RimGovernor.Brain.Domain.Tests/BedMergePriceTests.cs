@@ -159,7 +159,7 @@ public sealed class BedMergePriceTests
 
         Assert.Equal("outdoor_curve", Fails(Price(Wood(Calm), null)).Fact);
         // A work-day with no price, whatever its reason, fails the heat it prices.
-        foreach (var day in new StationWorkDay[] { new StationWorkDay.FoodUnread(), new StationWorkDay.NoColonist(), new StationWorkDay.NoEater(), new StationWorkDay.NoCrop() })
+        foreach (var day in new StationWorkDay[] { new StationWorkDay.NoColonist(), new StationWorkDay.NoEater(), new StationWorkDay.NoCrop() })
         {
             Assert.Equal("work_day", Fails(Price(Wood(Calm), Temperate) with { WorkDay = day }).Fact);
         }
@@ -507,9 +507,8 @@ public sealed class BedMergePriceTests
         Assert.Equal(day, f.BedMergePriceOf().WorkDay);
 
         // Each reason it has no price is named, and the work price stays invalid.
-        Assert.IsType<StationWorkDay.FoodUnread>(LayoutLightRules.StationWorkDayOf(f with { Food = default }));
         Assert.IsType<StationWorkDay.NoColonist>(LayoutLightRules.StationWorkDayOf(f with { Colonists = 0 }));
-        Assert.IsType<StationWorkDay.NoEater>(LayoutLightRules.StationWorkDayOf(f with { Food = Known(new FoodSupply { Larder = new(), Consumers = [] }) }));
+        Assert.IsType<StationWorkDay.NoEater>(LayoutLightRules.StationWorkDayOf(f with { Food = new FoodSupply { Larder = new(), Consumers = [] } }));
         Assert.IsType<StationWorkDay.NoCrop>(LayoutLightRules.StationWorkDayOf(f with { Crops = [] }));
         Assert.False(LayoutRegroupRules.StationWorkPrice(f with { Crops = [] }).Valid());
         Assert.Empty(LayoutComfortChooseRules.AdviseComfort(f with { Crops = [], ExpectedMood = Known(0.5) }, new StationGraph(), 1));

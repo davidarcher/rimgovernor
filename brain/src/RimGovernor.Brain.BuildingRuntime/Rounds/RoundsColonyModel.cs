@@ -375,7 +375,7 @@ internal static class RoundsColonyModel
     }
 
     /// <summary>The nutrition of the food stacks the colony can eat; unknown while the food census is incomplete or a stack's nutrition is.</summary>
-    private static Fact<double> NutritionOf(Fact<FoodSupply> supply) => supply.TryGetValue(out var food) ? ForecastStockScope.Nutrition(food) : default;
+    private static Fact<double> NutritionOf(FoodSupply supply) => ForecastStockScope.Nutrition(supply);
 
     /// <summary>
     /// The medicine on hand by kind: the unforbidden stacks of the medical reserve census, highest potency first (the catalog's

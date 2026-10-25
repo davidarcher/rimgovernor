@@ -6,7 +6,7 @@ public sealed record PasteSiteRequest
 {
     public MealTierRequest Meals { get; init; } = new();
 
-    public Fact<EquatableArray<ProductionBench>> Benches { get; init; }
+    public EquatableArray<ProductionBench> Benches { get; init; }
 
     public Fact<Infrastructure> Hopper { get; init; }
 

@@ -211,10 +211,6 @@ public static class ColonyProductionReads
 
     internal static RoundsFacts ColonyProduction(O.ColonyFactsSnapshot v, RoundsFacts facts)
     {
-        if (ColonyDecodeReads.HasIssue(v.Issues, "cooking"))
-        {
-            return facts;
-        }
         var ready = false;
         foreach (var bench in v.Cooking)
         {
@@ -235,7 +231,7 @@ public static class ColonyProductionReads
                 }
             }
         }
-        return facts with { Cooking = Known(ready) };
+        return facts with { Cooking = ready };
     }
 
     /// <summary>
@@ -269,19 +265,65 @@ public static class ColonyProductionReads
         return Known(row.Settings.PolicyInputs.Ideo is O.PawnIdeo.Member m ? new HeldPrecepts { Ideo = m.IdeoId, Defs = [.. m.Precepts] } : new HeldPrecepts());
     }
 
-    internal static Fact<EquatableArray<ProductionBench>> ColonyProductionBenches(O.ColonyFactsSnapshot v, Buildings buildings, Pawns pawns, DefinitionCatalog? catalog)
+    /// <summary>The definition of the building a bench row names; a bench the frame's building table does not hold breaks the frame's contract.</summary>
+    internal static string BenchDefinition(Buildings buildings, C.Ref bench) =>
+        buildings.Entity(bench)?.DefName ?? throw new ObservationContractException($"bench {bench.Id} has no building row");
+
+    /// <summary>The frame's cooking benches, each with the room it stands in (none outdoors).</summary>
+    internal static EquatableArray<CookingBench> ColonyCookingBenches(O.ColonyFactsSnapshot v, Buildings buildings)
     {
-        if (ColonyDecodeReads.HasIssue(v.Issues, "cooking") || ColonyDecodeReads.HasIssue(v.Issues, "butchering") || !ColonyDecodeReads.Headed(buildings, v.Cooking, b => b.Bench) || !ColonyDecodeReads.Headed(buildings, v.Butchering, b => b.Bench))
+        var benches = new List<CookingBench>(v.Cooking.Count);
+        foreach (var bench in v.Cooking)
         {
-            return Unknown<EquatableArray<ProductionBench>>();
+            benches.Add(new CookingBench
+            {
+                Id = bench.Bench.Id,
+                Definition = BenchDefinition(buildings, bench.Bench),
+                Usable = bench.Usable,
+                Room = ColonyDecodeReads.OptionalRef(bench.Room),
+                AutoRefuel = ColonyDecodeReads.Optional(bench.AutoRefuel is O.BenchAutoRefuel.Refuelable, bench.AutoRefuel is O.BenchAutoRefuel.Refuelable { Allowed: true }),
+            });
         }
+        return EquatableArray.From(benches);
+    }
+
+    /// <summary>The frame's butchering benches, each with the room it stands in (none outdoors).</summary>
+    internal static EquatableArray<CookingBench> ColonyButcheringBenches(O.ColonyFactsSnapshot v, Buildings buildings)
+    {
+        var benches = new List<CookingBench>(v.Butchering.Count);
+        foreach (var bench in v.Butchering)
+        {
+            benches.Add(new CookingBench
+            {
+                Id = bench.Bench.Id,
+                Definition = BenchDefinition(buildings, bench.Bench),
+                Usable = bench.Usable,
+                Room = ColonyDecodeReads.OptionalRef(bench.Room),
+            });
+        }
+        return EquatableArray.From(benches);
+    }
+
+    /// <summary>The standing butcher benches and the rooms they stand in.</summary>
+    internal static EquatableArray<ButcherBench> ColonyButcherBenches(EquatableArray<CookingBench> butchering)
+    {
+        var standing = new List<ButcherBench>(butchering.Count);
+        foreach (var bench in butchering)
+        {
+            standing.Add(new ButcherBench { Definition = bench.Definition, Room = bench.Room.TryGetValue(out var room) ? room : null });
+        }
+        return EquatableArray.From(standing);
+    }
+
+    internal static EquatableArray<ProductionBench> ColonyProductionBenches(O.ColonyFactsSnapshot v, Buildings buildings, Pawns pawns, DefinitionCatalog? catalog)
+    {
         var rows = new List<ProductionBench>();
         ProductionBench Add(C.Ref bench, O.SnapshotRef snapshot, bool usable, IEnumerable<O.RecipeState> recipes, IEnumerable<O.BillState> bills, IEnumerable<O.FoodProduction> production, bool butcher, C.Ref? room)
         {
             var row = new ProductionBench
             {
                 Id = bench.Id,
-                Definition = buildings.Entity(bench)?.DefName ?? "",
+                Definition = BenchDefinition(buildings, bench),
                 Token = snapshot.Token ?? throw new RequiredFactException("bench_snapshot.token:" + bench.Id),
                 Usable = usable,
                 Butcher = butcher,
@@ -340,7 +382,7 @@ public static class ColonyProductionReads
             }
             rows.Add(row with { HumanCorpseNutrition = HumanCorpseNutrition(b.HumanCorpseMeat, catalog), HumanButchers = butchers });
         }
-        return Known(EquatableArray.From(rows));
+        return EquatableArray.From(rows);
     }
 
     /// <summary>

@@ -12,7 +12,7 @@ public sealed record FoodStoresFacts
 {
     public FoodStorageObservation Storage { get; init; } = new();
 
-    public Fact<FoodReserveReview> Reserve { get; init; }
+    public FoodReserveState Reserve { get; init; } = new FoodReserveState.Disabled();
 
     /// <summary>Whether an owned zone of a food role stands (<see cref="StockpileRules.FoodStorageStanding"/>); unknown until zone claims are read.</summary>
     public Fact<bool> Stockpile { get; init; }
@@ -110,7 +110,7 @@ public sealed class FoodStoresFamily(FoodStoragePolicy policy, bool storage, boo
     /// <summary>The offered reserve stacks the review wants held (forbid) or released (allow), in read order, at most eight.</summary>
     private static List<SupplyAllow> ReserveSupplies(FoodStoresFacts facts)
     {
-        if (!facts.Reserve.TryGetValue(out var reserve) || !facts.ReserveTargets.TryGetValue(out var targets))
+        if (facts.Reserve is not FoodReserveState.Reviewed { Review: var reserve } || !facts.ReserveTargets.TryGetValue(out var targets))
         {
             return [];
         }
@@ -142,24 +142,24 @@ public static class FoodStoresRules
     public static readonly NeedId RefrigerationNeed = NeedId.Of(FoodStoresFamilyId, "refrigeration");
 
     /// <summary>Whether the reserve review asks for stacks to be held or released.</summary>
-    public static bool ReserveAccessPending(Fact<FoodReserveReview> reserve) =>
-        reserve.TryGetValue(out var r) && (r.Hold.Count > 0 || r.Release.Count > 0);
+    public static bool ReserveAccessPending(FoodReserveState reserve) =>
+        reserve is FoodReserveState.Reviewed { Review: var r } && (r.Hold.Count > 0 || r.Release.Count > 0);
 
     /// <summary>
     /// The storage Need, a plain threshold with no latch: unmet while reserve access is pending, the reserve (outside
     /// an emergency) is short, a food stockpile is known missing, a larder corpse change is due, or the stored share
-    /// of at-risk perishable nutrition is under <see cref="FoodStoragePolicy.TargetStoredFraction"/>. Otherwise an
-    /// unread census raises <see cref="RequiredFactException"/> (an unread reserve or stockpile is not "missing"), and else it is met. Its deficit is the
+    /// of at-risk perishable nutrition is under <see cref="FoodStoragePolicy.TargetStoredFraction"/>, and else it is
+    /// met; malformed census rows throw. Its deficit is the
     /// owed share, 0 to 1: pending access, a missing stockpile or a larder change are whole; a short reserve or
     /// storage is its shortfall over its target.
     /// </summary>
     public static Need FoodStorageNeedOf(FoodStoresFacts f, FoodStoragePolicy p)
     {
-        var reserveKnown = f.Reserve.TryGetValue(out var reserve);
+        var reserve = (f.Reserve as FoodReserveState.Reviewed)?.Review;
         var access = ReserveAccessPending(f.Reserve);
-        var refill = reserveKnown && !reserve!.Emergency && reserve.DeficitNutrition > 0;
+        var refill = reserve is { Emergency: false, DeficitNutrition: > 0 };
         var stockpileMissing = RoundsRules.Negative(f.Stockpile);
-        FoodStorageReview? storage;
+        FoodStorageReview storage;
         try
         {
             storage = FoodStorageUpkeepRules.ReviewFoodStorage(f.Storage, p);
@@ -167,9 +167,8 @@ public static class FoodStoresRules
         catch (DomainException)
         {
             // Malformed census rows are an unreadable census, never a measured one.
-            storage = null;
+            throw new RequiredFactException("food storage census");
         }
-        var census = storage is not null && storage.TotalNutrition.IsKnown;
         var owed = new List<double>();
         if (access || stockpileMissing)
         {
@@ -179,13 +178,9 @@ public static class FoodStoresRules
         {
             owed.Add(reserve!.TargetNutrition > 0 ? Math.Min(1.0, reserve.DeficitNutrition / reserve.TargetNutrition) : 1.0);
         }
-        if (census && storage!.Active)
+        if (storage.Active)
         {
-            owed.Add(storage.Larder ? 1.0 : storage.Target.TryGetValue(out var target) && target > 0 && storage.Deficit.TryGetValue(out var deficit) ? Math.Min(1.0, deficit / target) : 1.0);
-        }
-        if (owed.Count == 0 && !census)
-        {
-            throw new RequiredFactException("food storage census");
+            owed.Add(storage.Larder ? 1.0 : storage.Target > 0 ? Math.Min(1.0, storage.Deficit / storage.Target) : 1.0);
         }
         return new Need
         {
@@ -200,8 +195,8 @@ public static class FoodStoresRules
     /// The refrigeration Need, a plain threshold with no latch (decision 16): unmet while the at-risk roofed
     /// perishable nutrition warmer than <see cref="FoodStoragePolicy.ChilledExitC"/> reaches
     /// <see cref="FoodStoragePolicy.AtRiskNutritionThreshold"/>, while a standing tomb, morgue or meal closet measures
-    /// warm, or while the planned meal closet waits for its shell. Otherwise an unread census raises
-    /// <see cref="RequiredFactException"/>, and a read one is met. Unread warm rooms or an unread closet owe nothing. Its deficit is the warm nutrition's share of the
+    /// warm, or while the planned meal closet waits for its shell. Otherwise it is met; malformed census rows throw.
+    /// Unread warm rooms or an unread closet owe nothing. Its deficit is the warm nutrition's share of the
     /// threshold, whole for a warm cooling room, and at least a half while the closet is owed.
     /// </summary>
     public static Need RefrigerationNeedOf(FoodStoresFacts f, FoodStoragePolicy p)
@@ -214,19 +209,14 @@ public static class FoodStoresRules
         catch (DomainException)
         {
             // Malformed census rows are an unreadable census, never a measured one.
-            review = new RefrigerationReview { WarmNutrition = Unknown<double>() };
-        }
-        var nutritionKnown = review.WarmNutrition.TryGetValue(out var nutrition);
-        var closet = RoundsRules.Positive(f.MealClosetOwed);
-        var unmet = review.Active || closet;
-        if (!unmet && !nutritionKnown)
-        {
             throw new RequiredFactException("refrigeration census");
         }
+        var closet = RoundsRules.Positive(f.MealClosetOwed);
+        var unmet = review.Active || closet;
         var deficit = 0.0;
         if (unmet)
         {
-            deficit = nutritionKnown && p.AtRiskNutritionThreshold > 0 ? Math.Min(1.0, nutrition / p.AtRiskNutritionThreshold) : 1.0;
+            deficit = p.AtRiskNutritionThreshold > 0 ? Math.Min(1.0, review.WarmNutrition / p.AtRiskNutritionThreshold) : 1.0;
             if (review.Warm.Count > 0)
             {
                 deficit = 1.0;

@@ -202,11 +202,11 @@ public sealed partial record ColonyProjection
 
     public FoodChannels FoodChannels { get; init; } = new();
 
-    public Fact<EquatableArray<ProductionBench>> ProductionBenches { get; init; }
+    /// <summary>Every cooking and butchering bench the frame carries, with its recipes and bills.</summary>
+    public required EquatableArray<ProductionBench> ProductionBenches { get; init; }
 
-    public Fact<EquatableArray<CookingBench>> ButcheringBenches { get; init; }
-
-    public Fact<double> FoodAtRiskNutrition { get; init; }
+    /// <summary>The standing butcher benches and the rooms they stand in.</summary>
+    public required EquatableArray<CookingBench> ButcheringBenches { get; init; }
 
     public CropClimate CropClimate { get; init; } = new();
 
@@ -249,7 +249,8 @@ public sealed partial record ColonyProjection
 
     public Fact<EquatableArray<FieldCrop>> FieldCapacityCrops { get; init; }
 
-    public Fact<EquatableArray<CookingBench>> CookingBenches { get; init; }
+    /// <summary>The cooking benches and the rooms they stand in.</summary>
+    public required EquatableArray<CookingBench> CookingBenches { get; init; }
 
     public Fact<PowerTopology> PowerPlanning { get; init; }
 
@@ -326,9 +327,11 @@ public sealed partial record ColonyProjection
 
     public IReadOnlyList<PlanningDefinition> Definitions { get; init; } = [];
 
-    public Fact<FoodSupply> FoodSupply { get; init; }
+    /// <summary>The human consumers' food supply: their stocks, eaters and the larder.</summary>
+    public required FoodSupply FoodSupply { get; init; }
 
-    public Fact<FoodSupply> CombinedFoodSupply { get; init; }
+    /// <summary>The colony's combined food supply, animals among the consumers.</summary>
+    public required FoodSupply CombinedFoodSupply { get; init; }
 
     /// <summary>The accessible colony stock census by definition; a definition absent from a known census is known zero.</summary>
     public Fact<IReadOnlyDictionary<Resource, long>> Resources { get; init; }

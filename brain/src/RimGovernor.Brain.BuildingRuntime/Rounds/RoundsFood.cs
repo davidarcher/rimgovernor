@@ -181,8 +181,7 @@ public sealed class FoodRounds
 
 /// <summary>
 /// Declares the food/baby-feeding Need's baby food bill to the work ledger, filed under the Need: while the Need is
-/// unmet, the standing target-count bill for a baby-edible recipe; nothing while it is met; an abstain while the
-/// babies' food review is unread.
+/// unmet, the standing target-count bill for a baby-edible recipe; nothing while it is met.
 /// </summary>
 public sealed class BabyFoodDeclarer : IOrderDeclarer
 {
@@ -191,17 +190,12 @@ public sealed class BabyFoodDeclarer : IOrderDeclarer
 
     internal static Declared Declare(ColonyProjection projection, IReadOnlyList<GearBench> benches)
     {
-        // An unread baby census raises from the Need.
-        if (FoodRules.BabyFeedingNeedOf(new FoodFacts { BabyFeeding = projection.Facts.BabyFeeding }).Satisfaction == Satisfaction.Met)
+        var babies = projection.Facts.BabyFeeding;
+        if (!babies.IsShort)
         {
             return new Declared();
         }
-        var babies = projection.Facts.BabyFeeding.Value;
-        if (!projection.ProductionBenches.TryGetValue(out var census))
-        {
-            return new Declared();
-        }
-        var (selected, ok) = ProductionRules.SelectProductionBill(BabyFeedingRules.BabyFoodBill, census, projection.Facts.Colonists, 0, 1, new ProductionBillContext { BabyFeeding = babies });
+        var (selected, ok) = ProductionRules.SelectProductionBill(BabyFeedingRules.BabyFoodBill, projection.ProductionBenches, projection.Facts.Colonists, 0, 1, new ProductionBillContext { BabyFeeding = babies });
         return CareOrdersRules.DeclareSelection(selected, ok, benches);
     }
 }

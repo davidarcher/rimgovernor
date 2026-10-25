@@ -14,13 +14,10 @@ public sealed record RefrigerationReview
 {
     public bool Active { get; init; }
 
-    /// <summary>
-    /// The total nutrition of warm at-risk roofed stock; unknown when the census or any at-risk stock's
-    /// storage facts are unknown, and the review is then inactive.
-    /// </summary>
-    public Fact<double> WarmNutrition { get; init; }
+    /// <summary>The total nutrition of warm at-risk roofed stock.</summary>
+    public double WarmNutrition { get; init; }
 
-    /// <summary>The distinct native room ids holding warm at-risk stock, sorted, and only meaningful while WarmNutrition is known.</summary>
+    /// <summary>The distinct native room ids holding warm at-risk stock, sorted; empty while the review is inactive.</summary>
     public EquatableArray<string> Rooms { get; init; }
 
     /// <summary>The warm standing tombs, morgues and meal closets (WithWarmRooms), also listed in Rooms.</summary>
@@ -159,8 +156,7 @@ public static partial class RefrigerationRules
 
     /// <summary>
     /// Active while the roofed at-risk nutrition warmer than ChilledExitC (the exit bar) reaches
-    /// AtRiskNutritionThreshold: a plain threshold, holding nothing from the review before (decision 16). Unknown
-    /// storage facts on any at-risk stock leave the nutrition unknown and the review inactive.
+    /// AtRiskNutritionThreshold: a plain threshold, holding nothing from the review before (decision 16).
     /// </summary>
     public static RefrigerationReview ReviewRefrigeration(FoodStorageObservation fact, FoodStoragePolicy p)
     {
@@ -169,10 +165,6 @@ public static partial class RefrigerationRules
             throw new DomainException("invalid refrigeration policy");
         }
         fact.Validate();
-        if (!fact.Stocks.TryGetValue(out var stocks))
-        {
-            return new RefrigerationReview { WarmNutrition = Unknown<double>() };
-        }
         if (p.ChilledExitC > fact.ChilledMaxC)
         {
             throw new DomainException("refrigeration exit temperature above the chilled limit");
@@ -180,7 +172,7 @@ public static partial class RefrigerationRules
         var limit = p.ChilledExitC;
         var total = 0.0;
         var rooms = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var entry in stocks)
+        foreach (var entry in fact.Stocks)
         {
             if (!entry.WarmAtRisk(p, limit) || entry.Stock.Place is not FoodPlace.Stands { Room: var room })
             {
@@ -192,7 +184,7 @@ public static partial class RefrigerationRules
         var isActive = total >= p.AtRiskNutritionThreshold;
         return new RefrigerationReview
         {
-            WarmNutrition = Known(total),
+            WarmNutrition = total,
             Active = isActive,
             Rooms = isActive ? EquatableArray.From(rooms.Order(StringComparer.Ordinal)) : default,
         };
