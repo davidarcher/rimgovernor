@@ -168,6 +168,22 @@ public sealed class ClassroomCreditTests
     }
 
     [Fact]
+    public void SkillPricingSharesTheOutcomesFreeHoursAndRefreshesForAnotherContext()
+    {
+        var review = Of(School(Child("child", "Construction")));
+        var hours = PawnValueRules.FreeHoursOf(review.Outcome, review.Context);
+        Assert.True(SkillValue.PerXp(review.Outcome, review.Commitments, review.Context, review.Horizon, "child", "Construction") > 0);
+        Assert.Same(hours, PawnValueRules.FreeHoursOf(review.Outcome, review.Context));
+
+        var changed = review.Context with { InvestmentHorizonDays = 1 };
+        var refreshed = PawnValueRules.FreeHoursOf(review.Outcome, changed);
+        Assert.NotSame(hours, refreshed);
+        var expected = PawnCycle.FreeHoursByPawn(changed.ModelBasis!.Input, changed.InvestmentHorizonDays);
+        Assert.Equal(expected.OrderBy(p => p.Key), refreshed.OrderBy(p => p.Key));
+        Assert.NotSame(refreshed, PawnValueRules.FreeHoursOf(review.Outcome with { Feasible = false }, changed));
+    }
+
+    [Fact]
     public void ASkillTheNeededWorkReadsIsCreditedTheWorkSpeedItsLevelAdds()
     {
         var child = Child("child", "Construction");

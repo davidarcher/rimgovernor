@@ -69,6 +69,10 @@ supply that evidence.
 
 ## Productive cooking in normal selection
 
+Pawn and skill valuation share the colony's computed free hours for each evaluated
+outcome over the investment horizon. A different immutable context or outcome
+gets its own computation; joiners still project their distinct needs separately.
+
 Normal food alternatives attach `ProductiveSkillWork` to supported recipe/pawn/station
 options. `CompareActivityPlans` calls `ForecastProductiveWork` before admitting a
 schedule interval: previous completed callbacks and native decay determine the

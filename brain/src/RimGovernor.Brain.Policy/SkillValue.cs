@@ -28,8 +28,7 @@ internal static class SkillValue
     // The outcome's shortfall and the colony's free hours, computed once per outcome beside the prices of its skills.
     private static readonly PerOutcome<Table> Tables = new((outcome, commitments, context, horizon) =>
     {
-        var basis = context.ModelBasis ?? throw new RequiredFactException("colony model basis");
-        return new Table(JoinerMoodRules.ShortfallOf(outcome, commitments, context, horizon), PawnCycle.FreeHoursByPawn(basis.Input, context.InvestmentHorizonDays));
+        return new Table(JoinerMoodRules.ShortfallOf(outcome, commitments, context, horizon), PawnValueRules.FreeHoursOf(outcome, context));
     });
 
     /// <summary>The capability-days a unit of XP of <paramref name="skill"/> of <paramref name="pawn"/> adds, or null when tier 2 priced no marginal for the stock.</summary>

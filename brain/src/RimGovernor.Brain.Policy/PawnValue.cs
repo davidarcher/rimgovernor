@@ -213,14 +213,14 @@ public static class PawnValueRules
     /// before the plan names it). Otherwise the plan awaited is empty.
     /// </summary>
     public static (WorkShortfall Shortfall, EquatableArray<PawnValue> Values, string AwaitingPlan) Review(ForecastCoupledCandidates candidates, ForecastCoupledSelection selection,
-        NeedsForecastRead needs, WorkSpeedFacts work, FoodWorkFacts food, ForecastModelBasis basis)
+        NeedsForecastRead needs, WorkSpeedFacts work, FoodWorkFacts food)
     {
         var context = candidates.Context;
         var speeds = needs.Pawns.ToDictionary(p => p.Pawn, p => (IReadOnlyDictionary<string, double>)p.Upkeep.Speeds.ToDictionary(s => s.Stat, s => s.Value, StringComparer.Ordinal), StringComparer.Ordinal);
         var shortfall = WorkShortfallRules.Of(context, [.. candidates.Alternatives, .. candidates.Incumbents], selection.Selection.Selected.ToHashSet(StringComparer.Ordinal),
             selection.Selected.Plan.Allocations, selection.Horizon, work, speeds);
         if (context.FoodHaul is not { } haul) return (shortfall, [], AwaitingLayoutPlan);
-        var hours = PawnCycle.FreeHoursByPawn(basis.Input, context.InvestmentHorizonDays);
+        var hours = FreeHoursOf(selection.Selected, context);
         var colony = new PawnValueColony { Shortfall = shortfall, Food = food, Breaks = context.MoodBreaks, Bed = context.Bed, Haul = haul, HorizonDays = context.InvestmentHorizonDays };
         var values = needs.Pawns.OrderBy(p => p.Pawn, StringComparer.Ordinal).Select(p => Of(new PawnValueFacts(p.Pawn)
         {
@@ -229,4 +229,12 @@ public static class PawnValueRules
         }, colony));
         return (shortfall, EquatableArray.From(values), "");
     }
+
+    /// <summary>The colony's free hours over the investment horizon, shared by pawn and skill valuation for one outcome.
+    /// Only the immutable context's model input and investment horizon determine these hours; chosen roots and the immediate horizon do not.</summary>
+    internal static IReadOnlyDictionary<string, double> FreeHoursOf(ForecastCoupledOutcome outcome, ForecastCoupledContext context) =>
+        FreeHours.Of(outcome, [], context, context.InvestmentHorizonDays);
+
+    private static readonly PerOutcome<IReadOnlyDictionary<string, double>> FreeHours = new((_, _, context, horizon) =>
+        PawnCycle.FreeHoursByPawn((context.ModelBasis ?? throw new RequiredFactException("colony model basis")).Input, horizon));
 }
