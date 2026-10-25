@@ -57,12 +57,16 @@ public static class ForecastNursery
                     - MoodGain(mood.Without, pawn, outcome, context, horizon, responses) : 0) + read.Rest.GetValueOrDefault(pawn)
                 + (read.Responses.TryGetValue(pawn, out var pair) ? ResponseValue(pair.With, context, horizon)
                     - ResponseValue(pair.Without, context, horizon) : 0))), .. read.Play,
-            .. ForecastPrison.NurseryRecruitment(outcome, commitments, context, horizon, room.ServedAt, read.Moods)];
+            .. ForecastPrison.NurseryRecruitment(outcome, commitments, context, horizon, room.ServedAt, read.Moods).Gains];
     }
 
     /// <summary>The findings (<see cref="RoomFindings"/>): what the credit leaves out and the room's named states.</summary>
-    public static IEnumerable<string> Findings(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon) =>
-        Taker(context) != room.Room ? [Housed] : Of(context, outcome, horizon, commitments).States;
+    public static IEnumerable<string> Findings(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
+    {
+        if (Taker(context) != room.Room) return [Housed];
+        var read = Of(context, outcome, horizon, commitments);
+        return [.. read.States, .. ForecastPrison.NurseryRecruitment(outcome, commitments, context, horizon, room.ServedAt, read.Moods).Findings];
+    }
 
     private static double ResponseValue(ForecastMoodResponse response, ForecastCoupledContext context, double horizon)
     {

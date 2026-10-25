@@ -153,7 +153,7 @@ internal sealed partial class NativePathLegs
             return cost;
         }
 
-        internal (double? There, double? Back) RoundTrip(IntVec3 from, IntVec3 prisoner)
+        internal (double? There, IntVec3? Arrival) Interaction(IntVec3 from, IntVec3 prisoner)
         {
             if (!from.InBounds(map) || !prisoner.InBounds(map)) return (null, null);
             // GotoPrisoner first reaches Touch; GotoInteractablePosition then requires native sight of
@@ -173,8 +173,10 @@ internal sealed partial class NativePathLegs
                 position = candidates[0].Cell;
                 there += candidates[0].Ticks;
             }
-            return (there, Search(position, from, touch: false)?.Ticks);
+            return (there, position);
         }
+
+        internal double? ReturnTo(IntVec3 from, IntVec3 to) => Search(from, to, touch: false)?.Ticks;
 
         private (IntVec3 Cell, double Ticks)? Search(IntVec3 from, IntVec3 to, bool touch)
         {

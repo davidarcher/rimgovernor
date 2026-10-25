@@ -15,6 +15,19 @@ public sealed class PrisonCreditTests
     private const double Day = GameTime.TicksPerDay;
     private const double Horizon = 30;
 
+    // Price every tick through the production work-cost seam, including conversion work, instead of exposing job counters.
+    private static IReadOnlyList<ForecastPrison.Expected> JointRecruitment(PrisonRecruitRead read, WardenRead warden,
+        double? wardenMood, IReadOnlyList<ForecastPrison.RecruitmentTarget> targets) =>
+        ForecastPrison.JointRecruitment(read, warden, wardenMood,
+            targets.Select(t => t with { WorkCost = t.WorkCost ?? ((_, ticks) => ticks) }).ToArray());
+
+    private static ForecastPrison.Expected Recruitment(PrisonRecruitRead read, WardenRead warden, double? wardenMood,
+        PrisonerRecruitRead prisoner, double? cell, double servedAt, double units,
+        ConversionReductionRead? converter = null, double? certainty = null) =>
+        JointRecruitment(read, warden, wardenMood,
+            [new(prisoner, prisoner.Mood is null ? 0 : cell ?? throw new RequiredFactException("prison thought stage"),
+                servedAt, units, converter, converter is null ? 0 : certainty ?? throw new RequiredFactException("prisoner certainty"))])[0];
+
     private static readonly MoodBreakModel Breaks = new() { Threshold = 0.35, Tiers = [new(1, 2), new(1, 3), new(1, 5)] };
 
     private static readonly FoodHaulLegs Legs = new() { Field = true, Bench = true, FieldToStore = 20, SourceToBench = 10, BenchToDish = 5 };
@@ -59,7 +72,7 @@ public sealed class PrisonCreditTests
     /// served from day 1, the colony holding <paramref name="prisoners"/>.
     /// </summary>
     private static Review Of(Func<ForecastCoupledContext, PrisonerRecruitRead[]> prisoners, bool planned = true, bool warden = true, WardenRead? wardenRead = null, PrisonerCensus? census = null,
-        double walkThere = 0, double walkBack = 0, Cell? prisonBed = null)
+        double walkThere = 0, double walkBack = 0, Cell? prisonBed = null, Cell? interactionEndpoint = null)
     {
         var catalog = Game.WorkSpeedFactsTests.Catalog();
         var facts = ForecastCoupledTests.ConstructionReview(1, 100);
@@ -117,13 +130,14 @@ public sealed class PrisonCreditTests
         if (census is null) population = population with { Colony = population.Colony with { NamedPrisoners = [.. population.Prisoners.Select(p => p.Pawn)] } };
         context = context with { PrisonerPopulation = population };
         var bed = prisonBed ?? new Cell(90, 90);
+        var arrival = interactionEndpoint ?? bed;
         var origins = context.Activities.Activities.Select(t => t.Location).Concat(context.Needs.Pawns.Select(p => "cell/" + p.Location.X + "/" + p.Location.Z))
             .Where(l => l.StartsWith("cell/", StringComparison.Ordinal)).Distinct().Select(l => l.Split('/'))
-            .Select(p => new Cell(int.Parse(p[1]), int.Parse(p[2]))).ToArray();
+            .Select(p => new Cell(int.Parse(p[1]), int.Parse(p[2]))).Append(arrival).Distinct().ToArray();
         var walks = EquatableArray.From(origins.SelectMany(o => new[]
         {
-            new CoupledRoute("pawn", o, bed, new RouteTicks.Reachable(walkThere)) { FromStart = false },
-            new CoupledRoute("pawn", bed, o, new RouteTicks.Reachable(walkBack)) { FromStart = false },
+            new CoupledRoute("pawn", o, bed, new RouteTicks.Reachable(walkThere)) { FromStart = false, Kind = ProjectedRouteKind.PrisonInteraction, Arrival = new ServicePositionRead.Located(arrival) },
+            new CoupledRoute("pawn", arrival, o, new RouteTicks.Reachable(walkBack)) { FromStart = false, Kind = ProjectedRouteKind.WorkReturn, Arrival = new ServicePositionRead.Located(o) },
         }));
         context = context with { PrisonBeds = new Dictionary<int, Cell[]> { [1] = [bed] }, Closures = [.. context.Closures.Select(c => c with { Prediction = c.Prediction with { Routes = walks } })] };
         return new(context, selected.Selected with { ServedRooms = [Served] },
@@ -339,7 +353,7 @@ public sealed class PrisonCreditTests
         var b = Assert.Single(far.Gains());
         Assert.Equal(a.PerDay, b.PerDay, 9);
         Assert.True(b.Once < a.Once);
-        Assert.Equal(11 * (LostPerJob(far, ForecastPrison.ChatJobTicks + 800) - LostPerJob(near, ForecastPrison.ChatJobTicks + 80)), a.Once - b.Once, 9);
+        Assert.Equal((a.PerDay * 270 / Day) + 11 * (LostPerJob(far, ForecastPrison.ChatJobTicks + 800) - LostPerJob(near, ForecastPrison.ChatJobTicks + 80)), a.Once - b.Once, 9);
     }
 
     [Fact]
@@ -357,6 +371,34 @@ public sealed class PrisonCreditTests
     }
 
     [Fact]
+    public void ProductionCreditUsesTheInteractionEndpointForChainedEligibilityAndTheDirectReturn()
+    {
+        var atBed = Of(c => [Prisoner(c)], walkThere: 300, walkBack: 500);
+        var besideBed = Of(c => [Prisoner(c)], walkThere: 300, walkBack: 500, interactionEndpoint: new(89, 90));
+        var expected = Assert.Single(atBed.Gains());
+        var actual = Assert.Single(besideBed.Gains());
+        Assert.Equal(expected.PerDay, actual.PerDay, 12);
+        Assert.Equal(expected.Once, actual.Once, 12);
+        var routes = besideBed.Context.Closures[0].Prediction.Routes;
+        Assert.Contains(routes, r => r.From == new Cell(89, 90) && r.Kind == ProjectedRouteKind.WorkReturn);
+        Assert.DoesNotContain(routes, r => r.From == new Cell(90, 90) && r.Kind == ProjectedRouteKind.WorkReturn);
+    }
+
+    [Fact]
+    public void ACompletedConversionChargesItsDirectReturnToTheConverterBeforeRecruitmentStarts()
+    {
+        var read = NeedsFixtures.NoPrison;
+        var expected = Assert.Single(JointRecruitment(read, Warden(), null,
+            [new(Bare(0) with { Conversion = Conversion() }, 0, 0, 2, new("pawn", 1), 0.5)
+            {
+                Route = (_, _) => new(300, 500, new(1, 0)),
+            }]));
+        Assert.Equal(ForecastPrison.ConvertJobTicks(read) + 800, expected.ConversionCost);
+        Assert.Equal(ForecastPrison.ChatJobTicks + 800, expected.WorkCost);
+        Assert.Equal((Day / 2 + 300 + 1750) / Day, expected.Days, 12);
+    }
+
+    [Fact]
     public void ConversionAndRecruitmentEachPayTheirOwnRoundTrip()
     {
         var plain = Of(c => [Prisoner(c) with { Mood = null, Conversion = Conversion() }], census: ForeignCensus());
@@ -364,7 +406,7 @@ public sealed class PrisonCreditTests
         var recruitDelta = LostPerJob(walked, ForecastPrison.ChatJobTicks + 800) - LostPerJob(plain);
         var convertTicks = ForecastPrison.ConvertJobTicks(plain.Context.Needs.Prison);
         var convertDelta = LostPerJob(walked, convertTicks + 800) - LostPerJob(plain, convertTicks);
-        Assert.Equal((8 * recruitDelta) + (2 * convertDelta), Assert.Single(plain.Gains()).Once - Assert.Single(walked.Gains()).Once, 9);
+        Assert.Equal((Assert.Single(plain.Gains()).PerDay * 300 / Day) + (8 * recruitDelta) + (2 * convertDelta), Assert.Single(plain.Gains()).Once - Assert.Single(walked.Gains()).Once, 9);
     }
 
     [Fact]
@@ -385,11 +427,12 @@ public sealed class PrisonCreditTests
         var origin = new Cell(20, 20);
         var read = NeedsFixtures.NoPrison with { Prisoners = [Bare(10)] };
         var probes = ForecastPrison.RouteProbes([shape], beds, [origin], read);
-        Assert.Equal(4, probes.Count);
+        Assert.Equal(2, probes.Count(p => p.From == origin));
+        Assert.Contains(probes, p => p.From == new Cell(1, 1) && p.To == planned);
+        Assert.Contains(probes, p => p.From == origin && p.WorkOrigin);
         Assert.All(beds[1], b =>
         {
-            Assert.Contains(probes, p => p.From == origin && p.To == b && !p.Return && ReferenceEquals(p.Projection, shape));
-            Assert.Contains(probes, p => p.From == origin && p.To == b && p.Return && ReferenceEquals(p.Projection, shape));
+            Assert.Contains(probes, p => p.From == origin && p.To == b && ReferenceEquals(p.Projection, shape));
         });
     }
 
@@ -406,11 +449,11 @@ public sealed class PrisonCreditTests
     {
         var read = NeedsFixtures.NoPrison;
         var prisoner = Bare(10);
-        var plain = ForecastPrison.Recruitment(read, Warden(), null, prisoner, 4, Day, 29);
-        var other = ForecastPrison.Recruitment(read, Warden(new("Frenzy_Work", 0, 8)), null, prisoner, 4, Day, 29);
+        var plain = Recruitment(read, Warden(), null, prisoner, 4, Day, 29);
+        var other = Recruitment(read, Warden(new("Frenzy_Work", 0, 8)), null, prisoner, 4, Day, 29);
         Assert.Equal(plain, other);
         // No mood need: the curve at 1 (InteractionWorker_RecruitAttempt), 1.5 an attempt; seven to 0, the eighth recruits.
-        Assert.Equal(8, plain.Jobs, 12);
+        Assert.Equal(8, plain.WorkCost / ForecastPrison.ChatJobTicks, 12);
     }
 
     // A prisoner with no mood need (the mood curve at 1: 1.5) of <paramref name="resistance"/>, no rapport, opinion 0.
@@ -429,7 +472,7 @@ public sealed class PrisonCreditTests
         for (var i = 0; i < 5; i++) opinion.Chat(i * 350);
         Assert.Equal(10, opinion.At(1750));
         // Opinion 10 makes the curve 1.05 from the first attempt and more after: fewer than the eight jobs of no rapport.
-        Assert.True(ForecastPrison.Recruitment(read, Warden(), null, Bare(10, rapport: 2), null, 0, 29).Jobs < 8);
+        Assert.True(Recruitment(read, Warden(), null, Bare(10, rapport: 2), null, 0, 29).WorkCost / ForecastPrison.ChatJobTicks < 8);
     }
 
     [Fact]
@@ -530,17 +573,18 @@ public sealed class PrisonCreditTests
         };
         var read = NeedsFixtures.NoPrison with { CertaintyDrift = [new(0, 0), new(1, 0.2)] };
         var converter = new ConversionReductionRead("pawn", 0.25);
-        var renewed = ForecastPrison.Converted(read, prisoner, converter, 0, Day, 10 * Day, 0.45);
-        var expired = ForecastPrison.Converted(read, prisoner with { Mood = prisoner.Mood! with { Memories = [group with { BedlessRenewal = null }] } }, converter, 0, Day, 10 * Day, 0.45);
-        Assert.Equal((2, 2d), renewed);
-        Assert.True(expired.Attempts > renewed.Attempts);
+        var renewed = Recruitment(read, Warden(), null, prisoner, 0, Day, 9, converter, 0.45);
+        var expired = Recruitment(read, Warden(), null, prisoner with { Mood = prisoner.Mood! with { Memories = [group with { BedlessRenewal = null }] } }, 0, Day, 9, converter, 0.45);
+        Assert.Equal(2, renewed.ConversionCost / ForecastPrison.ConvertJobTicks(read));
+        Assert.True(expired.ConversionCost / ForecastPrison.ConvertJobTicks(read) > renewed.ConversionCost / ForecastPrison.ConvertJobTicks(read));
+        Assert.True(expired.Days > renewed.Days);
     }
 
     [Fact]
     public void AWildManIsTamedAtTheWardensChanceEachJob()
     {
         var read = NeedsFixtures.NoPrison;
-        var expected = ForecastPrison.Recruitment(read, Warden(), null, Bare(0, wild: true, tame: 0.5), null, 0, 10);
+        var expected = Recruitment(read, Warden(), null, Bare(0, wild: true, tame: 0.5), null, 0, 10);
         // Job k is reached with 0.5^k and tames with half of that, 1,750 ticks after it starts half a day apart.
         double days = 0, jobs = 0, alive = 1;
         for (var k = 0; k * Day / 2 + 1750 <= 10 * Day; k++)
@@ -550,7 +594,7 @@ public sealed class PrisonCreditTests
             alive *= 0.5;
         }
 
-        Assert.Equal(jobs, expected.Jobs, 9);
+        Assert.Equal(jobs, expected.WorkCost / ForecastPrison.ChatJobTicks, 9);
         Assert.Equal(days + (alive * 10), expected.Days, 9);
     }
 
@@ -570,11 +614,11 @@ public sealed class PrisonCreditTests
         Assert.Equal(0, ForecastPrison.Inspirations.StartChance(0.49, Day));
         Assert.Equal(0, ForecastPrison.Inspirations.StartChance(null, Day));
         var read = NeedsFixtures.NoPrison;
-        var never = ForecastPrison.Recruitment(read, Warden(), 1, Bare(1000), null, 0, 29);
+        var never = Recruitment(read, Warden(), 1, Bare(1000), null, 0, 29);
         var inspired = Warden() with { Inspirations = [new("Inspired_Recruitment", 1, 8), new("Frenzy_Work", 3, 8)] };
-        var sooner = ForecastPrison.Recruitment(read, inspired, 1, Bare(1000), null, 0, 29);
+        var sooner = Recruitment(read, inspired, 1, Bare(1000), null, 0, 29);
         Assert.True(sooner.Days < never.Days);
-        var blocked = ForecastPrison.Recruitment(read, inspired with { InspirationBlocked = true }, 1, Bare(1000), null, 0, 29);
+        var blocked = Recruitment(read, inspired with { InspirationBlocked = true }, 1, Bare(1000), null, 0, 29);
         Assert.Equal(never, blocked);
     }
 
@@ -622,16 +666,14 @@ public sealed class PrisonCreditTests
         // Native Chitchat's stage is 0.66; this converter's observed SocialImpact is 2.
         var prisoner = Bare(3.05) with { Conversion = Conversion(), Opinions = [Opinion() with { Chitchat = 1.32 }] };
         var converter = new ConversionReductionRead("pawn", 0.25);
-        var opinion = new ForecastPrison.Opinion(read, prisoner.Opinions[0]);
-        Assert.Equal((2, 2d), ForecastPrison.Converted(read, prisoner, converter, null, 0, 10 * Day, 0.5, opinion));
-        Assert.Equal(8, opinion.At((Day / 2) + (2 * 350))); // six chats, raw 7.92
-        Assert.Equal(7, opinion.At(Day + 1750)); // one daily decay before the first recruit attempt
-        var same = ForecastPrison.Recruitment(read, Warden(), null, prisoner, null, 0, 10, converter, 0.5);
-        var different = ForecastPrison.Recruitment(read, Warden(), null, prisoner, null, 0, 10, converter with { Warden = "other" }, 0.5);
-        Assert.Equal(3, same.Jobs);
-        Assert.Equal(4, different.Jobs);
+        var same = Recruitment(read, Warden(), null, prisoner, null, 0, 10, converter, 0.5);
+        var different = Recruitment(read, Warden(), null, prisoner, null, 0, 10, converter with { Warden = "other" }, 0.5);
+        Assert.Equal(2, same.ConversionCost / ForecastPrison.ConvertJobTicks(read));
+        Assert.Equal(same.ConversionCost / ForecastPrison.ConvertJobTicks(read), different.ConversionCost / ForecastPrison.ConvertJobTicks(read));
+        Assert.Equal(3, same.WorkCost / ForecastPrison.ChatJobTicks);
+        Assert.Equal(4, different.WorkCost / ForecastPrison.ChatJobTicks);
         Assert.Equal(0.5, different.Days - same.Days, 12);
-        Assert.Equal(different, ForecastPrison.Recruitment(read, Warden(), null,
+        Assert.Equal(different, Recruitment(read, Warden(), null,
             prisoner with { Opinions = [Opinion()] }, null, 0, 10, converter, 0.5)); // blocked or nullified: native offset 0
     }
 
@@ -711,12 +753,13 @@ public sealed class PrisonCreditTests
         var converter = new ConversionReductionRead("pawn", 0.25);
         // No mood need: no drift. Certainty 1 falls 0.25 an attempt: the fourth converts, its job the fourth slot.
         var prisoner = Bare(0) with { Conversion = Conversion() };
-        Assert.Equal((4, 4d), ForecastPrison.Converted(read, prisoner, converter, null, Day, Day + (30 * Day), 1));
         // Resistance 0: the first recruit attempt, in slot 4, recruits; every attempt is 1,050 or 1,750 ticks into its job.
-        var expected = ForecastPrison.Recruitment(read, Warden(), null, prisoner, null, Day, 29, converter, 1);
-        Assert.Equal(new ForecastPrison.Expected(((4 * Day / 2) + 1750) / Day, 1, 4), expected);
+        var expected = Recruitment(read, Warden(), null, prisoner, null, Day, 29, converter, 1);
+        Assert.Equal(((4 * Day / 2) + 1750) / Day, expected.Days, 12);
+        Assert.Equal(ForecastPrison.ChatJobTicks, expected.WorkCost);
+        Assert.Equal(4 * ForecastPrison.ConvertJobTicks(read), expected.ConversionCost);
         // Without the conversion it is recruited at the first slot.
-        Assert.Equal(1750 / Day, ForecastPrison.Recruitment(read, Warden(), null, Bare(0), null, Day, 29).Days, 12);
+        Assert.Equal(1750 / Day, Recruitment(read, Warden(), null, Bare(0), null, Day, 29).Days, 12);
     }
 
     [Fact]
@@ -726,10 +769,10 @@ public sealed class PrisonCreditTests
         var converter = new ConversionReductionRead("pawn", 0.25);
         var moody = Bare(0) with { Mood = new(0.5 - 0.04, 0) { Comfort = null, Beauty = null, Rest = null, Meals = [], CellStages = [DecentCell], Memories = [] } };
         // Certainty 0.5 falls to 0 in two attempts undrifted; the mood drifts it up (0.02 a day at mood 0.5), so a third is needed.
-        Assert.Equal((2, 2d), ForecastPrison.Converted(read, Bare(0) with { Conversion = Conversion() }, converter, null, Day, 31 * Day, 0.5));
-        Assert.Equal((3, 3d), ForecastPrison.Converted(read, moody with { Conversion = Conversion() }, converter, 4, Day, 31 * Day, 0.5));
+        Assert.Equal(2, Recruitment(read, Warden(), null, Bare(0) with { Conversion = Conversion() }, null, Day, 30, converter, 0.5).ConversionCost / ForecastPrison.ConvertJobTicks(read));
+        Assert.Equal(3, Recruitment(read, Warden(), null, moody with { Conversion = Conversion() }, 4, Day, 30, converter, 0.5).ConversionCost / ForecastPrison.ConvertJobTicks(read));
         // A child (change factor 2) loses twice the reduction: two attempts from 1.
-        Assert.Equal((2, 2d), ForecastPrison.Converted(read, Bare(0) with { Conversion = Conversion(factor: 2) }, converter, null, Day, 31 * Day, 1));
+        Assert.Equal(2, Recruitment(read, Warden(), null, Bare(0) with { Conversion = Conversion(factor: 2) }, null, Day, 30, converter, 1).ConversionCost / ForecastPrison.ConvertJobTicks(read));
     }
 
     [Fact]
@@ -739,7 +782,10 @@ public sealed class PrisonCreditTests
         var converter = new ConversionReductionRead("pawn", 0.01);
         var prisoner = Bare(0) with { Conversion = Conversion() };
         // Attempts at Day + k half-days + 1,050 within three days: k = 0..3.
-        Assert.Equal(new ForecastPrison.Expected(2, 0, 4), ForecastPrison.Recruitment(read, Warden(), null, prisoner, null, Day, 2, converter, 1));
+        var expected = Recruitment(read, Warden(), null, prisoner, null, Day, 2, converter, 1);
+        Assert.Equal(2, expected.Days);
+        Assert.Equal(0, expected.WorkCost);
+        Assert.Equal(4 * ForecastPrison.ConvertJobTicks(read), expected.ConversionCost);
     }
 
     [Fact]
@@ -802,7 +848,7 @@ public sealed class PrisonCreditTests
     [Fact]
     public void APrisonerAlreadyInAPrisonBedIsNoneTheRoomRecruits()
     {
-        var review = Of(c => [Prisoner(c) with { PrisonBed = true }]);
+        var review = Of(c => [Prisoner(c) with { PrisonBed = true, OwnedPrisonBedPosition = new(new(90, 90)) }]);
         Assert.Empty(review.Gains());
         Assert.Contains(ForecastPrison.NoRecruit, review.Findings());
     }
@@ -876,5 +922,170 @@ public sealed class PrisonCreditTests
         var colony = new Dictionary<string, double>(StringComparer.Ordinal) { ["Greedy"] = -20 };
         Assert.Equal(0.5 - 0.13, JoinerMoodRules.MoodOf(mood, colony, colonists)!.Target, 12);
         Assert.Throws<RequiredFactException>(() => JoinerMoodRules.RoomTraits(rows, [NeedsFixtures.Pawn() with { OwnedRoom = new(500, 5) }]));
+    }
+    [Fact]
+    public void TwoPrisonersShareOneRecruitmentInspirationAndTheSecondUsesResistance()
+    {
+        var targets = new ForecastPrison.RecruitmentTarget[]
+        {
+            new(Bare(2), 0, 0, 5),
+            new(Bare(2) with { Pawn = "second" }, 0, 0, 5),
+        };
+        var expected = JointRecruitment(NeedsFixtures.NoPrison,
+            Warden(new("Inspired_Recruitment", 0, 8)), null, targets);
+        Assert.Equal(1750 / Day, expected[0].Days, 12);
+        Assert.Equal(1, expected[0].WorkCost / ForecastPrison.ChatJobTicks);
+        Assert.Equal(1 + (ForecastPrison.ChatJobTicks + 1750) / Day, expected[1].Days, 12);
+        Assert.Equal(3, expected[1].WorkCost / ForecastPrison.ChatJobTicks);
+        Assert.All(expected, e => Assert.Equal(0, e.PrunedProbability));
+    }
+
+    [Fact]
+    public void AZeroResistanceRecruitAlsoConsumesInspirationBeforeTheNextTarget()
+    {
+        var expected = JointRecruitment(NeedsFixtures.NoPrison,
+            Warden(new("Inspired_Recruitment", 0, 8)), null,
+            [new(Bare(0), 0, 0, 5), new(Bare(2) with { Pawn = "second" }, 0, 0, 5)]);
+        Assert.Equal(1 + (ForecastPrison.ChatJobTicks + 1750) / Day, expected[1].Days, 12);
+        Assert.Equal(3, expected[1].WorkCost / ForecastPrison.ChatJobTicks);
+    }
+
+    [Fact]
+    public void TamingInspirationSurvivesAnOrdinaryRecruitAndIsConsumedByOnlyOneWildMan()
+    {
+        var expected = JointRecruitment(NeedsFixtures.NoPrison,
+            Warden(new("Inspired_Taming", 0, 8)), null,
+            [new(Bare(0), 0, 0, 1), new(Bare(0, wild: true), 0, 0, 1), new(Bare(0, wild: true), 0, 0, 1)]);
+        Assert.Equal(1750 / Day, expected[0].Days, 12);
+        Assert.Equal((ForecastPrison.ChatJobTicks + 1750) / Day, expected[1].Days, 12);
+        Assert.Equal(1, expected[2].Days);
+        Assert.Equal(2, expected[2].WorkCost / ForecastPrison.ChatJobTicks);
+    }
+
+    [Fact]
+    public void RecruitmentConsumptionAllowsALaterInspirationToStart()
+    {
+        var warden = Warden(new("Inspired_Recruitment", 0, 8)) with
+        { Inspirations = [new("Inspired_Recruitment", 1, 8)] };
+        var targets = new ForecastPrison.RecruitmentTarget[]
+        { new(Bare(0), 0, 0, 2), new(Bare(1000), 0, 0, 2) };
+        var blocked = JointRecruitment(NeedsFixtures.NoPrison, warden with { InspirationBlocked = true }, 1, targets);
+        var renewing = JointRecruitment(NeedsFixtures.NoPrison, warden, 1, targets);
+        Assert.Equal(2, blocked[1].Days);
+        Assert.True(renewing[1].Days < blocked[1].Days);
+    }
+
+    [Fact]
+    public void ConversionDelaysParticipationInTheSharedRecruitmentInspiration()
+    {
+        var conversion = new ConversionReductionRead("pawn", 1);
+        var expected = JointRecruitment(NeedsFixtures.NoPrison,
+            Warden(new("Inspired_Recruitment", 0, 8)), null,
+            [new(Bare(2) with { Conversion = Conversion() }, 0, 0, 5, conversion, 0.5),
+                new(Bare(2), 0, 0, 5)]);
+        Assert.Equal(1, expected[0].ConversionCost / ForecastPrison.ConvertJobTicks(NeedsFixtures.NoPrison));
+        Assert.True(expected[0].Days > expected[1].Days);
+        Assert.Equal((ForecastPrison.ConvertJobTicks(NeedsFixtures.NoPrison) + 1750) / Day, expected[1].Days, 12);
+    }
+
+    [Fact]
+    public void LargeWildManCohortsPruneConservativelyWithAnExplicitProbabilityBound()
+    {
+        // One independent tame roll per target produces 8192 subsets without the approved joint bound.
+        const double units = 0.49;
+        var targets = Enumerable.Range(0, 13).Select(i => new ForecastPrison.RecruitmentTarget(
+            Bare(0, wild: true, tame: 0.5) with { Pawn = "wild" + i }, 0, 0, units)).ToArray();
+        var bounded = JointRecruitment(NeedsFixtures.NoPrison, Warden(), null, targets);
+        Assert.Contains(bounded, e => e.PrunedProbability > 0);
+        for (var n = 0; n < bounded.Count; n++)
+        {
+            // Every target can receive exactly one serialized attempt inside this horizon.
+            var exactDays = 0.5 * ((n * ForecastPrison.ChatJobTicks + 1750) / Day + units);
+            Assert.Equal(exactDays, bounded[n].Days, 9);
+            Assert.Equal(1, bounded[n].WorkCost / ForecastPrison.ChatJobTicks, 9);
+            Assert.InRange(bounded[n].PrunedProbability, 0, 1);
+        }
+    }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ProductionRoomsAndHousedTargetsCompeteInOneNativeOrderedLedger(bool housedFirst)
+    {
+        var firstBed = new Cell(-1, 0);
+        var secondBed = new Cell(1, 0);
+        var review = Of(c =>
+        [
+            Prisoner(c) with { Pawn = "z-native-first", Resistance = 2, PrisonBed = housedFirst,
+                OwnedPrisonBedPosition = housedFirst ? new(firstBed) : null },
+            Prisoner(c) with { Pawn = "a-native-second", Resistance = 2 },
+        ], wardenRead: Warden(new("Inspired_Recruitment", 0, 8)));
+        var context = review.Context;
+        var origins = context.Closures[0].Prediction.Routes.Select(r => r.From)
+            .Concat([firstBed, secondBed, new(0, 0)]).Distinct().ToArray();
+        var routes = origins.SelectMany(o => new[] { firstBed, secondBed }.SelectMany(b => new[]
+        {
+            new CoupledRoute("pawn", o, b, new RouteTicks.Reachable(0))
+            { FromStart = false, Kind = ProjectedRouteKind.PrisonInteraction, Arrival = new ServicePositionRead.Located(b) },
+            new CoupledRoute("pawn", b, o, new RouteTicks.Reachable(0))
+            { FromStart = false, Kind = ProjectedRouteKind.WorkReturn, Arrival = new ServicePositionRead.Located(o) },
+        }));
+        var prediction = context.Closures[0].Prediction with { Routes = EquatableArray.From(routes) };
+        context = context with
+        {
+            Needs = context.Needs with { Pawns = [context.Needs.Pawns[0] with { Location = new(0, 0) }] },
+            PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Prison, [2] = PlannedRole.Prison },
+            PrisonBeds = new Dictionary<int, Cell[]> { [1] = [secondBed], [2] = [firstBed] },
+            Closures = [context.Closures[0] with { Prediction = prediction },
+                context.Closures[0] with { Room = 2, Prediction = prediction with { Room = "2" } }],
+        };
+        var outcome = review.Outcome with { ServedRooms = [Served with { ServedAt = 0 }, new(2, "", 0)] };
+        var gains = new[] { new ForecastRoomService(1, "", 0), new(2, "", 0) }
+            .SelectMany(room => ForecastPrison.PrisonCredit(room, outcome, review.Commitments, context, review.Horizon)).ToArray();
+        var second = Assert.Single(gains, g => g.Subject == "a-native-second");
+        var loss = LostPerJob(review);
+        Assert.Equal(-second.PerDay * (1 + (ForecastPrison.ChatJobTicks + 1750) / Day) - 3 * loss, second.Once, 9);
+        if (housedFirst) Assert.Single(gains);
+        else
+        {
+            var first = Assert.Single(gains, g => g.Subject == "z-native-first");
+            Assert.Equal(-first.PerDay * 1750 / Day - loss, first.Once, 9);
+        }
+        Assert.DoesNotContain("prison_inspiration_shared", ForecastPrison.Findings(new(1, "", 0), outcome, review.Commitments, context, review.Horizon));
+    }
+
+    [Fact]
+    public void ChainedJobsSelectTheNextTargetFromTheNativeInteractionEndpoint()
+    {
+        ForecastPrison.RecruitmentLeg? Route(string worker, Cell from) => new(0, 0, new(1, 0));
+        var expected = JointRecruitment(NeedsFixtures.NoPrison,
+            Warden(new("Inspired_Recruitment", 0, 8)), null,
+        [
+            new(Bare(0), 0, 0, 1) { Position = new(0, 0), Route = Route },
+            new(Bare(0, wild: true, tame: 1), 0, 0, 1) { Position = new(-1, 0) },
+            new(Bare(0, wild: true, tame: 1), 0, 0, 1) { Position = new(2, 0) },
+        ]);
+        // The first job ends at x=1. The x=2 target goes next, although x=-1 was closer to the starting origin.
+        Assert.Equal(1750 / Day, expected[0].Days, 12);
+        Assert.Equal((ForecastPrison.ChatJobTicks + 1750) / Day, expected[2].Days, 12);
+        Assert.Equal((2 * ForecastPrison.ChatJobTicks + 1750) / Day, expected[1].Days, 12);
+    }
+    [Fact]
+    public void DiscardedJointMassBoundsTheLostRecruitmentAndMaximumRemainingChats()
+    {
+        const double units = 1;
+        var targets = Enumerable.Range(0, 13).Select(i => new ForecastPrison.RecruitmentTarget(
+            Bare(0, wild: true, tame: 0.5) with { Pawn = "wild" + i }, 0, 0, units)).ToArray();
+        var bounded = JointRecruitment(NeedsFixtures.NoPrison, Warden(), null, targets);
+        Assert.Contains(bounded, e => e.PrunedProbability > 0);
+        for (var n = 0; n < bounded.Count; n++)
+        {
+            // All thirteen first jobs fit before the first target's next eligibility. Subsequent starts retain those
+            // half-day eligibility times, so each uncapped target has exactly these two possible attempts.
+            var first = (n * ForecastPrison.ChatJobTicks + 1750) / Day;
+            var exact = 0.5 * first + 0.25 * (first + 0.5) + 0.25 * units;
+            var e = bounded[n];
+            Assert.InRange(e.Days - exact, -1e-9, e.PrunedProbability * units + 1e-9);
+            Assert.InRange(e.WorkCost / ForecastPrison.ChatJobTicks - 1.5, -1e-9, 2 * e.PrunedProbability + 1e-9);
+        }
     }
 }

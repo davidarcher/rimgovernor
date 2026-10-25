@@ -191,18 +191,30 @@ internal static class NativeConstructionActivity
         foreach (var pawn in roster.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Warden) && p.health.capacities.CapableOf(PawnCapacityDefOf.Talking)))
         {
             using var projection = legs.Project(pawn, group.Key, layout);
+            var arrivals = new HashSet<IntVec3>();
             foreach (var pair in group.GroupBy(p => (p.From, p.To)))
             {
                 var from = new IntVec3(pair.Key.From.X, 0, pair.Key.From.Z);
                 var to = new IntVec3(pair.Key.To.X, 0, pair.Key.To.Z);
-                var (there, back) = projection.RoundTrip(from, to);
-                foreach (var probe in pair)
-                {
-                    var ticks = probe.Return ? back : there;
-                    rows.Add(new(pawn.GetUniqueLoadID(), probe.Return ? probe.To : probe.From, probe.Return ? probe.From : probe.To,
-                        ticks is { } cost ? new RimGovernor.Brain.GameFacts.Observations.RouteTicks.Reachable(cost) : RimGovernor.Brain.GameFacts.Observations.RouteTicks.None)
-                    { FromStart = false, Projection = group.Key.Room + "/" + group.Key.Stuff });
-                }
+                var (there, arrival) = projection.Interaction(from, to);
+                if (arrival is { } reached) arrivals.Add(reached);
+                rows.Add(new(pawn.GetUniqueLoadID(), pair.Key.From, pair.Key.To,
+                    there is { } cost ? new RimGovernor.Brain.GameFacts.Observations.RouteTicks.Reachable(cost) : RimGovernor.Brain.GameFacts.Observations.RouteTicks.None)
+                { FromStart = false, Projection = group.Key.Room + "/" + group.Key.Stuff,
+                    Kind = RimGovernor.Brain.GameFacts.Observations.ProjectedRouteKind.PrisonInteraction,
+                    Arrival = arrival is { } end ? new RimGovernor.Brain.GameFacts.Observations.ServicePositionRead.Located(new(end.x, end.z))
+                        : new RimGovernor.Brain.GameFacts.Observations.ServicePositionRead.Unprojected("unreachable") });
+            }
+            foreach (var arrival in arrivals)
+            foreach (var origin in group.Where(p => p.WorkOrigin).Select(p => p.From).Distinct())
+            {
+                var home = new IntVec3(origin.X, 0, origin.Z);
+                var ticks = projection.ReturnTo(arrival, home);
+                rows.Add(new(pawn.GetUniqueLoadID(), new(arrival.x, arrival.z), origin,
+                    ticks is { } cost ? new RimGovernor.Brain.GameFacts.Observations.RouteTicks.Reachable(cost) : RimGovernor.Brain.GameFacts.Observations.RouteTicks.None)
+                { FromStart = false, Projection = group.Key.Room + "/" + group.Key.Stuff,
+                    Kind = RimGovernor.Brain.GameFacts.Observations.ProjectedRouteKind.WorkReturn,
+                    Arrival = new RimGovernor.Brain.GameFacts.Observations.ServicePositionRead.Located(origin) });
             }
         }
         return rows;

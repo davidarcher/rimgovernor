@@ -28,9 +28,13 @@ public sealed record CoupledForecastRead
 }
 /// <summary>One pawn's walk between two cells, priced by native pathing for that pawn (<see cref="RouteTicks"/>).
 /// <see cref="FromStart"/> marks the walk from where the pawn stands now.</summary>
+public enum ProjectedRouteKind { None, PrisonInteraction, WorkReturn }
 public sealed record CoupledRoute(string Pawn, Cell From, Cell To, RouteTicks Ticks)
 {
     public required bool FromStart { get; init; }
+    /// <summary>The projected prisoner interaction cell reached by Touch and sight; unprojected on live routes.</summary>
+    public ProjectedRouteKind Kind { get; init; }
+    public ServicePositionRead Arrival { get; init; } = new ServicePositionRead.Unprojected("not_projected");
     /// <summary>Projected room and ring stuff; empty for a live-map route.</summary>
     public string Projection { get; init; } = "";
 }

@@ -9,6 +9,12 @@ using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests.Game;
 
+[CollectionDefinition("Native incident cycles", DisableParallelization = true)]
+public sealed class NativeIncidentCycleScope;
+
+// Restoration assertions inspect Verse's process-wide RNG; native constructors in other test
+// collections may also draw from it, so the private reader lock alone cannot isolate these checks.
+[Collection("Native incident cycles")]
 public sealed class IncidentCycleTests
 {
     private static readonly object NativeGate = new();

@@ -387,6 +387,13 @@ exposes; the rates, weights and skill count are read (`NeedsForecastRead.School`
 | --- | --- | --- |
 | `ActiveDesires` | 2: the active learning desires a child keeps, and the jobs a lesson wins (one in two, JobGiver_Learn's random order) | `Pawn_LearningTracker.AddNewLearningDesire` (`active.Count >= 2`) |
 
+## Shared prison inspiration bound (#3968)
+
+`ForecastPrison.JointStateLimit` retains at most 4096 joint recruited-set/inspiration states per evaluation.
+The user approved this bound: discarded probability earns zero future recruitment benefit and pays maximum remaining
+chat cost. The served prison findings report the resulting one-sided colonist-day error interval; large prisons may be
+undervalued. No additional prisoner-count cutoff is applied.
+
 ## Mirrored game literals: prison recruitment (#3899)
 
 `ForecastPrison` (`brain/src/RimGovernor.Brain.Policy/ForecastPrison.cs`) mirrors the method-body literals of the chat job,

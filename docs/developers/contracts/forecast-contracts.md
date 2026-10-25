@@ -439,7 +439,7 @@ unknown. What the game does not have is a case, never an unknown:
   stackedEffectMultiplier and stack limits), `InspirationDefOf.Inspired_Recruitment` and `Inspired_Taming`, the
   Warden-capable colonists (`WardenRead`: `NegotiationAbility`, its inspiration now with its age and duration, whether a
   hediff blocks inspirations, and each def whose `InspirationCanOccur` holds with its `CommonalityFor` and duration), and
-  per held prisoner (`PrisonersOfColonySpawned`) `Recruitable`, `Resistance`, whether it owns a prison bed, `IsWildMan`,
+  per held prisoner (native `SlavesAndPrisonersOfColonySpawned` order, filtered to prisoners) `Recruitable`, `Resistance`, whether it owns a prison bed, `IsWildMan`,
   its mood (the unclamped level, its PrisonCell/PrisonBarracks thought now, those thoughts' stage offsets for it, none for
   an Ascetic, and its mood memory groups with their stackedEffectMultiplier). Each observed recurring bedless group
   (`SleptOnGround`, `SleptOutside`, `SleptInCold`, `SleptInHeat`, `AteWithoutTable`) carries `BedlessRenewal`, the fresh
@@ -460,6 +460,17 @@ unknown. What the game does not have is a case, never an unknown:
   the planned bed's gain while preserving the resulting rest level and sleep phase. Awake comfort spans zero to the room's maximum, and beauty spans the cell-perception extrema, without inventing
   a wander schedule. Recruitment uses the lower exposure, conversion drift the upper (`prison_cell_exposure_bounded`);
   native mood curves must be monotone. Uncertain seat availability retains no-table memories in the lower bound.
+  All allocated prisoners share one warden inspiration ledger, including housed prisoners that earn no new room credit.
+  A free warden selects the closest reachable eligible target by squared geometric distance from its current lane position; ties retain native scan order. A pending job occupies that warden through the full native job. The projected native route carries the actual Touch/sight interaction endpoint (`CoupledRoute.Arrival`), and subsequent targets are selected from that cell. Bed-adjacent future origins and direct endpoint-to-work-origin returns use the same native route owner (`ProjectedRouteKind` distinguishes interaction and direct work return). `PlannedRouteProbe.WorkOrigin` asks for these direct returns. Recruitment and taming consume only their corresponding inspiration, including recruitment at zero resistance. Recruiter and converter costs price the actual scheduled toil and walk ticks; a completed conversion keeps its direct return charged to the converter even after certainty reaches zero. The result exposes these work costs rather than separate job counters.
+  Conversion delays eligibility without consuming it. Consumed inspirations permit future renewal at the next hourly step.
+  The joint state retains the recruited set, inspiration def/expiry, each worker's position and pending job, and each prisoner's resistance, conversion certainty, next interaction eligibility and timestamped opinion history; the approved retention bound is
+  4096 states per evaluation. The inherited two-interactions-per-day projection spaces a prisoner's starts by half a day; converter and recruiter share that eligibility. Different converters have separate lanes, while a converter who also recruits occupies the same lane. With no immediately eligible prisoner, the worker returns to its observed work origin through the native direct return leg. Discarded probability receives no future recruitment benefit and pays all remaining possible
+  chats. Its full remaining recruitment value and chat cost bound the error in colonist days, reported as
+  `prison_inspiration_joint_pruned:currency_error=[0,N]` on each served prison. This bound can undervalue large prisons.
+  Ordinary room credit and both nursery mood-shift sides use this same allocation and joint ledger. Nursery findings carry
+  the signed difference interval as `nursery_recruitment_joint_pruned:currency_error=[-withoutError,withError]`, since
+  each side is a lower bound. Existing housed prisoners enter at tick zero, including rooms outside the newly served set;
+  their projected cell effects start at room service and normal room credit excludes their baseline gains.
   Existing death memories keep aging. Future fellow-prisoner mortality events have no cohort/timing projection yet;
   `prisoner_mortality_not_modelled` names this remaining limitation, tracked separately in #4014.
   Its opinion of each warden by its parts

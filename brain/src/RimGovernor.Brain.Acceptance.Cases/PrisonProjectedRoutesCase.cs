@@ -44,19 +44,26 @@ internal static class PrisonProjectedRoutesCase
             new ConstructionActivityRequest(session.Identity, [])
             {
                 RoomPredictions = [opened, sealedRoom],
-                Routes = [new(near, bed, []) { Projection = opened }, new(near, bed, []) { Projection = opened, Return = true },
-                    new(far, bed, []) { Projection = opened }, new(far, bed, []) { Projection = opened, Return = true },
-                    new(near, bed, []) { Projection = sealedRoom }, new(near, bed, []) { Projection = sealedRoom, Return = true }],
+                Routes = [new(near, bed, []) { Projection = opened, WorkOrigin = true },
+                    new(far, bed, []) { Projection = opened, WorkOrigin = true },
+                    new(near, bed, []) { Projection = sealedRoom, WorkOrigin = true }],
             }, ct).ConfigureAwait(false);
         session.RecordWire("projected-prison", read);
         var warden = staged.Pawns["warden"].Id;
         var routes = read.RoomPredictions.Single(p => p.Stuff == "Steel").Routes.Where(r => r.Pawn == warden).ToArray();
-        double Cost(Cell from, Cell to) => routes.Single(r => r.From == from && r.To == to).Ticks is RouteTicks.Reachable path
+        CoupledRoute Interaction(Cell from) => routes.Single(r => r.Kind == ProjectedRouteKind.PrisonInteraction && r.From == from && r.To == bed);
+        static double Cost(CoupledRoute route) => route.Ticks is RouteTicks.Reachable path
             ? path.Ticks : throw new AcceptanceException("A projected door did not open the prison route.");
-        if (!(Cost(far, bed) > Cost(near, bed) && Cost(bed, far) > Cost(bed, near)))
+        double Return(Cell from)
+        {
+            var arrival = Interaction(from).Arrival is ServicePositionRead.Located end ? end.Cell
+                : throw new AcceptanceException("A reachable prison interaction has no native endpoint.");
+            return Cost(routes.Single(r => r.Kind == ProjectedRouteKind.WorkReturn && r.From == arrival && r.To == from));
+        }
+        if (!(Cost(Interaction(far)) > Cost(Interaction(near)) && Return(far) > Return(near)))
             throw new AcceptanceException("The farther prison trip did not cost more in both directions.");
         var blocked = read.RoomPredictions.Single(p => p.Stuff == "WoodLog").Routes.Where(r => r.Pawn == warden).ToArray();
-        if (blocked.Length != 2 || blocked.Any(r => r.Ticks is not RouteTicks.Unreachable))
+        if (blocked.Length != 1 || blocked.Any(r => r.Kind != ProjectedRouteKind.PrisonInteraction || r.Ticks is not RouteTicks.Unreachable))
             throw new AcceptanceException("An intact native wall ring was treated as a reachable prison.");
     }
 }

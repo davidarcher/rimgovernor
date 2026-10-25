@@ -47,8 +47,9 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// The Prison room credit (#3805, #3899): the recruitment a planned prison enables. A held prisoner without a prison bed is never
 /// recruited (a warden chats with a prisoner in its bed); the room gives a bed to each, up to its beds, the most valuable first,
-/// over the outcome's served prisons in service order. From the room's service the colony's best warden chats with each bedded
-/// prisoner <see cref="PrisonRecruitRead.MaxInteractionsPerDay"/> times a day, chat by chat (<see cref="Recruitment"/>): the
+/// over the outcome's served prisons in service order. All bedded prisoners compete for the same warden and converter
+/// work intervals in <see cref="JointRecruitment"/>, with each target eligible at most
+/// <see cref="PrisonRecruitRead.MaxInteractionsPerDay"/> times a day. Over that shared timeline the
 /// prisoner's mood memories expire and fade, each chat adds rapport, its opinion of the warden follows, and an inspiration the
 /// warden may have or start recruits it at once. From the expected recruitment day the prisoner adds its value as a colonist a
 /// day (<see cref="JoinerMoodRules.ValueOf"/>, #3825, against the work the outcome leaves short): the credit is the value over the
@@ -56,7 +57,7 @@ namespace RimGovernor.Brain.Policy;
 /// (<see cref="PopulationRules.RecruitIntent"/>, #3915) is chatted to a conversion before its recruitment: those days, and the converter's chat jobs, come
 /// first.
 /// </summary>
-public static class ForecastPrison
+public static partial class ForecastPrison
 {
     /// <summary>The named state of a colony holding no prisoner: the room earns nothing.</summary>
     public const string NoPrisoner = "prison_no_prisoner";
@@ -92,7 +93,6 @@ public static class ForecastPrison
     public static readonly EquatableArray<string> NotModelled =
     [
         "prisoner_mortality_not_modelled", // future fellow-prisoner deaths require the prisoner cohort/timing model (#4014)
-        "prison_inspiration_shared", // a warden inspiration is counted for every prisoner it could recruit (#3968)
     ];
 
     /// <summary>The credit (<see cref="RoomCredit"/>): one row per prisoner the room beds, under the prisoner.</summary>
@@ -123,116 +123,18 @@ public static class ForecastPrison
         ? LayoutFilthRules.EvaluateCurve([.. points.Select(p => new CurvePoint(p.X, p.Y))], x) : throw new RequiredFactException(what);
 
     /// <summary>
-    /// A prisoner's expected recruitment from its room's service (#3899): the days to it within the served days (after its conversion,
-    /// #3915), the recruit chat jobs it takes, and the conversion jobs before them.
+    /// A prisoner's expected recruitment days within service, with canonical recruiter and converter work costs and
+    /// the probability removed by the bounded joint ledger.
     /// </summary>
-    public sealed record Expected(double Days, double Jobs, double ConvertJobs);
+    public sealed record Expected(double Days)
+    {
+        public double PrunedProbability { get; init; }
+        public double WorkCost { get; init; }
+        public double ConversionCost { get; init; }
+    }
 
     /// <summary>The toil ticks of one conversion job: its chitchat toils and the TryConvert toil, <see cref="ToilTicks"/> each (JobDriver_ConvertPrisoner).</summary>
     public static double ConvertJobTicks(PrisonRecruitRead read) => (read.ConvertTalks + 1) * ToilTicks;
-
-    /// <summary>
-    /// The chat-by-chat recruitment of <paramref name="prisoner"/> by <paramref name="warden"/> (#3899) in a room serving from
-    /// <paramref name="servedAt"/> ticks for <paramref name="units"/> days, at the room's prison thought <paramref name="cell"/>
-    /// (null without a mood need). Job k starts at <c>servedAt + k × TicksPerDay / MaxInteractionsPerDay</c>; its five rapport
-    /// chats come <see cref="ToilTicks"/> apart and its attempt <see cref="RapportToils"/> toils after the first. Each attempt reads
-    /// the prisoner's instant mood (<see cref="Mood"/>) and its opinion of the warden (<see cref="Opinion"/>) at its tick: with
-    /// resistance above 0 it lowers it by <see cref="PerChat"/>, at 0 it recruits; a wild man is tamed at the warden's
-    /// TameChance instead. The warden's inspiration (<see cref="Inspirations"/>, from its <paramref name="wardenMood"/>) recruits
-    /// or tames at once while it is the recruiting def. Recurring bedless mood memories fade and expire from room service
-    /// (#3966); other memories age from now. A prisoner to convert
-    /// (<paramref name="converter"/>, the warden whose attempts convert it) is first chatted to a conversion
-    /// (<see cref="Converted"/>); its recruit jobs start in the slots after it, and a conversion the served days do not reach leaves
-    /// it unrecruited.
-    /// </summary>
-    public static Expected Recruitment(PrisonRecruitRead read, WardenRead warden, double? wardenMood, PrisonerRecruitRead prisoner, double? cell, double servedAt, double units,
-        ConversionReductionRead? converter = null, double? certainty = null, PrisonCellForecast? exposure = null,
-        Func<double, double>? moodShift = null)
-    {
-        DomainException.Require(read.MaxInteractionsPerDay > 0, "recruit chats a day");
-        if (exposure is not null)
-        {
-            // Lower mood bounds resistance reduction and upper mood bounds the conversion's upward certainty drift.
-            // Reject changed native curves that invalidate that ordering instead of silently pricing optimistic attempts.
-            DomainException.Require(read.MoodCurve.Zip(read.MoodCurve.Skip(1)).All(p => p.First.Y <= p.Second.Y)
-                && read.CertaintyDrift.Zip(read.CertaintyDrift.Skip(1)).All(p => p.First.Y <= p.Second.Y), "monotone prison mood curves");
-        }
-        var opinion = prisoner.Opinions.FirstOrDefault(o => o.Warden == warden.Pawn) ?? throw new RequiredFactException("prisoner opinion:" + prisoner.Pawn);
-        var interval = (double)GameTime.TicksPerDay / read.MaxInteractionsPerDay;
-        var end = servedAt + (units * GameTime.TicksPerDay);
-        var inspirations = new Inspirations(read, warden, wardenMood, prisoner.WildMan ? read.TamingInspiration : read.RecruitInspiration, end);
-        var opinionOf = new Opinion(read, opinion);
-        var resistance = prisoner.Resistance;
-        double alive = 1, days = 0, jobs = 0, converting = 0;
-        var first = 0;
-        if (converter is not null)
-        {
-            var (next, attempts) = Converted(read, prisoner, converter, cell, servedAt, end,
-                certainty ?? throw new RequiredFactException("prisoner certainty:" + prisoner.Pawn), converter.Warden == warden.Pawn ? opinionOf : null, exposure, moodShift);
-            converting = attempts;
-            if (next is not { } slot) return new(units, 0, converting);
-            first = slot;
-        }
-
-        for (var k = first; alive > 0; k++)
-        {
-            var start = servedAt + (k * interval);
-            var attempt = start + (RapportToils * ToilTicks);
-            if (attempt > end) break;
-            jobs += alive;
-            for (var i = 0; i < RapportToils; i++) opinionOf.Chat(start + (i * ToilTicks));
-            inspirations.AdvanceTo(attempt);
-            double recruited;
-            if (prisoner.WildMan) recruited = inspirations.TakeInspired() + inspirations.Scale(1 - opinion.TameChance);
-            else if (resistance <= 0) recruited = alive;
-            else
-            {
-                recruited = inspirations.TakeInspired();
-                resistance = Math.Max(0, resistance - PerChat(read, warden, Mood(prisoner.Mood, cell, attempt, servedAt, exposure, shift: moodShift?.Invoke(attempt) ?? 0), opinionOf.At(attempt)));
-            }
-
-            recruited = Math.Min(recruited, alive);
-            days += recruited * (attempt - servedAt) / GameTime.TicksPerDay;
-            alive = recruited >= alive ? 0 : alive - recruited;
-        }
-
-        return new(days + (alive * units), jobs, converting);
-    }
-
-    /// <summary>
-    /// A prisoner's conversion (#3915) by <paramref name="converter"/> in a room serving from <paramref name="servedAt"/> to
-    /// <paramref name="end"/>: job k starts <c>servedAt + k x TicksPerDay / MaxInteractionsPerDay</c> and its attempt comes
-    /// <c>ConvertTalks x ToilTicks</c> later. Certainty, from its value now, drifts up hourly by the curve at the prisoner's
-    /// instant mood (<see cref="Mood"/>; its prison thought now before the room serves) over the change factor, and an attempt takes
-    /// <c>Reduction x ChangeFactor</c> from it; at 0 it is converted. Returns the slot of the first recruit job (null when the served
-    /// days end first) and the attempts made. When the converter is the recruiting warden, <paramref name="opinion"/> receives
-    /// each conversion chitchat at its toil tick before the recruitment starts; a different converter changes no opinion of that warden.
-    /// </summary>
-    public static (int? NextSlot, double Attempts) Converted(PrisonRecruitRead read, PrisonerRecruitRead prisoner, ConversionReductionRead converter, double? cell, double servedAt, double end, double certainty, Opinion? opinion = null, PrisonCellForecast? exposure = null,
-        Func<double, double>? moodShift = null)
-    {
-        var conversion = prisoner.Conversion ?? throw new RequiredFactException("prisoner conversion:" + prisoner.Pawn);
-        DomainException.Require(conversion.ChangeFactor > 0, "certainty change factor");
-        var interval = (double)GameTime.TicksPerDay / read.MaxInteractionsPerDay;
-        double clock = 0;
-        for (var k = 0; ; k++)
-        {
-            var attempt = servedAt + (k * interval) + (read.ConvertTalks * ToilTicks);
-            if (attempt > end) return (null, k);
-            for (var i = 0; i < read.ConvertTalks; i++) opinion?.ConversionChat(servedAt + (k * interval) + (i * ToilTicks));
-            while (clock < attempt)
-            {
-                var step = Math.Min(GameTime.TicksPerHour, attempt - clock);
-                var level = Mood(prisoner.Mood, clock < servedAt ? prisoner.Mood?.CellThought : cell, clock, servedAt, exposure, true, moodShift?.Invoke(clock) ?? 0);
-                var perDay = level is { } l ? Curve(read.CertaintyDrift, l, "certainty drift curve") : 0;
-                certainty = Math.Min(1, certainty + (perDay / conversion.ChangeFactor * step / GameTime.TicksPerDay));
-                clock += step;
-            }
-
-            certainty = Math.Max(0, certainty - (converter.Reduction * conversion.ChangeFactor));
-            if (certainty <= 0) return (k + 1, k + 1);
-        }
-    }
 
     /// <summary>
     /// The prisoner's instant mood at <paramref name="tick"/> in the room (#3805, #3899): its unclamped mood now with its prison
@@ -438,130 +340,38 @@ public static class ForecastPrison
         }
     }
 
-    /// <summary>
-    /// The warden's inspirations as a renewal process (#3899, Q2 of #3899), over one-hour steps from now: the one it has now
-    /// runs out its duration; while it has none and is not blocked, each step starts one with the chance of the step's
-    /// InspirationHandler checks (one every <see cref="CheckTicks"/> at the MTB its mood gives, <see cref="StartChance"/>), the
-    /// def picked by its commonality share; each lasts its def's duration. The mass inspired with <c>recruiting</c> (the def
-    /// whose attempt recruits or tames at once) is taken at an attempt (<see cref="TakeInspired"/>), ending it.
-    /// </summary>
-    public sealed class Inspirations
-    {
-        /// <summary>InspirationHandler's CheckStartInspirationIntervalTicks, a private const mirrored (kept-constants.md).</summary>
-        public const double CheckTicks = 100;
-
-        private const double Step = GameTime.TicksPerHour;
-        private readonly double[] recruiting;
-        private readonly double[] other;
-        private readonly double start;
-        private readonly (double Share, int Steps)[] starts;
-        private readonly int recruitSteps;
-        private readonly double recruitShare;
-        private double free;
-        private int step;
-
-        public Inspirations(PrisonRecruitRead read, WardenRead warden, double? mood, string def, double end)
-        {
-            var length = (int)Math.Ceiling(end / Step) + 2;
-            var longest = warden.Inspirations.Select(i => Steps(i.DurationDays)).Append(warden.Inspired is { } n ? Steps(n.DurationDays - n.AgeDays) : 0).DefaultIfEmpty(0).Max();
-            recruiting = new double[length + longest + 1];
-            other = new double[length + longest + 1];
-            if (warden.Inspired is { } now)
-            {
-                var left = Steps(now.DurationDays - now.AgeDays);
-                (now.Def == def ? recruiting : other)[left] = 1;
-            }
-            else free = 1;
-
-            // No def that can occur (InspirationHandler.GetRandomAvailableInspitationDef finds none) starts nothing.
-            var total = warden.Inspirations.Sum(i => i.Commonality);
-            start = warden.InspirationBlocked || total <= 0 ? 0 : StartChance(mood, Step);
-            var mine = warden.Inspirations.FirstOrDefault(i => i.Def == def);
-            recruitShare = total > 0 && mine is not null ? mine.Commonality / total : 0;
-            recruitSteps = mine is null ? 1 : Steps(mine.DurationDays);
-            starts = total > 0 ? [.. warden.Inspirations.Where(i => i.Def != def).Select(i => (i.Commonality / total, Steps(i.DurationDays)))] : [];
-        }
-
-        private static int Steps(double days) => Math.Max(1, (int)Math.Ceiling(days * GameTime.TicksPerDay / Step));
-
-        /// <summary>
-        /// The chance a pawn not inspired starts one over <paramref name="ticks"/> (InspirationHandler.CheckStartRandomInspiration):
-        /// 0 without a mood or below 0.5, else 1 − (1 − p)^(ticks / <see cref="CheckTicks"/>) for p = Rand.MTBEventOccurs' chance a
-        /// check at the MTB days LerpDouble(0.5, 1, 210, 10, mood) gives (StartInspirationMTBDays; its 210 a literal, kept-constants.md).
-        /// </summary>
-        public static double StartChance(double? mood, double ticks)
-        {
-            if (mood is not { } level || level < 0.5) return 0;
-            var mtb = 210 + ((Math.Min(level, 1) - 0.5) / 0.5 * (10 - 210));
-            var p = CheckTicks / (mtb * GameTime.TicksPerDay);
-            return 1 - Math.Pow(1 - p, ticks / CheckTicks);
-        }
-
-        /// <summary>Runs the steps up to <paramref name="tick"/>.</summary>
-        public void AdvanceTo(double tick)
-        {
-            for (; step < recruiting.Length - 1 && (step + 1) * Step <= tick; step++)
-            {
-                free += recruiting[step] + other[step];
-                recruiting[step] = other[step] = 0;
-                if (start <= 0 || free <= 0) continue;
-                var started = free * start;
-                free -= started;
-                if (recruitShare > 0) recruiting[Math.Min(step + recruitSteps, recruiting.Length - 1)] += started * recruitShare;
-                foreach (var (share, steps) in starts) other[Math.Min(step + steps, other.Length - 1)] += started * share;
-            }
-        }
-
-        /// <summary>The mass inspired with the recruiting def now, taken (the attempt ends the inspiration with the recruit).</summary>
-        public double TakeInspired()
-        {
-            double taken = 0;
-            for (var i = step; i < recruiting.Length; i++)
-            {
-                taken += recruiting[i];
-                recruiting[i] = 0;
-            }
-
-            return taken;
-        }
-
-        /// <summary>Keeps <paramref name="kept"/> of the mass not inspired with the recruiting def; returns what it drops.</summary>
-        public double Scale(double kept)
-        {
-            var dropped = free * (1 - kept);
-            free *= kept;
-            for (var i = step; i < other.Length; i++)
-            {
-                dropped += other[i] * (1 - kept);
-                other[i] *= kept;
-            }
-
-            return dropped;
-        }
-    }
-
     internal sealed record Placement(string Pawn, int Room, string Stuff, double ServedAt, double CellThought,
         PrisonCellForecast? Exposure, PlannedSleepingSurface? Surface);
     private sealed record RoomRows(RoomGain[] Gains, string[] Findings)
     {
         internal Placement[] Placements { get; init; } = [];
+        internal double Error { get; init; }
     }
 
     internal static IReadOnlyList<Placement> Placements(ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon) =>
         [.. RecipientRows.Of(outcome, commitments, context, horizon).Values.SelectMany(r => r.Placements)];
 
     /// <summary>Reprice the same prison allocation, conversion and warden ledger under a nursery's mean heard-mood shifts.</summary>
-    internal static IReadOnlyList<RoomGain> NurseryRecruitment(ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context,
+    internal sealed record RecruitmentDifference(IReadOnlyList<RoomGain> Gains, IReadOnlyList<string> Findings);
+
+    internal static RecruitmentDifference NurseryRecruitment(ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context,
         double horizon, double nurseryServedAt, IReadOnlyDictionary<string, (double With, double Without)> shifts)
     {
-        if (!context.Needs.Prison.Prisoners.Any(p => shifts.ContainsKey(p.Pawn))) return [];
+        if (!context.Needs.Prison.Prisoners.Any(p => shifts.ContainsKey(p.Pawn))) return new([], []);
         Dictionary<int, RoomRows> Side(bool nursery) => Compute(outcome, commitments, context, horizon,
             shifts.ToDictionary(p => p.Key, p => nursery ? p.Value.With : p.Value.Without), true, nurseryServedAt,
             shifts.ToDictionary(p => p.Key, p => p.Value.Without));
-        var with = Side(true).Values.SelectMany(r => r.Gains).ToDictionary(g => g.Subject);
-        var without = Side(false).Values.SelectMany(r => r.Gains).ToDictionary(g => g.Subject);
-        return [.. with.Keys.Concat(without.Keys).Distinct().Select(p => new RoomGain("recruit/" + p, "", 0)
-        { Once = with.GetValueOrDefault(p).Once - without.GetValueOrDefault(p).Once }).Where(g => g.Once != 0)];
+        var withRows = Side(true);
+        var withoutRows = Side(false);
+        var with = withRows.Values.SelectMany(r => r.Gains).ToDictionary(g => g.Subject);
+        var without = withoutRows.Values.SelectMany(r => r.Gains).ToDictionary(g => g.Subject);
+        var upper = withRows.Values.Select(r => r.Error).DefaultIfEmpty(0).Max();
+        var lower = withoutRows.Values.Select(r => r.Error).DefaultIfEmpty(0).Max();
+        var findings = upper > 0 || lower > 0 ? new[] { "nursery_recruitment_joint_pruned:currency_error=["
+            + (-lower).ToString("R", System.Globalization.CultureInfo.InvariantCulture) + ","
+            + upper.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + "]" } : [];
+        return new([.. with.Keys.Concat(without.Keys).Distinct().Select(p => new RoomGain("recruit/" + p, "", 0)
+        { Once = with.GetValueOrDefault(p).Once - without.GetValueOrDefault(p).Once }).Where(g => g.Once != 0)], findings);
     }
 
     // Every served prison's rows of the outcome, computed once per outcome.
@@ -595,9 +405,9 @@ public static class ForecastPrison
         }
 
         var states = new SortedSet<string>(StringComparer.Ordinal);
-        var unbedded = read.Prisoners.Where(p => includeHoused || !p.PrisonBed).ToArray();
-        if (unbedded.Any(p => !p.Recruitable)) states.Add(Unrecruitable);
-        var recruits = unbedded.Where(p => p.Recruitable).Select(prisoner =>
+        var candidates = read.Prisoners.ToArray();
+        if (candidates.Any(p => !p.Recruitable)) states.Add(Unrecruitable);
+        var recruits = candidates.Where(p => p.Recruitable).Select(prisoner =>
         {
             var population = context.PrisonerPopulation ?? throw new RequiredFactException("prisoner population");
             var person = population.Prisoners.FirstOrDefault(p => p.Pawn.Value == prisoner.Pawn)
@@ -607,7 +417,7 @@ public static class ForecastPrison
             return (Prisoner: prisoner, Person: person, Intent: intent);
         }).Where(p => p.Intent is not null).ToArray();
         var warden = read.Wardens.OrderByDescending(w => w.NegotiationAbility).ThenBy(w => w.Pawn, StringComparer.Ordinal).FirstOrDefault();
-        if (recruits.Length == 0) states.Add(NoRecruit);
+        if (recruits.Length == 0 || (!includeHoused && recruits.All(p => p.Prisoner.PrisonBed))) states.Add(NoRecruit);
         else if (warden is not { NegotiationAbility: > 0 }) states.Add(NoWarden);
         else if (context.FoodHaul is null) states.Add(AwaitingPlan);
         if (recruits.Length == 0 || warden is not { NegotiationAbility: > 0 } || context.FoodHaul is null)
@@ -628,7 +438,7 @@ public static class ForecastPrison
             if (value.PerDay <= 0)
             {
                 states.Add(CostsMore);
-                continue;
+                if (!prisoner.PrisonBed) continue;
             }
 
             // A prisoner the autopilot converts first (#3915) is converted by the warden whose attempts take the most certainty.
@@ -646,7 +456,7 @@ public static class ForecastPrison
                 converters[prisoner.Pawn] = converter;
             }
 
-            valued.Add((prisoner, value.PerDay));
+            valued.Add((prisoner, Math.Max(0, value.PerDay)));
         }
 
         // A warden's chat jobs charged as the work they take from it (#3899, as the classroom charges its teacher, #3809): the
@@ -665,55 +475,107 @@ public static class ForecastPrison
         var queue = valued.OrderByDescending(v => v.Value).ThenBy(v => v.Prisoner.Pawn, StringComparer.Ordinal).ToList();
         foreach (var housed in queue.Where(p => p.Prisoner.PrisonBed))
             if (housed.Prisoner.OwnedPrisonBedPosition is null) throw new RequiredFactException("owned prison bed cell:" + housed.Prisoner.Pawn);
-        foreach (var room in served)
+        var ledger = new List<(int Room, PrisonerRecruitRead Prisoner, double Value, double Lost, double ConvertCost, RecruitmentTarget Target)>();
+        var allocationRooms = served.ToList();
+        foreach (var housed in queue.Where(p => p.Prisoner.PrisonBed))
         {
+            var bed = housed.Prisoner.OwnedPrisonBedPosition!.Cell;
+            var room = context.PrisonBeds.FirstOrDefault(r => r.Value.Contains(bed));
+            if (room.Value is null) throw new RequiredFactException("housed prisoner planned room:" + housed.Prisoner.Pawn);
+            if (allocationRooms.Any(r => r.Room == room.Key)) continue;
+            var closure = context.Closures.FirstOrDefault(c => c.Room == room.Key)
+                ?? throw new RequiredFactException("housed prison prediction:" + room.Key);
+            allocationRooms.Add(new(room.Key, closure.Stuff, 0));
+        }
+        foreach (var room in allocationRooms)
+        {
+            var projected = served.Any(s => s.Room == room.Room);
             var roomStates = new SortedSet<string>(states, StringComparer.Ordinal);
             var prediction = PlannedRoomCredits.Prediction(context, room.Room, room.Stuff);
             var positions = context.PrisonBeds.GetValueOrDefault(room.Room) ?? [];
             var beds = prediction is null ? 0 : positions.Length;
             if (beds == 0) roomStates.Add(NoBed);
             var units = RingClosure.CreditDays(days, room.ServedAt);
-            var gains = new List<RoomGain>();
             var placements = new List<Placement>();
             // RoomRoleWorker_PrisonCell scores one prison bed, PrisonBarracks two or more: the thought the room's beds give.
             var role = beds == 1 ? "prison_cell" : "prison_barracks";
             for (var bed = 0; bed < beds && queue.Count > 0; bed++)
             {
                 var occupied = read.Prisoners.FirstOrDefault(p => p.PrisonBed && p.OwnedPrisonBedPosition?.Cell == positions[bed]);
+                if (!projected && occupied is null) continue;
                 var candidate = occupied is null ? queue.FirstOrDefault(p => !p.Prisoner.PrisonBed)
                     : queue.FirstOrDefault(p => p.Prisoner.Pawn == occupied.Pawn);
                 if (candidate.Prisoner is null) continue;
                 var (prisoner, value) = candidate;
-                // No path is no recruitment opportunity. Never credit a room on an invented zero walk.
-                var walk = WalkTicks(warden.Pawn, positions[bed], prediction!.Prediction, outcome, context);
-                if (walk is null) { roomStates.Add("prison_warden_unreachable:" + prisoner.Pawn); continue; }
-                var cell = CellOffset(prisoner, role, prediction!.Prediction.Stage);
+                var cell = projected ? CellOffset(prisoner, role, prediction!.Prediction.Stage) : prisoner.Mood?.CellThought;
                 converters.TryGetValue(prisoner.Pawn, out var converter);
-                var convertWalk = converter is null ? 0 : WalkTicks(converter.Warden, positions[bed], prediction.Prediction, outcome, context);
-                if (convertWalk is null) { roomStates.Add("prison_converter_unreachable:" + prisoner.Pawn); continue; }
-                queue.Remove(candidate);
                 var shift = moodShifts.GetValueOrDefault(prisoner.Pawn);
                 var meal = prisoner.Mood?.Meals.FirstOrDefault(m => m.Warden == warden.Pawn);
-                var forecast = prediction.Prediction;
+                var forecast = prediction!.Prediction;
                 var surface = forecast.SleepingSurfaces.FirstOrDefault(s => s.Cell == positions[bed]);
-                var exposure = prisoner.Mood is not { } mood ? null : new PrisonCellForecast(mood, meal, forecast.Stage,
+                var exposure = !projected || prisoner.Mood is not { } mood ? null : new PrisonCellForecast(mood, meal, forecast.Stage,
                     forecast.Services?.Seats.Count > 0, room.ServedAt, surface,
                     forecast.PerceptibleBeauty, forecast.MaximumComfort);
+                var targetCell = positions[bed];
+                RecruitmentLeg? Route(string worker, Cell from)
+                {
+                    var inbound = forecast.Routes.FirstOrDefault(r => r.Pawn == worker && r.From == from && r.To == targetCell
+                        && r.Kind == ProjectedRouteKind.PrisonInteraction)
+                        ?? throw new RequiredFactException("prison chained route:" + worker + ":" + from);
+                    if (inbound.Ticks is not RouteTicks.Reachable there) return null;
+                    var arrival = inbound.Arrival as ServicePositionRead.Located
+                        ?? throw new RequiredFactException("prison interaction endpoint:" + worker);
+                    var origin = context.Needs.Pawns.First(p => p.Pawn == worker).Location;
+                    var returning = forecast.Routes.FirstOrDefault(r => r.Pawn == worker && r.From == arrival.Cell && r.To == origin
+                        && r.Kind == ProjectedRouteKind.WorkReturn)
+                        ?? throw new RequiredFactException("prison direct work return:" + worker);
+                    return returning.Ticks is RouteTicks.Reachable back ? new(there.Ticks, back.Ticks, arrival.Cell) : null;
+                }
+                if (Route(warden.Pawn, pawn.Location) is null)
+                { roomStates.Add("prison_warden_unreachable:" + prisoner.Pawn); continue; }
+                if (converter is not null && Route(converter.Warden, context.Needs.Pawns.First(p => p.Pawn == converter.Warden).Location) is null)
+                { roomStates.Add("prison_converter_unreachable:" + prisoner.Pawn); continue; }
+                queue.Remove(candidate);
                 if (prisoner.Mood is not null)
                     placements.Add(new(prisoner.Pawn, room.Room, room.Stuff, room.ServedAt,
                         cell ?? throw new RequiredFactException("prison thought stage"), exposure, surface));
                 if (prisoner.Mood is { Comfort: not null } or { Beauty: not null }) roomStates.Add("prison_cell_exposure_bounded");
-                var expected = Recruitment(read, warden, pawn.Mood?.Target, prisoner, cell, room.ServedAt, units, converter,
-                    converter is null ? null : certaintyByPawn[prisoner.Pawn], exposure,
-                    at => at >= shiftAt ? shift : precedingShifts?.GetValueOrDefault(prisoner.Pawn) ?? 0);
-                var lostPerJob = LostPerJob(warden.Pawn, ChatJobTicks + walk.Value);
-                var converting = converter is null ? 0 : LostPerJob(converter.Warden, ConvertJobTicks(read) + convertWalk.Value) * expected.ConvertJobs;
-                gains.Add(new(prisoner.Pawn, "", value) { Once = -(value * expected.Days) - (lostPerJob * expected.Jobs) - converting });
+                var maximumWalk = forecast.Routes.Select(r => r.Ticks is RouteTicks.Reachable route ? route.Ticks : 0).DefaultIfEmpty(0).Max();
+                var lostPerJob = LostPerJob(warden.Pawn, ChatJobTicks + maximumWalk) + LostPerJob(warden.Pawn, maximumWalk);
+                var convertCost = converter is null ? 0 : LostPerJob(converter.Warden, ConvertJobTicks(read) + maximumWalk) + LostPerJob(converter.Warden, maximumWalk);
+                ledger.Add((room.Room, prisoner, value, lostPerJob, convertCost,
+                    new(prisoner, prisoner.Mood is null ? 0 : cell ?? throw new RequiredFactException("prison thought stage"),
+                        prisoner.PrisonBed ? 0 : room.ServedAt, prisoner.PrisonBed ? days : units, converter,
+                        converter is null ? 0 : certaintyByPawn[prisoner.Pawn], exposure,
+                        at => at >= shiftAt ? shift : precedingShifts?.GetValueOrDefault(prisoner.Pawn) ?? 0)
+                    { Position = targetCell, CellServedAt = room.ServedAt, Route = Route, WorkCost = LostPerJob, MaximumWalk = maximumWalk }));
             }
 
-            output[room.Room] = new([.. gains], [.. NotModelled, .. roomStates]) { Placements = [.. placements] };
+            output[room.Room] = new([], [.. NotModelled, .. roomStates]) { Placements = [.. placements] };
         }
 
+        // WorkGiver_Scanner selects the closest reachable target geometrically; native scan order wins equal distances.
+        var nativeOrder = read.Prisoners.Select((p, i) => (p.Pawn, Index: i)).ToDictionary(p => p.Pawn, p => p.Index);
+        var joint = ledger.OrderBy(p => nativeOrder[p.Prisoner.Pawn]).ToArray();
+        var expected = JointRecruitment(read, warden, pawn.Mood?.Target, [.. joint.Select(p => p.Target)],
+            context.Needs.Pawns.ToDictionary(p => p.Pawn, p => p.Location));
+        double error = 0;
+        for (var n = 0; n < joint.Length; n++)
+        {
+            var row = joint[n];
+            var e = expected[n];
+            var room = output[row.Room];
+            if (includeHoused || !row.Prisoner.PrisonBed) output[row.Room] = room with { Gains = [.. room.Gains,
+                new RoomGain(row.Prisoner.Pawn, "", row.Value) { Once = -(row.Value * e.Days) - e.WorkCost - e.ConversionCost }] };
+            // Full served value plus all possible jobs bounds any discarded continuation in the same colonist-day currency.
+            var maximumJobs = Math.Ceiling(row.Target.Units * read.MaxInteractionsPerDay) + 1;
+            error += e.PrunedProbability * (row.Value * row.Target.Units + (row.Lost + row.ConvertCost) * maximumJobs + row.Lost + row.ConvertCost);
+        }
+        if (error > 0)
+        {
+            var bound = "prison_inspiration_joint_pruned:currency_error=[0," + error.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + "]";
+            foreach (var id in output.Keys.ToArray()) output[id] = output[id] with { Findings = [.. output[id].Findings, bound], Error = error };
+        }
         return output;
     }
 
@@ -734,34 +596,18 @@ public static class ForecastPrison
     /// <summary>Both legs of every prison chat, in the existing projected-route read. Current pawn locations cover an outcome
     /// that assigns no work; coupled route locations cover every native work origin the outcome can allocate.</summary>
     public static EquatableArray<PlannedRouteProbe> RouteProbes(IEnumerable<PlannedRoomShape> shapes, IReadOnlyDictionary<int, Cell[]> beds,
-        IEnumerable<Cell> origins, PrisonRecruitRead? prison) => prison is null || !prison.Prisoners.Any(p => p.Recruitable) ? []
-        : EquatableArray.From(shapes.Where(s => int.TryParse(s.Room, out var room) && beds.ContainsKey(room))
-        .SelectMany(s => beds[int.Parse(s.Room, System.Globalization.CultureInfo.InvariantCulture)].SelectMany(b => origins.Distinct().SelectMany(o =>
-            new[] { new PlannedRouteProbe(o, b, []) { Projection = s }, new PlannedRouteProbe(o, b, []) { Projection = s, Return = true } }))));
-
-    // The selected work's locations weighted by the ticks spent there. With no selected work, use the observed location.
-    // This uses the same outcome and native route rows, without another work assignment or distance model.
-    private static double? WalkTicks(string warden, Cell bed, PlannedRoomPrediction prediction, ForecastCoupledOutcome outcome, ForecastCoupledContext context)
+        IEnumerable<Cell> origins, PrisonRecruitRead? prison)
     {
-        var rows = prediction.Routes.Where(r => r.Pawn == warden).ToArray();
-        var work = outcome.Plan.Allocations.Where(a => a.Pawn == warden && a.WorkTicks > 0)
-            .Select(a => (Task: context.Activities.Activities.First(t => t.Id == a.Activity), Ticks: a.WorkTicks)).ToArray();
-        var origins = work.Length == 0
-            ? new[] { (Location: Methods.Generation.ForecastLocations.Of(context.Needs.Pawns.First(p => p.Pawn == warden).Location), Weight: 1d) }
-            : work.Select(w => (Location: w.Task.Location, Weight: w.Ticks)).ToArray();
-        double ticks = 0;
-        foreach (var origin in origins)
-        {
-            var inbound = rows.FirstOrDefault(r => r.To == bed && Methods.Generation.ForecastLocations.Of(r.From) == origin.Location)
-                ?? throw new RequiredFactException("prison inbound route:" + warden + ":" + origin.Location);
-            var outbound = rows.FirstOrDefault(r => r.From == bed && Methods.Generation.ForecastLocations.Of(r.To) == origin.Location)
-                ?? throw new RequiredFactException("prison return route:" + warden + ":" + origin.Location);
-            if (inbound.Ticks is not RouteTicks.Reachable there || outbound.Ticks is not RouteTicks.Reachable back) return null;
-            ticks += origin.Weight * (there.Ticks + back.Ticks);
-        }
-        return ticks / origins.Sum(o => o.Weight);
+        if (prison is null || !prison.Prisoners.Any(p => p.Recruitable)) return [];
+        var work = origins.Distinct().ToHashSet();
+        // Every possible Touch/sight endpoint is inside or adjacent to a prisoner anchor. Probe these actual cells
+        // as future origins; the native path owner decides which are reachable and where the interaction ends.
+        var from = work.Concat(beds.Values.SelectMany(b => b).SelectMany(b =>
+            Enumerable.Range(-1, 3).SelectMany(x => Enumerable.Range(-1, 3).Select(z => new Cell(b.X + x, b.Z + z))))).Distinct();
+        return EquatableArray.From(shapes.Where(s => int.TryParse(s.Room, out var room) && beds.ContainsKey(room))
+            .SelectMany(s => beds[int.Parse(s.Room, System.Globalization.CultureInfo.InvariantCulture)].SelectMany(b => from.Select(o =>
+                new PlannedRouteProbe(o, b, []) { Projection = s, WorkOrigin = work.Contains(o) }))));
     }
-
     // The room's prison thought offset for the prisoner (#3805): its stage row of role's thought; null without a mood need. A stage row missing throws.
     private static double? CellOffset(PrisonerRecruitRead prisoner, string role, int stage)
     {

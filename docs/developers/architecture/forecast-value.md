@@ -867,8 +867,10 @@ than success, death and failure, and surgeries on non-colonists. Two planned hos
 enables, per prisoner under `prison/<room>/<prisoner>`. A held prisoner without a prison bed is never recruited; the outcome's
 served prisons, in service order, bed the recruitable ones (not unwaveringly loyal) that the shared
 `PopulationRules.RecruitIntent` actually selects for recruitment or conversion, up to their beds (planned beds plus the
-prediction's), the most valuable first. The best-NegotiationAbility warden chats with each from the room's service, chat by chat
-(`ForecastPrison.Recruitment`): job k starts `k × 60000 / 2` ticks in; its five rapport chats come 350 ticks apart, each a
+prediction's), the most valuable first. The best-NegotiationAbility warden and each selected converter share their available
+work intervals across all bedded prisoners (`ForecastPrison.JointRecruitment`). A target is eligible again 30,000 ticks after
+its previous job starts; a free worker selects the closest reachable eligible target from its current native interaction
+endpoint. A recruitment job's five rapport chats come 350 ticks apart after arrival, each a
 `RapportBuilt` memory at its opinionOffset × the warden's SocialImpact with its stack limits (`ForecastPrison.Opinion`), and its
 attempt comes 1,750 ticks after the first. The prisoner's opinion of the warden at an attempt is its relations plus its situational
 social thoughts plus its social memory groups (a fading memory's InverseLerp, a cumulative one's day steps) and the rapport, times
@@ -880,7 +882,7 @@ duration from that service; unrelated memories age from now. Conversion's mood d
 An attempt with resistance left lowers it by NegotiationAbility × the mood curve × the opinion
 curve; at 0 the next one recruits. A prisoner of another ideoligion that the autopilot converts first
 (`PopulationRules.RecruitIntent` sets Convert, `ForecastCoupledContext.PrisonerPopulation`, #3915) is converted before any of that, in
-the same chat slots (`ForecastPrison.Converted`): a job is three chitchat toils then a `ConvertIdeoAttempt` 1,050 ticks in, which
+the same shared worker scheduler (`ForecastPrison.JointRecruitment`): a job is three chitchat toils then a `ConvertIdeoAttempt` 1,050 ticks in, which
 takes the converter's `CertaintyReduction` times the tracker's change factor from the prisoner's certainty (read now, drifting up
 hourly by `ConversionTuning.CertaintyPerDayByMoodCurve` at its mood, over the factor), and at 0 it takes the colony's
 ideoligion; the converter is the warden holding the colony's ideoligion with the largest reduction, and the recruit jobs start in
@@ -889,9 +891,9 @@ prisoner's cumulative memory of it, subject to the native thought gates. When th
 timeline merges those raw offsets into its existing memory without resetting age, caps only the displayed offset and decays
 one toward zero per day; this raises the following recruitment's opinion. A different converter gives no opinion of the
 recruiting warden. A conversion the served days do not reach leaves the prisoner unrecruited. A wild man is tamed at the warden's tame chance each attempt. The warden's inspiration is a
-renewal process (`ForecastPrison.Inspirations`, one-hour steps): the one it has now runs out, a new one starts at the MTB its mood
+shared joint renewal process (`ForecastPrison.JointRecruitment`, one-hour steps): the one it has now runs out, a new one starts at the MTB its mood
 target gives, the def picked by its share of the defs that can occur; `Inspired_Recruitment` (`Inspired_Taming` for a wild man)
-recruits at the next attempt, and any other blocks new ones while it lasts. The prisoner's value is its #3825 value
+recruits only the next eligible target, consumes the inspiration even at zero resistance, and permits later renewal. Other inspirations block new ones while they last. The joint state retains the recruited set and inspiration def/expiry across every served prison and both nursery repricing sides. Native scan order breaks equal geometric target distances. At most 4096 states are retained: discarded probability earns no further recruitment benefit and pays every remaining possible chat. `prison_inspiration_joint_pruned:currency_error=[0,N]` reports the resulting one-sided error interval in colonist days, so large prisons can be undervalued explicitly. The prisoner's value is its #3825 value
 as a colonist (`JoinerMoodRules.ValueOf`) against the work the outcome leaves short (`WorkShortfallRules.Of` over the outcome's
 chosen roots, `JoinerMoodRules.ShortfallOf`, computed once per outcome by the shared `PerOutcome` cache, #3913): its own speeds, food and incapable work; its mood the colony's food, room and recreation thoughts
 (the median of the colonists' observed rows, picked by thought_triggers.tsv owner, grant and dependency) plus its trait thoughts (a colony thought that is one of them counted once, at its own offset;
@@ -900,8 +902,7 @@ apparel, primary weapon, flames, Night Owl and Undergrounder at their stages ove
 falls served as each is served. The row is that value a day with a `Once` of −value × the expected recruitment days, less the
 expected chat jobs × the warden work a job takes (its 2,100 toil ticks plus its native round trip, as the shortfall rows they
 would fill, as the classroom charges its teacher), less the converter's work for each conversion job (its 1,400 toil ticks plus
-that converter's round trip). The origin is each location the outcome assigns the warden work, weighted by its work ticks; with
-no assigned work it is the pawn's observed location. Both legs use the room's projected walls, doors and furniture in the native
+that converter's round trip). The first job starts at the pawn's observed position. Chained jobs start from the prior native interaction endpoint; an idle lane returns to its observed work origin. Both legs use the room's projected walls, doors and furniture in the native
 path job, including the interaction position after Touch and its return to work. An unreachable recruiter or converter walk
 credits no recruit and names `prison_warden_unreachable:<pawn>` or `prison_converter_unreachable:<pawn>`; a missing route is a
 required-fact failure. Standing and planned bed anchors share the sleeping census and construction sites. A non-positive value earns nothing
@@ -914,8 +915,7 @@ follow native seeker rates under the furnished room's exposure bounds: per-cell 
 with rest intervals derived from its rest need. Recruitment uses lower exposure and conversion drift upper exposure;
 `prison_cell_exposure_bounded` names the spatial uncertainty rather than assigning a fabricated wander schedule.
 Named as not modelled: any applicable trait thought outside the supported native worker families
-(`joiner_situational_trait_thoughts`), future fellow-prisoner mortality memories (`prisoner_mortality_not_modelled`, #4014) and one inspiration counted for every
-prisoner (`prison_inspiration_shared`, #3968).
+(`joiner_situational_trait_thoughts`) and future fellow-prisoner mortality memories (`prisoner_mortality_not_modelled`, #4014).
 
 *Classroom credit (#3809).* A planned classroom the outcome serves is credited (`ForecastClassroom.ClassroomCredit`) the lessons
 it seats, per child under `classroom/<room>/<child>`. A child (a colonist with a learning need, `NeedsForecastRead.School`) takes

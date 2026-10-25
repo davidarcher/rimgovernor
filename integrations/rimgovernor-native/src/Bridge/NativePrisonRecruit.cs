@@ -27,7 +27,7 @@ internal static class NativePrisonRecruit
         var chitchat = InteractionDefOf.Chitchat.recipientThought ?? throw new InvalidOperationException("Chitchat has no recipient thought.");
         if (chitchat.thoughtClass != typeof(Thought_MemorySocialCumulative) || chitchat.stages.NullOrEmpty())
             throw new InvalidOperationException(chitchat.defName + " is not a staged Thought_MemorySocialCumulative.");
-        var prisoners = map.mapPawns.PrisonersOfColonySpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)
+        var prisoners = map.mapPawns.SlavesAndPrisonersOfColonySpawned.Where(p => p.IsPrisonerOfColony)
             .Select(p => PrisonerOf(p, wardens, rapport, chitchat, map, climate)).ToArray();
         return new()
         {
