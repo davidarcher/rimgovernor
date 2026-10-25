@@ -31,7 +31,7 @@ public sealed class PlannedRoomPredictionTests
         var json = OrdersJson.Serialize(prediction);
 
         Assert.Equal(
-            """{"room":"3","stuff":"WoodLog","role":"Bedroom","impressiveness":32.5,"stage":3,"cells":9,"openRoofCells":2,"touchesMapEdge":false,"perceptibleBeauty":[],"sleepingSurfaces":[],"maximumComfort":0,"routes":[],"services":{"seats":[],"recreation":[]},"workBenches":[],"readingBonus":1,"terrains":[{"tags":["Floor"]}],"cleanliness":-0.25,"beds":["Thing_Bed4"],"benches":[{"bench":"Thing_Table5","psychologicallyOutdoors":true}],"desks":[{"learningRate":1.4}]}""",
+            """{"room":"3","stuff":"WoodLog","role":"Bedroom","impressiveness":32.5,"stage":3,"cells":9,"openRoofCells":2,"touchesMapEdge":false,"perceptibleBeauty":[],"sleepingSurfaces":[],"maximumComfort":0,"filth":null,"routes":[],"services":{"seats":[],"recreation":[]},"workBenches":[],"readingBonus":1,"terrains":[{"tags":["Floor"]}],"cleanliness":-0.25,"beds":["Thing_Bed4"],"benches":[{"bench":"Thing_Table5","psychologicallyOutdoors":true}],"desks":[{"learningRate":1.4}]}""",
             json);
         Assert.Equal(prediction, OrdersJson.Deserialize<PlannedRoomPrediction>(json));
     }
@@ -47,6 +47,21 @@ public sealed class PlannedRoomPredictionTests
         };
         Assert.Equal(prediction, OrdersJson.Deserialize<PlannedRoomPrediction>(OrdersJson.Serialize(prediction)));
         Assert.Equal(prediction, FactsJson.Deserialize<PlannedRoomPrediction>(FactsJson.Serialize(prediction)));
+    }
+
+    [Fact]
+    public void ConditionalFilthStagesAndIntendedBedUsesSurviveBothBoundaries()
+    {
+        var prediction = Closed("1", "WoodLog", "Bedroom", 30, 2, 9, 0, false) with { Filth = new(1, 0, .25) };
+        Assert.Equal(prediction, OrdersJson.Deserialize<PlannedRoomPrediction>(OrdersJson.Serialize(prediction)));
+        Assert.Equal(prediction, FactsJson.Deserialize<PlannedRoomPrediction>(FactsJson.Serialize(prediction)));
+        var shape = new PlannedRoomShape("1", "WoodLog", [new(1, 1)], [])
+        {
+            Furniture = [new(new(1, 1), "Bed", "WoodLog", RimGovernor.Brain.Domain.Rotation.North) { Medical = true },
+                new(new(2, 1), "Bed", "WoodLog", RimGovernor.Brain.Domain.Rotation.North) { Prisoners = true }],
+            Filth = new("Filth_Blood", 1, .25),
+        };
+        Assert.Equal(shape, OrdersJson.Deserialize<PlannedRoomShape>(OrdersJson.Serialize(shape)));
     }
 
     [Fact]

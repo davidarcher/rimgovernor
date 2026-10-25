@@ -102,7 +102,25 @@ public sealed class BarracksSwitchTests
     [Fact]
     public void TheSplitKeepsTheGroupsStandingOutsideDoorAwayFromTheNewRooms()
     {
-        var (first, f) = Standing();
+        // Stage the two linked rooms whose door preservation this test claims. Economic
+        // sharing may otherwise put the cooking stations inside the initial barracks.
+        var f = FirstRoomPlanTests.Facts(BedMergePriceTests.Temperate, "mild", treeless: true, colonists: Calm.Length);
+        var staged = LayoutDeriveRules.FirstPlanFacts(f.Survey, f, []);
+        static StationAdvice SeparateKitchen(StationFacts facts)
+        {
+            var input = LayoutStationPlanRules.RegroupInputOf(facts);
+            var cooks = input.Cluster.Graph.Nodes.Where(node => input.Cluster.Catalog.Stations[node.Def].Contributions.Any(c => c.Role == RoomRole.Kitchen)).ToArray();
+            var cookIds = cooks.Select(node => node.Id).ToHashSet(StringComparer.Ordinal);
+            var pairs = (from other in input.Cluster.Graph.Nodes where !cookIds.Contains(other.Id)
+                         from cook in cooks
+                         select new NodePair(other.Id, cook.Id, PairRule.Apart)).ToArray();
+            Assert.NotEmpty(pairs);
+            return LayoutStationPlanRules.AdviseStations(facts, LayoutRegroupRules.Seed(input with { Cluster = input.Cluster with { Pairs = pairs } }));
+        }
+        var advice = SeparateKitchen(staged);
+        var (derived, _) = LayoutDeriveRules.TileFirstPlan(f.Survey, staged, advice);
+        var first = Assert.IsType<LayoutPlan>(derived);
+        f = f with { Derive = false };
         var b = first.RoomsOf(PlannedRole.Barracks).Single();
         Assert.Equal(first.LinkCells(b.Id).Single(), b.Door);
         var k = first.RoomsOf(PlannedRole.Kitchen).Single();
@@ -116,7 +134,11 @@ public sealed class BarracksSwitchTests
             (plan.ShellDoors(kitchen).Contains(c) ? ground.Doors : ground.Walls).Add(c);
         }
 
-        var next = Replan(plan, WithLosses(Stand(plan, f), 0.06));
+        // This is the tiler's door-preservation claim with a retained kitchen, independent of
+        // whether a new economic grouping would instead retire that room and host its stations elsewhere.
+        var growth = new RoomGrowth { Fixed = [] };
+        var (previous, facts) = LayoutPlan.ReplanFacts(plan, WithLosses(Stand(plan, f), 0.06), f.Survey, [], growth);
+        var (next, _) = LayoutPlan.TileReplan(previous, facts, f.Survey, growth, SeparateKitchen(facts));
 
         Assert.Single(next.RoomsOf(PlannedRole.Bedroom));
         Assert.Equal(door, next.Rooms.Single(r => r.Id == kitchen.Id).Door);

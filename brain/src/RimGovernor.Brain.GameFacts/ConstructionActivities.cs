@@ -24,6 +24,8 @@ public sealed record PlannedRoomPrediction(string Room, string Stuff, string Rol
     public EquatableArray<PlannedSleepingSurface> SleepingSurfaces { get; init; }
     /// <summary>Largest native comfort among the furnished room's usable buildings, an exposure upper bound.</summary>
     public double MaximumComfort { get; init; }
+    /// <summary>The separately projected native stage while the layout's steady filth stands; absent when no station produces filth.</summary>
+    public PlannedRoomFilthPrediction? Filth { get; init; }
     /// <summary>Native routes to its prison beds and back, under this shape. The construction route reader owns their computation.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<CoupledRoute>))]
     public EquatableArray<CoupledRoute> Routes { get; init; }
@@ -61,6 +63,7 @@ public sealed record PlannedRoomPrediction(string Room, string Stuff, string Rol
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRoomDesk>))]
     public required EquatableArray<PlannedRoomDesk> Desks { get; init; }
 }
+public sealed record PlannedRoomFilthPrediction(double Impressiveness, int Stage, double Exposure);
 public sealed record PlannedCellBeauty(Cell Cell, double Beauty);
 public sealed record PlannedSleepingSurface(Cell Cell, double Comfort, double RestEffectiveness);
 public sealed record PlannedRoomServices(

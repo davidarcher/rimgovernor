@@ -75,12 +75,9 @@ case HospitalMethod.NoDemand:
             case HospitalMethod.Unavailable:
                 return (null, BuildingReasonHospitalUnavailable);
         }
-
-        var facility = RoomsRules.Facility(RoomRole.Hospital);
         var resolved = Copy();
         resolved.Definition = choice.Definition;
         resolved.Environment = PlacementEnvironment.Indoors;
-        resolved.Facility = facility;
         resolved.Stuff = ColonyPlanningRules.BuildStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), resolved.Definition);
         return (resolved, default);
     }

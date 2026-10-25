@@ -159,9 +159,9 @@ including an irregular shelter, and furnish it while preserving connected access
 Repairs use normal construction before the room can count as habitable.
 
 Room functions are the game's own `Room.Role`, read from the typed room census; the
-brain never assigns a role. Each planner pursues a role through the facility
-ladder (reuse, furnish a hosting room, stage a starter shell and furnish it once
-roofed); the ladder and the per-role matrix (`policy.FacilityCatalog`) are in
+brain never assigns a role. Each planner requests its actual stations through the facility
+ladder (reuse, furnish the assigned planned room, stage its shell and furnish it once
+roofed); the ladder and canonical pricing of shared room functions are in
 [facilities](facilities.md).
 
 The workshop row is the first production facility on that ladder: a

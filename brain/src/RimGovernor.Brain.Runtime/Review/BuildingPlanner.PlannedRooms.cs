@@ -5,70 +5,31 @@ namespace RimGovernor.Brain.Runtime;
 
 public sealed partial class BuildingPlanner
 {
-    private static readonly HashSet<RoomRole> FacilityFurnishingRoles =
-    [
-        RoomRole.DiningRoom, RoomRole.RecRoom, RoomRole.Hospital, RoomRole.Laboratory, RoomRole.Workshop,
-    ];
-
-    internal (PlannedRole Role, bool Ok) PlannedRoomModule()
-    {
-        if (Concern == FoodRules.CookingNeed.FilingKey && Paste.Count == 0)
-        {
-            return (PlannedRole.Kitchen, true);
-        }
-
-        if (ButcherFacility() && BuildingPlanner.ButcherBenchDefinition(Definition))
-        {
-            return (PlannedRole.Butchery, true);
-        }
-
-        return (default, false);
-    }
-
-    /// <summary>Furnishes a planned facility room: reconciles its shell first when owed, then resolves to the interior cells.</summary>
+    /// <summary>Routes a station to the room whose saved layout contains that definition, whatever native role its other stations win.</summary>
     internal async Task<(BuildingPlanner? Planner, BuildingResult Result, bool Done)> PlannedFacilityFurnishingAsync(ControlState state, ReviewState review, NeedOwner goal, ColonyReading reading, ColonyReading facts, CancellationToken call, CancellationToken epoch)
     {
-        if (Facility is null || Cells is not null || !FacilityFurnishingRoles.Contains(Facility.Role))
-        {
-            return (this, new BuildingResult(), false);
-        }
+        if (!FacilityLadder() && !ButcherFacility() && Concern != FoodRules.CookingNeed.FilingKey) return (this, new BuildingResult(), false);
+        var layout = facts.Facts.LayoutPlan;
+        var room = layout is null ? null : PlannedStationRoom(layout, Definition, facts.Facts.CurrentConstruction);
+        if (room is null)
+            return (null, new BuildingResult { Verdict = AwaitingPlan("station_room", Definition) }, true);
 
-        var (module, ok) = RoomModule();
-        if (!ok)
-        {
-            return (this, new BuildingResult(), false);
-        }
-
-        var (room, owed) = BuildingPlanner.PlannedRoomOwed(facts, module);
-        if (!owed)
-        {
-            var cells = BuildingPlanner.PlannedRoomCells(facts, module);
-            if (cells is null)
-            {
-                return (this, new BuildingResult(), false);
-            }
-
-            var furnish = Copy();
-            furnish.Facility = null;
-            furnish.Cells = cells;
-            return (furnish, new BuildingResult(), false);
-        }
-
-        var result = await ReconcileRoomAsync(state, review, goal, new ReviewReading { Reading = reading, Emergency = new EmergencyFacts(), Frame = new BridgeReviewFrame() }, null, new RoomReconcile { RingOnly = true, Room = room, Name = BuildingPlanner.PlannedRoomMethod(room).Value }, call, epoch).ConfigureAwait(false);
-        if (!result.Verdict.SkipsToPlacement)
-        {
-            return (null, result, true);
-        }
+        var result = await ReconcileRoomAsync(state, review, goal,
+            new ReviewReading { Reading = reading, Emergency = new EmergencyFacts(), Frame = new BridgeReviewFrame() }, null,
+            new RoomReconcile { RingOnly = true, Room = room, Name = BuildingPlanner.PlannedRoomMethod(room).Value }, call, epoch).ConfigureAwait(false);
+        if (!result.Verdict.SkipsToPlacement) return (null, result, true);
 
         var placed = Copy();
-        placed.Facility = null;
         placed.Cells = BuildingPlanner.PlannedRoomInterior(room);
         placed.Environment = PlacementEnvironment.Anywhere;
         return (placed, new BuildingResult(), false);
     }
 
-    /// <summary>Whether the planner's furniture stands on the planned room's interior: the kitchen's stove or campfire and the butchery's bench.</summary>
-    internal static bool HostsInPlannedRoom(PlannedRole module) => module == PlannedRole.Kitchen || module == PlannedRole.Butchery;
+    internal static PlannedRoom? PlannedStationRoom(LayoutPlan layout, string definition, CurrentConstruction census) =>
+        layout.Rooms.OrderBy(r => r.Id).FirstOrDefault(room =>
+            (layout.Pieces.GetValueOrDefault(room.Id) ?? []).Count(p => p.Def == definition)
+            > census.Buildings.Count(b => b.Building.Definition == definition && room.Region.Cells().Contains(b.Building.Cell))
+                + census.Sites.Count(s => s.Building is { } b && b.Definition == definition && room.Region.Cells().Contains(b.Cell)));
 }
 
 partial class BuildingPlanner
@@ -96,33 +57,6 @@ partial class BuildingPlanner
 
     internal static GroundCensus ColonyGround(ColonyReading facts) =>
         LayoutGroundRules.GroundOf(facts.Facts.CurrentConstruction.Buildings);
-
-    internal static IReadOnlyList<Cell>? PlannedRoomCells(ColonyReading facts, PlannedRole module)
-    {
-        var (plan, rooms, known) = PlannedLayout(facts);
-        if (!known)
-        {
-            return null;
-        }
-
-        foreach (var r in plan.Rooms)
-        {
-            if (r.Role != module)
-            {
-                continue;
-            }
-
-            var (_, ok) = PlannedRoom.CensusRoomIn(r, rooms);
-            if (!ok)
-            {
-                continue;
-            }
-
-            return RectCells(r.Region.Bounds());
-        }
-
-        return null;
-    }
 
     internal static IReadOnlyList<Cell> PlannedRoomInterior(PlannedRoom room) => RectCells(room.Region.Bounds());
 
@@ -189,24 +123,6 @@ partial class BuildingPlanner
         }
 
         return output;
-    }
-
-    internal static IReadOnlyList<Cell>? PlannedRoomPlanCells(ColonyReading facts, PlannedRole module)
-    {
-        if (facts.Facts.LayoutPlan is not { } plan)
-        {
-            return null;
-        }
-
-        foreach (var r in plan.Rooms)
-        {
-            if (r.Role == module)
-            {
-                return PlannedRoomInterior(r);
-            }
-        }
-
-        return null;
     }
 
     internal static IReadOnlyList<RoleMismatch> RoleMismatches(ColonyReading facts)

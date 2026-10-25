@@ -246,39 +246,6 @@ public sealed partial class ColonyReview
     {
         var tick = projection.Identity.Tick;
         var (layout, haveLayout) = await LayoutPlanAsync(snapshot, tick, ct).ConfigureAwait(false);
-        if (LayoutPending is { Work.IsCompleted: true } pending)
-        {
-            LayoutPending = null;
-            var adoptable = LayoutReplanAdoptable(pending, snapshot, tick, layout, haveLayout);
-            var held = adoptable ? await NewlyHeldRoomsAsync(pending, projection, ct).ConfigureAwait(false) : [];
-            if (adoptable && held.Count == 0)
-            {
-                if (await AdoptLayoutReplanAsync(pending, snapshot, tick, ct).ConfigureAwait(false))
-                {
-                    PlanGrownFor = pending.Grown;
-                    PlanPawns = pending.Colonists;
-                    PlanReplanned = pending.Started;
-                    (layout, haveLayout) = await LayoutPlanAsync(snapshot, tick, ct).ConfigureAwait(false);
-                    if (haveLayout)
-                    {
-                        // The recorded replan is the plan the same inputs plan next: its inputs, the plan being
-                        // among them, are read again over it, from what the replan was planned from.
-                        (PlanInputs, _, _) = await LayoutInputsOfAsync(snapshot, pending.Projection, layout, pending.Survey, pending.Grown, pending.Colonists, pending.Geysers, ct).ConfigureAwait(false);
-                    }
-                }
-            }
-            else
-            {
-                // The world or the saved plan moved on under the run: its plan is dropped, the next hourly check reads again.
-                // A room a journal plan took up since the run started (#3537) is one the run did not hold: it may have moved it.
-                var attrs = new Dictionary<string, object?> { ["started_tick"] = pending.Started.Value, ["adopted"] = tick.Value - pending.Started.Value };
-                if (held.Count != 0)
-                {
-                    attrs["held"] = held.Order().ToArray();
-                }
-                Tel.Decide(new Decision { Kind = TelemetryKinds.LayoutReplanTiledKind, Component = "layout", Target = "plan", Verdict = "skipped", Reason = held.Count != 0 ? "room_held" : "superseded", Attrs = attrs });
-            }
-        }
         var pawns = projection.Facts.Census.ColonistCount;
         // The last check is the newer of the saved plan's tick and the last survey this process read; a rewind
         // past it or a restart falls back to the plan's tick.
@@ -326,6 +293,49 @@ public sealed partial class ColonyReview
         return projection;
     }
 
+    /// <summary>Compares a completed geometry run only after the review has its canonical model, prices and demand.</summary>
+    internal async Task<EvaluatedLayoutCandidate?> ReviewCompletedLayoutReplanAsync(GenerationSnapshot snapshot, ColonyReading projection,
+        Latches latches, GoalsFacts? goals, StockpileRequest? stockpile, ProductionBatchCensus batches, WorkActionCensus actions, CancellationToken ct)
+    {
+        var tick = projection.Identity.Tick;
+        var (layout, haveLayout) = await LayoutPlanAsync(snapshot, tick, ct).ConfigureAwait(false);
+        if (LayoutPending is { Work.IsCompleted: true } pending)
+        {
+            LayoutPending = null;
+            var adoptable = LayoutReplanAdoptable(pending, snapshot, tick, layout, haveLayout);
+            var held = adoptable ? await NewlyHeldRoomsAsync(pending, projection, ct).ConfigureAwait(false) : [];
+            if (adoptable && held.Count == 0)
+            {
+                if (await AdoptLayoutReplanAsync(pending, snapshot, tick, projection, latches, goals, stockpile, batches, actions, ct).ConfigureAwait(false) is { } winner)
+                {
+                    PlanGrownFor = pending.Grown;
+                    PlanPawns = pending.Colonists;
+                    PlanReplanned = pending.Started;
+                    (layout, haveLayout) = await LayoutPlanAsync(snapshot, tick, ct).ConfigureAwait(false);
+                    if (haveLayout)
+                    {
+                        // The recorded replan is the plan the same inputs plan next: its inputs, the plan being
+                        // among them, are read again over it, from what the replan was planned from.
+                        (PlanInputs, _, _) = await LayoutInputsOfAsync(snapshot, pending.Projection, layout, pending.Survey, pending.Grown, pending.Colonists, pending.Geysers, ct).ConfigureAwait(false);
+                    }
+                    return winner;
+                }
+            }
+            else
+            {
+                // The world or the saved plan moved on under the run: its plan is dropped, the next hourly check reads again.
+                // A room a journal plan took up since the run started (#3537) is one the run did not hold: it may have moved it.
+                var attrs = new Dictionary<string, object?> { ["started_tick"] = pending.Started.Value, ["adopted"] = tick.Value - pending.Started.Value };
+                if (held.Count != 0)
+                {
+                    attrs["held"] = held.Order().ToArray();
+                }
+                Tel.Decide(new Decision { Kind = TelemetryKinds.LayoutReplanTiledKind, Component = "layout", Target = "plan", Verdict = "skipped", Reason = held.Count != 0 ? "room_held" : "superseded", Attrs = attrs });
+            }
+        }
+        return null;
+    }
+
     /// <summary>Whether the last layout survey was read in <paramref name="world"/>'s colony, map and load (#3652: a load in the same process surveys again).</summary>
     private bool Surveyed(GenerationSnapshot world) =>
         PlanSurveyedIn is { } at && at.Colony == world.Colony && at.Map == world.Map && at.Load == world.Load;
@@ -362,7 +372,8 @@ public sealed partial class ColonyReview
     /// <see cref="LayoutPlanning.FirstPlanPending"/> once it recorded the plan, until a review starts with the plan in
     /// hand. A review with a saved plan, or a derive that fails for anything but an unread fact, holds nothing.
     /// </summary>
-    internal async Task ReviewFirstPlanAsync(GenerationSnapshot snapshot, GenerationSnapshot demandWorld, ColonyReading projection, CancellationToken ct)
+    internal async Task ReviewFirstPlanAsync(GenerationSnapshot snapshot, GenerationSnapshot demandWorld, ColonyReading projection,
+        Latches latches, GoalsFacts? goals, StockpileRequest? stockpile, ProductionBatchCensus batches, WorkActionCensus actions, CancellationToken ct)
     {
         var tick = projection.Identity.Tick;
         var (_, haveLayout) = await LayoutPlanAsync(snapshot, tick, ct).ConfigureAwait(false);
@@ -381,7 +392,8 @@ public sealed partial class ColonyReview
         {
             return;
         }
-        FirstPlanUnread = await DeriveLayoutPlanAsync(snapshot, demandWorld, tick, projection, survey, catalog, projection.Facts.EssentialInputs.Power.Geysers, ColonyPlanCut.PerimeterWallOf(projection), ct).ConfigureAwait(false);
+        FirstPlanUnread = await DeriveLayoutPlanAsync(snapshot, demandWorld, tick, projection, survey, catalog, projection.Facts.EssentialInputs.Power.Geysers,
+            ColonyPlanCut.PerimeterWallOf(projection), latches, goals, stockpile, batches, actions, ct).ConfigureAwait(false);
         var pawns = projection.Facts.Census.ColonistCount;
         PlanGrownFor = LayoutPlanning.GrownFor(projection);
         PlanPawns = (int)pawns;
@@ -525,7 +537,9 @@ public sealed partial class ColonyReview
     /// and nothing is recorded), <see cref="LayoutPlanning.FirstPlanPending"/> when the plan was recorded, and empty when
     /// the chain failed or the map holds no core (nothing is recorded and the next hourly review derives again).
     /// </summary>
-    internal async Task<string> DeriveLayoutPlanAsync(GenerationSnapshot snapshot, GenerationSnapshot demandWorld, Tick tick, ColonyReading projection, MapSurvey survey, DefinitionCatalog catalog, IReadOnlyList<PowerGeyser> geysers, PerimeterWall wall, CancellationToken ct)
+    internal async Task<string> DeriveLayoutPlanAsync(GenerationSnapshot snapshot, GenerationSnapshot demandWorld, Tick tick, ColonyReading projection, MapSurvey survey,
+        DefinitionCatalog catalog, IReadOnlyList<PowerGeyser> geysers, PerimeterWall wall, Latches latches, GoalsFacts? goals, StockpileRequest? stockpile,
+        ProductionBatchCensus batches, WorkActionCensus actions, CancellationToken ct)
     {
         var colonists = (int)projection.Facts.Census.ColonistCount;
         var start = DateTimeOffset.UtcNow;
@@ -538,7 +552,10 @@ public sealed partial class ColonyReview
         try
         {
             f = StationFactsBuilder.StationFacts(catalog, f);
-            (derived, advice) = LayoutDeriveRules.DeriveLayoutPlan(survey, f, geysers);
+            f = LayoutDeriveRules.FirstPlanFacts(survey, f, geysers);
+            var winner = await CompareLayoutCandidatesAsync(snapshot, projection, f,
+                candidate => LayoutDeriveRules.TileFirstPlan(survey, f, candidate), latches, goals, stockpile, batches, actions, ct).ConfigureAwait(false);
+            (derived, advice) = (winner.Plan, winner.Advice);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

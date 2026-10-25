@@ -68,7 +68,7 @@ public sealed record RestSchedule(EquatableArray<double> Asleep, EquatableArray<
 }
 
 /// <summary>
-/// A bed group hosting kitchen, dining, butchery or freezer stations (#3750) is priced, not refused: the sleepers' cost of
+/// A bed group hosting other stations (#3750, #3817) is priced, not refused: the sleepers' cost of
 /// the stations is a lost effect of the group (Eval), so the seed keeps the pair apart and the regrouping merges it only
 /// when the walk saved beats the cost.
 /// </summary>
@@ -91,30 +91,10 @@ public sealed record RestSchedule(EquatableArray<double> Asleep, EquatableArray<
 /// </remarks>
 internal sealed partial class Clusterer
 {
-    private readonly Dictionary<int, bool> _hosted = [];
-
     /// <summary>The impressiveness stages and each sleeper's gains at them, as ChooseBeds read them; null before the free-bed pool is priced.</summary>
     private StageGains? _stageGains;
 
     private sealed record StageGains(ImpressivenessLevels Levels, EquatableArray<SleeperGains> Sleepers);
-
-    /// <summary>Whether node n's stations are a kitchen, dining, butchery or freezer station: a dining or cold-store use, or a work station the game alone reads as a kitchen or dining room (a stove, a butcher table).</summary>
-    private bool Hosted(int n)
-    {
-        if (_hosted.TryGetValue(n, out var hosted))
-        {
-            return hosted;
-        }
-        var node = _in.Graph.Nodes[n];
-        hosted = node.Purpose is StationPurpose.Dine or StationPurpose.StoreCold;
-        if (!hosted && node.Purpose == StationPurpose.Work)
-        {
-            var piece = new RoomPiece { Def = node.Def, State = LayoutClusterRules.PieceState(node.Purpose, _in.Catalog.Stations[node.Def]) };
-            hosted = RoomRoleRules.PredictRole(_in.Catalog, [piece]).Role is RoomRole.Kitchen or RoomRole.DiningRoom;
-        }
-        _hosted[n] = hosted;
-        return hosted;
-    }
 
     /// <summary>Adds the sleepers' cost of the hosted stations to e, the evaluation of the units us: disturbed sleep and the filth's impressiveness stage, each a lost effect when it costs anything.</summary>
     private void BedStationEffects(IReadOnlyList<ClusterUnit> us, GroupEval e)
@@ -129,7 +109,7 @@ internal sealed partial class Clusterer
                 var cp = _in.Catalog.Stations[n.Def].Capacity;
                 sleepers += cp.Kind == CapacityKind.Sleepers ? cp.Slots * u.Count : 0;
             }
-            else if (n.Count > 0 && Hosted(u.Node))
+            else if (n.Count > 0 && n.Purpose is not (StationPurpose.SleepMed or StationPurpose.SleepPrison or StationPurpose.SleepBaby) && !n.Purpose.ClusterAdded())
             {
                 share[n.Id] = share.GetValueOrDefault(n.Id) + ((double)u.Count / n.Count);
             }
@@ -145,26 +125,10 @@ internal sealed partial class Clusterer
 
     private void DisturbedSleep(GroupEval e, int sleepers, Dictionary<string, double> share)
     {
-        var visits = 0.0;
-        foreach (var edge in _in.Graph.Edges)
-        {
-            visits += edge.Weight * Math.Min(1, share.GetValueOrDefault(edge.A) + share.GetValueOrDefault(edge.B));
-        }
-        if (!(visits > 0))
-        {
-            return;
-        }
-        var rest = _in.Rest ?? throw new RequiredFactException("rest_schedule");
-        var perDay = visits * rest.DisturbedShare();
-        if (!(perDay > 0))
-        {
-            return;
-        }
-        var thought = _in.Catalog.Mood.SleepDisturbed ?? throw new RequiredFactException("sleep_disturbed_thought");
-        var points = -thought.Mood(perDay);
+        var points = PlannedRoomCredits.DisturbedMood(_in.Graph, _in.Catalog.Mood.SleepDisturbed, _in.Rest, share);
         if (points > 0)
         {
-            e.Effects.Add(new LostRoleEffect(RoleEffect.SleepDisturbed, e.Role, e.Role, sleepers) { Points = points });
+            e.Effects.Add(new LostRoleEffect(RoleEffect.SleepDisturbed, e.Role) { Points = points });
             e.Lost.Add(Wire.Name(RoleEffect.SleepDisturbed));
         }
     }
@@ -200,7 +164,7 @@ internal sealed partial class Clusterer
         var days = lost / gains.Count * sleepers * exposure;
         if (days > 0)
         {
-            e.Effects.Add(new LostRoleEffect(RoleEffect.Impressiveness, e.Role, e.Role, sleepers) { Days = days });
+            e.Effects.Add(new LostRoleEffect(RoleEffect.Impressiveness, e.Role));
             e.Lost.Add(Wire.Name(RoleEffect.Impressiveness));
         }
     }

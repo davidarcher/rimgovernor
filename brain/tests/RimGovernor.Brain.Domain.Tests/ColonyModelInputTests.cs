@@ -138,6 +138,7 @@ public sealed class ColonyModelInputTests
         // Cells 2 and 3 already belong to the standing zone.
         Assert.Equal(("plan-0", ""), (planned.Id, planned.Crop));
         Assert.Equal([1.1, 0.9], planned.Fertility.Select(f => Math.Round(f, 6)));
+        Assert.Equal([new Cell(4, 0), new Cell(5, 0)], planned.Cells);
     }
 
     [Fact]

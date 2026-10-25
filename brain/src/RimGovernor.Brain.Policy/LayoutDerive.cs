@@ -60,9 +60,16 @@ public static partial class LayoutDeriveRules
     /// </summary>
     public static (LayoutPlan? Plan, StationAdvice Advice) DeriveLayoutPlan(MapSurvey s, StationFacts f, IReadOnlyList<PowerGeyser> geysers)
     {
+        f = FirstPlanFacts(s, f, geysers);
+        return TileFirstPlan(s, f, LayoutStationPlanRules.AdviseStations(f));
+    }
+
+    /// <summary>The first plan's zoning and reservations, shared by every grouping trial.</summary>
+    public static StationFacts FirstPlanFacts(MapSurvey s, StationFacts f, IReadOnlyList<PowerGeyser> geysers)
+    {
         var zones = LayoutZoningRules.Zone(s);
         var footprints = GeyserFootprints(geysers);
-        f = f with
+        return f with
         {
             Derive = true,
             Built = new HashSet<int>(),
@@ -75,7 +82,13 @@ public static partial class LayoutDeriveRules
                 Reservations = GeothermalReservations(zones, footprints),
             },
         };
-        var advice = LayoutStationPlanRules.TileStations(f);
+    }
+
+    /// <summary>Tiles one retained grouping with the same first-plan perimeter and field rules as the live plan.</summary>
+    public static (LayoutPlan? Plan, StationAdvice Advice) TileFirstPlan(MapSurvey s, StationFacts f, StationAdvice advice)
+    {
+        var zones = LayoutZoningRules.Zone(s);
+        advice = LayoutStationPlanRules.TileStations(f, advice);
         var plan = advice.Tiled!.Plan;
         if (plan.Rooms.Count == 0)
         {

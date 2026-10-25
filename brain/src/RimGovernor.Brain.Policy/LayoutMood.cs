@@ -250,41 +250,7 @@ public sealed record MoodModel
         return s.Present ? (s.Effect, true) : (0, true);
     }
 
-    /// <summary>
-    /// The mood points a lost role effect costs a pawn in a room of the given impressiveness stage: what the
-    /// role it was meant to have gives, less what the role it got gives. Throne and worship carry no mood. False
-    /// when a role's thought is unknown.
-    /// </summary>
-    public (double Points, bool Ok) LostPoints(LostRoleEffect lost, int stage)
-    {
-        switch (lost.Effect)
-        {
-            case RoleEffect.Throne:
-            case RoleEffect.Worship:
-                return (0, true);
-            case RoleEffect.SleepMood:
-            case RoleEffect.PatientMood:
-            case RoleEffect.PrisonMood:
-                break;
-            case RoleEffect.None or RoleEffect.BenchSpeed or RoleEffect.SleepDisturbed or RoleEffect.Impressiveness:
-                return (0, false);
-        }
-        var (had, ok) = RoleEffectAt(lost.Role, stage);
-        if (!ok)
-        {
-            return (0, false);
-        }
-        var (got, ok2) = RoleEffectAt(lost.Got, stage);
-        if (!ok2)
-        {
-            return (0, false);
-        }
-        return (had - got, true);
-    }
 
-    /// <summary>A role's mood at a stage; a role with no mood thought gives 0.</summary>
-    private (double Effect, bool Ok) RoleEffectAt(RoomRole role, int stage) =>
-        LayoutMoodRules.MoodJudgment.RoleThoughts.TryGetValue(role, out var thought) ? StageEffect(thought, stage) : (0, true);
 }
 
 /// <summary>A way to buy mood instead of paying for its loss, priced in sustained watts for the whole group of pawns it serves (a bedroom impressiveness upgrade is one).</summary>
@@ -310,11 +276,9 @@ public sealed record MoodPriceInput
     public IReadOnlyList<MoodSource> Sources { get; init; } = [];
 }
 
-/// <summary>A mood change in work-days a day and sustained watts. A source of the same mood cheaper than the break risk caps it.</summary>
+/// <summary>A mood change priced in sustained watts. A source of the same mood cheaper than the break risk caps it.</summary>
 public sealed record MoodPrice
 {
-    public double WorkDays { get; set; }
-
     public double W { get; set; }
 }
 
@@ -379,7 +343,7 @@ public static partial class LayoutMoodRules
         }
         var after = Math.Min(Math.Max(level - (input.Points / LayoutMoodRules.MoodJudgment.PointsPerLevel), 0), 1);
         var days = input.Pawns * (input.Model.CostPerDay(after) - input.Model.CostPerDay(level));
-        var price = new MoodPrice { WorkDays = days, W = days * input.WorkDayW };
+        var price = new MoodPrice { W = days * input.WorkDayW };
         if (input.Points > 0)
         {
             var cheapest = double.PositiveInfinity;
@@ -393,7 +357,6 @@ public static partial class LayoutMoodRules
             if (price.W > cheapest)
             {
                 price.W = cheapest;
-                price.WorkDays = cheapest / input.WorkDayW;
             }
         }
         return (price, true);

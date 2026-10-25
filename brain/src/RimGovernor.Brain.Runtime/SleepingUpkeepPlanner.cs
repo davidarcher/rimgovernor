@@ -338,11 +338,9 @@ public sealed partial class BuildingPlanner
         {
             return (null, NoSpace("sleeping_cells"));
         }
-        var facility = Pol.RoomsRules.Facility(RoomRole.Bedroom);
         var resolved = Copy();
         resolved.Definition = choice.Definition;
         resolved.Environment = Pol.PlacementEnvironment.Indoors;
-        resolved.Facility = facility;
         resolved.Cells = choice.Cells;
         resolved.Sleeping = choice;
         resolved.Stuff = SleepingUpkeepPlanner.BedStuff(facts, resolved.Definition);

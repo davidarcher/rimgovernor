@@ -104,7 +104,7 @@ public static class ForecastRoomThoughts
     // Per context: users' baseline service levels and the services present in each priced closure.
     private static Levels Compute(ForecastCoupledContext c, Kind kind)
     {
-        var closures = c.Closures.Where(x => c.PlannedRoomRoles.GetValueOrDefault(x.Room) == kind.Planned && c.RoomCredits.ContainsKey(kind.Planned)).ToArray();
+        var closures = c.Closures.Where(x => PlannedRoomCredits.Serves(c, x.Room, kind.Planned) && c.RoomCredits.ContainsKey(kind.Planned)).ToArray();
         if (closures.Length == 0) return new([], new Dictionary<(int, string), ClosureLevels>());
         var baseline = RoomUseRules.Of(c, kind == Dining, []);
         var levels = new Dictionary<(int, string), ClosureLevels>();
@@ -126,7 +126,7 @@ public static class ForecastRoomThoughts
     {
         var days = context.InvestmentHorizonDays;
         var served = outcome.ServedRooms
-            .Where(s => context.PlannedRoomRoles.GetValueOrDefault(s.Room) == kind.Planned && RingClosure.CreditDays(days, s.ServedAt) > 0)
+            .Where(s => PlannedRoomCredits.Serves(context, s.Room, kind.Planned) && RingClosure.CreditDays(days, s.ServedAt) > 0)
             .OrderBy(s => s.ServedAt).ThenBy(s => s.Room).ToArray();
         var output = new Dictionary<int, RoomRows>();
         if (served.Length == 0) return output;

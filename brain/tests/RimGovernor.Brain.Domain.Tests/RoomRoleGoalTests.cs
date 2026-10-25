@@ -135,6 +135,15 @@ public sealed class RoomRoleGoalTests
     };
 
     [Fact]
+    public void AMedicalBedInABedroomCountsWithoutAHospitalRole()
+    {
+        var medical = Bed("medical", true);
+        var bedroom = Ward(1, medical) with { Rooms = RoomFixtures.Census(Standing(RoomRole.Bedroom, "medical")) };
+        Assert.Equal(HospitalMethod.Existing, HospitalRules.SelectHospitalBed(bedroom).Method);
+        Assert.False(HospitalRules.BedsShort(1, bedroom.Rooms, bedroom.Sleeping, false));
+    }
+
+    [Fact]
     public void TheGoalBedFloorIsDemandWithNoPatientAndNeverLowersThePatientsOwn()
     {
         Assert.Equal(HospitalMethod.NoDemand, HospitalRules.SelectHospitalBed(Ward(0)).Method);

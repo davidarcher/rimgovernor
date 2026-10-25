@@ -84,7 +84,6 @@ public sealed record LostEffect
     public RoomRole Role { get; init; }
 
     /// <summary>The role the room is scored as instead (the mood effects only).</summary>
-    public RoomRole Got { get; init; }
 
     /// <summary>The bench that is slowed (BenchSpeed only).</summary>
     public string Def { get; init; } = "";
@@ -443,7 +442,7 @@ public static partial class RoomRoleRules
         var output = new List<LostEffect>();
         if (RoleEffects.TryGetValue(intended, out var effect) && pred.Role != intended)
         {
-            output.Add(new LostEffect { Effect = effect, Role = intended, Got = pred.Role });
+            output.Add(new LostEffect { Effect = effect, Role = intended });
         }
         foreach (var p in pieces)
         {

@@ -39,7 +39,7 @@ public sealed class PlannedRoomCleanlinessTests
             new("planned/room1/floor/SterileTile", 1, OpKind.FloorIn, "SterileTile", "", Rotation.North, cells),
         ];
 
-        var shapes = PlannedRules.PlannedRoomPredictionRequestOf([Kitchen], sites, []);
+        var shapes = PlannedRules.PlannedRoomPredictionRequestOf([Kitchen], sites, [], filth: BedStationPriceTests.Filth);
 
         Assert.Equal(["WoodLog", "Steel"], shapes.Select(s => s.Stuff));
         Assert.All(shapes, s =>
@@ -52,9 +52,9 @@ public sealed class PlannedRoomCleanlinessTests
         // A priced room is asked even when it owes only its floor: kitchen and workshop mechanics read cleanliness.
         // A room with no planned role remains unpriced and is not asked without ring work.
         var workshop = Kitchen with { Role = PlannedRole.Workshop };
-        Assert.Single(PlannedRules.PlannedRoomPredictionRequestOf([workshop], sites.Skip(2), []));
-        Assert.Empty(PlannedRules.PlannedRoomPredictionRequestOf([Kitchen with { Role = PlannedRole.None }], sites.Skip(2), []));
-        var floorOnly = Assert.Single(PlannedRules.PlannedRoomPredictionRequestOf([Kitchen], sites.Skip(2), []));
+        Assert.Single(PlannedRules.PlannedRoomPredictionRequestOf([workshop], sites.Skip(2), [], filth: BedStationPriceTests.Filth));
+        Assert.Empty(PlannedRules.PlannedRoomPredictionRequestOf([Kitchen with { Role = PlannedRole.None }], sites.Skip(2), [], filth: BedStationPriceTests.Filth));
+        var floorOnly = Assert.Single(PlannedRules.PlannedRoomPredictionRequestOf([Kitchen], sites.Skip(2), [], filth: BedStationPriceTests.Filth));
         Assert.Equal(("", 9), (floorOnly.Stuff, floorOnly.Pieces.Count));
     }
 
@@ -71,7 +71,7 @@ public sealed class PlannedRoomCleanlinessTests
             new("planned/room1/bed", 1, OpKind.Build, "Bed", "WoodLog", Rotation.South, [new Cell(10, 12), new Cell(11, 12), new Cell(30, 30)]),
         ];
 
-        var shapes = PlannedRules.PlannedRoomPredictionRequestOf([barracks], sites, []);
+        var shapes = PlannedRules.PlannedRoomPredictionRequestOf([barracks], sites, [], filth: BedStationPriceTests.Filth);
 
         Assert.Equal(["WoodLog", "Steel"], shapes.Select(s => s.Stuff));
         Assert.All(shapes, s => Assert.Equal(

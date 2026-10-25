@@ -73,6 +73,8 @@ public sealed record ForecastCoupledContext
     public ForecastIncumbentHold IncumbentHold { get; init; } = ForecastIncumbentHold.Nothing;
     /// <summary>Each planned room's role, from the layout plan (#3651); a room without a row counts as development.</summary>
     public IReadOnlyDictionary<int, PlannedRole> PlannedRoomRoles { get; init; } = new Dictionary<int, PlannedRole>();
+    /// <summary>Derived functions of the stations assigned to each room, sharing its one native role and stats.</summary>
+    public IReadOnlyDictionary<int, EquatableArray<PlannedRole>> PlannedRoomFunctions { get; init; } = new Dictionary<int, EquatableArray<PlannedRole>>();
     /// <summary>The credit of each priced room role (#3796): a role is priced when it has one (PlannedRoomCredits). The shipped
     /// credits by default; tests inject one.</summary>
     public IReadOnlyDictionary<PlannedRole, RoomCredit> RoomCredits { get; init; } = PlannedRoomCredits.Shipped;
@@ -130,6 +132,8 @@ public sealed record ForecastCoupledContext
     /// read their stations' meals and filth runs (#3802).</summary>
     public IReadOnlyDictionary<int, PlannedRoom> LayoutRooms { get; init; } = new Dictionary<int, PlannedRoom>();
     /// <summary>The catalog's filth model (ReviewFacts.Filth) a planned room's predicted cleanliness and its poisoning chance read (#3797, #3800, #3802).</summary>
+    /// <summary>The current station-flow SleepDisturbed mood points per sleeper in each planned room.</summary>
+    public IReadOnlyDictionary<int, double> RoomSleepDisturbance { get; init; } = new Dictionary<int, double>();
     public FilthModel Filth { get; init; } = new();
     /// <summary>Per research bench def, its ResearchSpeedFactor from the def data (ReviewFacts.ResearchBenchSpeeds, #3800).</summary>
     public IReadOnlyDictionary<string, BenchSpeedModel> ResearchBenchSpeeds { get; init; } = new Dictionary<string, BenchSpeedModel>();

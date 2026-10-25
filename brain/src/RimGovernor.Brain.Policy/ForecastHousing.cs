@@ -372,8 +372,8 @@ public static class ForecastHousing
         var pawns = c.Needs.Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         foreach (var closure in c.Closures)
         {
-            if (!c.PlannedRoomRoles.TryGetValue(closure.Room, out var role) || role is not (PlannedRole.Bedroom or PlannedRole.Barracks) || !c.RoomCredits.ContainsKey(role)) continue;
-            var barracks = role == PlannedRole.Barracks;
+            if (!PlannedRoomCredits.Serves(c, closure.Room, PlannedRole.Bedroom) && !PlannedRoomCredits.Serves(c, closure.Room, PlannedRole.Barracks)) continue;
+            var barracks = closure.Prediction.Role == Wire.Name(RoomRole.Barracks);
             // The bedroom step's occupants, else the colonists owning a bed in the room: a bedroom's one owner (a standing
             // bedroom's wall upgrade, #3657: its delta is the stage the swap predicts against the stage its owner sleeps at
             // now), every owner of a barracks (#3658).
@@ -411,7 +411,8 @@ public static class ForecastHousing
         var (ground, comfort, gain) = planned is not null ? (planned.Ground, planned.Comfort, rate.GainPerTickPerEffectiveness * planned.RestEffectiveness)
             : now.Read.Bed.Length != 0 && closure.Prediction.Beds.Contains(now.Read.Bed) ? (now.Read.Ground, now.Read.Comfort, now.Read.GainPerTick)
             : throw new RequiredFactException("planned bed of room " + closure.Room.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        var mood = room + BedMoodDelta(pawn, now, ground, comfort, c.ComfortCurve) - SleepTemperatureThought(pawn, now.Read.Temperature);
+        var mood = room + BedMoodDelta(pawn, now, ground, comfort, c.ComfortCurve) - SleepTemperatureThought(pawn, now.Read.Temperature)
+            - c.RoomSleepDisturbance.GetValueOrDefault(closure.Room);
         return new(pawn, mood, RestDaysFreed(rate, now.Read.GainPerTick, gain), Memory(pawn, "slept_in_cold"), Memory(pawn, "slept_in_heat"));
     }
     /// <summary>

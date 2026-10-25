@@ -64,26 +64,6 @@ public sealed partial class DefinitionCatalog
             .Select(group => group.Key)
             .FirstOrDefault() ?? string.Empty;
 
-    // The FoodPoisoning hediff as the price reads it: the severity it starts at and loses a day (its SeverityPerDay comp)
-    // and each stage's factor on the work capacity and vomit interval. A catalog without the def, or whose hediff does not
-    // fade, prices no poisoning (the zero model).
-    private P.PoisoningModel PoisoningModel()
-    {
-        var table = P.LayoutFilthRules.FoodPoisonGame();
-        if (DefRow<HediffDef>(table.Hediff) is not { } hediff)
-        {
-            return new P.PoisoningModel();
-        }
-
-        var perDay = hediff.comps.Seq().OfType<HediffCompProperties_SeverityPerDay>().Where(comp => comp.severityPerDay < 0).Select(comp => -(double)comp.severityPerDay).LastOrDefault();
-        var stages = hediff.stages.Seq().Select(stage =>
-        {
-            var factor = stage.capMods.Seq().Where(mod => mod.capacity?.defName == table.WorkCapacity).Aggregate(1.0, (product, mod) => product * mod.postFactor);
-            return new P.PoisonStage(stage.minSeverity, factor, stage.vomitMtbDays);
-        });
-        return new P.PoisoningModel { Initial = hediff.initialSeverity, PerDay = perDay, Stages = [.. stages] };
-    }
-
     private static IReadOnlyList<P.CurvePoint> Curve(RoomStatDef? stat) => [.. stat?.curve?.Points.Select(point => new P.CurvePoint(point.x, point.y)) ?? []];
 
     // The room stat a bed's SurgerySuccessChanceFactor multiplies (#3804): no RoomStatDefOf field names it; the stat's
@@ -103,7 +83,6 @@ public sealed partial class DefinitionCatalog
         return new P.FilthModel
         {
             Def = name,
-            Poisoning = PoisoningModel(),
             Cleanliness = blood.statBases.Seq().LastOrDefault(modifier => modifier.stat?.defName == StatNames.Cleanliness)?.value ?? 0,
             FoodPoison = [.. stat.curve?.Points.Select(point => new P.CurvePoint(point.x, point.y)) ?? []],
             FoodPoisonRoomless = stat.roomlessScore,
@@ -111,8 +90,6 @@ public sealed partial class DefinitionCatalog
             InfectionChanceRoomless = DefRow<RoomStatDef>(nameof(RoomStatDefOf.InfectionChanceFactor))?.roomlessScore ?? 0,
             SurgeryCleanliness = Curve(SurgeryRoomStat()),
             SurgeryCleanlinessRoomless = SurgeryRoomStat()?.roomlessScore ?? 0,
-            CleaningWork = blood.filth?.cleaningWorkToReduceThickness ?? 0,
-            CleaningSpeed = DefRow<StatDef>(P.LayoutFilthRules.FilthGameTable().SpeedStat)?.defaultBaseValue ?? 0,
             StandTicks = GameConstants.MinTicksSinceThickened,
         };
     }

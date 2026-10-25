@@ -220,6 +220,7 @@ internal static class ReviewColonyModel
             foreach (var zone in plan.Zones.Where(z => z.Kind == LayoutPlanRules.ZoneField))
             {
                 var fertility = new List<double>();
+                var positions = new List<Cell>();
                 foreach (var run in zone.Runs)
                 {
                     for (var x = run.X; x < run.X + run.Length; x++)
@@ -237,12 +238,13 @@ internal static class ReviewColonyModel
                         }
 
                         fertility.Add(cell.Fertility);
+                        positions.Add(at);
                     }
                 }
 
                 if (fertility.Count > 0)
                 {
-                    fields.Add(new ModelField { Id = $"plan-{index}", Planned = true, Fertility = [.. fertility] });
+                    fields.Add(new ModelField { Id = $"plan-{index}", Planned = true, Fertility = [.. fertility], Cells = [.. positions] });
                 }
 
                 index++;

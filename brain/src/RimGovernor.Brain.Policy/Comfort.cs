@@ -178,33 +178,4 @@ public static class ComfortRules
         return ComfortMethod.NoMethod;
     }
 
-    /// <summary>
-    /// Keeps only the facilities and surfaces standing in a room whose native role the facility catalog lets
-    /// host that function. A table in a barracks seats nobody for this purpose: the game scores that room a
-    /// Barracks, so it never becomes the dining room the colony is missing. Unknown rooms drop the facility
-    /// rather than certify it.
-    /// </summary>
-    public static ComfortObservation HostedComfort(ComfortObservation v, RoomObservation rooms)
-    {
-        var dining = RoomsRules.Facility(RoomRole.DiningRoom);
-        var recreation = RoomsRules.Facility(RoomRole.RecRoom);
-        bool Hosted(FacilityRequirement f, string roomId)
-        {
-            var (room, roomFound) = rooms.Room(roomId);
-            if (roomId.Length == 0 || !roomFound)
-            {
-                return false;
-            }
-            return f.Hosts(room!.Role);
-        }
-        return v with
-        {
-            Census = v.Census with
-            {
-                Surfaces = EquatableArray.From(v.Census.Surfaces.Where(s => Hosted(dining, s.Room))),
-                Dining = EquatableArray.From(v.Census.Dining.Where(f => Hosted(dining, f.Room))),
-                Recreation = EquatableArray.From(v.Census.Recreation.Where(f => f.Host is ComfortHost.Indoors { Room: var room } && Hosted(recreation, room))),
-            },
-        };
-    }
 }

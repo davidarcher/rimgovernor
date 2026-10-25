@@ -242,30 +242,9 @@ internal static class StationAdviceLog
             ["before"] = d.Before,
             ["after"] = d.After,
             ["walk"] = d.Walk,
-            ["poison"] = d.Poison,
-            ["clean"] = d.Clean,
-            ["lost_effects"] = d.Lost,
             ["effects"] = d.Effects,
         },
     };
-
-    /// <summary>Runs the chain over <paramref name="facts"/> (when they were read, <paramref name="error"/> null) and is the layout_stations row of the outcome: advised or failed, or the required_fact row for an unread fact. The advice is returned when it was made.</summary>
-    public static (Decision Row, StationAdvice Advice, bool Ok) StationDecision(StationFacts facts, Exception? error)
-    {
-        var advice = new StationAdvice();
-        if (error is null)
-        {
-            try
-            {
-                advice = LayoutStationPlanRules.AdviseStations(facts);
-            }
-            catch (Exception e) when (e is not OperationCanceledException)
-            {
-                error = e;
-            }
-        }
-        return StationOutcome(advice, error);
-    }
 
     /// <summary>The layout_stations row of advice made (or <paramref name="error"/>, the chain's); an unread fact is the shared required_fact row (target layout_stations).</summary>
     public static (Decision Row, StationAdvice Advice, bool Ok) StationOutcome(StationAdvice advice, Exception? error)
@@ -480,7 +459,7 @@ internal static class StationFactsBuilder
     /// flows, stack limits, rot) are added by the caller. A demand a review derived for this world is known even when
     /// empty: it targets no stock.
     /// </summary>
-    public static StationFacts StationFactsOf(ColonyReading projection, LayoutPlan plan, MapSurvey survey, IReadOnlyDictionary<Resource, long> needs, LedgerView ledger)
+    public static StationFacts GraphFactsOf(ColonyReading projection, LayoutPlan plan, IReadOnlyDictionary<Resource, long> needs, LedgerView ledger)
     {
         var f = new StationFacts
         {
@@ -503,12 +482,18 @@ internal static class StationFactsBuilder
             Stock = needs,
             RoofDistance = projection.Facts.RoofSupport,
             Plan = plan,
-            Survey = survey,
             OutdoorCurve = ClimateRules.RequireOutdoorCurve(projection.Snapshot.Gear.Climate.Temperatures),
             FullRotRateC = projection.Facts.FullRotRateC,
             VentAvailable = ColonyPlanningRules.DefinitionAvailable(projection.Facts, ClimateRules.ClimateDefs().VentDef),
             ExpectedMood = ExpectedMood(projection.Facts.MoodPawns),
         };
+        return f with { Dining = projection.Facts.Upkeep.Rooms.Dining };
+    }
+
+    /// <summary>Adds the surveyed ground and built-room facts needed by grouping and tiling.</summary>
+    public static StationFacts StationFactsOf(ColonyReading projection, LayoutPlan plan, MapSurvey survey, IReadOnlyDictionary<Resource, long> needs, LedgerView ledger)
+    {
+        var f = GraphFactsOf(projection, plan, needs, ledger) with { Survey = survey };
         try
         {
             // an unread or inconsistent census leaves the guard off
@@ -516,10 +501,6 @@ internal static class StationFactsBuilder
         }
         catch (DomainException)
         {
-        }
-        var rooms = projection.Facts.Upkeep.Rooms;
-        {
-            f = f with { Dining = rooms.Dining };
         }
         var ground = BuildingPlanner.ColonyGround(projection);
         f = f with { Built = LayoutPlan.BuiltRooms(plan, ground), ShellStanding = LayoutPlan.ShellStanding(plan, ground) };

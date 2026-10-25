@@ -26,8 +26,7 @@ public sealed class LayoutReplanOffPathTests
         Assert.Equal("skipped", run.StationRow.Verdict);
         Assert.Equal(RimGovernor.Brain.Telemetry.RequiredFactTelemetry.Reason, run.StationRow.Reason);
         Assert.Equal(RimGovernor.Brain.Telemetry.TelemetryLevel.Error, run.StationRow.Level);
-        Assert.Null(run.Next);
-        Assert.Null(run.Error);
+        Assert.Empty(run.Previous.Rooms);
     }
 
     [Fact]

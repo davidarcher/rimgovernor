@@ -245,6 +245,20 @@ internal static class ContractOrphans
                         initializer.Calls.Add(key);
                     }
                     var body = new Body([], []);
+                    // Async methods start a compiler-generated state machine. In optimized builds it is a
+                    // struct passed to the external builder, so no constructor or direct MoveNext call
+                    // connects the entry method to its body in this assembly's IL call graph.
+                    foreach (var attributeHandle in method.GetCustomAttributes())
+                    {
+                        var attribute = md.GetCustomAttribute(attributeHandle);
+                        if (attribute.Constructor.Kind != HandleKind.MemberReference
+                            || names.Type(md.GetMemberReference((MemberReferenceHandle)attribute.Constructor).Parent)
+                                != "System.Runtime.CompilerServices.AsyncStateMachineAttribute") continue;
+                        var blob = md.GetBlobReader(attribute.Value);
+                        if (blob.ReadUInt16() != 1 || blob.ReadSerializedString() is not { } serializedType) continue;
+                        var stateType = serializedType.Split(',')[0].Replace('+', '/');
+                        body.Calls.Add(Constructed + stateType);
+                    }
                     if (accessorMembers.TryGetValue(m, out var own))
                     {
                         body.Fields.Add(own);

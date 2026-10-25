@@ -26,7 +26,7 @@ public static class FreezerPrerequisites
                 .Where(r => r.StillNeeded > 0).Select(r => new Amount(new Resource(r.DefName), r.StillNeeded)));
             return new(existing?.Id ?? id, room, OpKind.Build, definition, "", rotation, [cell]) { Material = materials };
         }
-        foreach (var room in layout.Rooms.Where(r => r.Role == PlannedRole.Freezer).OrderBy(r => r.Id))
+        foreach (var room in layout.Rooms.Where(r => PlannedRoomCredits.Cold(layout, r)).OrderBy(r => r.Id))
         {
             var index = Array.FindIndex(sources, s => s.HeatPerTick < 0 && room.Region.Contains(s.Cell));
             if (index < 0) continue; // No vented wall, or cooler research is unfinished.

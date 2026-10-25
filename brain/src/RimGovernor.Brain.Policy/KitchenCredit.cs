@@ -44,7 +44,7 @@ public static class KitchenCredits
     {
         var butchery = Layout(context, room.Room);
         if (butchery.FilthRuns.Values.All(r => !(r.Runs > 0))) return [];
-        var kitchens = context.PlannedRoomRoles.Where(r => r.Value == PlannedRole.Kitchen && r.Key != room.Room).Select(r => r.Key).Order().ToArray();
+        var kitchens = context.LayoutRooms.Keys.Where(id => id != room.Room && PlannedRoomCredits.Serves(context, id, PlannedRole.Kitchen)).Order().ToArray();
         var gains = new List<RoomGain>(kitchens.Length);
         foreach (var id in kitchens)
         {

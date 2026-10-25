@@ -92,6 +92,32 @@ public sealed class HospitalCreditTests
     private static HarmConsequences.Care Tended(double room) => new(true, 0.6, 0, room);
 
     [Fact]
+    public void AMedicalBedInABedroomGetsItsActualCareFactorsAndNoHospitalOnlyThought()
+    {
+        ForecastCoupledContext Bedroom(double cleanliness)
+        {
+            var context = Context(1);
+            return context with
+            {
+                PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Bedroom },
+                PlannedRoomFunctions = new Dictionary<int, EquatableArray<PlannedRole>> { [1] = [PlannedRole.Hospital] },
+                Closures = [context.Closures[0] with { Prediction = Prediction("Bedroom", cleanliness) }],
+            };
+        }
+        var clean = Bedroom(1);
+        var dirty = Bedroom(-2);
+        Assert.Equal(2, ForecastHospital.MoodDelta(Patient(), clean.Closures[0].Prediction));
+        Assert.Contains(.02, PlannedRoomCredits.BreakShifts(clean)["pawn"]);
+        var cleanRow = Assert.Single(Credits(ForecastValue.Of(Served(.02), clean, Day)));
+        var dirtyRow = Assert.Single(Credits(ForecastValue.Of(Served(.02), dirty, Day)));
+        Assert.True(cleanRow.Value < dirtyRow.Value);
+        Assert.True(PlannedRoomCleanlinessRules.InfectionChance(clean.Closures[0].Prediction, [], Filth)
+            < PlannedRoomCleanlinessRules.InfectionChance(dirty.Closures[0].Prediction, [], Filth));
+        Assert.True(PlannedRoomCleanlinessRules.SurgeryCleanliness(clean.Closures[0].Prediction, [], Filth)
+            > PlannedRoomCleanlinessRules.SurgeryCleanliness(dirty.Closures[0].Prediction, [], Filth));
+    }
+
+    [Fact]
     public void HalfAPatientDayADayFromADirtyBedroomIsCreditedTheInfectionAndMoodTheCleanHospitalGives()
     {
         // One raid's tended days to healed in the hospital set the raids a day that give 0.5 patient-days a day.

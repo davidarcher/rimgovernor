@@ -160,6 +160,8 @@ public sealed partial record ReviewFacts
     public FurnitureBed HospitalBed { get; init; } = new();
 
     /// <summary>The catalog's filth model (StationCatalog.Filth) a planned room's predicted cleanliness reads (#3797, #3800), and the kitchen and butchery credits its poisoning (#3802); the zero model without a catalog.</summary>
+    /// <summary>The current station-flow SleepDisturbed mood points per sleeper in each planned room.</summary>
+    public IReadOnlyDictionary<int, double> RoomSleepDisturbance { get; init; } = new Dictionary<int, double>();
     public FilthModel Filth { get; init; } = new();
 
     /// <summary>The hospital's animal ward; unread (the zero value) until the layout exposes it, which keeps sterilize off.</summary>
@@ -890,8 +892,8 @@ public static partial class Rules
     }
 
     /// <summary>
-    /// The food/supply Need's butcher-facility check. A bench must stand apart from the kitchen: a butcher
-    /// bench inside it keeps the colony fed but not clean. The butcher spot stands in the planned butchery
+    /// The food/supply Need's butcher-facility check. A bench serves wherever the layout places it. A butcher
+    /// bench carries its room filth into canonical credits. The butcher spot stands in its planned room
     /// until the table is built; while the stock cannot pay for the table the spot alone is enough, and a table standing beside
     /// its spot owes the spot's removal. It is wanted whatever the food runway, because hunts and hides are
     /// processed on it.
@@ -903,31 +905,13 @@ public static partial class Rules
         {
             return false;
         }
-        var shared = KitchenSeparationRules.KitchenSeparation(f.Upkeep.Rooms);
-        var colocated = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var room in shared)
-        {
-            colocated.Add(room.Id);
-        }
-        bool apart = false, table = false, spot = false;
-        foreach (var bench in benches)
-        {
-            if (bench.Room is not { } room || !colocated.Contains(room))
-            {
-                apart = true;
-                table = table || bench.Definition != ButcherSpotDefinition;
-                spot = spot || bench.Definition == ButcherSpotDefinition;
-            }
-        }
-        if (!apart)
-        {
-            return false;
-        }
+        var table = benches.Any(b => b.Definition != ButcherSpotDefinition);
+        var spot = benches.Any(b => b.Definition == ButcherSpotDefinition);
         if (table)
         {
             return !spot;
         }
-        // Only the spot stands apart: with the stock to build the table, the goal stays open for it.
+        // Only the spot stands: with the stock to build the table, the goal stays open for it.
         return !f.ButcherTableAffordable;
     }
 

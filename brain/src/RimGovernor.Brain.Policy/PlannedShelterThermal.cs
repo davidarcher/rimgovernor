@@ -17,15 +17,15 @@ public static partial class PlannedRules
     /// theirs, a Build site of one of the catalog heater defs (heaters: the electric heater and the fueled ones, #3673). Native
     /// samples each room's interior and ring cells and the heater def at its planned cell. Null when no room qualifies.
     /// </summary>
-    public static PlannedThermalRequest? PlannedThermalRequestOf(IEnumerable<PlannedRoom> rooms, IEnumerable<PlannedBuildSite> sites, IReadOnlyCollection<string> heaters, string cooler = "", double freezerTarget = 0)
+    public static PlannedThermalRequest? PlannedThermalRequestOf(IEnumerable<PlannedRoom> rooms, IEnumerable<PlannedBuildSite> sites, IReadOnlyCollection<string> heaters, string cooler = "", double freezerTarget = 0, LayoutPlan? layout = null)
     {
         var owed = sites.Where(s => s.Zone.Length == 0).Select(s => s.Room).ToHashSet();
-        var chosen = rooms.Where(r => !r.Outdoor && r.Id > 0 && (r.Role == PlannedRole.Freezer || owed.Contains(r.Id)))
+        var chosen = rooms.Where(r => !r.Outdoor && r.Id > 0 && (PlannedRoomCredits.Cold(layout, r) || owed.Contains(r.Id)))
             .Select(r => (Room: r, Bounds: r.Region.Bounds(), Cells: r.Region.Cells().Count))
             .Where(r => r.Cells > 0 && r.Bounds.Width * r.Bounds.Height == r.Cells
-                && (r.Room.Role == PlannedRole.Freezer || r.Bounds.Width <= PlannedThermalSide && r.Bounds.Height <= PlannedThermalSide))
+                && (PlannedRoomCredits.Cold(layout, r.Room) || r.Bounds.Width <= PlannedThermalSide && r.Bounds.Height <= PlannedThermalSide))
             .OrderBy(r => r.Room.Id).ToList();
-        chosen = chosen.Where(r => r.Room.Role == PlannedRole.Freezer).Concat(chosen.Where(r => r.Room.Role != PlannedRole.Freezer).Take(PlannedThermalRooms)).OrderBy(r => r.Room.Id).ToList();
+        chosen = chosen.Where(r => PlannedRoomCredits.Cold(layout, r.Room)).Concat(chosen.Where(r => !PlannedRoomCredits.Cold(layout, r.Room)).Take(PlannedThermalRooms)).OrderBy(r => r.Room.Id).ToList();
         if (chosen.Count == 0)
         {
             return null;
@@ -40,7 +40,7 @@ public static partial class PlannedRules
             Rooms = EquatableArray.From(chosen.Select(r => new PlannedThermalRoom(
                 new Cell(r.Bounds.X, r.Bounds.Z), r.Bounds.Width, r.Bounds.Height) { Room = r.Room.Id, Door = r.Room.Door })),
             Heaters = EquatableArray.From(planned),
-            Coolers = cooler.Length == 0 ? [] : EquatableArray.From(chosen.Where(r => r.Room.Role == PlannedRole.Freezer).Select(r => new PlannedThermalCooler(r.Room.Id, cooler, freezerTarget))),
+            Coolers = cooler.Length == 0 ? [] : EquatableArray.From(chosen.Where(r => PlannedRoomCredits.Cold(layout, r.Room)).Select(r => new PlannedThermalCooler(r.Room.Id, cooler, freezerTarget))),
         };
     }
 
@@ -57,7 +57,7 @@ public static partial class PlannedRules
     /// bare ring's. Nothing is capped (#3341).
     /// </summary>
     public static EquatableArray<PlannedRoomShape> PlannedRoomPredictionRequestOf(IEnumerable<PlannedRoom> rooms, IEnumerable<PlannedBuildSite> sites,
-        IEnumerable<ConstructionSite> placed)
+        IEnumerable<ConstructionSite> placed, LayoutPlan? layout = null, FilthModel? filth = null)
     {
         var shapes = new List<PlannedRoomShape>();
         var owned = sites.Where(s => s.Room > 0 && s.Zone.Length == 0).ToList();
@@ -72,8 +72,23 @@ public static partial class PlannedRules
             if (ring.Count == 0 && placedRing.Count == 0 && !PlannedRoomCredits.Shipped.ContainsKey(room.Role)) continue;
             var interior = EquatableArray.From(room.Region.Cells().OrderBy(c => c.X).ThenBy(c => c.Z));
             var inside = interior.ToHashSet();
+            PlannedRoomFilth? dirty = null;
+            if (room.FilthRuns.Values.Any(r => r.Runs > 0))
+            {
+                if (filth is null || filth.Def.Length == 0 || !QuestCapacityForecast.FinitePositive(filth.StandTicks))
+                    throw new RequiredFactException("filth_model");
+                var (units, exposure) = LayoutFilthRules.Standing(room.FilthRuns.Values, filth.StandTicks);
+                dirty = new(filth.Def, units, exposure);
+            }
             var furnished = EquatableArray.From(furniture[room.Id].OrderBy(s => s.Id, StringComparer.Ordinal)
-                .SelectMany(s => s.Positions.Where(inside.Contains).Select(p => new PlannedRoomFurniture(p, s.Definition, s.Stuff, s.Rotation))));
+                .SelectMany(s => s.Positions.Where(inside.Contains).Select(p => new PlannedRoomFurniture(p, s.Definition, s.Stuff, s.Rotation)
+                {
+                    Medical = Purpose(s.Definition, p) == StationPurpose.SleepMed,
+                    Prisoners = Purpose(s.Definition, p) == StationPurpose.SleepPrison,
+                })));
+            StationPurpose Purpose(string def, Cell anchor) =>
+                (layout?.Pieces.GetValueOrDefault(room.Id) ?? []).FirstOrDefault(p => p.Def == def && p.Anchor() == anchor) is { } piece
+                    ? PlannedRoomCredits.PurposeOf(piece) : StationPurpose.None;
             foreach (var stuff in RingStuffs(ring))
             {
                 var pieces = ring.Where(s => s.Stuff.Length == 0 || s.Stuff == stuff)
@@ -82,7 +97,7 @@ public static partial class PlannedRules
                     .Concat(floors[room.Id].SelectMany(s => s.Positions.Select(p => new PlannedRoomPiece(p, s.Definition, ""))))
                     .OrderBy(p => p.Cell.X).ThenBy(p => p.Cell.Z);
                 shapes.Add(new PlannedRoomShape(room.Id.ToString(System.Globalization.CultureInfo.InvariantCulture), stuff, interior, EquatableArray.From(pieces))
-                    { Furniture = furnished });
+                    { Furniture = furnished, Filth = dirty });
             }
         }
         return EquatableArray.From(shapes);

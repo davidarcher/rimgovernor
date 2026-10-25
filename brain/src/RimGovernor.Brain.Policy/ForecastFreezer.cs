@@ -10,7 +10,7 @@ public static class ForecastFreezer
     {
         if (context.FreezerStock.Count == 0) return [];
         var taken = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var served in outcome.ServedRooms.Where(r => context.PlannedRoomRoles.GetValueOrDefault(r.Room) == PlannedRole.Freezer)
+        foreach (var served in outcome.ServedRooms.Where(r => PlannedRoomCredits.Serves(context, r.Room, PlannedRole.Freezer))
             .Where(r => RingClosure.CreditDays(context.InvestmentHorizonDays, r.ServedAt) > 0).OrderBy(r => r.Room))
         {
             var layout = context.LayoutRooms.TryGetValue(served.Room, out var planned) ? planned

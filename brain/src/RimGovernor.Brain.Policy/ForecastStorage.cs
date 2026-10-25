@@ -44,13 +44,13 @@ public static class ForecastStorage
         var taken = new HashSet<string>(StringComparer.Ordinal);
         foreach (var (room, kept) in stock.OrderBy(p => p.Key))
         {
-            var role = context.PlannedRoomRoles.GetValueOrDefault(room);
-            if (role is not (PlannedRole.Storage or PlannedRole.MealCloset or PlannedRole.Yard)) continue;
+            var functions = PlannedRoomCredits.Functions(context, room).ToArray();
+            if (!functions.Any(role => role is PlannedRole.Storage or PlannedRole.MealCloset or PlannedRole.Yard)) continue;
             var rows = new List<RoomGain>();
             foreach (var row in kept.Rows)
             {
                 if (taken.Contains(row.Supply.Thing) || debited.Contains(row.Supply.Thing)) continue;
-                var perDay = Gain(row, role == PlannedRole.Yard, context);
+                var perDay = Gain(row, functions.Contains(PlannedRole.Yard), context);
                 if (perDay > 0) rows.Add(new(row.Supply.Thing, "", perDay));
             }
             var best = rows.OrderByDescending(g => g.PerDay).ThenBy(g => g.Subject, StringComparer.Ordinal).Take(Math.Max(0, kept.Cells)).ToList();

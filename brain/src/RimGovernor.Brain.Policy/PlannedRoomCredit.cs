@@ -43,7 +43,7 @@ public delegate IEnumerable<string> RoomFindings(ForecastRoomService room, Forec
 /// standing one is offered wall swaps. Each served room is credited perDay × <see cref="RingClosure.CreditDays"/> of its
 /// service day, in the Investment term under <see cref="Key"/>.
 /// </summary>
-public static class PlannedRoomCredits
+public static partial class PlannedRoomCredits
 {
     /// <summary>The shipped credits: Bedroom by its occupant's mood gain (#3655), Barracks by each sleeper's (#3658), Lab by
     /// the research speed its room gives the bench (#3800), Workshop by useful bill output its stations gain (#3801), Throne and Suite by the title room thoughts their colonist loses once
@@ -115,7 +115,7 @@ public static class PlannedRoomCredits
     /// Nursery heard-fit and combined dining/recreation shifts depend on the outcome and integrate the retained target spans directly.
     /// </summary>
     internal static IReadOnlyDictionary<string, double[]> BreakShifts(ForecastCoupledContext context) => Shifts.GetValue(context, c =>
-        ForecastHousing.BreakShifts(c).Concat(ForecastCorpses.BreakShifts(c)).Concat(ForecastWorship.Shifts(c)).Concat(ForecastDeathrest.Shifts(c)).Concat(ForecastHospital.Shifts(c)).GroupBy(p => p.Key, StringComparer.Ordinal)
+        StageContexts(c).SelectMany(condition => ForecastHousing.BreakShifts(condition).Concat(ForecastCorpses.BreakShifts(condition)).Concat(ForecastWorship.Shifts(condition)).Concat(ForecastDeathrest.Shifts(condition)).Concat(ForecastHospital.Shifts(condition))).GroupBy(p => p.Key, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.SelectMany(p => p.Value).Distinct().Order().ToArray(), StringComparer.Ordinal));
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledContext, IReadOnlyDictionary<string, double[]>> Shifts = new();
@@ -125,7 +125,7 @@ public static class PlannedRoomCredits
     /// priced room (#3815, epic #3650 P4). A connector has no credit of its own; its work is the rooms' it serves.
     /// </summary>
     public static bool Priced(this ForecastCoupledContext context, int room) =>
-        context.PlannedRoomRoles.TryGetValue(room, out var role) && context.RoomCredits.ContainsKey(role)
+        Functions(context, room).Any(context.RoomCredits.ContainsKey)
         || context.Connectors.TryGetValue(room, out var served) && served.Any(context.Priced);
 
     /// <summary>
@@ -183,15 +183,46 @@ public static class PlannedRoomCredits
         if (days <= 0) return;
         foreach (var served in outcome.ServedRooms)
         {
-            if (!context.PlannedRoomRoles.TryGetValue(served.Room, out var role) || !context.RoomCredits.TryGetValue(role, out var credit)) continue;
-            var units = RingClosure.CreditDays(days, served.ServedAt);
-            if (units <= 0) continue;
-            var gains = credit(served, outcome, commitments, context, horizon);
-            if (Unmodelled.TryGetValue(role, out var named)) findings.UnionWith(named(served, outcome, commitments, context, horizon));
-            foreach (var gain in gains)
-                rows.Add(new("", gain.Pawn, Key(role, served.Room, gain.Subject), units, -((gain.PerDay * units) + gain.Once)));
+            foreach (var role in Functions(context, served.Room).Where(context.RoomCredits.ContainsKey).DistinctBy(role => context.RoomCredits[role]))
+            {
+                var credit = context.RoomCredits[role];
+                var units = RingClosure.CreditDays(days, served.ServedAt);
+                if (units <= 0) continue;
+                var gains = ConditionalGains(credit, served, outcome, commitments, context, horizon);
+                if (Unmodelled.TryGetValue(role, out var named)) findings.UnionWith(named(served, outcome, commitments, context, horizon));
+                foreach (var gain in gains)
+                    rows.Add(new("", gain.Pawn, Key(role, served.Room, gain.Subject), units, -((gain.PerDay * units) + gain.Once)));
+            }
         }
     }
+
+    /// <summary>Prices each native clean/dirty stage at the layout's existing filth duty, rather than pricing an averaged stage.</summary>
+    private static IReadOnlyList<RoomGain> ConditionalGains(RoomCredit credit, ForecastRoomService served, ForecastCoupledOutcome outcome,
+        IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
+    {
+        var clean = credit(served, outcome, commitments, context, horizon);
+        var closure = Prediction(context, served.Room, served.Stuff);
+        if (closure?.Prediction.Filth is not { } filth || filth.Exposure <= 0) return clean;
+        var dirty = credit(served, outcome, commitments, DirtyContext(context, closure), horizon);
+        return [.. clean.Select(g => g with { PerDay = g.PerDay * (1 - filth.Exposure), Once = g.Once * (1 - filth.Exposure) })
+            .Concat(dirty.Select(g => g with { PerDay = g.PerDay * filth.Exposure, Once = g.Once * filth.Exposure }))
+            .GroupBy(g => (g.Subject, g.Pawn)).Select(g => new RoomGain(g.Key.Subject, g.Key.Pawn, g.Sum(r => r.PerDay)) { Once = g.Sum(r => r.Once) })];
+    }
+
+    private static ForecastCoupledContext DirtyContext(ForecastCoupledContext context, ForecastPlannedClosure closure)
+    {
+        var filth = closure.Prediction.Filth ?? throw new RequiredFactException("planned room filth stage");
+        return context with
+        {
+            Closures = EquatableArray.From(context.Closures.Select(c => c == closure ? c with
+            {
+                Prediction = c.Prediction with { Stage = filth.Stage, Impressiveness = filth.Impressiveness, Filth = null },
+            } : c)),
+        };
+    }
+
+    private static IEnumerable<ForecastCoupledContext> StageContexts(ForecastCoupledContext context) =>
+        context.Closures.Where(c => c.Prediction.Filth is { Exposure: > 0 }).Select(c => DirtyContext(context, c)).Prepend(context);
 
     /// <summary>
     /// The development units of the planned rooms, priced or not, which the count skips (#3828): each planned site of a room

@@ -41,29 +41,25 @@ public sealed class ComfortTests
     }
 
     [Fact]
-    public void BasicComfortRetainsFacilitiesTheHostingRoomFilterExcludes()
+    public void StationsSupplyComfortRegardlessOfTheirRoomsRole()
     {
         PawnId pawn = new("pawn");
         var basic = NoComfortObservation with { Census = NoComfort with
         {
             People = [pawn],
             Surfaces = [new("other-room", [])],
-            Dining = [new("chair", "other-room", [pawn], [])],
-            Recreation = [new("horseshoes", "gaming", new ComfortHost.Outdoors(), [pawn], [])],
+            Dining = [new("chair", "other-room", [pawn], [pawn])],
+            Recreation = [new("horseshoes", "gaming", new ComfortHost.Outdoors(), [pawn], [pawn])],
             Joy = new(["gaming"], [new(pawn, [false])]),
         } };
-        var hosted = ComfortRules.HostedComfort(basic, RoomTestFacts.NoRooms);
-
         Assert.True(BasicComfortRules.ReviewBasicComfort(basic).Recovered());
-        Assert.False(ComfortRules.ReviewComfort(hosted, default, new(0)).Recovered());
+        Assert.True(ComfortRules.ReviewComfort(basic, default, new(0)).Recovered());
         Assert.Single(basic.Census.Dining);
         Assert.Single(basic.Census.Recreation);
-        Assert.Empty(hosted.Census.Dining);
-        Assert.Empty(hosted.Census.Recreation);
     }
 
     [Fact]
-    public void EveryRoutineReadIncludesRoomsAndFiltersHostedFacilities()
+    public void EveryRoutineReadIncludesRoomsAndRetainsActualFacilities()
     {
         PawnId pawn = new("pawn");
         var basic = NoComfortObservation with { Census = NoComfort with
@@ -85,8 +81,8 @@ public sealed class ComfortTests
         var read = FrameReads.WithFrameRooms(projection, frame, new DiningFurniture());
 
         Assert.Same(basic, read.Facts.RequireBasicComfort());
-        Assert.Empty(read.Facts.RequireComfort().Census.Dining);
-        Assert.Empty(read.Facts.RequireComfort().Census.Recreation);
+        Assert.Single(read.Facts.RequireComfort().Census.Dining);
+        Assert.Single(read.Facts.RequireComfort().Census.Recreation);
         Assert.Equal(frame.Rooms!.Rooms, read.Facts.Upkeep.Rooms.Rooms);
     }
 

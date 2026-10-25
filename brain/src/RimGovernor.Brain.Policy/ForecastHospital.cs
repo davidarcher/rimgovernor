@@ -185,7 +185,7 @@ internal static class ForecastHospital
 
         foreach (var closure in context.Closures)
         {
-            if (!context.PlannedRoomRoles.TryGetValue(closure.Room, out var role) || role != PlannedRole.Hospital)
+            if (!PlannedRoomCredits.Serves(context, closure.Room, PlannedRole.Hospital))
             {
                 continue;
             }

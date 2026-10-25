@@ -39,10 +39,17 @@ public sealed record PlannedRoomShape(string Room, string Stuff,
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRoomFurniture>))]
     public EquatableArray<PlannedRoomFurniture> Furniture { get; init; }
+    /// <summary>The layout's existing steady filth duty: native projects the dirty room's stage separately.</summary>
+    public PlannedRoomFilth? Filth { get; init; }
 }
+public sealed record PlannedRoomFilth(string Definition, double Units, double Exposure);
 public sealed record PlannedRoomPiece(Cell Cell, string Definition, string Stuff);
 /// <summary>One planned furniture piece (#3840): its anchor cell, def, stuff ("" for a def made from none) and rotation, the occupied rect native derives.</summary>
-public sealed record PlannedRoomFurniture(Cell Cell, string Definition, string Stuff, RimGovernor.Brain.Domain.Rotation Rotation);
+public sealed record PlannedRoomFurniture(Cell Cell, string Definition, string Stuff, RimGovernor.Brain.Domain.Rotation Rotation)
+{
+    public bool Medical { get; init; }
+    public bool Prisoners { get; init; }
+}
 /// <summary>
 /// One route the planned read probes per free colonist (#3313): from <see cref="From"/> (or, with
 /// <see cref="FromStart"/>, from the pawn's own position) to the cell of <see cref="Reach"/> nearest that origin, or to

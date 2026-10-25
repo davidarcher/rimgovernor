@@ -21,7 +21,7 @@ public static class FrameReads
             Dining = dining,
             Shapes = p.Facts.Shapes,
         };
-        p = p with { Facts = p.Facts with { Sleeping = bedded, Comfort = ComfortRules.HostedComfort(p.Facts.RequireBasicComfort(), comfortRooms) } };
+        p = p with { Facts = p.Facts with { Sleeping = bedded, Comfort = p.Facts.RequireBasicComfort() } };
         p = p with { Facts = p.Facts with { Upkeep = p.Facts.Upkeep with { Rooms = comfortRooms } } };
         return p;
     }

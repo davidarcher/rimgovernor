@@ -248,15 +248,10 @@ public static partial class SleepingRules
         {
             return choice with { Method = SleepingMethod.NoDemand };
         }
-        var facility = RoomsRules.Facility(RoomRole.Bedroom);
         var rooms = r.Rooms;
         var cells = new List<Cell>();
         foreach (var room in rooms.Rooms)
         {
-            if (!facility.Hosts(room.Role))
-            {
-                continue;
-            }
             var temperature = room.TemperatureC;
             if (temperature < lo || temperature > hi)
             {

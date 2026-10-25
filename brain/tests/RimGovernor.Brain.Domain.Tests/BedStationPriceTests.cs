@@ -33,15 +33,12 @@ public sealed class BedStationPriceTests
         SleepDisturbed = Disturbed,
     };
 
-    /// <summary>Filth_Blood's cleanliness a unit, the FoodPoisoning hediff's work and the 600 ticks filth stands before it may be cleaned.</summary>
+    /// <summary>Filth_Blood's cleanliness a unit, the food-poison chance curve and the 600 ticks filth stands before it may be cleaned.</summary>
     internal static readonly FilthModel Filth = new()
     {
         Def = "Filth_Blood",
         Cleanliness = -10,
         FoodPoison = [new(-5, 0.02), new(0, 0.01)],
-        Poisoning = new PoisoningModel { Initial = 1, PerDay = 1, Stages = [new(0, 0.6, 0.4), new(0.2, 0.5, 0.2), new(0.8, 0.6, 0.3)] },
-        CleaningWork = 70,
-        CleaningSpeed = 1,
         StandTicks = 600,
     };
 
@@ -102,7 +99,7 @@ public sealed class BedStationPriceTests
     /// A barren map whose only ground is three 8 x 8 pockets far apart, zoned as a first plan zones it: the barracks
     /// fills one pocket, so a station in its own room stands in another, about 30 cells' walk away.
     /// </summary>
-    private static EmbedInput Embed
+    internal static EmbedInput Embed
     {
         get
         {
@@ -112,14 +109,6 @@ public sealed class BedStationPriceTests
             return new EmbedInput { Survey = s, Zones = LayoutZoningRules.Zone(s), RoofDistance = 6 };
         }
     }
-
-    /// <summary>The regrouping over an open map, its colonists at 0.37 mood (just over the minor threshold).</summary>
-    private static Regrouping Regroup(ClusterInput cluster) => LayoutRegroupRules.Regroup(new RegroupInput
-    {
-        Cluster = cluster,
-        Embed = Embed,
-        Price = new RegroupPrice { Work = new WorkPrice(8000, LayoutRegroupRules.CellWalkDays(60)), Mood = cluster.Catalog.Mood, Expected = new StationMood.Expected(0.37) },
-    });
 
     private static bool Shared(Clustering c, string a, string b) => c.Groups.Any(g => LayoutRegroupRules.HoldsNode(g, a) && LayoutRegroupRules.HoldsNode(g, b));
 
@@ -134,15 +123,8 @@ public sealed class BedStationPriceTests
         var keep = Assert.Single(seed.Decisions, d => d.A == Pool && d.B == Stove || d.A == Stove && d.B == Pool);
         Assert.Equal((LayoutClusterRules.ClusterKeep, LayoutClusterRules.ReasonClusterLostEffect), (keep.Verdict, keep.Reason));
         var lost = Assert.Single(keep.LostEffects);
-        Assert.Equal((RoleEffect.SleepDisturbed, 3, 3.0), (lost.Effect, lost.Pawns, lost.Points));
+        Assert.Equal((RoleEffect.SleepDisturbed, 3.0), (lost.Effect, lost.Points));
 
-        // The regrouping prices the merge: the walk it saves is less than the sleepers' break risk.
-        var r = Regroup(cluster);
-        Assert.False(Shared(r.Clustering, Pool, Stove));
-        var d = Assert.Single(r.Decisions, d => d.Reason == LayoutRegroupRules.ReasonRegroupBedStationKept);
-        Assert.Equal((LayoutRegroupRules.RegroupKept, LayoutRegroupRules.RegroupMerge), (d.Verdict, d.Kind));
-        Assert.Contains("sleep_disturbed", d.Effects);
-        Assert.True(d.Walk < 0 && d.After > d.Before, $"walk {d.Walk}, before {d.Before}, after {d.After}");
     }
 
     [Fact]
@@ -152,41 +134,6 @@ public sealed class BedStationPriceTests
         var seed = LayoutClusterRules.ClusterStations(cluster);
         var keep = Assert.Single(seed.Decisions, d => d.A == Pool && d.B == Stove || d.A == Stove && d.B == Pool);
         Assert.Contains(keep.LostEffects, e => e.Effect == RoleEffect.SleepDisturbed && e.Points == 3);
-    }
-
-    [Fact]
-    public void ADayCookDisturbsNobodySoTheBarracksHostsTheKitchen()
-    {
-        // The cook works while the sleepers are awake and the stove leaves no filth: the merge costs nothing, and the walk it saves wins.
-        var r = Regroup(Cluster(Cook, 30, Colony(nightCook: false), Mood));
-
-        var g = Assert.Single(r.Clustering.Groups, g => LayoutRegroupRules.HoldsNode(g, Pool));
-        Assert.True(LayoutRegroupRules.HoldsNode(g, Stove));
-        Assert.DoesNotContain(g.LostEffects, l => l.Effect is RoleEffect.SleepDisturbed or RoleEffect.Impressiveness);
-    }
-
-    [Fact]
-    public void ButcheryFilthLowersTheBarracksStageUntilItsLossBeatsTheWalk()
-    {
-        // Sleepers who gain 0.05 a day in a barracks of dull stage or better: the beds' room is sized dull, and the
-        // butchery's filth, standing a longer share of the day as the runs grow, drops it to awful while it stands.
-        var dull = BedMergePriceTests.MarketWood(BedMergePriceTests.Staged(Enumerable.Repeat((new double[5], new[] { 0, 0.05, 0.05, 0.05, 0.05 }), 3).ToArray()));
-        Regrouping At(double runs) => Regroup(Cluster(Butchery(runs), 4, Colony(nightCook: false), Mood, dull, BedMergePriceTests.Temperate));
-
-        var few = At(0.05);
-        Assert.True(Shared(few.Clustering, Pool, Butcher), "a rare butchery shares the barracks");
-        Assert.Contains(few.Decisions, d => d.Verdict == LayoutRegroupRules.RegroupApplied && d.Reason == LayoutRegroupRules.ReasonRegroupFilthMerge);
-
-        RegroupDecision? kept = null;
-        for (var runs = 1; runs <= 40 && kept is null; runs++)
-        {
-            kept = At(runs).Decisions.FirstOrDefault(d => d.Reason == LayoutRegroupRules.ReasonRegroupFilthKept);
-        }
-        Assert.NotNull(kept);
-        // No station here cooks a meal, so nothing is poisoned: the stage the sleepers lose outweighs the walk saved.
-        Assert.Contains("impressiveness", kept.Effects);
-        Assert.Equal(0, kept.Poison);
-        Assert.True(kept.Walk < 0 && kept.After > kept.Before, $"walk {kept.Walk}, before {kept.Before}, after {kept.After}");
     }
 
     [Fact]

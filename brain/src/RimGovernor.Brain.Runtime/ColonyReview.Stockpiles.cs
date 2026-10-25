@@ -141,7 +141,8 @@ partial class StockpilePlanner
         {
             throw new RequiredFactException("storage layout plan");
         }
-        var rooms = plan.Rooms.Where(r => r.Role == Pol.PlannedRole.Storage || r.Role == Pol.PlannedRole.Yard).ToList();
+        var functions = Pol.PlannedRoomCredits.FunctionsOf(projection.Facts);
+        var rooms = plan.Rooms.Where(r => r.Role == Pol.PlannedRole.Yard || functions.GetValueOrDefault(r.Id).Contains(Pol.PlannedRole.Storage)).ToList();
         var fenced = rooms.Any(r => !r.Unfenced());
         var plannedOwed = fenced ? ColonyReview.PlannedOwedOf(projection, flooring) : null;
         var owed = fenced ? ColonyReview.PlannedConstructionOf(projection, plannedOwed) : null;
@@ -165,7 +166,7 @@ partial class StockpilePlanner
                     site => ColonyReview.PlannedSiteWork(projection, floors ?? throw new RequiredFactException("storage flooring"), site));
             output.Add(new Pol.PlannedStoreRoom
             {
-                Room = room.Id, Role = room.Role, Cells = [.. room.Region.Cells()], Outdoor = room.Outdoor, Material = material,
+                Room = room.Id, Role = room.Role == Pol.PlannedRole.Yard ? Pol.PlannedRole.Yard : Pol.PlannedRole.Storage, Cells = [.. room.Region.Cells()], Outdoor = room.Outdoor, Material = material,
                 Work = work, RoofOwed = roof,
             });
         }

@@ -282,12 +282,9 @@ public sealed partial class BuildingPlanner
         {
             return (null, BuildingReasonResearchBenchUnavailable);
         }
-
-        var facility = RoomsRules.Facility(RoomRole.Laboratory);
         var resolved = Copy();
         resolved.Definition = bench;
         resolved.Environment = PlacementEnvironment.Indoors;
-        resolved.Facility = facility;
         resolved.Stuff = ColonyPlanningRules.BulkBuildStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), bench, 1);
         return (resolved, default);
     }

@@ -43,6 +43,7 @@ public sealed partial record ForecastCoupledCandidates
         // A gate is keyed by its owner, a migrated family's NeedId (#3250).
         bool NeedEnabled(NeedId need) => facts.AvailableNeeds.Contains(need);
         if (!NeedEnabled(AdminFamily.WorkAssignments)) return null;
+        var roomFunctions = PlannedRoomCredits.FunctionsOf(facts);
         read = read with
         {
             Food = read.Food with { Options = EquatableArray.From(read.Food.Options.Where(o =>
@@ -149,7 +150,7 @@ public sealed partial record ForecastCoupledCandidates
         var physicalRooms = urgent.Count != 0
             ? facts.Upkeep.Rooms with { Rooms = [] } : facts.Upkeep.Rooms;
         var shelter = Methods.Generation.CoupledShelterCandidates.Generate(shelterRooms.OrderBy(r => r.Id).Select(r =>
-            new ForecastShelterGeometry(new(ForecastShelterSource.Planned, r.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)), EquatableArray.From(r.Region.Cells()), r.Region.Bounds(), r.Door, r.Outdoor) { Unbounded = r.Role == PlannedRole.Freezer }),
+            new ForecastShelterGeometry(new(ForecastShelterSource.Planned, r.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)), EquatableArray.From(r.Region.Cells()), r.Region.Bounds(), r.Door, r.Outdoor) { Unbounded = PlannedRoomCredits.Cold(facts.LayoutPlan, r) }),
             physicalRooms, read.Thermal, construction.Operations, construction.Bindings, plannedSites, planned.Sites, deadline, horizon);
         findings.UnionWith(shelter.Findings); truncated |= shelter.Truncated;
         foreach (var outcome in construction.Outcomes.Where(o => !construction.Bindings.Values.Any(b => b.Id == o.Completion)))
@@ -350,7 +351,7 @@ public sealed partial record ForecastCoupledCandidates
             planned.Sites.Where(s => s.Stuff.Length != 0).Select(s => (Id: s.Site, s.Room, s.Stuff))
                 .Concat(planned.Rooms.Where(a => a.Stuff.Length != 0).Select(a => (a.Id, a.Room, a.Stuff)))
                 .GroupBy(s => s.Id, StringComparer.Ordinal).ToDictionary(g => g.Key, g => (g.First().Room, g.First().Stuff), StringComparer.Ordinal),
-            PlannedRoomRolesOf(facts).Where(r => r.Value == PlannedRole.Workshop).Select(r => r.Key).ToHashSet());
+            roomFunctions.Where(r => r.Value.Contains(PlannedRole.Workshop)).Select(r => r.Key).ToHashSet());
         var equipment = options.SelectMany(o => o.Equipment).Distinct().Order(StringComparer.Ordinal)
             .Select(id => new ForecastEquipmentCapacity(id, tasks.Single(t => t.Id == options.First(o => o.Equipment.Contains(id)).Activity) is var equipmentTask && equipmentTask.EquipmentLocation.Length != 0 ? equipmentTask.EquipmentLocation : equipmentTask.Location, resources.Claims.Targets.Contains(id)
                 ? [] : EquatableArray.From(new ForecastTimeWindow[] { new(0, horizon) }))).ToArray();
@@ -390,11 +391,12 @@ public sealed partial record ForecastCoupledCandidates
             PlannedSites = plannedRealized,
             PlannedRooms = EquatableArray.From(planned.Rooms),
             PlannedRoomRoles = PlannedRoomRolesOf(facts),
+            PlannedRoomFunctions = roomFunctions,
             PrisonerPopulation = facts.Population,
             StoreStock = facts.PlannedStoreStock,
             Connectors = PlannedRoomCredits.ConnectorsOf(facts.PlannedShelters, facts.PlannedLinks),
             RoomPrerequisites = facts.RoomPrerequisites,
-            FreezerStock = facts.PlannedShelters.Any(r => r.Role == PlannedRole.Freezer) ? facts.CombinedFoodSupply.Stocks.Concat(facts.CombinedFoodSupply.Barred).ToArray() : [],
+            FreezerStock = roomFunctions.Values.Any(roles => roles.Contains(PlannedRole.Freezer)) ? facts.CombinedFoodSupply.Stocks.Concat(facts.CombinedFoodSupply.Barred).ToArray() : [],
             RotRates = facts.RotRates,
             Closures = closures,
             PlannedBuilders = builders,
@@ -402,14 +404,15 @@ public sealed partial record ForecastCoupledCandidates
             OptionWork = Worked(options).GroupBy(w => (w.Option.Activity, w.Option.Pawn)).ToDictionary(g => g.Key, g => g.Min(w => w.Ticks)),
             LayoutRooms = LayoutRoomsOf(facts),
             Filth = facts.Filth,
+            RoomSleepDisturbance = facts.RoomSleepDisturbance,
             ResearchBenchSpeeds = facts.ResearchBenchSpeeds,
             WorkBenchSpeeds = facts.WorkBenchSpeeds,
             ProductionOrders = facts.ProductionOrders,
             ProductionRecipes = facts.ProductionRecipes,
             LaboratoryBench = facts.LaboratoryBench,
             PlannedBeds = ForecastHousing.PlannedBedsOf(allPlannedSites, facts.SleepingBeds),
-            PrisonBeds = ForecastPrison.BedsOf(facts.PlannedShelters, allPlannedSites, facts.Sleeping, facts.SleepingBeds),
-            NurserySites = EquatableArray.From(allPlannedSites.Where(s => s.Op == OpKind.Build && facts.PlannedShelters.Any(r => r.Id == s.Room && r.Role == PlannedRole.Nursery))),
+            PrisonBeds = ForecastPrison.BedsOf(facts.PlannedShelters, allPlannedSites, facts.Sleeping, facts.SleepingBeds, facts.LayoutPlan),
+            NurserySites = EquatableArray.From(allPlannedSites.Where(s => s.Op == OpKind.Build && roomFunctions.GetValueOrDefault(s.Room).Contains(PlannedRole.Nursery))),
             ComfortCurve = facts.ComfortCurve,
             HospitalBed = facts.HospitalBed,
             Stock = facts.StockArrival,

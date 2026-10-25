@@ -1456,9 +1456,12 @@ the room id, the stuff, the interior cells and the ring `PlannedRoomPiece`s (cel
 definition, stuff) the planned wall and door sites would build, plus one piece per
 cell of the room's planned `FloorIn` sites (the floor's `TerrainDef`, no stuff, in
 every ring stuff, #3797), and its `Furniture` (#3840): one `PlannedRoomFurniture`
-(anchor cell, definition, stuff, rotation) per interior anchor of the room's planned
+(anchor cell, definition, stuff, rotation, medical/prisoner bed use) per interior anchor of the room's planned
 Build sites, in every ring stuff, which native counts standing in the closed room so
-the stage is the furnished room's. Colony review ask it in the
+the stage is the furnished room's. Bed uses derive from the saved station node identity.
+Optional `Filth` carries the existing layout filth model's definition, standing units
+and exposure share; native projects its dirty impressiveness stage separately.
+Colony review asks it in the
 same read as the thermal read, for every enclosed unplaced planned room with ring
 sites, and every planned kitchen even with none (its cleanliness is priced, #3802; a
 ringless prediction owes no work), once per ring stuff (`PlannedRoomPredictionRequestOf`); nothing is capped.
@@ -1469,13 +1472,20 @@ passable cell closes no room and has no row; a piece naming neither a `ThingDef`
 piece stands in the shape's stuff) or an unreadable game member fails the read:
 
 - `Role`: the game's `RoomRoleDef` with the highest `Worker.GetScore` over an
-  unregistered room that lists the things the closed room would contain or touch;
+  unregistered room that lists the things the closed room would contain or touch,
+  plus unspawned planned station instances with their intended bed uses. These
+  probes initialize their native comps without spawning or drawing game randomness;
   `None` at the map edge or over 60 regions.
 - `Impressiveness` and `Stage`: `RoomStatWorker_Impressiveness` over the predicted
   Wealth, Beauty, Space and Cleanliness (the game's worker bodies run over the planned
   interior with the planned ring pieces counted), and `RoomStatDef.GetScoreStageIndex`.
   A `None` room has the stat's `roomlessScore` and that score's stage. The planned
   floor is not counted here.
+- `Filth`: absent when no station produces filth; otherwise the native dirty
+  impressiveness score and stage plus the supplied exposure share. Canonical mood
+  credits price clean and dirty stages at that duty. This preserves the existing
+  base-stat/floor convention and does not replace steady production/care cleanliness
+  with a stage evaluated at mean cleanliness.
 - `Cleanliness`: `RoomStatWorker_Cleanliness` over the same room with each planned
   floor piece's terrain in place of its cell's (things contained or adjacent times
   their stack count, plus each cell's terrain stat, over the cells; natural soil is -1),

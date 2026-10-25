@@ -527,7 +527,7 @@ public sealed partial class ColonyReview
             PlannedLinks = EquatableArray.From(layout?.Links ?? []),
             PlannedPens = plannedRooms.Where(r => r.Role == PlannedRole.Pen && r.Id > 0).DistinctBy(r => r.Id).ToDictionary(r => r.Id, r => r.Herd),
             // The planned stores' stock (#3798) is read from the request the stockpile review just reviewed; null when it did not run.
-            PlannedStoreStock = stockpileRequest is { } stockRequest ? StoreRules.PlannedStoreStock(stockRequest, plannedRooms) : null,
+            PlannedStoreStock = stockpileRequest is { } stockRequest ? StoreRules.PlannedStoreStock(stockRequest, plannedRooms, PlannedRoomCredits.FunctionsOf(reading.Reading.Facts)) : null,
         });
         // The firebreak review reads nothing the planned sites answer, so its tile reads share frames with the site reads.
         fine.Mark();
@@ -699,6 +699,10 @@ public sealed partial class ColonyReview
         reading = reading.WithFacts(rf => rf with { StockArrival = (rf.StockArrival with { Missions = settlementOptions,
             Visits = ForecastTradeVisits.Options(rf.Traders, rf.Census.ColonistCount) })
                 .WithMedicineClaim(rf.Items, medicine, rf.Census.ColonistCount, Policy.MedicalReserve) });
+        var layoutDemand = ResourceRules.ResourceDemandOf(reading.Reading.Facts, Policy, new Latches { MedicalReserve = medicine.Active, Dash = reading.Reading.Facts.Dash });
+        var roomSleep = await RoomSleepDisturbanceAsync(state.Snapshot, reading.Reading,
+            reading.Catalog ?? throw new RequiredFactException("definition_catalog"), layoutDemand, ct).ConfigureAwait(false);
+        reading = reading.WithFacts(f => f with { RoomSleepDisturbance = roomSleep });
         var reconsideration = ForecastIncumbentPreparation.PrepareCoupledIncumbents(reading.Reading.Facts, batches, workActions);
         reading = reading.WithFacts(_ => reconsideration.Facts with { PreviousCoupledSelection = CoupledMemory.Get(state.Snapshot).Selected, PreviousPlannedShelters = CoupledMemory.Get(state.Snapshot).Rooms });
         fine.Lap("derive/incumbents");
@@ -744,6 +748,16 @@ public sealed partial class ColonyReview
             ClockEvents.Event("routine", ColonyModelTelemetry.Kind, "colony model ran", [.. model.Attrs()]);
         }
         fine.Lap("derive/model");
+        // Replan geometry is compared with the completed model before the authoritative review chooses or admits work.
+        if (await ReviewCompletedLayoutReplanAsync(state.Snapshot, reading.Reading, new Latches { MedicalReserve = medicine.Active, Dash = reading.Reading.Facts.Dash },
+            goalFacts, stockpileRequest, batches, workActions, ct).ConfigureAwait(false) is { } replanned)
+        {
+            reading = reading.WithReading(replanned.Colony);
+            goalEtas = replanned.Model.Etas;
+            layoutPlan = replanned.Plan;
+            reading = reading.WithColonySection(c => c with { Facts = c.Facts with { LayoutPlan = layoutPlan } });
+            Census.RememberLayout(reading.Reading.Identity, layoutPlan);
+        }
         // Acquisition uses the review's completed home staffing and defense facts.
         Census.Retain(reading);
         Lap("derive");
@@ -762,7 +776,7 @@ public sealed partial class ColonyReview
         GoalEta.Set(result.Review.Snapshot, goalEtas);
         if (result.Needs.CoupledSelection is { } compared) GoalInfeasible.Set(result.Review.Snapshot, GoalRules.InfeasibleOf(compared));
         // The first plan reads the ledger and the demand this review derived (#3652).
-        await ReviewFirstPlanAsync(state.Snapshot, result.Review.Snapshot, reading.Reading, ct).ConfigureAwait(false);
+        await ReviewFirstPlanAsync(state.Snapshot, result.Review.Snapshot, reading.Reading, result.Needs.Latches, goalFacts, stockpileRequest, batches, workActions, ct).ConfigureAwait(false);
         stages.Lap("first_plan");
         AdmitCoupledSelection(result, reading.Reading.Facts, reconsideration.Incumbents, state.Snapshot, ct, epoch);
         result = result with { FirstPlanUnread = FirstPlanUnread };

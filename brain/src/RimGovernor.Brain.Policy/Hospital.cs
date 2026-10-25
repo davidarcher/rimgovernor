@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// What an unmet medical/care Need needs from the facility ladder: a humanlike bed the game treats as
-/// medical, standing in a room whose native role can host the Hospital function.
+/// medical, standing in any room. Its actual room stats determine its care factors.
 /// </summary>
 public enum HospitalMethod
 {
@@ -94,11 +94,10 @@ public static class HospitalRules
         return ill;
     }
 
-    /// <summary>The beds standing in a room that can host the Hospital function.</summary>
+    /// <summary>The beds in the complete native room census, regardless of its scored role.</summary>
     private static HashSet<string> HostedBeds(RoomObservation rooms)
     {
-        var facility = RoomsRules.Facility(RoomRole.Hospital);
-        return new HashSet<string>(rooms.Rooms.Where(room => facility.Hosts(room.Role)).SelectMany(room => room.BedIds()), StringComparer.Ordinal);
+        return new HashSet<string>(rooms.Rooms.SelectMany(room => room.BedIds()), StringComparer.Ordinal);
     }
 
     /// <summary>Whether a bed counts towards the ward: hosted, humanlike and no prisoner's, and not a sleeping spot while an operation waits on a better bed.</summary>

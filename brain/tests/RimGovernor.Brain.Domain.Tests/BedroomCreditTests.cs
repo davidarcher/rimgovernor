@@ -27,7 +27,7 @@ public sealed class BedroomCreditTests
     ];
 
     /// <summary>The pawn owns a bed in a barracks at <paramref name="barracksStage"/>, or no bed when null.</summary>
-    private static NeedsForecastPawn Pawn(bool ascetic, int? barracksStage) => SleepFixtures.Sleeping(ForecastValueTests.Pawn(),
+    internal static NeedsForecastPawn Pawn(bool ascetic, int? barracksStage) => SleepFixtures.Sleeping(ForecastValueTests.Pawn(),
         barracksStage is null ? SleepFixtures.Ground() : SleepFixtures.InBed("bunk")) with
     {
         Ascetic = ascetic, OwnedBed = barracksStage is null ? "" : "bunk",
@@ -36,7 +36,7 @@ public sealed class BedroomCreditTests
             [NeedsFixtures.Service("bunk", "rest", 0d, .00005) with { Bed = NeedsFixtures.BedRoom("Barracks", stage, false), Cell = IndoorCell, Location = new(9, 9) }],
     };
 
-    private static ForecastCoupledContext Context(NeedsForecastPawn pawn, int bedroomStage, params MoodThought[] observed)
+    internal static ForecastCoupledContext Context(NeedsForecastPawn pawn, int bedroomStage, params MoodThought[] observed)
         => ForecastValueTests.Context(pawn) with
         {
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Bedroom },
@@ -49,7 +49,7 @@ public sealed class BedroomCreditTests
         };
 
     /// <summary>A day in the mildest break tier unshifted, and none once shifted by <paramref name="shift"/>.</summary>
-    private static ForecastCoupledOutcome Closing(double closedAt, double shift) =>
+    internal static ForecastCoupledOutcome Closing(double closedAt, double shift) =>
         new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>
         {
             ["pawn"] = new([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])

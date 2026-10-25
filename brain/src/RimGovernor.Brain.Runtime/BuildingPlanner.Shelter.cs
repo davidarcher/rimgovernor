@@ -3,9 +3,6 @@ namespace RimGovernor.Brain.Runtime;
 
 public sealed partial class BuildingPlanner
 {
-    /// <summary>The layout module a facility ladder furnishes, named by its room role; none without a facility.</summary>
-    internal (Pol.PlannedRole Role, bool Ok) RoomModule() => Facility is not null ? InteriorRules.PlannedRoleOf(Facility.Role) : (default, false);
-
     /// <summary>
     /// Whether the planner walks a facility ladder whose furniture stands in a planned room (comfort, workshop,
     /// hospital, sleeping, laboratory).
@@ -16,7 +13,7 @@ public sealed partial class BuildingPlanner
         {
             return true;
         }
-        return Phase == Pol.Phase.HousingSleeping || Phase == Pol.Phase.ComfortRanked;
+        return Phase == Pol.Phase.HousingSleeping || Phase == Pol.Phase.ComfortRanked || Phase == Pol.Phase.ComfortBasic;
     }
 }
 

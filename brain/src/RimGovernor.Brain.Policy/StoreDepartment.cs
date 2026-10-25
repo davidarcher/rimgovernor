@@ -110,12 +110,12 @@ public static partial class StoreRules
     /// laid is read through its role's standing zones, as StorageOptions prices a successor room. A room no store is
     /// sited on keeps nothing, and a stack no colonist reaches is no room's. The census and headroom are required.
     /// </summary>
-    public static IReadOnlyDictionary<int, PlannedStock> PlannedStoreStock(StockpileRequest request, IReadOnlyList<PlannedRoom> rooms)
+    public static IReadOnlyDictionary<int, PlannedStock> PlannedStoreStock(StockpileRequest request, IReadOnlyList<PlannedRoom> rooms, IReadOnlyDictionary<int, EquatableArray<PlannedRole>>? functions = null)
     {
         var output = new Dictionary<int, PlannedStock>();
         foreach (var room in rooms)
         {
-            if (room.Role is not (PlannedRole.Storage or PlannedRole.Yard or PlannedRole.MealCloset))
+            if (room.Role is not (PlannedRole.Storage or PlannedRole.Yard or PlannedRole.MealCloset) && functions?.GetValueOrDefault(room.Id).Contains(PlannedRole.Storage) != true)
             {
                 continue;
             }

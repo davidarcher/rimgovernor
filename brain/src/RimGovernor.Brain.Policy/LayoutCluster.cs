@@ -15,7 +15,7 @@ namespace RimGovernor.Brain.Policy;
 //     bedroom that reads as barracks), would join an enclosed room with an open-sky one, or would not fit the
 //     area limit. A cold room beside a station that works in a temperature band is not refused: the decision
 //     records the conflict (Conflict) for the search to price. A filth node (a butcher) beside stations that
-//     are not filthy is priced too (FilthCost) and kept apart unless a PairTogether rule joins the pair
+//     are not filthy is kept apart unless a PairTogether rule joins the pair
 //     (Regroup, #2878).
 //   - Intended role. What a station is for is what the game makes of it alone: PredictRole of the single
 //     station (a stove is a kitchen, a bed a bedroom, a medical bed a hospital).
@@ -164,15 +164,6 @@ public sealed record RoomGroup
     /// <summary>The role effects the room does not give.</summary>
     public IReadOnlyList<LostRoleEffect> LostEffects { get; set; } = [];
 
-    /// <summary>The price of the filth nodes sharing the room with stations they are not for (empty for a closet), in game units.</summary>
-    public IReadOnlyList<FilthCost> Filth { get; set; } = [];
-
-    /// <summary>
-    /// The work-days a day of cleaning the group's own filth takes, whether it shares the room or not (#2993):
-    /// the same blood is cleaned either way, so it is the baseline a merge is compared against.
-    /// </summary>
-    public double Cleaning { get; set; }
-
     /// <summary>Each filthy node's butchering load in the group (GroupEval.Runs), by node id; the tiler keeps it on the room (PlannedRoom.FilthRuns).</summary>
     public IReadOnlyDictionary<string, FilthRuns> FilthRuns { get; set; } = new Dictionary<string, FilthRuns>();
 
@@ -243,19 +234,14 @@ public sealed record ConflictCost
 }
 
 /// <summary>
-/// A role effect (sleep, patient or prison mood, throne, worship) a room does not give, with the sleepers the
-/// graph puts in it. Got is the role the room is scored as instead. Its mood is priced by MoodModel.LostPoints
-/// and PriceMood (#2954). A bed group's cost of hosting other stations (#3750) carries its own amount: Points, the
-/// SleepDisturbed mood each sleeper loses (priced by PriceMood), or Days, the capability-days a day the sleepers lose
-/// to the Impressiveness stage the room's filth costs.
+/// A lost role effect used to order geometry proposals. Points carries the SleepDisturbed mood
+/// each sleeper loses; canonical room credits own the economic valuation of every hosted function.
 /// </summary>
-public sealed record LostRoleEffect(RoleEffect Effect, RoomRole Role, RoomRole Got, int Pawns)
+public sealed record LostRoleEffect(RoleEffect Effect, RoomRole Role)
 {
-    /// <summary>The mood points each of Pawns loses (SleepDisturbed); 0 for every other effect.</summary>
+    /// <summary>The mood points each sleeper loses (SleepDisturbed); 0 for every other effect.</summary>
     public double Points { get; init; }
 
-    /// <summary>The capability-days a day the room's sleepers lose together (Impressiveness); 0 for every other effect.</summary>
-    public double Days { get; init; }
 }
 
 /// <summary>One clustering decision for the caller to journal. A is a graph node; B is the other node of a merge or keep.</summary>
@@ -341,18 +327,6 @@ internal sealed class GroupEval
     public IReadOnlyList<ConflictCost> Costs { get; set; } = [];
 
     public List<LostRoleEffect> Effects { get; } = [];
-
-    /// <summary>The nodes that spawn filth.</summary>
-    public List<string> Filthy { get; } = [];
-
-    /// <summary>The other nodes whose effect reads the room's cleanliness.</summary>
-    public List<string> Exposed { get; } = [];
-
-    /// <summary>Prices the filthy nodes against the room when it also holds a node that is not filthy.</summary>
-    public IReadOnlyList<FilthCost> FilthCosts { get; set; } = [];
-
-    /// <summary>The work-days a day of cleaning the group's filth takes, in every group that holds a filth node (FilthModel.CleaningWorkDays).</summary>
-    public double Cleaning { get; set; }
 
     /// <summary>The meals a day the exposed nodes' stations in the group make.</summary>
     public double Meals { get; set; }
@@ -729,8 +703,6 @@ public static partial class LayoutClusterRules
                 Requires = e.Requires(),
                 Costs = e.Costs,
                 LostEffects = e.Effects,
-                Filth = e.FilthCosts,
-                Cleaning = e.Cleaning,
                 FilthRuns = new Dictionary<string, FilthRuns>(e.Runs, StringComparer.Ordinal),
                 Meals = e.Meals,
             };
@@ -887,7 +859,7 @@ public static partial class LayoutClusterRules
     /// <summary>
     /// Reports a station whose work spawns filth beside stations that are not such: the filth lowers the
     /// cleanliness every station and sleeper of the room is read at (a cook's food-poisoning chance among
-    /// them), which FilthCost prices.
+    /// them), which canonical room credits price.
     /// </summary>
     private static bool FilthConflict(GroupEval a, GroupEval b) => (a.Filth || b.Filth) && !(a.Closet && b.Closet);
 
@@ -1084,18 +1056,12 @@ internal sealed partial class Clusterer
         var pred = RoomRoleRules.PredictRole(_in.Catalog, pieces);
         var e = new GroupEval { Role = pred.Role, Roleless = pieces.Count > 0 && pieces.All(p => _in.Catalog.Stations[p.Def].Contributions.Count == 0) };
         var intended = new List<RoomRole>();
-        var sleepers = new Dictionary<RoomRole, int>(); // sleepers whose bed is for the role
         foreach (var p in pieces)
         {
             var alone = RoomRoleRules.PredictRole(_in.Catalog, [p]);
             if (!intended.Contains(alone.Role))
             {
                 intended.Add(alone.Role);
-            }
-            var cp = _in.Catalog.Stations[p.Def].Capacity;
-            if (cp.Kind == CapacityKind.Sleepers)
-            {
-                sleepers[alone.Role] = sleepers.GetValueOrDefault(alone.Role) + cp.Slots;
             }
         }
         foreach (var role in intended)
@@ -1105,7 +1071,7 @@ internal sealed partial class Clusterer
                 var key = $"{Wire.Name(l.Effect)}|{Wire.Name(l.Role)}|{l.Def}";
                 if (!e.Lost.Contains(key) && l.Effect != RoleEffect.BenchSpeed)
                 {
-                    e.Effects.Add(new LostRoleEffect(l.Effect, l.Role, l.Got, sleepers.GetValueOrDefault(l.Role)));
+                    e.Effects.Add(new LostRoleEffect(l.Effect, l.Role));
                 }
                 e.Lost.Add(key);
             }
@@ -1122,10 +1088,6 @@ internal sealed partial class Clusterer
             e.Floor = Math.Max(e.Floor, n.Floor);
             e.Kept = Math.Max(e.Kept, n.Kept);
             e.Closet = e.Closet && n.Filth;
-            if (n.Filth && !e.Filthy.Contains(n.Id))
-            {
-                e.Filthy.Add(n.Id);
-            }
             if (n.Filth && n.Count > 0)
             {
                 e.Runs[n.Id] = e.Runs.GetValueOrDefault(n.Id).Plus(new FilthRuns { Runs = n.FilthRuns * u.Count / n.Count, Ticks = n.FilthWork });
@@ -1151,10 +1113,6 @@ internal sealed partial class Clusterer
                         break;
                     case EnvNeedKind.RoomStat:
                         e.Clean = e.Clean || need.Input == LayoutClusterRules.CleanlinessStat;
-                        if (need.Input == LayoutClusterRules.CleanlinessStat && !e.Exposed.Contains(n.Id))
-                        {
-                            e.Exposed.Add(n.Id);
-                        }
                         if (need.Input == LayoutClusterRules.CleanlinessStat && n.Count > 0 && !exposedUnit)
                         {
                             exposedUnit = true;
@@ -1187,14 +1145,6 @@ internal sealed partial class Clusterer
             // A free-bed unit's room takes the interior its priced bed merge chose (#3748) over its footprint, clearance and door threshold.
             var size = _in.Catalog.Stations[Node(u).Def].Shape.Size;
             e.Area += BedAreaExtra(u, (u.Count * ((size.X * size.Z) + 1)) + 1);
-        }
-        if (e.Filth)
-        {
-            e.Cleaning = _in.Catalog.Filth.CleaningWorkDays(e.Runs);
-        }
-        if (e.Filth && !e.Closet)
-        {
-            e.FilthCosts = _in.Catalog.Filth.FilthCosts(e.Filthy, e.Exposed, e.Area, e.Meals, e.Runs);
         }
         BedStationEffects(us, e);
         return e;

@@ -191,8 +191,8 @@ public sealed record StationFacts
         return (stands, markers);
     }
 
-    /// <summary>What the regrouping prices conflicts with: a colonist's work from the food census and crops, the mood model and the expected mood.</summary>
-    public RegroupPrice RegroupPriceOf() => new() { Work = LayoutRegroupRules.StationWorkPrice(this), Mood = Catalog.Mood, Expected = ExpectedMood };
+    /// <summary>The layout walking price; candidate economics is the canonical forecast vector.</summary>
+    public RegroupPrice RegroupPriceOf() => new() { Work = LayoutRegroupRules.StationWorkPrice(this) };
 
     /// <summary>The room nodes the facts ask beyond the station chain's: the tomb and morgue, the child rooms, the yards, and the pens.</summary>
     internal IReadOnlyList<RoomNode> RoomNodes() =>
@@ -546,8 +546,12 @@ public static partial class LayoutStationPlanRules
         }
     }
 
-    /// <summary>Runs the station chain over the live colony. It reads the plan and survey and changes neither.</summary>
-    public static StationAdvice AdviseStations(StationFacts f)
+    /// <summary>Builds the conservative geometry seed. Runtime adoption evaluates candidates through RegroupAsync.</summary>
+    public static StationAdvice AdviseStations(StationFacts f) =>
+        AdviseStations(f, LayoutRegroupRules.Seed(RegroupInputOf(f)));
+
+    /// <summary>The validated station graph and geometry shared by every canonical regroup trial.</summary>
+    public static RegroupInput RegroupInputOf(StationFacts f)
     {
         if (f.Built is null)
         {
@@ -565,7 +569,7 @@ public static partial class LayoutStationPlanRules
         }
         var graph = StationGraph.BuildStationGraph(input);
         var built = LayoutPlan.BuiltRegions(f.Plan, f.StandingIds()!);
-        var regrouped = LayoutRegroupRules.Regroup(new RegroupInput
+        return new RegroupInput
         {
             Cluster = new ClusterInput { Graph = graph, Catalog = f.Catalog, RoofDistance = f.RoofDistance, BedMerge = f.BedMergePriceOf(), Rest = f.Rest },
             Embed = new EmbedInput
@@ -582,7 +586,14 @@ public static partial class LayoutStationPlanRules
             },
             Price = f.RegroupPriceOf(),
             Mismatches = f.Mismatches,
-        });
+        };
+    }
+
+    /// <summary>Finishes the station chain for one externally priced regroup candidate, preserving its embedding.</summary>
+    public static StationAdvice AdviseStations(StationFacts f, Regrouping regrouped)
+    {
+        var graph = regrouped.Graph;
+        var built = LayoutPlan.BuiltRegions(f.Plan, f.StandingIds()!);
         var clustering = regrouped.Clustering;
         var embedIn = regrouped.Embed;
         var embedding = regrouped.Embedding;

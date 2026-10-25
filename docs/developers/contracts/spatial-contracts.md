@@ -516,8 +516,9 @@ met. Each owed room's wave is its own Method, admitted beside the others by clai
   pays a wall ring for its size, so a room standing apart pays a ring of its own and one
   beside the rest shares theirs. `EmbedScore.Enclosure` is the rooms' union ring and
   footprint, `-(Wall x ring cells + Footprint x cells)`, and is part of `Total`, so the
-  embedding, the regroup (`EmbedPts`) and the replan hysteresis (#3740) price the same
-  thing; no saved-walls credit is kept beside it.
+  embedding and replan hysteresis (#3740) use it to propose geometry. Regroup adoption
+  charges the tiled shell through the canonical construction ledger; it adds no second
+  enclosure credit.
   The ring is read off rectangles (blocks grown by the
   killbox yard and `perimeterThick`; a ring cell off the map counts one, as
   `Prefix.SumOpen` reads it) and ignores
@@ -594,6 +595,26 @@ alone replans nothing; a day after the last replan (`ReplanDaily`) it replans an
 facts the key leaves out still reach the plan (`reviewLayoutPlan`, `ColonyPlan.cs`), journaling `layout_stations`,
 `layout_plan` and `layout_replan_tiled` rows. [Facilities](../architecture/facilities.md)
 holds the station-chain design.
+
+Runtime first plans and replans compare complete tiled grouping candidates before saving a
+winner. `RegroupAsync` keeps the existing bound of one seed and eight proposals over four
+rounds, at most 33 distinct candidate evaluations. Each round batches native construction
+sites, then routes and closed-room predictions, with candidate-qualified ids so two trials
+of room 1 cannot exchange answers. Each trial retains its exact tiled geometry and full
+station pieces and projected field cells, and derives resource demand from that candidate's owed construction.
+It runs the existing colony model and coupled portfolio comparison over the
+same observation frame; material prices are read once per distinct resource for that search.
+The ledger owns shell spend, hosted functions and disturbed sleep; grouping adds only its
+walk cost. The shared urgent-zero, death and break-risk floors rank candidates before their ledgers.
+These are deterministic local forecasts and make no model-service calls.
+
+Replan preparation retains the hourly survey and its pinned rooms. The completed review
+prices its candidates after model preparation and adopts the winner before the authoritative
+review selects and admits work, so that review's room selection refers to the adopted geometry.
+World, saved-plan tick, rewind and newly held-room guards still reject superseded preparation.
+A first plan waits for the current review's resource demand. Normal reviews reconstruct
+intra-room station visits from current demand and the ledger after reload, so disturbed sleep
+does not depend on unsaved station advice.
 
 ### Layout reconcile
 

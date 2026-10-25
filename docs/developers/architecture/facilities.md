@@ -1,17 +1,16 @@
 # Facilities
 
-Room functions are the game's own `Room.Role`; the brain never assigns a
-role, it only reads which one the game scored. `policy.FacilityCatalog` is the
-per-role matrix over every installed RoomRoleDef, and every planner that
-pursues a role walks the same ladder. This page is the ladder and the matrix;
-[space and resources](space-and-resources.md) covers siting and budgets.
-
+The game scores a room's native role from its actual stations. A room can serve
+several functions: beds, benches, seats and medical beds count wherever they
+stand. Every function uses its owning canonical room credit under the merged
+native role, cleanliness, impressiveness stage and station factors.
+[Space and resources](space-and-resources.md) covers siting and budgets.
 ## The ladder
 
 Each rung is a separate deficit under an existing maintained Concern. Shared
 admission checks its resources and dependencies; vanilla priorities schedule pawn work.
 
-1. **Reuse**: a room the game already scores as hosting the function, or an
+1. **Reuse**: a room containing the station that serves the function, or an
    existing bench, bed or spot that already does the job. Reuse wins over
    building while its capacity suffices, so a colony that has the facility
    gets no second one. The one exception is a production bench kind the work
@@ -177,18 +176,10 @@ A butchering order makes the butcher table's node `Filth`
 `RecipeFlow`): `Corpse.ButcherProducts` spawns the corpse's blood at the
 butcher's cell (decompiled 1.6; the defs only name the special product), and
 the room's cleanliness feeds `RoomStatDefOf.FoodPoisonChance`, which a cook's
-meal reads (`CompFoodPoisonable`). Sharing a room with a node that is not
-filthy is priced, not refused: `FilthCost` (on the decision and the merged
-group, `RoomGroup.Filth`) gives one blood unit's cleanliness shift (the filth's
-`Cleanliness` stat, -10 for `Filth_Blood`, over the room's cells, per
-`RoomStatWorker_Cleanliness`), the `FoodPoisonChance` curve at that shift and the
-units until it leaves zero (the curve is flat from cleanliness -2 up), and the
-shift of the `Impressiveness` cleanliness input (`1 + cleanliness / 2.5`); all
-read from the defs (`DefinitionCatalog.FilthModel`), the cooks in the room named
-as exposed. The seed keeps the pair apart (`cluster_filth_priced`, a keep that
-carries the price) unless a `PairTogether` rule in `ClusterInput.Pairs` joins
-the pair (the regrouping's per-pair override, below; the price-versus-walk
-comparison for filth is #2955). Kept apart, the butcher
+meal reads (`CompFoodPoisonable`). The conservative seed keeps a filthy station apart from other stations
+(`cluster_filth_priced`) unless a `PairTogether` rule joins them. This is a
+geometry proposal, and canonical room predictions and credits price adoption.
+Kept apart, the butcher
 stands in a closet of its own, and the group's `Planned` role is `PlannedButchery` when the game reads the closet as a
 kitchen (the table scores as one), and `PlannedRoleOfGroup` returns it over the
 role mapping. The graph sends the corpses in from, and the meat and leather
@@ -261,76 +252,42 @@ the switching price above.
 
 ### Regrouping
 
-`policy.Regroup` (`LayoutRegroup.cs`, #2878) is the outer search over the room
-groups that `AdviseStations` runs: `ClusterStations` is the conservative seed and
-the embedding moves blocks of a fixed group set, so a move is proposed, the
-stations are clustered again under a per-pair rule (`ClusterInput.Pairs`:
-`PairTogether` merges past a lost-effect or filth refusal, `PairApart` keeps two
-rooms apart whichever third node bridges them), the groups are embedded, and the
-move is kept when the priced total falls. Tiling runs once on the winner. Moves:
-**merge** (a pair the seed kept for a bench slowed by the wrong role; a merge that
-would lose a role effect, such as two beds becoming a barracks, an open-sky
-exclusion or the area limit is never proposed, and a suite is never reached: a
-suite is a target-sized bedroom node, `StationNode.Floor` from `suiteCells` of its
-owner's target (`StationFacts.Suites`, `SuiteWishes`, #2939), its own room
-whatever the pair rules say, `cluster_suite_own_room`, planned as `PlannedSuite`
-and matched only to built suites, so a raised target outgrows its suite and
-the tiler plans a larger suite as its successor (`Replaces`), its owner migrating straight to it),
-**split** (two nodes of a room that pays a
-conflict, loses a role effect or carries a role-guard mismatch) and
-**move-a-need** (a station class leaves the room that slows it for a room of the
-role it wants, or leaves a cold room). A **filth merge** (#2955) joins a butcher
-kept in its closet to the room it flows to when the walk saved (the embedding
-score) outweighs what the shared room costs (#2988): the poisoning residual at
-the work-day rate below. **Cleaning labor** is a common baseline (#2993), not a
-cost of merging: the butchery runs a day (`StationNode.FilthRuns`, a corpse each,
-one `TryMakeFilth` unit) times the filth def's `cleaningWorkToReduceThickness`
-(70 for `Filth_Blood`) over a colonist's `CleaningSpeed` stat
-(`JobDriver_CleanFilth` divides the work by it a tick), in work-days
-(`FilthModel.CleaningWorkDays`), is priced in every group that holds a filth node
-(`RoomGroup.Cleaning`, closet or shared), and a merge leaves the sum unchanged,
-so it never decides a merge; it only lifts the absolute totals. **Poisoning residual**: nobody may clean
-filth before `WorkGiver_CleanFilth.MinTicksSinceThickened` (600 ticks), so the
-units of the runs that fall in that window stand at once (`StandingUnits`, a
-day's runs `FilthWork` ticks apart), at that many units' cleanliness; the meals
-the exposed stations make (`StationNode.Meals`) while any stands (`Exposure`,
-the share of the day) are poisoned at the room's `FoodPoisonChance` there
-(`StandingPoison`), each poisoning the work of the `FoodPoisoning` hediff
-(`PoisoningModel.WorkDays`: each stage's days times the Consciousness it takes,
-plus its vomits, about 0.5 work-days). `foodPoisonGame` and `filthGame` hold the
-judgments. The floor's `Cleanliness` and `CleaningTimeFactor` and the dirt
-pawns track in (`Pawn_FilthTracker`, `FilthRate` a cell entered) are not
-priced: the floor is laid after the layout and the cells entered are the
-embedding's traffic. No thought reads room cleanliness (only `Impressiveness`
-does), so the impressiveness shift is priced only where a sleeper's thought reads
-it, in a bed group (below). `FilthModel.Priced` (a merge is proposed) needs the
-poisoning and the stand ticks, not the cleaning inputs.
+`LayoutRegroupRules.RegroupAsync` searches the conservative station clustering.
+Each proposal changes per-pair rules (`ClusterInput.Pairs`), reclusters and embeds
+its rooms, then the runtime tiles it and reads native room predictions before
+canonical forecast comparison. Equivalent groupings are evaluated once, and the
+winner retains its evaluated geometry and predictions. The full consequence
+vector keeps safety floors above shell savings. Shell spend enters the canonical
+ledger once; the search adds only its walking delta. No model calls are made.
 
-A **bed-station merge** (#3750, epic #3738 D9) puts beds in one room with a
-kitchen, dining, butchery or freezer station (a `Dine` or `StoreCold` node, or a
-work station the game alone reads as a Kitchen or DiningRoom) only when the walk
-saved beats what the sleepers lose (`LayoutBedStations.cs`); no table forbids it.
-`Clusterer.Eval` adds two lost effects to such a group, each only when it costs
-something, so the seed keeps the pair apart (`cluster_lost_effect`) and the
-regrouping proposes the merge (`regroup_bed_station_merge_walk_beats_loss`, or a
-`kept` row `regroup_bed_station_merge_loss_beats_walk` naming the effects).
-**Disturbed sleep** (`sleep_disturbed`): the group's station visits a day (its
-graph movements to or from a hosted station, at the group's share of the node)
-times the share of them made while a worker sleeps (`RestSchedule`, the colony's
-workers' timetables: Work and Anything hours visit, Sleep hours sleep) keep that
-many `SleepDisturbed` memories alive (the ThoughtDef's stage mood, duration and
-stacking, `MemoryThought.Mood`), priced like any lost mood by `PriceMood` for
-each sleeper. **Impressiveness** (`impressiveness`): the filth of the group's
-runs standing at once (`Residual`) lowers the room's Cleanliness over its cells
-and so perhaps its stage (`RoomSpaceRules`, `ImpressivenessLevels`); the sleepers
-lose their bed thought's difference between the stages
-(`BedMergeFacts.Read.Sleepers`, `ForecastHousing.BedroomGain`) for the share of the
-day the filth stands, in work-days. An unread rest schedule, `SleepDisturbed`
-def, filth model or sleeper gains, where needed, is a `RequiredFactException`.
-Not priced: the game's 300-tick cooldown between disturbances (the price is an
-upper bound) and the spread of the sleepers' gains (their mean is used); a
-freezer's cold against the beds stays the environment conflict.
+`PairTogether` permits a merge past a seed's lost-effect or filth refusal;
+`PairApart` keeps the pair apart even when a third node could bridge it.
+Clustering still enforces area and open-sky constraints and keeps suites in their
+own rooms. Proposals include **merge** (nodes in different rooms), **split**
+(two nodes sharing a room) and **move-a-need** (a station class
+leaves the room that slows it for a room of the role it wants, or leaves a cold
+room). Seed conflicts and role mismatches order proposals, while every pair
+can propose a merge or split within the existing eight-proposal, four-round
+budget. A quiet shared room can therefore be split when the canonical ledger
+exposes a safety or economic loss absent from the seed's approximations.
 
+Filth costs use the native clean and dirty room predictions at the share of
+the day each state stands. Nobody may clean filth before
+`WorkGiver_CleanFilth.MinTicksSinceThickened` (600 ticks), so overlapping
+butchery runs determine the residual thickness and exposure. Each hosted
+function that reads impressiveness prices its conditional stage through its
+canonical credit. Kitchen credits use the room's `FoodPoisonChance` and the
+shared forecast's observed capacity penalties for each poisoning case.
+Production and care keep their documented steady cleanliness conventions.
+The station chain does not maintain a second poisoning or cleaning cost ledger.
+
+A bed can share with any work station. Conservative clustering records its
+role, sleep and filth conflicts to propose candidates; those approximations do
+not select the winner. Station-flow visits during the current rest schedule
+hold the native `SleepDisturbed` memory, which is subtracted once in each
+sleeper's canonical housing credit. The native cooldown between disturbances
+is not projected, so visit exposure remains an upper bound. Missing schedule,
+thought or filth facts fail the option by name.
 The tiler keeps each group's runs on its room (`PlannedRoom.FilthRuns`, by node, refreshed on
 every replan, #3797), so a planned room's **steady-state cleanliness** is priced by the same
 model after the layout: `PlannedRoomCleanlinessRules.Steady` adds the units of those runs
@@ -342,33 +299,14 @@ A None room keeps the stat's roomless score; an unread filth model is a
 credits (#3802, `PlannedRoomCleanlinessRules.FoodPoisonChance`, [forecast value](forecast-value.md)) and their siblings.
 The tiler also keeps the group's meals a day on its room (`PlannedRoom.Meals`, #3802).
 
-The total is in embedding score points, no new constant: `-Score.Total()` plus
-the conflicts. `RoomGroup.Costs` ticks a day become work-days (`TicksPerDay`),
-and a work-day is `planWeights.Walk / WorkPrice.CellWalkDays` points: the score
-already prices a movement as a point per cell, and a cell costs a colonist
-`CellWalkDays` of a work-day (move speed); the colonist's food-upkeep work-day
-(#2945, `WorkPrice.WorkDayW`) is the unit `PriceMood` works in. A lost role effect
-is priced by the mood currency (#2954): `MoodModel.LostPoints` at the planned
-room's impressiveness stage (`moodGame.PlannedStage`, 0, the plain room) taken
-from each sleeper at the colonists' mean mood, as break risk. The role guard
-(`StationFacts.Mismatches`, #2898) is a cost input (the effect of the role the
-mixed room predicts, lost to the native role the standing room is read as) and
-the reason of a split. A lost effect whose mood is unknown (no model, no mood
-census) is counted and breaks ties between equal totals, fewer first. A trial
-ranks by what it leaves undone (no ground, a required link not adjacent), then
-the total, then the lost effects. Nothing is vetoed by a constant. The search is
-seeded by the embedding's seed (`regroupProposals` moves a round, `regroupReview`
-rounds, as `siteSearchTop` bounds the embedding), so it is the same at any
-thread count. With no work price (food census, colonists or a crop unread) the
-seed stands (`regroup_work_price_unknown`). Each applied move, or the reason none
-was, is a `layout_regroup` decision.
-
+Candidate selection uses the canonical forecast floors and ledger. The ledger
+already charges shell construction and every actual station function; layout
+adds only walking in capability-days. Native role mismatches propose splits,
+rather than adding a second generic role penalty. See [Room capabilities](#room-capabilities)
+for the candidate budget, native batching and deterministic CPU cost.
 ### Station plan and successor rooms
 
-`policy.AdviseStations` (`LayoutStationPlan.cs`) runs graph, clustering and
-embedding over the live colony and returns the `StationAdvice`; `TileStations` hands that
-to `TileEmbedding`, and `DeriveLayoutPlan` and `ReplanLayout` take the tiled plan as the
-plan. The advice itself is held in memory by the ColonyReview and is not persisted. At each layout review
+`RegroupAsync` proposes clustered, embedded candidates from the live colony. The runtime tiles each candidate, reads its native facts and runs canonical portfolio selection before adopting the winner through the same first-plan/replan owner. `AdviseStations` finishes a supplied candidate, and `TileStations` hands its geometry to `TileEmbedding`. The advice itself is held in memory by the ColonyReview and is not persisted. At each layout review
 `ColonyReview.stationAdvice` reads `StationFacts` from the
 projection (the unknown stays unknown, never zero): the people (colonists less
 babies, the ward from `SelectHospitalBed`'s ill set, held prisoners, the pen
@@ -378,7 +316,7 @@ demand as stock, and the catalog's recipe flows, stack limits and rot
 (`StationItemFacts`). It writes one `layout_stations` decision: `advised` with
 each group (stations, footprint, clearance, area, predicted role, costs,
 block), the clustering's conflicts and the embedding report, or `failed`; an unread
-fact writes the `required_fact` row naming it instead. The chain runs at most once per change of its inputs (`StationFacts.InputsKey` and the survey's terrain; a review with them unchanged reads the last advice and writes no row), and at least once a game day (the replan triggers, below). Cost on the 250x250 baseline map with a 30-colonist plan and 10 recipes ordered: about 85 ms a run, 0.5 ms for the key (`BenchmarkAdviseStationsLarge`).
+fact writes the `required_fact` row naming it instead. The chain runs at most once per change of its inputs (`StationFacts.InputsKey` and the survey's terrain; a review with them unchanged reads the last advice and writes no row), and at least once a game day (the replan triggers, below).
 
 A fresh plan (`policy.DeriveLayoutPlan`, #2959) is this chain run through the tiler (`TileStations`, `StationFacts.Derive`); the `layout_stations` row carries `derive: true`, and the `layout_plan` row is `skipped` (`no_core` when the survey finds no core) or `failed` (`chain_error`); an unread fact is the chain's `required_fact` row. A fact the colony has not read fails the derive like any advice: the colony's first plan waits for it with the clock held (`first_plan`, #3652). The chain places the power sites (`EmbedSites`); a replan is the tiled plan too (below).
 
@@ -587,11 +525,32 @@ See the wiki's [hidden conduit](https://rimworldwiki.com/wiki/Hidden_conduit) an
 
 ## Room capabilities
 
-`policy.FacilityCatalog` is the authoritative per-role capability matrix.
-Installed definitions and DLC determine which facilities exist. The sections
-below describe their planning contracts; they are not an implementation-status
-checklist.
+The saved layout assigns stations to rooms. A request furnishes an outstanding
+station slot in that room, regardless of which native role wins. A medical bed
+in a bedroom counts toward medical capacity, while care still reads that
+bedroom's actual infection and surgery factors.
 
+Room sharing is selected after geometry and native prediction. The existing
+search tries at most eight proposals in each of four rounds, plus its seed:
+at most 33 distinct canonical portfolio evaluations, fewer when groupings or
+native footprints are identical. Native construction and room reads are batched
+per round with candidate identities. Each evaluation may itself run several
+deterministic ColonyModel outcomes within the existing portfolio budget. This
+adds deterministic CPU work; it adds no language model or paid-provider calls.
+The canonical comparison preserves safety floors, then compares its existing
+ledger and tie breakers. Shell work/material is already in that ledger; walking
+is added once by the layout policy. The winning tiled geometry is adopted for
+both first plans and replans.
+
+Every actual station function dispatches its existing canonical credit in the
+merged room. A research bench pays its native role and cleanliness speed loss;
+sleepers pay work traffic's disturbed sleep once through the housing credit.
+The current timetable weights station-flow visits during sleep. Existing filth
+runs determine clean/dirty exposure. Native projects both impressiveness stages,
+and mood credits price each conditional stage at that exposure, preserving the
+existing steady cleanliness convention for production and care. This is a
+conditional duty model, not an exact nonlinear expectation from a mean stage.
+The decision names the canonical credit losses that outweigh saved shell and walk.
 ```mermaid
 flowchart LR
     Need[Observed facility deficit] --> Reuse[Reuse suitable room or furniture]

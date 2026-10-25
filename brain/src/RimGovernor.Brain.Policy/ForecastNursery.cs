@@ -189,7 +189,7 @@ public static class ForecastNursery
 
     /// <summary>The planned priced nursery that takes the babies: the lowest id; 0 for none.</summary>
     private static int Taker(ForecastCoupledContext context) =>
-        context.RoomCredits.ContainsKey(PlannedRole.Nursery) ? context.PlannedRoomRoles.Where(r => r.Value == PlannedRole.Nursery).Select(r => r.Key).DefaultIfEmpty(0).Min() : 0;
+        context.RoomCredits.ContainsKey(PlannedRole.Nursery) ? context.PlannedRoomRoles.Keys.Union(context.PlannedRoomFunctions.Keys).Where(room => PlannedRoomCredits.Serves(context, room, PlannedRole.Nursery)).DefaultIfEmpty(0).Min() : 0;
 
     /// <summary>Per recipient its heard mood with the nursery and without it, and the taker's named states.</summary>
     private sealed record Heard(IReadOnlyDictionary<string, (double With, double Without)> Moods, string[] States)

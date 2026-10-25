@@ -38,102 +38,15 @@ public sealed record FilthModel
 
     public double SurgeryCleanlinessRoomless { get; init; }
 
-    /// <summary>What one poisoned meal costs the eater (the FoodPoisoning hediff); the zero value prices no poisoning.</summary>
-    public PoisoningModel Poisoning { get; init; } = new();
-
-    /// <summary>
-    /// The filth def's cleaningWorkToReduceThickness, the work (JobDriver_CleanFilth's cleaning-speed ticks)
-    /// one unit of thickness takes to clean.
-    /// </summary>
-    public double CleaningWork { get; init; }
-
-    /// <summary>The CleaningSpeed stat of a colonist with no modifier (its defaultBaseValue, the speed the work is divided by).</summary>
-    public double CleaningSpeed { get; init; }
-
     /// <summary>WorkGiver_CleanFilth.MinTicksSinceThickened, the ticks filth stands before anyone may clean it (#2988). A zero leaves that part unpriced.</summary>
     public double StandTicks { get; init; }
 
-    /// <summary>
-    /// Reports a model that prices the poisoning; a merge into a room is not proposed while it is unknown, as
-    /// it would look free. The cleaning labor is not a condition: a room pays it merged or apart
-    /// (CleaningWorkDays), so it cancels from the decision.
-    /// </summary>
-    public bool Priced() => Def != string.Empty && Poisoning.WorkDays() > 0 && QuestCapacityForecast.FinitePositive(StandTicks);
-
-    /// <summary>
-    /// The work-days a day of cleaning the filth of the nodes' runs takes: the units a day (runs x
-    /// FilthGame.UnitsPerRun) times the def's CleaningWork over the colonist's CleaningSpeed. Zero while the def
-    /// work or the speed is unknown.
-    /// </summary>
-    public double CleaningWorkDays(IReadOnlyDictionary<string, FilthRuns> runs)
-    {
-        if (!QuestCapacityForecast.FinitePositive(CleaningWork) || !QuestCapacityForecast.FinitePositive(CleaningSpeed))
-        {
-            return 0;
-        }
-        var days = 0.0;
-        foreach (var r in runs.Values)
-        {
-            days += r.Runs * LayoutFilthRules.FilthGameJudgment.UnitsPerRun * CleaningWork / CleaningSpeed / GameTime.TicksPerDay;
-        }
-        return days;
-    }
-
-    /// <summary>
-    /// Prices each filthy node of a room of cells cells that also holds stations the filth is not for; exposed
-    /// are the nodes that read cleanliness, meals the meals a day they make and runs each filthy node's
-    /// butchering. A model that prices nothing owes nothing.
-    /// </summary>
-    internal IReadOnlyList<FilthCost> FilthCosts(IReadOnlyList<string> filthy, IReadOnlyList<string> exposed, int cells, double meals, IReadOnlyDictionary<string, FilthRuns> runs)
-    {
-        if (Def == string.Empty || cells <= 0 || filthy.Count == 0)
-        {
-            return [];
-        }
-        var per = Cleanliness / cells;
-        var onset = 0.0;
-        if (FoodPoison.Count > 0 && FoodPoison[^1].Y == 0)
-        {
-            onset = FoodPoison[^1].X;
-        }
-        var units = 0.0;
-        if (per < 0 && onset < 0)
-        {
-            units = onset / per;
-        }
-        var chance = LayoutFilthRules.EvaluateCurve(FoodPoison, per);
-        var output = new List<FilthCost>();
-        foreach (var node in filthy)
-        {
-            var r = runs.GetValueOrDefault(node);
-            var (standing, exposure) = LayoutFilthRules.Residual(r.Runs * LayoutFilthRules.FilthGameJudgment.UnitsPerRun, r.Ticks, StandTicks);
-            var standingChance = LayoutFilthRules.EvaluateCurve(FoodPoison, per * standing);
-            var poisonings = meals * exposure * standingChance;
-            output.Add(new FilthCost
-            {
-                PoisonWorkDays = poisonings * Poisoning.WorkDays(),
-            });
-        }
-        return output;
-    }
 }
 
-/// <summary>
-/// The judgment behind the cleaning price (#2988). UnitsPerRun is the filth units a
-/// butchery run leaves: Corpse.ButcherProducts calls FilthMaker.TryMakeFilth once with the default count of one
-/// (read with ilspycmd), so a unit of thickness per corpse. SpeedStat is the stat a pawn's cleaning speed is
-/// (JobDriver_CleanFilth divides the work by it). The floor's Cleanliness (RoomStatWorker_Cleanliness adds each
-/// cell's terrain stat) and CleaningTimeFactor, and the dirt pawns track in (Pawn_FilthTracker.
-/// Notify_EnteredNewCell: FilthRate times 0.005 a cell entered), are not priced: the floor is laid after the
-/// layout and the cells entered are the embedding's traffic, neither known in the station chain. No ThoughtDef
-/// reads room cleanliness (only the Impressiveness stat does, recorded as ImpressivenessInputPerUnit), so the
-/// cleanliness is priced only through a bed group's impressiveness stage (#3750, Clusterer.FilthStage).
-/// </summary>
+/// <summary>The native filth thickness produced by one butchered corpse.</summary>
 public sealed record FilthGame
 {
     public double UnitsPerRun { get; init; }
-
-    public string SpeedStat { get; init; } = string.Empty;
 }
 
 /// <summary>A node's butchering: the runs a day and the work ticks of one.</summary>
@@ -146,119 +59,11 @@ public readonly record struct FilthRuns
     public FilthRuns Plus(FilthRuns o) => new() { Runs = Runs + o.Runs, Ticks = o.Ticks };
 }
 
-/// <summary>
-/// The judgment behind the poisoning price (#2955). Hediff is the sickness a poisoned
-/// meal gives (FoodUtility.AddFoodPoisoningHediff). WorkCapacity is the capacity of its stages that stands for
-/// the sick colonist's work: Consciousness, the lowest of the capacities the hediff cuts that a worker uses
-/// (Manipulation 0.9 / 0.8 / 0.9 and Moving 0.8 / 0.5 / 0.8 are higher or equal in every stage), and the one
-/// the game scales all awake action by; the price is the work lost at that factor. VomitTicks is the mean length
-/// of a vomit job (JobDriver_Vomit, read with ilspycmd), 300 to 900 ticks drawn uniformly, during which the
-/// colonist does no work.
-/// </summary>
-public sealed record FoodPoisonTable
-{
-    public string Hediff { get; init; } = string.Empty;
-
-    public string WorkCapacity { get; init; } = string.Empty;
-
-    public double VomitTicks { get; init; }
-}
-
-/// <summary>One stage of the poisoning hediff from MinSeverity up: WorkFactor the stage's factor on the work capacity (1 when it cuts none) and VomitMtbDays the mean days between vomits (0 for none).</summary>
-public readonly record struct PoisonStage(double MinSeverity, double WorkFactor, double VomitMtbDays);
-
-/// <summary>The FoodPoisoning hediff: it starts at severity Initial and loses PerDay of it a day (HediffCompProperties_SeverityPerDay), passing through Stages from the top one down to zero.</summary>
-public sealed record PoisoningModel
-{
-    public double Initial { get; init; }
-
-    public double PerDay { get; init; }
-
-    public IReadOnlyList<PoisonStage> Stages { get; init; } = [];
-
-    /// <summary>
-    /// The work one poisoning costs, in work-days: for each stage the days spent in it times the work capacity
-    /// it takes away, plus the days of vomiting (the stage's days over its vomit interval, each VomitTicks
-    /// long). Worked: from severity 1 at 1 a day, the initial stage (0.8 up) lasts 0.2 days at x0.6, the major
-    /// (0.2 up) 0.6 days at x0.5 and the recovering 0.2 days at x0.6, 0.08 + 0.30 + 0.08 = 0.46 work-days;
-    /// vomits every 0.3, 0.2 and 0.4 days are 0.667 + 3 + 0.5 = 4.17 vomits of 600 ticks, 0.042 work-days;
-    /// 0.50 in all. Zero for a model that is not known.
-    /// </summary>
-    public double WorkDays()
-    {
-        if (!QuestCapacityForecast.FinitePositive(Initial) || !QuestCapacityForecast.FinitePositive(PerDay) || Stages.Count == 0)
-        {
-            return 0;
-        }
-        var stages = Stages.SortedBy((a, b) => a.MinSeverity < b.MinSeverity);
-        var total = 0.0;
-        var top = Initial;
-        for (var i = stages.Count - 1; i >= 0; i--)
-        {
-            var low = Math.Max(stages[i].MinSeverity, 0);
-            if (i == 0)
-            {
-                low = 0;
-            }
-            if (low >= top)
-            {
-                continue;
-            }
-            var days = (top - low) / PerDay;
-            total += days * (1 - stages[i].WorkFactor);
-            if (stages[i].VomitMtbDays > 0)
-            {
-                total += days / stages[i].VomitMtbDays * LayoutFilthRules.FoodPoisonJudgment.VomitTicks / GameTime.TicksPerDay;
-            }
-            top = low;
-        }
-        return total;
-    }
-}
-
-/// <summary>
-/// The price of a filth node standing in a room that holds other stations, in the units the game reads it in.
-/// Each filth unit adds its Cleanliness stat to the room's sum, which the room's cell count divides
-/// (RoomStatWorker_Cleanliness), so one unit moves the room's cleanliness by CleanlinessPerUnit. Food poison
-/// chance is the curve of the room's cleanliness, zero from PoisonOnsetCleanliness up, so FoodPoisonPerUnit is
-/// the chance one standing unit alone gives and UnitsToPoison the units it takes to leave the zero.
-/// ImpressivenessInputPerUnit is the change one unit makes to the cleanliness input of the Impressiveness stat
-/// (1 + cleanliness / 2.5, while the room is not clean), which the stat's combination then weighs. Everything is
-/// read from a room at cleanliness 0, the clamp of that input. Exposed are the nodes in the room whose effect
-/// scales with cleanliness (a cook's meals read the food poison chance).
-///
-/// The price of keeping the node in this room is the poisoning residual in the #2945 work-day unit (#2988). The
-/// cleaning labor of its filth is not part of it: the blood is cleaned wherever the butchery stands, so every
-/// group that holds a filth node pays it (RoomGroup.Cleaning) and a merge changes none of it (#2993). The
-/// residual is the poisoning while the filth stands: nobody may clean a unit before StandTicks, so the units of
-/// the runs that fall in that window (StandingUnits, a day's runs being one batch of runs RunTicks apart) stand
-/// at once, at cleanliness StandingUnits x CleanlinessPerUnit, and the cooks' meals made while they stand (the
-/// Exposure share of the day) are poisoned at the curve's chance there (StandingPoison).
-/// </summary>
-public sealed record FilthCost
-{
-    /// <summary>The work-days a day they cost (PoisoningModel.WorkDays).</summary>
-    public double PoisonWorkDays { get; init; }
-
-    /// <summary>The work-days a day the node costs the room: the poisoning residual.</summary>
-    public double WorkDays() => PoisonWorkDays;
-}
-
 public static partial class LayoutFilthRules
 {
-    private static readonly FilthGame FilthGameValue = new() { UnitsPerRun = 1, SpeedStat = "CleaningSpeed" };
-
-    private static readonly FoodPoisonTable FoodPoisonGameValue = new() { Hediff = "FoodPoisoning", WorkCapacity = "Consciousness", VomitTicks = 600 };
+    private static readonly FilthGame FilthGameValue = new() { UnitsPerRun = 1 };
 
     internal static FilthGame FilthGameJudgment => FilthGameValue;
-
-    internal static FoodPoisonTable FoodPoisonJudgment => FoodPoisonGameValue;
-
-    /// <summary>The table the bridge reads the cleaning model with.</summary>
-    public static FilthGame FilthGameTable() => LayoutFilthRules.FilthGameJudgment;
-
-    /// <summary>The table the bridge reads the poisoning model with.</summary>
-    public static FoodPoisonTable FoodPoisonGame() => LayoutFilthRules.FoodPoisonJudgment;
 
     /// <summary>SimpleCurve.Evaluate: linear between points, the end values outside them.</summary>
     internal static double EvaluateCurve(IReadOnlyList<CurvePoint> points, double x)

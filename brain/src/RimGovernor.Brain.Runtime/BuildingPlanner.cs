@@ -67,7 +67,6 @@ public sealed partial class BuildingPlanner
     /// Restricts furnishing to rooms whose native role can host the function: the facility furnishes through its
     /// planned room.
     /// </summary>
-    internal Pol.FacilityRequirement? Facility { get; set; }
 
     /// <summary>Further restricts furnishing to these observed cells (the sleeping planner's warm hosting rooms); null imposes no restriction.</summary>
     internal IReadOnlyList<Cell>? Cells { get; set; }
@@ -402,12 +401,6 @@ public sealed partial class BuildingPlanner
             }
             r = resolved!;
             definitions = [r.Definition];
-            var (furnish, furnishResult, done) = await r.PlannedFacilityFurnishingAsync(state, review, goal, reading, facts, call, epoch).ConfigureAwait(false);
-            if (done)
-            {
-                return furnishResult;
-            }
-            r = furnish!;
         }
         if (r.Temperature is not null && r.Temperature.Thing != "")
         {
@@ -451,89 +444,13 @@ public sealed partial class BuildingPlanner
                 break;
             }
         }
-        if (selectionReason == BuildingReasonExistingFacility)
-        {
-            // The ring and the furniture are independent: a campfire already standing for the kitchen does not
-            // excuse the planned room's ring.
-            var (module, moduleOk) = r.PlannedRoomModule();
-            if (moduleOk)
-            {
-                var (room, owed) = PlannedRoomOwed(facts, module);
-                if (owed)
-                {
-                    var ring = await r.ReconcileRoomAsync(state, review, goal, new ReviewReading { Reading = reading, Frame = new BridgeReviewFrame(), Emergency = new EmergencyFacts() }, null, new RoomReconcile { RingOnly = true, Room = room, Name = PlannedRoomMethod(room).Value }, call, epoch).ConfigureAwait(false);
-                    if (ring.Verdict.Is(Pol.Cause.MethodUsed))
-                    {
-                        return ring;
-                    }
-                }
-            }
-        }
         if (!selectionReason.IsZero)
         {
             return new BuildingResult { Verdict = selectionReason };
         }
-        var (plannedModule, plannedModuleOk) = r.PlannedRoomModule();
-        if (plannedModuleOk)
-        {
-            // The planned room is raised and furnished together: the ring is admitted, and the stove or bench
-            // goes onto the room's interior without waiting for the walls. A shell already tried this epoch, or
-            // refused, leaves the usual placement to go on.
-            var (room, owed) = PlannedRoomOwed(facts, plannedModule);
-            if (owed)
-            {
-                var ring = await r.ReconcileRoomAsync(state, review, goal, new ReviewReading { Reading = reading, Frame = new BridgeReviewFrame(), Emergency = new EmergencyFacts() }, null, new RoomReconcile { RingOnly = true, Room = room, Name = PlannedRoomMethod(room).Value }, call, epoch).ConfigureAwait(false);
-                // A ring the portfolio holds is no failure of the station (#3754): the stove or bench takes the usual
-                // placement, off the held room's interior, so its blueprint there does not start the room unpriced.
-                var held = ring.Verdict.PortfolioHolds;
-                if (!ring.Verdict.SkipsToPlacement && !held)
-                {
-                    return ring;
-                }
-                if (!held && HostsInPlannedRoom(plannedModule))
-                {
-                    var kitchen = r.Copy();
-                    kitchen.Cells = PlannedRoomInterior(room);
-                    kitchen.Environment = Pol.PlacementEnvironment.Anywhere;
-                    r = kitchen;
-                }
-            }
-            else if (HostsInPlannedRoom(plannedModule))
-            {
-                var cells = PlannedRoomCells(facts, plannedModule);
-                if (cells is not null)
-                {
-                    var kitchen = r.Copy();
-                    kitchen.Cells = cells;
-                    r = kitchen;
-                }
-            }
-        }
-        if (r.ButcherFacility() && r.Cells is null)
-        {
-            // The bench never falls back to a free search: it stands in the planned butchery, built or not, and
-            // waits for the plan to hold one.
-            var cells = PlannedRoomCells(facts, PlannedRole.Butchery) ?? PlannedRoomPlanCells(facts, PlannedRole.Butchery);
-            if (cells is null)
-            {
-                return new BuildingResult { Verdict = AwaitingPlan("butchery_room", "") };
-            }
-            var bench = r.Copy();
-            bench.Cells = cells;
-            bench.Environment = Pol.PlacementEnvironment.Anywhere;
-            r = bench;
-        }
-        if (r.Concern == FoodRules.CookingNeed.FilingKey && r.Definition == "Campfire" && r.Cells is null && r.Paste.Count == 0)
-        {
-            // The cooking campfire goes in the planned kitchen once it stands.
-            var cells = PlannedRoomCells(facts, PlannedRole.Kitchen);
-            if (cells is not null)
-            {
-                var fire = r.Copy();
-                fire.Cells = cells;
-                r = fire;
-            }
-        }
+        var (furnish, furnishResult, done) = await r.PlannedFacilityFurnishingAsync(state, review, goal, reading, facts, call, epoch).ConfigureAwait(false);
+        if (done) return furnishResult;
+        r = furnish!;
         if (r.ButcherFacility())
         {
             definitions = [r.Definition];
@@ -869,26 +786,22 @@ public sealed partial class BuildingPlanner
         }
         // A loose sleeping spot stands only in a room planned to sleep in; the basic-comfort table and seat keep
         // out of the rooms that must stay clear.
-        var looseSpot = Concern == ShelterFamily.Sleeping.FilingKey && Definition == "SleepingSpot" && Facility is null && Cells is null;
+        var looseSpot = Concern == ShelterFamily.Sleeping.FilingKey && Definition == "SleepingSpot" && Cells is null;
         IReadOnlyList<Cell> protectedSet = protectedCells;
-        if (!looseSpot && (Concern == ShelterFamily.Sleeping.FilingKey || ((Phase == Pol.Phase.ComfortBasic || Phase == Pol.Phase.ComfortSpot) && Cells is null)) && Facility is null)
+        if (!looseSpot && Cells is null && (Concern == ShelterFamily.Sleeping.FilingKey || Phase == Pol.Phase.ComfortBasic || Phase == Pol.Phase.ComfortSpot))
         {
             // Housing furniture and the basic-comfort table and seat stay out of a standing kitchen, lab, storage
             // or other planned room: beds there make it a sleeping room and block the room's own furnishing, and
             // furniture there carves up its warehouse zone.
             protectedSet = [.. protectedSet, .. NonSleepingPlannedCells(facts)];
         }
-        if (ButcherBenchDefinition(Definition) || Concern == FoodRules.CookingNeed.FilingKey)
-        {
-            protectedSet = [.. protectedSet, .. KitchenSeparationRules.SeparationProtectedCells(facts.Facts.Upkeep.Rooms, ButcherBenchDefinition(Definition))];
-        }
         // The cooking campfire stands in the planned kitchen. It has no outdoor stand-in.
-        var cookingCampfire = Concern == FoodRules.CookingNeed.FilingKey && Definition == "Campfire" && Facility is null && Paste.Count == 0;
+        var cookingCampfire = Concern == FoodRules.CookingNeed.FilingKey && Definition == "Campfire" && Paste.Count == 0;
         var cells = new List<Pol.SiteCell>();
         var adjacent = new HashSet<Cell>(Adjacent);
         var roomCells = new HashSet<Cell>();
         var interiorRooms = new List<Pol.InteriorRoom>();
-        var restricted = Temperature is not null || Facility is not null || Cells is not null;
+        var restricted = Temperature is not null || Cells is not null;
         if (looseSpot)
         {
             restricted = true;
@@ -909,46 +822,25 @@ public sealed partial class BuildingPlanner
                 roomCells.Add(c);
             }
         }
-        if (Facility is not null)
-        {
-            if (Cells is not null)
-            {
-                // A bed's cells are the planned bedroom's; its interior slots come from the plan room they lie in.
-                foreach (var c in Cells)
-                {
-                    roomCells.Add(c);
-                }
-                var own = Cells;
-                interiorRooms = [.. PlannedInteriorRooms(facts, plannedRoom =>
-                {
-                    var inside = plannedRoom.Region.Bounds();
-                    return own.Any(c => c.X >= inside.X && c.X < inside.X + inside.Width && c.Z >= inside.Z && c.Z < inside.Z + inside.Height);
-                })];
-            }
-            // Every other facility furnishes through its planned room, which sets Cells (PlannedFacilityFurnishing);
-            // with none planned there is no room to place in.
-            if (roomCells.Count == 0)
-            {
-                return (null, new Pol.StockObservation(), NoSpace("hosting_room"));
-            }
-        }
         if (Cells is not null)
         {
             var allowed = new HashSet<Cell>();
             foreach (var c in Cells)
             {
                 allowed.Add(c);
-                if (Facility is null)
-                {
-                    // No facility: the cells are the room (the kitchen).
-                    roomCells.Add(c);
-                }
+                roomCells.Add(c);
             }
             roomCells.RemoveWhere(c => !allowed.Contains(c));
             if (roomCells.Count == 0)
             {
                 return (null, new Pol.StockObservation(), NoSpace("layout_room_cells"));
             }
+        }
+        if (Cells is not null && FacilityLadder())
+        {
+            interiorRooms = [.. PlannedInteriorRooms(facts, planned =>
+                (facts.Facts.LayoutPlan!.Pieces.GetValueOrDefault(planned.Id) ?? []).Any(piece => piece.Def == Definition)
+                && planned.Region.Cells().Any(roomCells.Contains))];
         }
         foreach (var c in facts.PlanningWindow.Cells)
         {
@@ -989,21 +881,6 @@ public sealed partial class BuildingPlanner
             Limit = 64,
             StockpileZones = StockpileZones.StockpileZoneIds(facts)?.ToDictionary(id => id, _ => true) ?? new Dictionary<string, bool>(),
         };
-        if (Facility is not null)
-        {
-            // A facility furnishes the free room of its role nearest the colony centre; the search spans the map,
-            // so the starter shell stays a candidate until such a room stands.
-            var anchor = center;
-            var (module, moduleOk) = RoomModule();
-            if (moduleOk)
-            {
-                if (LayoutProtected.RoomAnchor(facts, module, center) is { } near)
-                {
-                    anchor = near;
-                }
-            }
-            searchRequest = searchRequest with { Center = anchor };
-        }
         if ((Concern == FoodRules.CookingNeed.FilingKey && Definition == "Campfire") || ButcherBenchDefinition(Definition))
         {
             // The cooking campfire and the butcher table stand by the base, not the landing centroid.

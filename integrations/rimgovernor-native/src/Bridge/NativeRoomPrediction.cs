@@ -20,7 +20,7 @@ namespace RimGovernor.Native;
 /// not in the stats Impressiveness reads, and in the reported Terrains (the distinct interior terrains with their tags,
 /// #3808). The planned furniture (#3840) stands in the closed room: counted once in Wealth, Beauty and Cleanliness, its
 /// cells walkable only in Space unless it is standable, and an impassable piece's cells out of the room; the role
-/// workers still list only observed things. The map-edge row reports the stats' roomlessScore. A shape with no passable
+/// workers list observed things and unspawned planned stations, including each bed's intended use. The map-edge row reports the stats' roomlessScore. A shape with no passable
 /// interior cell closes no room and has no row; a piece, stuff or game member that cannot be read throws (#3834). The
 /// unregistered room is never added to the map's room lookup and touches no game state.
 /// </summary>
@@ -261,7 +261,26 @@ internal static class NativeRoomPrediction
         var cleanliness = Cleanliness(map, cells, things, furnished, NoFloors);
         var floored = Cleanliness(map, cells, things, furnished, floors);
 
-        var room = Unregistered(map, things, edge) ?? throw new InvalidOperationException("the unregistered Room/District/Region members are not readable");
+        // The native role workers must see the furniture the proposed layout will actually contain. These
+        // unspawned objects initialize only their local comps: no ThingMaker/PostMake, ids, map edits or random draws.
+        var roleThings = new List<Thing>(things);
+        foreach (var piece in shape.Furniture)
+        {
+            var def = DefDatabase<ThingDef>.GetNamed(piece.Definition);
+            if (contained.Any(t => t.def == def && t.Position == new IntVec3(piece.Cell.X, 0, piece.Cell.Z))) continue;
+            var projected = Activator.CreateInstance(def.thingClass) as Thing
+                ?? throw new InvalidOperationException("planned room furniture has no Thing class:" + piece.Definition);
+            projected.def = def;
+            projected.Position = new IntVec3(piece.Cell.X, 0, piece.Cell.Z);
+            if (projected is ThingWithComps withComps) withComps.InitializeComps();
+            if (projected is Building_Bed bed)
+            {
+                bed.Medical = piece.Medical;
+                if (piece.Prisoners) bed.ForOwnerType = BedOwnerType.Prisoner;
+            }
+            roleThings.Add(projected);
+        }
+        var room = Unregistered(map, roleThings, edge) ?? throw new InvalidOperationException("the unregistered Room/District/Region members are not readable");
         var stats = new DefMap<RoomStatDef, float>();
         stats[RoomStatDefOf.Wealth] = wealth; stats[RoomStatDefOf.Beauty] = beauty;
         stats[RoomStatDefOf.Space] = space; stats[RoomStatDefOf.Cleanliness] = cleanliness;
@@ -269,7 +288,19 @@ internal static class NativeRoomPrediction
         var role = DefDatabase<RoomRoleDef>.AllDefs.MaxBy(d => d.Worker.GetScore(room))
             ?? throw new InvalidOperationException("no RoomRoleDef is loaded");
         (RoomRole ?? throw new InvalidOperationException("The room role field is unavailable.")).SetValue(room, role);
-        return Row(role.defName, RoomStatDefOf.Impressiveness.Worker.GetScore(room), floored);
+        var cleanScore = RoomStatDefOf.Impressiveness.Worker.GetScore(room);
+        var result = Row(role.defName, cleanScore, floored);
+        if (shape.Filth is { } duty)
+        {
+            if (!double.IsFinite(duty.Units) || duty.Units < 0 || !double.IsFinite(duty.Exposure) || duty.Exposure < 0 || duty.Exposure > 1)
+                throw new InvalidOperationException("planned room filth duty unavailable");
+            var filth = DefDatabase<ThingDef>.GetNamed(duty.Definition);
+            stats[RoomStatDefOf.Cleanliness] = cleanliness + (float)(duty.Units * filth.GetStatValueAbstract(StatDefOf.Cleanliness) / cells.Count);
+            stats[RoomStatDefOf.Beauty] = beauty + (float)(duty.Units * filth.GetStatValueAbstract(StatDefOf.Beauty) * RoofedFilthBeautyFactor / curve.Evaluate(cells.Count));
+            var dirtyScore = RoomStatDefOf.Impressiveness.Worker.GetScore(room);
+            result = result with { Filth = new(dirtyScore, RoomStatDefOf.Impressiveness.GetScoreStageIndex(dirtyScore), duty.Exposure) };
+        }
+        return result;
     }
 
     private static readonly Dictionary<IntVec3, TerrainDef> NoFloors = new();

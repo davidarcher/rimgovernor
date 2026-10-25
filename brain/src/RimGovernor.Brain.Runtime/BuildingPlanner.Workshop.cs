@@ -239,11 +239,9 @@ public sealed partial class BuildingPlanner
             {
                 return (null, BuildingReasonWorkshopUnavailable);
             }
-            var barrelFacility = Pol.RoomsRules.Facility(RoomRole.Workshop);
             var barrel = Copy();
             barrel.Definition = "FermentingBarrel";
             barrel.Environment = Pol.PlacementEnvironment.Indoors;
-            barrel.Facility = barrelFacility;
             return (barrel, new Verdict());
         }
         var definitions = new List<Pol.BenchDefinition>(facts.Facts.Definitions.Count);
@@ -294,7 +292,6 @@ case Pol.WorkshopMethod.Existing:
             case Pol.WorkshopMethod.Unavailable:
                 return (null, BuildingReasonWorkshopUnavailable);
         }
-        var facility = Pol.RoomsRules.Facility(RoomRole.Workshop);
         var resolved = Copy();
         var selected = Workshop.Copy();
         selected.Resource = resource;
@@ -308,7 +305,6 @@ case Pol.WorkshopMethod.Existing:
         resolved.Workshop = selected;
         resolved.Definition = choice.Definition;
         resolved.Environment = Pol.PlacementEnvironment.Indoors;
-        resolved.Facility = facility;
         resolved.Stuff = ColonyPlanningRules.BuildStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), resolved.Definition);
         return (resolved, new Verdict());
     }

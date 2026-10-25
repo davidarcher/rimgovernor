@@ -388,7 +388,7 @@ public static partial class ForecastPrison
     {
         var days = context.InvestmentHorizonDays;
         var served = outcome.ServedRooms
-            .Where(s => context.PlannedRoomRoles.GetValueOrDefault(s.Room) == PlannedRole.Prison && RingClosure.CreditDays(days, s.ServedAt) > 0)
+            .Where(s => PlannedRoomCredits.Serves(context, s.Room, PlannedRole.Prison) && RingClosure.CreditDays(days, s.ServedAt) > 0)
             .OrderBy(s => s.ServedAt).ThenBy(s => s.Room).ToArray();
         var output = new Dictionary<int, RoomRows>();
         void All(params string[] states)
@@ -581,15 +581,17 @@ public static partial class ForecastPrison
 
     /// <summary>Standing beds inside the prison, then the planned sleeping-bed sites, with a physical anchor counted once.</summary>
     public static IReadOnlyDictionary<int, Cell[]> BedsOf(IEnumerable<PlannedRoom> rooms, IEnumerable<PlannedBuildSite> sites,
-        SleepingObservation sleeping, IReadOnlyList<SleepingBedFacts> definitions)
+        SleepingObservation sleeping, IReadOnlyList<SleepingBedFacts> definitions, LayoutPlan? layout = null)
     {
         var defs = definitions.Select(b => b.Def).ToHashSet(StringComparer.Ordinal);
         var planned = sites.Where(s => s.Op == OpKind.Build && defs.Contains(s.Definition)).OrderBy(s => s.Id, StringComparer.Ordinal).ToArray();
-        return rooms.Where(r => r.Role == PlannedRole.Prison).ToDictionary(r => r.Id, r =>
+        return rooms.Where(r => r.Role == PlannedRole.Prison || PlannedRoomCredits.HasPurpose(layout, r.Id, StationPurpose.SleepPrison)
+            || sleeping.Beds.Any(b => b.Prisoners && r.Region.Contains(b.Cell))).ToDictionary(r => r.Id, r =>
         {
             var inside = r.Region.Cells().ToHashSet();
-            return sleeping.Beds.Where(b => inside.Contains(b.Cell)).OrderBy(b => b.Id, StringComparer.Ordinal).Select(b => b.Cell)
-                .Concat(planned.Where(s => s.Room == r.Id).SelectMany(s => s.Positions)).Distinct().ToArray();
+            var intended = (layout?.Pieces.GetValueOrDefault(r.Id) ?? []).Where(p => PlannedRoomCredits.PurposeOf(p) == StationPurpose.SleepPrison).Select(p => p.Anchor()).ToHashSet();
+            return sleeping.Beds.Where(b => b.Prisoners && inside.Contains(b.Cell)).OrderBy(b => b.Id, StringComparer.Ordinal).Select(b => b.Cell)
+                .Concat(planned.Where(s => s.Room == r.Id).SelectMany(s => s.Positions).Where(p => layout is null && r.Role == PlannedRole.Prison || intended.Contains(p))).Distinct().ToArray();
         });
     }
 

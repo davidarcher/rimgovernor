@@ -74,6 +74,33 @@ public sealed class ContractOrphansTests : IDisposable
     }
     private readonly string dir = Directory.CreateTempSubdirectory("contract-orphans-").FullName;
 
+    [Fact]
+    public void AsyncPolicyReadsReachTheStateMachineWithoutHidingUnreadMembers()
+    {
+        var policy = Compile("RimGovernor.Brain.Policy", """
+            using System.Threading.Tasks;
+            namespace RimGovernor.Brain.Policy;
+            public sealed record Input(int Value, int Spare);
+            public static class Policy
+            {
+                public static async Task<int> Read(Input input)
+                {
+                    await Task.Yield();
+                    async Task<int> Nested() { await Task.Yield(); return input.Value; }
+                    return await Nested();
+                }
+                public static async Task<int> Uncalled(Input input) { await Task.Yield(); return input.Spare; }
+            }
+            """);
+        var runtime = Compile("RimGovernor.Brain.Runtime", """
+            using System.Threading.Tasks;
+            using RimGovernor.Brain.Policy;
+            public static class Reader { public static Task<int> Read(Input input) => Policy.Read(input); }
+            """, policy);
+        var orphans = ContractOrphans.Find(ContractOrphans.PolicyRecords, policy, [runtime], [], out _);
+        Assert.Equal([("Policy|Input.Spare", "not referenced outside its declaration")], orphans);
+    }
+
     public void Dispose() => Directory.Delete(dir, recursive: true);
 
     [Fact]
@@ -387,7 +414,7 @@ public sealed class ContractOrphansTests : IDisposable
             name,
             [CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.Latest))],
             [.. platform.Concat(references).Select(r => MetadataReference.CreateFromFile(r))],
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release, nullableContextOptions: NullableContextOptions.Enable));
         var path = Path.Combine(dir, name + ".dll");
         var result = compilation.Emit(path);
         Assert.True(result.Success, string.Join("\n", result.Diagnostics));

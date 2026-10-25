@@ -36,7 +36,7 @@ public sealed class LaboratoryCreditTests
     private static PlannedRoomPrediction Prediction(string role = "Laboratory") => PlannedRoomPredictionTests.Closed("1", "WoodLog", role, 10d, 1, 9, 0, false) with { Cleanliness = 0.5, WorkBenches = [new(Bench, InRoom, 0, 0, true, new BenchPlacement.Planned())] };
 
     /// <summary>Planned lab 1 (interior 0..2 x 0..2) served from day 3, one researcher at bench1 with the given factor now.</summary>
-    private static ForecastCoupledContext Context(Cell bench, double factorNow, PlannedRoomPrediction? prediction = null) =>
+    internal static ForecastCoupledContext Context(Cell bench, double factorNow, PlannedRoomPrediction? prediction = null) =>
         ForecastValueTests.Context(ForecastValueTests.Pawn()) with
         {
             Activities = new()
@@ -57,7 +57,7 @@ public sealed class LaboratoryCreditTests
             InvestmentHorizonDays = Horizon,
         };
 
-    private static ForecastCoupledOutcome Outcome(bool research = true) =>
+    internal static ForecastCoupledOutcome Outcome(bool research = true) =>
         new(new(research ? [new(Task, "pawn", 0, 0, 0, Hour, 0, 0, Hour, 0, 0)] : [], Hour, 0), true, new Dictionary<string, ForecastNeedsResult>(), [])
         { ServedRooms = [new(1, "WoodLog", 3 * Day)] };
 

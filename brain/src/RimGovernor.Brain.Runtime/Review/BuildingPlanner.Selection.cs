@@ -48,7 +48,7 @@ public sealed partial class BuildingPlanner
                 return (0, default, FieldUnavailable("butcher_table_definition"));
             }
             var benches = facts.Facts.EssentialInputs.Benches.Where(b => b.Butcher).ToArray();
-            if (!ButcherBenchApart(benches, facts.Facts.Upkeep.Rooms))
+            if (benches.Length == 0)
             {
                 return (1, new MethodId("butcher-spot"), default);
             }
@@ -209,28 +209,6 @@ public sealed partial class BuildingPlanner
 
 partial class BuildingPlanner
 {
-    internal static bool ButchersAllColocated(IReadOnlyList<ProductionBench> benches, RoomObservation rooms)
-    {
-        var shared = KitchenSeparationRules.KitchenSeparation(rooms);
-        if (benches.Count == 0)
-        {
-            return false;
-        }
-        var colocated = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var room in shared)
-        {
-            colocated.Add(room.Id);
-        }
-        foreach (var bench in benches)
-        {
-            if (bench.Room is not { } room || !colocated.Contains(room))
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
     /// <summary>Whether a campfire intent already stands: an unheated campfire in the census or an open campfire claim.</summary>
     internal static bool CampfireIntentStanding(EquatableArray<ConstructionClaim> claims, CurrentConstruction? observed)
     {
@@ -282,7 +260,7 @@ partial class BuildingPlanner
     {
         foreach (var b in benches)
         {
-            if (b.Definition == "TableButcher" && !ButchersAllColocated([b], facts.Facts.Upkeep.Rooms))
+            if (b.Definition == "TableButcher")
             {
                 return false;
             }
@@ -290,11 +268,8 @@ partial class BuildingPlanner
         return facts.Facts.ButcherTableAffordable && ComfortBuilderAvailable(facts, "TableButcher");
     }
 
-    internal static bool ButcherBenchApart(IReadOnlyList<ProductionBench> benches, RoomObservation rooms) =>
-        benches.Count > 0 && !ButchersAllColocated(benches, rooms);
-
     internal static bool ButcherRoomWanted(ColonyReading facts, IReadOnlyList<ProductionBench> benches) =>
-        !ButcherBenchApart(benches, facts.Facts.Upkeep.Rooms) || ButcherTableWanted(facts, benches);
+        benches.Count == 0 || ButcherTableWanted(facts, benches);
 
     internal static CurrentBuilding? StandingButcherSpot(ColonyReading facts)
     {

@@ -113,12 +113,6 @@ public sealed partial class BuildingPlanner
         var resolved = Copy();
         resolved.Definition = method.Value;
         resolved.Environment = Pol.PlacementEnvironment.Indoors;
-        var role = RoomRole.DiningRoom;
-        if (v.IsFoothold(method))
-        {
-            role = RoomRole.RecRoom;
-        }
-        resolved.Facility = RoomsRules.Facility(role);
         if (v.Furniture.IsChair(method.Value))
         {
             var adjacent = new List<Cell>(Adjacent);
