@@ -232,7 +232,7 @@ public static class FoodStorageUpkeepRules
                 continue;
             }
             var storedFact = entry.Stored(v.ChilledMaxC, p);
-            DomainException.Require(!(total > double.MaxValue - nutrition), "invalid food storage facts or thresholds");
+            DomainException.Require(double.IsFinite(total + nutrition), "invalid food storage facts or thresholds");
             total += nutrition;
             if (storedFact)
             {

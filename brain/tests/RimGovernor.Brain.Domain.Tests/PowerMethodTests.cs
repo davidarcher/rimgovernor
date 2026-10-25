@@ -16,6 +16,21 @@ public sealed class PowerMethodTests
         PowerBuildingFixtures.Trader(id, definition, cell, watts, output, powered);
 
     [Fact]
+    public void FinitePendingDemandAboveTheFormerCeilingIsValid()
+    {
+        PowerRules.SelectPowerMethod(new PowerTopology(), new Bounds(20, 20), [], [], Planning with { PendingDemandW = 2e12 });
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(-1)]
+    public void InvalidPendingDemandStillFails(double demand)
+    {
+        Assert.Throws<DomainException>(() => PowerRules.SelectPowerMethod(new PowerTopology(), new Bounds(20, 20), [], [],
+            Planning with { PendingDemandW = demand }));
+    }
+    [Fact]
     public void TopologyReadsTheCanonicalBuildingServiceAndRatedCapacity()
     {
         var generator = Site("generator", "WoodFiredGenerator", new(1, 1), 1000, 0, false);

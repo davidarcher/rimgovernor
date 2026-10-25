@@ -384,7 +384,7 @@ public static partial class PowerRules
     public static PowerProposal SelectPowerMethod(PowerTopology v, Bounds bounds, IReadOnlyList<SiteCell> cells, IReadOnlyList<Cell> protectedCells, PowerPlanning planning)
     {
         if (!FoodForecastRules.FoodNumber(planning.ReserveMinDays) || !FoodForecastRules.FoodNumber(planning.StorageMargin) || !FoodForecastRules.FoodNumber(planning.PendingDemandW)
-            || planning.StorageMargin > 10 || planning.PendingDemandW > 1e12)
+            || planning.StorageMargin > 10)
         {
             throw new DomainException("invalid power planning");
         }

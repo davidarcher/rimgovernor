@@ -1,5 +1,7 @@
 # Native forecast contracts
 
+Acquisition costs, candidate work, lead times and measured paths accept nonnegative finite numbers without an arbitrary upper ceiling. Nonfinite and negative observations fail validation.
+
 [Documentation](../../README.md) · [Controller contracts](controller-contracts.md)
 
 Normal production consumes these read-only facts through the

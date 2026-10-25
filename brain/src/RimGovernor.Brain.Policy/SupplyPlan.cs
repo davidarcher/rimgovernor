@@ -552,9 +552,9 @@ public static partial class SupplyPlanRules
             throw new SupplyPlanFactsException();
         }
         identities.Add((row.Kind, row.Id));
-        static double Num(double v, double max)
+        static double Num(double v)
         {
-            if (!FoodForecastRules.FoodNumber(v) || v > max)
+            if (!FoodForecastRules.FoodNumber(v))
             {
                 throw new SupplyPlanFactsException();
             }
@@ -567,13 +567,13 @@ public static partial class SupplyPlanRules
                 throw new SupplyPlanFactsException();
             }
         }
-        var lead = row.Lead is CandidateLead.Days days ? Num(days.Value, double.MaxValue) : 0;
-        var work = row.Work is CandidateWork.PerDay perDay ? Num(perDay.Ticks, double.MaxValue) : 0;
-        var upfront = Num(row.UpfrontCost.LaborTicks, 1e12);
-        var dist = row.Path is CandidatePath.Walk walk ? Num(walk.Distance, 1e12) : 0;
+        var lead = row.Lead is CandidateLead.Days days ? Num(days.Value) : 0;
+        var work = row.Work is CandidateWork.PerDay perDay ? Num(perDay.Ticks) : 0;
+        var upfront = Num(row.UpfrontCost.LaborTicks);
+        var dist = row.Path is CandidatePath.Walk walk ? Num(walk.Distance) : 0;
         if (row.Nearness is SourceNearness.Measured near)
         {
-            Num(near.DistanceSquared, double.MaxValue);
+            Num(near.DistanceSquared);
         }
         foreach (var q in row.UpfrontCost.Resources)
         {
@@ -602,11 +602,11 @@ public static partial class SupplyPlanRules
             }
             if (y.Supply is YieldSupply.Steady steady)
             {
-                Num(steady.PerDay, double.MaxValue);
+                Num(steady.PerDay);
             }
             else if (y.Supply is YieldSupply.Bounded bounded)
             {
-                Num(bounded.PerDay, double.MaxValue);
+                Num(bounded.PerDay);
                 Count(bounded.Cap);
                 finite = true;
             }

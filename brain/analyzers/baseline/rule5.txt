@@ -1,10 +1,1 @@
 # Rule 5 (numbers): file|Type.Member|token in Policy and Runtime. Delete a line when fixed; never add one.
-Runtime/Review/DefensePlanner.PostFight.cs|DefensePlanner.Stripper|sentinel 1<<40
-Policy/Combat/CombatMortar.cs|CombatMortarRules.CounterBattery|double.MaxValue
-Policy/Combat/CombatPermit.cs|CombatPermitRules.AidCell|double.MaxValue
-Policy/CombatGrenade.cs|CombatGrenadeRules.BestGround|double.MaxValue
-Policy/FoodStorageUpkeep.cs|FoodStorageUpkeepRules.ReviewFoodStorage|double.MaxValue
-Policy/PowerMethod.cs|PowerRules.SelectPowerMethod|sentinel 1e12
-Policy/ResourceCandidates.cs|ResourceRules.FiniteAcquisitionCost|sentinel 1e12
-Policy/SupplyPlan.cs|SupplyPlanRules.NewSupplyCand|double.MaxValue
-Policy/SupplyPlan.cs|SupplyPlanRules.NewSupplyCand|sentinel 1e12

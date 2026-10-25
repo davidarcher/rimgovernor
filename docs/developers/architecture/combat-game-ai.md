@@ -1,5 +1,7 @@
 # Combat in the game: the rules the planner works against
 
+Post-fight finisher selection is pure policy over observed pawn positions: standing colonists already targeting the raider rank first, then nearest distance, with ordinal pawn id breaking ties. Among existing targeters, ordinal id decides.
+
 [Documentation](../../README.md) · [Architecture](overview.md) · [Weapon planner](../contracts/weapon-planner.md) · [Predictive combat research](combat-predictability-research.md)
 
 RimWorld owns targeting, pathing, weapon execution and raid state. The brain owns squad

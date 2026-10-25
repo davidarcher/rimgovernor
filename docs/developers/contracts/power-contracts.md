@@ -1,5 +1,7 @@
 # Power contracts
 
+Pending power demand accepts nonnegative finite wattage without an arbitrary upper ceiling. Nonfinite and negative values fail planning validation.
+
 The power family's `power/basic` Need (`PowerFamily.cs`, `PowerMethod.cs`, `PowerBudget.cs`, #3257) keeps every enabled
 consumer powered by reading the native power census and sizing each network against a day of energy,
 never by counting generators. Native placement previews and shared admission gate every build; output

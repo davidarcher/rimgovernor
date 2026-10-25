@@ -11,5 +11,5 @@ public sealed record AcquisitionCompetition
 
 public static partial class ResourceRules
 {
-    internal static bool FiniteAcquisitionCost(double v) => !double.IsNaN(v) && !double.IsInfinity(v) && v >= 0 && v <= 1e12;
+    internal static bool FiniteAcquisitionCost(double v) => double.IsFinite(v) && v >= 0;
 }

@@ -25,6 +25,24 @@ public sealed class SupplyCandidateTests
 
     private static string UnknownReason(SupplyPlan plan) => Assert.Single(plan.Unknown).Reason;
 
+    [Theory]
+    [InlineData(2e12)]
+    [InlineData(1e100)]
+    public void FinitePathsAboveTheFormerCeilingAreValid(double distance)
+    {
+        var plan = Plan(SteelDeficit, Haul("stack", 50, new YieldStorage.Accepts(100), new CandidatePath.Walk(distance)));
+        Assert.Empty(plan.Unknown);
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(-1)]
+    public void InvalidPathsStillFail(double distance)
+    {
+        Assert.Throws<SupplyPlanFactsException>(() => Plan(SteelDeficit,
+            Haul("stack", 50, new YieldStorage.Accepts(100), new CandidatePath.Walk(distance))));
+    }
     [Fact]
     public void AnUnpricedYieldIsNamedAsItsGoodsRate()
     {

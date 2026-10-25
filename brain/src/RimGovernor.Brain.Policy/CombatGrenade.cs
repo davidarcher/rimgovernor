@@ -55,7 +55,7 @@ public static partial class CombatGrenadeRules
     {
         Cell best = default;
         var bestHits = 0;
-        var bestDist = double.MaxValue;
+        double bestDist = 0;
         foreach (var c in cells)
         {
             var d = CombatMortarRules.Dist(from, c);

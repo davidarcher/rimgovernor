@@ -1,5 +1,7 @@
 # Food storage and refrigeration
 
+Storage nutrition rows and their aggregate must remain finite; an overflowing aggregate fails the review.
+
 `FoodSupplyFacts.Stocks` owns observed food quantity, rot, location, temperature,
 human-meat classification and corpse yield. Native observation builds those rows
 directly from the stock census. The general thing table carries identity,

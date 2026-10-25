@@ -48,6 +48,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Request bounded hypothetical encounter estimates and interpret qualification | [Encounter prediction](developers/contracts/encounter-prediction.md) |
 | Read the total colonist census and plan medical care and medicine reserves | [Medical care](developers/contracts/medical-care.md), [pawn work profiles](developers/contracts/work-assignment.md), [journal ownership](developers/contracts/persistence-contracts.md) |
 | Read disaster service recovery, shelter lifecycle states and cold dash bounds | [Disaster planning](developers/contracts/disaster-planning.md) |
+| Understand numeric observation validation | [Supply and forecasts](developers/contracts/forecast-contracts.md), [power](developers/contracts/power-contracts.md), [food storage](developers/contracts/food-storage.md) |
 | Read combat targeting, raid behavior and weather waits | [Combat in the game](developers/architecture/combat-game-ai.md) |
 | Read canonical planning cells and distinguish growing-room eligibility from native roofs | [Native planning cell ownership](developers/contracts/spatial-contracts.md#native-planning-cell-ownership) |
 | Read the total room census and royalty housing requirements | [Room observations](developers/contracts/spatial-contracts.md#total-room-observations) |

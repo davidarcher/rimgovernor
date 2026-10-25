@@ -144,11 +144,11 @@ public static partial class CombatPermitRules
         x /= ours.Count;
         z /= ours.Count;
         Cell best = default;
-        var nearest = double.MaxValue;
+        double? nearest = null;
         foreach (var c in ours)
         {
             var d = Math.Sqrt(((c.X - x) * (c.X - x)) + ((c.Z - z) * (c.Z - z)));
-            if (d < nearest)
+            if (nearest is null || d < nearest)
             {
                 best = c;
                 nearest = d;

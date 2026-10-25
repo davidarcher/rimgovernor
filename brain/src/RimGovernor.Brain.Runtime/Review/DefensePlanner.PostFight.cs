@@ -81,7 +81,7 @@ public sealed partial class DefensePlanner
     {
         var p = _reviewer.Player;
         var waiting = new DefenseResult { Verdict = BuildingReasonExistingWork, Plan = fightPlan };
-        var pawn = Stripper(combat, raider);
+        var pawn = CombatThreatRules.PostFightColonist(combat.Pawns, raider);
         if (pawn is null || ((pawn.TargetId ?? "") == raider.Id.Value && (pawn.Job ?? "") != StripJob && (pawn.Draft is not null)))
         {
             return waiting;
@@ -160,35 +160,4 @@ partial class DefensePlanner
         return StripState.StripRefused;
     }
 
-    /// <summary>The colonist to finish a raider: the one already targeting it, else the nearest standing one (ties by ordinal id).</summary>
-    internal static RimGovernor.Brain.GameFacts.Mirror.CombatPawn? Stripper(BridgeCombat combat, RimGovernor.Brain.GameFacts.Mirror.CombatPawn raider)
-    {
-        RimGovernor.Brain.GameFacts.Mirror.CombatPawn? best = null;
-        long bestDist = -1;
-        var at = raider.Cell;
-        foreach (var row in combat.Pawns)
-        {
-            if (row.Side != RimGovernor.Brain.GameFacts.Mirror.CombatSide.Colonist || row.Downed || row.Dead)
-            {
-                continue;
-            }
-            var dist = 1L << 40;
-            if ((row.TargetId ?? "") == raider.Id.Value)
-            {
-                dist = -1;
-            }
-            else if (row.Cell is { } c)
-            {
-                long dx = c.X - at.X;
-                long dz = c.Z - at.Z;
-                dist = (dx * dx) + (dz * dz);
-            }
-            if (best is null || dist < bestDist || (dist == bestDist && string.CompareOrdinal(row.Id.Value, best.Id.Value) < 0))
-            {
-                best = row;
-                bestDist = dist;
-            }
-        }
-        return best;
-    }
 }

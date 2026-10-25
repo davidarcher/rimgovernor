@@ -164,7 +164,7 @@ public static partial class CombatMortarRules
             if (!Free(crew))
             {
                 crew = default;
-                var best = double.MaxValue;
+                double best = 0;
                 foreach (var id in view.Orderable)
                 {
                     if (!Free(id) || !cells.TryGetValue(id, out var c))
@@ -172,7 +172,7 @@ public static partial class CombatMortarRules
                         continue;
                     }
                     var d = Dist(c, mortar.Cell);
-                    if (d < best)
+                    if (crew.IsEmpty || d < best)
                     {
                         crew = id;
                         best = d;
