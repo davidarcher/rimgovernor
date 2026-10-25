@@ -345,9 +345,8 @@ own target, standing in for the player's stock-target bill count.
 The model's own choices, not game rules: a visit's purchases are paid from today's spendable silver (the silver above the routine
 trade's reserve: the map's silver for caravans and visitors, the silver within beacon range for orbital traders, #3910; medicine is
 claimed first, parts see the rest, #3907),
-the medicine the model buys is the cheapest kind by market value only (a visit whose trader lacks it buys none, though the routine
-trade would take its cheapest kind), a visit is a fluid rate rather than a lump, the silver at the market value (not the live buy
-price) caps the units bought, the accept curves are taken at today's days and points,
+a visit is a fluid expectation rather than a lump (its cheapest-carried medicine and silver cost use the joint native stock draw
+and native buy price, #3981), the accept curves are taken at today's days and points,
 the category draws at today's gates, weights, danger and population intent (#3909 Q3, `minRefireDays` among the gates), a
 RandomMain comp's last ThreatBig is its own (another comp's ThreatBig resets the game's one clock), its space-layer factors are
 left out, every non-trader category counts as always drawable (#3909 Q2 B), a visitor faction with a child kind in its Peaceful

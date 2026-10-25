@@ -160,22 +160,34 @@ public sealed class StockArrivalCatalogTests
         return new TraderKindDef { defName = "Caravan_Outlander_Medic", stockGenerators = [sale] };
     }
 
-    private static DefinitionCatalog TradeCatalog(params TraderKindDef[] extra)
+    private static DefinitionCatalog TradeCatalog(params TraderKindDef[] extra) => TradeCatalog(false, extra);
+
+    private static DefinitionCatalog TradeCatalog(bool mixedMedicine, params TraderKindDef[] extra)
     {
         ThingDef arm = new() { defName = "BionicArm", tradeTags = ["TechHediff"] }, leg = new() { defName = "BionicLeg", tradeTags = ["TechHediff"] };
         ThingDef silver = new() { defName = "Silver" }, herbal = new() { defName = "MedicineHerbal", statBases = [new RimWorld.StatModifier { stat = Potency, value = 0.6f }] };
+        ThingDef industrial = new() { defName = "MedicineIndustrial", statBases = [new RimWorld.StatModifier { stat = Potency, value = 1f }] };
+        var medic = Medic(herbal);
+        if (mixedMedicine)
+        {
+            var generator = new StockGenerator_MultiDef { countRange = new IntRange(4, 4) };
+            GameMembers.MultiDefThings(generator) = [herbal, industrial];
+            medic.stockGenerators = [generator];
+        }
         var install = new RecipeDef
         {
             defName = "InstallBionicArm", workerClass = typeof(Recipe_InstallArtificialBodyPart), appliedOnFixedBodyParts = [Arm], ingredients = [Slot(arm, 1), Slot(herbal, 2)],
         };
         var shown = new DefStatTable.Value(1000f, true, null);
         var stats = new DefStatTable(
-            new Dictionary<(BuildableDef, ThingDef?), DefStatTable.Cost> { [(arm, null)] = new([], null), [(leg, null)] = new([], null), [(herbal, null)] = new([], null), [(silver, null)] = new([], null) },
+            new Dictionary<(BuildableDef, ThingDef?), DefStatTable.Cost> { [(arm, null)] = new([], null), [(leg, null)] = new([], null), [(herbal, null)] = new([], null), [(industrial, null)] = new([], null), [(silver, null)] = new([], null) },
             new Dictionary<(BuildableDef, ThingDef?, CatalogStat), DefStatTable.Value>
             {
                 [(arm, null, CatalogStats.MarketValue)] = shown, [(leg, null, CatalogStats.MarketValue)] = shown,
                 [(herbal, null, CatalogStats.MarketValue)] = new(10f, true, null),
                 [(herbal, null, CatalogStats.MedicalQualityMax)] = new(.6f, true, null),
+                [(industrial, null, CatalogStats.MarketValue)] = new(20f, true, null),
+                [(industrial, null, CatalogStats.MedicalQualityMax)] = new(1f, true, null),
                 [(silver, null, CatalogStats.MarketValue)] = new(1f, true, null),
             },
             new Dictionary<BuildableDef, IReadOnlyList<string>>(),
@@ -183,7 +195,7 @@ public sealed class StockArrivalCatalogTests
         return new DefinitionCatalog(
             [
                 silver, new TerrainDef { defName = "Soil" }, Potency, Arm, arm, leg, herbal, install, FactionArrival, OrbitalVisitor, Misc, ThreatBig, Caravan, Orbital, Visitors,
-                Travelers, Cassandra(), Randy(), Tribe(), Outlander(), Medic(herbal), .. extra,
+                Travelers, Cassandra(), Randy(), Tribe(), Outlander(), medic, .. (mixedMedicine ? new Def[] { industrial } : []), .. extra,
             ],
             stats, new CatalogDerived("Silver", "Wort", 10f));
     }
@@ -250,7 +262,7 @@ public sealed class StockArrivalCatalogTests
     };
 
     // Three colonists (the routine trade's reserve is 300 silver) and the silver they hold.
-    private static StockArrival FreshStock(DefinitionCatalog catalog, string storyteller, long silver, string kind = "Caravan_Outlander_Exotic", TradeVisitFacts? facts = null)
+    private static StockArrival FreshStock(DefinitionCatalog catalog, string storyteller, long silver, string kind = "Caravan_Outlander_Exotic", TradeVisitFacts? facts = null, IReadOnlyList<Resource>? medicines = null)
     {
         var census = ColonyFactsCoreTests.Snapshot() with
         {
@@ -260,7 +272,7 @@ public sealed class StockArrivalCatalogTests
         };
         var bills = new BillsSnapshot { Context = census.Context, Benches = [] };
         var pawns = new PawnSnapshot { Context = census.Context, Pawns = [] };
-        return RimGovernor.Brain.Bridge.StockArrivalReads.Of(catalog, new HashSet<string>(), bills, pawns, census, [new Resource("MedicineHerbal")]);
+        return RimGovernor.Brain.Bridge.StockArrivalReads.Of(catalog, new HashSet<string>(), bills, pawns, census, medicines ?? [new Resource("MedicineHerbal")]);
     }
 
     private static (double Expected, StockArrival Stock) ArmWait(DefinitionCatalog catalog, string storyteller)
@@ -300,7 +312,7 @@ public sealed class StockArrivalCatalogTests
             Catalog = items, Items = [], Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 3, Resources = [] },
         }, false, MedicalReservePolicy.Default());
         var claimed = stock.WithMedicineClaim(items, reserve, 3, MedicalReservePolicy.Default());
-        Assert.Equal(1538, Assert.Single(Assert.Single(claimed.Requests).Sources, s => s.Resource == arm).Silver);
+        Assert.Equal(0, Assert.Single(Assert.Single(claimed.Requests).Sources, s => s.Resource == arm).Kinds[0].MedicineSilverClaim);
     }
 
     [Fact]
@@ -331,7 +343,7 @@ public sealed class StockArrivalCatalogTests
             Catalog = items, Items = [], Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 3, Resources = [] },
         }, false, MedicalReservePolicy.Default());
         var claimed = stock.WithMedicineClaim(items, reserve, 3, MedicalReservePolicy.Default());
-        Assert.Equal(1538, Assert.Single(Assert.Single(claimed.Missions).Sources, s => s.Resource == new Resource("BionicArm")).Silver);
+        Assert.Equal(0, Assert.Single(Assert.Single(claimed.Missions).Sources, s => s.Resource == new Resource("BionicArm")).Kinds[0].MedicineSilverClaim);
     }
 
     [Fact]
@@ -389,12 +401,24 @@ public sealed class StockArrivalCatalogTests
         }, false, MedicalReservePolicy.Default());
         Assert.Equal((true, 9L), (review.Active, review.Replenish));
 
-        // The gap of 9 at the cheapest kind's 18 is claimed first: 162 of the 700.
+        // Each visit pays its native price of 14 for the medicine it carries.
         var claimed = stock.WithMedicineClaim(items, review, 3, MedicalReservePolicy.Default());
         var trade = claimed.MedicineTrade!;
-        Assert.Equal((new Resource("MedicineHerbal"), 9.0, 38.0), (trade.Kind, trade.Claimed, trade.Units));
+        Assert.Equal((9.0, 700.0), (trade.Claimed, trade.Silver));
         // Visitors (4 a 60-day year, trading with 0.75) from day 3, caravans (5 a year) from day 5, each visit selling 4 on average.
-        Assert.Equal([new MedicineTradeSource(3, 4 / 60.0 * 0.75 * 4), new MedicineTradeSource(5, 5 / 60.0 * 4)], trade.Sources);
+        Assert.Collection(trade.Sources,
+            source =>
+            {
+                Assert.Equal((new Resource("MedicineHerbal"), 3d), (source.Kind, source.From));
+                Assert.Equal(4 / 60.0 * .75 * 4, source.PerDay, 12);
+                Assert.Equal(4 / 60.0 * .75 * 4 * 14, source.SilverPerDay, 12);
+            },
+            source =>
+            {
+                Assert.Equal((new Resource("MedicineHerbal"), 5d), (source.Kind, source.From));
+                Assert.Equal(5 / 60.0 * 4, source.PerDay, 12);
+                Assert.Equal(5 / 60.0 * 4 * 14, source.SilverPerDay, 12);
+            });
 
         // The model buys from day 3 at 0.2 a day and from day 5 at 0.2 + 1/3: 0.4 by day 5, the 9 of the target on day 21.125.
         var input = MedicineValueTests.Colony(6, 0);
@@ -403,6 +427,27 @@ public sealed class StockArrivalCatalogTests
         Assert.Equal(21.125, stop.Day, 9);
         Assert.Equal(9, stop.Levels[(int)ModelStock.Medicine], 9);
         Assert.DoesNotContain(MedicineTrade.LaterBuysFinding, run.Findings);
+    }
+
+    [Fact]
+    public void AFreshColonyForecastsEitherMedicineFromOneNativeMultiDefDrawAndPaysItsNativePrice()
+    {
+        Resource herbal = new("MedicineHerbal"), industrial = new("MedicineIndustrial");
+        var stock = FreshStock(TradeCatalog(true), "Cassandra", 342, "Caravan_Outlander_Medic", medicines: [herbal, industrial]);
+        var claimed = stock.WithMedicineClaim(ItemFactsFixtureRules.CoreItemFacts(), new() { Active = true, Replenish = 9 }, 3, MedicalReservePolicy.Default());
+        var trade = Assert.IsType<MedicineTrade>(claimed.MedicineTrade);
+        // 42 spendable: half the visits sell 3 herbal at 14; the other half sell 1 industrial at 28.
+        var rate = (4 / 60.0 * .75) + (5 / 60.0);
+        Assert.Equal(rate * 1.5, trade.KindPerDayAt(herbal, 5), 9);
+        Assert.Equal(rate * .5, trade.KindPerDayAt(industrial, 5), 9);
+        Assert.Equal(rate * 35, trade.SilverPerDayAt(5), 9);
+        var input = MedicineValueTests.Colony(6, 0);
+        var run = ColonyModel.Run(input, [.. input.Pawns.Select(p => PawnCycle.Year(input, p).ToArray())], MedicineValueTests.Policy() with { MedicineTrade = trade });
+        Assert.Equal(2.4, run.Events[^1].Medicine.Sum(), 9);
+        Assert.Contains(industrial, run.MedicineKinds);
+        Assert.DoesNotContain(ColonyTrajectory.TruncatedFinding, run.Findings);
+        var empty = stock with { Trade = EquatableArray.From(stock.Trade.Select(s => s with { Silver = 0 })) };
+        Assert.Null(empty.WithMedicineClaim(ItemFactsFixtureRules.CoreItemFacts(), new() { Active = true, Replenish = 9 }, 3, MedicalReservePolicy.Default()).MedicineTrade);
     }
 
     [Fact]
@@ -417,10 +462,11 @@ public sealed class StockArrivalCatalogTests
         Assert.Equal(100, orbital.Silver);
         Assert.All(stock.Trade.Where(s => s.From > 0), s => Assert.Equal(700, s.Silver));
         // 100 silver pays 7 herbal at 14; the map's 700 pays all five a visit can carry.
-        Assert.Equal(orbital.VisitsPerDay * 4.0, orbital.UnitsPerDay(), 9);
+        Assert.Equal(4, orbital.Kinds[0].Stock!.CheapestMedicineUnits(herbal, [herbal], 7), 9);
 
         // Silver within range that is all reserve pays nothing, whatever the map holds.
         var none = FreshStock(TradeCatalog(), "Cassandra", 1000, facts: facts with { BeaconSilver = 300 }).Trade.Single(s => s.Resource == herbal && s.From == 0);
-        Assert.Equal((0L, 0.0), (none.Silver, none.UnitsPerDay()));
+        Assert.Equal(0, none.Silver);
+        Assert.Equal(0, none.Supplies(1));
     }
 }

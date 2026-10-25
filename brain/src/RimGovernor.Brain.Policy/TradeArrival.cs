@@ -163,6 +163,8 @@ public sealed record TradeScheduleTable
 /// </summary>
 public sealed record StockDraw(int Pool, int Copies, int DefsMin, int DefsMax, int CountMin, int CountMax, double PriceMin, double PriceMax, double MarketValue)
 {
+    /// <summary>The index of this generator in its owning trader kind. Shared across its resource draws.</summary>
+    public int Generator { get; init; }
     /// <summary>The chance the generator picks the def: Copies × E[min(k, Pool)] ÷ Pool for k uniform in [DefsMin, DefsMax].</summary>
     public double Chosen()
     {
@@ -276,28 +278,6 @@ public sealed record TraderOffer
         return Distribution(n)[n];
     }
 
-    /// <summary>
-    /// The units a visit sells when it can pay for at most <paramref name="cap"/> (#3907): E[min(count the generators make, cap)]. The
-    /// count never exceeds <see cref="MaxCount"/>, which bounds the distribution.
-    /// </summary>
-    public double Expected(long cap)
-    {
-        var n = (int)Math.Min(Math.Min(cap, MaxCount), int.MaxValue - 1);
-        if (n <= 0)
-        {
-            return 0;
-        }
-
-        var total = Distribution(n);
-        var expected = n * total[n];
-        for (var have = 1; have < n; have++)
-        {
-            expected += have * total[have];
-        }
-
-        return expected;
-    }
-
     /// <summary>The most units the generators can make together; <see cref="long.MaxValue"/> for a price range over a def with no market value.</summary>
     public long MaxCount
     {
@@ -363,11 +343,88 @@ public sealed record TraderOffer
 /// </summary>
 public sealed record TraderKindStock
 {
+    /// <summary>One deterministic held-stock draw, shared by settlement previews and present trader visits.</summary>
+    public static TraderKindStock Held(IEnumerable<SettlementStockItem> stock, string read)
+    {
+        var offers = stock.GroupBy(s => s.Definition, StringComparer.Ordinal).OrderBy(g => g.Key, StringComparer.Ordinal).Select((g, index) =>
+        {
+            if (g.Any(s => s.Count <= 0 || !double.IsFinite(s.UnitPrice) || s.UnitPrice <= 0)) throw new RequiredFactException(read);
+            var count = g.Sum(s => s.Count);
+            // Mixed stacks use the highest observed price as a conservative affordability bound.
+            return (Resource: new Resource(g.Key), Offer: new TraderOffer { UnitValue = g.Max(s => s.UnitPrice),
+                Draws = [new(1, 1, 1, 1, count, count, 0, 0, 1) { Generator = index }] });
+        }).ToDictionary(row => row.Resource, row => row.Offer);
+        return new() { Offers = offers };
+    }
+
     public bool Favor { get; init; }
 
     public IReadOnlyDictionary<Resource, TraderOffer> Offers { get; init; } = new Dictionary<Resource, TraderOffer>();
 
     public IReadOnlyList<string> Unmodelled { get; init; } = [];
+
+    /// <summary>Expected units of this medicine when it is the cheapest kind actually carried. Generator picks are joint;
+    /// count draws are independent after definitions have been picked, as in GenerateThings.</summary>
+    public double CheapestMedicineUnits(Resource resource, IReadOnlyList<Resource> medicines, long cap, double priceFactor = 1)
+    {
+        if (!Offers.TryGetValue(resource, out var offer) || cap <= 0) return 0;
+        foreach (var medicine in medicines.Where(Offers.ContainsKey))
+            if (Offers[medicine].Unread.Length != 0) throw new RequiredFactException(Offers[medicine].Unread);
+        var price = TradeSource.UnitPrice(offer.UnitValue, priceFactor);
+        var cheaper = medicines.Where(m => Offers.TryGetValue(m, out var other)
+            && (TradeSource.UnitPrice(other.UnitValue, priceFactor) < price || TradeSource.UnitPrice(other.UnitValue, priceFactor) == price && string.CompareOrdinal(m.Value, resource.Value) < 0)).ToArray();
+        var n = (int)Math.Min(Math.Min(cap, offer.MaxCount), int.MaxValue - 1);
+        var total = new double[n + 1];
+        total[0] = 1;
+        var relevant = cheaper.Append(resource).SelectMany(m => Offers[m].Draws.Select(d => (Resource: m, Draw: d)))
+            .GroupBy(row => row.Draw.Generator);
+        foreach (var generator in relevant)
+        {
+            var selected = generator.SingleOrDefault(row => row.Resource == resource).Draw;
+            var lower = generator.Where(row => row.Resource != resource).Select(row => row.Draw).ToArray();
+            var law = generator.First().Draw;
+            // Inclusion/exclusion over the real cheaper medicine set, never the whole def pool.
+            double Absent(bool includeSelected)
+            {
+                double Sum(int at, List<StockDraw> picked, double weight)
+                {
+                    if (at == lower.Length) return weight * PickedTogether(law, picked);
+                    var without = Sum(at + 1, picked, weight);
+                    picked.Add(lower[at]);
+                    var included = Sum(at + 1, picked, -weight * (1 - lower[at].Counts(1)[0]));
+                    picked.RemoveAt(picked.Count - 1);
+                    return without + included;
+                }
+                return Sum(0, includeSelected && selected is not null ? [selected] : [], 1);
+            }
+            var absent = Absent(false);
+            var joint = selected is null ? 0 : Absent(true);
+            var counts = selected?.Counts(n) ?? new double[n + 1];
+            for (var c = 0; c <= n; c++) counts[c] *= joint;
+            counts[0] += absent - joint;
+            var next = new double[n + 1];
+            for (var have = 0; have <= n; have++)
+                for (var c = 0; c <= n; c++) next[Math.Min(n, have + c)] += total[have] * counts[c];
+            total = next;
+        }
+        return total.Select((chance, count) => chance * count).Sum();
+    }
+
+    // Uniform k distinct entries from the generator's pool. MultiDef has k=1 and may list a def more than once.
+    private static double PickedTogether(StockDraw law, List<StockDraw> picked)
+    {
+        double Avoid(int copies, int k)
+        {
+            var p = 1.0;
+            for (var i = 0; i < k; i++) p *= Math.Max(0, law.Pool - copies - i) / (double)(law.Pool - i);
+            return p;
+        }
+        double Inclusion(int at, int copies, int k, double sign) => at == picked.Count ? sign * Avoid(copies, k)
+            : Inclusion(at + 1, copies, k, sign) + Inclusion(at + 1, copies + picked[at].Copies, k, -sign);
+        var probability = 0.0;
+        for (var k = law.DefsMin; k <= law.DefsMax; k++) probability += Inclusion(0, 0, Math.Clamp(k, 0, law.Pool), 1);
+        return probability / (law.DefsMax - law.DefsMin + 1);
+    }
 }
 
 /// <summary>Every trader kind's stock of the stock-arrival resources by TraderKindDef defName (#3869).</summary>
@@ -377,7 +434,11 @@ public sealed record TraderStockTable
 }
 
 /// <summary>A trader kind a visit is of, with the chance it is, and its offer of the source's resource.</summary>
-public sealed record TradeKindChance(double Chance, TraderOffer Offer);
+public sealed record TradeKindChance(double Chance, TraderOffer Offer)
+{
+    public TraderKindStock? Stock { get; init; }
+    public double MedicineSilverClaim { get; init; }
+}
 
 /// <summary>
 /// One trade source of a resource (#3869): one trader comp's visits at <see cref="VisitsPerDay"/> from <see cref="From"/>
@@ -400,9 +461,9 @@ public sealed record TradeSource(Resource Resource, double From, double VisitsPe
     public bool Once { get; init; }
 
     /// <summary>The buy price of one unit at <paramref name="unitValue"/>.</summary>
-    public double UnitPrice(double unitValue)
+    public static double UnitPrice(double unitValue, double priceFactor)
     {
-        var price = Math.Max(unitValue * PriceFactor, 0.5);
+        var price = Math.Max(unitValue * priceFactor, 0.5);
         return price > 99.5 ? Math.Round(price, MidpointRounding.ToEven) : price;
     }
 
@@ -418,35 +479,13 @@ public sealed record TradeSource(Resource Resource, double From, double VisitsPe
                 throw new RequiredFactException(kind.Offer.Unread);
             }
 
-            if (count * UnitPrice(kind.Offer.UnitValue) <= Silver)
+            if (count * UnitPrice(kind.Offer.UnitValue, PriceFactor) <= Silver - kind.MedicineSilverClaim)
             {
                 chance += kind.Chance * kind.Offer.AtLeast(count);
             }
         }
 
         return chance;
-    }
-
-    /// <summary>
-    /// The units a day the routine trade buys from this comp's visits (#3907): the visits a day × the expected units a visit sells that
-    /// <see cref="Silver"/> pays for (a buy takes what the silver allows, unlike a part's whole count).
-    /// </summary>
-    public double UnitsPerDay()
-    {
-        var units = 0.0;
-        foreach (var kind in Kinds)
-        {
-            if (kind.Offer.Unread.Length != 0)
-            {
-                throw new RequiredFactException(kind.Offer.Unread);
-            }
-
-            var price = UnitPrice(kind.Offer.UnitValue);
-            var cap = (long)Math.Min(Math.Floor(Silver / price), long.MaxValue / 2.0);
-            units += kind.Chance * kind.Offer.Expected(cap);
-        }
-
-        return VisitsPerDay * units;
     }
 
     /// <summary>The rate a day at which visits supply <paramref name="count"/> units.</summary>
@@ -598,7 +637,7 @@ public static class TradeArrivalRules
                             offers[resource] = list = [];
                         }
 
-                        list.Add(new TradeKindChance(kindChance, offer));
+                        list.Add(new TradeKindChance(kindChance, offer) { Stock = kind });
                     }
                 }
 

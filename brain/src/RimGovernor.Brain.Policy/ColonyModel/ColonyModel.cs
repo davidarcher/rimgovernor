@@ -68,18 +68,18 @@ public static class ColonyModel
 
         // So is a bought one (#3907).
         var trade = policy.MedicineTrade;
-        if (trade is not null && Array.IndexOf(kinds, trade.Kind) < 0)
+        foreach (var boughtKind in trade?.Sources.Select(s => s.Kind).Distinct() ?? [])
         {
-            var at = kinds.Count(k => trade.Better.Contains(k));
-            kinds = [.. kinds[..at], trade.Kind, .. kinds[at..]];
+            if (Array.IndexOf(kinds, boughtKind) >= 0) continue;
+            var at = kinds.Count(k => trade!.KindsBestFirst.Items.IndexOf(k) < trade.KindsBestFirst.Items.IndexOf(boughtKind));
+            kinds = [.. kinds[..at], boughtKind, .. kinds[at..]];
             held = [.. held[..at], 0, .. held[at..]];
         }
 
         var crafted = craft is null ? -1 : Array.IndexOf(kinds, craft.Kind);
-        var traded = trade is null ? -1 : Array.IndexOf(kinds, trade.Kind);
         var bestHeld = trade is null ? -1 : Array.IndexOf(kinds, trade.Best);
         var tradeOn = trade?.Active ?? false;
-        var tradeUnitsLeft = trade?.Units ?? 0;
+        var tradeSilverLeft = trade?.Silver ?? 0;
         var bought = 0.0;
         var unitsLeft = craft?.Units ?? 0;
         levels[(int)ModelStock.Medicine] = held.Sum();
@@ -175,7 +175,7 @@ public static class ColonyModel
             if (trade is not null)
             {
                 tradeOn = Others(held, bestHeld) < trade.Reserve.Threshold(trade.Colonists, tradeOn) - Epsilon;
-                if (tradeOn && tradeUnitsLeft > Epsilon)
+                if (tradeOn && tradeSilverLeft > Epsilon)
                 {
                     buying = trade.PerDayAt(now);
                 }
@@ -218,14 +218,14 @@ public static class ColonyModel
 
                 if (buying > 0)
                 {
-                    Consider(now + tradeUnitsLeft / buying, ModelEventKind.MedicineTrade, "silver");
+                    Consider(now + tradeSilverLeft / trade.SilverPerDayAt(now), ModelEventKind.MedicineTrade, "silver");
                 }
 
                 // Tending takes the best kind first, so the latch's stock (without it) moves with what is bought and crafted into other
                 // kinds, and with the tends once the best kind is gone.
                 var others = Others(held, bestHeld);
                 var best = bestHeld < 0 ? 0 : held[bestHeld];
-                var bestNet = bestHeld < 0 ? 0 : (crafted == bestHeld ? making : 0) + (traded == bestHeld ? buying : 0) + medicineBase;
+                var bestNet = bestHeld < 0 ? 0 : (crafted == bestHeld ? making : 0) + (bestHeld < 0 || buying <= 0 ? 0 : trade.KindPerDayAt(kinds[bestHeld], now)) + medicineBase;
                 var othersNet = bestHeld < 0 || best > Epsilon || bestNet > 0 ? net[(int)ModelStock.Medicine] - bestNet : net[(int)ModelStock.Medicine];
                 if (best > Epsilon && bestNet < 0)
                 {
@@ -283,8 +283,9 @@ public static class ColonyModel
 
             if (buying > 0)
             {
-                held[traded] += buying * span;
-                tradeUnitsLeft = Math.Max(0, tradeUnitsLeft - (buying * span));
+                foreach (var medicine in trade!.Sources.Where(s => s.From <= now))
+                    held[Array.IndexOf(kinds, medicine.Kind)] += medicine.PerDay * span;
+                tradeSilverLeft = Math.Max(0, tradeSilverLeft - (trade.SilverPerDayAt(now) * span));
                 bought += buying * span;
             }
 
@@ -329,7 +330,7 @@ public static class ColonyModel
                     levels[(int)ModelStock.Medicine] = craft.Target;
                     break;
                 case ModelEventKind.MedicineTrade when id == "silver":
-                    tradeUnitsLeft = 0;
+                    tradeSilverLeft = 0;
                     break;
                 case ModelEventKind.MedicineTrade when id == "start":
                     tradeOn = true;
@@ -339,7 +340,8 @@ public static class ColonyModel
                     var missing = trade.Reserve.Threshold(trade.Colonists, true) - Others(held, bestHeld);
                     if (missing > 0)
                     {
-                        held[traded] += missing;
+                        var lastKind = trade.Sources.First(s => s.From <= now && s.Kind != trade.Best).Kind;
+                        held[Array.IndexOf(kinds, lastKind)] += missing;
                         levels[(int)ModelStock.Medicine] += missing;
                     }
 

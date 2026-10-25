@@ -663,19 +663,24 @@ named: `stock_arrival_trade_no_negotiator`, `stock_arrival_orbital_no_comms_cons
 send); a kind trading for royal favor is `stock_arrival_trade_favor_unmodelled:<kind>`. Mirrored rules:
 [kept constants](kept-constants.md#mirrored-game-rules-trader-stock-3869).
 
-Medicine and parts share the spendable silver in the autopilot's own order (#3907, `StockArrival.WithMedicineClaim`, applied in the
-review after the medical reserve latch): medicine first, with a fixed claim of today's gap, the reserve review's replenish × the
-cheapest medicine's market value (`TradePolicyRules.MedicineClaim`, also the medicine term of `SilverGap`), so the parts' sources
-see their own spendable silver less that claim and the medicine sources all of it (the units the silver pays for over the horizon
-are the largest pool a medicine visit buys from). Trade also feeds the colony model's medicine
-trajectory (`ColonyModelPolicy.MedicineTrade`, `StockArrival.MedicineTrade`) as the routine trade buys: the cheapest kind, on the
-reserve's latch (`MedicalReservePolicy.Threshold`, the same threshold the review uses: starts below 1 medicine per colonist, stops
-at 3, counting the usable stock without the best kind, so tending's use of the best kind first moves the latch only once it is
-gone). While the latch is on, the comps' visits bring `TradeSource.UnitsPerDay` (visits a day × the units a visit sells that the
-spendable silver pays for, E[min(count, affordable)]) from the day each comp starts, until the silver, at the cheapest kind's market
-value, is spent. Crafting keeps the stock-target rule above. A model buy beyond today's claimed gap is named
-`medicine_trade_later_buys_unclaimed` on the trajectory (its silver is not charged to the parts).
+Medicine and parts share spendable silver in the autopilot's order (`StockArrival.WithMedicineClaim`): medicine first.
+Each trader kind claims the expected native cost of its cheapest carried medicine up to today's replenish, bounded by its
+stock and spendable silver. A kind carrying no medicine claims nothing. Parts see that kind's remaining silver.
+This remains a conditional expected-budget bound: it does not claim a full joint medicine-and-parts stock distribution.
+The medicine term of `SilverGap` remains a market-value demand estimate; it does not set purchase affordability.
 
+The colony model's medicine trajectory (`ColonyModelPolicy.MedicineTrade`, `StockArrival.MedicineTrade`) buys the cheapest
+medicine actually carried on each visit. The canonical `TraderKindStock` retains each generator's identity: MultiDef picks
+one entry, while Category and Tag pick distinct definitions uniformly. The joint draw conditions a kind's count distribution
+on every cheaper medicine being absent or generating zero units; multiplying independent marginal carry probabilities would
+misprice these mutually exclusive draws. Count draws are convolved across independent generators. Native buy prices include
+1.4, PriceType, difficulty and negotiator factors, the 0.5 floor and rounding above 99.5, including price ties after rounding.
+
+The reserve latch starts below 1 usable medicine per colonist and holds to 3, counting stock without the best kind.
+While active, each comp supplies a separate expected rate for every medicine it can buy, from that comp's start day.
+All kinds consume one shared silver budget at their native expected cost per day; no market-value unit cap credits extra stock.
+Visits remain a fluid expectation rather than sampled arrival events. Crafting retains the stock-target rule above.
+A model buy beyond today's claimed gap is named `medicine_trade_later_buys_unclaimed` (later replenishment is not charged to parts).
 A census the frame did not carry, or a crafter's unread speed stat, leaves the model
 unread (`StockArrival.Unread`: `stock_arrival_bills`, `stock_arrival_pawns`, `stock_arrival_resources`,
 `stock_arrival_schedule:<pawn>`, `work_speed:<pawn>:<stat>`, `stock_arrival_trade_facts`, `storyteller_unknown:<def>`,

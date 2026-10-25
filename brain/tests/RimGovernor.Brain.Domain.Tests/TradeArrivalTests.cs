@@ -54,7 +54,7 @@ public sealed class TradeArrivalTests
 
         // A negotiator's 10 % on a 1400 unit: 1260; 2000 silver pays one arm, not two.
         var source = new TradeSource(Arm, 0, 0.1) { Kinds = [new TradeKindChance(0.5, offer)], PriceFactor = 0.9, Silver = 2000 };
-        Assert.Equal(1260, source.UnitPrice(1400));
+        Assert.Equal(1260, TradeSource.UnitPrice(1400, source.PriceFactor));
         Assert.Equal(0.5 * 0.75, source.Supplies(1), 12);
         Assert.Equal(0, source.Supplies(2));
         Assert.Equal(Math.Exp(-0.1 * 0.375 * 10), source.NotArrived(1, 10), 12);
@@ -124,7 +124,7 @@ public sealed class TradeArrivalTests
         // 5 a 60-day year times the 0.6 ally fraction, from day 5, three days after now.
         Assert.Equal((Arm, 3.0, 5 / 60.0 * 0.6), (caravan.Resource, caravan.From, caravan.VisitsPerDay));
         // A faction drawn of two, then the outlander kind 1 of 4: an eighth; the royal kind trades for favor and is named.
-        Assert.Equal([new TradeKindChance(0.125, Outlander.Offers[Arm])], caravan.Kinds);
+        Assert.Equal([new TradeKindChance(0.125, Outlander.Offers[Arm]) { Stock = Outlander }], caravan.Kinds);
         Assert.Equal(0.9, caravan.PriceFactor, 12);
         // The orbital cycle: one incident each 15 days.
         var orbital = sources.Single(s => s.From == 0);

@@ -12,12 +12,14 @@ public sealed record ForecastTradeVisit(Trader Native, EquatableArray<TradeSourc
 public static class ForecastTradeVisits
 {
     public static EquatableArray<ForecastTradeVisit> Options(IEnumerable<Trader> traders, long silver) => EquatableArray.From(traders
-        .Where(t => t.CanTrade && t.Visit is not null).Select(t => new ForecastTradeVisit(t,
-            EquatableArray.From(t.Visit!.Stock.GroupBy(s => s.Definition, StringComparer.Ordinal).Select(g =>
-                new TradeSource(new(g.Key), 0, 0)
+        .Where(t => t.CanTrade && t.Visit is not null).Select(t =>
+        {
+            var stock = TraderKindStock.Held(t.Visit!.Stock, "trader_stock:" + t.Id);
+            return new ForecastTradeVisit(t, EquatableArray.From(stock.Offers.Select(o =>
+                new TradeSource(o.Key, 0, 0)
                 {
                     Once = true, Silver = silver, PriceFactor = 1,
-                    Kinds = [new(1, new TraderOffer { UnitValue = g.Max(s => s.UnitPrice),
-                        Draws = [new(1, 1, 1, 1, g.Sum(s => s.Count), g.Sum(s => s.Count), 0, 0, 1)] })],
-                })))));
+                    Kinds = [new(1, o.Value) { Stock = stock }],
+                })));
+        }));
 }

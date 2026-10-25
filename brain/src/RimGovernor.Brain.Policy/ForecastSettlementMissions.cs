@@ -32,16 +32,13 @@ public static class ForecastSettlementMissions
         IEnumerable<TradeSource> sources;
         if (read.RegeneratesOnVisit || outbound >= read.RestockInTicks)
             sources = kind.Offers.OrderBy(o => o.Key.Value, StringComparer.Ordinal).Select(o =>
-                new TradeSource(o.Key, days, 0) { Once = true, Kinds = [new(1, o.Value)], Silver = silver, PriceFactor = read.PriceFactor });
+                new TradeSource(o.Key, days, 0) { Once = true, Kinds = [new(1, o.Value) { Stock = kind }], Silver = silver, PriceFactor = read.PriceFactor });
         else
-            sources = read.CurrentStock.GroupBy(s => s.Definition, StringComparer.Ordinal).OrderBy(g => g.Key, StringComparer.Ordinal).Select(g =>
-            {
-                if (g.Any(s => s.Count <= 0 || !double.IsFinite(s.UnitPrice) || s.UnitPrice <= 0)) throw new RequiredFactException("settlement_stock:" + settlement.Id);
-                var count = g.Sum(s => s.Count);
-                // A definition's mixed stacks use the highest observed unit price, a conservative affordability bound.
-                var offer = new TraderOffer { UnitValue = g.Max(s => s.UnitPrice), Draws = [new(1, 1, 1, 1, count, count, 0, 0, 1)] };
-                return new TradeSource(new(g.Key), days, 0) { Once = true, Kinds = [new(1, offer)], Silver = silver, PriceFactor = 1 };
-            });
+        {
+            var heldKind = TraderKindStock.Held(read.CurrentStock, "settlement_stock:" + settlement.Id);
+            sources = heldKind.Offers.Select(o => new TradeSource(o.Key, days, 0)
+                { Once = true, Kinds = [new(1, o.Value) { Stock = heldKind }], Silver = silver, PriceFactor = 1 });
+        }
         return new(settlement.Id, EquatableArray.From(crew), days, EquatableArray.From(sources));
     }
 

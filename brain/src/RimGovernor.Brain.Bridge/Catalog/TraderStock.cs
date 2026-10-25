@@ -46,15 +46,17 @@ public sealed partial class DefinitionCatalog
     {
         var draws = resources.ToDictionary(r => r.defName, _ => new List<P.StockDraw>(), StringComparer.Ordinal);
         var unmodelled = new SortedSet<string>(StringComparer.Ordinal);
+        var generatorIndex = -1;
         foreach (var generator in kind.stockGenerators.Seq())
         {
+            generatorIndex++;
             var name = generator?.GetType().Name ?? "null";
             switch (generator)
             {
                 case StockGenerator_SingleDef single when name == nameof(StockGenerator_SingleDef):
                     foreach (var def in resources.Where(d => d == GameMembers.SingleDefThing(single) && TraderCanSell(d.tradeability)))
                     {
-                        draws[def.defName].Add(Draw(single, def, 1, 1, 1, 1));
+                        draws[def.defName].Add(Draw(single, def, 1, 1, 1, 1) with { Generator = generatorIndex });
                     }
 
                     break;
@@ -62,7 +64,7 @@ public sealed partial class DefinitionCatalog
                     var listed = GameMembers.MultiDefThings(multi).Seq().ToList();
                     foreach (var def in resources.Where(d => listed.Contains(d) && TraderCanSell(d.tradeability)))
                     {
-                        draws[def.defName].Add(Draw(multi, def, listed.Count, Enumerable.Count(listed, d => d == def), 1, 1));
+                        draws[def.defName].Add(Draw(multi, def, listed.Count, Enumerable.Count(listed, d => d == def), 1, 1) with { Generator = generatorIndex });
                     }
 
                     break;
@@ -75,7 +77,7 @@ public sealed partial class DefinitionCatalog
                     var count = GameMembers.StockCategoryDefCount(category);
                     foreach (var def in resources.Where(pool.Contains))
                     {
-                        draws[def.defName].Add(Draw(category, def, pool.Count, 1, count.min, count.max));
+                        draws[def.defName].Add(Draw(category, def, pool.Count, 1, count.min, count.max) with { Generator = generatorIndex });
                     }
 
                     break;
@@ -86,7 +88,7 @@ public sealed partial class DefinitionCatalog
                     var defs = GameMembers.StockTagDefCount(tag);
                     foreach (var def in resources.Where(tagged.Contains))
                     {
-                        draws[def.defName].Add(Draw(tag, def, tagged.Count, 1, defs.min, defs.max));
+                        draws[def.defName].Add(Draw(tag, def, tagged.Count, 1, defs.min, defs.max) with { Generator = generatorIndex });
                     }
 
                     break;

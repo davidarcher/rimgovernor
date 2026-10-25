@@ -36,7 +36,7 @@ public static class ForecastTradeRequests
             var sources = kind.Offers.OrderBy(o => o.Key.Value, StringComparer.Ordinal).Select(o => new TradeSource(o.Key,
                 request.ArrivalMaxTicks / (double)GameTime.TicksPerDay, 0)
             {
-                Once = true, Kinds = [new TradeKindChance(1, o.Value)], Silver = silver,
+                Once = true, Kinds = [new TradeKindChance(1, o.Value) { Stock = kind }], Silver = silver,
                 PriceFactor = (1 + facts.PriceFactorLoss) * (1 - facts.NegotiatorPriceImprovement),
             });
             result.Add(new(request, EquatableArray.From(sources)));
@@ -79,7 +79,7 @@ public static class ForecastTradeRequests
     public static EquatableArray<StockPurchase> Authorize(StockArrival stock, IReadOnlyList<StockNeed> needs)
     {
         var offers = stock.Trade.GroupBy(s => s.Resource).Select(g => new StockPurchaseOffer(g.Key.Value, g.Key, long.MaxValue,
-            g.SelectMany(s => s.Kinds.Select(k => s.UnitPrice(k.Offer.UnitValue))).Max(), 0)).ToArray();
+            g.SelectMany(s => s.Kinds.Select(k => TradeSource.UnitPrice(k.Offer.UnitValue, s.PriceFactor))).Max(), 0)).ToArray();
         return TradeStockPurchases.Plan(needs, stock.Medicines, offers, stock.Trade.Select(s => s.Silver).DefaultIfEmpty(0).Max());
     }
 

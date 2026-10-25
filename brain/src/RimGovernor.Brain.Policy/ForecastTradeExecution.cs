@@ -43,7 +43,7 @@ public static class ForecastTradeExecution
     {
         var departure = option.Departure ?? throw new RequiredFactException("trade_mission_departure:" + option.Settlement);
         var offers = option.Sources.GroupBy(s => s.Resource).Select(g => new StockPurchaseOffer(g.Key.Value, g.Key, long.MaxValue,
-            g.SelectMany(s => s.Kinds.Select(k => s.UnitPrice(k.Offer.UnitValue))).Max(), 0));
+            g.SelectMany(s => s.Kinds.Select(k => TradeSource.UnitPrice(k.Offer.UnitValue, s.PriceFactor))).Max(), 0));
         var authorization = TradeStockPurchases.Plan(needs, medicines, offers, silver);
         var demand = authorization.Select(p => new CargoItem(p.Resource.Value, (ulong)p.Count)).OrderBy(c => c.Definition, StringComparer.Ordinal).ToArray();
         var mission = new TradeMission

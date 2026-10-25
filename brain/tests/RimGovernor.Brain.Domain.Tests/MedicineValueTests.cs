@@ -149,8 +149,8 @@ public sealed class MedicineValueTests
     private static readonly Resource Herbal = new("MedicineHerbal");
 
     private static MedicineTrade Trade(double units = 1000, double claimed = 0, bool active = false, params (double From, double PerDay)[] visits) =>
-        new(Herbal, EquatableArray.From((visits.Length == 0 ? [(0.0, 2.0)] : visits).Select(v => new MedicineTradeSource(v.From, v.PerDay))), units, claimed,
-            new Resource(Industrial), 1, MedicalReservePolicy.Default(), active, [new Resource(Industrial)]);
+        new(EquatableArray.From((visits.Length == 0 ? [(0.0, 2.0)] : visits).Select(v => new MedicineTradeSource(Herbal, v.From, v.PerDay, v.PerDay))), units, claimed,
+            new Resource(Industrial), 1, MedicalReservePolicy.Default(), active, [new Resource(Industrial), Herbal]);
 
     private static ColonyModelInput Stocked(double industrial, double herbal)
     {
