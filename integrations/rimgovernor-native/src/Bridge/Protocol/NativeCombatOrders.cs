@@ -494,7 +494,7 @@ namespace HomeBridge.BridgeTools
             var failure = Resolve(intent, context, out var pawn);
             if (failure != null) throw new InvalidOperationException("Draft prerequisites changed before apply: " + (failure.Detail ?? ""));
             if (intent == null || pawn == null) throw new InvalidOperationException("Draft prerequisites changed before apply.");
-            bool wanted = intent.Drafted.GetValueOrDefault();
+            bool wanted = intent.Drafted;
             bool issued = pawn.drafter.Drafted != wanted;
             if (issued) pawn.drafter.Drafted = wanted;
             if (pawn.drafter.Drafted != wanted) throw new InvalidOperationException("Native draft state did not change.");
@@ -504,7 +504,7 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(Operations.DraftIntent? intent, Common.ObservationContext context, out Pawn? pawn)
         {
             pawn = null;
-            if (intent == null || intent.PawnId is null || intent.Drafted is null || !ProtoBoundary.IsIdentifier(intent.PawnId))
+            if (intent == null || intent.PawnId is null || !ProtoBoundary.IsIdentifier(intent.PawnId))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A draft requires a pawn id and the wanted draft state.");
             if (!NativePawnControlState.IsReady) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
             var map = ProtoBoundary.LoadedMap(context);
@@ -513,7 +513,7 @@ namespace HomeBridge.BridgeTools
             var identity = new NativeControlIdentity(Current.Game, map, (context.Identity?.ColonyId ?? ""), (context.Identity?.LoadToken ?? ""));
             var check = NativePawnControlState.Observe(identity, pawn, out var snapshot);
             if (check != NativePawnControlResult.Ready || snapshot == null) return NativeDraftProtocol.Failure(check, context);
-            if (snapshot.Drafted == intent.Drafted.GetValueOrDefault()) return null;
+            if (snapshot.Drafted == intent.Drafted) return null;
             return snapshot.Eligible ? null : ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "cannot_draft: the pawn is not an eligible player colonist.");
         }
     }

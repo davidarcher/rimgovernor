@@ -72,7 +72,7 @@ namespace HomeBridge.BridgeTools
                 order = new JobOrder { Kind = kind, PawnId = pawn, TargetId = targets[0]!, BedId = arrest ? targets[1] : null };
                 return Arm.Order;
             }
-            if (options != null && options.Prioritized.GetValueOrDefault())
+            if (options != null && options.Prioritized)
             {
                 if (targets.Count != 1) { refusal = "A prioritized job requires one target."; return Arm.Invalid; }
                 return Arm.Prioritized;

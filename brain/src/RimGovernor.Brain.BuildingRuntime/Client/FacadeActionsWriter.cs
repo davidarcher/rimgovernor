@@ -32,7 +32,7 @@ internal sealed class FacadeActionsWriter(INativeFacade facade) : IActionsWriter
         {
             Identity = identity,
             Actions = EquatableArray.From(StampPurpose(actions)),
-            DeferSnapshot = DeferredSnapshotScope.Current ? true : null,
+            DeferSnapshot = DeferredSnapshotScope.Current,
         };
         var reply = await _facade.ApplyAsync(request, ct).ConfigureAwait(false);
         if (reply.BatchFailure is not null)

@@ -39,7 +39,7 @@ public sealed class YardMergeTests
         Assert.Equal(FilterBase.OutdoorSafeWaste, filter.Base);
         Assert.Empty(filter.Allow);
         Assert.Empty(filter.Disallow);
-        Assert.Equal(FilterBase.OutdoorSafeWaste, Zones.StockpileSettings(filter, StockpilePriority.Low).Preset);
+        Assert.Equal(FilterBase.OutdoorSafeWaste, Assert.IsType<RimGovernor.Contracts.Wire.Operations.StockpilePresetChange.Selected>(Zones.StockpileSettings(filter, StockpilePriority.Low).Preset).Value);
     }
 
     [Fact]

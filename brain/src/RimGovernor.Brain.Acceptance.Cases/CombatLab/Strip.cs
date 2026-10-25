@@ -87,8 +87,7 @@ internal static class CombatLabStrip
         var reply = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
         {
             Identity = s.Identity,
-            Actions = [new Operations.Action { Key = key, Intent = new Operations.DesignateIntent { ThingId = raider, Designation = Operations.ThingDesignation.Strip } }],
-        }, cancellationToken).ConfigureAwait(false);
+            Actions = [new Operations.Action { Key = key, Intent = new Operations.DesignateIntent { ThingId = raider, Designation = Operations.ThingDesignation.Strip, ReplaceWithWall = false, Withdraw = false, Guard = Operations.DesignationGuard.NoGuard } }], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
         var result = reply.Results.Count == 1 ? reply.Results[0] : throw new AcceptanceException($"{key}: {reply.BatchFailure} {string.Join("; ", reply.Results)}");
         s.RecordWire(key, result);
         return result;

@@ -114,8 +114,7 @@ internal sealed class RectangleRun(RectangleCaseRequest request, INativeFacade n
     {
         var reply = await CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
         {
-            Identity = Identity, Actions = [new Operations.Action { Key = key, Intent = intent }],
-        }, ct).ConfigureAwait(false);
+            Identity = Identity, Actions = [new Operations.Action { Key = key, Intent = intent }], DeferSnapshot = false }, ct).ConfigureAwait(false);
         if (reply.BatchFailure is not null || reply.Results.ToList() is not [{ Outcome: { Applied: not null } outcome }])
             throw new InvalidOperationException($"{key}: want one applied result: {reply}");
         return outcome;
@@ -160,11 +159,10 @@ internal sealed class RectangleRun(RectangleCaseRequest request, INativeFacade n
             AddCells = new Operations.Cells { Selection = new Operations.Rectangle { Origin = new Common.Cell { X = x, Z = z }, Width = 7, Height = 5 } },
             Stockpile = new Operations.StockpileSettings
             {
-                Priority = StockpilePriority.Important,
-                Preset = FilterBase.Nothing,
-                Filter = new Operations.FilterPatch { Allow = [new Operations.FilterSelector { Definition = new Operations.FilterSelectorDefinition.ThingDefCase(ThingDefOf.Steel.defName) }] },
-            },
-        };
+                Priority = new Operations.StockpilePriorityChange.Selected(StockpilePriority.Important),
+                Preset = new Operations.StockpilePresetChange.Selected(FilterBase.Nothing),
+                Filter = new Operations.FilterPatch { Allow = [new Operations.FilterSelector { Definition = new Operations.FilterSelectorDefinition.ThingDefCase(ThingDefOf.Steel.defName) }], HitPoints = new Operations.HitPointRange.Preserve() },
+            }, Delete = false, RequireCoveredEmpty = false };
 
         async Task<Receipts.ZoneEffect.CreatedCase> ApplyAsync(string label)
         {
@@ -266,10 +264,8 @@ internal sealed class RectangleRun(RectangleCaseRequest request, INativeFacade n
                 Intent = new Operations.ZoneIntent
                 {
                     Zone = new Common.Ref { Id = ids[1] },
-                    Stockpile = new Operations.StockpileSettings { Priority = StockpilePriority.Important },
-                },
-            })],
-        }, cancellationToken).ConfigureAwait(false);
+                    Stockpile = new Operations.StockpileSettings { Priority = new Operations.StockpilePriorityChange.Selected(StockpilePriority.Important), Preset = new Operations.StockpilePresetChange.Preserve() }, Delete = false, RequireCoveredEmpty = false, Kind = Operations.ZoneType.Existing },
+            })], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
         if (churn.BatchFailure is not null || churn.Results.Count != 260)
         {
             throw new InvalidOperationException($"rectangle-replay-churn: {churn.BatchFailure} with {churn.Results.Count} results");
@@ -277,8 +273,7 @@ internal sealed class RectangleRun(RectangleCaseRequest request, INativeFacade n
 
         var replay = await CallAsync("rectangle-repeat", NativeOps.Apply, new Operations.ApplyRequest
         {
-            Identity = Identity, Actions = [new Operations.Action { Key = "rectangle-stockpile", Intent = intent }],
-        }, cancellationToken).ConfigureAwait(false);
+            Identity = Identity, Actions = [new Operations.Action { Key = "rectangle-stockpile", Intent = intent }], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
         Record("rectangle-repeat", replay);
         if (replay.BatchFailure is not null || replay.Results.ToList() is not [{ Outcome.Refused: not null }])
         {

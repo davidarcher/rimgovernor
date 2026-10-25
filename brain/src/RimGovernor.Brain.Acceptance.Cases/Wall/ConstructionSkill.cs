@@ -45,9 +45,9 @@ internal static class WallConstructionSkill
         Operations.BuildingIntent Bed(string target, int? minimum, int tier) => new()
         {
             Placement = new Placement.PlacementCandidate { DefName = "Bed", Stuff = "WoodLog", X = prepared.X, Z = prepared.Z, Rotation = Placement.Rotation.North, IgnoreNaturalRock = false },
-            MinimumFinishingSkill = minimum,
-            Tier = tier,
-            ExistingTargetId = target,
+            MinimumFinishingSkill = minimum is { } value ? new Operations.FinishingSkillChange.Selected(value) : new Operations.FinishingSkillChange.Preserve(),
+            Tier = new Operations.ConstructionTierChange.Selected(tier),
+            ExistingTargetId = target, ReplaceWall = false,
         };
 
         _ = await TypedApply.AppliedAsync(s, "skill-minimum", Bed(prepared.Target, 9, 3), cancellationToken).ConfigureAwait(false);

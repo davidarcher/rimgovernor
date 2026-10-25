@@ -32,7 +32,7 @@ internal static class ApplyActions
         foreach (var (arm, intent) in arms)
         {
             var key = "probe-" + arm;
-            var request = new Operations.ApplyRequest { Identity = s.Identity, Actions = [new Operations.Action { Key = key, Intent = intent }] };
+            var request = new Operations.ApplyRequest { Identity = s.Identity, Actions = [new Operations.Action { Key = key, Intent = intent }], DeferSnapshot = false };
             Operations.ActionResult? first = null;
             foreach (var attempt in new[] { "send", "resend" })
             {

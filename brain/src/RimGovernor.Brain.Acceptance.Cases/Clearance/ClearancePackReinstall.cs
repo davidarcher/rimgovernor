@@ -81,16 +81,15 @@ internal static class ClearancePackReinstall
         {
             Operation = Operations.AreaOperation.ClearCells,
             Home = true,
-            Rects = [new Operations.AreaRect { MinX = site.X, MinZ = site.Z, MaxX = site.X + site.Width - 1, MaxZ = site.Z + site.Height - 1 }],
-        }, cancellationToken).ConfigureAwait(false);
-        _ = await TypedApply.AppliedAsync(s, "uninstall", new Operations.RelocateIntent { ThingId = bed, Uninstall = true }, cancellationToken).ConfigureAwait(false);
+            Rects = [new Operations.AreaRect { MinX = site.X, MinZ = site.Z, MaxX = site.X + site.Width - 1, MaxZ = site.Z + site.Height - 1 }], PollutionClear = false }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "uninstall", new Operations.RelocateIntent { ThingId = bed, Mode = new Operations.RelocationMode.Uninstall() }, cancellationToken).ConfigureAwait(false);
         _ = await s.RunUntilAsync("packed", 3000, async ct =>
         {
             var row = await ReadAsync("packed-probe").ConfigureAwait(false);
             return (Wait.Signature(row is null), row is null);
         }, cancellationToken).ConfigureAwait(false);
 
-        _ = await TypedApply.AppliedAsync(s, "install", new Operations.RelocateIntent { ThingId = bed, Destination = to, Rotation = Placement.Rotation.North }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "install", new Operations.RelocateIntent { ThingId = bed, Destination = to, Mode = new Operations.RelocationMode.Move(Placement.Rotation.North) }, cancellationToken).ConfigureAwait(false);
         Observations.BuildingState? end = null;
         _ = await s.RunUntilAsync("installed", s.TicksLeft, async ct =>
         {

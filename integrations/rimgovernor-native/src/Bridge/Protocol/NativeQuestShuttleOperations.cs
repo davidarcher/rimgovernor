@@ -16,7 +16,7 @@ namespace HomeBridge.BridgeTools
             => nativeCanLaunch && allLoaded && !blockedWeather && !blockedCondition;
         internal static bool ValidShape(Operations.QuestShuttleIntent? command) => command != null
             && command.QuestId is not null && ProtoBoundary.IsIdentifier(command.QuestId)
-            && (command.Loading is not null || command.Launch.GetValueOrDefault())
+            && (command.Loading is not null || command.Launch)
             && (command.Loading is not Operations.QuestShuttleIntentLoading.ExplicitPawnsCase
                 || command.Loading.ExplicitPawns is { PawnIds: var ids } && ids.Count > 0 && ids.Count <= 256
                 && ids.All(ProtoBoundary.IsIdentifier)
@@ -57,7 +57,7 @@ namespace HomeBridge.BridgeTools
                 }
                 pawns = selected.ToArray();
             }
-            if (command.Launch.GetValueOrDefault())
+            if (command.Launch)
             {
                 if (!LaunchConditionsSatisfied(shuttle.CanLaunch.Accepted, shuttle.AllRequiredThingsLoaded,
                     map.weatherManager.CurWeatherPerceived.preventsShuttleLaunch,
@@ -77,7 +77,7 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(command, context, out var shuttle, out var pawns, out var autoload, out var send);
             if (failure != null || shuttle == null || command == null) throw new InvalidOperationException("Quest shuttle prerequisites changed: " + (failure?.Detail ?? ""));
-            if (autoload != null && shuttle.Autoload != command.Loading?.Autoload) autoload.toggleAction();
+            if (autoload != null && command.Loading is Operations.QuestShuttleIntentLoading.AutoloadCase { Value: var requested } && shuttle.Autoload != requested) autoload.toggleAction();
             if (pawns.Length > 0)
             {
                 if (!shuttle.Transporter.LoadingInProgressOrReadyToLaunch) TransporterUtility.InitiateLoading(Gen.YieldSingle(shuttle.Transporter));

@@ -28,19 +28,18 @@ namespace HomeBridge.BridgeTools
             _ => throw new ArgumentOutOfRangeException(nameof(priority), priority, "Unknown stockpile priority."),
         };        internal static bool Valid([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] Operations.ZoneIntent? command)
         {
-            if (command == null || command.Kind is null || command.RemoveCells != null || command.Delete.GetValueOrDefault()) return false;
+            if (command == null || command.Kind == Operations.ZoneType.Existing || command.RemoveCells != null || command.Delete) return false;
             if (command.AddCells?.Selection?.ExplicitCells is not { } cellList || cellList.Cells.Count == 0) return false;
             var cells = cellList.Cells;
             if (!cells.All(c => c.X >= 0 && c.Z >= 0) || cells.Select(c => Tuple.Create(c.X, c.Z)).Distinct().Count() != cells.Count) return false;
-            if (command.Kind.GetValueOrDefault() == Operations.ZoneType.Fishing)
-                return (command.Label ?? "") == "Fishing" && command.Stockpile == null && command.Growing == null && !command.RequireCoveredEmpty.GetValueOrDefault()
-                    && command.Fishing != null && command.Fishing.PopulationFloor is not null && (command.Fishing?.PopulationFloor ?? 0) >= 0 && (command.Fishing?.PopulationFloor ?? 0) <= 1
+            if (command.Kind == Operations.ZoneType.Fishing)
+                return (command.Label ?? "") == "Fishing" && command.Stockpile == null && command.Growing == null && !command.RequireCoveredEmpty
+                    && command.Fishing != null && command.Fishing!.PopulationFloor >= 0 && command.Fishing!.PopulationFloor <= 1
                     && (command.Zone == null || ProtoBoundary.IsIdentifier(command.Zone.Id));
             if (command.Fishing != null || command.Zone != null) return false;
-            if (command.Kind.GetValueOrDefault() == Operations.ZoneType.Growing)
-                return (command.Label ?? "") == "Crops" && command.Stockpile == null && !command.RequireCoveredEmpty.GetValueOrDefault()
-                    && command.Growing != null && command.Growing.PlantDef is not null && ProtoBoundary.IsIdentifier(command.Growing.PlantDef)
-                    && command.Growing.AllowSow is not null && command.Growing.AllowSow.GetValueOrDefault() && command.Growing.AllowCut is not null && command.Growing.AllowCut.GetValueOrDefault();
+            if (command.Kind == Operations.ZoneType.Growing)
+                return (command.Label ?? "") == "Crops" && command.Stockpile == null && !command.RequireCoveredEmpty
+                    && command.Growing != null && command.Growing.PlantDef is not null && ProtoBoundary.IsIdentifier(command.Growing.PlantDef);
             return false;
         }
         internal const string Kind = "Zone creation";
@@ -62,7 +61,7 @@ namespace HomeBridge.BridgeTools
             var cells = Cells(command);
             var selected = new HashSet<IntVec3>(cells);
             var rules = new ApplyPreconditions(Kind);
-            if (command.Kind.GetValueOrDefault() == Operations.ZoneType.Fishing)
+            if (command.Kind == Operations.ZoneType.Fishing)
             {
                 if (!ModsConfig.OdysseyActive || !ResearchProjectDefOf.Fishing.IsFinished)
                 { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Fishing requires Odyssey and completed Fishing research."); return false; }
@@ -78,7 +77,7 @@ namespace HomeBridge.BridgeTools
                     rules.Require(() => existing != null && existing.Cells.Contains(c) || FishableCell(c, map, body), "cell " + At(c) + " is not free shallow fish-bearing water in this body");
                 }
             }
-            else if (command.Kind.GetValueOrDefault() == Operations.ZoneType.Growing)
+            else if (command.Kind == Operations.ZoneType.Growing)
             {
                 crop = DefDatabase<ThingDef>.GetNamedSilentFail((command.Growing?.PlantDef ?? ""));
                 if (crop?.plant == null || !crop.plant.Sowable || !crop.plant.sowTags.Contains("Ground")
@@ -140,11 +139,11 @@ namespace HomeBridge.BridgeTools
             if (!cells[0].InBounds(map)) return null;
             var zone = map.zoneManager.ZoneAt(cells[0]);
             if (zone == null || zone.label != (command!.Label ?? "") || zone.Cells.Count != cells.Length || !cells.All(c => c.InBounds(map) && map.zoneManager.ZoneAt(c) == zone)) return null;
-            switch (command.Kind.GetValueOrDefault())
+            switch (command.Kind)
             {
                 case Operations.ZoneType.Fishing:
                     return zone is Zone_Fishing fishing && fishing.Allowed && fishing.repeatMode == FishRepeatMode.DoForever
-                        && Math.Abs(fishing.targetPopulationPct - (command.Fishing?.PopulationFloor ?? 0)) < 0.000001
+                        && Math.Abs(fishing.targetPopulationPct - command.Fishing!.PopulationFloor) < 0.000001
                         && (command.Zone == null || RefIndex.Is(zone, command.Zone.Id)) ? zone : null;
                 case Operations.ZoneType.Growing:
                     if (!(zone is Zone_Growing growing) || !growing.allowSow || !growing.allowCut) return null;
@@ -157,14 +156,14 @@ namespace HomeBridge.BridgeTools
         internal static Zone Create(Operations.ZoneIntent command, Map map, ThingDef? crop)
         {
             var cells = Cells(command);
-            if (command.Kind.GetValueOrDefault() == Operations.ZoneType.Fishing) {
+            if (command.Kind == Operations.ZoneType.Fishing) {
                 var fishing = command.Zone != null ? RefIndex.Zone<Zone_Fishing>(map, command.Zone.Id ?? "")! : new Zone_Fishing(map.zoneManager);
                 if (command.Zone == null) map.zoneManager.RegisterZone(fishing);
-                fishing.label = command.Label; fishing.repeatMode = FishRepeatMode.DoForever; fishing.targetPopulationPct = (float)(command.Fishing?.PopulationFloor ?? 0);
+                fishing.label = command.Label; fishing.repeatMode = FishRepeatMode.DoForever; fishing.targetPopulationPct = (float)command.Fishing!.PopulationFloor;
                 foreach (var cell in cells) if (!fishing.Cells.Contains(cell)) fishing.AddCell(cell);
                 return fishing;
             }
-            if (command.Kind.GetValueOrDefault() == Operations.ZoneType.Growing) {
+            if (command.Kind == Operations.ZoneType.Growing) {
                 var growing = new Zone_Growing(map.zoneManager);
                 map.zoneManager.RegisterZone(growing); growing.label = command.Label;
                 foreach (var cell in cells) growing.AddCell(cell);

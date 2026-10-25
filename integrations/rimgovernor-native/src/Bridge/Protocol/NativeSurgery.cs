@@ -23,9 +23,9 @@ namespace HomeBridge.BridgeTools
             out Pawn? pawn, out RecipeDef? recipe, out BodyPartRecord? part)
         {
             pawn = null; recipe = null; part = null;
-            if (intent == null || intent.BenchId is not null || intent.Settings != null || intent.ReplaceOwnedBill != null
+            if (intent == null || intent.PartIndex is null || intent.BenchId is not null || intent.Settings != null || intent.ReplaceOwnedBill != null
                 || !ProtoBoundary.IsIdentifier(intent.Patient?.Id) || !ProtoBoundary.IsIdentifier(intent.RecipeDef)
-                || (intent.PartIndex is not null && intent.PartIndex.GetValueOrDefault() < 0))
+                || (intent.PartIndex is Operations.SurgeryTarget.Part { Index: < 0 }))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Surgery requires an exact patient, an exact recipe and a whole-body or exact part index.");
             var map = ProtoBoundary.LoadedMap(context);
             pawn = map.mapPawns.AllPawnsSpawned.ById(intent.Patient.Id);
@@ -35,10 +35,10 @@ namespace HomeBridge.BridgeTools
             recipe = pawn.def.AllRecipes?.FirstOrDefault(r => r.defName == (intent.RecipeDef ?? ""));
             if (recipe == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Recipe " + (intent.RecipeDef ?? "") + " is not offered for this patient.");
             var parts = pawn.RaceProps.body.AllParts;
-            if (intent.PartIndex is not null)
+            if (intent.PartIndex is Operations.SurgeryTarget.Part selected)
             {
-                if (intent.PartIndex.GetValueOrDefault() >= parts.Count) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Body part index is out of range.");
-                part = parts[intent.PartIndex.GetValueOrDefault()];
+                if (selected.Index >= parts.Count) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Body part index is out of range.");
+                part = parts[selected.Index];
             }
             if (recipe.targetsBodyPart != (part != null))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, recipe.targetsBodyPart ? "Recipe needs a body part." : "Recipe is whole-body; no part index.");
@@ -50,7 +50,7 @@ namespace HomeBridge.BridgeTools
             if (Queued(pawn, recipe, part) != null) return null;
             if (Stands(pawn, recipe, part))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Recipe " + recipe.defName + " already stands on this part.");
-            if (!intent.AcknowledgeViolation.GetValueOrDefault() && recipe.Worker.IsViolationOnPawn(pawn, part, Faction.OfPlayer))
+            if (!intent.AcknowledgeViolation && recipe.Worker.IsViolationOnPawn(pawn, part, Faction.OfPlayer))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Recipe is a violation on this patient; acknowledge_violation is required.");
             return null;
         }
@@ -78,7 +78,7 @@ namespace HomeBridge.BridgeTools
             {
                 PawnId = pawn!.GetUniqueLoadID(), Bill = NativeRef.Of(bill.GetUniqueLoadID()),
                 State = Receipts.SurgeryState.Queued,
-                Target = part is null ? new Receipts.SurgeryTarget.WholeBodyCase() : new Receipts.SurgeryTarget.PartCase(intent.PartIndex ?? throw new InvalidOperationException("A part surgery has no part index.")),
+                Target = part is null ? new Receipts.SurgeryTarget.WholeBodyCase() : new Receipts.SurgeryTarget.PartCase(((Operations.SurgeryTarget.Part)intent.PartIndex).Index),
             };
             return new Receipts.EffectEvidence { Effect = effect };
         }

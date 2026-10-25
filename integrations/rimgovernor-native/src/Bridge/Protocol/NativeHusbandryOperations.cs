@@ -125,7 +125,7 @@ namespace HomeBridge.BridgeTools
                 case Operations.HusbandryOrder.AllowedArea:
                 case Operations.HusbandryOrder.Master: return intent.TargetId is null || ProtoBoundary.IsIdentifier(intent.TargetId);
                 case Operations.HusbandryOrder.FollowDrafted:
-                case Operations.HusbandryOrder.FollowFieldwork: return intent.Follow is not null;
+                case Operations.HusbandryOrder.FollowFieldwork: return true;
                 case Operations.HusbandryOrder.Slaughter:
                 case Operations.HusbandryOrder.Tame:
                 case Operations.HusbandryOrder.Release:
@@ -186,8 +186,8 @@ namespace HomeBridge.BridgeTools
                     return animal.Faction == Faction.OfPlayer && (intent.TargetId is not null
                         ? target.Master != null && NativeHusbandryOperations.MasterId(animal) == target.Master.GetUniqueLoadID()
                         : NativeHusbandryOperations.MasterId(animal) == "");
-                case Operations.HusbandryOrder.FollowDrafted: return animal.Faction == Faction.OfPlayer && animal.playerSettings != null && animal.playerSettings.followDrafted == intent.Follow.GetValueOrDefault();
-                case Operations.HusbandryOrder.FollowFieldwork: return animal.Faction == Faction.OfPlayer && animal.playerSettings != null && animal.playerSettings.followFieldwork == intent.Follow.GetValueOrDefault();
+                case Operations.HusbandryOrder.FollowDrafted: return animal.Faction == Faction.OfPlayer && animal.playerSettings != null && animal.playerSettings.followDrafted == intent.Follow;
+                case Operations.HusbandryOrder.FollowFieldwork: return animal.Faction == Faction.OfPlayer && animal.playerSettings != null && animal.playerSettings.followFieldwork == intent.Follow;
                 default: return false;
             }
         }
@@ -270,8 +270,8 @@ namespace HomeBridge.BridgeTools
                     case Operations.HusbandryOrder.Sterilize: HealthCardUtility.CreateSurgeryBill(animal, NativeHusbandryOperations.SterilizeRecipe(animal)!, null); break;
                     case Operations.HusbandryOrder.AllowedArea: animal.playerSettings!.AreaRestrictionInPawnCurrentMap = target.Area; break;
                     case Operations.HusbandryOrder.Master: animal.playerSettings!.Master = target.Master; break;
-                    case Operations.HusbandryOrder.FollowDrafted: animal.playerSettings!.followDrafted = intent.Follow.GetValueOrDefault(); break;
-                    case Operations.HusbandryOrder.FollowFieldwork: animal.playerSettings!.followFieldwork = intent.Follow.GetValueOrDefault(); break;
+                    case Operations.HusbandryOrder.FollowDrafted: animal.playerSettings!.followDrafted = intent.Follow; break;
+                    case Operations.HusbandryOrder.FollowFieldwork: animal.playerSettings!.followFieldwork = intent.Follow; break;
                     case Operations.HusbandryOrder.CancelSlaughter:
                     case Operations.HusbandryOrder.CancelRelease:
                         animal.Map.designationManager.RemoveDesignation(animal.Map.designationManager.DesignationOn(animal, designation));

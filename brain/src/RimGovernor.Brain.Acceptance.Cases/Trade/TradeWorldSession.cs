@@ -93,7 +93,7 @@ internal static class TradeWorldSession
 
         async Task Cancel(string label)
         {
-            _ = await Apply(label, new Operations.EndTrade { Kind = Operations.EndTradeKind.Cancel }).ConfigureAwait(false);
+            _ = await Apply(label, new Operations.EndTrade { Kind = Operations.EndTradeKind.Cancel, ReceiveQuest = false }).ConfigureAwait(false);
             await Closed(label + "-closed").ConfigureAwait(false);
         }
 
@@ -113,7 +113,7 @@ internal static class TradeWorldSession
         }
 
         await Unchanged("opened-no-delivery", before).ConfigureAwait(false);
-        _ = await Apply("browse-stage", new Operations.SetTradeLines { Lines = [new() { LineId = component.LineId, AbsoluteCount = 1 }] }).ConfigureAwait(false);
+        _ = await Apply("browse-stage", new Operations.SetTradeLines { Lines = [new() { LineId = component.LineId, AbsoluteCount = 1 }], AllowPawns = false }).ConfigureAwait(false);
         await Unchanged("staged-no-delivery", before).ConfigureAwait(false);
         await Cancel("browse-cancel").ConfigureAwait(false);
         await Unchanged("cancel-no-purchase", before).ConfigureAwait(false);
@@ -121,9 +121,9 @@ internal static class TradeWorldSession
         sessionId = await Open("purchase-open").ConfigureAwait(false);
         offers = await TradeKit.SheetAsync(s, "purchase-sheet", sessionId, cancellationToken).ConfigureAwait(false);
         var componentId = Find(offers, "ComponentIndustrial")?.LineId ?? throw new AcceptanceException("purchase-sheet: no component row");
-        _ = await Apply("purchase-stage", new Operations.SetTradeLines { Lines = [new() { LineId = componentId, AbsoluteCount = 1 }] }).ConfigureAwait(false);
+        _ = await Apply("purchase-stage", new Operations.SetTradeLines { Lines = [new() { LineId = componentId, AbsoluteCount = 1 }], AllowPawns = false }).ConfigureAwait(false);
         var staged = await TradeKit.SheetAsync(s, "purchase-accept-sheet", sessionId, cancellationToken).ConfigureAwait(false);
-        var effect = await Apply("purchase-accept", new Operations.AcceptTrade { ExpectedDealSignature = staged.DealSignature }).ConfigureAwait(false);
+        var effect = await Apply("purchase-accept", new Operations.AcceptTrade { ExpectedDealSignature = staged.DealSignature, AllowEmpty = false, ReceiveQuest = true }).ConfigureAwait(false);
         s.RecordWire("purchase", effect);
         await Closed("purchase-closed").ConfigureAwait(false);
 

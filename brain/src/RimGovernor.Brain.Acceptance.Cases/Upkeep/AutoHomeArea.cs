@@ -34,8 +34,7 @@ internal static class UpkeepAutoHomeArea
             var reply = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
             {
                 Identity = s.Identity,
-                Actions = [new Operations.Action { Key = key, Intent = new Operations.AutoHomeAreaIntent { Enabled = enabled } }],
-            }, cancellationToken).ConfigureAwait(false);
+                Actions = [new Operations.Action { Key = key, Intent = new Operations.AutoHomeAreaIntent { Enabled = enabled } }], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
             var results = reply.Results.ToList();
             var fields = results is [{ Outcome.Applied.Outcome.Applied.Observed.Effect.Settings: { } settings }] ? settings.Fields.ToList() : null;
             if (fields is not [{ Field: Receipts.SettingsField.AutoHomeArea } field] || field.Outcome != outcome)

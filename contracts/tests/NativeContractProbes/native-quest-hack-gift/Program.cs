@@ -3,6 +3,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.Json;
 
 internal static class NativeQuestHackGiftProbe
 {
@@ -15,6 +16,11 @@ internal static class NativeQuestHackGiftProbe
         var type = typeof(RimGovernor.Contracts.Wire.Common.Ref).Assembly.GetType("RimGovernor.Contracts.Wire.Operations." + name, true)!;
         return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize", new[] { typeof(string) })!.MakeGenericMethod(type).Invoke(null, new object[] { json })!;
     }
+    private static bool Rejected(MethodInfo validator, string type, string json)
+    {
+        try { return !(bool)validator.Invoke(null, new[] { Wire(type, json) })!; }
+        catch (TargetInvocationException error) when (error.InnerException is JsonException) { return true; }
+    }
     internal static int Invoke(string[] args)
     {
         var dirs = args.Skip(1).Concat(new[] { Path.GetDirectoryName(Path.GetFullPath(args[0]))! }).ToArray();
@@ -24,13 +30,13 @@ internal static class NativeQuestHackGiftProbe
         foreach (var json in new[] { "{\"target\":{\"id\":\"Thing_1\"},\"enabled\":true}", "{\"target\":{\"id\":\"Thing_1\"},\"enabled\":false}" })
             Check((bool)hack.Invoke(null, new[] { Wire("HackDesignationIntent", json) })!, "explicit native toggle state accepted");
         foreach (var json in new[] { "{}", "{\"target\":{\"id\":\"Thing_1\"}}", "{\"enabled\":true}", "{\"target\":{},\"enabled\":false}" })
-            Check(!(bool)hack.Invoke(null, new[] { Wire("HackDesignationIntent", json) })!, "missing exact hack field refused");
+            Check(Rejected(hack, "HackDesignationIntent", json), "missing exact hack field refused");
         var give = bridge.GetType("HomeBridge.BridgeTools.NativeGiveItemOperations", true)!.GetMethod("ValidShape", Flags)!;
         string Gift(string def, long count, string hauler = "Pawn_1", string recipient = "Pawn_2") => "{\"hauler\":{\"id\":\"" + hauler + "\"},\"recipient\":{\"id\":\"" + recipient + "\"},\"definition\":\"" + def + "\",\"expectedRemaining\":" + count + "}";
         foreach (var def in new[] { "Silver", "MedicineHerbal", "MedicineIndustrial", "Penoxycyline", "Beer" })
             Check((bool)give.Invoke(null, new[] { Wire("GiveItemIntent", Gift(def, 7)) })!, "closed native gift definition accepted");
         foreach (var json in new[] { "{}", "{\"hauler\":{\"id\":\"Pawn_1\"}}", Gift("Silver", 0), Gift("Silver", -1), Gift("Silver", (long)int.MaxValue + 1), Gift("WoodLog", 1), Gift("Silver", 1, "Pawn_1", "Pawn_1"), Gift("Silver", 1, "", "Pawn_2") })
-            Check(!(bool)give.Invoke(null, new[] { Wire("GiveItemIntent", json) })!, "invalid native whole request refused");
+            Check(Rejected(give, "GiveItemIntent", json), "invalid native whole request refused");
         var dispatch = bridge.GetType("HomeBridge.BridgeTools.NativeActionDispatch", true)!;
         dispatch.GetMethod("AssertComplete", Flags)!.Invoke(null, null);
         var handlers = (System.Collections.IDictionary)dispatch.GetField("Handlers", Flags)!.GetValue(null)!;

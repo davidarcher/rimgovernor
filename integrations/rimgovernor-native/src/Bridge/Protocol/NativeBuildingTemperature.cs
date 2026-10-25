@@ -39,7 +39,7 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(Operations.BuildingPatchIntent intent, Common.ObservationContext context, out Thing? thing)
         {
             thing = null;
-            if (!ProtoBoundary.IsIdentifier(intent.ThingId) || intent.Change?.TargetTemperature is not { } target || float.IsNaN(target) || float.IsInfinity(target))
+            if (!ProtoBoundary.IsIdentifier(intent.ThingId) || intent.Change is not Operations.BuildingPatchIntentChange.TargetTemperatureCase { Value: var target } || float.IsNaN(target) || float.IsInfinity(target))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A temperature patch requires an exact building and a finite target (domain.NewBuildingTemperature bounds the range).");
             thing = RefIndex.Thing(ProtoBoundary.LoadedMap(context), intent.ThingId);
             if (thing == null || !Eligible(thing)) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact building with CompTempControl is unavailable.");
@@ -57,7 +57,7 @@ namespace HomeBridge.BridgeTools
             var failure = Resolve(intent, context, out var thing);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
             var comp = thing!.TryGetComp<CompTempControl>();
-            var wanted = intent.Change?.TargetTemperature ?? throw new InvalidOperationException("A temperature patch requires a target temperature.");
+            if (intent.Change is not Operations.BuildingPatchIntentChange.TargetTemperatureCase { Value: var wanted }) throw new InvalidOperationException("A temperature patch requires a target temperature.");
             comp.targetTemperature = wanted;
             if (Math.Abs(comp.targetTemperature - wanted) >= 0.001f) throw new InvalidOperationException("Native building temperature requires readback.");
             return Evidence();

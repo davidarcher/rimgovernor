@@ -66,8 +66,8 @@ internal static class WallTierGate
         Operations.BuildingIntent SetTier(int tier) => new()
         {
             Placement = new Placement.PlacementCandidate { DefName = "Wall", Stuff = "Steel", X = b.X, Z = b.Z, Rotation = Placement.Rotation.North, IgnoreNaturalRock = false },
-            Tier = tier,
-            ExistingTargetId = b.Target,
+            Tier = new Operations.ConstructionTierChange.Selected(tier),
+            ExistingTargetId = b.Target, ReplaceWall = false, MinimumFinishingSkill = new Operations.FinishingSkillChange.Preserve(),
         };
 
         _ = await TypedApply.AppliedAsync(s, "tier-raise", SetTier(0), cancellationToken).ConfigureAwait(false);

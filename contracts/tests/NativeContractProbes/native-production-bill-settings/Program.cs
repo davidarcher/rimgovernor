@@ -19,25 +19,22 @@ internal static class NativeProductionBillSettingsProbe
             BenchId = "tailor",
             RecipeDef = "Make_Apparel_BasicShirt",
             Settings = new Operations.BillSettings {
-                RepeatMode = Operations.RepeatMode.Target, TargetCount = 1, UnpauseThreshold = 1,
-                PauseWhenSatisfied = true, Suspended = false, IngredientSearchRadius = 40
-            }
-        };
+                Repetition = new Operations.BillRepetition.Target(1, 1), BeerReserve = false, Corpses = new Operations.BillCorpseClass.NotApplicable()
+            }, AcknowledgeViolation = false, PartIndex = new Operations.SurgeryTarget.WholeBody() };
         Check(NativeProductionBillSettings.Valid(bill), "recipe defaults rejected");
         // A finite batch (gear, sculpture) repeats a count, with no target.
-        var batch = bill with { Settings = new Operations.BillSettings { RepeatMode = Operations.RepeatMode.Count, RepeatCount = 2,
-            Suspended = false, IngredientSearchRadius = 40 } };
+        var batch = bill with { Settings = new Operations.BillSettings { Repetition = new Operations.BillRepetition.Count(2), BeerReserve = false, Corpses = new Operations.BillCorpseClass.NotApplicable() } };
         Check(NativeProductionBillSettings.Valid(batch), "finite batch rejected");
-        batch = Settings(batch, s => s with { TargetCount = 2 });
-        Check(!NativeProductionBillSettings.Valid(batch), "finite batch with a target accepted");
-        batch = Settings(batch, s => s with { TargetCount = null });
+        batch = Settings(batch, s => s with { Repetition = new Operations.BillRepetition.Count(0) });
+        Check(!NativeProductionBillSettings.Valid(batch), "empty finite batch accepted");
+        batch = Settings(batch, s => s with { Repetition = new Operations.BillRepetition.Count(2) });
         // A batch may pin one artist.
         batch = Settings(batch, s => s with { Worker = Worker("Pawn_Artist") });
         Check(NativeProductionBillSettings.Valid(batch), "pinned finite batch rejected");
         batch = Settings(batch, s => s with { Worker = Worker("") });
         Check(!NativeProductionBillSettings.Valid(batch), "finite batch with an empty worker accepted");
         batch = Settings(batch, s => s with { Worker = null });
-        var filter = new Operations.FilterPatch { Replace = new Operations.SelectorList { Selectors = [ThingDef("Leather_Plain")] } };
+        var filter = new Operations.FilterPatch { Replace = new Operations.SelectorList { Selectors = [ThingDef("Leather_Plain")] }, HitPoints = new Operations.HitPointRange.Preserve() };
         bill = Settings(bill, s => s with { Ingredients = filter });
         Check(NativeProductionBillSettings.Valid(bill), "exact leather filter rejected");
         foreach (var change in new Func<Operations.FilterPatch, Operations.FilterPatch>[] {
@@ -47,24 +44,23 @@ internal static class NativeProductionBillSettingsProbe
             f => f with { Replace = f.Replace with { Selectors = [new Operations.FilterSelector { Definition = new Operations.FilterSelectorDefinition.CategoryDefCase("Leathers") }] } },
             f => f with { Allow = [.. f.Allow, ThingDef("Cloth")] },
             f => f with { Disallow = [.. f.Disallow, ThingDef("Cloth")] },
-            f => f with { HitPointsMin = 0 },
+            f => f with { HitPoints = new Operations.HitPointRange.Selected(0, 1) },
             f => f with { Replace = f.Replace with { Selectors = [ThingDef("")] } }
         }) {
             var invalid = Settings(bill, s => s with { Ingredients = change(s.Ingredients) });
             Check(!NativeProductionBillSettings.Valid(invalid), "unsupported filter accepted: " + invalid.Settings.Ingredients);
         }
         var butcher = bill with { RecipeDef = "ButcherCorpseFlesh" };
-        butcher = butcher with { Settings = new Operations.BillSettings { RepeatMode = Operations.RepeatMode.Forever,
-            Suspended = false, IngredientSearchRadius = 40 } };
+        butcher = butcher with { Settings = new Operations.BillSettings { Repetition = new Operations.BillRepetition.Forever(), BeerReserve = false, Corpses = new Operations.BillCorpseClass.NotApplicable() } };
         Check(!NativeProductionBillSettings.Valid(butcher), "butcher bill without a corpse class accepted");
-        butcher = Settings(butcher, s => s with { CorpseClass = RimGovernor.Contracts.Wire.Common.CorpseClass.Animal });
+        butcher = Settings(butcher, s => s with { Corpses = new Operations.BillCorpseClass.Selected(RimGovernor.Contracts.Wire.Common.CorpseClass.Animal) });
         Check(NativeProductionBillSettings.Valid(butcher), "animal butcher bill rejected" );
         butcher = butcher with { ReplaceOwnedBill = new RimGovernor.Contracts.Wire.Common.Ref { Id = "foreign-bill" } };
         Check(NativeProductionBillSettings.Valid(butcher), "butcher takeover rejected" );
-        var classedMeal = Settings(bill, s => s with { CorpseClass = RimGovernor.Contracts.Wire.Common.CorpseClass.Animal });
+        var classedMeal = Settings(bill, s => s with { Corpses = new Operations.BillCorpseClass.Selected(RimGovernor.Contracts.Wire.Common.CorpseClass.Animal) });
         Check(!NativeProductionBillSettings.Valid(classedMeal), "corpse class accepted outside corpse recipes");
         Check(!NativeProductionBillSettings.Valid(Settings(butcher, s => s with { Worker = Worker("Pawn_Cook") })), "pinned animal butcher accepted");
-        butcher = Settings(butcher, s => s with { CorpseClass = RimGovernor.Contracts.Wire.Common.CorpseClass.Stranger, Worker = Worker("Pawn_Cook") });
+        butcher = Settings(butcher, s => s with { Corpses = new Operations.BillCorpseClass.Selected(RimGovernor.Contracts.Wire.Common.CorpseClass.Stranger), Worker = Worker("Pawn_Cook") });
         Check(NativeProductionBillSettings.Valid(butcher), "pinned human butcher rejected");
         var invalidWorker = Settings(butcher, s => s with { Worker = Worker("") });
         Check(!NativeProductionBillSettings.Valid(invalidWorker), "empty worker accepted");

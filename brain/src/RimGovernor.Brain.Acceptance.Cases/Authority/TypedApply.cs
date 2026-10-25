@@ -15,8 +15,7 @@ internal static class TypedApply
         var reply = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
         {
             Identity = s.Identity,
-            Actions = [new Operations.Action { Key = key, Intent = intent }],
-        }, cancellationToken).ConfigureAwait(false);
+            Actions = [new Operations.Action { Key = key, Intent = intent }], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
         return reply.Results.ToList() is [{ Outcome: { } outcome }]
             ? outcome
             : throw new AcceptanceException($"{key}: want one result, got {reply.BatchFailure} {string.Join("; ", reply.Results)}");

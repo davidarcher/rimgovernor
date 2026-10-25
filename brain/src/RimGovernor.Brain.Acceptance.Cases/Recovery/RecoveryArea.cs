@@ -82,8 +82,7 @@ internal static class RecoveryArea
                 new Operations.ApplyRequest
                 {
                     Identity = s.Identity,
-                    Actions = [new Operations.Action { Key = key, Intent = new Operations.WorkSettingsIntent { PawnId = pawn, AllowedArea = new Operations.Assignment { Value = area } } }],
-                },
+                    Actions = [new Operations.Action { Key = key, Intent = new Operations.WorkSettingsIntent { PawnId = pawn, AllowedArea = new Operations.Assignment { Value = area } } }], DeferSnapshot = false },
                 cancellationToken).ConfigureAwait(false);
             return reply.Results.ToList() is [{ } result]
                 ? result

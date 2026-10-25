@@ -138,11 +138,10 @@ internal static class ZoneDelete
             AddCells = new Operations.Cells { Selection = new Operations.Rectangle { Origin = corner, Width = 2, Height = 2 } },
             Stockpile = new Operations.StockpileSettings
             {
-                Priority = StockpilePriority.Important,
-                Preset = FilterBase.Nothing,
-                Filter = new Operations.FilterPatch { Allow = [Def("Steel"), Def("WoodLog")], HitPointsMin = 0.5, HitPointsMax = 1, QualityMin = "Normal", QualityMax = "Legendary" },
-            },
-        };
+                Priority = new Operations.StockpilePriorityChange.Selected(StockpilePriority.Important),
+                Preset = new Operations.StockpilePresetChange.Selected(FilterBase.Nothing),
+                Filter = new Operations.FilterPatch { Allow = [Def("Steel"), Def("WoodLog")], HitPoints = new Operations.HitPointRange.Selected(0.5, 1), QualityMin = "Normal", QualityMax = "Legendary" },
+            }, Delete = false, RequireCoveredEmpty = false };
         var created = await AppliedEffectAsync("zone-create", create).ConfigureAwait(false);
         if (created is not Receipts.ZoneEffect.CreatedCase parts || parts.Zones.ToList() is not [{ ZoneId: { Length: > 0 } zoneId } component] || component.Cells.Count != interior.Count)
         {
@@ -170,8 +169,7 @@ internal static class ZoneDelete
         await RefusedAsync("stockpile-unresolved", new Operations.ZoneIntent
         {
             Zone = zone,
-            Stockpile = new Operations.StockpileSettings { Filter = new Operations.FilterPatch { Allow = [Def("NoSuchThingDefForZoneAccept")] } },
-        }, Common.FailureCode.InvalidRequest).ConfigureAwait(false);
+            Stockpile = new Operations.StockpileSettings { Filter = new Operations.FilterPatch { Allow = [Def("NoSuchThingDefForZoneAccept")], HitPoints = new Operations.HitPointRange.Preserve() }, Priority = new Operations.StockpilePriorityChange.Preserve(), Preset = new Operations.StockpilePresetChange.Preserve() }, Delete = false, RequireCoveredEmpty = false, Kind = Operations.ZoneType.Existing }, Common.FailureCode.InvalidRequest).ConfigureAwait(false);
         if (await StateAsync("after-unresolved", zoneId).ConfigureAwait(false) != afterCreate)
         {
             throw new AcceptanceException("stockpile-unresolved: a refused body changed the zone");
@@ -182,10 +180,8 @@ internal static class ZoneDelete
             Zone = zone,
             Stockpile = new Operations.StockpileSettings
             {
-                Priority = StockpilePriority.Normal,
-                Filter = new Operations.FilterPatch { HitPointsMin = 0.25, HitPointsMax = 0.75 },
-            },
-        };
+                Priority = new Operations.StockpilePriorityChange.Selected(StockpilePriority.Normal),
+                Filter = new Operations.FilterPatch { HitPoints = new Operations.HitPointRange.Selected(0.25, 0.75)}, Preset = new Operations.StockpilePresetChange.Preserve() }, Delete = false, RequireCoveredEmpty = false, Kind = Operations.ZoneType.Existing };
         if ((await AppliedAsync("stockpile-patch", patch).ConfigureAwait(false)).ZoneId != zoneId)
         {
             throw new AcceptanceException("stockpile-patch: the effect names another zone");
@@ -203,7 +199,7 @@ internal static class ZoneDelete
         async Task<(HashSet<string> Defs, Observations.StockpileFilter? Filter)> PresetAsync(FilterBase preset)
         {
             var key = "preset-" + preset;
-            _ = await AppliedAsync(key, new Operations.ZoneIntent { Zone = zone, Stockpile = new Operations.StockpileSettings { Preset = preset } }).ConfigureAwait(false);
+            _ = await AppliedAsync(key, new Operations.ZoneIntent { Zone = zone, Stockpile = new Operations.StockpileSettings { Preset = new Operations.StockpilePresetChange.Selected(preset), Priority = new Operations.StockpilePriorityChange.Preserve() }, Delete = false, RequireCoveredEmpty = false, Kind = Operations.ZoneType.Existing }).ConfigureAwait(false);
             var filter = (await RowAsync(key + "-readback", zoneId).ConfigureAwait(false) as Observations.ZoneState.Stockpile)?.Filter;
             return (filter?.AllowedDefNames.ToHashSet(StringComparer.Ordinal) ?? [], filter);
         }
@@ -235,7 +231,7 @@ internal static class ZoneDelete
         Operations.ZoneIntent Edit(Common.Ref target, bool remove)
         {
             var cells = new Operations.Cells { Selection = new Operations.CellList { Cells = [corner] } };
-            return remove ? new Operations.ZoneIntent { Zone = target, RemoveCells = cells } : new Operations.ZoneIntent { Zone = target, AddCells = cells };
+            return remove ? new Operations.ZoneIntent { Zone = target, RemoveCells = cells, Delete = false, RequireCoveredEmpty = false, Kind = Operations.ZoneType.Existing } : new Operations.ZoneIntent { Zone = target, AddCells = cells, Delete = false, RequireCoveredEmpty = false, Kind = Operations.ZoneType.Existing };
         }
 
         await RefusedAsync("zone-edit-missing", Edit(new Common.Ref { Id = "Zone_999999" }, remove: true), Common.FailureCode.NotFound).ConfigureAwait(false);
@@ -309,7 +305,7 @@ internal static class ZoneDelete
         }
 
         // --- delete ---
-        var delete = new Operations.ZoneIntent { Zone = zone, Delete = true };
+        var delete = new Operations.ZoneIntent { Zone = zone, Delete = true, RequireCoveredEmpty = false, Kind = Operations.ZoneType.Existing };
         var deleted = await AppliedAsync("zone-delete", delete).ConfigureAwait(false);
         if (deleted.ZoneId != zoneId || deleted.Present == true)
         {

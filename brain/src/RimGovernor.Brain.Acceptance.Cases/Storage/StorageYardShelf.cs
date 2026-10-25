@@ -82,11 +82,10 @@ internal static class StorageYardShelf
             Zone = new() { Id = shelf },
             Stockpile = new Operations.StockpileSettings
             {
-                Priority = StockpilePriority.Low,
-                Preset = FilterBase.OutdoorSafeWaste,
-                Filter = new Operations.FilterPatch { Allow = [new() { Definition = new Operations.FilterSelectorDefinition.ThingDefCase(Wearing) }] },
-            },
-        }, cancellationToken).ConfigureAwait(false);
+                Priority = new Operations.StockpilePriorityChange.Selected(StockpilePriority.Low),
+                Preset = new Operations.StockpilePresetChange.Selected(FilterBase.OutdoorSafeWaste),
+                Filter = new Operations.FilterPatch { Allow = [new() { Definition = new Operations.FilterSelectorDefinition.ThingDefCase(Wearing) }], HitPoints = new Operations.HitPointRange.Preserve() },
+            }, Delete = false, RequireCoveredEmpty = false, Kind = Operations.ZoneType.Existing }, cancellationToken).ConfigureAwait(false);
 
         var grid = await TypedApply.CellsAsync(s, "yard-shelf-census", site, cancellationToken).ConfigureAwait(false);
         var stacks = 0;

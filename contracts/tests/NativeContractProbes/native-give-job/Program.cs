@@ -53,7 +53,7 @@ internal static class NativeGiveJobProbe
         Check(Arm("{\"pawn\":{\"id\":\"p\"},\"job\":\"UseItem\",\"targets\":[{\"id\":\"i\"},{\"id\":\"p\"}]}") == "Use", "UseItem self-use arm");
         Check(Arm("{\"pawn\":{\"id\":\"p\"},\"job\":\"Repair\",\"targets\":[{\"id\":\"t\"}]}") == "Order", "Repair arm");
         Check(Arm("{\"pawn\":{\"id\":\"p\"},\"job\":\"Arrest\",\"targets\":[{\"id\":\"t\"},{\"id\":\"b\"}]}") == "Order", "Arrest arm");
-        Check(Arm("{\"pawn\":{\"id\":\"p\"},\"options\":{\"relieveNeed\":\"NEED_FOOD\"}}") == "Need", "need relief arm");
+        Check(Arm("{\"pawn\":{\"id\":\"p\"},\"options\":{\"prioritized\":false,\"relieveNeed\":\"NEED_FOOD\"}}") == "Need", "need relief arm");
         Check(Arm("{\"pawn\":{\"id\":\"p\"},\"job\":\"FinishFrame\",\"targets\":[{\"id\":\"f\"}],\"options\":{\"prioritized\":true}}") == "Prioritized", "prioritized arm");
 
         var handler = Activator.CreateInstance(bridge.GetType("HomeBridge.BridgeTools.GiveJobActionHandler", true)!, true)!;
@@ -70,7 +70,7 @@ internal static class NativeGiveJobProbe
             "{\"pawn\":{\"id\":\"p\"},\"job\":\"UseItem\",\"targets\":[{\"id\":\"p\"},{\"id\":\"t\"}]}",
             "{\"pawn\":{\"id\":\"p\"},\"job\":\"UseItem\",\"targets\":[{\"id\":\"i\"},{\"id\":\"i\"}]}",
             "{\"pawn\":{\"id\":\"p\"},\"job\":\"FinishFrame\",\"targets\":[{\"id\":\"f\"}]}",
-            "{\"pawn\":{\"id\":\"p\"},\"job\":\"Ingest\",\"options\":{\"relieveNeed\":\"NEED_FOOD\"}}",
+            "{\"pawn\":{\"id\":\"p\"},\"job\":\"Ingest\",\"options\":{\"prioritized\":false,\"relieveNeed\":\"NEED_FOOD\"}}",
         })
         {
             var failure = validate.Invoke(handler, new[] { Wire("Operations.Action", "{\"key\":\"k\",\"intent\":{\"type\":\"giveJob\",\"value\":" + json + "}}"), context });

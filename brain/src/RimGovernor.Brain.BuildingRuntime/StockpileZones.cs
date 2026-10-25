@@ -71,7 +71,7 @@ internal sealed partial class StockpileZones(Rounder reviewer, FacadeNativeClien
                 continue;
             }
             var v = reply.Outcome?.Evaluated;
-            if (v is null || !v.Accepted.GetValueOrDefault())
+            if (v is null || !v.Accepted)
             {
                 Tel.Decide(RoundsStockpilePlanner.StockpileEditDecision("refused", "preview_not_accepted", e.Role, new Dictionary<string, object?> { ["kind"] = "create", ["detail"] = v?.Reason ?? "" }));
                 continue;

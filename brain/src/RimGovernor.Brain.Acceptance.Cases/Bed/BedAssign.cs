@@ -77,7 +77,7 @@ internal static class BedAssign
             PawnId = pawn,
             ThingId = bed,
             ExpectedPrevious = new Operations.Assignment { Value = new Operations.AssignmentValue.EntityIdCase(expected) },
-            Swap = swap ? true : null,
+            Swap = swap,
         };
 
         await OwnsAsync("sleeper-before", sleeper, previous, owns: true).ConfigureAwait(false);

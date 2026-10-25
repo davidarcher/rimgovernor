@@ -78,8 +78,7 @@ internal static class ControlCut
             _ = await TypedApply.AppliedAsync(s, "designate", new Operations.DesignateIntent
             {
                 Designation = Operations.ThingDesignation.CutPlant,
-                Target = new() { Id = tree },
-            }, cancellationToken).ConfigureAwait(false);
+                Target = new() { Id = tree }, ReplaceWithWall = false, Withdraw = false, Guard = Operations.DesignationGuard.NoGuard }, cancellationToken).ConfigureAwait(false);
         }
 
         // The standing designations are one Cut wave: the op named by the lowest plant, Targets the three, a row for the colonist.

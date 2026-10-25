@@ -305,7 +305,7 @@ public static class Boundary
             else if (result.Outcome?.Refused is { } refused)
             {
                 output[i].Kind = Domain.Receipt.Refused;
-                output[i].Refusal = NativeRefusalOf(refused.Code.GetValueOrDefault(), (refused.Reason ?? ""), refused.RefusalClass.GetValueOrDefault());
+                output[i].Refusal = NativeRefusalOf(refused.Code, (refused.Reason ?? ""), refused.RefusalClass);
             }
             else if (result.Outcome?.Failed is { } failed && failed.Code != PbCommon.FailureCode.AttemptConflict)
             {

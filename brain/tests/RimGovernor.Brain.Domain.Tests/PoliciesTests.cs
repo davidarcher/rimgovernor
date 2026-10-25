@@ -79,13 +79,13 @@ public sealed class PoliciesTests
     [Fact]
     public void StockpileSettingsCarryTheBrainEnums()
     {
-        var settings = new Op.StockpileSettings { Priority = StockpilePriority.Important, Preset = FilterBase.OutdoorSafeWaste };
+        var settings = new Op.StockpileSettings { Priority = new Op.StockpilePriorityChange.Selected(StockpilePriority.Important), Preset = new Op.StockpilePresetChange.Selected(FilterBase.OutdoorSafeWaste)};
 
         var json = WireJson.Serialize(settings);
 
-        Assert.Equal("""{"priority":"important","preset":"outdoor_safe_waste","filter":null}""", json);
+        Assert.Equal("""{"priority":{"type":"set","value":"important"},"preset":{"type":"set","value":"outdoor_safe_waste"},"filter":null}""", json);
         Assert.Equal(settings, WireJson.Deserialize<Op.StockpileSettings>(json));
-        Assert.Equal(new Op.StockpileSettings(), WireJson.Deserialize<Op.StockpileSettings>("""{"priority":null,"preset":null,"filter":null}"""));
+        Assert.Equal(new Op.StockpileSettings { Priority = new Op.StockpilePriorityChange.Preserve(), Preset = new Op.StockpilePresetChange.Preserve() }, WireJson.Deserialize<Op.StockpileSettings>("""{"priority":{"type":"preserve"},"preset":{"type":"preserve"},"filter":null}"""));
     }
 
     [Fact]

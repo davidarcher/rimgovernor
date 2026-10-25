@@ -140,6 +140,7 @@ public enum RepeatMode
 [JsonConverter(typeof(WireEnumConverter<ZoneType>))]
 public enum ZoneType
 {
+    [WireName("ZONE_TYPE_EXISTING")] Existing = 5,
     [WireName("ZONE_TYPE_STOCKPILE")]
     Stockpile = 1,
     [WireName("ZONE_TYPE_DUMPING")]
@@ -238,6 +239,7 @@ public enum PolicyDatabase
 [JsonConverter(typeof(WireEnumConverter<DesignationGuard>))]
 public enum DesignationGuard
 {
+    [WireName("DESIGNATION_GUARD_NONE")] NoGuard = 6,
     /// <summary>
     /// Building removal (DECONSTRUCT): player deconstructible, visible, not
     /// forbidden or burning and no pending wall upgrade; an enclosing wall is
@@ -710,9 +712,8 @@ public sealed record FilterPatch
     /// and quality range by QualityCategory name (Awful..Legendary); both ends
     /// of a range are required together. Absent ranges are preserved.
     /// </summary>
-    public double? HitPointsMin { get; init; }
+    public required HitPointRange HitPoints { get; init; }
 
-    public double? HitPointsMax { get; init; }
 
     public string? QualityMin { get; init; }
 
@@ -721,48 +722,50 @@ public sealed record FilterPatch
 
 public sealed record BillSettings
 {
-    public RepeatMode? RepeatMode { get; init; }
-
-    public int? RepeatCount { get; init; }
-
-    public int? TargetCount { get; init; }
-
-    public int? UnpauseThreshold { get; init; }
-
-    public bool? PauseWhenSatisfied { get; init; }
-
-    public bool? Suspended { get; init; }
-
-    public float? IngredientSearchRadius { get; init; }
-
-    public int? SkillMin { get; init; }
-
-    public int? SkillMax { get; init; }
+    public required BillRepetition Repetition { get; init; }
 
     public Assignment? Worker { get; init; }
 
     public FilterPatch? Ingredients { get; init; }
 
-    /// <summary>
-    /// Wort bill whose target counts wort, fermenting contents and finished beer.
-    /// </summary>
-    public bool? BeerReserve { get; init; }
+    /// <summary>Wort targets include fermenting contents and finished beer.</summary>
+    public required bool BeerReserve { get; init; }
 
-    /// <summary>
-    /// Corpse bill ingredient filter: whose corpses a corpse recipe
-    /// (ButcherCorpseFlesh) takes. Required on corpse recipes,
-    /// refused on others; a butcher bill with a pinned worker is humanlike.
-    /// </summary>
-    public Common.CorpseClass? CorpseClass { get; init; }
+    public required BillCorpseClass Corpses { get; init; }
+}
+
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(BillRepetition.Forever), "forever")]
+[JsonDerivedType(typeof(BillRepetition.Count), "count")]
+[JsonDerivedType(typeof(BillRepetition.Target), "target")]
+public abstract record BillRepetition
+{
+    private protected BillRepetition() { }
+
+    public sealed record Forever : BillRepetition;
+
+    public sealed record Count([property: JsonRequired] int Repetitions) : BillRepetition;
+
+    public sealed record Target([property: JsonRequired] int Quantity, [property: JsonRequired] int UnpauseThreshold) : BillRepetition;
+}
+
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(BillCorpseClass.NotApplicable), "notApplicable")]
+[JsonDerivedType(typeof(BillCorpseClass.Selected), "selected")]
+public abstract record BillCorpseClass
+{
+    private protected BillCorpseClass() { }
+
+    public sealed record NotApplicable : BillCorpseClass;
+
+    public sealed record Selected([property: JsonRequired] Common.CorpseClass Class) : BillCorpseClass;
 }
 
 public sealed record StockpileSettings
 {
-    [JsonConverter(typeof(WireEnumConverter<StockpilePriority>))]
-    public StockpilePriority? Priority { get; init; }
+    public required StockpilePriorityChange Priority { get; init; }
 
-    [JsonConverter(typeof(WireEnumConverter<FilterBase>))]
-    public FilterBase? Preset { get; init; }
+    public required StockpilePresetChange Preset { get; init; }
 
     public FilterPatch? Filter { get; init; }
 }
@@ -770,15 +773,11 @@ public sealed record StockpileSettings
 public sealed record GrowingSettings
 {
     public string? PlantDef { get; init; }
-
-    public bool? AllowSow { get; init; }
-
-    public bool? AllowCut { get; init; }
 }
 
 public sealed record FishingSettings
 {
-    public double? PopulationFloor { get; init; }
+    public required double PopulationFloor { get; init; }
 }
 
 /// <summary>
@@ -804,7 +803,7 @@ public sealed record ZoneIntent
 {
     public Common.Ref? Zone { get; init; }
 
-    public ZoneType? Kind { get; init; }
+    public required ZoneType Kind { get; init; }
 
     public string? Label { get; init; }
 
@@ -812,7 +811,7 @@ public sealed record ZoneIntent
 
     public Cells? RemoveCells { get; init; }
 
-    public bool? Delete { get; init; }
+    public required bool Delete { get; init; }
 
     public StockpileSettings? Stockpile { get; init; }
 
@@ -820,7 +819,7 @@ public sealed record ZoneIntent
 
     public FishingSettings? Fishing { get; init; }
 
-    public bool? RequireCoveredEmpty { get; init; }
+    public required bool RequireCoveredEmpty { get; init; }
 }
 
 /// <summary>
@@ -844,7 +843,7 @@ public sealed record RemoveFloorIntent
 /// </summary>
 public sealed record OpenTrade
 {
-    public bool? GiftMode { get; init; }
+    public required bool GiftMode { get; init; }
 }
 
 public sealed record TradeLine
@@ -859,16 +858,16 @@ public sealed record SetTradeLines
     [JsonConverter(typeof(EquatableArrayJsonConverter<TradeLine>))]
     public EquatableArray<TradeLine> Lines { get; init; }
 
-    public bool? AllowPawns { get; init; }
+    public required bool AllowPawns { get; init; }
 }
 
 public sealed record AcceptTrade
 {
     public string? ExpectedDealSignature { get; init; }
 
-    public bool? AllowEmpty { get; init; }
+    public required bool AllowEmpty { get; init; }
 
-    public bool? ReceiveQuest { get; init; }
+    public required bool ReceiveQuest { get; init; }
 }
 
 /// <summary>
@@ -878,7 +877,7 @@ public sealed record EndTrade
 {
     public required EndTradeKind Kind { get; init; }
 
-    public bool? ReceiveQuest { get; init; }
+    public required bool ReceiveQuest { get; init; }
 }
 
 public sealed record ZonePreviewRequest
@@ -895,7 +894,7 @@ public sealed record ZonePreview
 {
     public Common.ObservationContext? Context { get; init; }
 
-    public bool? Accepted { get; init; }
+    public required bool Accepted { get; init; }
 
     public string? Reason { get; init; }
 
@@ -945,7 +944,7 @@ public sealed record ApplyRequest
     /// the next frame after observations_flush_snapshot, or 1 s after the
     /// oldest uncaptured deferred write, captures it. Unset captures at once.
     /// </summary>
-    public bool? DeferSnapshot { get; init; }
+    public required bool DeferSnapshot { get; init; }
 }
 
 /// <summary>
@@ -1366,7 +1365,7 @@ public sealed record HackDesignationIntent
 {
     public Common.Ref? Target { get; init; }
 
-    public bool? Enabled { get; init; }
+    public required bool Enabled { get; init; }
 }
 
 /// <summary>
@@ -1584,17 +1583,9 @@ public abstract record PawnSettingsIntentSetting
 {
     private protected PawnSettingsIntentSetting() { }
 
-    /// <summary>The <c>HostilityResponse</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public HostilityResponse? HostilityResponse => (this as HostilityResponseCase)?.Value;
+    public sealed record HostilityResponseCase([property: JsonRequired] HostilityResponse Value) : PawnSettingsIntentSetting;
 
-    public sealed record HostilityResponseCase(HostilityResponse Value) : PawnSettingsIntentSetting;
-
-    /// <summary>The <c>SelfTend</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public bool? SelfTend => (this as SelfTendCase)?.Value;
-
-    public sealed record SelfTendCase(bool Value) : PawnSettingsIntentSetting;
+    public sealed record SelfTendCase([property: JsonRequired] bool Value) : PawnSettingsIntentSetting;
 
     /// <summary>The <c>ReadingPolicy</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
@@ -1602,11 +1593,7 @@ public abstract record PawnSettingsIntentSetting
 
     public sealed record ReadingPolicyCase(string Value) : PawnSettingsIntentSetting;
 
-    /// <summary>The <c>MedicineCarry</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public int? MedicineCarry => (this as MedicineCarryCase)?.Value;
-
-    public sealed record MedicineCarryCase(int Value) : PawnSettingsIntentSetting;
+    public sealed record MedicineCarryCase([property: JsonRequired] int Value) : PawnSettingsIntentSetting;
 
     /// <summary>The <c>Nickname</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
@@ -1614,11 +1601,7 @@ public abstract record PawnSettingsIntentSetting
 
     public sealed record NicknameCase(string Value) : PawnSettingsIntentSetting;
 
-    /// <summary>The <c>MedicalCare</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public MedicalCare? MedicalCare => (this as MedicalCareCase)?.Value;
-
-    public sealed record MedicalCareCase(MedicalCare Value) : PawnSettingsIntentSetting;
+    public sealed record MedicalCareCase([property: JsonRequired] MedicalCare Value) : PawnSettingsIntentSetting;
 
     /// <summary>The <c>DrugPolicy</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
@@ -1638,11 +1621,7 @@ public abstract record PawnSettingsIntentSetting
 
     public sealed record MechWorkModeCase(string Value) : PawnSettingsIntentSetting;
 
-    /// <summary>The <c>MechControlGroup</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public int? MechControlGroup => (this as MechControlGroupCase)?.Value;
-
-    public sealed record MechControlGroupCase(int Value) : PawnSettingsIntentSetting;
+    public sealed record MechControlGroupCase([property: JsonRequired] int Value) : PawnSettingsIntentSetting;
 
     /// <summary>The <c>ChoosePermit</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
@@ -1650,11 +1629,7 @@ public abstract record PawnSettingsIntentSetting
 
     public sealed record ChoosePermitCase(PermitChoice Value) : PawnSettingsIntentSetting;
 
-    /// <summary>The <c>ExtractBioferrite</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public bool? ExtractBioferrite => (this as ExtractBioferriteCase)?.Value;
-
-    public sealed record ExtractBioferriteCase(bool Value) : PawnSettingsIntentSetting;
+    public sealed record ExtractBioferriteCase([property: JsonRequired] bool Value) : PawnSettingsIntentSetting;
 
 }
 
@@ -1691,12 +1666,12 @@ public sealed record AreaIntent
 
     public string? Key { get; init; }
 
-    public bool? Home { get; init; }
+    public required bool Home { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<AreaRect>))]
     public EquatableArray<AreaRect> Rects { get; init; }
 
-    public bool? PollutionClear { get; init; }
+    public required bool PollutionClear { get; init; }
 }
 
 public sealed record PolicyPruneIntent
@@ -1786,7 +1761,7 @@ public sealed record FoodPolicyIntent
 /// </summary>
 public sealed record AutoHomeAreaIntent
 {
-    public bool? Enabled { get; init; }
+    public required bool Enabled { get; init; }
 }
 
 /// <summary>
@@ -1798,7 +1773,7 @@ public sealed record DraftIntent
 {
     public string? PawnId { get; init; }
 
-    public bool? Drafted { get; init; }
+    public required bool Drafted { get; init; }
 }
 
 /// <summary>
@@ -1833,7 +1808,7 @@ public sealed record DraftIntent
 /// </summary>
 public sealed record GiveJobOptions
 {
-    public bool? Prioritized { get; init; }
+    public required bool Prioritized { get; init; }
 
 }
 
@@ -1877,7 +1852,7 @@ public sealed record DesignateIntent
 
     public Common.Cell? Cell { get; init; }
 
-    public DesignationGuard? Guard { get; init; }
+    public required DesignationGuard Guard { get; init; }
 
     public string? ExpectedDef { get; init; }
 
@@ -1885,20 +1860,20 @@ public sealed record DesignateIntent
     /// DECONSTRUCT only: swap a 1x1 player door for a Wall of its own
     /// stuff, ordering the nearest capable builder (player-forced work).
     /// </summary>
-    public bool? ReplaceWithWall { get; init; }
+    public required bool ReplaceWithWall { get; init; }
 
     /// <summary>
     /// ACQUISITION only: remove the designation instead (the planner's
     /// stall withdraw); a hunter already on the prey is stopped and a plant's
     /// CutPlant goes too. A source that is gone applies.
     /// </summary>
-    public bool? Withdraw { get; init; }
+    public required bool Withdraw { get; init; }
 }
 
 /// <summary>
 /// Move one exact installed player building (or install a packed item, named
-/// by its own id or its inner building's) at destination/rotation through the
-/// game's reinstall or install blueprint; with uninstall, designate the
+/// by its own id or its inner building's) at destination with a move rotation through the
+/// game's reinstall or install blueprint; the uninstall mode designates the
 /// building for vanilla Uninstall where it stands (destination ignored).
 /// Evidence is the InstallationEffect: QUEUED with the blueprint id, or
 /// UNINSTALL_QUEUED. A blueprint or designation already standing for the same
@@ -1910,9 +1885,8 @@ public sealed record RelocateIntent
 
     public Common.Cell? Destination { get; init; }
 
-    public Placement.Rotation? Rotation { get; init; }
+    public required RelocationMode Mode { get; init; }
 
-    public bool? Uninstall { get; init; }
 }
 
 /// <summary>
@@ -1942,17 +1916,9 @@ public abstract record BuildingPatchIntentChange
 {
     private protected BuildingPatchIntentChange() { }
 
-    /// <summary>The <c>TargetTemperature</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public float? TargetTemperature => (this as TargetTemperatureCase)?.Value;
+    public sealed record TargetTemperatureCase([property: JsonRequired] float Value) : BuildingPatchIntentChange;
 
-    public sealed record TargetTemperatureCase(float Value) : BuildingPatchIntentChange;
-
-    /// <summary>The <c>Medical</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public bool? Medical => (this as MedicalCase)?.Value;
-
-    public sealed record MedicalCase(bool Value) : BuildingPatchIntentChange;
+    public sealed record MedicalCase([property: JsonRequired] bool Value) : BuildingPatchIntentChange;
 
     public sealed record ForPrisonersCase : BuildingPatchIntentChange;
 
@@ -1966,11 +1932,7 @@ public abstract record BuildingPatchIntentChange
 
     public sealed record ForSlavesCase : BuildingPatchIntentChange;
 
-    /// <summary>The <c>AutoRefuel</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public bool? AutoRefuel => (this as AutoRefuelCase)?.Value;
-
-    public sealed record AutoRefuelCase(bool Value) : BuildingPatchIntentChange;
+    public sealed record AutoRefuelCase([property: JsonRequired] bool Value) : BuildingPatchIntentChange;
 }
 
 /// <summary>
@@ -2020,7 +1982,7 @@ public sealed record HusbandryIntent
 
     public string? TargetId { get; init; }
 
-    public bool? Follow { get; init; }
+    public required bool Follow { get; init; }
 }
 
 /// <summary>
@@ -2033,7 +1995,7 @@ public sealed record HusbandryIntent
 ///
 /// A medical bill sets patient instead of bench_id and settings: it
 /// queues the recipe on the patient's body part at part_index in the race
-/// body's AllParts (absent for a whole-body recipe). Native re-checks the
+/// body's AllParts, or names the whole-body state. Native re-checks the
 /// patient, the recipe and the part live and refuses a recipe that is a
 /// violation on the patient unless acknowledge_violation is set. Other bills
 /// on the patient never block; a recipe whose hediff already stands on the
@@ -2054,9 +2016,9 @@ public sealed record ProductionBillIntent
 
     public Common.Ref? Patient { get; init; }
 
-    public int? PartIndex { get; init; }
+    public required SurgeryTarget PartIndex { get; init; }
 
-    public bool? AcknowledgeViolation { get; init; }
+    public required bool AcknowledgeViolation { get; init; }
 }
 
 /// <summary>
@@ -2115,7 +2077,7 @@ public sealed record AssignIntent
 
     public Assignment? ExpectedPrevious { get; init; }
 
-    public bool? Swap { get; init; }
+    public required bool Swap { get; init; }
 }
 
 /// <summary>
@@ -2206,7 +2168,7 @@ public sealed record FormCaravanIntent
     [JsonConverter(typeof(EquatableArrayJsonConverter<DefCount>))]
     public EquatableArray<DefCount> Cargo { get; init; }
 
-    public int? DestinationTile { get; init; }
+    public required int DestinationTile { get; init; }
 }
 
 /// <summary>
@@ -2221,7 +2183,7 @@ public sealed record AcceptQuestIntent
 
     public string? AccepterPawnId { get; init; }
 
-    public int? RewardChoice { get; init; }
+    public required QuestRewardSelection RewardChoice { get; init; }
 }
 
 /// <summary>
@@ -2240,7 +2202,7 @@ public sealed record QuestShuttleIntent
 
     public QuestShuttleIntentLoading? Loading { get; init; }
 
-    public bool? Launch { get; init; }
+    public required bool Launch { get; init; }
 }
 
 /// <summary>The <c>loading</c> choice of <see cref="QuestShuttleIntent"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -2251,11 +2213,7 @@ public abstract record QuestShuttleIntentLoading
 {
     private protected QuestShuttleIntentLoading() { }
 
-    /// <summary>The <c>Autoload</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public bool? Autoload => (this as AutoloadCase)?.Value;
-
-    public sealed record AutoloadCase(bool Value) : QuestShuttleIntentLoading;
+    public sealed record AutoloadCase([property: JsonRequired] bool Value) : QuestShuttleIntentLoading;
 
     /// <summary>The <c>ExplicitPawns</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
@@ -2345,7 +2303,7 @@ public sealed record BuildingIntent
 {
     public Placement.PlacementCandidate? Placement { get; init; }
 
-    public int? MinimumFinishingSkill { get; init; }
+    public required FinishingSkillChange MinimumFinishingSkill { get; init; }
 
     /// <summary>
     /// Adoption changes only this exact pending target; never places a replacement.
@@ -2353,17 +2311,17 @@ public sealed record BuildingIntent
     public string? ExistingTargetId { get; init; }
 
     /// <summary>
-    /// Construction tier 0-5 (#2522); absent = ungated. With existing_target_id it re-tiers
+    /// Construction tier 0-5 (#2522); preserve leaves a new site ungated. With existing_target_id it re-tiers
     /// that exact blueprint or frame; the tier stays mutable while the finishing floor is write-once.
     /// </summary>
-    public int? Tier { get; init; }
+    public required ConstructionTierChange Tier { get; init; }
 
     /// <summary>
     /// Replace the built wall at the cell in place (#2529): a vanilla replacement
     /// blueprint over it, the cell impassable at every tick of the swap. Native
     /// refuses with the wall-replacement failure codes; exclusive of existing_target_id.
     /// </summary>
-    public bool? ReplaceWall { get; init; }
+    public required bool ReplaceWall { get; init; }
 }
 
 /// <summary>
@@ -2426,17 +2384,17 @@ public sealed record CommsTradeRequestIntent
 
     public string? NegotiatorId { get; init; }
 
-    public long? ExpectedLastRequestTick { get; init; }
+    public required long ExpectedLastRequestTick { get; init; }
 }
 
 /// <summary>The wire body of a refused native reply; the domain forms are the verdict and admission refusals, which carry typed ids rather than wire strings.</summary>
 public sealed record Refusal
 {
-    public Common.FailureCode? Code { get; init; }
+    public required Common.FailureCode Code { get; init; }
 
     public string? Reason { get; init; }
 
-    public Common.RefusalClass? RefusalClass { get; init; }
+    public required Common.RefusalClass RefusalClass { get; init; }
 }
 
 public sealed record ActionResult
@@ -2514,3 +2472,83 @@ public sealed record ConversionIntent
     public string? TargetId { get; init; }
 }
 
+
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(HitPointRange.Preserve), "preserve")]
+[JsonDerivedType(typeof(HitPointRange.Selected), "set")]
+public abstract record HitPointRange
+{
+    private protected HitPointRange() { }
+    public sealed record Preserve : HitPointRange;
+    public sealed record Selected([property: JsonRequired] double Minimum, [property: JsonRequired] double Maximum) : HitPointRange;
+}
+
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(StockpilePriorityChange.Preserve), "preserve")]
+[JsonDerivedType(typeof(StockpilePriorityChange.Selected), "set")]
+public abstract record StockpilePriorityChange
+{
+    private protected StockpilePriorityChange() { }
+    public sealed record Preserve : StockpilePriorityChange;
+    public sealed record Selected([property: JsonRequired, JsonConverter(typeof(WireEnumConverter<StockpilePriority>))] StockpilePriority Value) : StockpilePriorityChange;
+}
+
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(StockpilePresetChange.Preserve), "preserve")]
+[JsonDerivedType(typeof(StockpilePresetChange.Selected), "set")]
+public abstract record StockpilePresetChange
+{
+    private protected StockpilePresetChange() { }
+    public sealed record Preserve : StockpilePresetChange;
+    public sealed record Selected([property: JsonRequired, JsonConverter(typeof(WireEnumConverter<FilterBase>))] FilterBase Value) : StockpilePresetChange;
+}
+
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(RelocationMode.Uninstall), "uninstall")]
+[JsonDerivedType(typeof(RelocationMode.Move), "move")]
+public abstract record RelocationMode
+{
+    private protected RelocationMode() { }
+    public sealed record Uninstall : RelocationMode;
+    public sealed record Move([property: JsonRequired] Placement.Rotation Value) : RelocationMode;
+}
+
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(SurgeryTarget.WholeBody), "wholeBody")]
+[JsonDerivedType(typeof(SurgeryTarget.Part), "part")]
+public abstract record SurgeryTarget
+{
+    private protected SurgeryTarget() { }
+    public sealed record WholeBody : SurgeryTarget;
+    public sealed record Part([property: JsonRequired] int Index) : SurgeryTarget;
+}
+
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(QuestRewardSelection.NoChoice), "noChoice")]
+[JsonDerivedType(typeof(QuestRewardSelection.Choose), "choose")]
+public abstract record QuestRewardSelection
+{
+    private protected QuestRewardSelection() { }
+    public sealed record NoChoice : QuestRewardSelection;
+    public sealed record Choose([property: JsonRequired] int Index) : QuestRewardSelection;
+}
+
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(FinishingSkillChange.Preserve), "preserve")]
+[JsonDerivedType(typeof(FinishingSkillChange.Selected), "set")]
+public abstract record FinishingSkillChange
+{
+    private protected FinishingSkillChange() { }
+    public sealed record Preserve : FinishingSkillChange;
+    public sealed record Selected([property: JsonRequired] int Minimum) : FinishingSkillChange;
+}
+
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(ConstructionTierChange.Preserve), "preserve")]
+[JsonDerivedType(typeof(ConstructionTierChange.Selected), "set")]
+public abstract record ConstructionTierChange
+{
+    private protected ConstructionTierChange() { }
+    public sealed record Preserve : ConstructionTierChange;
+    public sealed record Selected([property: JsonRequired] int Tier) : ConstructionTierChange;
+}

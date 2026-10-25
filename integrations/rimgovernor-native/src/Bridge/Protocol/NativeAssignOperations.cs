@@ -102,15 +102,15 @@ namespace HomeBridge.BridgeTools
         private static Precept_Role? RoleTarget(Operations.AssignIntent? intent) => Valid(intent) ? IdeoRoleAssignment.Find((intent!.ThingId ?? "")) : null;
 
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) =>
-            RoleTarget(action.Intent?.Assign) is Precept_Role role ? IdeoRoleAssignment.Validate(action.Intent?.Assign ?? new Operations.AssignIntent(), context, role) : Resolve(action.Intent?.Assign, context, out _, out _, out _);
+            RoleTarget(action.Intent?.Assign) is Precept_Role role ? IdeoRoleAssignment.Validate(action.Intent?.Assign ?? new Operations.AssignIntent { Swap = false }, context, role) : Resolve(action.Intent?.Assign, context, out _, out _, out _);
 
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
         {
-            var intent = action.Intent?.Assign ?? new Operations.AssignIntent();
+            var intent = action.Intent?.Assign ?? new Operations.AssignIntent { Swap = false };
             if (RoleTarget(intent) is Precept_Role role) return IdeoRoleAssignment.Apply(intent, context, role);
             var failure = Resolve(intent, context, out var pawn, out var thing, out var assignable);
             if (failure != null) throw new InvalidOperationException("Assignment prerequisites changed before apply: " + (failure.Detail ?? ""));
-            if (assignable != null && thing is Building_Bed bed && intent.Swap.GetValueOrDefault())
+            if (assignable != null && thing is Building_Bed bed && intent.Swap)
                 foreach (var owner in bed.OwnersForReading.ToList()) owner.ownership?.UnclaimBed();
             assignable?.TryAssignPawn(pawn);
             var comp = thing.GetComp<CompAssignableToPawn>();

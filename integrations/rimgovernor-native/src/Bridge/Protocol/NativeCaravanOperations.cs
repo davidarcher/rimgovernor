@@ -31,7 +31,7 @@ namespace HomeBridge.BridgeTools
             && command.PawnIds.Distinct().Count() == command.PawnIds.Count
             && command.Cargo.All(c => c.DefName is not null && ProtoBoundary.IsIdentifier(c.DefName) && c.Count > 0)
             && command.Cargo.Select(c => (c.DefName ?? "")).Distinct().Count() == command.Cargo.Count
-            && command.DestinationTile is not null && command.DestinationTile.GetValueOrDefault() >= 0;
+            && command.DestinationTile >= 0;
 
         private static string[] Sorted(IEnumerable<string> ids) => ids.OrderBy(id => id, StringComparer.Ordinal).ToArray();
 
@@ -51,13 +51,13 @@ namespace HomeBridge.BridgeTools
                 if (lord == null || !(lord.LordJob is LordJob_FormAndSendCaravan)) return false;
                 lords.Add(lord);
             }
-            return lords.Count == 1 && ((PlanetTile)typeof(LordJob_FormAndSendCaravan).GetField("destinationTile", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(lords.Single().LordJob)!).tileId == command.DestinationTile.GetValueOrDefault();
+            return lords.Count == 1 && ((PlanetTile)typeof(LordJob_FormAndSendCaravan).GetField("destinationTile", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(lords.Single().LordJob)!).tileId == command.DestinationTile;
         }
 
         private static Common.Failure? Arrival(Operations.FormCaravanIntent command, out CaravanArrivalAction? action)
         {
             action = null;
-            var objects = Find.WorldObjects.AllWorldObjects.Where(w => w.Spawned && w.Tile.tileId == command.DestinationTile.GetValueOrDefault())
+            var objects = Find.WorldObjects.AllWorldObjects.Where(w => w.Spawned && w.Tile.tileId == command.DestinationTile)
                 .Where(w => w is Site || w is PeaceTalks || w is MapParent mp && mp.HasMap && mp.Map.IsPlayerHome).ToArray();
             if (objects.Length > 1)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The destination has multiple native arrival targets.");
@@ -72,7 +72,7 @@ namespace HomeBridge.BridgeTools
         // never added to a world caravan here; reform owns the packing write.
         private static Common.Failure? RouteFailure(Operations.FormCaravanIntent command, Caravan caravan)
         {
-            var tile = new PlanetTile(command.DestinationTile.GetValueOrDefault());
+            var tile = new PlanetTile(command.DestinationTile);
             if (!tile.Valid || tile.tileId >= Find.WorldGrid.TilesCount)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The destination tile is invalid.");
             var failure = Arrival(command, out var arrival);
@@ -90,7 +90,7 @@ namespace HomeBridge.BridgeTools
             var failure = RouteFailure(command, caravan);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
             Arrival(command, out var arrival);
-            var tile = new PlanetTile(command.DestinationTile.GetValueOrDefault());
+            var tile = new PlanetTile(command.DestinationTile);
             var current = caravan.pather.ArrivalAction;
             if (caravan.pather.Moving && caravan.pather.Destination == tile
                 && current?.GetType() == arrival?.GetType()
@@ -144,7 +144,7 @@ namespace HomeBridge.BridgeTools
                 if (remaining > 0)
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Not enough " + (item.DefName ?? "") + " is available to pack.");
             }
-            var tile = new PlanetTile(command.DestinationTile.GetValueOrDefault());
+            var tile = new PlanetTile(command.DestinationTile);
             if (!tile.Valid || tile.tileId >= Find.WorldGrid.TilesCount || tile == map.Tile)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Choose a different valid surface tile.");
             var exit = CaravanExitMapUtility.BestExitTileToGoTo(tile, map);
@@ -178,7 +178,7 @@ namespace HomeBridge.BridgeTools
             var massCapacity = Finite(dialog.MassCapacity, "mass capacity");
             var food = NativeCaravanCatalog.FoodDays(dialog);
             var map = ProtoBoundary.ResolveMap(context)!;
-            var destination = new PlanetTile(command.DestinationTile.GetValueOrDefault());
+            var destination = new PlanetTile(command.DestinationTile);
             var crew = dialog.transferables.Where(g => g.AnyThing is Pawn && g.CountToTransfer > 0).Select(g => (Pawn)g.AnyThing).ToList();
             var ticks = CaravanTicksPerMoveUtility.GetTicksPerMove(crew, massUsage, massCapacity);
             var outbound = RouteEstimate(map.Tile, destination, ticks, GenTicks.TicksAbs);
@@ -198,7 +198,7 @@ namespace HomeBridge.BridgeTools
         }
         private static Receipts.EffectEvidence Evidence(Operations.FormCaravanIntent command, Caravan? caravan)
         {
-            var effect = new Receipts.CaravanEffect { AssemblyStarted = true, DestinationTile = command.DestinationTile ?? throw new InvalidOperationException("Caravan departure has no destination.") };
+            var effect = new Receipts.CaravanEffect { AssemblyStarted = true, DestinationTile = command.DestinationTile };
             effect = effect with { PawnIds = [.. effect.PawnIds, .. command.PawnIds] };
             return new Receipts.EffectEvidence { Effect = effect };
         }
@@ -249,7 +249,7 @@ namespace HomeBridge.BridgeTools
 
     internal sealed class FormCaravanActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeCaravanOperations.Validate(action.Intent?.FormCaravan ?? new Operations.FormCaravanIntent(), context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeCaravanOperations.Apply(action.Intent?.FormCaravan ?? new Operations.FormCaravanIntent(), context);
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeCaravanOperations.Validate(action.Intent?.FormCaravan, context);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeCaravanOperations.Apply(action.Intent?.FormCaravan ?? throw new InvalidOperationException("Caravan intent is missing."), context);
     }
 }

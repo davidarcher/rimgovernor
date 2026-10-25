@@ -23,7 +23,7 @@ namespace HomeBridge.BridgeTools
                 return new Operations.ZonePreviewReply { Outcome = invalid };
             if (parsed.Zone == null)
                 return new Operations.ZonePreviewReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A zone is required.") };
-            return parsed.Zone.Kind.GetValueOrDefault() == Operations.ZoneType.Stockpile
+            return parsed.Zone.Kind == Operations.ZoneType.Stockpile
                 ? StockpilePlacementActionHandler.Preview(parsed.Zone, context) : NativeZoneCreation.Preview(parsed.Zone, context);
         }
     }

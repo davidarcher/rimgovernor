@@ -59,7 +59,7 @@ internal static class ControlUninstall
         var piece = staged.Buildings["piece"].Ids.Single();
         var cell = staged.Buildings["piece"].Cells.Single();
         var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
-        _ = await TypedApply.AppliedAsync(s, "uninstall", new Operations.RelocateIntent { ThingId = piece, Uninstall = true }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "uninstall", new Operations.RelocateIntent { ThingId = piece, Mode = new Operations.RelocationMode.Uninstall() }, cancellationToken).ConfigureAwait(false);
 
         var step = new PawnActivityStep(PawnActivityKind.Work, piece, Giver, "Uninstall", 0, int.MaxValue);
         var batch = new PawnActivities(generation, [new PawnActivityOrder(worker, TaskId, TaskId, 0, 1, false, [step]) { Task = TaskId }])

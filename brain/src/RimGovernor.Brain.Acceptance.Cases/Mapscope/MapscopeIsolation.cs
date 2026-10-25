@@ -132,8 +132,7 @@ internal static class MapscopeIsolation
             new Operations.ApplyRequest
             {
                 Identity = home,
-                Actions = [new Operations.Action { Key = "mapscope-draft-1", Intent = new Operations.DraftIntent { PawnId = colonist, Drafted = true } }],
-            },
+                Actions = [new Operations.Action { Key = "mapscope-draft-1", Intent = new Operations.DraftIntent { PawnId = colonist, Drafted = true } }], DeferSnapshot = false },
             cancellationToken).ConfigureAwait(false);
         var receipt = draft.Results.ToList() is [{ Outcome.Applied: { } applied }] ? applied : throw new AcceptanceException($"draft: want one applied result, got {draft.BatchFailure} {string.Join("; ", draft.Results)}");
         s.RecordWire("draft", receipt);

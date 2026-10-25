@@ -70,9 +70,9 @@ namespace HomeBridge.BridgeTools
                 pawn = OwnedNamedPawns().ById(id);
                 return pawn == null ? ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living named pawn the colony owns is not found.") : null;
             }
-            if (intent.Setting is PS.MedicalCareCase)
+            if (intent.Setting is PS.MedicalCareCase { Value: var careWire })
             {
-                var tier = intent.Setting?.MedicalCare is { } careWire ? Care(careWire) : null;
+                var tier = Care(careWire);
                 if (tier == null)
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Medical care must be one of the five MedicalCareCategory tiers.");
                 care = tier.Value;
@@ -97,9 +97,9 @@ namespace HomeBridge.BridgeTools
                 return ResolveExtractBioferrite(intent, context, out pawn, out _);
             if (intent.Setting is not PS.HostilityResponseCase && intent.Setting is not PS.SelfTendCase)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn settings require exactly one setting.");
-            if (intent.Setting is PS.HostilityResponseCase)
+            if (intent.Setting is PS.HostilityResponseCase { Value: var hostilityWire })
             {
-                if (intent.Setting?.HostilityResponse is not { } hostilityWire || NativeEnums.Hostility(hostilityWire) is not HostilityResponseMode parsed)
+                if (NativeEnums.Hostility(hostilityWire) is not HostilityResponseMode parsed)
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hostility response must be Ignore, Attack or Flee.");
                 mode = parsed;
             }
@@ -149,8 +149,7 @@ namespace HomeBridge.BridgeTools
                 settings.medCare = care;
                 if (settings.medCare != care) throw new InvalidOperationException("Native medical care requires readback.");
                 field = new Receipts.FieldResult { Field = Receipts.SettingsField.MedicalCare, Outcome = outcome };
-            } else if (intent.Setting is PS.SelfTendCase) {
-                var want = intent.Setting?.SelfTend ?? false;
+            } else if (intent.Setting is PS.SelfTendCase { Value: var want }) {
                 var outcome = settings.selfTend == want ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied;
                 settings.selfTend = want;
                 if (settings.selfTend != want) throw new InvalidOperationException("Native self-tend requires readback.");
@@ -171,8 +170,9 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? ResolveCarry(Operations.PawnSettingsIntent intent, Common.ObservationContext context, out Pawn? pawn, out ThingDef? medicine)
         {
             pawn = null; medicine = null;
+            if (intent.Setting is not PS.MedicineCarryCase { Value: var count }) throw new InvalidOperationException("Medicine carry setting missing");
             var group = InventoryStockGroupDefOf.Medicine;
-            if ((intent.Setting?.MedicineCarry ?? 0) < group.min || (intent.Setting?.MedicineCarry ?? 0) > group.max)
+            if (count < group.min || count > group.max)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, $"Medicine carry must be {group.min}-{group.max}.");
             var id = (intent.PawnId ?? "");
             pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(id);
@@ -181,7 +181,7 @@ namespace HomeBridge.BridgeTools
             var care = pawn.playerSettings.medCare;
             medicine = group.thingDefs.Where(d => care.AllowsMedicine(d))
                 .OrderByDescending(d => d.GetStatValueAbstract(StatDefOf.MedicalPotency)).FirstOrDefault();
-            return medicine == null && (intent.Setting?.MedicineCarry ?? 0) > 0
+            return medicine == null && count > 0
                 ? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The pawn's medical care allows no medicine to carry.") : null;
         }
 
@@ -190,12 +190,13 @@ namespace HomeBridge.BridgeTools
             var failure = ResolveCarry(intent, context, out var pawn, out var medicine);
             if (failure != null) throw new ApplyRefusedException(failure);
             var stock = pawn!.inventoryStock;
+            if (intent.Setting is not PS.MedicineCarryCase { Value: var count }) throw new InvalidOperationException("Medicine carry setting missing");
             var group = InventoryStockGroupDefOf.Medicine;
-            var unchanged = stock.GetDesiredCountForGroup(group) == (intent.Setting?.MedicineCarry ?? 0)
+            var unchanged = stock.GetDesiredCountForGroup(group) == count
                 && (medicine == null || stock.GetDesiredThingForGroup(group) == medicine);
             if (medicine != null) stock.SetThingForGroup(group, medicine);
-            stock.SetCountForGroup(group, (intent.Setting?.MedicineCarry ?? 0));
-            if (stock.GetDesiredCountForGroup(group) != (intent.Setting?.MedicineCarry ?? 0)) throw new InvalidOperationException("Native medicine carry requires readback.");
+            stock.SetCountForGroup(group, count);
+            if (stock.GetDesiredCountForGroup(group) != count) throw new InvalidOperationException("Native medicine carry requires readback.");
             return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
                 Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.MedicineCarry,
                     Outcome = unchanged ? Receipts.FieldOutcome.Unchanged : Receipts.FieldOutcome.Applied }] } };
@@ -327,7 +328,7 @@ namespace HomeBridge.BridgeTools
             group = tracker.GetControlGroup(pawn);
             if (!wantMode)
             {
-                var index = intent.Setting?.MechControlGroup ?? 0;
+                if (intent.Setting is not PS.MechControlGroupCase { Value: var index }) throw new InvalidOperationException("Mech control group setting missing");
                 if (index < 0 || index >= tracker.controlGroups.Count)
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, $"The overseer has control groups 0-{tracker.controlGroups.Count - 1}.");
                 group = tracker.controlGroups[index];
@@ -439,7 +440,8 @@ namespace HomeBridge.BridgeTools
             target = pawn?.GetComp<CompHoldingPlatformTarget>();
             if (pawn == null || pawn.Dead || target == null)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "No entity held on a holding platform of this map carries this id.");
-            if (intent.Setting?.ExtractBioferrite != true) return null;
+            if (intent.Setting is not PS.ExtractBioferriteCase { Value: var requested }) throw new InvalidOperationException("Bioferrite setting missing");
+            if (!requested) return null;
             if (!ResearchProjectDefOf.BioferriteExtraction.IsFinished)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "BioferriteExtraction is not researched.");
             if (target.HeldPlatform?.HasAttachedBioferriteHarvester == true)
@@ -451,7 +453,7 @@ namespace HomeBridge.BridgeTools
         {
             var failure = ResolveExtractBioferrite(intent, context, out var pawn, out var target);
             if (failure != null) throw new ApplyRefusedException(failure);
-            var want = intent.Setting?.ExtractBioferrite ?? false;
+            if (intent.Setting is not PS.ExtractBioferriteCase { Value: var want }) throw new InvalidOperationException("Bioferrite setting missing");
             var unchanged = target!.extractBioferrite == want;
             target.extractBioferrite = want;
             if (target.extractBioferrite != want) throw new InvalidOperationException("Native extract bioferrite requires readback.");

@@ -13,8 +13,7 @@ public static class Zones
         var command = new Op.ZoneIntent
         {
             Label = zone.Label,
-            AddCells = new Op.Cells { Selection = new Op.CellList { Cells = [.. IntentActionRules.WireCells(zone.Cells)] } },
-        };
+            AddCells = new Op.Cells { Selection = new Op.CellList { Cells = [.. IntentActionRules.WireCells(zone.Cells)] } }, Delete = false, RequireCoveredEmpty = false, Kind = Op.ZoneType.Existing };
         if (zone.Kind == ZoneKind.Fishing)
         {
             command = command with { Kind = Op.ZoneType.Fishing };
@@ -63,8 +62,6 @@ public static class Zones
                 Growing = new Op.GrowingSettings
                 {
                     PlantDef = zone.Crop,
-                    AllowSow = true,
-                    AllowCut = true,
                 },
             };
         }
@@ -79,21 +76,20 @@ public static class Zones
     {
         var settings = new Op.StockpileSettings
         {
-            Priority = priority,
-            Preset = filter.Base,
+            Priority = new Op.StockpilePriorityChange.Selected(priority),
+            Preset = new Op.StockpilePresetChange.Selected(filter.Base),
         };
-        var patch = new Op.FilterPatch { Allow = [.. FilterSelectors(filter.Allow)], Disallow = [.. FilterSelectors(filter.Disallow)] };
+        var patch = new Op.FilterPatch { Allow = [.. FilterSelectors(filter.Allow)], Disallow = [.. FilterSelectors(filter.Disallow)], HitPoints = new Op.HitPointRange.Preserve() };
         if (filter.HitPoints is { } hitPoints)
         {
-            patch = patch with { HitPointsMin = hitPoints.Min };
-            patch = patch with { HitPointsMax = hitPoints.Max };
+            patch = patch with { HitPoints = new Op.HitPointRange.Selected(hitPoints.Min, hitPoints.Max) };
         }
         if (filter.QualityRange is { } quality)
         {
             patch = patch with { QualityMin = Domain.Wire.Name(quality.Min) };
             patch = patch with { QualityMax = Domain.Wire.Name(quality.Max) };
         }
-        if (patch.Allow.Count != 0 || patch.Disallow.Count != 0 || patch.HitPointsMin is not null || patch.QualityMin is not null)
+        if (patch.Allow.Count != 0 || patch.Disallow.Count != 0 || patch.HitPoints is Op.HitPointRange.Selected || patch.QualityMin is not null)
         {
             settings = settings with { Filter = patch };
         }
@@ -132,7 +128,7 @@ public static class Zones
     {
         var del = action.ZoneDelete ?? throw BridgeContractException.Contract("not a zone delete action");
         WireValidation.ValidId(del.Zone);
-        return ZoneAction(new Op.ZoneIntent { Zone = IntentActionRules.NewRef(del.Zone), Delete = true });
+        return ZoneAction(new Op.ZoneIntent { Zone = IntentActionRules.NewRef(del.Zone), Delete = true, RequireCoveredEmpty = false, Kind = Op.ZoneType.Existing });
     }
 
     /// <summary>The cells shape of the zone arm for one zone_cell_edit.</summary>
@@ -140,7 +136,7 @@ public static class Zones
     {
         var e = action.ZoneCellEdit ?? throw BridgeContractException.Contract("not a zone cell edit action");
         var selection = new Op.Cells { Selection = new Op.CellList { Cells = [.. IntentActionRules.WireCells(e.Cells)] } };
-        var intent = new Op.ZoneIntent { Zone = IntentActionRules.NewRef(e.Zone) };
+        var intent = new Op.ZoneIntent { Zone = IntentActionRules.NewRef(e.Zone), Delete = false, RequireCoveredEmpty = false, Kind = Op.ZoneType.Existing };
         if (e.Mode == CellEditMode.Remove)
         {
             intent = intent with { RemoveCells = selection };
@@ -156,7 +152,7 @@ public static class Zones
     internal static Op.Action StockpileAction(DomainAction action)
     {
         var p = action.StockpilePatch ?? throw BridgeContractException.Contract("not a stockpile patch action");
-        return ZoneAction(new Op.ZoneIntent { Zone = IntentActionRules.NewRef(p.Target), Stockpile = StockpileSettings(p.Filter, p.Priority) });
+        return ZoneAction(new Op.ZoneIntent { Zone = IntentActionRules.NewRef(p.Target), Stockpile = StockpileSettings(p.Filter, p.Priority), Delete = false, RequireCoveredEmpty = false, Kind = Op.ZoneType.Existing });
     }
 
     /// <summary>
@@ -172,7 +168,7 @@ public static class Zones
             : v.Operation == AreaOperation.ClearCells ? Op.AreaOperation.ClearCells
             : v.Operation == AreaOperation.Delete ? Op.AreaOperation.Delete
             : throw BridgeContractException.Contract("unknown area operation");
-        var intent = new Op.AreaIntent { Operation = operation };
+        var intent = new Op.AreaIntent { Operation = operation, Home = false, PollutionClear = false };
         if (v.PollutionClear)
         {
             intent = intent with { PollutionClear = true };

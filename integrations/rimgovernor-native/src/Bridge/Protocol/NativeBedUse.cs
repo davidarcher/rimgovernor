@@ -33,7 +33,7 @@ namespace HomeBridge.BridgeTools
         internal static bool Slaves(Operations.BuildingPatchIntent intent) => intent.Change is Operations.BuildingPatchIntentChange.ForSlavesCase;
 
         private static bool Matches(Building_Bed bed, Operations.BuildingPatchIntent intent) =>
-            Prisoners(intent) ? bed.ForPrisoners : Slaves(intent) ? bed.ForSlaves : bed.Medical == intent.Change?.Medical;
+            Prisoners(intent) ? bed.ForPrisoners : Slaves(intent) ? bed.ForSlaves : intent.Change is Operations.BuildingPatchIntentChange.MedicalCase { Value: var medical } && bed.Medical == medical;
 
         internal static bool Eligible(Thing thing) => thing is Building_Bed bed && !bed.Destroyed && bed.Spawned
             && ProtoBoundary.IsLoaded(bed.Map) && bed.def?.building != null;
@@ -58,7 +58,7 @@ namespace HomeBridge.BridgeTools
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Bed cannot hold a prisoner: a crib, or its room cannot be a prison cell.");
             if (Slaves(intent) && (!ModsConfig.IdeologyActive || bed.ForHumanBabies || bed.Medical))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Bed cannot be for slaves: Ideology inactive, a crib, or a medical bed.");
-            if (!Prisoners(intent) && !Slaves(intent) && intent.Change?.Medical == true && !bed.def.building.bed_canBeMedical)
+            if (!Prisoners(intent) && !Slaves(intent) && intent.Change is Operations.BuildingPatchIntentChange.MedicalCase { Value: true } && !bed.def.building.bed_canBeMedical)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Bed definition cannot be medical; the game's setter would ignore the write.");
             return null;
         }
@@ -76,7 +76,8 @@ namespace HomeBridge.BridgeTools
             if (failure != null) throw new InvalidOperationException(failure.Detail);
             if (Prisoners(intent)) { if (!bed!.ForPrisoners) bed.ForOwnerType = BedOwnerType.Prisoner; }
             else if (Slaves(intent)) { if (!bed!.ForSlaves) bed.ForOwnerType = BedOwnerType.Slave; }
-            else bed!.Medical = intent.Change?.Medical ?? false;
+            else if (intent.Change is Operations.BuildingPatchIntentChange.MedicalCase { Value: var medical }) bed!.Medical = medical;
+            else throw new InvalidOperationException("Bed use setting missing");
             if (!Matches(bed, intent)) throw new InvalidOperationException("Native bed use requires readback.");
             return Evidence(intent);
         }

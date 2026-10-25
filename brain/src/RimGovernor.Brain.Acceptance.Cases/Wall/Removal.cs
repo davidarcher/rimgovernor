@@ -57,7 +57,7 @@ internal static class WallRemoval
         {
             Designation = Operations.ThingDesignation.Deconstruct,
             Cell = at,
-            Guard = Operations.DesignationGuard.WallUpgrade,
+            Guard = Operations.DesignationGuard.WallUpgrade, ReplaceWithWall = false, Withdraw = false,
             Target = new() { Id = expected },
         };
 

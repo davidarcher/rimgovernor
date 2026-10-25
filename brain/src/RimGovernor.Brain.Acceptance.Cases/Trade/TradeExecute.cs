@@ -63,7 +63,7 @@ internal static class TradeExecute
 
         async Task SetLines(string label, params Operations.TradeLine[] lines)
         {
-            var effect = TradeKit.AppliedTrade(label, await Apply(label, new Operations.SetTradeLines { Lines = [.. lines] }).ConfigureAwait(false));
+            var effect = TradeKit.AppliedTrade(label, await Apply(label, new Operations.SetTradeLines { Lines = [.. lines], AllowPawns = false }).ConfigureAwait(false));
             if (effect is not Receipts.TradeEffect.StagedCase staged || !staged.Lines.Select(x => x.LineId).Order(StringComparer.Ordinal).SequenceEqual(lines.Select(x => x.LineId).Order(StringComparer.Ordinal)))
             {
                 throw new AcceptanceException($"{label}: expected the receipt to name the staged lines, got {effect}");
@@ -109,7 +109,7 @@ internal static class TradeExecute
             throw new AcceptanceException($"staged: the colony cannot afford the staged deal: {staged}");
         }
 
-        var deal = TradeKit.AppliedTrade("accept", await Apply("accept", new Operations.AcceptTrade { ExpectedDealSignature = staged.DealSignature }).ConfigureAwait(false));
+        var deal = TradeKit.AppliedTrade("accept", await Apply("accept", new Operations.AcceptTrade { ExpectedDealSignature = staged.DealSignature, AllowEmpty = false, ReceiveQuest = true }).ConfigureAwait(false));
         s.RecordWire("accept", deal);
         if (deal is not Receipts.TradeEffect.ExecutedCase executed || !executed.ActuallyTraded || executed.BeforeSilver == executed.AfterSilver || executed.DealSignature != staged.DealSignature)
         {
@@ -146,7 +146,7 @@ internal static class TradeExecute
             throw new AcceptanceException($"dear: the colony can afford the whole of {dear.LineId}; no unaffordable deal to stage");
         }
 
-        var refused = await Apply("dear-accept", new Operations.AcceptTrade { ExpectedDealSignature = dearSheet.DealSignature }).ConfigureAwait(false);
+        var refused = await Apply("dear-accept", new Operations.AcceptTrade { ExpectedDealSignature = dearSheet.DealSignature, AllowEmpty = false, ReceiveQuest = true }).ConfigureAwait(false);
 
         // Validation catches the shortfall first (INVALID_REQUEST); a deal that slips past it and the game declines is NATIVE_FAILURE.
         if (TradeKit.RefusedCode(refused) is not (Common.FailureCode.InvalidRequest or Common.FailureCode.NativeFailure))
@@ -155,6 +155,6 @@ internal static class TradeExecute
         }
 
         s.RecordWire("dearRefusal", refused.Outcome?.Refused);
-        _ = TradeKit.AppliedTrade("cancel", await Apply("cancel", new Operations.EndTrade { Kind = Operations.EndTradeKind.Cancel }).ConfigureAwait(false));
+        _ = TradeKit.AppliedTrade("cancel", await Apply("cancel", new Operations.EndTrade { Kind = Operations.EndTradeKind.Cancel, ReceiveQuest = false }).ConfigureAwait(false));
     }
 }

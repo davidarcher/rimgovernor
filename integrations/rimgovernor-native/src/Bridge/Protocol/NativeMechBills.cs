@@ -38,7 +38,7 @@ namespace HomeBridge.BridgeTools
         {
             bench = null; recipe = null; overseer = null;
             var s = intent.Settings;
-            if (s is null || !NativeProductionBills.Valid(intent) || s.RepeatMode.GetValueOrDefault() != Operations.RepeatMode.Count || s.RepeatCount.GetValueOrDefault() != 1 || s.Worker != null || s.Ingredients != null || intent.ReplaceOwnedBill != null)
+            if (s is null || !NativeProductionBills.Valid(intent) || s.Repetition is not Operations.BillRepetition.Count { Repetitions: 1 } || s.Worker != null || s.Ingredients != null || intent.ReplaceOwnedBill != null)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Mech bill requires an exact gestator, a mech recipe and a single-count bill without worker, ingredients or replacement.");
             var map = ProtoBoundary.LoadedMap(context);
             var gestator = RefIndex.Thing<Building_MechGestator>(map, intent.BenchId);

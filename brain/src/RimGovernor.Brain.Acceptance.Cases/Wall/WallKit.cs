@@ -140,7 +140,7 @@ internal static class WallKit
         Designation = Operations.ThingDesignation.Deconstruct,
         Target = new() { Id = id },
         Guard = Operations.DesignationGuard.Enclosure,
-        ReplaceWithWall = replaceWithWall ? true : null,
+        ReplaceWithWall = replaceWithWall, Withdraw = false,
     };
 
     /// <summary>The observed effect of an applied receipt, or null.</summary>

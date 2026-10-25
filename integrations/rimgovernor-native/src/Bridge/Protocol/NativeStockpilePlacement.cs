@@ -19,10 +19,10 @@ namespace HomeBridge.BridgeTools
         internal static bool Valid([NotNullWhen(true)] Operations.ZoneIntent? intent)
         {
             var r = intent?.AddCells?.Selection?.Rectangle;
-            return intent != null && intent.Kind is not null && intent.Kind.GetValueOrDefault() == Operations.ZoneType.Stockpile
-                && intent.Zone == null && intent.RemoveCells == null && !intent.Delete.GetValueOrDefault() && intent.Growing == null && intent.Fishing == null
-                && intent.Label is not null && ProtoBoundary.IsIdentifier(intent.Label) && !intent.RequireCoveredEmpty.GetValueOrDefault()
-                && intent.Stockpile != null && intent.Stockpile.Priority is not null && NativeStockpileSettings.Valid(intent.Stockpile)
+            return intent != null && intent.Kind != Operations.ZoneType.Existing && intent.Kind == Operations.ZoneType.Stockpile
+                && intent.Zone == null && intent.RemoveCells == null && !intent.Delete && intent.Growing == null && intent.Fishing == null
+                && intent.Label is not null && ProtoBoundary.IsIdentifier(intent.Label) && !intent.RequireCoveredEmpty
+                && intent.Stockpile != null && intent.Stockpile.Priority is Operations.StockpilePriorityChange.Selected && NativeStockpileSettings.Valid(intent.Stockpile)
                 && r != null && r.Origin is { X: >= 0, Z: >= 0 } origin
                 && r.Width is > 0 && r.Height is > 0
                 && (long)origin.X + r.Width <= int.MaxValue && (long)origin.Z + r.Height <= int.MaxValue;

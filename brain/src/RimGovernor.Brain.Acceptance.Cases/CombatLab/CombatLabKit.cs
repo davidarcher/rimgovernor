@@ -55,8 +55,7 @@ internal static class CombatLabKit
         var reply = await s.CallAsync(label, NativeOps.Apply, new Operations.ApplyRequest
         {
             Identity = s.Identity,
-            Actions = [new Operations.Action { Key = label, Intent = new Operations.CombatOrders { Orders = [.. orders] } }],
-        }, cancellationToken).ConfigureAwait(false);
+            Actions = [new Operations.Action { Key = label, Intent = new Operations.CombatOrders { Orders = [.. orders] } }], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
         var outcome = reply.Results.Count == 1 ? reply.Results[0].Outcome?.Applied?.Outcome : null;
         var observed = outcome?.Applied?.Observed ?? (outcome as Receipts.ReceiptOutcome.NoChangeCase)?.Value.Observed;
         var results = observed?.Effect?.CombatOrders?.Results

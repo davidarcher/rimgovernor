@@ -67,7 +67,7 @@ internal static class ControlHaulOut
         var site = staged.Site ?? throw new AcceptanceException("the haul-out stage found no site");
         var destination = new Cell(site.X + store.X, site.Z + store.Z);
         var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
-        _ = await TypedApply.AppliedAsync(s, "designate", new Operations.DesignateIntent { Designation = Operations.ThingDesignation.Haul, Target = new() { Id = stack } }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "designate", new Operations.DesignateIntent { Designation = Operations.ThingDesignation.Haul, Target = new() { Id = stack }, ReplaceWithWall = false, Withdraw = false, Guard = Operations.DesignationGuard.NoGuard }, cancellationToken).ConfigureAwait(false);
 
         var op = await HaulOpAsync(s, stack, cancellationToken).ConfigureAwait(false)
             ?? throw new AcceptanceException($"designated: the read reports no Haul removal of the ordinary stack {stack}");

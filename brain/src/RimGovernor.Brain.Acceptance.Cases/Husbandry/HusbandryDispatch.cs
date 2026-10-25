@@ -63,8 +63,7 @@ internal static class HusbandryDispatch
             var reply = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
             {
                 Identity = s.Identity,
-                Actions = [new Operations.Action { Key = key, Intent = intent }],
-            }, cancellationToken).ConfigureAwait(false);
+                Actions = [new Operations.Action { Key = key, Intent = intent }], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
             return reply.Results.ToList() is [var result] ? result.Outcome : throw new AcceptanceException($"{key}: expected one result, got {reply.Results.Count}");
         }
 
@@ -94,7 +93,7 @@ internal static class HusbandryDispatch
             }
         }
 
-        Operations.HusbandryIntent Order(string id, Operations.HusbandryOrder order) => new() { AnimalId = id, Order = order };
+        Operations.HusbandryIntent Order(string id, Operations.HusbandryOrder order) => new() { AnimalId = id, Order = order, Follow = false };
 
         // Preconditions the fixture promises.
         var dog = await AnimalAsync("dog-before", herd.Dog).ConfigureAwait(false);

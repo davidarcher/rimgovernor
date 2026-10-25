@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
 
         private static bool Valid(Operations.ZoneIntent? intent)
         {
-            if (NativeZoneIntent.Id(intent) == null || intent!.Kind is not null || (intent.AddCells == null) == (intent.RemoveCells == null)) return false;
+            if (NativeZoneIntent.Id(intent) == null || intent!.Kind != Operations.ZoneType.Existing || (intent.AddCells == null) == (intent.RemoveCells == null)) return false;
             var cells = NativeZoneIntent.EditCells(intent)?.Selection?.ExplicitCells?.Cells;
             if (cells is not { } list || list.Count == 0) return false;
             if (!list.All(c => c.X is >= 0 && c.Z is >= 0)) return false;
@@ -101,7 +101,7 @@ namespace HomeBridge.BridgeTools
 
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
         {
-            var intent = action.Intent?.Zone ?? new Operations.ZoneIntent();
+            var intent = action.Intent?.Zone ?? throw new InvalidOperationException("Zone intent is missing.");
             var map = ProtoBoundary.LoadedMap(context);
             var zone = Resolve(intent, map);
             if (!Standing(intent, zone))

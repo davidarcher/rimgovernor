@@ -132,7 +132,6 @@ BuildingRuntime/TradeMission.cs|Fact|2
 BuildingRuntime/TradeMissionOptions.cs|Fact|2
 BuildingRuntime/TradeTarget.cs|Discard|1
 Contracts/Json/FactJsonConverter.cs|Fact|5
-Contracts/Operations.cs|NullableValue|62
 Domain/Actions/PawnActivities.cs|NullableValue|2
 Domain/Actions/Trade.cs|Discard|1
 Domain/Foundation/Fact.cs|Fact|6

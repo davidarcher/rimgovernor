@@ -43,8 +43,7 @@ internal static class TradeKit
         var reply = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
         {
             Identity = s.Identity,
-            Actions = [new Operations.Action { Key = key, Intent = intent }],
-        }, cancellationToken).ConfigureAwait(false);
+            Actions = [new Operations.Action { Key = key, Intent = intent }], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
         return reply.Results.ToList() is [var result]
             ? result
             : throw new AcceptanceException($"{key}: expected one result, got {reply.BatchFailure} {string.Join("; ", reply.Results)}");

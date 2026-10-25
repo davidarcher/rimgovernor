@@ -37,8 +37,7 @@ internal static class TypedPawns
         var reply = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
         {
             Identity = s.Identity,
-            Actions = [new Operations.Action { Key = key, Intent = intent }],
-        }, cancellationToken).ConfigureAwait(false);
+            Actions = [new Operations.Action { Key = key, Intent = intent }], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
         return reply is { BatchFailure: null, Results: [{ } result] }
             ? result
             : throw new AcceptanceException($"{key}: expected one action result, got {WireJson.Serialize(reply)}");

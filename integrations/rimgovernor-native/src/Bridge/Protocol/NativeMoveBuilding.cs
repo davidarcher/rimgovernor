@@ -32,10 +32,10 @@ namespace HomeBridge.BridgeTools
             RefIndex.Thing(map, id) as MinifiedThing ?? RefIndex.ThingOrMinified(map, id)?.ParentHolder as MinifiedThing;
 
         private static bool Valid(Operations.RelocateIntent intent) => ProtoBoundary.IsIdentifier(intent.ThingId)
-            && intent.Destination != null && intent.Rotation is not null
-            && intent.Rotation.GetValueOrDefault() >= Placement.Rotation.North && intent.Rotation.GetValueOrDefault() <= Placement.Rotation.West;
+            && intent.Destination != null && intent.Mode is Operations.RelocationMode.Move
+            && ((Operations.RelocationMode.Move)intent.Mode).Value >= Placement.Rotation.North && ((Operations.RelocationMode.Move)intent.Mode).Value <= Placement.Rotation.West;
 
-        private static Rot4 Rotation(Operations.RelocateIntent intent) => new Rot4((int)intent.Rotation.GetValueOrDefault() - 1);
+        private static Rot4 Rotation(Operations.RelocateIntent intent) => new Rot4((int)((Operations.RelocationMode.Move)intent.Mode).Value - 1);
 
         private static bool PreparePacked(Operations.RelocateIntent intent, Map map, MinifiedThing mini, out Common.Failure failure)
         {
@@ -93,12 +93,12 @@ namespace HomeBridge.BridgeTools
 
         internal static Common.Failure? Validate(Operations.RelocateIntent? intent, Common.ObservationContext context) =>
             intent == null ? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Relocate intent missing.")
-            : intent.Uninstall.GetValueOrDefault() ? NativeUninstallBuilding.Validate(intent, context) : Resolve(intent, context, out _, out _, out _);
+            : intent.Mode is Operations.RelocationMode.Uninstall ? NativeUninstallBuilding.Validate(intent, context) : Resolve(intent, context, out _, out _, out _);
 
         internal static Receipts.EffectEvidence Apply(Operations.RelocateIntent? intent, Common.ObservationContext context)
         {
             if (intent == null) throw new InvalidOperationException("Relocate intent missing.");
-            if (intent.Uninstall.GetValueOrDefault()) return NativeUninstallBuilding.Apply(intent, context);
+            if (intent.Mode is Operations.RelocationMode.Uninstall) return NativeUninstallBuilding.Apply(intent, context);
             var failure = Resolve(intent, context, out var piece, out var building, out var queued);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
             var cell = new IntVec3((intent.Destination?.X).GetValueOrDefault(), 0, (intent.Destination?.Z).GetValueOrDefault());

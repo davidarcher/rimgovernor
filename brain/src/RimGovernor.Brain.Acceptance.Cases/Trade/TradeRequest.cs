@@ -44,7 +44,7 @@ internal static class TradeRequest
         s.Record("prepared", ServedOps.Json(p));
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 
-        Task<Operations.ActionResult> Apply(string key, long? tick) => TradeKit.ApplyAsync(s, key, new Operations.CommsTradeRequestIntent
+        Task<Operations.ActionResult> Apply(string key, long tick) => TradeKit.ApplyAsync(s, key, new Operations.CommsTradeRequestIntent
         {
             Kind = row.Kind,
             FactionId = p.Faction,
@@ -72,7 +72,7 @@ internal static class TradeRequest
             }
         }
 
-        async Task Refusal(string label, long? tick)
+        async Task Refusal(string label, long tick)
         {
             var result = await Apply(label, tick).ConfigureAwait(false);
             if (TradeKit.RefusedCode(result) != Common.FailureCode.InvalidRequest)

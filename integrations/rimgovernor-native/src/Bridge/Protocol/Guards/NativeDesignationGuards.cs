@@ -95,12 +95,13 @@ namespace HomeBridge.BridgeTools
         {
             switch (guard)
             {
+                case Operations.DesignationGuard.NoGuard: return null;
                 case Operations.DesignationGuard.Enclosure: return GuardNames.Enclosure;
                 case Operations.DesignationGuard.MineSafety: return GuardNames.MineSafety;
                 case Operations.DesignationGuard.WallUpgrade: return GuardNames.WallUpgrade;
                 case Operations.DesignationGuard.Acquisition: return GuardNames.Acquisition;
                 case Operations.DesignationGuard.Wastepack: return GuardNames.Wastepack;
-                default: return null;
+                default: throw new ArgumentOutOfRangeException(nameof(guard), guard, "Unknown designation guard.");
             }
         }
 

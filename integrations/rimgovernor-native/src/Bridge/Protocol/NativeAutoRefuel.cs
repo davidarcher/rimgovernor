@@ -37,7 +37,7 @@ namespace HomeBridge.BridgeTools
             var failure = Resolve(intent, context, out var thing);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
             var comp = Comp(thing!)!;
-            var wanted = (intent.Change?.AutoRefuel).GetValueOrDefault();
+            if (intent.Change is not Operations.BuildingPatchIntentChange.AutoRefuelCase { Value: var wanted }) throw new InvalidOperationException("Auto-refuel setting missing");
             comp.allowAutoRefuel = wanted;
             if (comp.allowAutoRefuel != wanted) throw new InvalidOperationException("Native auto-refuel requires readback.");
             return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {

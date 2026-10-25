@@ -106,6 +106,7 @@ namespace HomeBridge.BridgeTools
         private static string? Resolve(Operations.DesignateIntent intent, Common.ObservationContext context, out Plan plan, out Common.FailureCode code)
         {
             plan = new Plan(); code = Common.FailureCode.InvalidRequest;
+            if (!Enum.IsDefined(intent.Guard)) return "the designation guard must be a named state";
             var def = DefOf(intent.Designation);
             if (def == null) return "the designation must be one of Deconstruct, Mine, CutPlant, Haul, RemoveFoundation or Cancel";
             plan.Designation = intent.Designation; plan.Def = def;
@@ -113,7 +114,7 @@ namespace HomeBridge.BridgeTools
             var map = plan.Map;
             // Guard: the one the designation needs, and only that one.
             plan.Guard = GuardFor(intent.Designation);
-            var named = intent.Guard is not null ? NativeDesignationGuards.Name(intent.Guard.GetValueOrDefault()) : null;
+            var named = NativeDesignationGuards.Name(intent.Guard);
             // A HAUL takes no guard, or the wastepack guard.
             if (intent.Designation == Operations.ThingDesignation.Haul && named == GuardNames.Wastepack) plan.Guard = named;
             if (named != plan.Guard) return plan.Guard == null ? "this designation takes no guard" : "this designation requires the " + plan.Guard + " guard";
@@ -146,7 +147,7 @@ namespace HomeBridge.BridgeTools
                 }
                 else if (map.terrainGrid.FoundationAt(plan.Cell)?.defName != (intent.ExpectedDef ?? "")) { plan.Cleared = true; return null; }
             }
-            if (intent.ReplaceWithWall.GetValueOrDefault())
+            if (intent.ReplaceWithWall)
             {
                 if (intent.Designation != Operations.ThingDesignation.Deconstruct) return "only Deconstruct swaps a door for a wall";
                 plan.WallStuff = WallStuff(plan.Target!);
@@ -168,17 +169,17 @@ namespace HomeBridge.BridgeTools
             return plan.HaulOut ? null : DesignatorRefusal(plan);
         }
 
-        private static bool WallUpgrade(Operations.DesignateIntent intent) => intent.Guard is not null && intent.Guard.GetValueOrDefault() == Operations.DesignationGuard.WallUpgrade;
+        private static bool WallUpgrade(Operations.DesignateIntent intent) => intent.Guard == Operations.DesignationGuard.WallUpgrade;
         // The acquisition designations: HUNT, HARVEST_PLANT or MINE of
         // a census source, and their withdraw.
-        private static bool Acquisition(Operations.DesignateIntent intent) => intent.Guard is not null && intent.Guard.GetValueOrDefault() == Operations.DesignationGuard.Acquisition;
+        private static bool Acquisition(Operations.DesignateIntent intent) => intent.Guard == Operations.DesignationGuard.Acquisition;
         private static string? AcquisitionPairing(Operations.DesignateIntent intent) =>
             intent.Designation == Operations.ThingDesignation.Hunt || intent.Designation == Operations.ThingDesignation.HarvestPlant || intent.Designation == Operations.ThingDesignation.Mine
                 ? null : "the acquisition guard holds HUNT, HARVEST_PLANT or MINE";
         private static Common.Failure? Pairing(Operations.DesignateIntent intent)
         {
             string? refusal = null;
-            if (intent.Withdraw.GetValueOrDefault() && !Acquisition(intent)) refusal = "only the acquisition guard withdraws";
+            if (intent.Withdraw && !Acquisition(intent)) refusal = "only the acquisition guard withdraws";
             else if (Acquisition(intent)) refusal = AcquisitionPairing(intent);
             return refusal == null ? null : ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, ApplyPreconditions.Detail(Kind, refusal));
         }
@@ -194,10 +195,10 @@ namespace HomeBridge.BridgeTools
         private static string? ResolveCancel(Operations.DesignateIntent intent, Common.ObservationContext context, out Thing? blueprint, out string id, out Common.FailureCode code)
         {
             blueprint = null; id = ""; code = Common.FailureCode.InvalidRequest;
-            if (intent.Guard is not null) return "this designation takes no guard";
+            if (intent.Guard != Operations.DesignationGuard.NoGuard) return "this designation takes no guard";
             if (intent.Target?.Id is null || !ProtoBoundary.IsIdentifier(intent.Target.Id)) return "CANCEL requires a blueprint target";
             if (intent.Cell != null && !ValidCell(intent.Cell)) return "the cell is invalid";
-            if (intent.ReplaceWithWall.GetValueOrDefault()) return "only Deconstruct swaps a door for a wall";
+            if (intent.ReplaceWithWall) return "only Deconstruct swaps a door for a wall";
             id = intent.Target.Id;
             var map = ProtoBoundary.LoadedMap(context);
             var found = RefIndex.Thing(map, id);

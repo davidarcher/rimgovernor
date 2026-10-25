@@ -46,7 +46,7 @@ namespace HomeBridge.BridgeTools
         }
 
         private static bool Valid(Operations.ZoneIntent? intent) =>
-            NativeZoneIntent.Id(intent) != null && intent!.Kind is null && intent.AddCells == null && intent.RemoveCells == null && !intent.Delete.GetValueOrDefault() && intent.Growing == null && intent.Fishing == null && intent.Label is null && NativeStockpileSettings.Valid(intent.Stockpile);
+            NativeZoneIntent.Id(intent) != null && intent!.Kind == Operations.ZoneType.Existing && intent.AddCells == null && intent.RemoveCells == null && !intent.Delete && intent.Growing == null && intent.Fishing == null && intent.Label is null && NativeStockpileSettings.Valid(intent.Stockpile);
 
         private static Target Resolve(Operations.ZoneIntent? intent, Map map)
         {

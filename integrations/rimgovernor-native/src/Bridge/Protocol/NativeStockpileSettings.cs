@@ -64,14 +64,16 @@ namespace HomeBridge.BridgeTools
         /// bounds and range coherence. Resolve does the database lookups.</summary>
         internal static bool Valid(Operations.StockpileSettings? settings)
         {
-            if (settings == null) return false;
+            if (settings == null || settings.Priority is null || settings.Preset is null) return false;
+            if (settings.Priority is Operations.StockpilePriorityChange.Selected selectedPriority && !Enum.IsDefined(selectedPriority.Value)
+                || settings.Preset is Operations.StockpilePresetChange.Selected selectedPreset && !Enum.IsDefined(selectedPreset.Value)) return false;
             var filter = settings.Filter;
-            if (filter == null) return settings.Priority is not null || settings.Preset is not null;
+            if (filter == null) return settings.Priority is Operations.StockpilePriorityChange.Selected || settings.Preset is Operations.StockpilePresetChange.Selected;
             var selectors = filter.Allow.Concat(filter.Disallow).Concat(filter.Replace?.Selectors ?? Enumerable.Empty<Operations.FilterSelector>()).ToList();
             if (selectors.Any(s => !ValidSelector(s))) return false;
-            if ((filter.HitPointsMin is not null) != (filter.HitPointsMax is not null) || (filter.QualityMin is not null) != (filter.QualityMax is not null)) return false;
-            if (filter.HitPointsMin is not null && (double.IsNaN(filter.HitPointsMin.GetValueOrDefault()) || double.IsNaN(filter.HitPointsMax.GetValueOrDefault())
-                || filter.HitPointsMin.GetValueOrDefault() < 0 || filter.HitPointsMax.GetValueOrDefault() > 1 || filter.HitPointsMin.GetValueOrDefault() > filter.HitPointsMax.GetValueOrDefault())) return false;
+            if (filter.HitPoints is null || (filter.QualityMin is not null) != (filter.QualityMax is not null)) return false;
+            if (filter.HitPoints is Operations.HitPointRange.Selected range && (double.IsNaN(range.Minimum) || double.IsNaN(range.Maximum)
+                || range.Minimum < 0 || range.Maximum > 1 || range.Minimum > range.Maximum)) return false;
             if (filter.QualityMin is not null && (ParseQuality((filter.QualityMin ?? "")) == null || ParseQuality((filter.QualityMax ?? "")) == null
                 || ParseQuality((filter.QualityMin ?? ""))!.Value > ParseQuality((filter.QualityMax ?? ""))!.Value)) return false;
             return true;
@@ -101,8 +103,8 @@ namespace HomeBridge.BridgeTools
         {
             if (settings is null || !Valid(settings)) return null;
             var result = new Resolved();
-            if (settings.Priority is { } priority) result.Priority = NativeZoneCreation.ToNativePriority(priority);
-            if (settings.Preset is { } preset) result.Preset = PresetName(preset);
+            if (settings.Priority is Operations.StockpilePriorityChange.Selected { Value: var priority }) result.Priority = NativeZoneCreation.ToNativePriority(priority);
+            if (settings.Preset is Operations.StockpilePresetChange.Selected { Value: var preset }) result.Preset = PresetName(preset);
             var filter = settings.Filter;
             if (filter == null) return result;
             var storable = new HashSet<ThingDef>(universe);
@@ -112,7 +114,7 @@ namespace HomeBridge.BridgeTools
                 if (!ResolveAll(filter.Replace.Selectors, storable, result.Replace)) return null;
             }
             if (!ResolveAll(filter.Allow, storable, result.Allow) || !ResolveAll(filter.Disallow, storable, result.Disallow)) return null;
-            if (filter.HitPointsMin is not null) result.HitPoints = new FloatRange((float)filter.HitPointsMin.GetValueOrDefault(), (float)filter.HitPointsMax.GetValueOrDefault());
+            if (filter.HitPoints is Operations.HitPointRange.Selected range) result.HitPoints = new FloatRange((float)range.Minimum, (float)range.Maximum);
             if (filter.QualityMin is not null) result.Quality = new QualityRange(ParseQuality((filter.QualityMin ?? ""))!.Value, ParseQuality((filter.QualityMax ?? ""))!.Value);
             return result;
         }

@@ -50,13 +50,16 @@ public static class Production
     {
         var settings = new Op.BillSettings
         {
-            Suspended = false,
-            IngredientSearchRadius = 40,
+            Repetition = bill.Mode switch
+            {
+                BillMode.ButcherForever or BillMode.HumanButcherForever => new Op.BillRepetition.Forever(),
+                BillMode.GearBatch => new Op.BillRepetition.Count(bill.Target),
+                BillMode.BeerReserve or BillMode.FoodTarget or BillMode.StockTarget => new Op.BillRepetition.Target(bill.Target, Math.Max(1, bill.Target / 2)),
+                var invalid => throw BridgeContractException.Contract($"unsupported production bill mode {invalid}"),
+            },
+            BeerReserve = bill.Mode == BillMode.BeerReserve,
+            Corpses = bill.Corpses == DomainCorpseOf.None ? new Op.BillCorpseClass.NotApplicable() : new Op.BillCorpseClass.Selected(CorpseClassRules.WireCorpseClass(bill.Corpses)),
         };
-        if (bill.Mode == BillMode.BeerReserve)
-        {
-            settings = settings with { BeerReserve = true };
-        }
         if (bill.Ingredients.Count > 0)
         {
             var selectors = new Op.SelectorList();
@@ -64,36 +67,13 @@ public static class Production
             {
                 selectors = selectors with { Selectors = [.. selectors.Selectors, new Op.FilterSelector { Definition = new Op.FilterSelectorDefinition.ThingDefCase(name) }] };
             }
-            settings = settings with { Ingredients = new Op.FilterPatch { Replace = selectors } };
-        }
-        if (bill.Corpses != DomainCorpseOf.None)
-        {
-            settings = settings with
-            {
-                CorpseClass = CorpseClassRules.WireCorpseClass(bill.Corpses),
-            };
+            settings = settings with { Ingredients = new Op.FilterPatch { Replace = selectors, HitPoints = new Op.HitPointRange.Preserve() } };
         }
         if (!string.IsNullOrEmpty(bill.Worker))
         {
             settings = settings with { Worker = new Op.Assignment { Value = new Op.AssignmentValue.EntityIdCase(bill.Worker) } };
         }
-        if (bill.Mode is BillMode.ButcherForever or BillMode.HumanButcherForever)
-        {
-            settings = settings with { RepeatMode = Op.RepeatMode.Forever };
-        }
-        else if (bill.Mode == BillMode.GearBatch)
-        {
-            settings = settings with { RepeatMode = Op.RepeatMode.Count };
-            settings = settings with { RepeatCount = bill.Target };
-        }
-        else
-        {
-            settings = settings with { RepeatMode = Op.RepeatMode.Target };
-            settings = settings with { TargetCount = bill.Target };
-            settings = settings with { UnpauseThreshold = Math.Max(1, bill.Target / 2) };
-            settings = settings with { PauseWhenSatisfied = true };
-        }
-        var intent = new Op.ProductionBillIntent { BenchId = bill.Bench, RecipeDef = bill.Recipe, Settings = settings };
+        var intent = new Op.ProductionBillIntent { BenchId = bill.Bench, RecipeDef = bill.Recipe, Settings = settings, AcknowledgeViolation = false, PartIndex = new Op.SurgeryTarget.WholeBody() };
         if (!string.IsNullOrEmpty(bill.Replaces))
         {
             intent = intent with { ReplaceOwnedBill = IntentActionRules.NewRef(bill.Replaces) };
@@ -131,11 +111,10 @@ public static class Production
         {
             Patient = IntentActionRules.NewRef(v.Pawn.Value),
             RecipeDef = v.Recipe,
-            AcknowledgeViolation = v.AcknowledgeViolation,
-        };
+            AcknowledgeViolation = v.AcknowledgeViolation, PartIndex = new Op.SurgeryTarget.WholeBody() };
         if (v.Part != SurgeryConstants.NoSurgeryPart)
         {
-            intent = intent with { PartIndex = v.Part };
+            intent = intent with { PartIndex = new Op.SurgeryTarget.Part(v.Part) };
         }
         return new Op.Action { Intent = intent };
     }

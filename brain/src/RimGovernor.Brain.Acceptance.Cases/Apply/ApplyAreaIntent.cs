@@ -37,7 +37,7 @@ internal static class ApplyAreaIntent
 
         async Task<Receipts.AreaEffect> StepAsync(string key, Operations.AreaOperation op, Operations.AreaRect[] cells, int wantCount, bool wantPresent)
         {
-            var effect = await ApplyAsync(key, new Operations.AreaIntent { Operation = op, Key = "accept", Rects = [.. cells] }).ConfigureAwait(false);
+            var effect = await ApplyAsync(key, new Operations.AreaIntent { Operation = op, Key = "accept", Rects = [.. cells], Home = false, PollutionClear = false }).ConfigureAwait(false);
             if ((effect.Present == true) != wantPresent || effect.CellCount != wantCount || !string.IsNullOrEmpty(effect.AreaId) != wantPresent)
             {
                 throw new AcceptanceException($"{key}: expected present={wantPresent} with {wantCount} cells, got {effect}");
@@ -62,7 +62,7 @@ internal static class ApplyAreaIntent
 
         async Task<int?> HomeAsync(string key, Operations.AreaOperation op)
         {
-            var effect = await ApplyAsync(key, new Operations.AreaIntent { Operation = op, Home = true, Rects = [Cell(12, 12)] }).ConfigureAwait(false);
+            var effect = await ApplyAsync(key, new Operations.AreaIntent { Operation = op, Home = true, Rects = [Cell(12, 12)], PollutionClear = false }).ConfigureAwait(false);
             return effect.Home == true && !string.IsNullOrEmpty(effect.AreaId)
                 ? effect.CellCount
                 : throw new AcceptanceException($"{key}: expected the home area, got {effect}");

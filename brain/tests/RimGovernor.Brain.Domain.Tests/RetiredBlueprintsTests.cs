@@ -68,7 +68,7 @@ public sealed class RetiredBlueprintsTests
         var intent = IntentActionRules.IntentAction("cancel", action).Intent!.Designate!;
         Assert.Equal(Op.ThingDesignation.Cancel, intent.Designation);
         Assert.Equal("Blueprint_Build7", intent.Target!.Id);
-        Assert.Null(intent.Guard);
+        Assert.Equal(Op.DesignationGuard.NoGuard, intent.Guard);
         Assert.Contains("Blueprint_Build7", HomeUpkeepReader.PlannedGroundWork(colony, rows, [], null!));
     }
 

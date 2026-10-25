@@ -14,8 +14,7 @@ internal static class TypedPawnOps
         var reply = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
         {
             Identity = s.Identity,
-            Actions = [new Operations.Action { Key = key, Intent = intent }],
-        }, cancellationToken).ConfigureAwait(false);
+            Actions = [new Operations.Action { Key = key, Intent = intent }], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
         var results = reply.Results.ToList();
         if (results is not [{ Outcome.Applied: not null } result])
         {
@@ -35,8 +34,7 @@ internal static class TypedPawnOps
         var reply = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
         {
             Identity = s.Identity,
-            Actions = [new Operations.Action { Key = key, Intent = intent }],
-        }, cancellationToken).ConfigureAwait(false);
+            Actions = [new Operations.Action { Key = key, Intent = intent }], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
         var results = reply.Results.ToList();
         if (results is not [{ Outcome.Refused: { } refusal } result] || refusal.Reason?.Contains(reason, StringComparison.OrdinalIgnoreCase) != true)
         {

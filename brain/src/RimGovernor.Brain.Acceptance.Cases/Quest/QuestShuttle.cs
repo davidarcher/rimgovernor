@@ -50,8 +50,7 @@ internal static class QuestShuttle
         await Apply("shuttle-load", new Operations.QuestShuttleIntent
         {
             QuestId = quest,
-            Loading = named ? new Operations.QuestShuttleIntentLoading.AutoloadCase(true) : new Operations.ShuttlePawnList { PawnIds = [pawn] },
-        }).ConfigureAwait(false);
+            Loading = named ? new Operations.QuestShuttleIntentLoading.AutoloadCase(true) : new Operations.ShuttlePawnList { PawnIds = [pawn] }, Launch = false }).ConfigureAwait(false);
 
         _ = await s.RunUntilAsync("shuttle-board", BoardTicks, async ct =>
         {

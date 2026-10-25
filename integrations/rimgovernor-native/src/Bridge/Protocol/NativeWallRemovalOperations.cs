@@ -110,7 +110,7 @@ namespace HomeBridge.BridgeTools
             var expected = (intent.Target?.Id ?? "");
             if (intent.Cell == null || intent.Target != null && !ProtoBoundary.IsIdentifier(expected))
                 return "The wall_upgrade guard requires one wall cell.";
-            if (intent.Designation != Operations.ThingDesignation.Deconstruct || intent.ReplaceWithWall.GetValueOrDefault() || intent.ExpectedDef is not null || intent.ThingId is not null)
+            if (intent.Designation != Operations.ThingDesignation.Deconstruct || intent.ReplaceWithWall || intent.ExpectedDef is not null || intent.ThingId is not null)
                 return "The wall_upgrade guard takes DECONSTRUCT on a cell and an optional target only.";
             var map = ProtoBoundary.ResolveMap(context);
             if (map == null) return "Loaded map required.";

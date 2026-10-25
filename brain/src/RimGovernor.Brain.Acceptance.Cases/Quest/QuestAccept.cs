@@ -51,7 +51,7 @@ internal static class QuestAccept
         {
             QuestId = questId,
             AccepterPawnId = accepter,
-            RewardChoice = rewardChoice,
+            RewardChoice = rewardChoice == -1 ? new Operations.QuestRewardSelection.NoChoice() : new Operations.QuestRewardSelection.Choose(rewardChoice),
         }, cancellationToken);
 
         async Task Refused(string key, string? accepter, int rewardChoice)

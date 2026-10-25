@@ -78,8 +78,7 @@ internal static class BuildingTemperature
                         Key = key,
                         Intent = new Operations.BuildingPatchIntent { ThingId = thingId, Change = new Operations.BuildingPatchIntentChange.TargetTemperatureCase(temperature) },
                     },
-                ],
-            }, cancellationToken).ConfigureAwait(false);
+                ], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
             return reply.Results.ToList() is [{ } result]
                 ? result
                 : throw new AcceptanceException($"{key}: want one result, got {reply.BatchFailure} {string.Join("; ", reply.Results)}");

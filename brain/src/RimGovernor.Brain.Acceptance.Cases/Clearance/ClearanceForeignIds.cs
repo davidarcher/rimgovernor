@@ -68,8 +68,7 @@ internal static class ClearanceForeignIds
         _ = await TypedApply.AppliedAsync(s, "foreign-cut", new Operations.DesignateIntent
         {
             Designation = Operations.ThingDesignation.CutPlant,
-            Target = new() { Id = bush },
-        }, cancellationToken).ConfigureAwait(false);
+            Target = new() { Id = bush }, ReplaceWithWall = false, Withdraw = false, Guard = Operations.DesignationGuard.NoGuard }, cancellationToken).ConfigureAwait(false);
 
         var rows = await s.BuildingsAsync("claimed", new Observations.ListBuildingsRequest { Ids = [ruin, own], AnyFaction = true }, cancellationToken).ConfigureAwait(false);
         var faction = rows.FirstOrDefault(r => r.Building.Id == own)?.Faction?.Id;

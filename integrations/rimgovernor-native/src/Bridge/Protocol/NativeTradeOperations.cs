@@ -234,7 +234,7 @@ namespace HomeBridge.BridgeTools
             trader = null; negotiator = null; reuse = OpenReuse.None;
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "OpenTrade requires a trader and a negotiator.");
             if (command == null || string.IsNullOrEmpty(traderId) || string.IsNullOrEmpty(negotiatorId) || traderId == negotiatorId) return false;
-            var giftMode = command.GiftMode is not null && command.GiftMode.GetValueOrDefault();
+            var giftMode = command.GiftMode;
             DropForeignSession(identity);
             if (_sessionId != null)
             {
@@ -418,7 +418,7 @@ namespace HomeBridge.BridgeTools
                 var row = all[index]; var target = line.AbsoluteCount;
                 if (!SafeBool(() => row.TraderWillTrade) && target != 0) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "'" + (line.LineId ?? "") + "' will not trade (TraderWillTrade is false)."); return false; }
                 if (SafeBool(() => row.IsCurrency) && !giftMode) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The silver row is computed from the other lines, not set."); return false; }
-                if (IsPawnRow(row) && !(command.AllowPawns is not null && command.AllowPawns.GetValueOrDefault()) && WouldGiveAway(row, target))
+                if (IsPawnRow(row) && !(command.AllowPawns) && WouldGiveAway(row, target))
                 { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Refusing to sell a pawn row without allow_pawns."); return false; }
                 AcceptanceReport report;
                 try { report = row.CanAdjustTo(target); } catch (Exception e) { failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "CanAdjustTo threw: " + e.GetType().Name); return false; }
@@ -441,7 +441,7 @@ namespace HomeBridge.BridgeTools
             if (command.ExpectedDealSignature is null || DealSignature() != (command.ExpectedDealSignature ?? ""))
             { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "Trade contents or prices changed since preview."); return false; }
             var stagedCount = deal.AllTradeables.Count(t => SafeInt(() => t.CountToTransfer) != 0);
-            if (stagedCount == 0 && !(command.AllowEmpty is not null && command.AllowEmpty.GetValueOrDefault()))
+            if (stagedCount == 0 && !(command.AllowEmpty))
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Nothing is staged; pass allow_empty to trade nothing deliberately."); return false; }
             HashSet<Thing> colonyGoods, traderGoods;
             try
@@ -547,7 +547,7 @@ namespace HomeBridge.BridgeTools
             var identity = context.Identity;
             if (!PrepareOpen(command, traderId, negotiatorId, identity, out var trader, out var negotiator, out var reuse, out _) || trader == null || negotiator == null)
                 throw new InvalidOperationException("Open prerequisites changed after validation.");
-            var giftMode = command.GiftMode is not null && command.GiftMode.GetValueOrDefault();
+            var giftMode = command.GiftMode;
             var map = ProtoBoundary.ResolveMap(context);
             if (map == null) throw new InvalidOperationException("No current map.");
             if (reuse == OpenReuse.Session) return OpenEvidence(trader);
@@ -600,7 +600,7 @@ namespace HomeBridge.BridgeTools
             catch { executed = false; actuallyTraded = false; }
             _sessionNegotiator?.GetCaravan()?.RecacheInventory();
             var afterSilver = ColonySilverNow(traderPawn, _sessionNegotiator);
-            var receiveQuest = command.ReceiveQuest is null || command.ReceiveQuest.GetValueOrDefault();
+            var receiveQuest = command.ReceiveQuest;
             if (receiveQuest && traderPawn is Pawn questPawn)
             {
                 try
@@ -641,7 +641,7 @@ namespace HomeBridge.BridgeTools
                 catch { }
             }
             matches = CancelApproach(traderId, negotiatorId) || matches;
-            if (_sessionId != null && matches) CloseSession(command.ReceiveQuest is not null && command.ReceiveQuest.GetValueOrDefault());
+            if (_sessionId != null && matches) CloseSession(command.ReceiveQuest);
             return new Receipts.EffectEvidence { Effect = new Receipts.TradeEffect.EndedCase() };
         }
     }

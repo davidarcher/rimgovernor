@@ -37,7 +37,7 @@ namespace HomeBridge.BridgeTools
             bool arriving, out Map? map, out Pawn? pawn, out Faction? faction, out Building_CommsConsole? console, out string reason)
         {
             map = ProtoBoundary.ResolveMap(identity); pawn = null; faction = null; console = null; reason = "invalid_request";
-            if (map == null || intent.ExpectedLastRequestTick is null || !ProtoBoundary.IsIdentifier(intent.FactionId)
+            if (map == null || !ProtoBoundary.IsIdentifier(intent.FactionId)
                 || !ProtoBoundary.IsIdentifier(intent.TraderKind) || !ProtoBoundary.IsIdentifier(intent.ConsoleId)
                 || !ProtoBoundary.IsIdentifier(intent.NegotiatorId)
                 || (intent.Kind != Common.TradeRequestKind.Caravan && intent.Kind != Common.TradeRequestKind.Orbital)) return false;
@@ -49,7 +49,7 @@ namespace HomeBridge.BridgeTools
             var kinds = orbital ? faction.def.orbitalTraderKinds : faction.def.caravanTraderKinds;
             var kind = kinds.FirstOrDefault(k => k.defName == (intent.TraderKind ?? "") && k.requestable);
             var last = orbital ? faction.lastOrbitalTraderRequestTick : faction.lastTraderRequestTick;
-            reason = last != intent.ExpectedLastRequestTick.GetValueOrDefault() ? "request_tick_changed" :
+            reason = last != intent.ExpectedLastRequestTick ? "request_tick_changed" :
                 faction.PlayerRelationKind != FactionRelationKind.Ally ? "not_ally" :
                 NativeTradeAcquisition.RelationAfterPayment(faction, Faction.OfPlayer.CalculateAdjustedGoodwillChange(faction, NativeTradeAcquisition.TraderRequest.GoodwillDelta(orbital))) != "Ally" ? "alliance_cost" :
                 (long)last + NativeTradeAcquisition.TraderRequest.CooldownTicks(orbital) > Find.TickManager.TicksGame ? "cooldown" :

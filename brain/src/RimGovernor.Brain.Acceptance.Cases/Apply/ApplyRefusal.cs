@@ -90,7 +90,7 @@ internal static class ApplyRefusal
             throw new AcceptanceException("build-blocked: expected the walled build cell to be unplaceable");
         }
 
-        var build = await TypedApply.RefusedAsync(s, "apply-refusal-build", new Operations.BuildingIntent { Placement = placement }, cancellationToken).ConfigureAwait(false);
+        var build = await TypedApply.RefusedAsync(s, "apply-refusal-build", new Operations.BuildingIntent { Placement = placement, ReplaceWall = false, Tier = new Operations.ConstructionTierChange.Preserve(), MinimumFinishingSkill = new Operations.FinishingSkillChange.Preserve() }, cancellationToken).ConfigureAwait(false);
         if (build.Code != Common.FailureCode.InvalidRequest || string.IsNullOrEmpty(build.Reason))
         {
             throw new AcceptanceException($"build: expected an INVALID_REQUEST refusal with a reason, got {build}");
@@ -103,7 +103,7 @@ internal static class ApplyRefusal
         await MoveAsync("fill-free-cell", "fill_cell", cell: free).ConfigureAwait(false);
         await RefusedAsync(
             "zone-edit-add",
-            new Operations.ZoneIntent { Zone = zone, AddCells = new Operations.Cells { Selection = new Operations.CellList { Cells = [free] } } },
+            new Operations.ZoneIntent { Zone = zone, AddCells = new Operations.Cells { Selection = new Operations.CellList { Cells = [free] } }, Delete = false, RequireCoveredEmpty = false, Kind = Operations.ZoneType.Existing },
             Common.FailureCode.InvalidRequest,
             $"Zone cell edit refused: cell ({free.X}, {free.Z}) is not free zoneable ground").ConfigureAwait(false);
         await RefusedAsync(
@@ -113,8 +113,7 @@ internal static class ApplyRefusal
                 Label = "RimGovernor apply refusal",
                 Kind = Operations.ZoneType.Stockpile,
                 AddCells = new Operations.Cells { Selection = new Operations.Rectangle { Origin = free, Width = 1, Height = 1 } },
-                Stockpile = new Operations.StockpileSettings { Priority = StockpilePriority.Normal, Preset = FilterBase.Nothing },
-            },
+                Stockpile = new Operations.StockpileSettings { Priority = new Operations.StockpilePriorityChange.Selected(StockpilePriority.Normal), Preset = new Operations.StockpilePresetChange.Selected(FilterBase.Nothing)}, Delete = false, RequireCoveredEmpty = false },
             Common.FailureCode.InvalidRequest,
             "Rectangle has no free vanilla-zoneable stockpile cells").ConfigureAwait(false);
 
@@ -123,12 +122,12 @@ internal static class ApplyRefusal
         await MoveAsync("delete-zone", "delete_zone", prepared.ZoneId).ConfigureAwait(false);
         await RefusedAsync(
             "stockpile-patch",
-            new Operations.ZoneIntent { Zone = zone, Stockpile = new Operations.StockpileSettings { Priority = StockpilePriority.Important } },
+            new Operations.ZoneIntent { Zone = zone, Stockpile = new Operations.StockpileSettings { Priority = new Operations.StockpilePriorityChange.Selected(StockpilePriority.Important), Preset = new Operations.StockpilePresetChange.Preserve() }, Delete = false, RequireCoveredEmpty = false, Kind = Operations.ZoneType.Existing },
             Common.FailureCode.NotFound,
             "Stockpile patch refused: the exact stockpile zone or storage building no longer exists on this map").ConfigureAwait(false);
         await RefusedAsync(
             "zone-edit-remove",
-            new Operations.ZoneIntent { Zone = zone, RemoveCells = new Operations.Cells { Selection = new Operations.CellList { Cells = [zoneCell] } } },
+            new Operations.ZoneIntent { Zone = zone, RemoveCells = new Operations.Cells { Selection = new Operations.CellList { Cells = [zoneCell] } }, Delete = false, RequireCoveredEmpty = false, Kind = Operations.ZoneType.Existing },
             Common.FailureCode.NotFound,
             "Zone cell edit refused: the exact zone no longer exists on this map").ConfigureAwait(false);
 
@@ -155,12 +154,10 @@ internal static class ApplyRefusal
                 RecipeDef = "ButcherCorpseFlesh",
                 Settings = new Operations.BillSettings
                 {
-                    RepeatMode = Operations.RepeatMode.Forever,
-                    Suspended = false,
-                    IngredientSearchRadius = 40,
-                    CorpseClass = Common.CorpseClass.Animal,
-                },
-            },
+                    Repetition = new Operations.BillRepetition.Forever(),
+                    BeerReserve = false,
+                    Corpses = new Operations.BillCorpseClass.Selected(Common.CorpseClass.Animal),
+                }, AcknowledgeViolation = false, PartIndex = new Operations.SurgeryTarget.WholeBody() },
             Common.FailureCode.NotFound,
             "Production bill refused: bench Building_missing_bench is not a loaded bill giver").ConfigureAwait(false);
 
@@ -169,7 +166,7 @@ internal static class ApplyRefusal
         await MoveAsync("designate-tame-prey", "designate_hunt", prepared.TameId).ConfigureAwait(false);
         await RefusedAsync(
             "tame",
-            new Operations.HusbandryIntent { AnimalId = prepared.TameId, Order = Operations.HusbandryOrder.Tame },
+            new Operations.HusbandryIntent { AnimalId = prepared.TameId, Order = Operations.HusbandryOrder.Tame, Follow = false },
             Common.FailureCode.InvalidRequest,
             "Husbandry refused: native tame eligibility refused the animal or it is designated for hunting").ConfigureAwait(false);
 

@@ -90,8 +90,8 @@ internal static class RemovalDesignationRowsCase
 
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
         _ = await TypedApply.AppliedAsync(s, "designate", WallKit.Deconstruct(ruin), cancellationToken).ConfigureAwait(false);
-        _ = await TypedApply.AppliedAsync(s, "uninstall", new Operations.RelocateIntent { ThingId = piece, Uninstall = true }, cancellationToken).ConfigureAwait(false);
-        _ = await TypedApply.AppliedAsync(s, "haul", new Operations.DesignateIntent { Designation = Operations.ThingDesignation.Haul, Target = new() { Id = stack } }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "uninstall", new Operations.RelocateIntent { ThingId = piece, Mode = new Operations.RelocationMode.Uninstall() }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "haul", new Operations.DesignateIntent { Designation = Operations.ThingDesignation.Haul, Target = new() { Id = stack }, ReplaceWithWall = false, Withdraw = false, Guard = Operations.DesignationGuard.NoGuard }, cancellationToken).ConfigureAwait(false);
         _ = await TypedApply.AppliedAsync(s, "floor", new Operations.RemoveFloorIntent { Cell = WallKit.Wire(floored), DefName = Floor }, cancellationToken).ConfigureAwait(false);
         var read = await s.CallAsync("designated", NativeOps.ReadConstructionActivity, request, cancellationToken).ConfigureAwait(false);
         s.RecordWire("removals", read.Removals);

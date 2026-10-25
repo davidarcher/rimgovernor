@@ -160,13 +160,13 @@ namespace HomeBridge.BridgeTools
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
         {
             var map = ProtoBoundary.LoadedMap(context);
-            var intent = action.Intent?.Building ?? new Operations.BuildingIntent();
-            var hasSkill = intent.MinimumFinishingSkill is not null;
-            var hasTier = intent.Tier is not null;
+            var intent = action.Intent?.Building ?? throw new InvalidOperationException("Building intent is missing.");
+            var hasSkill = intent.MinimumFinishingSkill is Operations.FinishingSkillChange.Selected;
+            var hasTier = intent.Tier is Operations.ConstructionTierChange.Selected;
             var hasTarget = intent.ExistingTargetId is not null;
-            var replaceWall = intent.ReplaceWall.GetValueOrDefault();
-            if (hasSkill && (intent.MinimumFinishingSkill < 0 || intent.MinimumFinishingSkill > 1000)
-                || hasTier && (intent.Tier < 0 || intent.Tier > ConstructionSkillGuard.MaxTier)
+            var replaceWall = intent.ReplaceWall;
+            if (intent.MinimumFinishingSkill is null || intent.Tier is null || hasSkill && (((Operations.FinishingSkillChange.Selected)intent.MinimumFinishingSkill).Minimum < 0 || ((Operations.FinishingSkillChange.Selected)intent.MinimumFinishingSkill).Minimum > 1000)
+                || hasTier && (((Operations.ConstructionTierChange.Selected)intent.Tier).Tier < 0 || ((Operations.ConstructionTierChange.Selected)intent.Tier).Tier > ConstructionSkillGuard.MaxTier)
                 || hasTarget && !hasSkill && !hasTier
                 || replaceWall && hasTarget)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Invalid construction setting.");
@@ -182,7 +182,7 @@ namespace HomeBridge.BridgeTools
                 if (existing != null && !(existing.Value.Thing is Blueprint_Build || existing.Value.Thing is Frame))
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Completed building has no finishing work.");
                 var set = existing == null ? null : ConstructionSkillGuard.Setting(existing.Value.Thing);
-                if (hasSkill && set != null && set.Minimum != ConstructionSkillSetting.None && set.Minimum != intent.MinimumFinishingSkill)
+                if (hasSkill && set != null && set.Minimum != ConstructionSkillSetting.None && set.Minimum != ((Operations.FinishingSkillChange.Selected)intent.MinimumFinishingSkill).Minimum)
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Construction minimum is already set.");
             }
             if (hasTarget)
@@ -219,23 +219,23 @@ namespace HomeBridge.BridgeTools
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
         {
             var map = ProtoBoundary.LoadedMap(context);
-            var intent = action.Intent?.Building ?? new Operations.BuildingIntent();
+            var intent = action.Intent?.Building ?? throw new InvalidOperationException("Building intent is missing.");
             var candidate = intent.Placement;
             if (candidate is not null && Existing(map, candidate) is { } existing)
             {
                 if (intent.ExistingTargetId is not null && existing.Thing.GetUniqueLoadID() != intent.ExistingTargetId)
                     throw new InvalidOperationException("Construction setting target changed.");
-                if (intent.MinimumFinishingSkill is { } skill) ConstructionSkillGuard.Set(existing.Thing, skill);
-                if (intent.Tier is { } existingTier) ConstructionSkillGuard.SetTier(existing.Thing, existingTier);
+                if (intent.MinimumFinishingSkill is Operations.FinishingSkillChange.Selected { Minimum: var skill }) ConstructionSkillGuard.Set(existing.Thing, skill);
+                if (intent.Tier is Operations.ConstructionTierChange.Selected { Tier: var existingTier }) ConstructionSkillGuard.SetTier(existing.Thing, existingTier);
                 return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.ConstructionCase() };
             }
             if (intent.ExistingTargetId is not null) throw new InvalidOperationException("Construction setting target disappeared.");
             if (!NativeConstructionPlan.Prepare(map, candidate, context, out var plan, out _, out var failure))
                 throw new InvalidOperationException("Placement became invalid: " + (failure.Detail ?? ""));
-            var placed = plan.Place(intent.ReplaceWall.GetValueOrDefault()) ??throw new InvalidOperationException("Native placement returned no object.");
-            if (intent.MinimumFinishingSkill is { } placedSkill) ConstructionSkillGuard.Set(placed, placedSkill);
+            var placed = plan.Place(intent.ReplaceWall) ??throw new InvalidOperationException("Native placement returned no object.");
+            if (intent.MinimumFinishingSkill is Operations.FinishingSkillChange.Selected { Minimum: var placedSkill }) ConstructionSkillGuard.Set(placed, placedSkill);
             // An instant building is placed finished: there is no site to gate, so the tier has nothing to bind (#2733).
-            if (intent.Tier is { } tier && (placed is Blueprint_Build || placed is Frame)) ConstructionSkillGuard.SetTier(placed, tier);
+            if (intent.Tier is Operations.ConstructionTierChange.Selected { Tier: var tier } && (placed is Blueprint_Build || placed is Frame)) ConstructionSkillGuard.SetTier(placed, tier);
             return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.ConstructionCase() };
         }
 
@@ -272,7 +272,7 @@ namespace HomeBridge.BridgeTools
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         internal static Operations.ApplyReply HandleApply(Operations.ApplyRequest parsed)
         {
-            try { return NativeActionDispatch.Apply(parsed); } finally { SnapshotStream.NoteWrite(parsed.DeferSnapshot.GetValueOrDefault()); }
+            try { return NativeActionDispatch.Apply(parsed); } finally { SnapshotStream.NoteWrite(parsed.DeferSnapshot); }
         }
     }
 }

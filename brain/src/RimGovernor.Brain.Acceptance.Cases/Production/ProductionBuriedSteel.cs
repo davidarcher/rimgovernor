@@ -196,11 +196,9 @@ internal static class ProductionBuriedSteel
                         Target = new Common.Ref { Id = ore.Ids.Single() },
                         Cell = cell,
                         Guard = Operations.DesignationGuard.Acquisition,
-                        ExpectedDef = "Steel",
-                    },
+                        ExpectedDef = "Steel", ReplaceWithWall = false, Withdraw = false },
                 },
-            ],
-        }, cancellationToken).ConfigureAwait(false);
+            ], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
         if (apply.Results.ToList() is not [{ Outcome.Applied.Outcome.Applied: not null }])
         {
             throw new AcceptanceException($"designate: want one applied mine, got {apply.BatchFailure} {string.Join("; ", apply.Results)}");

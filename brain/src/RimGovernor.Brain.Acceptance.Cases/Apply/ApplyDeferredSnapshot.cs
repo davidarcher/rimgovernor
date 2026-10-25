@@ -52,7 +52,7 @@ internal static class ApplyDeferredSnapshot
                 _ = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
                 {
                     Identity = s.Identity,
-                    DeferSnapshot = deferred ? true : null,
+                    DeferSnapshot = deferred,
                     Actions = [new Operations.Action { Key = key, Intent = Probe() }],
                 }, cancellationToken).ConfigureAwait(false);
             }
@@ -88,6 +88,6 @@ internal static class ApplyDeferredSnapshot
     {
         Target = new Common.TradeTarget { Kind = new Common.MapTradeTarget { TraderId = "probe-trader" } },
         NegotiatorId = "probe-negotiator",
-        Step = new Operations.EndTrade { Kind = Operations.EndTradeKind.Cancel },
+        Step = new Operations.EndTrade { Kind = Operations.EndTradeKind.Cancel, ReceiveQuest = false },
     };
 }

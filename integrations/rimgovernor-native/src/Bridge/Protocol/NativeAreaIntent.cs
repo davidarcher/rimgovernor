@@ -29,8 +29,8 @@ namespace HomeBridge.BridgeTools
             map = null; area = null; cells = new List<IntVec3>();
             if (intent == null || !Enum.IsDefined(intent.Operation))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Area requires an operation.");
-            var home = intent.Home is not null && intent.Home.GetValueOrDefault();
-            var pollution = intent.PollutionClear is not null && intent.PollutionClear.GetValueOrDefault();
+            var home = intent.Home;
+            var pollution = intent.PollutionClear;
             var fixedArea = home || pollution;
             if (home && pollution || fixedArea == (intent.Key is not null) || (!fixedArea && !ProtoBoundary.IsIdentifier(intent.Key)))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Area requires exactly one of home, pollution_clear or a bot area key.");
@@ -93,7 +93,7 @@ namespace HomeBridge.BridgeTools
                     area = null;
                     break;
             }
-            var effect = new Receipts.AreaEffect { Home = intent.Home == true, Present = area != null, CellCount = area?.TrueCount ?? 0 };
+            var effect = new Receipts.AreaEffect { Home = intent.Home, Present = area != null, CellCount = area?.TrueCount ?? 0 };
             if (area != null) effect = effect with { AreaId = area.GetUniqueLoadID() };
             return new Receipts.EffectEvidence { Effect = effect };
         }

@@ -275,8 +275,7 @@ internal static class LifecycleReuse
             new Operations.ApplyRequest
             {
                 Identity = identity,
-                Actions = [new Operations.Action { Key = TypedLifecycle.Stamp(label), Intent = new Operations.DraftIntent { PawnId = pawn, Drafted = drafted } }],
-            },
+                Actions = [new Operations.Action { Key = TypedLifecycle.Stamp(label), Intent = new Operations.DraftIntent { PawnId = pawn, Drafted = drafted } }], DeferSnapshot = false },
             cancellationToken).ConfigureAwait(false);
         var receipt = reply.Results.ToList() is [{ Outcome.Applied: { } applied }] ? applied : throw new AcceptanceException($"{label}: want one applied result, got {reply.BatchFailure} {string.Join("; ", reply.Results)}");
         return receipt.Outcome?.Applied?.Observed?.Effect ?? throw new AcceptanceException($"{label}: the receipt names no effect: {receipt}");

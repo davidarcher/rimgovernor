@@ -80,8 +80,7 @@ internal static class ProductionApparelPolicy
                             MaxQuality = 6,
                         },
                     },
-                ],
-            }, cancellationToken).ConfigureAwait(false);
+                ], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
             if (apply.Results.ToList() is not [{ Outcome.Applied: not null }])
             {
                 throw new AcceptanceException($"{label}: want one applied apparel policy, got {apply.BatchFailure} {string.Join("; ", apply.Results)}");

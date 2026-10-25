@@ -22,8 +22,8 @@ namespace HomeBridge.BridgeTools
 
         // DeleteOnly is a delete naming its zone and nothing else.
         internal static bool DeleteOnly(Operations.ZoneIntent? intent) =>
-            Id(intent) != null && intent!.Delete.GetValueOrDefault() && intent.Kind is null && intent.Label is null && intent.AddCells == null && intent.RemoveCells == null
-            && intent.Stockpile == null && intent.Growing == null && intent.Fishing == null && !intent.RequireCoveredEmpty.GetValueOrDefault();
+            Id(intent) != null && intent!.Delete && intent.Kind == Operations.ZoneType.Existing && intent.Label is null && intent.AddCells == null && intent.RemoveCells == null
+            && intent.Stockpile == null && intent.Growing == null && intent.Fishing == null && !intent.RequireCoveredEmpty;
     }
 
     internal sealed class ZoneActionHandler : IActionHandler
@@ -37,8 +37,8 @@ namespace HomeBridge.BridgeTools
         private static IActionHandler Shape(Operations.ZoneIntent? intent)
         {
             if (intent == null) return Creation;
-            if (intent.Delete is not null) return Deletion;
-            if (intent.Kind is not null) return intent.Kind.GetValueOrDefault() == Operations.ZoneType.Stockpile ? StockpilePlacement : Creation;
+            if (intent.Delete) return Deletion;
+            if (intent.Kind != Operations.ZoneType.Existing) return intent.Kind == Operations.ZoneType.Stockpile ? StockpilePlacement : Creation;
             if (intent.AddCells != null || intent.RemoveCells != null) return CellEdit;
             return Settings;
         }

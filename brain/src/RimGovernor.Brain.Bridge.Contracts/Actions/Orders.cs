@@ -71,7 +71,7 @@ public static class Orders
         {
             throw BridgeContractException.Contract("quest accept reward choice invalid");
         }
-        var intent = new Op.AcceptQuestIntent { QuestId = accept.Quest.Value, RewardChoice = accept.RewardChoice };
+        var intent = new Op.AcceptQuestIntent { QuestId = accept.Quest.Value, RewardChoice = accept.RewardChoice == -1 ? new Op.QuestRewardSelection.NoChoice() : new Op.QuestRewardSelection.Choose(accept.RewardChoice)};
         if (accept.AccepterPawn.Value.Length != 0)
         {
             intent = intent with { AccepterPawnId = accept.AccepterPawn.Value };
@@ -340,7 +340,7 @@ public static class Orders
     {
         var v = action.Assign ?? throw BridgeContractException.Contract("not an assign action");
         var previous = v.Previous.Clear ? new Op.Assignment { Value = new Op.AssignmentValue.ClearCase() } : new Op.Assignment { Value = new Op.AssignmentValue.EntityIdCase(v.Previous.Id) };
-        var intent = new Op.AssignIntent { PawnId = v.Pawn.Value, ThingId = v.Thing, ExpectedPrevious = previous };
+        var intent = new Op.AssignIntent { PawnId = v.Pawn.Value, ThingId = v.Thing, ExpectedPrevious = previous, Swap = false };
         if (v.Swap)
         {
             intent = intent with { Swap = true };
@@ -374,7 +374,7 @@ public static class Orders
         {
             throw BridgeContractException.Contract("invalid husbandry order");
         }
-        var intent = new Op.HusbandryIntent { AnimalId = v.Animal.Value, Order = order };
+        var intent = new Op.HusbandryIntent { AnimalId = v.Animal.Value, Order = order, Follow = false };
         switch (v.Method)
         {
             case HusbandryMethod.Train:

@@ -2,6 +2,16 @@
 
 The Operations records (`Operations.cs`) cover ordinary production mutations as closed commands, previews and guarded execution. The Receipts records (`Receipts.cs`) separate pre-admission `Common.Failure` from admitted no-change/applied/uncertain outcomes and later correlated progress. A deserialized record is not a validated domain value. Native adapters must enforce these requirements.
 
+Production bills carry a required repetition case: forever for corpse work,
+a finite count, or a target with its explicit unpause threshold. Target bills
+pause when satisfied. Their corpse selection is either not applicable or an
+explicit animal, stranger or colonist class; native rejects class/recipe and
+worker mismatches. Bill creation always starts unsuspended with the supported
+40-cell ingredient search radius and vanilla skill range. Those fixed settings
+are native behavior rather than redundant order inputs. The bill matcher reads
+the same repetition cases as bill creation; it never fills missing counts with
+zero or normalizes absent settings to defaults.
+
 ## Admission, replay and evidence
 
 Every execution requires exactly one command and a complete `authority.WritePrecondition`: current colony/load/map, positive native generation and complete brain-session/action/positive 64-bit attempt key. Exact target IDs and required snapshot tokens are checked on the game thread with normal native predicates immediately before effects. IDs are opaque nonblank strings, at most256 UTF-8 bytes, no NUL. Map zero is valid; negative map IDs are refused. Tokens bind the entire relevant state to identity and exact entity; they are not caller-asserted hashes. Observation `SnapshotRef` supplies context/entity/token. A stale or unavailable token refuses mutation, never falls back to coordinates, names or weaker checks.
@@ -13,6 +23,10 @@ An admitted receipt preserves admission context and authorizing owner/direction 
 Progress observation is a separate read with complete AttemptKey and current context. Unknown/pending/completed/absent are explicit alternatives. Completed or absent requires complete fresh correlated inspection causally after dispatch, with observed tick greater than or equal to the admitted tick; context must match the original world/load/map, and current generation supplies observation freshness rather than retroactive write permission. Absence requires proving no relevant remaining order or effect, not an empty/truncated page or missing ledger row. Construction attribution preserves origin/current native ID, definition, material, cell, rotation and stage. Matching another building at the same coordinate is insufficient. the brain orchestrator owns prepared/dispatched/cancelled stages and durable uncertainty, not native receipt DTOs.
 
 ## Bounds and presence
+
+Scalar pawn, building and shuttle settings are read from the selected choice case's payload; they have no nullable projections that turn a different case into zero or false.
+
+Boolean operation arguments are explicit required values, including false. Zone deletion is selected by a true delete value; false continues through creation, cell or settings routing. Trade acceptance states receiveQuest explicitly (the routine uses false); trade ending states it separately.
 
 Order enums name supported choices only; none has an unspecified case. Invalid
 native medical-care and hostility-response values fail the read instead of
@@ -86,7 +100,7 @@ Read-only branches belong to the observation schema; player UI and clock/lifecyc
 | Actions.Apply ProductionBillIntent | Bench ID, recipe and repeat/filter/worker/corpse fields, validated live; a matching standing bill applies again. Applied evidence names the bill; production is not observed. |
 | Actions.Apply RemoveProductionBillIntent | `NativeProductionBills.cs`: re-resolves the bench and the bill live and deletes an ordinary production bill (tracking retired first); evidence is the `BillEffect` naming the deleted bill. A pawn working it ends its job cleanly and a bound unfinished item survives for a same-recipe bill; `cancel_unfinished` (a recipe change orphaning the item) destroys it with `DestroyMode.Cancel`, returning the ingredient share. A bill that is gone or not ordinary (`Bill_Mech` and medical bills stay) is refused. |
 | Actions.Apply ResearchIntent | Native eligible project selection validated live, the current project applies again; never finish research; current/progress/capability reads separate. |
-| Actions.Apply ZoneIntent (create, cells, delete, settings shapes); Zones.Preview ZoneIntent create (siting read) | Exact cells, crop/sow/cut/filter/priority, validated live at apply; an intent whose effect already holds applies again, a refusal names the rule that failed. Zone creation takes any label, any priority/preset/`FilterPatch` body for stockpiles; growing zones stay the fixed crop shape; applied evidence names the created zone id. A stockpile patch sets priority and/or filter settings on one stockpile zone or one player storage building such as a shelf; absent parts preserve the live setting, an unresolved selector refuses the whole body. `FilterPatch` selectors are exact defNames; `hit_points_min/max` are fractions in [0, 1] and `quality_min/max` QualityCategory names, each pair required together. ListZones `include_filter` returns the live allowed defs, configurable special rules and both ranges. The `zone/delete` case covers all four shapes. |
+| Actions.Apply ZoneIntent (create, cells, delete, settings shapes); Zones.Preview ZoneIntent create (siting read) | Exact cells, crop/filter/priority, validated live at apply; an intent whose effect already holds applies again, a refusal names the rule that failed. Zone creation takes any label, any priority/preset/`FilterPatch` body for stockpiles; growing zones stay the fixed crop shape; applied evidence names the created zone id. A stockpile patch sets priority and/or filter settings on one stockpile zone or one player storage building such as a shelf; absent parts preserve the live setting, an unresolved selector refuses the whole body. `FilterPatch` selectors are exact defNames; `hitPoints` chooses preservation or a complete range of fractions in [0, 1]; `quality_min/max` are QualityCategory names supplied together. ListZones `include_filter` returns the live allowed defs, configurable special rules and both ranges. The `zone/delete` case covers all four shapes. |
 | Actions.Apply AssignIntent | Expected prior assignment of the thing's kind + native eligibility at apply (bed rules for a bed; unowned for a throne or grave); the thing has `CompAssignableToPawn`; assignment differs from sleeping. |
 | Actions.Apply DesignateIntent (wall_upgrade guard) | Resolves the site from the colonist wall at the intent's cell through the ListWallUpgradeSites census (straight original with completed same-stuff stone backups, backup of a standing stone permanent wall, or corner with covered materials; several admissible sites refuse), then the wall_upgrade guard holds it (512 open records). Applied means designated; a pending removal of the wall, or a cell with no wall left, applies again. The brain releases dependents only once the building census shows the cell clear; the `wall/removal` case covers it. |
 | Actions.Apply GiveJobIntent FixBrokenDownBuilding/Refuel | Ordinary repair/breakdown/refuel workgiver. Observe real service recovery. |
@@ -117,3 +131,14 @@ wort recipe with target-count settings. Its saved bill counts wort, barrel
 contents and finished beer; other production bills retain native counting.
 
 Trade intents and effects carry the same closed `common.TradeTarget`. Map-trader execution is enabled; settlement/orbital execution remains gated until their shared-session handlers are installed. The closed `CommsTradeRequestIntent`/effect boundary distinguishes queued work from native request tick/goodwill changes ([contract](../../docs/developers/contracts/controllable-trade.md)).
+
+Conditional operation arguments name their states. Stockpile priority, preset and
+hit-point ranges choose `preserve` or `set`; a range supplies both limits together.
+Construction finishing skill and admission tier also choose `preserve` or `set`.
+Surgery chooses `wholeBody` or an indexed `part`, and quest rewards choose
+`noChoice` or an indexed `choose`. Relocation mode chooses `uninstall` or `move`
+with a cardinal rotation; there is no second uninstall flag. Existing-zone edits
+name `ZONE_TYPE_EXISTING`, and unguarded designations name
+`DESIGNATION_GUARD_NONE`. Caravan destinations and comms request ticks are required.
+Growing-zone creation always enables sowing and cutting, as the native supported
+path requires; these fixed settings are not caller arguments.

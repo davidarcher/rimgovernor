@@ -76,8 +76,7 @@ internal static class RecoveryService
                 new Operations.ApplyRequest
                 {
                     Identity = s.Identity,
-                    Actions = [new Operations.Action { Key = key, Intent = new Operations.GiveJobIntent { Pawn = new Common.Ref { Id = pawn }, Job = "Repair", Targets = [new Common.Ref { Id = wallId }] } }],
-                },
+                    Actions = [new Operations.Action { Key = key, Intent = new Operations.GiveJobIntent { Pawn = new Common.Ref { Id = pawn }, Job = "Repair", Targets = [new Common.Ref { Id = wallId }] } }], DeferSnapshot = false },
                 cancellationToken).ConfigureAwait(false);
             return reply.Results.ToList() is [{ } result]
                 ? result

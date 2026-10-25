@@ -41,8 +41,8 @@ namespace HomeBridge.BridgeTools
             if (choices.Length > 1)
                 return ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Multiple native choice parts require the quest interface.");
             choice = choices.SingleOrDefault();
-            var rewardChoice = command.RewardChoice is not null ? command.RewardChoice.GetValueOrDefault() : -1;
-            if ((choice == null && rewardChoice != -1) || (choice != null && (rewardChoice < 0 || rewardChoice >= choice.choices.Count)))
+            if (choice == null ? command.RewardChoice is not Operations.QuestRewardSelection.NoChoice
+                : command.RewardChoice is not Operations.QuestRewardSelection.Choose { Index: >= 0 } selected || selected.Index >= choice.choices.Count)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Select an exact observed native reward choice.");
             var eligible = QuestUtility.CanAcceptQuest(quest);
             if (!eligible.Accepted)
@@ -76,7 +76,7 @@ namespace HomeBridge.BridgeTools
             var failure = Resolve(command, out var quest, out var pawn, out var choice, out var accepted);
             if (failure != null || quest == null) throw new InvalidOperationException("Quest acceptance prerequisites changed before apply: " + (failure?.Detail ?? ""));
             if (accepted) return Evidence(quest);
-            if (choice != null) choice.Choose(choice.choices[command.RewardChoice.GetValueOrDefault()]);
+            if (choice != null) choice.Choose(choice.choices[((Operations.QuestRewardSelection.Choose)command.RewardChoice).Index]);
             quest.Accept(quest.RequiresAccepter ? pawn : null);
             if (quest.State == QuestState.NotYetAccepted) throw new InvalidOperationException("Native quest acceptance readback did not apply.");
             return Evidence(quest);

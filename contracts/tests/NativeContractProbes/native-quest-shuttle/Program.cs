@@ -3,6 +3,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.Json;
 
 internal static class NativeQuestShuttleProbe
 {
@@ -15,6 +16,11 @@ internal static class NativeQuestShuttleProbe
         var type = typeof(RimGovernor.Contracts.Wire.Common.Ref).Assembly.GetType("RimGovernor.Contracts.Wire." + name, true)!;
         return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize", new[] { typeof(string) })!.MakeGenericMethod(type).Invoke(null, new object[] { json })!;
     }
+    private static bool Rejected(MethodInfo shape, string json)
+    {
+        try { return !(bool)shape.Invoke(null, new[] { Wire("Operations.QuestShuttleIntent", json) })!; }
+        catch (TargetInvocationException error) when (error.InnerException is JsonException) { return true; }
+    }
     internal static int Invoke(string[] args)
     {
         var dirs = args.Skip(1).Concat(new[] { Path.GetDirectoryName(Path.GetFullPath(args[0]))! }).ToArray();
@@ -22,10 +28,10 @@ internal static class NativeQuestShuttleProbe
         bridge = Assembly.LoadFrom(Path.GetFullPath(args[0]));
         var native = bridge.GetType("HomeBridge.BridgeTools.NativeQuestShuttleOperations", true)!;
         var shape = native.GetMethod("ValidShape", Flags)!;
-        foreach (var json in new[] { "{\"questId\":\"Quest_1\",\"loading\":{\"type\":\"autoload\",\"value\":true}}", "{\"questId\":\"Quest_1\",\"loading\":{\"type\":\"autoload\",\"value\":false}}", "{\"questId\":\"Quest_1\",\"loading\":{\"type\":\"explicitPawns\",\"value\":{\"pawnIds\":[\"Pawn_1\",\"Pawn_2\"]}}}", "{\"questId\":\"Quest_1\",\"launch\":true}" })
+        foreach (var json in new[] { "{\"questId\":\"Quest_1\",\"launch\":false,\"loading\":{\"type\":\"autoload\",\"value\":true}}", "{\"questId\":\"Quest_1\",\"launch\":false,\"loading\":{\"type\":\"autoload\",\"value\":false}}", "{\"questId\":\"Quest_1\",\"launch\":false,\"loading\":{\"type\":\"explicitPawns\",\"value\":{\"pawnIds\":[\"Pawn_1\",\"Pawn_2\"]}}}", "{\"questId\":\"Quest_1\",\"launch\":true}" })
             Check((bool)shape.Invoke(null, new[] { Wire("Operations.QuestShuttleIntent", json) })!, "valid shuttle mode " + json);
-        foreach (var json in new[] { "{}", "{\"questId\":\"Quest_1\"}", "{\"loading\":{\"type\":\"autoload\",\"value\":true}}", "{\"questId\":\"Quest_1\",\"loading\":{\"type\":\"explicitPawns\",\"value\":{}}}", "{\"questId\":\"Quest_1\",\"loading\":{\"type\":\"explicitPawns\",\"value\":{\"pawnIds\":[\"Pawn_1\",\"Pawn_1\"]}}}" })
-            Check(!(bool)shape.Invoke(null, new[] { Wire("Operations.QuestShuttleIntent", json) })!, "invalid shuttle shape " + json);
+        foreach (var json in new[] { "{}", "{\"questId\":\"Quest_1\",\"launch\":false}", "{\"launch\":false,\"loading\":{\"type\":\"autoload\",\"value\":true}}", "{\"questId\":\"Quest_1\",\"launch\":false,\"loading\":{\"type\":\"explicitPawns\",\"value\":{}}}", "{\"questId\":\"Quest_1\",\"launch\":false,\"loading\":{\"type\":\"explicitPawns\",\"value\":{\"pawnIds\":[\"Pawn_1\",\"Pawn_1\"]}}}" })
+            Check(Rejected(shape, json), "invalid shuttle shape " + json);
         var conditions = native.GetMethod("LaunchConditionsSatisfied", Flags)!;
         Check((bool)conditions.Invoke(null, new object[] { true, true, false, false })!, "loaded launch allowed");
         foreach (var facts in new[] { new object[] { false, true, false, false }, new object[] { true, false, false, false }, new object[] { true, true, true, false }, new object[] { true, true, false, true } })
