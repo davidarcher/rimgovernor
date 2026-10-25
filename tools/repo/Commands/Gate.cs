@@ -23,7 +23,7 @@ internal static class Gate
     [
         "native-roof-support", "native-designation-guards", "native-home-coverage", "native-construction-tier-gate",
         "native-time-controls", "native-clock-face", "native-clock-ceiling", "native-clock-speed", "native-clock-hold-serial", "native-clock-speed-request", "native-team-policy", "native-traffic-counts", "native-sighting-log",
-        "native-production-bill-settings", "native-observation-work", "native-idle-exit", "native-shutdown", "native-work-rows", "native-daylight-hours", "native-rot-rates",
+        "native-production-bill-settings", "native-observation-work", "native-idle-exit", "native-shutdown", "native-work-rows", "native-daylight-hours", "native-rot-rates", "native-deathrest-weather",
         "native-threat-classifier", "native-acquisition-token", "native-ref-index", "native-game-thread",
     ];
 

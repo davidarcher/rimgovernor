@@ -252,7 +252,7 @@ public sealed class ForecastRoofConsequencesTests
     {
         var findings = new List<string>();
         double? End(LyingInDeathrest d, params ForecastClosedRoom[] rooms) => ForecastCoupled.CoupledSearchCache.DeathrestEnd(d, rooms, Horizon, findings.Add);
-        DeathrestSunlight sunlit = new DeathrestSunlight.Sunlit([Inside], 3000);
+        DeathrestSunlight sunlit = new DeathrestSunlight.Sunlit([Inside], 3000) { NotModelled = ["deathrest_sunlight_lightning_not_modelled"] };
         Assert.Equal(6000, End(new LyingInDeathrest.Wakes(6000, new DeathrestSunlight.Shaded())));
         Assert.Equal(Horizon, End(new LyingInDeathrest.Wakes(2 * Horizon, new DeathrestSunlight.Shaded())));
         Assert.Equal(Horizon, End(new LyingInDeathrest.Held(new DeathrestSunlight.Shaded())));
@@ -265,7 +265,8 @@ public sealed class ForecastRoofConsequencesTests
         Assert.Equal(3000, End(new LyingInDeathrest.Wakes(6000, sunlit), Room(1000, 4000)));
         // Sunlit only after the wake: the wake ends it.
         Assert.Equal(6000, End(new LyingInDeathrest.Wakes(6000, new DeathrestSunlight.Sunlit([Inside], 8000))));
-        Assert.All(findings, f => Assert.Equal("deathrest_sunlight_weather_not_modelled", f));
+        Assert.NotEmpty(findings);
+        Assert.All(findings, f => Assert.Equal("deathrest_sunlight_lightning_not_modelled", f));
         // Unlit through a scan that outlasts the wake ends at the wake; one the held deathrest outlasts is unread.
         Assert.Equal(6000, End(new LyingInDeathrest.Wakes(6000, new DeathrestSunlight.Unlit(10000))));
         Assert.Null(End(new LyingInDeathrest.Held(new DeathrestSunlight.Unlit(10000))));

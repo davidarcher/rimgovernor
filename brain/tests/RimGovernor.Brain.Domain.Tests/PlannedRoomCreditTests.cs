@@ -527,7 +527,7 @@ public sealed class PlannedRoomCreditTests
         LyingInDeathrest deathrest = state switch
         {
             "wakes" => new LyingInDeathrest.Wakes(6000, new DeathrestSunlight.Shaded()),
-            "sunlit" => new LyingInDeathrest.Held(new DeathrestSunlight.Sunlit(EquatableArray.From([ForecastRoofConsequencesTests.Inside]), 3000)),
+            "sunlit" => new LyingInDeathrest.Held(new DeathrestSunlight.Sunlit(EquatableArray.From([ForecastRoofConsequencesTests.Inside]), 3000) { NotModelled = ["deathrest_sunlight_lightning_not_modelled"] }),
             _ => new LyingInDeathrest.Paused(),
         };
         ForecastCoupledOutcome AtStage(int stage)
@@ -548,7 +548,7 @@ public sealed class PlannedRoomCreditTests
         Assert.DoesNotContain(baseline.Findings, f => f.Reason == "deathrest_chamber_thought_at_wake_not_modelled");
         Assert.Equal(wakes ? .02 : 0, baseline.Needs["pawn"].Mood.Projected().TerminalMood - AtStage(-1).Needs["pawn"].Mood.Projected().TerminalMood, 6);
         if (wakes) Assert.Throws<RequiredFactException>(() => AtStage(99));
-        Assert.Equal(state == "sunlit", baseline.Findings.Any(f => f.Reason == "deathrest_sunlight_weather_not_modelled"));
+        Assert.Equal(state == "sunlit", baseline.Findings.Any(f => f.Reason == "deathrest_sunlight_lightning_not_modelled"));
     }
 
     /// <summary>

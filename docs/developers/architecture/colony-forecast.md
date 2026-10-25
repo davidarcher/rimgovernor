@@ -342,7 +342,12 @@ observed state holds.
   at its remaining `MinDeathrestTicks`, `Held` (autoWake off or wake already notified)
   and `Paused` hold to the horizon. A `Sunlit` bed wakes it at that 150-tick check
   unless the outcome's planned roof (`CellStateAt`) covers every open bed cell first;
-  weather, lightning and sky-affecting things are `deathrest_sunlight_weather_not_modelled`,
+  current weather caps celestial glow and interpolates from the previous weather through
+  its native transition until the remaining drawn duration expires (including fire,
+  temperature, brightness and forced-weather shortening). Later weather draws are
+  `deathrest_sunlight_future_weather_not_modelled`; weather lightning and sky-affecting
+  things retain `deathrest_sunlight_lightning_not_modelled` and
+  `deathrest_sunlight_sky_things_not_modelled`, respectively;
   an `Unlit` scan that ends before the wake is a `RequiredFactException`, and the
   DeathrestChamber thought starts at the wake. Its stage is read from the current
   room using `Toils_LayDown.UpdateDeathrestThoughtIndex`'s inputs, or from the

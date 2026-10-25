@@ -423,7 +423,7 @@ public static partial class ForecastCoupled
             var (wake, sunlight) = deathrest is LyingInDeathrest.Wakes w ? (Math.Min(horizon, w.InTicks), w.Sunlight)
                 : (horizon, ((LyingInDeathrest.Held)deathrest).Sunlight);
             if (sunlight is DeathrestSunlight.Shaded) return wake;
-            finding("deathrest_sunlight_weather_not_modelled");
+            foreach (var omitted in sunlight.NotModelled) finding(omitted);
             if (sunlight is DeathrestSunlight.Unlit { ThroughTicks: var through }) return wake <= through ? wake : null;
             var (at, cells) = sunlight is DeathrestSunlight.Sunlit s ? (s.InTicks, s.Unroofed)
                 : throw new ArgumentOutOfRangeException(nameof(deathrest), sunlight, "deathrest sunlight");

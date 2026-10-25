@@ -475,8 +475,9 @@ public abstract record LyingInDeathrest
 /// 150-tick hash interval while a cell of its CurrentBed is in sunlight (IntVec3.InSunlight: unroofed and SkyManager.CurSkyGlow
 /// above 0.1); a pawn on the ground never wakes so. <see cref="Shaded"/>: no bed, or every bed cell roofed now.
 /// <see cref="Sunlit"/>: the bed's <c>Unroofed</c> cells now and the ticks to the first check whose sky glow is above 0.1: the
-/// celestial glow (GenCelestial.CelestialSunGlow at that tick) darkened by each game condition affecting the map while it lasts
-/// (SkyManager's SkyTarget.LerpDarken at the condition's lerp factor), weather left out. <see cref="Unlit"/>: no such check
+/// celestial glow capped by the current weather's maxGlow, interpolated from the previous weather through its transition
+/// while the current weather lasts, then darkened by each game condition affecting the map while it lasts
+/// (SkyManager's SkyTarget.LerpDarken at the condition's lerp factor). Unprojected sky effects are named in NotModelled. <see cref="Unlit"/>: no such check
 /// within <c>ThroughTicks</c>.
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
@@ -485,6 +486,8 @@ public abstract record LyingInDeathrest
 [JsonDerivedType(typeof(DeathrestSunlight.Unlit), "unlit")]
 public abstract record DeathrestSunlight
 {
+    /// <summary>The specific sky effects the native scan cannot project.</summary>
+    public EquatableArray<string> NotModelled { get; init; }
     private protected DeathrestSunlight() { }
 
     public sealed record Shaded : DeathrestSunlight;

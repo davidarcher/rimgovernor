@@ -17,7 +17,7 @@ namespace Verse
         public RimGovernor.Native.ColonyIdentity Identity = new RimGovernor.Native.ColonyIdentity();
         public T? GetComponent<T>() where T : class => Identity as T;
     }
-    public class Map { public int uniqueID; public MapPawns mapPawns = new MapPawns(); }
+    public partial class Map { public int uniqueID; public MapPawns mapPawns = new MapPawns(); }
     public class MapPawns { public List<Pawn> AllPawns = new List<Pawn>(); }
     public class Pawn { public int thingIDNumber; public string GetUniqueLoadID() => "Pawn_" + thingIDNumber; }
     public class Letter { public required string Label, Id; public required LetterDef def; public string GetUniqueLoadID() => Id; }

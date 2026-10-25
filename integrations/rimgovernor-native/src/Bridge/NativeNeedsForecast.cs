@@ -440,8 +440,9 @@ internal static class NativeNeedsForecast
     /// while the condition lasts (Permanent, or TicksLeft past the check), at its lerp factor then. A condition's SkyTargetLerpFactor
     /// is GameConditionUtility.LerpInOutValue of its TicksPassed and TicksLeft over its TransitionTicks, scaled by a target its class
     /// fixes; the target is the factor now over that ramp now. Only a condition whose SkyTarget glow is at most 0.1 can bring a glow
-    /// above 0.1 down to it (LerpDarken moves toward the lower glow), so only those are read. The weather (its maxGlow and
-    /// transition, weather events) and CompAffectsSky things are left out: the forecast names them.
+    /// above 0.1 down to it (LerpDarken moves toward the lower glow), so only those are read. Current weather caps and transition
+    /// are applied before conditions until its native duration expires. Future weather draws, lightning and CompAffectsSky
+    /// things remain separate named omissions.
     /// </summary>
     private static RimGovernor.Brain.GameFacts.Observations.DeathrestSunlight SunlightOf(Pawn pawn, Map map)
     {
@@ -461,10 +462,18 @@ internal static class NativeNeedsForecast
         }
         var now = Find.TickManager.TicksGame;
         var abs = Find.TickManager.TicksAbs;
+        var weather = NativeDeathrestWeather.Read(map);
+        var findings = new List<string> { "deathrest_sunlight_lightning_not_modelled", "deathrest_sunlight_sky_things_not_modelled" };
+        EquatableArray<string> Findings(int through)
+        {
+            if (through > weather.RemainingTicks) findings.Add("deathrest_sunlight_future_weather_not_modelled");
+            return EquatableArray.From(findings);
+        }
         var phase = ((now + 1 + pawn.thingIDNumber.HashOffset()) % SunlightCheckInterval + SunlightCheckInterval) % SunlightCheckInterval;
         for (var ahead = 1 + (phase == 0 ? 0 : SunlightCheckInterval - phase); ahead <= GenDate.TicksPerYear; ahead += SunlightCheckInterval)
         {
             var glow = GenCelestial.CelestialSunGlow(map.Tile, abs + ahead);
+            if (ahead <= weather.RemainingTicks) glow = weather.GlowAt(glow, ahead);
             foreach (var (condition, sky, target) in darkening)
             {
                 if (!condition.Permanent && condition.TicksLeft <= ahead) continue;
@@ -472,9 +481,9 @@ internal static class NativeNeedsForecast
                 var factor = GameConditionUtility.LerpInOutValue(condition.TicksPassed + ahead, left, condition.TransitionTicks, target);
                 glow = UnityEngine.Mathf.Lerp(glow, Math.Min(glow, sky), factor);
             }
-            if (glow > SunlightGlow) return new RimGovernor.Brain.GameFacts.Observations.DeathrestSunlight.Sunlit(EquatableArray.From(open), ahead);
+            if (glow > SunlightGlow) return new RimGovernor.Brain.GameFacts.Observations.DeathrestSunlight.Sunlit(EquatableArray.From(open), ahead) { NotModelled = Findings(ahead) };
         }
-        return new RimGovernor.Brain.GameFacts.Observations.DeathrestSunlight.Unlit(GenDate.TicksPerYear);
+        return new RimGovernor.Brain.GameFacts.Observations.DeathrestSunlight.Unlit(GenDate.TicksPerYear) { NotModelled = Findings(GenDate.TicksPerYear) };
     }
     private static RimGovernor.Brain.GameFacts.Observations.NeedSleep SleepAt(Pawn pawn, Map map, Building_Bed? bed, IntVec3 cell) =>
         new(bed?.GetUniqueLoadID() ?? "", cell.GetRoom(map)?.PsychologicallyOutdoors ?? true, bed == null || bed.CostListAdjusted().Count == 0,
