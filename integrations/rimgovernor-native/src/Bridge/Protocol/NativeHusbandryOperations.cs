@@ -118,8 +118,8 @@ namespace HomeBridge.BridgeTools
 
         private static bool Valid(Operations.HusbandryIntent? intent)
         {
-            if (intent == null || intent.AnimalId is null || !ProtoBoundary.IsIdentifier(intent.AnimalId) || intent.Order is null) return false;
-            switch (intent.Order.GetValueOrDefault())
+            if (intent == null || intent.AnimalId is null || !ProtoBoundary.IsIdentifier(intent.AnimalId)) return false;
+            switch (intent.Order)
             {
                 case Operations.HusbandryOrder.Train: return intent.TrainableDef is not null && ProtoBoundary.IsIdentifier(intent.TrainableDef);
                 case Operations.HusbandryOrder.AllowedArea:
@@ -155,9 +155,9 @@ namespace HomeBridge.BridgeTools
             if (!Valid(intent)) return target;
             target.Animal = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent!.AnimalId);
             if (!NativeHusbandryOperations.Observable(target.Animal)) { target.Animal = null; return target; }
-            if (intent!.Order.GetValueOrDefault() == Operations.HusbandryOrder.Train) target.Trainable = DefDatabase<TrainableDef>.GetNamedSilentFail((intent.TrainableDef ?? ""));
-            if (intent.Order.GetValueOrDefault() == Operations.HusbandryOrder.AllowedArea && intent.TargetId is not null) target.Area = NativeHusbandryOperations.ResolveArea(target.Animal!, (intent.TargetId ?? ""));
-            if (intent.Order.GetValueOrDefault() == Operations.HusbandryOrder.Master && intent.TargetId is not null) target.Master = NativeHusbandryOperations.ResolveMaster(target.Animal!, (intent.TargetId ?? ""));
+            if (intent!.Order == Operations.HusbandryOrder.Train) target.Trainable = DefDatabase<TrainableDef>.GetNamedSilentFail((intent.TrainableDef ?? ""));
+            if (intent.Order == Operations.HusbandryOrder.AllowedArea && intent.TargetId is not null) target.Area = NativeHusbandryOperations.ResolveArea(target.Animal!, (intent.TargetId ?? ""));
+            if (intent.Order == Operations.HusbandryOrder.Master && intent.TargetId is not null) target.Master = NativeHusbandryOperations.ResolveMaster(target.Animal!, (intent.TargetId ?? ""));
             return target;
         }
 
@@ -167,7 +167,7 @@ namespace HomeBridge.BridgeTools
         private static bool Holds(Operations.HusbandryIntent intent, Target target)
         {
             var animal = target.Animal!;
-            switch (intent.Order.GetValueOrDefault())
+            switch (intent.Order)
             {
                 case Operations.HusbandryOrder.Train: return target.Trainable != null && animal.training != null && animal.training.GetWanted(target.Trainable);
                 case Operations.HusbandryOrder.Tame: return animal.Faction == Faction.OfPlayer || NativeHusbandryOperations.Designated(animal, DesignationDefOf.Tame);
@@ -175,9 +175,9 @@ namespace HomeBridge.BridgeTools
                 case Operations.HusbandryOrder.Sterilize: return animal.Faction == Faction.OfPlayer
                     && (NativeHusbandryOperations.Sterilized(animal) || NativeHusbandryOperations.SterilizeBill(animal) != null);
                 case Operations.HusbandryOrder.Slaughter:
-                case Operations.HusbandryOrder.Release: return animal.Faction == Faction.OfPlayer && NativeHusbandryOperations.Designated(animal, DesignationFor(intent.Order.GetValueOrDefault())!);
+                case Operations.HusbandryOrder.Release: return animal.Faction == Faction.OfPlayer && NativeHusbandryOperations.Designated(animal, DesignationFor(intent.Order)!);
                 case Operations.HusbandryOrder.CancelSlaughter:
-                case Operations.HusbandryOrder.CancelRelease: return animal.Faction == Faction.OfPlayer && !NativeHusbandryOperations.Designated(animal, DesignationFor(intent.Order.GetValueOrDefault())!);
+                case Operations.HusbandryOrder.CancelRelease: return animal.Faction == Faction.OfPlayer && !NativeHusbandryOperations.Designated(animal, DesignationFor(intent.Order)!);
                 case Operations.HusbandryOrder.AllowedArea:
                     return animal.Faction == Faction.OfPlayer && (intent.TargetId is not null
                         ? target.Area != null && NativeHusbandryOperations.AreaId(animal) == target.Area.GetUniqueLoadID()
@@ -196,7 +196,7 @@ namespace HomeBridge.BridgeTools
 
         private static ApplyPreconditions Rules(Operations.HusbandryIntent? intent, Target target)
         {
-            var order = intent?.Order ?? Operations.HusbandryOrder.Unspecified;
+            var order = intent?.Order;
             var animal = target.Animal!;
             bool tame = order == Operations.HusbandryOrder.Tame;
             var rules = new ApplyPreconditions(Kind)
@@ -253,7 +253,7 @@ namespace HomeBridge.BridgeTools
 
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
         {
-            var intent = action.Intent?.Husbandry ?? new Operations.HusbandryIntent();
+            var intent = action.Intent?.Husbandry ?? throw new InvalidOperationException("Husbandry intent missing");
             var target = Resolve(intent, context);
             if (!Standing(intent, target))
             {
@@ -263,8 +263,8 @@ namespace HomeBridge.BridgeTools
             var animal = target.Animal!;
             if (!Holds(intent, target))
             {
-                var designation = DesignationFor(intent.Order.GetValueOrDefault());
-                switch (intent.Order.GetValueOrDefault())
+                var designation = DesignationFor(intent.Order);
+                switch (intent.Order)
                 {
                     case Operations.HusbandryOrder.Train: animal.training!.SetWantedRecursive(target.Trainable, true); break;
                     case Operations.HusbandryOrder.Sterilize: HealthCardUtility.CreateSurgeryBill(animal, NativeHusbandryOperations.SterilizeRecipe(animal)!, null); break;

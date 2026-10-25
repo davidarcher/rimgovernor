@@ -431,10 +431,10 @@ namespace HomeBridge.BridgeTools
             var giftMode = SafeBool(() => TradeSession.giftMode);
             foreach (var line in command.Lines)
             {
-                if (line.LineId is null || line.AbsoluteCount is null) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Every trade line requires a line_id and absolute_count."); return false; }
+                if (line.LineId is null) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Every trade line requires a line_id and absolute_count."); return false; }
                 if (!ResolveRow(all, (line.LineId ?? ""), out var index, out failure)) return false;
                 if (!seen.Add(index)) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Line '" + (line.LineId ?? "") + "' repeats a row already addressed in this request."); return false; }
-                var row = all[index]; var target = line.AbsoluteCount.GetValueOrDefault();
+                var row = all[index]; var target = line.AbsoluteCount;
                 if (!SafeBool(() => row.TraderWillTrade) && target != 0) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "'" + (line.LineId ?? "") + "' will not trade (TraderWillTrade is false)."); return false; }
                 if (SafeBool(() => row.IsCurrency) && !giftMode) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The silver row is computed from the other lines, not set."); return false; }
                 if (IsPawnRow(row) && !(command.AllowPawns is not null && command.AllowPawns.GetValueOrDefault()) && WouldGiveAway(row, target))
@@ -499,7 +499,7 @@ namespace HomeBridge.BridgeTools
         private static bool PrepareEnd(Operations.EndTrade? command, string traderId, string negotiatorId, Common.Identity identity, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "EndTrade requires an explicit kind.");
-            if (command == null || command.Kind is null || command.Kind.GetValueOrDefault() == Operations.EndTradeKind.Unspecified) return false;
+            if (command == null || !Enum.IsDefined(command.Kind)) return false;
             if (_sessionId != null && (_sessionColonyId != (identity.ColonyId ?? "") || _sessionLoadToken != (identity.LoadToken ?? "")))
             { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "The session belongs to another world identity."); return false; }
             if (_contact != null && _contact.Live() && (TargetKey(_contact.Target) != traderId || _contact.Pawn.GetUniqueLoadID() != negotiatorId)
@@ -508,7 +508,7 @@ namespace HomeBridge.BridgeTools
             // A cancel with no session left is already done, and one whose
             // trader has since left still closes; a session held by a
             // different pair is refused.
-            if (command.Kind.GetValueOrDefault() == Operations.EndTradeKind.Cancel && _sessionId != null && !EndMatches(traderId, negotiatorId))
+            if (command.Kind == Operations.EndTradeKind.Cancel && _sessionId != null && !EndMatches(traderId, negotiatorId))
             { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "The open trade session is held by a different trader or negotiator."); return false; }
             // close_dialog: the escape hatch. It always succeeds at sweeping
             // any stray Dialog_Trade window; it only additionally closes the
@@ -663,7 +663,7 @@ namespace HomeBridge.BridgeTools
             if (!PrepareEnd(command, traderId, negotiatorId, identity, out _)) throw new InvalidOperationException("End prerequisites changed after validation.");
             var sessionIdForEvidence = _sessionId ?? "";
             var matches = EndMatches(traderId, negotiatorId);
-            if (command.Kind.GetValueOrDefault() == Operations.EndTradeKind.CloseDialog)
+            if (command.Kind == Operations.EndTradeKind.CloseDialog)
             {
                 var stack = Find.WindowStack;
                 try { foreach (var w in stack?.Windows?.OfType<Window>().Where(IsTradeDialog).ToList() ?? new List<Window>()) { try { w.Close(false); } catch { try { stack!.TryRemove(w, false); } catch { } } } }

@@ -29,7 +29,7 @@ namespace HomeBridge.BridgeTools
             && command.PawnIds.Count > 0
             && command.PawnIds.All(ProtoBoundary.IsIdentifier)
             && command.PawnIds.Distinct().Count() == command.PawnIds.Count
-            && command.Cargo.All(c => c.DefName is not null && ProtoBoundary.IsIdentifier(c.DefName) && c.Count is not null && c.Count.GetValueOrDefault() > 0)
+            && command.Cargo.All(c => c.DefName is not null && ProtoBoundary.IsIdentifier(c.DefName) && c.Count > 0)
             && command.Cargo.Select(c => (c.DefName ?? "")).Distinct().Count() == command.Cargo.Count
             && command.DestinationTile is not null && command.DestinationTile.GetValueOrDefault() >= 0;
 
@@ -80,7 +80,7 @@ namespace HomeBridge.BridgeTools
             if (arrival != null && !arrival.StillValid(caravan, tile))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The native destination arrival is unavailable.");
             foreach (var requested in command.Cargo)
-                if (caravan.PawnsListForReading.Sum(p => p.inventory.innerContainer.Where(t => t.def.defName == (requested.DefName ?? "")).Sum(t => t.stackCount)) < requested.Count.GetValueOrDefault())
+                if (caravan.PawnsListForReading.Sum(p => p.inventory.innerContainer.Where(t => t.def.defName == (requested.DefName ?? "")).Sum(t => t.stackCount)) < requested.Count)
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A formed caravan cannot acquire new cargo through routing.");
             return null;
         }
@@ -131,7 +131,7 @@ namespace HomeBridge.BridgeTools
             }
             foreach (var item in command.Cargo)
             {
-                var remaining = item.Count.GetValueOrDefault();
+                var remaining = item.Count;
                 var groups = built.transferables.Where(g => !(g.AnyThing is Pawn) && g.ThingDef.defName == (item.DefName ?? ""))
                     .OrderByDescending(g => g.things.Any(t => t.Spawned && t.IsForbidden(Faction.OfPlayer))).ThenByDescending(ShelfDays).ToList();
                 foreach (var group in groups)

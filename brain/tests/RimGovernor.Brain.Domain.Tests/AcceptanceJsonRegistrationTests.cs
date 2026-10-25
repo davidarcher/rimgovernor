@@ -50,7 +50,9 @@ public sealed class AcceptanceJsonRegistrationTests
                 checkedCount++;
                 try
                 {
-                    _ = entry.Serialize.MakeGenericMethod(type).Invoke(null, [null]);
+                    // A registration probe must use a named enum value: zero need not be a supported wire case.
+                    var sample = type.IsEnum ? Enum.GetValues(type).GetValue(0) : null;
+                    _ = entry.Serialize.MakeGenericMethod(type).Invoke(null, [sample]);
                 }
                 catch (TargetInvocationException e) when (e.InnerException is ArgumentNullException)
                 {

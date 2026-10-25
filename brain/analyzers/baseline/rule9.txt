@@ -156,8 +156,7 @@ BuildingRuntime/TradeTarget.cs|Discard|1
 Contracts/Clock.cs|NullableValue|32
 Contracts/Clock.cs|UnknownMember|7
 Contracts/Json/FactJsonConverter.cs|Fact|5
-Contracts/Operations.cs|NullableValue|86
-Contracts/Operations.cs|UnknownMember|14
+Contracts/Operations.cs|NullableValue|62
 Contracts/Receipts.cs|NullableValue|32
 Contracts/Receipts.cs|UnknownMember|4
 Domain/Actions/PawnActivities.cs|NullableValue|2

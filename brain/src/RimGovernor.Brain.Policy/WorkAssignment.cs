@@ -1013,8 +1013,6 @@ public static partial class WorkRules
                 return HostilityResponse.Attack;
             case RimGovernor.Contracts.Wire.Operations.HostilityResponse.Flee:
                 return HostilityResponse.Flee;
-            case RimGovernor.Contracts.Wire.Operations.HostilityResponse.Unspecified:
-                break;
         }
         throw new DomainException($"hostility response {response} names no mode");
     }
@@ -1034,8 +1032,6 @@ public static partial class WorkRules
                 return MedicalCare.Normal;
             case RimGovernor.Contracts.Wire.Operations.MedicalCare.Best:
                 return MedicalCare.Best;
-            case RimGovernor.Contracts.Wire.Operations.MedicalCare.Unspecified:
-                break;
         }
         throw new DomainException($"medical care {care} names no tier");
     }

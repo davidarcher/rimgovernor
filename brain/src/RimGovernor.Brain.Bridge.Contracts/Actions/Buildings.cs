@@ -230,26 +230,15 @@ public static class BuildingsRules
     internal static Op.Action CoverAction(DomainAction action)
     {
         var v = action.CoverClearance ?? throw BridgeContractException.Contract("not a cover clearance action");
-        // The designation and guard that remove the thing.
-        (Op.ThingDesignation Designation, Op.DesignationGuard Guard)? kind =
-            v.Designation == CoverClearanceDesignation.Mine
-                ? (Op.ThingDesignation.Mine, Op.DesignationGuard.MineSafety)
-            : v.Designation == CoverClearanceDesignation.CutPlant
-                ? (Op.ThingDesignation.CutPlant, Op.DesignationGuard.Unspecified)
-            : v.Designation == CoverClearanceDesignation.Haul
-                ? (Op.ThingDesignation.Haul, Op.DesignationGuard.Unspecified)
-            : v.Designation == CoverClearanceDesignation.Deconstruct
-                ? (Op.ThingDesignation.Deconstruct, Op.DesignationGuard.Enclosure)
-            : null;
-        if (kind is not { } known)
+        var intent = v.Designation switch
         {
-            throw BridgeContractException.Contract("cover clearance target invalid");
-        }
-        var intent = new Op.DesignateIntent { Designation = known.Designation, Target = IntentActionRules.NewRef(v.Thing), Cell = IntentActionRules.WireCell(v.Cell) };
-        if (known.Guard != Op.DesignationGuard.Unspecified)
-        {
-            intent = intent with { Guard = known.Guard };
-        }
+            CoverClearanceDesignation.Mine => new Op.DesignateIntent { Designation = Op.ThingDesignation.Mine, Guard = Op.DesignationGuard.MineSafety },
+            CoverClearanceDesignation.CutPlant => new Op.DesignateIntent { Designation = Op.ThingDesignation.CutPlant },
+            CoverClearanceDesignation.Haul => new Op.DesignateIntent { Designation = Op.ThingDesignation.Haul },
+            CoverClearanceDesignation.Deconstruct => new Op.DesignateIntent { Designation = Op.ThingDesignation.Deconstruct, Guard = Op.DesignationGuard.Enclosure },
+            var invalid => throw BridgeContractException.Contract($"cover clearance target invalid: {invalid}"),
+        };
+        intent = intent with { Target = IntentActionRules.NewRef(v.Thing), Cell = IntentActionRules.WireCell(v.Cell) };
         return Designate(intent);
     }
 

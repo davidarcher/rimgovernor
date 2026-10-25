@@ -14,17 +14,17 @@ namespace HomeBridge.BridgeTools
     internal static class NativeGiveItemOperations
     {
         internal static bool ValidShape(Operations.GiveItemIntent? c) => c != null && c.Hauler != null && c.Recipient != null
-            && c.Definition is not null && c.ExpectedRemaining is not null && c.ExpectedRemaining.GetValueOrDefault() > 0 && c.ExpectedRemaining.GetValueOrDefault() <= int.MaxValue
+            && c.Definition is not null && c.ExpectedRemaining > 0 && c.ExpectedRemaining <= int.MaxValue
             && ProtoBoundary.IsIdentifier(c.Hauler.Id) && ProtoBoundary.IsIdentifier(c.Recipient.Id)
             && (c.Hauler.Id ?? "") != (c.Recipient.Id ?? "") && ProtoBoundary.IsIdentifier(c.Definition);
         internal static Common.Failure? Validate(Operations.GiveItemIntent? c, Common.ObservationContext context) => c is not { Hauler: { } hauler, Recipient: { } recipient } || !ValidShape(c)
             ? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An exact whole item request is required.")
-            : Validate((hauler.Id ?? ""), (recipient.Id ?? ""), (c.Definition ?? ""), (int)c.ExpectedRemaining.GetValueOrDefault(), context);
+            : Validate((hauler.Id ?? ""), (recipient.Id ?? ""), (c.Definition ?? ""), (int)c.ExpectedRemaining, context);
         internal static Receipts.EffectEvidence Apply(Operations.GiveItemIntent? c, Common.ObservationContext context)
         {
             var failure = Validate(c, context);
             if (failure != null) throw new ApplyRefusedException(failure);
-            return Apply((c!.Hauler!.Id ?? ""), (c.Recipient!.Id ?? ""), (c.Definition ?? ""), (int)c.ExpectedRemaining.GetValueOrDefault(), context);
+            return Apply((c!.Hauler!.Id ?? ""), (c.Recipient!.Id ?? ""), (c.Definition ?? ""), (int)c.ExpectedRemaining, context);
         }
         private static Receipts.EffectEvidence Evidence(Pawn recipient, int remaining)
             => new Receipts.EffectEvidence { Effect = new Receipts.GiveItemEffect {

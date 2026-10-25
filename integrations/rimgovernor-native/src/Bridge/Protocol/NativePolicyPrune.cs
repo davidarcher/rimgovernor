@@ -56,11 +56,11 @@ namespace HomeBridge.BridgeTools
 
         internal static Common.Failure? Validate(Operations.PolicyPruneIntent? intent, Common.ObservationContext context)
         {
-            if (intent == null || intent.Database is null || intent.Database.GetValueOrDefault() == Operations.PolicyDatabase.Unspecified)
+            if (intent == null || !Enum.IsDefined(intent.Database))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Policy prune requires a database.");
             if (intent.DeleteIds.Count == 0 || intent.DeleteIds.Any(id => !ProtoBoundary.IsIdentifier(id)) || intent.DeleteIds.Distinct().Count() != intent.DeleteIds.Count)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Policy prune requires distinct policy ids.");
-            if (intent.Database.GetValueOrDefault() == Operations.PolicyDatabase.AllowedArea) ProtoBoundary.LoadedMap(context);
+            if (intent.Database == Operations.PolicyDatabase.AllowedArea) ProtoBoundary.LoadedMap(context);
             return null;
         }
 
@@ -74,7 +74,7 @@ namespace HomeBridge.BridgeTools
             if (failure != null) throw new ApplyRefusedException(failure);
             var effect = new Receipts.PolicyPruneEffect();
             var reassigned = new SortedSet<string>(StringComparer.Ordinal);
-            if (intent.Database.GetValueOrDefault() == Operations.PolicyDatabase.AllowedArea)
+            if (intent.Database == Operations.PolicyDatabase.AllowedArea)
             {
                 var map = ProtoBoundary.LoadedMap(context);
                 foreach (var id in intent.DeleteIds)
@@ -92,7 +92,7 @@ namespace HomeBridge.BridgeTools
             }
             else
             {
-                var db = For(intent.Database.GetValueOrDefault())!;
+                var db = For(intent.Database)!;
                 foreach (var id in intent.DeleteIds)
                 {
                     var policy = db.All().ById(id);
@@ -122,7 +122,7 @@ namespace HomeBridge.BridgeTools
 
     internal sealed class PolicyPruneActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativePolicyPrune.Validate(action.Intent?.PolicyPrune ?? new Operations.PolicyPruneIntent(), context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativePolicyPrune.Apply(action.Intent?.PolicyPrune ?? new Operations.PolicyPruneIntent(), context);
+        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativePolicyPrune.Validate(action.Intent?.PolicyPrune, context);
+        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativePolicyPrune.Apply(action.Intent?.PolicyPrune ?? throw new InvalidOperationException("Policy prune intent missing"), context);
     }
 }

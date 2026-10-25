@@ -489,8 +489,6 @@ partial class RoundsDefensePlanner
                 return Pol.DraftFireMode.FireAtWill;
             case PbOperations.CombatFireMode.Hold:
                 return Pol.DraftFireMode.HoldFire;
-            case PbOperations.CombatFireMode.Unspecified:
-                break;
         }
         throw new ControlException("combat draft without a fire mode: " + mode);
     }

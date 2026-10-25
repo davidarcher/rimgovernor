@@ -40,7 +40,7 @@ namespace HomeBridge.BridgeTools
                     case Operations.CombatOrderOrder.FireModeCase { Value: var mode }:
                         if (mode != Operations.CombatFireMode.AtWill && mode != Operations.CombatFireMode.Hold) return false; break;
                     case Operations.CombatOrderOrder.DoorCase { Value: var doorOrder }:
-                        if (!ValidCell(doorOrder.Cell) || doorOrder.Mode is null
+                        if (!ValidCell(doorOrder.Cell)
                             || doorOrder.Mode < Operations.CombatDoorMode.HoldOpen || doorOrder.Mode > Operations.CombatDoorMode.Shut) return false; break;
                     case Operations.CombatOrderOrder.RescueCase { Value: var rescue }:
                         if (!NativeDraftProtocol.ValidEntityTokenOptional(rescue.Downed) || rescue.Downed?.EntityId == ownId
@@ -431,14 +431,14 @@ namespace HomeBridge.BridgeTools
             if (!cell.InBounds(map)) return "not_a_door";
             var door = cell.GetEdifice(map) as Building_Door;
             if (door == null || door.Faction != Faction.OfPlayerSilentFail) return "not_a_door";
-            if (order.Mode.GetValueOrDefault() == Operations.CombatDoorMode.Forbid || order.Mode.GetValueOrDefault() == Operations.CombatDoorMode.Allow)
+            if (order.Mode == Operations.CombatDoorMode.Forbid || order.Mode == Operations.CombatDoorMode.Allow)
             {
                 // The vanilla forbid toggle: forbidden doors bar every
                 // player pawn's path, drafted or not.
-                door.SetForbidden(order.Mode.GetValueOrDefault() == Operations.CombatDoorMode.Forbid, warnOnFail: false);
+                door.SetForbidden(order.Mode == Operations.CombatDoorMode.Forbid, warnOnFail: false);
                 return "";
             }
-            bool open = order.Mode.GetValueOrDefault() == Operations.CombatDoorMode.HoldOpen;
+            bool open = order.Mode == Operations.CombatDoorMode.HoldOpen;
             if (door.HoldOpen != open) HoldOpenField.SetValue(door, open);
             return "";
         }

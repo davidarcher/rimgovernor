@@ -41,8 +41,8 @@ namespace HomeBridge.BridgeTools
                     thing.Faction?.GetUniqueLoadID() ?? "") };
         }
 
-        internal static bool Wants(Operations.DesignateIntent? intent) => intent != null && intent.Designation is not null
-            && (intent.Designation.GetValueOrDefault() == Operations.ThingDesignation.Allow || intent.Designation.GetValueOrDefault() == Operations.ThingDesignation.Forbid);
+        internal static bool Wants(Operations.DesignateIntent? intent) => intent != null
+            && (intent.Designation == Operations.ThingDesignation.Allow || intent.Designation == Operations.ThingDesignation.Forbid);
 
         // The apply-time precondition list for Allow/Forbid
         // (action-contracts.md), one rule at a time; an item already in the
@@ -50,7 +50,7 @@ namespace HomeBridge.BridgeTools
         private static ApplyPreconditions Rules(Operations.DesignateIntent intent, Map map, out Thing? thing)
         {
             Thing? found = null;
-            var forbid = intent.Designation.GetValueOrDefault() == Operations.ThingDesignation.Forbid;
+            var forbid = intent.Designation == Operations.ThingDesignation.Forbid;
             Designator designator = forbid ? (Designator)new Designator_Forbid() : new Designator_Unforbid();
             var rules = new ApplyPreconditions(Kind)
                 .Require(() => intent.ThingId is not null && ProtoBoundary.IsIdentifier(intent.ThingId), "Allow/Forbid requires an exact item")
@@ -73,7 +73,7 @@ namespace HomeBridge.BridgeTools
         {
             var rules = Rules(intent, ProtoBoundary.LoadedMap(context), out var thing);
             if (!rules.Holds) throw new InvalidOperationException("Allow/Forbid prerequisites changed before apply: " + rules.Reason);
-            var forbid = intent.Designation.GetValueOrDefault() == Operations.ThingDesignation.Forbid;
+            var forbid = intent.Designation == Operations.ThingDesignation.Forbid;
             if (thing!.IsForbidden(Faction.OfPlayer) != forbid)
                 (forbid ? (Designator)new Designator_Forbid() : new Designator_Unforbid()).DesignateThing(thing);
             if (thing!.IsForbidden(Faction.OfPlayer) != forbid) throw new InvalidOperationException("Native supply designation did not achieve its forbid state.");

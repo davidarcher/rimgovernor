@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Observation;
 
 public static class ColonyProductionReads
 {
-    /// <summary>A bench bill's repeat mode. Native reads only vanilla's three modes, so Unspecified is a broken read.</summary>
+    /// <summary>A bench bill's repeat mode. Native reads only vanilla's three supported modes.</summary>
     public static BillRepeat BillRepeatOf(Ops.RepeatMode mode)
     {
         switch (mode)
@@ -14,8 +14,6 @@ public static class ColonyProductionReads
                 return BillRepeat.Count;
             case Ops.RepeatMode.Target:
                 return BillRepeat.TargetCount;
-            case Ops.RepeatMode.Unspecified:
-                throw new RequiredFactException("bill repeat mode");
         }
         throw new DomainException($"undefined repeat mode {(int)mode}");
     }

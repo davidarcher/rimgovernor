@@ -63,17 +63,17 @@ namespace HomeBridge.BridgeTools
         }
 
         private static ChoiceLetter_AcceptCreepJoiner? ResolveCreepJoiner(Operations.DialogIntent c) =>
-            PendingCreepJoiners().SingleOrDefault(l => l.ID == c.WindowId.GetValueOrDefault() && CreepJoinerToken(l) == (c.JoinerLetterToken ?? ""));
+            PendingCreepJoiners().SingleOrDefault(l => l.ID == c.WindowId && CreepJoinerToken(l) == (c.JoinerLetterToken ?? ""));
 
         private static bool CreepJoinerAccepted(Operations.DialogIntent c) =>
             Find.Archive.ArchivablesListForReading.OfType<ChoiceLetter_AcceptCreepJoiner>()
-                .FirstOrDefault(l => l.ID == c.WindowId.GetValueOrDefault()) is ChoiceLetter_AcceptCreepJoiner letter && letter.ArchivedOnly && letter.pawn != null
+                .FirstOrDefault(l => l.ID == c.WindowId) is ChoiceLetter_AcceptCreepJoiner letter && letter.ArchivedOnly && letter.pawn != null
                 && !letter.pawn.Dead && letter.pawn.IsFreeColonist;
 
         private static Common.Failure? ValidateCreepJoiner(Operations.DialogIntent c)
         {
             if (CreepJoinerAccepted(c)) return null;
-            if (c.WindowId is null || string.IsNullOrEmpty(c.JoinerLetterToken))
+            if (string.IsNullOrEmpty(c.JoinerLetterToken))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A creepjoiner answer needs the letter and the letter token.");
             return ResolveCreepJoiner(c) == null ? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Creepjoiner letter changed or expired; inspect again.") : null;
         }
@@ -110,9 +110,9 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(Operations.DialogIntent c, out ChoiceLetter_AcceptJoiner letter, out Pawn pawn, out DiaOption option)
         {
             letter = null!; pawn = null!; option = null!;
-            if (c.WindowId is null || c.OptionIndex is null || c.OptionIndex.GetValueOrDefault() != 0 || c.OptionLabel is null || string.IsNullOrEmpty(c.JoinerLetterToken))
+            if (c.OptionIndex != 0 || c.OptionLabel is null || string.IsNullOrEmpty(c.JoinerLetterToken))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A joiner answer needs the letter, option 0, its label and the letter token.");
-            var found = Pending().SingleOrDefault(l => l.ID == c.WindowId.GetValueOrDefault());
+            var found = Pending().SingleOrDefault(l => l.ID == c.WindowId);
             var joiner = found == null ? null : Joiner(found);
             if (found == null || joiner == null || joiner.Dead || joiner.Faction == Faction.OfPlayer || Token(found, joiner) != (c.JoinerLetterToken ?? ""))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Joiner letter changed or expired; inspect again.");
@@ -128,7 +128,7 @@ namespace HomeBridge.BridgeTools
         // intent applies again as it stands.
         private static bool Accepted(Operations.DialogIntent c, out ChoiceLetter_AcceptJoiner letter, out Pawn pawn)
         {
-            letter = Find.Archive.ArchivablesListForReading.OfType<ChoiceLetter_AcceptJoiner>().FirstOrDefault(l => l.ID == c.WindowId.GetValueOrDefault())!;
+            letter = Find.Archive.ArchivablesListForReading.OfType<ChoiceLetter_AcceptJoiner>().FirstOrDefault(l => l.ID == c.WindowId)!;
             pawn = letter == null ? null! : Joiner(letter)!;
             return letter != null && pawn != null && letter.ArchivedOnly && Joined(letter, pawn);
         }

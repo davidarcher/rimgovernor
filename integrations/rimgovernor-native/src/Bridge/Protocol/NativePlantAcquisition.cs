@@ -137,7 +137,7 @@ namespace HomeBridge.BridgeTools
             if (intent == null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The acquisition guard requires an exact target, its resource as expected_def and a cell.");
             var map = ProtoBoundary.LoadedMap(context);
             source = Source(map, intent.SourceId);
-            if (source != null && DesignationOf(source) != designate.Designation.GetValueOrDefault())
+            if (source != null && DesignationOf(source) != designate.Designation)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The source takes the " + DesignationOf(source) + " designation.");
             if (intent.Withdraw || source != null && source.Spawned && Designated(source)) return null;
             Common.Failure failure;

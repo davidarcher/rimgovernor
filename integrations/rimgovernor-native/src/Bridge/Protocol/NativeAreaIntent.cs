@@ -1,4 +1,5 @@
 #nullable enable
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
@@ -26,14 +27,14 @@ namespace HomeBridge.BridgeTools
             out Map? map, out Area? area, out List<IntVec3> cells)
         {
             map = null; area = null; cells = new List<IntVec3>();
-            if (intent == null || intent.Operation is null || intent.Operation.GetValueOrDefault() == Operations.AreaOperation.Unspecified)
+            if (intent == null || !Enum.IsDefined(intent.Operation))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Area requires an operation.");
             var home = intent.Home is not null && intent.Home.GetValueOrDefault();
             var pollution = intent.PollutionClear is not null && intent.PollutionClear.GetValueOrDefault();
             var fixedArea = home || pollution;
             if (home && pollution || fixedArea == (intent.Key is not null) || (!fixedArea && !ProtoBoundary.IsIdentifier(intent.Key)))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Area requires exactly one of home, pollution_clear or a bot area key.");
-            var op = intent.Operation.GetValueOrDefault();
+            var op = intent.Operation;
             if (fixedArea && (op == Operations.AreaOperation.Create || op == Operations.AreaOperation.Delete))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The home and pollution-clear areas are never created or deleted.");
             if (op == Operations.AreaOperation.Delete && intent.Rects.Count > 0)
@@ -43,11 +44,11 @@ namespace HomeBridge.BridgeTools
             map = ProtoBoundary.LoadedMap(context);
             foreach (var r in intent.Rects)
             {
-                if (r.MinX is null || r.MinZ is null || r.MaxX is null || r.MaxZ is null || r.MinX.GetValueOrDefault() > r.MaxX.GetValueOrDefault() || r.MinZ.GetValueOrDefault() > r.MaxZ.GetValueOrDefault()
-                    || !new IntVec3(r.MinX.GetValueOrDefault(), 0, r.MinZ.GetValueOrDefault()).InBounds(map) || !new IntVec3(r.MaxX.GetValueOrDefault(), 0, r.MaxZ.GetValueOrDefault()).InBounds(map))
+                if (r.MinX > r.MaxX || r.MinZ > r.MaxZ
+                    || !new IntVec3(r.MinX, 0, r.MinZ).InBounds(map) || !new IntVec3(r.MaxX, 0, r.MaxZ).InBounds(map))
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Area rectangle is out of bounds.");
-                for (var z = r.MinZ.GetValueOrDefault(); z <= r.MaxZ.GetValueOrDefault(); z++)
-                    for (var x = r.MinX.GetValueOrDefault(); x <= r.MaxX.GetValueOrDefault(); x++)
+                for (var z = r.MinZ; z <= r.MaxZ; z++)
+                    for (var x = r.MinX; x <= r.MaxX; x++)
                         cells.Add(new IntVec3(x, 0, z));
             }
             // The pollution-clear area is the game's own (Biotech only).
@@ -70,8 +71,8 @@ namespace HomeBridge.BridgeTools
         {
             var failure = Resolve(intent, context, out var map, out var area, out var cells);
             if (failure != null) throw new ApplyRefusedException(failure);
-            intent ??= new Operations.AreaIntent();
-            switch (intent.Operation.GetValueOrDefault())
+            if (intent == null) throw new InvalidOperationException("Area intent missing");
+            switch (intent.Operation)
             {
                 case Operations.AreaOperation.Create:
                     if (area == null)

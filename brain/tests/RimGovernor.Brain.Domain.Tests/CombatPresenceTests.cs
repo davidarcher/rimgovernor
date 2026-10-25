@@ -134,7 +134,7 @@ public sealed class CombatPresenceTests
     {
         Assert.Equal(DraftFireMode.FireAtWill, RoundsDefensePlanner.DraftFireMode(Op.CombatFireMode.AtWill));
         Assert.Equal(DraftFireMode.HoldFire, RoundsDefensePlanner.DraftFireMode(Op.CombatFireMode.Hold));
-        Assert.Throws<ControlException>(() => RoundsDefensePlanner.DraftFireMode(Op.CombatFireMode.Unspecified));
+        Assert.Throws<ControlException>(() => RoundsDefensePlanner.DraftFireMode((Op.CombatFireMode)0));
         Assert.Throws<ControlException>(() => RoundsDefensePlanner.CombatStance((M.CombatStance)0));
         Assert.Equal(CombatStance.Melee, RoundsDefensePlanner.CombatStance(M.CombatStance.Melee));
     }

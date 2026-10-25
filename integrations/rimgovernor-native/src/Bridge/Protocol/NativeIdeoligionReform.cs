@@ -33,13 +33,13 @@ namespace HomeBridge.BridgeTools
         {
             source = ModsConfig.IdeologyActive ? Faction.OfPlayer.ideos?.PrimaryIdeo : null;
             candidate = null;
-            if (source == null || command == null || command.IdeoId is null || (command.IdeoId ?? "") != source.GetUniqueLoadID() || command.ExpectedReformCount is null || command.ExpectedReformCount.GetValueOrDefault() < 0 || command.ExpectedReformCount.GetValueOrDefault() == int.MaxValue || command.Expected == null || command.Design == null || Matches(command.Expected, command.Design))
+            if (source == null || command == null || command.IdeoId is null || (command.IdeoId ?? "") != source.GetUniqueLoadID() || command.ExpectedReformCount < 0 || command.ExpectedReformCount == int.MaxValue || command.Expected == null || command.Design == null || Matches(command.Expected, command.Design))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Invalid reform identity, count or design.");
             if (!source.Fluid || source.development == null)
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "A fixed ideoligion cannot reform.");
             var actual = ReadDesign(source);
-            if (source.development.reformCount == command.ExpectedReformCount.GetValueOrDefault() + 1 && Matches(actual, command.Design)) return null;
-            if (source.development.reformCount != command.ExpectedReformCount.GetValueOrDefault() || !Matches(actual, command.Expected))
+            if (source.development.reformCount == command.ExpectedReformCount + 1 && Matches(actual, command.Design)) return null;
+            if (source.development.reformCount != command.ExpectedReformCount || !Matches(actual, command.Expected))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Stale ideoligion design or reform count.");
             return NativeIdeoligionDesign.Prepare(source, command.Design, true, out candidate);
         }

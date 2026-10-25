@@ -85,7 +85,7 @@ public static class CombatOrdersRules
                 {
                     throw BridgeContractException.Contract($"combat order {i} door cell missing or invalid");
                 }
-                if ((doorOrder.Mode ?? Op.CombatDoorMode.Unspecified) is < Op.CombatDoorMode.HoldOpen or > Op.CombatDoorMode.Shut)
+                if (doorOrder.Mode is < Op.CombatDoorMode.HoldOpen or > Op.CombatDoorMode.Shut)
                 {
                     throw BridgeContractException.Contract($"combat order {i} door mode unsupported");
                 }

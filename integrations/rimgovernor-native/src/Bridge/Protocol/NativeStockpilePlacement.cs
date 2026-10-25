@@ -25,13 +25,13 @@ namespace HomeBridge.BridgeTools
                 && intent.Stockpile != null && intent.Stockpile.Priority is not null && NativeStockpileSettings.Valid(intent.Stockpile)
                 && r != null && r.Origin is { X: >= 0, Z: >= 0 } origin
                 && r.Width is > 0 && r.Height is > 0
-                && (long)origin.X + r.Width.GetValueOrDefault() <= int.MaxValue && (long)origin.Z + r.Height.GetValueOrDefault() <= int.MaxValue;
+                && (long)origin.X + r.Width <= int.MaxValue && (long)origin.Z + r.Height <= int.MaxValue;
         }
 
         private static List<IntVec3[]> Components(Operations.ZoneIntent intent, Map map)
         {
             var r = intent.AddCells?.Selection?.Rectangle ?? throw new InvalidOperationException("Stockpile placement has no rectangle.");
-            int width = r.Width.GetValueOrDefault(), height = r.Height.GetValueOrDefault();
+            int width = r.Width, height = r.Height;
             int originX = r.Origin?.X ?? 0, originZ = r.Origin?.Z ?? 0;
             var remaining = new HashSet<IntVec3>();
             for (int x = 0; x < width; x++) for (int z = 0; z < height; z++)

@@ -6,7 +6,7 @@ namespace HomeBridge.BridgeTools {
  internal static class NativeProductionBillSettings {
   // Wire records keep presence of optional scalars; the exact-shape comparisons below
   // treat an unset optional as its default (the generated protobuf Equals did).
-  private static Operations.BillSettings Norm(Operations.BillSettings b)=>b with{RepeatMode=b.RepeatMode??Operations.RepeatMode.Unspecified,RepeatCount=b.RepeatCount??0,TargetCount=b.TargetCount??0,UnpauseThreshold=b.UnpauseThreshold??0,PauseWhenSatisfied=b.PauseWhenSatisfied??false,Suspended=b.Suspended??false,IngredientSearchRadius=b.IngredientSearchRadius??0f,SkillMin=b.SkillMin??0,SkillMax=b.SkillMax??0,BeerReserve=b.BeerReserve??false,CorpseClass=b.CorpseClass};
+  private static Operations.BillSettings Norm(Operations.BillSettings b)=>b with{RepeatMode=b.RepeatMode,RepeatCount=b.RepeatCount??0,TargetCount=b.TargetCount??0,UnpauseThreshold=b.UnpauseThreshold??0,PauseWhenSatisfied=b.PauseWhenSatisfied??false,Suspended=b.Suspended??false,IngredientSearchRadius=b.IngredientSearchRadius??0f,SkillMin=b.SkillMin??0,SkillMax=b.SkillMax??0,BeerReserve=b.BeerReserve??false,CorpseClass=b.CorpseClass};
   internal static bool Valid(Operations.ProductionBillIntent? command){
    var s=command?.Settings;
    if(command?.ReplaceOwnedBill!=null && !ProtoBoundary.IsIdentifier(command.ReplaceOwnedBill.Id))return false;

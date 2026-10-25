@@ -10,7 +10,7 @@ design and progression. See [Ideology creation and reform](ideology-contracts.md
 An accepted native order and a completed action are separate states. The table defines
 what each action must observe. Kinds marked intent-mode complete on an applied receipt
 alone (no observation phase); a refusal fails them and a lost receipt sends the intent again.
-Field-level shapes live in `contracts/wire/*.md` and the proto files; native checks live in
+Field-level shapes and required argument presence live in [operation contracts](../../../contracts/wire/operations.md); native checks live in
 the bridge and native code. This page keeps only the completion boundary and the
 non-obvious constraints.
 

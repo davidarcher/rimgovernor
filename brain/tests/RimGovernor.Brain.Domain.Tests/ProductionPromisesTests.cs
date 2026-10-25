@@ -185,7 +185,7 @@ public sealed class ProductionPromisesTests
         var census = ConstructionReads.ProductionBatchStates(Snapshot(bill));
         Assert.Equal(30, Promises(Placed, census).Value[0].MaterialClaims[0].Units.Value);
         Assert.False(Promises(Placed, ConstructionReads.ProductionBatchStates(Snapshot(bill with { RepeatMode = Ops.RepeatMode.Target }))).Value[0].MaterialClaims[0].Units.IsKnown);
-        Assert.Throws<RequiredFactException>(() => ConstructionReads.ProductionBatchStates(Snapshot(bill with { RepeatMode = Ops.RepeatMode.Unspecified })));
+        Assert.Throws<DomainException>(() => ConstructionReads.ProductionBatchStates(Snapshot(bill with { RepeatMode = (Ops.RepeatMode)0 })));
         Assert.False(ConstructionReads.ProductionBatchStates(null).IsKnown);
         Assert.False(ConstructionReads.ProductionBatchStates(Snapshot(bill with { Id = "" })).IsKnown);
     }

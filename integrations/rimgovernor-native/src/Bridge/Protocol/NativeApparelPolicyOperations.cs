@@ -91,9 +91,9 @@ namespace HomeBridge.BridgeTools
         {
             p = null!;
             if (c == null || c.PawnId is null || !ProtoBoundary.IsIdentifier(c.PawnId) || c.Name is null || string.IsNullOrWhiteSpace(c.Name) || (c.Name ?? "").Length > 80
-                || c.MinHitPoints is null || c.MaxHitPoints is null || float.IsNaN(c.MinHitPoints.GetValueOrDefault()) || float.IsNaN(c.MaxHitPoints.GetValueOrDefault())
-                || c.MinHitPoints.GetValueOrDefault() < 0 || c.MaxHitPoints.GetValueOrDefault() > 1 || c.MinHitPoints.GetValueOrDefault() > c.MaxHitPoints.GetValueOrDefault()
-                || c.MinQuality is null || c.MaxQuality is null || c.MinQuality.GetValueOrDefault() < 0 || c.MaxQuality.GetValueOrDefault() > 6 || c.MinQuality.GetValueOrDefault() > c.MaxQuality.GetValueOrDefault()
+                || float.IsNaN(c.MinHitPoints) || float.IsNaN(c.MaxHitPoints)
+                || c.MinHitPoints < 0 || c.MaxHitPoints > 1 || c.MinHitPoints > c.MaxHitPoints
+                || c.MinQuality < 0 || c.MaxQuality > 6 || c.MinQuality > c.MaxQuality
                 || c.AllowedDefs.Count == 0 || c.AllowedDefs.Distinct().Count() != c.AllowedDefs.Count
                 || c.AllowedDefs.Any(d => DefDatabase<ThingDef>.GetNamedSilentFail(d)?.IsApparel != true))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An apparel policy needs a pawn, a name, apparel definitions and valid bounds.");
@@ -108,8 +108,8 @@ namespace HomeBridge.BridgeTools
         {
             var v = p.outfits?.CurrentApparelPolicy;
             return v != null && p.outfits != null && !PawnsFinder.AllMapsCaravansAndTravellingTransporters_Alive.Any(o => o != p && o.outfits?.CurrentApparelPolicy == v) && p.outfits.forcedHandler.ForcedApparel.Count == 0 && !p.apparel.AnyApparelLocked && v.label == (c.Name ?? "") && v.filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d).SequenceEqual(c.AllowedDefs.OrderBy(d => d))
-                && v.filter.AllowedHitPointsPercents.min == c.MinHitPoints.GetValueOrDefault() && v.filter.AllowedHitPointsPercents.max == c.MaxHitPoints.GetValueOrDefault()
-                && (int)v.filter.AllowedQualityLevels.min == c.MinQuality.GetValueOrDefault() && (int)v.filter.AllowedQualityLevels.max == c.MaxQuality.GetValueOrDefault()
+                && v.filter.AllowedHitPointsPercents.min == c.MinHitPoints && v.filter.AllowedHitPointsPercents.max == c.MaxHitPoints
+                && (int)v.filter.AllowedQualityLevels.min == c.MinQuality && (int)v.filter.AllowedQualityLevels.max == c.MaxQuality
                 && v.filter.Allows(SpecialThingFilterDefOf.AllowDeadmansApparel) == c.AllowTainted && v.filter.Allows(SpecialThingFilterDefOf.AllowNonDeadmansApparel);
         }
 
@@ -124,8 +124,8 @@ namespace HomeBridge.BridgeTools
                 var outfit = Own(p, (c.Name ?? ""));
                 outfit.label = (c.Name ?? ""); outfit.filter.SetDisallowAll();
                 foreach (var d in c.AllowedDefs) outfit.filter.SetAllow(DefDatabase<ThingDef>.GetNamed(d), true);
-                outfit.filter.AllowedHitPointsPercents = new FloatRange(c.MinHitPoints.GetValueOrDefault(), c.MaxHitPoints.GetValueOrDefault());
-                outfit.filter.AllowedQualityLevels = new QualityRange((QualityCategory)c.MinQuality.GetValueOrDefault(), (QualityCategory)c.MaxQuality.GetValueOrDefault());
+                outfit.filter.AllowedHitPointsPercents = new FloatRange(c.MinHitPoints, c.MaxHitPoints);
+                outfit.filter.AllowedQualityLevels = new QualityRange((QualityCategory)c.MinQuality, (QualityCategory)c.MaxQuality);
                 outfit.filter.SetAllow(SpecialThingFilterDefOf.AllowNonDeadmansApparel, true);
                 outfit.filter.SetAllow(SpecialThingFilterDefOf.AllowDeadmansApparel, c.AllowTainted);
                 p.outfits.CurrentApparelPolicy = outfit;

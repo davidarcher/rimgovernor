@@ -15,8 +15,6 @@ namespace RimGovernor.Contracts.Wire.Operations;
 [JsonConverter(typeof(WireEnumConverter<CombatFireMode>))]
 public enum CombatFireMode
 {
-    [WireName("COMBAT_FIRE_MODE_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("COMBAT_FIRE_MODE_AT_WILL")]
     AtWill = 1,
     [WireName("COMBAT_FIRE_MODE_HOLD")]
@@ -30,8 +28,6 @@ public enum CombatFireMode
 [JsonConverter(typeof(WireEnumConverter<CombatDoorMode>))]
 public enum CombatDoorMode
 {
-    [WireName("COMBAT_DOOR_MODE_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("COMBAT_DOOR_MODE_HOLD_OPEN")]
     HoldOpen = 1,
     [WireName("COMBAT_DOOR_MODE_CLOSE")]
@@ -51,8 +47,6 @@ public enum CombatDoorMode
 [JsonConverter(typeof(WireEnumConverter<ThingDesignation>))]
 public enum ThingDesignation
 {
-    [WireName("THING_DESIGNATION_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("THING_DESIGNATION_ALLOW")]
     Allow = 1,
     [WireName("THING_DESIGNATION_FORBID")]
@@ -97,8 +91,6 @@ public enum ThingDesignation
 [JsonConverter(typeof(WireEnumConverter<PowerSetting>))]
 public enum PowerSetting
 {
-    [WireName("POWER_SETTING_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("POWER_SETTING_ON")]
     On = 1,
     [WireName("POWER_SETTING_OFF")]
@@ -111,8 +103,6 @@ public enum PowerSetting
 [JsonConverter(typeof(WireEnumConverter<HostilityResponse>))]
 public enum HostilityResponse
 {
-    [WireName("HOSTILITY_RESPONSE_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("HOSTILITY_RESPONSE_IGNORE")]
     Ignore = 1,
     [WireName("HOSTILITY_RESPONSE_ATTACK")]
@@ -124,8 +114,6 @@ public enum HostilityResponse
 [JsonConverter(typeof(WireEnumConverter<MedicalCare>))]
 public enum MedicalCare
 {
-    [WireName("MEDICAL_CARE_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("MEDICAL_CARE_NO_CARE")]
     NoCare = 1,
     [WireName("MEDICAL_CARE_NO_MEDICINE")]
@@ -141,8 +129,6 @@ public enum MedicalCare
 [JsonConverter(typeof(WireEnumConverter<RepeatMode>))]
 public enum RepeatMode
 {
-    [WireName("REPEAT_MODE_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("REPEAT_MODE_FOREVER")]
     Forever = 1,
     [WireName("REPEAT_MODE_COUNT")]
@@ -154,8 +140,6 @@ public enum RepeatMode
 [JsonConverter(typeof(WireEnumConverter<ZoneType>))]
 public enum ZoneType
 {
-    [WireName("ZONE_TYPE_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("ZONE_TYPE_STOCKPILE")]
     Stockpile = 1,
     [WireName("ZONE_TYPE_DUMPING")]
@@ -175,8 +159,6 @@ public enum ZoneType
 [JsonConverter(typeof(WireEnumConverter<PrisonerInteraction>))]
 public enum PrisonerInteraction
 {
-    [WireName("PRISONER_INTERACTION_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("PRISONER_INTERACTION_ATTEMPT_RECRUIT")]
     AttemptRecruit = 1,
     [WireName("PRISONER_INTERACTION_MAINTAIN_ONLY")]
@@ -194,8 +176,6 @@ public enum PrisonerInteraction
 [JsonConverter(typeof(WireEnumConverter<EndTradeKind>))]
 public enum EndTradeKind
 {
-    [WireName("END_TRADE_KIND_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("END_TRADE_KIND_CANCEL")]
     Cancel = 1,
     [WireName("END_TRADE_KIND_CLOSE_DIALOG")]
@@ -216,8 +196,6 @@ public enum EndTradeKind
 [JsonConverter(typeof(WireEnumConverter<AreaOperation>))]
 public enum AreaOperation
 {
-    [WireName("AREA_OPERATION_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("AREA_OPERATION_CREATE")]
     Create = 1,
     [WireName("AREA_OPERATION_SET_CELLS")]
@@ -240,8 +218,6 @@ public enum AreaOperation
 [JsonConverter(typeof(WireEnumConverter<PolicyDatabase>))]
 public enum PolicyDatabase
 {
-    [WireName("POLICY_DATABASE_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("POLICY_DATABASE_OUTFIT")]
     Outfit = 1,
     [WireName("POLICY_DATABASE_DRUG")]
@@ -262,8 +238,6 @@ public enum PolicyDatabase
 [JsonConverter(typeof(WireEnumConverter<DesignationGuard>))]
 public enum DesignationGuard
 {
-    [WireName("DESIGNATION_GUARD_UNSPECIFIED")]
-    Unspecified = 0,
     /// <summary>
     /// Building removal (DECONSTRUCT): player deconstructible, visible, not
     /// forbidden or burning and no pending wall upgrade; an enclosing wall is
@@ -334,8 +308,6 @@ public enum DesignationGuard
 [JsonConverter(typeof(WireEnumConverter<HusbandryOrder>))]
 public enum HusbandryOrder
 {
-    [WireName("HUSBANDRY_ORDER_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("HUSBANDRY_ORDER_TRAIN")]
     Train = 1,
     [WireName("HUSBANDRY_ORDER_SLAUGHTER")]
@@ -403,7 +375,7 @@ public sealed record DefCount
 {
     public string? DefName { get; init; }
 
-    public int? Count { get; init; }
+    public required int Count { get; init; }
 }
 
 public sealed record CellList
@@ -416,9 +388,9 @@ public sealed record Rectangle
 {
     public Common.Cell? Origin { get; init; }
 
-    public int? Width { get; init; }
+    public required int Width { get; init; }
 
-    public int? Height { get; init; }
+    public required int Height { get; init; }
 }
 
 public sealed record Cells
@@ -541,7 +513,7 @@ public sealed record CombatDoor
 {
     public Common.Cell? Cell { get; init; }
 
-    public CombatDoorMode? Mode { get; init; }
+    public required CombatDoorMode Mode { get; init; }
 }
 
 public sealed record CombatOrder
@@ -672,7 +644,7 @@ public sealed record WorkPriority
 {
     public string? WorkTypeDef { get; init; }
 
-    public int? Priority { get; init; }
+    public required int Priority { get; init; }
 }
 
 public sealed record Schedule
@@ -879,7 +851,7 @@ public sealed record TradeLine
 {
     public string? LineId { get; init; }
 
-    public int? AbsoluteCount { get; init; }
+    public required int AbsoluteCount { get; init; }
 }
 
 public sealed record SetTradeLines
@@ -904,7 +876,7 @@ public sealed record AcceptTrade
 /// </summary>
 public sealed record EndTrade
 {
-    public EndTradeKind? Kind { get; init; }
+    public required EndTradeKind Kind { get; init; }
 
     public bool? ReceiveQuest { get; init; }
 }
@@ -1408,7 +1380,7 @@ public sealed record GiveItemIntent
 
     public string? Definition { get; init; }
 
-    public long? ExpectedRemaining { get; init; }
+    public required long ExpectedRemaining { get; init; }
 }
 
 /// <summary>
@@ -1421,7 +1393,7 @@ public sealed record IdeoligionReformIntent
 
     public Common.IdeoligionDesign? Expected { get; init; }
 
-    public int? ExpectedReformCount { get; init; }
+    public required int ExpectedReformCount { get; init; }
 
     public Common.IdeoligionDesign? Design { get; init; }
 }
@@ -1704,18 +1676,18 @@ public sealed record PermitChoice
 /// </summary>
 public sealed record AreaRect
 {
-    public int? MinX { get; init; }
+    public required int MinX { get; init; }
 
-    public int? MinZ { get; init; }
+    public required int MinZ { get; init; }
 
-    public int? MaxX { get; init; }
+    public required int MaxX { get; init; }
 
-    public int? MaxZ { get; init; }
+    public required int MaxZ { get; init; }
 }
 
 public sealed record AreaIntent
 {
-    public AreaOperation? Operation { get; init; }
+    public required AreaOperation Operation { get; init; }
 
     public string? Key { get; init; }
 
@@ -1729,7 +1701,7 @@ public sealed record AreaIntent
 
 public sealed record PolicyPruneIntent
 {
-    public PolicyDatabase? Database { get; init; }
+    public required PolicyDatabase Database { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> DeleteIds { get; init; }
@@ -1899,7 +1871,7 @@ public sealed record DesignateIntent
 {
     public string? ThingId { get; init; }
 
-    public ThingDesignation? Designation { get; init; }
+    public required ThingDesignation Designation { get; init; }
 
     public Common.Ref? Target { get; init; }
 
@@ -2042,7 +2014,7 @@ public sealed record HusbandryIntent
 {
     public string? AnimalId { get; init; }
 
-    public HusbandryOrder? Order { get; init; }
+    public required HusbandryOrder Order { get; init; }
 
     public string? TrainableDef { get; init; }
 
@@ -2155,14 +2127,14 @@ public sealed record PrisonerInteractionIntent
 {
     public string? PawnId { get; init; }
 
-    public PrisonerInteraction? Interaction { get; init; }
+    public required PrisonerInteraction Interaction { get; init; }
 }
 
 public sealed record DialogIntent
 {
-    public int? WindowId { get; init; }
+    public required int WindowId { get; init; }
 
-    public int? OptionIndex { get; init; }
+    public required int OptionIndex { get; init; }
 
     public string? OptionLabel { get; init; }
 
@@ -2197,13 +2169,13 @@ public sealed record ApparelPolicyIntent
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> AllowedDefs { get; init; }
 
-    public float? MinHitPoints { get; init; }
+    public required float MinHitPoints { get; init; }
 
-    public float? MaxHitPoints { get; init; }
+    public required float MaxHitPoints { get; init; }
 
-    public int? MinQuality { get; init; }
+    public required int MinQuality { get; init; }
 
-    public int? MaxQuality { get; init; }
+    public required int MaxQuality { get; init; }
 }
 
 /// <summary>

@@ -106,16 +106,16 @@ namespace HomeBridge.BridgeTools
         private static string? Resolve(Operations.DesignateIntent intent, Common.ObservationContext context, out Plan plan, out Common.FailureCode code)
         {
             plan = new Plan(); code = Common.FailureCode.InvalidRequest;
-            var def = intent.Designation is not null ? DefOf(intent.Designation.GetValueOrDefault()) : null;
+            var def = DefOf(intent.Designation);
             if (def == null) return "the designation must be one of Deconstruct, Mine, CutPlant, Haul, RemoveFoundation or Cancel";
-            plan.Designation = intent.Designation.GetValueOrDefault(); plan.Def = def;
+            plan.Designation = intent.Designation; plan.Def = def;
             plan.Map = ProtoBoundary.LoadedMap(context);
             var map = plan.Map;
             // Guard: the one the designation needs, and only that one.
-            plan.Guard = GuardFor(intent.Designation.GetValueOrDefault());
+            plan.Guard = GuardFor(intent.Designation);
             var named = intent.Guard is not null ? NativeDesignationGuards.Name(intent.Guard.GetValueOrDefault()) : null;
             // A HAUL takes no guard, or the wastepack guard.
-            if (intent.Designation.GetValueOrDefault() == Operations.ThingDesignation.Haul && named == GuardNames.Wastepack) plan.Guard = named;
+            if (intent.Designation == Operations.ThingDesignation.Haul && named == GuardNames.Wastepack) plan.Guard = named;
             if (named != plan.Guard) return plan.Guard == null ? "this designation takes no guard" : "this designation requires the " + plan.Guard + " guard";
             if (intent.Cell != null && !ValidCell(intent.Cell)) return "the cell is invalid";
             if (intent.Target != null)
@@ -126,18 +126,18 @@ namespace HomeBridge.BridgeTools
                 if (intent.Cell != null && (found.Position.x != intent.Cell.X || found.Position.z != intent.Cell.Z)) return "the target is not at the expected cell";
                 if (found.Position.Fogged(map)) return "the target's cell is fogged";
                 plan.Target = found; plan.Cell = found.Position;
-                if (intent.Designation.GetValueOrDefault() == Operations.ThingDesignation.Mine && !(found is Mineable)) return "Mine targets rock";
-                if (intent.Designation.GetValueOrDefault() == Operations.ThingDesignation.RemoveFoundation) return "RemoveFoundation names a cell, not a thing";
+                if (intent.Designation == Operations.ThingDesignation.Mine && !(found is Mineable)) return "Mine targets rock";
+                if (intent.Designation == Operations.ThingDesignation.RemoveFoundation) return "RemoveFoundation names a cell, not a thing";
                 plan.ExpectedDef = found.def.defName;
                 if (intent.ExpectedDef is not null && (intent.ExpectedDef ?? "") != plan.ExpectedDef) return "the target is not the expected definition";
             }
             else
             {
-                if (intent.Designation.GetValueOrDefault() != Operations.ThingDesignation.Mine && intent.Designation.GetValueOrDefault() != Operations.ThingDesignation.RemoveFoundation) return "this designation requires a target";
+                if (intent.Designation != Operations.ThingDesignation.Mine && intent.Designation != Operations.ThingDesignation.RemoveFoundation) return "this designation requires a target";
                 if (intent.ExpectedDef is null || !ProtoBoundary.IsIdentifier(intent.ExpectedDef)) return "a cell designation requires the expected definition";
                 plan.Cell = new IntVec3(intent.Cell!.X, 0, intent.Cell.Z); plan.ExpectedDef = intent.ExpectedDef;
                 if (!plan.Cell.InBounds(map)) return "the cell is off the map";
-                if (intent.Designation.GetValueOrDefault() == Operations.ThingDesignation.Mine)
+                if (intent.Designation == Operations.ThingDesignation.Mine)
                 {
                     var rock = ExcavationTools.RockAt(plan.Cell, map);
                     if (rock == null && plan.Cell.Walkable(map)) { plan.Cleared = true; return null; }
@@ -148,7 +148,7 @@ namespace HomeBridge.BridgeTools
             }
             if (intent.ReplaceWithWall.GetValueOrDefault())
             {
-                if (intent.Designation.GetValueOrDefault() != Operations.ThingDesignation.Deconstruct) return "only Deconstruct swaps a door for a wall";
+                if (intent.Designation != Operations.ThingDesignation.Deconstruct) return "only Deconstruct swaps a door for a wall";
                 plan.WallStuff = WallStuff(plan.Target!);
                 if (plan.WallStuff == null) return "only a 1x1 player door of a wall stuff swaps for a wall";
             }
@@ -173,7 +173,7 @@ namespace HomeBridge.BridgeTools
         // a census source, and their withdraw.
         private static bool Acquisition(Operations.DesignateIntent intent) => intent.Guard is not null && intent.Guard.GetValueOrDefault() == Operations.DesignationGuard.Acquisition;
         private static string? AcquisitionPairing(Operations.DesignateIntent intent) =>
-            intent.Designation.GetValueOrDefault() == Operations.ThingDesignation.Hunt || intent.Designation.GetValueOrDefault() == Operations.ThingDesignation.HarvestPlant || intent.Designation.GetValueOrDefault() == Operations.ThingDesignation.Mine
+            intent.Designation == Operations.ThingDesignation.Hunt || intent.Designation == Operations.ThingDesignation.HarvestPlant || intent.Designation == Operations.ThingDesignation.Mine
                 ? null : "the acquisition guard holds HUNT, HARVEST_PLANT or MINE";
         private static Common.Failure? Pairing(Operations.DesignateIntent intent)
         {
@@ -188,13 +188,13 @@ namespace HomeBridge.BridgeTools
         // cancel designator (DestroyMode.Cancel). It takes no guard; a
         // blueprint already gone applies again, and the evidence is the
         // blueprint gone. A frame is deconstructed, not cancelled.
-        private static bool Cancel(Operations.DesignateIntent intent) => intent.Designation.GetValueOrDefault() == Operations.ThingDesignation.Cancel;
+        private static bool Cancel(Operations.DesignateIntent intent) => intent.Designation == Operations.ThingDesignation.Cancel;
         private const string CancelDef = "Cancel";
 
         private static string? ResolveCancel(Operations.DesignateIntent intent, Common.ObservationContext context, out Thing? blueprint, out string id, out Common.FailureCode code)
         {
             blueprint = null; id = ""; code = Common.FailureCode.InvalidRequest;
-            if (intent.Guard is not null && intent.Guard.GetValueOrDefault() != Operations.DesignationGuard.Unspecified) return "this designation takes no guard";
+            if (intent.Guard is not null) return "this designation takes no guard";
             if (intent.Target?.Id is null || !ProtoBoundary.IsIdentifier(intent.Target.Id)) return "CANCEL requires a blueprint target";
             if (intent.Cell != null && !ValidCell(intent.Cell)) return "the cell is invalid";
             if (intent.ReplaceWithWall.GetValueOrDefault()) return "only Deconstruct swaps a door for a wall";

@@ -18,10 +18,10 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(Operations.DialogIntent? c, out Window dialog, out DiaOption option)
         {
             dialog = null!; option = null!;
-            if (c == null || c.WindowId is null || c.OptionIndex is null || c.OptionLabel is null)
+            if (c == null || c.OptionLabel is null)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A dialog answer needs a window, an option index and its label.");
             var pending = ChoiceDialogTools.Pending();
-            if (pending == null || !ChoiceDialogTools.Matches(pending, c.WindowId.GetValueOrDefault(), c.OptionIndex.GetValueOrDefault(), (c.OptionLabel ?? ""), out var found))
+            if (pending == null || !ChoiceDialogTools.Matches(pending, c.WindowId, c.OptionIndex, (c.OptionLabel ?? ""), out var found))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Choice dialog or option changed; inspect again.");
             if (!ChoiceDialogTools.Answerable(pending, found))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, ChoiceDialogTools.Unanswerable(pending, found));
@@ -34,7 +34,7 @@ namespace HomeBridge.BridgeTools
 
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
         {
-            var c = action.Intent?.Dialog ?? new Operations.DialogIntent();
+            var c = action.Intent?.Dialog ?? throw new InvalidOperationException("Dialog intent missing");
             if (c.JoinerLetterToken is not null) return NativeJoinerLetters.Apply(c);
             var failure = Resolve(c, out var dialog, out var option);
             if (failure != null) throw new InvalidOperationException("Dialog prerequisites changed before apply: " + (failure.Detail ?? ""));

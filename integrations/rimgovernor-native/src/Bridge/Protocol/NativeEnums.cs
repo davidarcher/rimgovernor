@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
             MedicalCareCategory.HerbalOrWorse => Operations.MedicalCare.HerbalOrWorse,
             MedicalCareCategory.NormalOrWorse => Operations.MedicalCare.NormalOrWorse,
             MedicalCareCategory.Best => Operations.MedicalCare.Best,
-            _ => Operations.MedicalCare.Unspecified
+            _ => throw new ArgumentOutOfRangeException(nameof(care), care, "no wire medical care")
         };
 
         internal static MedicalCareCategory? Care(Operations.MedicalCare care) => care switch
@@ -73,7 +73,7 @@ namespace HomeBridge.BridgeTools
             HostilityResponseMode.Ignore => Operations.HostilityResponse.Ignore,
             HostilityResponseMode.Attack => Operations.HostilityResponse.Attack,
             HostilityResponseMode.Flee => Operations.HostilityResponse.Flee,
-            _ => Operations.HostilityResponse.Unspecified
+            _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "no wire hostility response")
         };
 
         internal static HostilityResponseMode? Hostility(Operations.HostilityResponse response) => response switch

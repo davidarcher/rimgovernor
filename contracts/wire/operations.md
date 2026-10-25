@@ -14,6 +14,16 @@ Progress observation is a separate read with complete AttemptKey and current con
 
 ## Bounds and presence
 
+Order enums name supported choices only; none has an unspecified case. Invalid
+native medical-care and hostility-response values fail the read instead of
+producing an invented order value. Mandatory designation, area, policy-prune,
+husbandry, prisoner, door and trade-end choices must be present in JSON.
+Cargo counts, rectangle dimensions, work priorities, trade counts, area bounds,
+item-delivery and reform preconditions, dialog indices and apparel bounds are
+required scalar values. Omission fails decoding; an explicit zero still means
+zero when the operation permits it (for example, clearing a trade line or work
+priority, or choosing the first dialog option).
+
 Drafts are plan-owned: there is no native draft claim. The draft intent
 (Actions.Apply `draft`) sets or clears a colonist's draft under Auto, and the
 brain's census-based undraft sweep clears any draft no live plan needs.

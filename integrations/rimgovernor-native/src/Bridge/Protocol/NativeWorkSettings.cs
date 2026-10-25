@@ -61,7 +61,7 @@ namespace HomeBridge.BridgeTools
         private static bool Valid(Operations.WorkSettingsIntent? intent) => intent != null
             && intent.PawnId is not null && ProtoBoundary.IsIdentifier(intent.PawnId)
             && (intent.Work.Count > 0 || intent.AllowedArea != null || intent.Schedule != null)
-                && intent.Work.All(w => w.WorkTypeDef is not null && ProtoBoundary.IsIdentifier(w.WorkTypeDef) && w.Priority is not null && w.Priority.GetValueOrDefault() >= 0 && w.Priority.GetValueOrDefault() <= 4)
+                && intent.Work.All(w => w.WorkTypeDef is not null && ProtoBoundary.IsIdentifier(w.WorkTypeDef) && w.Priority >= 0 && w.Priority <= 4)
                 && intent.Work.Select(w => (w.WorkTypeDef ?? "")).Distinct(StringComparer.Ordinal).Count() == intent.Work.Count
                 && ValidSchedule(intent.Schedule) && ValidArea(intent.AllowedArea);
 
@@ -87,7 +87,7 @@ namespace HomeBridge.BridgeTools
             if (!intent.Work.All(row => {
                 if (DisabledWorkRows.Skipped(row, disabled)) return true;
                 var def = DefDatabase<WorkTypeDef>.GetNamedSilentFail((row.WorkTypeDef ?? ""));
-                return def != null && pawn.workSettings.GetPriority(def) == row.Priority.GetValueOrDefault();
+                return def != null && pawn.workSettings.GetPriority(def) == row.Priority;
             })) return false;
             if (intent.Schedule != null && !NativeWorkSettings.CurrentSchedule(pawn).SequenceEqual(intent.Schedule.AssignmentDefs, StringComparer.Ordinal)) return false;
             if (intent.AllowedArea == null) return true;
@@ -118,7 +118,7 @@ namespace HomeBridge.BridgeTools
                     .Require(() => found!.workSettings?.Initialized == true && found.workSettings.EverWork, "the pawn has no work settings")
                     .Require(() => manual.HasValue, "the game's manual-priorities setting is unreadable")
                     .Require(() => intent.Work.All(row => DefDatabase<WorkTypeDef>.GetNamedSilentFail((row.WorkTypeDef ?? "")) != null), "a requested work type is not defined")
-                    .Require(() => manual.GetValueOrDefault() || intent.Work.All(row => row.Priority.GetValueOrDefault() == 0 || row.Priority.GetValueOrDefault() == 3), "manual priorities are off, so only 0 or 3 can be set")
+                    .Require(() => manual.GetValueOrDefault() || intent.Work.All(row => row.Priority == 0 || row.Priority == 3), "manual priorities are off, so only 0 or 3 can be set")
                     .Require(() => AreaResolves(intent, found!, out _), "the requested allowed area is missing or unreachable")
                     .Require(() => intent.Schedule == null || intent.Schedule.AssignmentDefs.All(name => DefDatabase<TimeAssignmentDef>.GetNamedSilentFail(name) != null), "a requested timetable assignment is not defined")
                     .Require(() => intent.Schedule == null || found!.timetable?.times != null && found.timetable.times.Count == NativeWorkSettings.ScheduleHours, "the pawn has no 24-hour timetable");
@@ -137,7 +137,7 @@ namespace HomeBridge.BridgeTools
             var disabled = Disabled(pawn);
             if (!holds)
             {
-                foreach (var row in intent.Work.Where(row => !DisabledWorkRows.Skipped(row, disabled))) pawn.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed(row.WorkTypeDef ?? ""), row.Priority.GetValueOrDefault());
+                foreach (var row in intent.Work.Where(row => !DisabledWorkRows.Skipped(row, disabled))) pawn.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed(row.WorkTypeDef ?? ""), row.Priority);
                 if (intent.AllowedArea != null)
                 {
                     if (!AreaResolves(intent, pawn, out var area)) throw new InvalidOperationException("Requested allowed area is no longer resolvable.");

@@ -13,7 +13,7 @@ namespace HomeBridge.BridgeTools
     internal static class DisabledWorkRows
     {
         internal static bool Skipped(Operations.WorkPriority row, Func<string, bool> disabled) =>
-            row.Priority.GetValueOrDefault() != 0 && disabled(row.WorkTypeDef ?? "");
+            row.Priority != 0 && disabled(row.WorkTypeDef ?? "");
 
         // The skipped rows' work type names, in request order.
         internal static List<string> SkippedNames(IEnumerable<Operations.WorkPriority> rows, Func<string, bool> disabled)

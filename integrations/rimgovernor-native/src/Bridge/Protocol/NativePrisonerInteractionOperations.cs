@@ -46,12 +46,12 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure? Resolve(Operations.PrisonerInteractionIntent? intent, Common.ObservationContext context, out Pawn pawn, out PrisonerInteractionModeDef def)
         {
             pawn = null!; def = null!;
-            if (intent == null || intent.PawnId is null || !ProtoBoundary.IsIdentifier(intent.PawnId) || intent.Interaction is null)
+            if (intent == null || intent.PawnId is null || !ProtoBoundary.IsIdentifier(intent.PawnId))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Prisoner interaction requires a pawn and an interaction.");
             var found = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent.PawnId);
             if (found == null || found.Destroyed || found.Dead || !found.IsPrisonerOfColony || found.guest == null)
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact eligible current-map colony prisoner is unavailable.");
-            var name = DefName(intent.Interaction.GetValueOrDefault());
+            var name = DefName(intent.Interaction);
             var mode = name == null ? null : DefDatabase<PrisonerInteractionModeDef>.GetNamedSilentFail(name);
             if (mode == null || !Supported(found, mode))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Unsupported or ineligible native prisoner interaction.");
