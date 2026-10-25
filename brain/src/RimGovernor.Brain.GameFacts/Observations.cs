@@ -5857,10 +5857,12 @@ public sealed record ThreatFacts
     /// <summary>The map's primary biome by def name: a CategoryIndividualMTBByBiome comp reads each incident's mtbDaysByBiome row of it (#3860).</summary>
     public required string Biome { get; init; }
 
-    /// <summary>The incidents a home-map ThreatsGenerator can draw, RaidEnemy and MechCluster (#3860); each is read for forced incident parms.</summary>
+    /// <summary>The incidents each ThreatsGenerator can draw, keyed by storyteller comp index; each is read for its forced parms and points.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<ThreatIncidentRead>))]
     public required EquatableArray<ThreatIncidentRead> Generator { get; init; }
 
+    /// <summary>GenDate.TickGameToSettled(map.generationTick) / 60000: the generator cycle's native start in settled days.</summary>
+    public required double GeneratorStartDays { get; init; }
     /// <summary>Every home-map ThreatBig incident with biome MTB rows, with its native CanFireNow result at this census's default, unforced category parms. A false result is a real block, not an unread worker.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<ThreatBiomeIncidentRead>))]
     public required EquatableArray<ThreatBiomeIncidentRead> BiomeIncidents { get; init; }
@@ -5889,10 +5891,14 @@ public sealed record ThreatFacts
 /// <summary>
 /// One incident a ThreatsGenerator draws (#3860). ThreatsGenerator.MakeThreat takes the incidents whose worker CanFireNow for its
 /// forced parms (IncidentWorker.CanFireNow skips every gate but CanFireNowSub, and an active void awakening) and picks one by
-/// <see cref="Weight"/> (IncidentWorker.BaseChanceThisGame). <see cref="CanFire"/> mirrors CanFireNowSub at the map's raid points: for
+/// <see cref="Weight"/> (IncidentWorker.BaseChanceThisGame). <see cref="CanFire"/> mirrors CanFireNowSub at the generator's points: for
 /// RaidEnemy a faction that can be a group source (FactionCanBeGroupSource), for MechCluster Royalty and a mechanoid faction.
 /// </summary>
-public sealed record ThreatIncidentRead(string Incident, double Weight, bool CanFire);
+public sealed record ThreatIncidentRead(string Incident, double Weight, bool CanFire)
+{
+    /// <summary>Index in StorytellerDef.comps: eligibility is read at this generator's points.</summary>
+    public int CompIndex { get; init; }
+}
 
 /// <summary>A biome incident's observed native legality. Future rates are conditional on this observed game state remaining unchanged.</summary>
 public sealed record ThreatBiomeIncidentRead(string Incident, bool CanFire);

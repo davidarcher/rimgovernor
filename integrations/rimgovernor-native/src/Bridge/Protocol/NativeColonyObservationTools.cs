@@ -232,6 +232,7 @@ namespace RimGovernor.Native
                 ProgressScore = Finite(NativeStorytellerFacts.ProgressScore(map)), NoTreeConnection = NativeStorytellerFacts.NoTreeConnection(),
                 ThreatScale = Finite(Find.Storyteller.difficulty.threatScale), Biome = Find.WorldGrid[map.Tile].PrimaryBiome.defName,
                 Generator = [.. NativeStorytellerFacts.GeneratorIncidents(map)],
+                GeneratorStartDays = (double)GenDate.TickGameToSettled(map.generationTick) / GenDate.TicksPerDay,
                 BiomeIncidents = [.. NativeStorytellerFacts.BiomeIncidents(map)],
                 Disease = NativeDiseaseFacts.Read(map),
                 Trade = NativeTradeVisitFacts.Read(map),

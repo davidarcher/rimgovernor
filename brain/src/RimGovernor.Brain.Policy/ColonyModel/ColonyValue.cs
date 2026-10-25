@@ -46,7 +46,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     // The stub outcome the harm ledger prices a single pawn's outfit with: it reads the pawn set and the support only.
     private static readonly ForecastNeedsResult NoNeeds = new([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new ForecastCapacityResult(default!, []), []);
 
-    private readonly ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> harmCache = new();
+    private readonly ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange, EquatableArray<WeaponBin>), HarmDistribution> harmCache = new();
     private readonly Dictionary<string, NeedsForecastPawn> rows = context.Needs.Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal)
         .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
 
@@ -54,7 +54,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     private readonly Dictionary<(string, EquatableArray<GearOption>), LedgerTerm> losses = [];
 
     // The tending term's own cache: its raids are priced over the whole horizon, the apparel's over a day, and the keys omit it.
-    private readonly ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> tendedCache = new();
+    private readonly ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange, EquatableArray<WeaponBin>), HarmDistribution> tendedCache = new();
 
     // The illness distributions of the two horizons (#3824), each by pawn and care.
     private readonly ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution> tendedIllness = new();

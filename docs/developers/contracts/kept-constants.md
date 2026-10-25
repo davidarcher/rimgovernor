@@ -167,15 +167,14 @@ A comp counts when it can fire on the home map (its allowed target tags are empt
 not), matched by its exact props class (#3859). A `ThreatBig` `CategoryMTB` fires at 1 / (`mtbDays` × `mtbDaysFactorByDaysPassedCurve`)
 and a `SingleMTB` of a home-map `ThreatBig` incident at 1 / `mtbDays` (`StorytellerComp_CategoryMTB`, `StorytellerComp_SingleMTB`); an
 on-off cycle's `acceptPercentFactorPerThreatPointsCurve` is evaluated at the observed raid points (`StorytellerUtility.DefaultThreatPointsNow`).
-A home-map comp whose class the decoder does not know or list as sending no scheduled major threat, and a `ThreatsGenerator` with its own
-`threatPoints`/`minThreatPoints`/`currentThreatPointsFactor`, add no threats and are named (`threat_comp_unmodelled:<comps>`). 1.7 has no
+A home-map comp whose class the decoder does not know or list as sending no scheduled major threat, and a `ThreatsGenerator` with an explicit faction, add no threats and are named (`threat_comp_unmodelled:<comps>`). 1.7 has no
 `StorytellerCompProperties_ThreatCycle`. #3860:
 
 | Literal | Value | 1.7 member |
 | --- | --- | --- |
 | An on-off cycle's accept chance is also scaled by `acceptPercentFactorPerProgressScoreCurve` at the progress score, free non-lodger colonists + storyteller wealth × 0.0001 (read natively) | read | `StorytellerUtility.GetProgressScore`, `StorytellerComp_OnOffCycle` |
 | A colony whose player faction has ideoligions and none with the `TreeConnection` meme swaps a cycle's days to `onDaysNoTreeConnectors`/`offDaysNoTreeConnectors` (each where not 0) | read | `StorytellerComp_OnOffCycle` |
-| A home-map `ThreatsGenerator` is a cycle of `parms.numIncidentsRange` × the count factor of the difficulty's `threatScale` (0 → 0.1, 0.3 → 0.5, 0.6 → 0.8, 1 → 1, 1.55 → 1.1, 2.2 → 1.2, 10 → 2; a private static field of a static class, so mirrored here), each a `RaidEnemy` or `MechCluster` (the `allowedThreats` flags) drawn by `BaseChanceThisGame` among those whose worker would fire for the forced parms at default threat points; none when none can. The cycle starts at day 0 (`minDaysPassed` gates it) | the curve | `ThreatsGenerator.MakeIntervalIncidents`, `MakeThreat`, `GetPossibleIncidents` |
+| A home-map `ThreatsGenerator` is a cycle of `parms.numIncidentsRange` × the count factor of the difficulty's `threatScale` (0 → 0.1, 0.3 → 0.5, 0.6 → 0.8, 1 → 1, 1.55 → 1.1, 2.2 → 1.2, 10 → 2; a private static field of a static class, so mirrored here), each a `RaidEnemy` or `MechCluster` (the `allowedThreats` flags) drawn by `BaseChanceThisGame` among those whose worker would fire for the forced parms at its own points; none when none can. Points use `threatPoints` or default points × `currentThreatPointsFactor`, then the optional `minThreatPoints` floor. The cycle origin is the map's `generationTick` converted to settled days (`minDaysPassed` also gates it) | the curve | `ThreatsGenerator.MakeIntervalIncidents`, `MakeThreat`, `GetPossibleIncidents` |
 | A `ThreatBig` `CategoryIndividualMTBByBiome` fires each home-map incident with an `mtbDaysByBiome` row of the colony's biome (the first row of the biome) at 1 / its MTB when the worker's native `CanFireNow` permits it at unforced default category parms; conditional on the observed game state | 1 / row MTB | `StorytellerComp_CategoryIndividualMTBByBiome`, `IncidentWorker.CanFireNow` |
 
 A `DiseaseHuman` incident drawn by an on-off cycle, `RandomMain`, `CategoryMTB`, `SingleMTB` or `CategoryIndividualMTBByBiome` (#3860) draws

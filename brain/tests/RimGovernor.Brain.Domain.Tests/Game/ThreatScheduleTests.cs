@@ -168,7 +168,7 @@ public sealed class ThreatScheduleTests
     }
 
     [Fact]
-    public void AThreatsGeneratorWhoseIncidentTheReadLacksIsARequiredFactAndOneWithItsOwnPointsIsNamed()
+    public void AThreatsGeneratorWhoseIncidentTheReadLacksIsARequiredFact()
     {
         var generator = new StorytellerCompProperties_ThreatsGenerator
         {
@@ -177,10 +177,59 @@ public sealed class ThreatScheduleTests
         var table = Catalog(Teller("Generated", generator)).ThreatSchedule();
         Assert.Throws<P.RequiredFactException>(() => Of(table, "Generated", 30.0));
 
-        generator.parms.threatPoints = 500;
-        var own = Of(Catalog(Teller("Generated", generator)).ThreatSchedule(), "Generated", 30.0);
-        Assert.Equal(0, own.MajorThreatsPerDay);
-        Assert.Equal(["threat_comp_unmodelled:" + nameof(StorytellerCompProperties_ThreatsGenerator)], own.Findings);
+    }
+
+    [Theory]
+    [InlineData(700d, 100d, 3, 700)]
+    [InlineData(200d, 800d, 3, 800)]
+    [InlineData(null, null, 3, 1500)]
+    [InlineData(null, 800d, 0.5, 800)]
+    public void GeneratorPointsUseTheExplicitBudgetOtherwiseTheScaledCurrentPointsThenTheMinimum(double? points, double? minimum, double factor, double expected)
+    {
+        var generator = new StorytellerCompProperties_ThreatsGenerator
+        {
+            parms = new ThreatsGeneratorParams { allowedThreats = AllowedThreatsGeneratorThreats.Raids, onDays = 5, offDays = 5,
+                numIncidentsRange = new FloatRange(1, 1), threatPoints = (float?)points, minThreatPoints = (float?)minimum, currentThreatPointsFactor = (float)factor },
+        };
+        var table = Catalog(Teller("Generated", generator)).ThreatSchedule();
+        var result = Of(table, "Generated", 30, generator: [new("RaidEnemy", 1, true)]);
+        Assert.Empty(result.Findings);
+        Assert.Equal(expected, Assert.Single(result.Raids).Points);
+        Assert.Equal(0.1, Assert.Single(result.Raids).PerDay, 9);
+        var review = new P.ReviewFacts
+        {
+            ThreatTable = table, DefenseCapacity = 1000,
+            Census = ColonyFactsCoreTests.Snapshot() with
+            {
+                Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with
+                {
+                    Storyteller = "Generated", DaysPassed = 30, RaidPoints = 500, Generator = [new("RaidEnemy", 1, true)],
+                } },
+            },
+        };
+        var priced = Assert.Single(P.HarmInputs.Of(review).ScheduledRaids);
+        Assert.Equal(expected, priced.Raid.RaidPoints);
+        Assert.Equal(1000, priced.Raid.Capacity);
+        Assert.Equal(0.1, priced.PerDay, 9);
+    }
+
+    [Fact]
+    public void TwoGeneratorsKeepTheirOwnEligibilityAndPointsAndReadTheMapGenerationStart()
+    {
+        StorytellerCompProperties_ThreatsGenerator Generator(float points) => new()
+        {
+            parms = new ThreatsGeneratorParams { allowedThreats = AllowedThreatsGeneratorThreats.Raids, onDays = 5, offDays = 5,
+                numIncidentsRange = new FloatRange(1, 1), threatPoints = points },
+        };
+        var table = Catalog(Teller("Generated", Generator(200), Generator(900))).ThreatSchedule();
+        var facts = ColonyFactsCoreTests.QuietThreat with
+        {
+            Storyteller = "Generated", DaysPassed = 30, GeneratorStartDays = 29,
+            Generator = [new("RaidEnemy", 1, false), new ThreatIncidentRead("RaidEnemy", 1, true) { CompIndex = 1 }],
+        };
+        Assert.Equal(900, Assert.Single(P.ThreatSchedule.Of(table, facts).Raids).Points);
+        Assert.Empty(P.ThreatSchedule.Of(table, facts with { GeneratorStartDays = 31 }).Raids);
+        Assert.Throws<P.RequiredFactException>(() => P.ThreatSchedule.Of(table, facts with { Generator = [new("RaidEnemy", 1, true)] }));
     }
 
     [Fact]

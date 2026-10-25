@@ -537,6 +537,34 @@ public sealed class ForecastValueTests
     }
 
     // A crafted devilstrand duster delivered at the given tick: an overlay of the worn outfit, timed by the outcome (#3621).
+    [Fact]
+    public void DistinctScheduledRaidBudgetsPriceTheirOwnCompositionForHarmMedicineAndHospitalCare()
+    {
+        var first = RaidDay(raidsPerDay: 0.25);
+        var second = RaidDay(raidsPerDay: 0.75) with
+        {
+            Raid = new RaidDefense(1500, 1000), Composition = new RaidComposition.Expected([RaidPartLossTests.Gun(20)]),
+        };
+        var mixed = RaidDay() with
+        {
+            ScheduledRaids = [new(0.25, first.Raid, first.Composition), new(0.75, second.Raid, second.Composition)],
+        };
+        var result = Harmed(Cloth, mixed);
+        Assert.Equal(Harmed(Cloth, first).Harm.Loss() + Harmed(Cloth, second).Harm.Loss(), result.Harm.Loss(), 9);
+        Assert.Equal(Harmed(Cloth, first).HarmDetail!.DeathsPerDay + Harmed(Cloth, second).HarmDetail!.DeathsPerDay, result.HarmDetail!.DeathsPerDay, 9);
+
+        var pawns = new Dictionary<string, NeedsForecastPawn> { ["pawn"] = HarmPawn() };
+        double Medicine(HarmInputs harm) => Assert.IsType<ForecastTerm.Assessed>(HarmLedger.TreatmentsPerDay(HarmContext(Cloth, harm), pawns)).Value;
+        Assert.Equal(Medicine(first) + Medicine(second), Medicine(mixed), 9);
+        var care = new HarmConsequences.Care(true, 0.8, 0, 1);
+        var a = HarmLedger.RaidOn(HarmContext(Cloth, first), HarmPawn(), care, Day);
+        var b = HarmLedger.RaidOn(HarmContext(Cloth, second), HarmPawn(), care, Day);
+        var both = HarmLedger.RaidOn(HarmContext(Cloth, mixed), HarmPawn(), care, Day);
+        Assert.Equal(0.25 * a.Risk + 0.75 * b.Risk, both.Risk, 9);
+        Assert.Equal(0.25 * a.PatientDays + 0.75 * b.PatientDays, both.PatientDays, 9);
+        Assert.Equal(0.25 * a.Replacements.Sum(r => r.Probability) + 0.75 * b.Replacements.Sum(r => r.Probability), both.Replacements.Sum(r => r.Probability), 9);
+    }
+
     private static ForecastValueResult Crafted(double? delivered)
     {
         var craft = new ForecastCommitment("craft", default)

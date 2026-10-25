@@ -226,7 +226,7 @@ public static partial class ForecastValue
         public readonly Dictionary<string, NeedsForecastPawn> Rows = context.Needs.Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         /// <summary>A pawn's raid distributions by what they depend on (#3546): outcomes that share a pawn's outfit and care share one.</summary>
-        public readonly System.Collections.Concurrent.ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> Harm = new();
+        public readonly System.Collections.Concurrent.ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange, EquatableArray<WeaponBin>), HarmDistribution> Harm = new();
         /// <summary>A pawn's illness distribution by its care (#3824): outcomes that share the care share one.</summary>
         public readonly System.Collections.Concurrent.ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution> Illness = new();
         /// <summary>The food need tasks eating a cookable ingredient raw (#3626), by (task, pawn).</summary>

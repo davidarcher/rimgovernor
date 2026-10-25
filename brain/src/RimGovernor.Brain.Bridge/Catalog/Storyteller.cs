@@ -12,7 +12,7 @@ namespace RimGovernor.Brain.Bridge;
 //   - StorytellerCompProperties_OnOffCycle whose IncidentCategory is ThreatBig (incident.category, else category): a cycle, its
 //     accept fraction by days passed, threat points and progress score, and its tree-connector days (#3860);
 //   - StorytellerCompProperties_ThreatsGenerator (#3860): its cycle, the allowed threats (RaidEnemy, MechCluster) and the difficulty's
-//     threatScale (the count curve is mirrored in P.ThreatSchedule);
+//     threatScale, plus its explicit/scaled/minimum points (the count curve is mirrored in P.ThreatSchedule);
 //   - StorytellerCompProperties_CategoryIndividualMTBByBiome of ThreatBig (#3860): each such incident's mtbDaysByBiome rows;
 //   - StorytellerCompProperties_RandomMain: an MTB comp with the ThreatBig share of its categoryWeights;
 //   - StorytellerCompProperties_CategoryMTB of ThreatBig: an MTB comp with its mtbDaysFactorByDaysPassedCurve;
@@ -20,8 +20,8 @@ namespace RimGovernor.Brain.Bridge;
 //   - StorytellerCompProperties_FactionInteraction: nothing (faction visits, traders, ally help), unmodelled of a ThreatBig incident.
 // A class listed as sending no scheduled major threat (quests, diseases, ...) adds nothing. The trader decoder (#3869, #3909) reads
 // the same comps for trader visits (TradeSchedule). Every other home-map
-// comp is named unmodelled and adds no threats: a comp class the decoder does not know, and a ThreatsGenerator with its own
-// threat points. 1.7 has no StorytellerCompProperties_ThreatCycle.
+// comp is named unmodelled and adds no threats: a comp class the decoder does not know, and a ThreatsGenerator with an explicit
+// faction. 1.7 has no StorytellerCompProperties_ThreatCycle.
 
 public sealed partial class DefinitionCatalog
 {
@@ -64,9 +64,9 @@ public sealed partial class DefinitionCatalog
                     break;
                 case StorytellerCompProperties_ThreatsGenerator generator when kind == nameof(StorytellerCompProperties_ThreatsGenerator):
                     var parms = generator.parms;
-                    if (parms is null || parms.threatPoints.HasValue || parms.minThreatPoints.HasValue || parms.currentThreatPointsFactor != 1 || parms.faction is not null)
+                    if (parms is null || parms.faction is not null)
                     {
-                        // The incident's points or faction are not the colony's default raid points the native read gates on.
+                        // Explicit-faction generators need a faction-specific composition read.
                         unmodelled.Add(kind);
                         break;
                     }
@@ -83,7 +83,13 @@ public sealed partial class DefinitionCatalog
                     }
 
                     generators.Add(new P.ThreatGeneratorComp(Decimal32(generator.minDaysPassed), Decimal32(parms.onDays), Decimal32(parms.offDays),
-                        Decimal32(parms.numIncidentsRange.min), Decimal32(parms.numIncidentsRange.max), allowed, nameof(IncidentDefOf.RaidEnemy)));
+                        Decimal32(parms.numIncidentsRange.min), Decimal32(parms.numIncidentsRange.max), allowed, nameof(IncidentDefOf.RaidEnemy))
+                    {
+                        CompIndex = def.comps.IndexOf(generator),
+                        PointBasis = parms.threatPoints is { } points ? new P.GeneratorPoints.Fixed(Decimal32(points))
+                            : new P.GeneratorPoints.Current(Decimal32(parms.currentThreatPointsFactor)),
+                        MinimumPoints = parms.minThreatPoints is { } minimum ? Decimal32(minimum) : double.NegativeInfinity,
+                    });
                     break;
                 case StorytellerCompProperties_RandomMain random when kind == nameof(StorytellerCompProperties_RandomMain):
                     var weights = random.categoryWeights.Seq().Where(e => e.category is not null).ToList();

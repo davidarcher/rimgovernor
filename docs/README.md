@@ -124,4 +124,5 @@ Food/shelter investment and unified construction adoption: [essential-service co
 
 Workshop and laboratory productivity: [bench room credits](developers/contracts/forecast-contracts.md#workshop-and-laboratory-bench-credits).
 
+Storyteller generator points and raid harm mixtures: [threat schedule contract](developers/contracts/forecast-contracts.md#threat-schedule-3539).
 Disease incident timing and conditional future comp inputs: [illness forecast](developers/contracts/forecast-contracts.md#illness-term-3824).

@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 // The threat schedule of the harm model (#3539 of #3471): how many major threats per day the storyteller the game is running
 // sends, and how many of them are raids. The rates are not typed in; the bridge decodes each StorytellerDef from its comps by
 // comp class (Catalog/Storyteller.cs, #3859, #3860) and this mirrors what the comp classes do with those props (kept constants:
-// "Mirrored game literals: threat schedule"). Raid points are not modelled here: they stay the observed RaidPoints.
+// "Mirrored game literals: threat schedule"). Default points stay the observed RaidPoints; generator budgets apply their own parms.
 
 /// <summary>What an OnOffCycle comp reads of the colony now (#3860): the days passed, the threat points, StorytellerUtility.GetProgressScore, and whether the colony has no tree connection.</summary>
 public readonly record struct CycleNow(double Days, double ThreatPoints, double ProgressScore, bool NoTreeConnection);
@@ -50,7 +50,26 @@ public sealed record ThreatMtbComp(double MinDaysPassed, double MtbDays, double 
 /// <see cref="Raid"/> one is a raid.
 /// </summary>
 public sealed record ThreatGeneratorComp(double MinDaysPassed, double OnDays, double OffDays, double MinIncidents, double MaxIncidents,
-    IReadOnlyList<string> Incidents, string Raid);
+    IReadOnlyList<string> Incidents, string Raid)
+{
+    public int CompIndex { get; init; }
+    public GeneratorPoints PointBasis { get; init; } = new GeneratorPoints.Current(1);
+    /// <summary>Negative infinity is the identity of max when native has no minimum.</summary>
+    public double MinimumPoints { get; init; } = double.NegativeInfinity;
+
+    public double Points(double current) => Math.Max(PointBasis.Evaluate(current), MinimumPoints);
+}
+
+public abstract record GeneratorPoints
+{
+    private GeneratorPoints() { }
+    public abstract double Evaluate(double current);
+    public sealed record Fixed(double Value) : GeneratorPoints { public override double Evaluate(double current) => Value; }
+    public sealed record Current(double Factor) : GeneratorPoints { public override double Evaluate(double current) => current * Factor; }
+}
+
+/// <summary>Raids per day at one distinct points budget; harm evaluates each budget before adding its losses.</summary>
+public sealed record ScheduledRaid(double Points, double PerDay);
 
 /// <summary>A ThreatBig incident a CategoryIndividualMTBByBiome fires every <see cref="MtbDays"/> (its mtbDaysByBiome row), and whether it is a raid.</summary>
 public sealed record ThreatBiomeIncident(string Incident, double MtbDays, bool Raid);
@@ -99,6 +118,8 @@ public sealed record ThreatSchedule
 
     public double RaidFraction { get; init; }
 
+    public IReadOnlyList<ScheduledRaid> Raids { get; init; } = [];
+
     public IReadOnlyList<string> Findings { get; init; } = [];
 
     // StorytellerCompProperties_OnOffCycle.forceRaidEnemyBeforeDaysPassed is 20 in the Core Cassandra and Phoebe comps:
@@ -137,7 +158,8 @@ public sealed record ThreatSchedule
 
         var now = new CycleNow(days, threat.RaidPoints, threat.ProgressScore, threat.NoTreeConnection);
         var flat = days < RaidsForcedBeforeDays ? 1.0 : RaidFractionAfterForced;
-        double perDay = 0, raids = 0;
+        double perDay = 0, raids = 0, defaultRaids = 0;
+        var generatedRaids = new List<ScheduledRaid>();
         foreach (var cycle in threats.Cycles)
         {
             var (on, off) = cycle.Days(now.NoTreeConnection);
@@ -155,6 +177,7 @@ public sealed record ThreatSchedule
             var rate = CyclePerDay(cycle, now);
             perDay += rate;
             raids += rate * flat;
+            defaultRaids += rate * flat;
         }
 
         foreach (var comp in threats.Mtbs)
@@ -171,18 +194,21 @@ public sealed record ThreatSchedule
                 var rate = comp.ThreatBigShare / mtb;
                 perDay += rate;
                 raids += rate * flat;
+                defaultRaids += rate * flat;
             }
         }
 
         foreach (var comp in threats.Generators)
         {
             var length = Intervals(comp.OnDays) + Intervals(comp.OffDays);
-            if (comp.OnDays < 0 || comp.OffDays < 0 || length <= 0 || comp.MinIncidents < 0 || comp.MaxIncidents < comp.MinIncidents)
+            if (comp.OnDays < 0 || comp.OffDays < 0 || length <= 0 || comp.MinIncidents < 0 || comp.MaxIncidents < comp.MinIncidents
+                || !double.IsFinite(comp.Points(threat.RaidPoints)) || comp.Points(threat.RaidPoints) < 0 || !double.IsFinite(threat.GeneratorStartDays))
             {
                 return Unread("threat_comp_invalid:ThreatsGenerator");
             }
 
-            if (days < comp.MinDaysPassed)
+            var start = threat.GeneratorStartDays;
+            if (days < comp.MinDaysPassed || days < start)
             {
                 continue;
             }
@@ -192,7 +218,7 @@ public sealed record ThreatSchedule
             double total = 0, raid = 0;
             foreach (var name in comp.Incidents)
             {
-                var read = threat.Generator.FirstOrDefault(r => r.Incident == name) ?? throw new RequiredFactException("threat_generator_incident_unobserved:" + name);
+                var read = threat.Generator.FirstOrDefault(r => r.CompIndex == comp.CompIndex && r.Incident == name) ?? throw new RequiredFactException("threat_generator_incident_unobserved:" + comp.CompIndex + ":" + name);
                 if (read.CanFire && read.Weight > 0)
                 {
                     total += read.Weight;
@@ -206,6 +232,7 @@ public sealed record ThreatSchedule
                 var rate = (comp.MinIncidents + comp.MaxIncidents) / 2 * factor * IntervalsPerDay / length;
                 perDay += rate;
                 raids += rate * raid / total;
+                generatedRaids.Add(new ScheduledRaid(comp.Points(threat.RaidPoints), rate * raid / total));
             }
         }
 
@@ -230,6 +257,7 @@ public sealed record ThreatSchedule
                 {
                     perDay += 1 / incident.MtbDays;
                     raids += incident.Raid ? 1 / incident.MtbDays : 0;
+                    defaultRaids += incident.Raid ? 1 / incident.MtbDays : 0;
                 }
             }
         }
@@ -245,6 +273,8 @@ public sealed record ThreatSchedule
             Assessed = true,
             MajorThreatsPerDay = perDay,
             RaidFraction = perDay > 0 ? raids / perDay : flat,
+            Raids = generatedRaids.Append(new ScheduledRaid(threat.RaidPoints, defaultRaids))
+                .Where(r => r.PerDay > 0).GroupBy(r => r.Points).Select(g => new ScheduledRaid(g.Key, g.Sum(r => r.PerDay))).ToArray(),
             Findings = findings,
         };
     }

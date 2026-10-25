@@ -108,7 +108,7 @@ public static class CreepJoinerHarm
 
     /// <summary>The term over <paramref name="ordered"/> pawns (the forecast's colonists); none without a colonist creepjoiner whose downside has not shown.</summary>
     internal static CreepJoinerTerm Term(string[] ordered, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
-        ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> fights,
+        ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange, EquatableArray<WeaponBin>), HarmDistribution> fights,
         IReadOnlyDictionary<string, NeedsForecastPawn> pawns, IEnumerable<ForecastCommitment>? commitments, SortedSet<string> findings)
     {
         var inputs = InputsOf(context);

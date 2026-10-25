@@ -916,7 +916,8 @@ The harm model's first step ([harm model](../architecture/forecast-value.md#harm
   `ProgressScore` (`StorytellerUtility.GetProgressScore`), `NoTreeConnection` (the player faction has ideoligions and none has the
   `TreeConnection` meme), `ThreatScale` (the difficulty's), `Biome` and `Generator` (a `ThreatIncidentRead` of `RaidEnemy` and, with
   Royalty, `MechCluster` (otherwise an explicitly ineligible row): its `BaseChanceThisGame` weight and whether its worker would fire for the forced parms at the map's raid
-  points, #3860); the review retains the section in its canonical `Census.Threat.Observed` row; the section is required, and a threat read the native cannot complete fails the census. Raid points stay the observed `RaidPoints`
+  points, #3860); generator rows are keyed by storyteller comp index and read at that generator's own points (#3993).
+  `GeneratorStartDays` reads `GenDate.TickGameToSettled(map.generationTick) / 60000`, the native cycle origin; the review retains the section in its canonical `Census.Threat.Observed` row; the section is required, and a threat read the native cannot complete fails the census. Raid points stay the observed `RaidPoints`
   (adaptation and difficulty are inside it); the schedule does not model their growth.
 - `ThreatFacts.BiomeIncidents` is one required `ThreatBiomeIncidentRead` per home-map `ThreatBig` incident with biome MTB rows.
   Native reads `incident.Worker.CanFireNow(StorytellerUtility.DefaultParmsNow(incident.category, map))`, exactly the unforced
@@ -928,16 +929,22 @@ The harm model's first step ([harm model](../architecture/forecast-value.md#harm
 - `ReviewFacts.ThreatTable` (`ThreatScheduleTable`): per `StorytellerDef`, its home-map threat comps decoded by comp class in
   `Catalog/Storyteller.cs` (#3859, #3860): on-off cycles of `ThreatBig` with their accept curves by days passed, threat points and
   progress score and their tree-connector days, MTB comps (random mains with their `ThreatBig` weight share, `ThreatBig` category MTBs
-  with their days-passed factor, single MTBs of a `ThreatBig` incident), home-map `ThreatsGenerator`s (cycle, allowed threats), `ThreatBig`
+  with their days-passed factor, single MTBs of a `ThreatBig` incident), home-map `ThreatsGenerator`s (cycle, allowed threats, explicit points, minimum points and current-points factor), `ThreatBig`
   `CategoryIndividualMTBByBiome`s (each incident's `mtbDaysByBiome` rows), and the comps it does not model. Empty without a catalog.
 - `ThreatSchedule.Of(table, threat)`: `MajorThreatsPerDay`, the sum of the modelled comps' expected
   incidents a day at that day (a threat-points curve at the observed `RaidPoints`, a progress-score curve at `ProgressScore`, a
   generator drawn by weight among the incidents that can fire, scaled by the difficulty's `ThreatScale`, a biome comp at the colony's
   biome), and `RaidFraction` (1 before day 20 for cycles, 0.5 after; a generator's by its `RaidEnemy` weight; a biome comp's by the
-  incident's worker). A comp it does not model (a mod's comp class, a `ThreatsGenerator` with its own threat points) adds no threats and
+  incident's worker). A comp it does not model (a mod's comp class, a `ThreatsGenerator` with an explicit faction) adds no threats and
   is named, `threat_comp_unmodelled:<comps>`, on the assessed schedule; the harm term carries the finding. A biome incident adds
   1 / its MTB only when its observed `CanFire` is true; a known blocked incident adds zero. A generator incident the read lacks
-  is a `RequiredFactException`, as is a missing biome incident (`threat_biome_incident_unobserved:<incident>`). The schedule is not `Assessed`, with
+  is a `RequiredFactException`, as is a missing biome incident (`threat_biome_incident_unobserved:<incident>`).
+  `Raids` retains each distinct points budget and its raids per day: generator points are
+  `max(threatPoints ?? RaidPoints * currentThreatPointsFactor, minThreatPoints)` when a minimum is set. The cycle starts at the
+  observed map generation day; its steady expected daily count is independent of the phase after that start. Harm composes and
+  prices each budget independently, then sums expected loss and deaths; hospital care, replacement demand and medicine use the
+  same mixture. Harm distribution caches include the weapon bins, so equal exposure ranges cannot mix different compositions.
+  The schedule is not `Assessed`, with
   a finding (`threat_unobserved`, `days_passed_invalid`, `storyteller_unknown:<def>`,
   `threat_comp_invalid:<shape>`), when a fact it reads is unread; the hospital credit then throws `RequiredFactException`. Non-raid
   threats are not modelled. The mirrored literals are in [kept constants](kept-constants.md#mirrored-game-literals-threat-schedule-3539).

@@ -43,12 +43,22 @@ internal static class NativeStorytellerFacts
     /// <summary>
     /// ThreatsGenerator.GetPossibleIncidents, RaidEnemy then MechCluster (MechCluster only with Royalty, where its def exists), each with
     /// its BaseChanceThisGame and whether its worker would fire for the forced parms ThreatsGenerator.MakeThreat passes at the map's
-    /// raid points: IncidentWorker.CanFireNow past its gates is CanFireNowSub (and false in an active void awakening).
+    /// own points: IncidentWorker.CanFireNow past its gates is CanFireNowSub (and false in an active void awakening).
     /// </summary>
     internal static IEnumerable<RimGovernor.Brain.GameFacts.Observations.ThreatIncidentRead> GeneratorIncidents(Map map)
     {
+        for (var index = 0; index < Find.Storyteller.def.comps.Count; index++)
+        {
+            if (Find.Storyteller.def.comps[index] is not StorytellerCompProperties_ThreatsGenerator { parms: { } generator }) continue;
+            foreach (var incident in GeneratorIncidents(map, generator)) yield return incident with { CompIndex = index };
+        }
+    }
+
+    private static IEnumerable<RimGovernor.Brain.GameFacts.Observations.ThreatIncidentRead> GeneratorIncidents(Map map, ThreatsGeneratorParams generator)
+    {
         var voidAwakening = ModsConfig.AnomalyActive && Find.Anomaly.VoidAwakeningActive();
-        var parms = new IncidentParms { target = map, points = StorytellerUtility.DefaultThreatPointsNow(map), forced = true };
+        var parms = new IncidentParms { target = map, points = generator.threatPoints ?? StorytellerUtility.DefaultThreatPointsNow(map) * generator.currentThreatPointsFactor, forced = true, faction = generator.faction };
+        if (generator.minThreatPoints is { } minimum) parms.points = System.Math.Max(parms.points, minimum);
         var raid = IncidentDefOf.RaidEnemy;
         // IncidentWorker_PawnsArrive.CanFireNowSub with no faction in the parms: some faction can be the raid's source.
         var raidWorker = (IncidentWorker_PawnsArrive)raid.Worker;

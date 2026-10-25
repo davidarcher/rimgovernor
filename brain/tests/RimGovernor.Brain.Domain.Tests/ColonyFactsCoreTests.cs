@@ -101,6 +101,7 @@ public sealed class ColonyFactsCoreTests
         ThreatScale = 1,
         Biome = "TemperateForest",
         Generator = [],
+        GeneratorStartDays = 0,
         BiomeIncidents = [],
         HostileFactions = [],
         Raids = [],
