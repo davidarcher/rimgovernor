@@ -545,7 +545,7 @@ public sealed partial class Rounder
         if (firebreak is not null)
         {
             // The ring plan's dwell clock advances every review; the layout family reads the work it leaves.
-            _ = await firebreak.ConfigureAwait(false);
+            await firebreak.ConfigureAwait(false);
         }
         fine.Lap("d_planned/firebreak");
         Lap("d_planned");

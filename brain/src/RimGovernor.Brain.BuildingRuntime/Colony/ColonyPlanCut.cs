@@ -9,7 +9,7 @@ internal static class ColonyPlanCut
     /// </summary>
     public static PerimeterWall PerimeterWallOf(ColonyProjection projection)
     {
-        var output = new PerimeterWall(Unknown<double>(), Unknown<double>());
+        var output = new PerimeterWall(new WallStrength.Unrated(), new WallStrength.Unrated());
         foreach (var d in projection.Definitions)
         {
             if (d.Name != PerimeterCutRules.PerimeterDefs().WallDef)
@@ -25,15 +25,15 @@ internal static class ColonyPlanCut
                 }
                 if (option.Stuff == LayoutDefenseRules.PerimeterLightStuff)
                 {
-                    output = output with { LightHP = Known(hp) };
+                    output = output with { LightHP = new WallStrength.Rated(hp) };
                 }
                 if (priced && option.Stuff == price.Stuff)
                 {
-                    output = output with { HP = Known(hp) };
+                    output = output with { HP = new WallStrength.Rated(hp) };
                 }
             }
         }
-        if (!output.HP.TryGetValue(out _))
+        if (output.HP is WallStrength.Unrated)
         {
             output = output with { HP = output.LightHP };
         }

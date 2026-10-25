@@ -616,8 +616,15 @@ partial class RoundsFieldPlanner
 
     internal static List<Cell> FirebreakRing(ColonyProjection projection)
     {
-        var ring = FirebreakRingRules.FirebreakRing(FirebreakPlan.FirebreakRequest(projection));
-        return ring.TryGetValue(out var cells) ? cells.ToList() : [];
+        // Siting protects the ring where one is derived; while the extent's evidence is unread there is no ring to protect.
+        try
+        {
+            return FirebreakRingRules.FirebreakRing(FirebreakPlan.Footprint(projection)).ToList();
+        }
+        catch (RequiredFactException)
+        {
+            return [];
+        }
     }
 
     internal static CropChoice WithHarvestFacts(CropChoice crop, PlanningDefinition d)

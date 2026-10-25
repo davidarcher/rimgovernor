@@ -37,10 +37,20 @@ public sealed record PerimeterTable(string WallDef, double DetourBudgetTicks);
 
 /// <summary>
 /// The wall's strength: the MaxHitPoints of the wall the cut is built from on firm ground (HP) and of the
-/// wood wall laid on light footing and on a plain bridge (LightHP). An unknown strength leaves the thickness
+/// wood wall laid on light footing and on a plain bridge (LightHP). An unrated strength leaves the thickness
 /// at one cell.
 /// </summary>
-public sealed record PerimeterWall(Fact<double> HP, Fact<double> LightHP);
+public sealed record PerimeterWall(WallStrength HP, WallStrength LightHP);
+
+/// <summary>A wall's strength: Rated at HP hit points, or Unrated when the catalog gives the colony no wall of that kind to build from.</summary>
+public abstract record WallStrength
+{
+    private protected WallStrength() { }
+
+    public sealed record Unrated : WallStrength;
+
+    public sealed record Rated(double HP) : WallStrength;
+}
 
 /// <summary>A run of the cut's cells that share one thickness.</summary>
 public sealed record CutSegment
@@ -655,16 +665,9 @@ public static partial class PerimeterCutRules
         }
         var g = new CutGrid(w, h);
         var input = new CutInput(g, new double[w * h], new bool[w * h], new bool[w * h]);
-        var light = wall.HP.TryGetValue(out var firm);
-        var lightKnown = wall.LightHP.TryGetValue(out var lightHp);
-        if (!light)
-        {
-            firm = 0;
-        }
-        if (!lightKnown)
-        {
-            lightHp = 0;
-        }
+        // An unrated wall enters the design as zero hit points, which it reads as thickness_unknown (one cell).
+        var firm = wall.HP is WallStrength.Rated firmWall ? firmWall.HP : 0.0;
+        var lightHp = wall.LightHP is WallStrength.Rated lightWall ? lightWall.HP : 0.0;
         var cells = new SurveyCell?[w * h];
         var read = new bool[w * h];
         foreach (var c in s.Cells)

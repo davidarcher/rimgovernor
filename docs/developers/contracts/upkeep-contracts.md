@@ -476,9 +476,9 @@ under it; it has no latch, and unknown temperature or room facts leave it unknow
 - The `shelter/temperature` Need reuses the wall search for a hot sleeping room. Hot rooms are
   served hottest first, cold rooms coldest first. A room with no thermal facility gets
   one powered `Cooler` at the lowest-sorted vented wall cell, cold side in, when `Cooler`
-  availability is known true and a connected network's nominal producer capacity exceeds
+  is `ClimateGear.Placeable` and a connected network's nominal producer capacity exceeds
   demand by the cooler's draw (`policy.TemperatureCooling`, `PowerTopology.SpareW`).
-  A known solar flare, unfinished research, unknown power facts or no vented wall keep
+  A solar flare, unfinished research, `ClimatePower.NoCensus` or no vented wall keep
   the passive cooler inside the room. A `Cooler` the power census places beside the room
   counts as its facility. The setpoint is the native default (21 C); the family patches
   no setpoints; its draw reaches the `power/basic` Need as pending demand while open, measured

@@ -181,10 +181,11 @@ This is coordination within existing concerns, not an executor.
   work destinations; they do not make paths safe. The brain never assigns an unroofed area or
   clears a restriction while fallout lasts; native reports no hazard veto. No refuge produces a blocker.
   Outdoor hazards (extreme cold at or below -20 C, extreme heat at or above 45 C, toxic fallout) are a typed
-  fact (`OutdoorHazardsOf`); any known hazard, including an unrecognised kind, holds remote loot, salvage and
+  fact (`OutdoorHazardsOf`); any active hazard holds remote loot, salvage and
   mining, recovery, and chop, hunt and forage acquisition with reason `outdoor_hazard` (acquisition reports it as a `waiting_for_native_temperature` wait
-  with that subject). An unknown fact never
-  holds. Field expansion is not gated.
+  with that subject). An unread condition census or outdoor temperature raises `RequiredFactException`
+  in the planner that asks (a map without the reads is not known to be free of hazards); the dash review
+  alone publishes no window instead. Field expansion is not gated.
   Planned dashes (#2765): while extreme cold is the only hazard and no hostile is up, `policy.PlanDash`
   picks one colonist's trips from the loot census, ordered by market value per exposed tick, each an
   out-and-back leg plus a pickup dwell, walked at the pawn's real move speed slowed by the hypothermia

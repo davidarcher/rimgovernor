@@ -53,28 +53,39 @@ internal sealed class FirebreakMemory
         }
     }
 
-    internal async Task<Fact<bool>> ReviewAsync(C.Identity identity, GenerationSnapshot current, ColonyProjection projection, IReadOnlySet<Cell> busy, CancellationToken ct)
+    /// <summary>
+    /// Reviews the ring and records the work it leaves. An input the colony has not read leaves the tick unreviewed:
+    /// <see cref="Take"/> then reports it and the layout read raises <see cref="RequiredFactException"/>, so the shared
+    /// review is not failed by the one planner that needs the ring.
+    /// </summary>
+    internal async Task ReviewAsync(C.Identity identity, GenerationSnapshot current, ColonyProjection projection, IReadOnlySet<Cell> busy, CancellationToken ct)
+    {
+        try
+        {
+            await ReviewRingAsync(identity, current, projection, busy, ct).ConfigureAwait(false);
+        }
+        catch (RequiredFactException e)
+        {
+            ClockEvents.Event("firebreak", "review", "firebreak ring unreviewed: " + e.Message);
+        }
+    }
+
+    private async Task ReviewRingAsync(C.Identity identity, GenerationSnapshot current, ColonyProjection projection, IReadOnlySet<Cell> busy, CancellationToken ct)
     {
         var world = StockpileWorld(current);
         var tick = projection.Identity.Tick;
-        var request = FirebreakRequest(projection);
-        var ring = FirebreakRingRules.FirebreakRing(request);
-        if (!ring.TryGetValue(out var cells))
+        var footprint = FirebreakPlan.Footprint(projection);
+        var cells = FirebreakRingRules.FirebreakRing(footprint);
+        if (!projection.Facts.Upkeep.Flooring.TryGetValue(out var flooring))
         {
-            return Unknown<bool>();
+            throw new RequiredFactException("flooring census");
         }
-        var flooringKnown = projection.Facts.Upkeep.Flooring.TryGetValue(out var flooring);
-        if (!flooringKnown)
+        if (!projection.Resources.TryGetValue(out var stock))
         {
-            return Unknown<bool>();
+            throw new RequiredFactException("colony stock");
         }
         var style = FloorStyle(projection);
-        if (style is not null)
-        {
-            request = request with { Floor = style(RoomRole.None).Floor };
-        }
-        request = request with { Stock = projection.Resources };
-        request = request with { Claimed = Known<IReadOnlyDictionary<Resource, long>>(FirebreakClaimed(projection)) };
+        var floorName = style is null ? "" : style(RoomRole.None).Floor;
         var floors = new Dictionary<string, FloorDefinition>(StringComparer.Ordinal);
         foreach (var d in projection.Definitions)
         {
@@ -90,8 +101,8 @@ internal sealed class FirebreakMemory
                 WorkToBuild = d.WorkToBuild,
             };
         }
-        request = request with { Floors = floors };
-        var ground = new Dictionary<Cell, Fact<FirebreakGround>>();
+
+        var ground = new Dictionary<Cell, FirebreakGround>();
         var site = new Dictionary<Cell, O.DefenseCell.Seen>();
         // Every tile is asked in one frame (the game-thread pump drains the queued reads together) instead of one frame each.
         var tiles = FirebreakTiles(cells).Select(tile => tile with
@@ -119,21 +130,27 @@ internal sealed class FirebreakMemory
                 {
                     site[cell.Cell] = seen;
                 }
-                ground[cell.Cell] = Known(FirebreakGroundOf(cell));
+                ground[cell.Cell] = FirebreakGroundOf(cell);
             }
         }
-        request = request with { Ground = ground };
+        var request = new FirebreakRequest
+        {
+            Footprint = footprint,
+            Planned = FirebreakPlan.PlannedFootprint(projection),
+            Ground = ground,
+            Now = tick,
+            Floors = floors,
+            Stock = stock,
+            Claimed = FirebreakClaimed(projection, footprint.Claims),
+            Floor = floorName.Length == 0 ? null : floorName,
+        };
         IReadOnlyDictionary<Cell, Tick> dwell;
         lock (_mu)
         {
             Enter(world);
             dwell = _dwell ?? new Dictionary<Cell, Tick>();
         }
-        var (fact, next) = FirebreakRules.PlanFirebreak(request, dwell);
-        if (!fact.TryGetValue(out var plan))
-        {
-            return Unknown<bool>();
-        }
+        var (plan, next) = FirebreakRules.PlanFirebreak(request, dwell);
         var cut = plan.Cells.Where(c => c.Treatment == FirebreakTreatment.Cut).Select(c => c.Cell).ToList();
         var standing = StandingPlants(projection.Cells, cut);
         var open = new HashSet<Cell>();
@@ -151,17 +168,14 @@ internal sealed class FirebreakMemory
         }
         var work = FirebreakConcernRules.FirebreakOwed(plan, standing, open);
         var pave = new List<Cell>();
-        if (flooringKnown && flooring is not null)
+        foreach (var cell in plan.Cells)
         {
-            foreach (var cell in plan.Cells)
+            if (cell.Treatment == FirebreakTreatment.Pave
+                && site.TryGetValue(cell.Cell, out var sc)
+                && flooring.Terrains.TryGetValue(sc.Terrain, out var terrain) && terrain.Natural
+                && !busy.Contains(cell.Cell))
             {
-                if (cell.Treatment == FirebreakTreatment.Pave
-                    && site.TryGetValue(cell.Cell, out var sc)
-                    && flooring.Terrains.TryGetValue(sc.Terrain, out var terrain) && terrain.Natural
-                    && !busy.Contains(cell.Cell))
-                {
-                    pave.Add(cell.Cell);
-                }
+                pave.Add(cell.Cell);
             }
         }
         var dir = Environment.GetEnvironmentVariable(SnapshotRecorder.DirEnv);
@@ -188,7 +202,7 @@ internal sealed class FirebreakMemory
             _ruins = ruins;
             _pave = pave;
         }
-        return Known(work.Owed);
+
     }
 
     private static HashSet<Cell> StandingPlants(IReadOnlyList<SiteCell> cells, IReadOnlyList<Cell> cut)
@@ -229,13 +243,9 @@ internal sealed class FirebreakMemory
         }
     }
 
-    private static Dictionary<Resource, long> FirebreakClaimed(ColonyProjection projection)
+    private static Dictionary<Resource, long> FirebreakClaimed(ColonyProjection projection, EquatableArray<ConstructionClaim> claims)
     {
         var claimed = new Dictionary<Resource, long>();
-        if (!projection.Facts.ConstructionClaims.TryGetValue(out var claims))
-        {
-            return claimed;
-        }
         foreach (var claim in claims)
         {
             if (claim.Building is null || !projection.TryDefinition(claim.Building.Definition, out var d))
@@ -287,8 +297,6 @@ internal sealed class FirebreakMemory
         return FirebreakGround.StoneRuin;
     }
 
-    private static FirebreakRequest FirebreakRequest(ColonyProjection projection) => FirebreakPlan.FirebreakRequest(projection);
-
     private static string StockpileWorld(GenerationSnapshot current) => RoundsStockpilePlanner.StockpileWorld(current);
 
     private static Func<RoomRole, (string Floor, bool Ok)>? FloorStyle(ColonyProjection projection) => RoundsTierStyle.FloorStyle(projection);
@@ -310,7 +318,8 @@ partial class FirebreakPlan
     internal const string FirebreakPrefix = "firebreak-";
     internal const int FirebreakTile = 32;
 
-    internal static FirebreakRequest FirebreakRequest(ColonyProjection projection)
+    /// <summary>The base the ring surrounds; the construction census, the claims and the home coverage must all be read, or <see cref="RequiredFactException"/>.</summary>
+    internal static FirebreakFootprint Footprint(ColonyProjection projection)
     {
         var farms = new HashSet<string>(projection.Farms.Select(f => f.Id), StringComparer.Ordinal);
         var zones = new List<Cell>();
@@ -322,23 +331,23 @@ partial class FirebreakPlan
             }
         }
         var f = projection.Facts;
-        var r = new FirebreakRequest
+        if (!f.ConstructionClaims.TryGetValue(out var claims))
         {
-            Bounds = Known(projection.Bounds),
-            Construction = f.CurrentConstruction,
-            Claims = f.ConstructionClaims,
-            Home = f.HomeCoverage,
-            GrowingZones = Known(EquatableArray.From(zones)),
-            Now = projection.Identity.Tick,
-        };
-        var planned = new List<Cell>();
-        if (projection.LayoutPlan.TryGetValue(out var plan))
-        {
-            planned = LayoutFootprint(plan);
+            throw new RequiredFactException("construction claims");
         }
-        r = r with { Planned = Known(EquatableArray.From(planned)) };
-        return r;
+        return new FirebreakFootprint
+        {
+            Bounds = projection.Bounds,
+            Construction = f.CurrentConstruction ?? throw new RequiredFactException("construction census"),
+            Claims = claims,
+            Home = f.HomeCoverage ?? throw new RequiredFactException("home coverage"),
+            GrowingZones = EquatableArray.From(zones),
+        };
     }
+
+    /// <summary>The cells of the accepted layout plan's footprints; none while no plan is derived.</summary>
+    internal static EquatableArray<Cell> PlannedFootprint(ColonyProjection projection) =>
+        EquatableArray.From(projection.LayoutPlan.TryGetValue(out var plan) ? LayoutFootprint(plan) : []);
 
     internal static List<Cell> LayoutFootprint(LayoutPlan plan)
     {

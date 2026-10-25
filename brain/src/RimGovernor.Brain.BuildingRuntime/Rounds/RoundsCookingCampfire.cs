@@ -148,15 +148,20 @@ partial class RoundsBuildingPlanner
             {
                 if (b.Id == bench.Id && b.Cells.Count > 0 && heat.Contains(b.Cells[0]))
                 {
-                    output.Add(new HeatCampfire { Id = bench.Id, Room = bench.Room, AutoRefuel = bench.AutoRefuel });
+                    // A campfire whose native room or auto-refuel toggle was not read owes no switch.
+                    if (HeatCampfire.Of(bench.Id, bench.Room, bench.AutoRefuel) is { } campfire)
+                    {
+                        output.Add(campfire);
+                    }
                 }
             }
         }
         return output;
     }
 
+    /// <summary>Whether a heat campfire owes its refuel switch or an unheated sleeping room sits cold; unread while the room or sleeper census is.</summary>
     internal static Fact<bool> TemperatureOwed(ColonyProjection facts) =>
-        Known(TemperatureMethodRules.TemperatureOwed(facts.Rooms, TemperatureCooling(facts)));
+        TemperatureMethodRules.TemperatureOwed(facts.Rooms, facts.Facts.Sleeping, HeatCampfires(facts));
 
     internal static Fact<bool> CampfireRetireOwed(ColonyProjection facts)
     {

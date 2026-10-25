@@ -158,7 +158,7 @@ public sealed record RemoteSafety
 {
     public Fact<bool> Threat { get; init; }
 
-    public Fact<EquatableArray<OutdoorHazard>> Hazard { get; init; }
+    public EquatableArray<OutdoorHazard> Hazard { get; init; }
 
     /// <summary>A planned dash window is open (DashWindow.OpenAt).</summary>
     public bool DashOpen { get; init; }

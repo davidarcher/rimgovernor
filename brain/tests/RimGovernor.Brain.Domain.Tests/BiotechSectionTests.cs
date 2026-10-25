@@ -72,12 +72,11 @@ public sealed class BiotechSectionTests
             json);
         Assert.Equal(state, WireJson.Deserialize<O.PawnBiotechState>(json));
 
-        var lifted = BiotechFactsRules.PawnBiotech(state).Value;
+        var lifted = PawnBiotech.Of(((O.PawnBiotechState.Active)state).Facts);
         Assert.Equal(new PawnMechGroup(1, 0.1, 1), lifted.Mech!.Group);
         Assert.Equal(new MechEnergy.Level(0.5), lifted.Mech.Energy);
         Assert.Null(lifted.Mechanitor);
         Assert.Equal(2, lifted.Deathrest!.Capacity);
-        Assert.False(BiotechFactsRules.PawnBiotech(new O.PawnBiotechState.Inactive()).IsKnown);
     }
 
     [Fact]

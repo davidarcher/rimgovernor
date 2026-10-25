@@ -5,8 +5,6 @@ Bridge.Contracts/Actions/Orders.cs|Discard|5
 Bridge.Contracts/Actions/PolicyActions.cs|Discard|3
 Bridge.Contracts/Actions/Trade.cs|Discard|2
 Bridge.Contracts/Actions/Zones.cs|Discard|3
-Bridge.Contracts/Facts/BiotechFacts.cs|Fact|2
-Bridge.Contracts/Facts/BiotechFacts.cs|Unknown|1
 Bridge.Contracts/Facts/FactHelpers.cs|Fact|4
 Bridge.Contracts/Facts/FactHelpers.cs|Unknown|2
 Bridge.Contracts/Facts/PlanningWindow.cs|Fact|4
@@ -23,8 +21,6 @@ BuildingRuntime/BreakDispatch.cs|Fact|1
 BuildingRuntime/Client/FacadeNativeClient.CellGrid.cs|Fact|17
 BuildingRuntime/Client/FacadeNativeClient.CellGrid.cs|Unknown|2
 BuildingRuntime/Colony/ColonyPlan.cs|Fact|7
-BuildingRuntime/Colony/ColonyPlanCut.cs|Fact|3
-BuildingRuntime/Colony/ColonyPlanCut.cs|Unknown|2
 BuildingRuntime/Colony/ColonyStationAdvice.cs|Fact|11
 BuildingRuntime/Colony/ColonyStationAdvice.cs|Unknown|3
 BuildingRuntime/Colony/ColonyStatus.cs|Fact|21
@@ -94,8 +90,7 @@ BuildingRuntime/Rounds/RoundsEnvelope.cs|Fact|1
 BuildingRuntime/Rounds/RoundsEnvelope.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsField.cs|Discard|1
 BuildingRuntime/Rounds/RoundsField.cs|Fact|6
-BuildingRuntime/Rounds/RoundsFirebreak.cs|Fact|14
-BuildingRuntime/Rounds/RoundsFirebreak.cs|Unknown|3
+BuildingRuntime/Rounds/RoundsFirebreak.cs|Fact|5
 BuildingRuntime/Rounds/RoundsFishing.cs|Fact|3
 BuildingRuntime/Rounds/RoundsFlooring.cs|Fact|8
 BuildingRuntime/Rounds/RoundsFoodPlan.cs|Fact|10
@@ -181,9 +176,7 @@ BuildingRuntime/RoundsStockpiles.cs|Fact|32
 BuildingRuntime/RoundsStockpiles.cs|Unknown|16
 BuildingRuntime/RoundsStoneShell.cs|Fact|1
 BuildingRuntime/RoundsSurgery.cs|Fact|3
-BuildingRuntime/RoundsTemperature.cs|Discard|1
-BuildingRuntime/RoundsTemperature.cs|Fact|4
-BuildingRuntime/RoundsTemperature.cs|Unknown|2
+BuildingRuntime/RoundsTemperature.cs|Fact|3
 BuildingRuntime/RoundsThrone.cs|Fact|12
 BuildingRuntime/RoundsTierStyle.cs|Fact|8
 BuildingRuntime/RoundsTierStyle.cs|Unknown|1
@@ -242,7 +235,6 @@ Domain/TradeParticipant.cs|Discard|2
 Executor/Flows.cs|Discard|1
 Executor/Flows.cs|Fact|1
 Executor/Intent.cs|Discard|1
-Executor/SnapshotFirebreak.cs|Fact|4
 Executor/SnapshotRounds.cs|Fact|1
 Executor/SnapshotRounds.cs|Unknown|1
 Host/HostProviders.cs|Fact|1
@@ -311,8 +303,6 @@ Policy/BasicComfort.cs|Unknown|1
 Policy/BasicDefense.cs|Fact|6
 Policy/BillDemand.cs|Fact|1
 Policy/BillWanted.cs|Fact|2
-Policy/Blight.cs|Fact|4
-Policy/Blight.cs|Unknown|1
 Policy/BuildingWork.cs|Fact|2
 Policy/Calendar.cs|Fact|33
 Policy/Calendar.cs|Unknown|5
@@ -360,7 +350,7 @@ Policy/CropRisk.cs|Fact|29
 Policy/CropRisk.cs|Unknown|2
 Policy/DashEstimate.cs|Fact|9
 Policy/DashEstimate.cs|Unknown|2
-Policy/DashPlan.cs|Fact|26
+Policy/DashPlan.cs|Fact|25
 Policy/DashPlan.cs|Unknown|1
 Policy/DeepDrill.cs|Fact|1
 Policy/DefenseBlock.cs|Fact|1
@@ -389,10 +379,8 @@ Policy/FieldCapacity.cs|Fact|19
 Policy/FieldCapacity.cs|Unknown|7
 Policy/FieldResource.cs|Fact|15
 Policy/FieldResource.cs|ValueOrDefault|4
-Policy/Firebreak.cs|Fact|20
-Policy/Firebreak.cs|Unknown|1
-Policy/FirebreakRing.cs|Fact|4
-Policy/FirebreakRing.cs|Unknown|1
+Policy/Firebreak.cs|Fact|4
+Policy/FirebreakRing.cs|Fact|1
 Policy/Flooring.cs|Fact|27
 Policy/Flooring.cs|UnknownMember|1
 Policy/Flooring.cs|ValueOrDefault|3
@@ -505,7 +493,6 @@ Policy/Monolith.cs|Fact|4
 Policy/Mood.cs|Fact|2
 Policy/OrganHarvest.cs|Fact|18
 Policy/OrganHarvest.cs|Unknown|1
-Policy/OutdoorHazard.cs|Fact|6
 Policy/PartySpot.cs|Fact|2
 Policy/PasteSite.cs|Fact|9
 Policy/PawnBiotech.cs|Fact|2
@@ -514,7 +501,6 @@ Policy/PawnProfile.cs|Discard|1
 Policy/PawnProfile.cs|Fact|10
 Policy/PawnProfile.cs|Unknown|1
 Policy/PeopleFamily.cs|Fact|7
-Policy/PerimeterCut.cs|Fact|4
 Policy/Pest.cs|Fact|8
 Policy/PlacementSearch.cs|Fact|3
 Policy/PlannedRoomAlternatives.cs|Fact|5
@@ -550,7 +536,7 @@ Policy/RecoveryBatch.cs|Fact|2
 Policy/RecoveryMethod.cs|Discard|1
 Policy/RecoveryMethod.cs|Fact|10
 Policy/RecoveryMethod.cs|Unknown|1
-Policy/RecoveryQueue.cs|Fact|11
+Policy/RecoveryQueue.cs|Fact|10
 Policy/RecoveryQueue.cs|Unknown|1
 Policy/Refrigeration.cs|Fact|7
 Policy/Refrigeration.cs|UnknownMember|1
@@ -626,8 +612,7 @@ Policy/Surgery.cs|Unknown|3
 Policy/SurgeryParts.cs|Fact|7
 Policy/TechTier.cs|Fact|7
 Policy/TechTier.cs|Unknown|1
-Policy/TemperatureMethod.cs|Fact|34
-Policy/TemperatureMethod.cs|UnknownMember|1
+Policy/TemperatureMethod.cs|Fact|27
 Policy/Throne.cs|Fact|4
 Policy/TitleClaim.cs|Fact|14
 Policy/TitleClaim.cs|Unknown|2

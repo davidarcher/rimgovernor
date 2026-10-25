@@ -101,7 +101,7 @@ public sealed record RecoveryRequest
 
     public Fact<bool> Threat { get; init; }
 
-    public Fact<EquatableArray<OutdoorHazard>> Hazard { get; init; }
+    public EquatableArray<OutdoorHazard> Hazard { get; init; }
 
     /// <summary>A planned dash window is open, which lifts the extreme cold hold (and only that hazard).</summary>
     public bool DashOpen { get; init; }

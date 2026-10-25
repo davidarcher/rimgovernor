@@ -22,12 +22,11 @@ public sealed record BlightedPlant
 public static class BlightRules
 {
     /// <summary>
-    /// The binary food/blight deficit signal (<see cref="FoodRules.BlightNeedOf"/>): an unknown census stays unknown (absence is
-    /// never evidence of recovery); otherwise deficit is simply "any blighted plant still stands", designated or not,
-    /// because the Need is met by the cut, not by the order.
+    /// The binary food/blight deficit signal (<see cref="FoodRules.BlightNeedOf"/>): deficit is simply "any blighted plant
+    /// still stands", designated or not, because the Need is met by the cut, not by the order. An unread census is the
+    /// caller's <see cref="RequiredFactException"/>, never a recovery.
     /// </summary>
-    public static Fact<bool> BlightDeficit(Fact<EquatableArray<BlightedPlant>> plants) =>
-        plants.TryGetValue(out var rows) ? Known(rows.Count > 0) : Unknown<bool>();
+    public static bool BlightDeficit(EquatableArray<BlightedPlant> plants) => plants.Count > 0;
 
     /// <summary>
     /// The plants the blight Need designates this cycle: every undesignated census row not already claimed by an

@@ -37,8 +37,17 @@ public sealed partial class RoundsBuildingPlanner
 
     internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectTemperature(Observation.ColonyProjection facts)
     {
+        // An unread room census, bed census or sleeper census is the planner's unavailable verdict, named by its field.
+        if (!facts.Rooms.TryGetValue(out var rooms))
+        {
+            return (null, FieldUnavailable("rooms"));
+        }
+        if (!rooms.EligibleBeds.TryGetValue(out var eligible))
+        {
+            return (null, FieldUnavailable("eligible_beds"));
+        }
         var cooling = TemperatureCooling(facts);
-        var proposal = TemperatureMethodRules.SelectTemperatureMethod(facts.Rooms, cooling, Reviewer.Policy);
+        var proposal = TemperatureMethodRules.SelectTemperatureMethod(rooms, eligible, cooling, Reviewer.Policy);
         switch (proposal.Method)
         {
             case Pol.TemperatureMethod.Heat or Pol.TemperatureMethod.HeatElectric or Pol.TemperatureMethod.Cool or Pol.TemperatureMethod.CoolPowered or Pol.TemperatureMethod.RefuelOff or Pol.TemperatureMethod.RefuelOn:
@@ -55,69 +64,58 @@ public sealed partial class RoundsBuildingPlanner
                     resolved.Definition = cooling.Heater;
                 }
                 return (resolved, new Verdict());
-            case Pol.TemperatureMethod.Unknown:
-                return (null, FieldUnavailable(TemperatureGap(facts.Rooms)));
+            case Pol.TemperatureMethod.BedsUnroomed:
+                return (null, FieldUnavailable("room_temperatures"));
             case Pol.TemperatureMethod.NoMethod:
                 return (null, BuildingReasonNoDeficit);
             case Pol.TemperatureMethod.Wait:
                 return (null, BuildingReasonTemperatureWait);
             case Pol.TemperatureMethod.ShelterNeeded:
                 return (null, AwaitingPlan("enclosed_sleeping_room", ""));
-            default:
-                return (null, AwaitingMethod(proposal.Method));
         }
+        throw new ControlException("SelectTemperature: unhandled method " + proposal.Method);
     }
 }
 
 partial class RoundsBuildingPlanner
 {
-    /// <summary>Names the room fact SelectTemperatureMethod found unknown.</summary>
-    internal static string TemperatureGap(Fact<Pol.RoomObservation> rooms)
-    {
-        if (!rooms.TryGetValue(out var observed))
-        {
-            return "rooms";
-        }
-        if (!observed.EligibleBeds.TryGetValue(out _))
-        {
-            return "eligible_beds";
-        }
-        return "room_temperatures";
-    }
-
     /// <summary>
     /// Assembles the powered cooler evidence from the rooms reading: the Cooler planning definition
-    /// (availability, draw), the colony power topology, the site cells the vented-wall search walks, and the
-    /// sleepers whose comfortable ranges band each room.
+    /// (placeability, draw), the colony power topology, the site cells the vented-wall search walks, and the
+    /// sleepers whose comfortable ranges band each room. An unread sleeper census raises.
     /// </summary>
     internal static Pol.TemperatureCooling TemperatureCooling(Observation.ColonyProjection facts)
     {
-        var cooling = new Pol.TemperatureCooling
+        if (!facts.Facts.Sleeping.TryGetValue(out var sleeping))
         {
-            CoolerAvailable = Unknown<bool>(),
-            CoolerDrawW = Unknown<double>(),
-            Power = facts.PowerPlanning,
-            Cells = facts.Cells,
-            HeatCampfires = HeatCampfires(facts),
-            Heater = facts.Shapes.Furniture.Heater,
-        };
-        if (facts.Facts.Sleeping.TryGetValue(out var sleeping))
-        {
-            cooling = cooling with { Sleepers = [.. sleeping.People, .. sleeping.Slaves] };
+            throw new RequiredFactException("sleeping census");
         }
+        var heater = facts.Shapes.Furniture.Heater;
+        Pol.ClimateGear cooler = new Pol.ClimateGear.NotPlaceable();
+        Pol.ClimateGear heaterGear = new Pol.ClimateGear.NotPlaceable();
         foreach (var d in facts.Definitions)
         {
             if (d.Name == "Cooler")
             {
-                cooling = cooling with { CoolerAvailable = d.Available, CoolerDrawW = d.PowerW };
+                cooler = Pol.ClimateGear.Of(d.Name, d.Available, d.PowerW);
             }
-            else if (d.Name == cooling.Heater)
+            else if (d.Name == heater)
             {
-                cooling = cooling with { HeaterAvailable = d.Available, HeaterDrawW = d.PowerW };
+                heaterGear = Pol.ClimateGear.Of(d.Name, d.Available, d.PowerW);
             }
         }
-        // Campfires burn wood: a finite stock unless a tree species can be sown.
-        return cooling with { HeatFuelFinite = !TreePlantationRules.ResourceGrowable(RoundsFieldPlanner.CropChoices(facts), ConstructionDemandRules.ConstructionWoodLog, facts.CropClimate.Biome, TreePlantationRules.GrowerSkill(facts.WorkPawns)) };
+        return new Pol.TemperatureCooling
+        {
+            Cooler = cooler,
+            Power = Pol.ClimatePower.Of(facts.PowerPlanning),
+            Cells = facts.Cells,
+            HeatCampfires = HeatCampfires(facts),
+            Sleepers = [.. sleeping.People, .. sleeping.Slaves],
+            Heater = heater,
+            HeaterGear = heaterGear,
+            // Campfires burn wood: a finite stock unless a tree species can be sown.
+            HeatFuelFinite = !TreePlantationRules.ResourceGrowable(RoundsFieldPlanner.CropChoices(facts), ConstructionDemandRules.ConstructionWoodLog, facts.CropClimate.Biome, TreePlantationRules.GrowerSkill(facts.WorkPawns)),
+        };
     }
 
     /// <summary>The planning definitions the temperature planner reads: every method it can place, so availability and draw are known before one is chosen.</summary>

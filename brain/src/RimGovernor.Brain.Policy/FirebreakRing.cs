@@ -7,24 +7,18 @@ public static class FirebreakRingRules
     /// <see cref="FirebreakRules.FirebreakWidth"/> of the base footprint (the home base of the colony extent with no margin,
     /// plus GrowingZones) and outside it, whatever its ground or treatment. It reads only Bounds, Construction,
     /// Claims, Home and GrowingZones; field siting protects these cells so new fields never take the ring.
-    /// Throws.
+    /// A colony extent the evidence cannot yet derive raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static Fact<EquatableArray<Cell>> FirebreakRing(FirebreakRequest r)
+    public static EquatableArray<Cell> FirebreakRing(FirebreakFootprint f)
     {
-        var unknown = Unknown<EquatableArray<Cell>>();
-        var bk = r.Bounds.TryGetValue(out var bounds);
-        var zk = r.GrowingZones.TryGetValue(out var zones);
-        if (!bk || !zk)
-        {
-            return unknown;
-        }
-        var extent = ColonyExtentRules.DeriveColonyExtent(r.Bounds, r.Construction, r.Claims, r.Home);
+        var bounds = f.Bounds;
+        var extent = ColonyExtentRules.DeriveColonyExtent(bounds, f.Construction, Known(f.Claims), f.Home);
         if (extent is not ExtentDerivation.Derived { Extent: var value })
         {
-            return unknown;
+            throw new RequiredFactException("colony extent");
         }
         var footprint = new HashSet<Cell>(HomeAreaRules.HomeBase(value));
-        foreach (var c in zones!)
+        foreach (var c in f.GrowingZones)
         {
             footprint.Add(c);
         }
@@ -45,6 +39,6 @@ public static class FirebreakRingRules
         }
         var cells = band.ToList();
         cells.Sort((a, b) => ColonyExtentRules.ExtentCellLess(a, b) ? -1 : ColonyExtentRules.ExtentCellLess(b, a) ? 1 : 0);
-        return Known(EquatableArray.From(cells));
+        return EquatableArray.From(cells);
     }
 }

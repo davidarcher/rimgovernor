@@ -5,7 +5,6 @@ using RimGovernor.Brain.Observation;
 using RimGovernor.Brain.Policy;
 using Cell = RimGovernor.Brain.Domain.Cell;
 using O = RimGovernor.Contracts.Wire.Observations;
-using static RimGovernor.Brain.Domain.Fact;
 namespace RimGovernor.Brain.Executor;
 
 /// <summary>
@@ -21,7 +20,7 @@ public sealed class SnapshotFirebreak
 
     public Tick Tick { get; set; }
 
-    public FirebreakRequest Request { get; set; } = new();
+    public required FirebreakRequest Request { get; set; }
 
     public List<FirebreakGroundCell> Ground { get; set; } = [];
 
@@ -36,7 +35,7 @@ public sealed class SnapshotFirebreak
     /// <summary>Plans the ring from the recorded request and dwell and returns the plan and the work the recorded census leaves owed.</summary>
     public (FirebreakPlan Plan, FirebreakWork Work) Replay()
     {
-        var ground = new Dictionary<Cell, Fact<FirebreakGround>>();
+        var ground = new Dictionary<Cell, FirebreakGround>();
         foreach (var g in Ground)
         {
             ground[g.Cell] = g.Ground;
@@ -47,16 +46,12 @@ public sealed class SnapshotFirebreak
         {
             dwell[d.Cell] = d.Since;
         }
-        var (fact, _) = FirebreakRules.PlanFirebreak(r, dwell);
-        if (!fact.TryGetValue(out var plan))
-        {
-            throw new DomainException("snapshot: firebreak plan unknown");
-        }
+        var (plan, _) = FirebreakRules.PlanFirebreak(r, dwell);
         return (plan, FirebreakConcernRules.FirebreakOwed(plan, new HashSet<Cell>(Standing), new HashSet<Cell>(Open)));
     }
 }
 
-public readonly record struct FirebreakGroundCell(Cell Cell, Fact<FirebreakGround> Ground);
+public readonly record struct FirebreakGroundCell(Cell Cell, FirebreakGround Ground);
 
 public readonly record struct FirebreakDwell(Cell Cell, Tick Since);
 
@@ -65,16 +60,11 @@ public static class SnapshotFirebreakReplay
     /// <summary>Records request, dwell and the census over the plan.</summary>
     public static SnapshotFirebreak NewFirebreak(FirebreakRequest request, IReadOnlyDictionary<Cell, Tick> dwell, IEnumerable<Cell> standing, IEnumerable<Cell> open)
     {
-        var f = new SnapshotFirebreak { Tick = request.Now, Standing = [.. standing], Open = [.. open] };
-        var ground = request.Ground;
-        f.Request = request with { Ground = new Dictionary<Cell, Fact<FirebreakGround>>() };
+        var f = new SnapshotFirebreak { Tick = request.Now, Standing = [.. standing], Open = [.. open], Request = request with { Ground = new Dictionary<Cell, FirebreakGround>() } };
         // Dictionary order is not defined: record cells in row-major order so a recording is stable.
-        if (ground is not null)
+        foreach (var c in request.Ground.Keys.OrderBy(c => c.Z).ThenBy(c => c.X))
         {
-            foreach (var c in ground.Keys.OrderBy(c => c.Z).ThenBy(c => c.X))
-            {
-                f.Ground.Add(new FirebreakGroundCell(c, ground[c]));
-            }
+            f.Ground.Add(new FirebreakGroundCell(c, request.Ground[c]));
         }
         foreach (var c in dwell.Keys.OrderBy(c => c.Z).ThenBy(c => c.X))
         {

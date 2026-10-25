@@ -238,14 +238,14 @@ public static class DashPlanRules
     /// </summary>
     public static Fact<DashWindow> ReviewDash(DashWindow held, RoundsFacts f, Fact<EquatableArray<WorkPawn>> pawns, Tick now, HypothermiaTuning tuning)
     {
-        var hk = OutdoorHazardRules.OutdoorHazardsOf(f).TryGetValue(out var hazards);
+        var hazards = OutdoorHazardRules.OutdoorHazardsOf(f);
         var ok = f.Hostiles.TryGetValue(out var hostiles);
         var pk = pawns.TryGetValue(out var rows);
-        if (!hk || !ok || !pk)
+        if (!ok || !pk)
         {
             return Unknown<DashWindow>();
         }
-        if (hostiles > 0 || hazards!.Count != 1 || hazards[0].Kind != HazardKind.ExtremeCold)
+        if (hostiles > 0 || hazards.Count != 1 || hazards[0].Kind != HazardKind.ExtremeCold)
         {
             return Known(new DashWindow());
         }

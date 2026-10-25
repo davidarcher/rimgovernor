@@ -177,7 +177,7 @@ public static class FoodRules
     /// <see cref="RequiredFactException"/>. Its deficit is whole while unmet.
     /// </summary>
     public static Need BlightNeedOf(FoodFacts f) =>
-        WholeNeed(BlightNeed, NeedTier.Wellbeing, BlightRules.BlightDeficit(f.Blight).TryGetValue(out var standing) ? !standing : throw new RequiredFactException("blight census"));
+        WholeNeed(BlightNeed, NeedTier.Wellbeing, f.Blight.TryGetValue(out var census) ? !BlightRules.BlightDeficit(census) : throw new RequiredFactException("blight census"));
 
     /// <summary>A Need met or unmet by <paramref name="met"/>, with a whole deficit while unmet.</summary>
     internal static Need WholeNeed(NeedId id, NeedTier tier, bool met) => new()

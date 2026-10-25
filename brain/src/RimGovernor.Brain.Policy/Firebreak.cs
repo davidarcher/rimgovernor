@@ -34,44 +34,52 @@ public enum FirebreakTreatment
 }
 
 /// <summary>
-/// Everything <c>PlanFirebreak</c> reads. Ground must classify every band cell; a band cell it lacks, or holds
-/// unknown, leaves the plan unknown.
+/// The base the firebreak band surrounds: the colony extent's evidence and the growing zones. Every member is read;
+/// an evidence the colony has not read raises <see cref="RequiredFactException"/> where the footprint is built.
+/// </summary>
+public sealed record FirebreakFootprint
+{
+    public required Bounds Bounds { get; init; }
+
+    public required CurrentConstruction Construction { get; init; }
+
+    public required EquatableArray<ConstructionClaim> Claims { get; init; }
+
+    public required RimGovernor.Contracts.Wire.Observations.HomeCoverageFacts Home { get; init; }
+
+    /// <summary>The cells of every growing zone; they join the footprint so a field is enclosed rather than cut.</summary>
+    public required EquatableArray<Cell> GrowingZones { get; init; }
+}
+
+/// <summary>
+/// Everything <c>PlanFirebreak</c> reads. Ground must classify every band cell; a band cell it lacks raises
+/// <see cref="RequiredFactException"/>.
 /// </summary>
 public sealed record FirebreakRequest
 {
-    public Fact<Bounds> Bounds { get; init; }
-
-    public CurrentConstruction? Construction { get; init; }
-
-    public Fact<EquatableArray<ConstructionClaim>> Claims { get; init; }
-
-    /// <summary>The Home census; null when no colony facts read built the projection.</summary>
-    public RimGovernor.Contracts.Wire.Observations.HomeCoverageFacts? Home { get; init; }
-
-    /// <summary>The cells of every growing zone; they join the footprint so a field is enclosed rather than cut.</summary>
-    public Fact<EquatableArray<Cell>> GrowingZones { get; init; }
+    public required FirebreakFootprint Footprint { get; init; }
 
     /// <summary>The cells of the accepted layout plan's footprints.</summary>
-    public Fact<EquatableArray<Cell>> Planned { get; init; }
+    public required EquatableArray<Cell> Planned { get; init; }
 
-    public IReadOnlyDictionary<Cell, Fact<FirebreakGround>> Ground { get; init; } = new Dictionary<Cell, Fact<FirebreakGround>>();
+    public required IReadOnlyDictionary<Cell, FirebreakGround> Ground { get; init; }
 
-    public Tick Now { get; init; }
+    public required Tick Now { get; init; }
 
     /// <summary>The floor census rows.</summary>
-    public IReadOnlyDictionary<string, FloorDefinition> Floors { get; init; } = new Dictionary<string, FloorDefinition>();
+    public required IReadOnlyDictionary<string, FloorDefinition> Floors { get; init; }
 
     /// <summary>The accessible colony stock.</summary>
-    public Fact<IReadOnlyDictionary<Resource, long>> Stock { get; init; }
+    public required IReadOnlyDictionary<Resource, long> Stock { get; init; }
 
     /// <summary>The material queued construction already claims.</summary>
-    public Fact<IReadOnlyDictionary<Resource, long>> Claimed { get; init; }
+    public required IReadOnlyDictionary<Resource, long> Claimed { get; init; }
 
     /// <summary>
-    /// The tier style's aisle floor, empty when the style names none (Camp); the ring is paved with it or not at
+    /// The tier style's aisle floor, null when the style names none (Camp); the ring is paved with it or not at
     /// all, never with a scored substitute.
     /// </summary>
-    public string Floor { get; init; } = "";
+    public required string? Floor { get; init; }
 }
 
 /// <summary>One ring cell's treatment.</summary>
@@ -101,25 +109,14 @@ public static class FirebreakRules
     /// planned and claimed cells. A cell is paved when the colony is in Development, the cell has been in the
     /// ring FirebreakSettleTicks, and the stock left after claimed material covers the cheapest non-flammable
     /// floor for every such cell; otherwise it is cut. dwell maps each ring cell to its first tick in the ring;
-    /// the returned map drops cells that left, so a returning cell restarts. An unknown input returns an unknown
-    /// Plan and dwell unchanged. Throws.
+    /// the returned map drops cells that left, so a returning cell restarts. A band cell the ground census does
+    /// not classify, or a tier floor the census cannot judge, raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static (Fact<FirebreakPlan> Plan, IReadOnlyDictionary<Cell, Tick> Dwell) PlanFirebreak(FirebreakRequest r, IReadOnlyDictionary<Cell, Tick> dwell)
+    public static (FirebreakPlan Plan, IReadOnlyDictionary<Cell, Tick> Dwell) PlanFirebreak(FirebreakRequest r, IReadOnlyDictionary<Cell, Tick> dwell)
     {
-        var unknown = Unknown<FirebreakPlan>();
-        var pk = r.Planned.TryGetValue(out var planned);
-        var ck = r.Claims.TryGetValue(out var claims);
-        if (!pk || !ck)
-        {
-            return (unknown, dwell);
-        }
-        var ring = FirebreakRingRules.FirebreakRing(r);
-        if (!ring.TryGetValue(out var band))
-        {
-            return (unknown, dwell);
-        }
-        var skip = new HashSet<Cell>(planned!);
-        foreach (var claim in claims!)
+        var band = FirebreakRingRules.FirebreakRing(r.Footprint);
+        var skip = new HashSet<Cell>(r.Planned);
+        foreach (var claim in r.Footprint.Claims)
         {
             skip.UnionWith(claim.Cells);
         }
@@ -132,9 +129,9 @@ public static class FirebreakRules
             {
                 continue;
             }
-            if (!r.Ground.TryGetValue(c, out var fact) || !fact.TryGetValue(out var ground))
+            if (!r.Ground.TryGetValue(c, out var ground))
             {
-                return (unknown, dwell);
+                throw new RequiredFactException("firebreak ground");
             }
             if (ground.Skipped())
             {
@@ -155,25 +152,14 @@ public static class FirebreakRules
                 settled.Add(i);
             }
         }
-        if (settled.Count > 0)
+        if (settled.Count > 0 && FirebreakFloor(r.Floors, r.Floor) is { } floor)
         {
-            var (floor, known) = FirebreakFloor(r.Floors, r.Floor);
-            if (!known)
-            {
-                return (unknown, dwell);
-            }
-            var stockKnown = r.Stock.TryGetValue(out var stock);
-            var claimedKnown = r.Claimed.TryGetValue(out var claimed);
-            if (!stockKnown || !claimedKnown)
-            {
-                return (unknown, dwell);
-            }
             var left = new Dictionary<Resource, long>();
-            foreach (var (k, v) in stock!)
+            foreach (var (k, v) in r.Stock)
             {
-                left[k] = v - claimed!.GetValueOrDefault(k);
+                left[k] = v - r.Claimed.GetValueOrDefault(k);
             }
-            if (floor.Length != 0 && FlooringRules.AffordableCells(r.Floors.GetValueOrDefault(floor)!, Known<IReadOnlyDictionary<Resource, long>>(left), settled.Count) >= settled.Count)
+            if (FlooringRules.AffordableCells(r.Floors[floor], Known<IReadOnlyDictionary<Resource, long>>(left), settled.Count) >= settled.Count)
             {
                 foreach (var i in settled)
                 {
@@ -181,33 +167,28 @@ public static class FirebreakRules
                 }
             }
         }
-        return (Known(new FirebreakPlan { Cells = cells, Deconstruct = deconstruct }), next);
+        return (new FirebreakPlan { Cells = cells, Deconstruct = deconstruct }, next);
     }
 
     /// <summary>
-    /// Judges the tier style's floor: it must be known available, terrain, priced and non-flammable. Known is
-    /// false when the floor cannot be judged; an empty name with known true means none can be laid (no style, or
-    /// the style's floor is unavailable or flammable).
+    /// Judges the tier style's floor: it must be available, terrain, priced and non-flammable. Null when none can
+    /// be laid (no style, or the style's floor is unavailable or flammable); a floor the census cannot judge
+    /// raises <see cref="RequiredFactException"/>.
     /// </summary>
-    private static (string Floor, bool Known) FirebreakFloor(IReadOnlyDictionary<string, FloorDefinition> floors, string style)
+    private static string? FirebreakFloor(IReadOnlyDictionary<string, FloorDefinition> floors, string? style)
     {
-        if (style.Length == 0)
+        if (style is null)
         {
-            return ("", true);
+            return null;
         }
-        var ok = floors.TryGetValue(style, out var def);
-        def ??= new FloorDefinition();
-        var ak = def.Available.TryGetValue(out var available);
-        var tk = def.Terrain.TryGetValue(out var terrain);
-        var fk = def.Flammability.TryGetValue(out var flammability);
-        if (!ok || !ak || !tk || !fk || !FlooringRules.FloorPriced(def))
+        if (!floors.TryGetValue(style, out var def)
+            || !def.Available.TryGetValue(out var available)
+            || !def.Terrain.TryGetValue(out var terrain)
+            || !def.Flammability.TryGetValue(out var flammability)
+            || !FlooringRules.FloorPriced(def))
         {
-            return ("", false);
+            throw new RequiredFactException("firebreak floor " + style);
         }
-        if (!available || !terrain || flammability > 0)
-        {
-            return ("", true);
-        }
-        return (style, true);
+        return !available || !terrain || flammability > 0 ? null : style;
     }
 }
