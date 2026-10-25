@@ -44,7 +44,7 @@ public static class ForecastIncumbentPreparation
 {
     private sealed record IncumbentServiceProjection(string Assignment, string Method, long Revision,
         string Target, string Kind, Cell Location, double RemainingTicks, double GainPerTick,
-        EquatableArray<string> Unsupported);
+        EquatableArray<string> Unsupported, ServicePositionRead ServicePosition);
 
     /// <summary>Conditional comparison only. The original review's admission claims remain authoritative
     /// until exact native release is observed on a later review.</summary>
@@ -115,7 +115,7 @@ public static class ForecastIncumbentPreparation
                 wait = task.DepartTick - facts.Tick.Value;
                 service = new(order.Assignment, order.Method, order.Revision, task.Step.Target, targets[0].Kind,
                     task.Location, task.Step.Deadline - task.DepartTick - travel, gain,
-                    targets[0].Unsupported);
+                    targets[0].Unsupported, targets[0].ServicePosition);
             }
             else
             {
@@ -123,7 +123,7 @@ public static class ForecastIncumbentPreparation
                     || physical[0].State != "started" || observations[0].CurrentService is not { Kind: "joy" } current
                     || start != current.Location) continue;
                 service = new(current.Assignment, current.Method, current.Revision, current.Target, current.Kind,
-                    current.Location, current.RemainingTicks, current.GainPerTick, current.Unsupported);
+                    current.Location, current.RemainingTicks, current.GainPerTick, current.Unsupported, new ServicePositionRead.Located(current.Location));
             }
             if (task.Step.Deadline - facts.Tick.Value > GameTime.TicksPerDay || wait + travel > GameTime.TicksPerDay
                 || service.Assignment != order.Assignment || service.Method != order.Method || service.Revision != order.Revision
@@ -192,14 +192,14 @@ public static class ForecastIncumbentPreparation
             {
                 var waitId = id + "/wait";
                 activities.Add(new(waitId, startLocation, startLocation, []) { NotBefore = 0, LatestStart = 0 });
-                options.Add(new(waitId, pawn, entry.Wait, 0));
+                options.Add(new(waitId, pawn, entry.Wait, 0) { ServicePosition = new ServicePositionRead.Located(entry.Start) });
                 waiting.Add(waitId); graph.Add(waitId);
                 routes[(pawn, startLocation, location)] = new(pawn, startLocation, location, new RouteTicks.Reachable(entry.Travel));
             }
             activities.Add(new(id, location, location, graph.ToArray())
                 { NotBefore = entry.Wait + entry.Travel, LatestStart = entry.Wait + entry.Travel });
             graph.Add(id);
-            options.Add(new(id, pawn, duration, 0));
+            options.Add(new(id, pawn, duration, 0) { ServicePosition = service.ServicePosition });
             routes[(pawn, "start", "start")] = new(pawn, "start", "start", new RouteTicks.Reachable(0));
             routes[(pawn, "start", startLocation)] = new(pawn, "start", startLocation, new RouteTicks.Reachable(0));
             routes[(pawn, "start", location)] = new(pawn, "start", location, new RouteTicks.Reachable(entry.Travel));

@@ -58,7 +58,7 @@ internal static class FoodMethodCandidates
                 Route(pawn.Pawn, "start", Location(pawn.Origin), pawn.ApproachTicks);
                 if (pawn.HarvestAllowed)
                 {
-                    options.Add(new(id, pawn.Pawn, pawn.WorkTicks, 0) { SkillWork = pawn.SkillWork });
+                    options.Add(new(id, pawn.Pawn, pawn.WorkTicks, 0) { ServicePosition = pawn.ServicePosition, SkillWork = pawn.SkillWork });
                     bindings[(id, pawn.Pawn)] = new(id, pawn.Pawn, [], PawnActivityKind.Work, pawn.Target, pawn.WorkGiver, "Harvest", 0, deadline, pawn.Origin);
                 }
             }
@@ -132,7 +132,7 @@ internal static class FoodMethodCandidates
                 {
                     if (row.Cooking is FoodCooking.Cook cooking)
                     {
-                        options.Add(new(cook, row.Pawn, cooking.WorkTicks, 0) { Equipment = [row.Bench], SkillWork = cooking.SkillWork });
+                        options.Add(new(cook, row.Pawn, cooking.WorkTicks, 0) { ServicePosition = row.ServicePosition, Equipment = [row.Bench], SkillWork = cooking.SkillWork });
                         if (cooking.SkillWork is null) findings.Add("productive_learning_unassessed:" + row.Pawn + ":" + row.Recipe);
                         findings.Add("cooking_poisoning_and_future_environment_unassessed");
                         bindings[(cook, row.Pawn)] = new(cook, row.Pawn, [], PawnActivityKind.Recipe, row.Bench, row.WorkGiver, "", 0, deadline, row.BenchCell)
@@ -236,7 +236,7 @@ internal static class FoodMethodCandidates
                     if (earliest + use.ChewTicks > horizon) continue;
                     tasks.Add(new(id, Location(cell), Location(cell), [supply])
                     { Inputs = [new(resource, count) { Lot = freshFrom }], NotBefore = earliest });
-                    Option(id, use.Pawn, use.ChewTicks);
+                    options.Add(new(id, use.Pawn, use.ChewTicks, 0) { ServicePosition = use.ServicePosition });
                     bindings[(id, use.Pawn)] = new(id, use.Pawn, [supply], PawnActivityKind.Eat, "observed-output", "", "", count, deadline, cell) { Resource = resource.Value, Source = cell };
                     needTasks.Add(new(id, use.Pawn, "food", Location(cell), resource, count, count * gain, use.Thoughts)
                     { FoodReady = supply, FreshFrom = freshFrom, Quantity = new TargetQuantity.Units(units), Batch = supply,

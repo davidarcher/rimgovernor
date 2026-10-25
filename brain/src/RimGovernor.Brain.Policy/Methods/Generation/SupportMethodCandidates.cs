@@ -30,7 +30,7 @@ internal sealed record SupportMethodCandidates(ForecastCompositionOperation[] Op
             var surgery = worker.Treatment as SupportTreatment.Surgery;
             // Real medical work learns (#3344): surgery through its recipe work, a tend once at completion.
             options.Add(new(id, worker.Pawn, worker.WorkTicks, 0)
-                { SkillWork = surgery?.SkillWork, TendLearning = (worker.Treatment as SupportTreatment.Tend)?.Learning });
+                { ServicePosition = worker.ServicePosition, SkillWork = surgery?.SkillWork, TendLearning = (worker.Treatment as SupportTreatment.Tend)?.Learning });
             routes.Add(new(worker.Pawn, "start", Location(worker.Location), new RouteTicks.Reachable(worker.ApproachTicks)));
             bindings[(id, worker.Pawn)] = new(id, worker.Pawn, [], PawnActivityKind.Work, worker.Target,
                 worker.WorkGiver, worker.Job, 0, deadline, worker.Location)

@@ -41,6 +41,13 @@ namespace RimGovernor.Native
         private const string HarmonyOwner = "rimgovernor.activity-execution";
         private static volatile bool installed;
         private static JobDef? holdDef;
+        // One Kind-to-native-job owner for both execution and service-toil observation.
+        internal static JobDef? ServiceJob(PawnActivityKind kind) => kind switch
+        {
+            PawnActivityKind.Hold => holdDef, PawnActivityKind.Eat => JobDefOf.Ingest,
+            PawnActivityKind.Sleep => JobDefOf.LayDown, PawnActivityKind.Recipe => recipeDef,
+            _ => null,
+        };
         private static JobDef? deliveryDef;
         private static JobDef? recipeDef;
         private static JobDef? tendDef;
@@ -546,12 +553,12 @@ namespace RimGovernor.Native
             else if (step.Kind == PawnActivityKind.Eat)
             {
                 if (!target.IngestibleNow || !p.RaceProps.CanEverEat(target) || target.stackCount < step.Count) throw new InvalidOperationException("food_unavailable");
-                job = JobMaker.MakeJob(JobDefOf.Ingest, target); job.count = step.Count;
+                job = JobMaker.MakeJob(ServiceJob(step.Kind), target); job.count = step.Count;
             }
             else if (step.Kind == PawnActivityKind.Sleep)
             {
                 if (!RestUtility.CanUseBedNow(target, p, true)) throw new InvalidOperationException("bed_unavailable");
-                job = JobMaker.MakeJob(JobDefOf.LayDown, target);
+                job = JobMaker.MakeJob(ServiceJob(step.Kind), target);
             }
             else if (step.Kind == PawnActivityKind.Deliver)
             {
@@ -565,7 +572,7 @@ namespace RimGovernor.Native
             else if (step.Kind == PawnActivityKind.Recipe)
             {
                 if (!NativeActivityRecipe.Resolve(p, target, step, out var bill, out var ingredients, out var cookingReason)) throw new InvalidOperationException(cookingReason);
-                job = JobMaker.MakeJob(recipeDef, target);
+                job = JobMaker.MakeJob(ServiceJob(step.Kind), target);
                 job.bill = bill;
                 job.targetQueueB = ingredients.Select(i => new LocalTargetInfo(i.Thing)).ToList();
                 job.countQueue = ingredients.Select(i => i.Count).ToList();

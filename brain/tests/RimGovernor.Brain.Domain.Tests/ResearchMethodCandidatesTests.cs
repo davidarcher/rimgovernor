@@ -57,6 +57,34 @@ public sealed class ResearchMethodCandidatesTests
     }
 
     [Fact]
+    public void ExactServiceCellSurvivesGenerationSeparatelyFromTheRouteAnchor()
+    {
+        var worker = Worker("a") with { ServicePosition = new ServicePositionRead.Located(new(5, 6)) };
+        var made = ResearchMethodCandidates.Generate(Read(worker), GameTime.TicksPerDay, Claims(), 9000);
+        Assert.Equal("cell/5/5", Assert.Single(made.Tasks).Location);
+        Assert.Equal(new ServicePositionRead.Located(new(5, 6)), Assert.Single(made.Options).ServicePosition);
+    }
+
+    [Fact]
+    public void UnprojectedServiceNeverBorrowsTheActivityAnchor()
+    {
+        var worker = Worker("a") with { ServicePosition = new ServicePositionRead.Unprojected("unsupported_native_driver") };
+        var made = ResearchMethodCandidates.Generate(Read(worker), GameTime.TicksPerDay, Claims(), 9000);
+        Assert.Equal(worker.ServicePosition, Assert.Single(made.Options).ServicePosition);
+        Assert.IsType<ServicePositionRead.Unprojected>(Assert.Single(made.Options).ServicePosition);
+    }
+
+    [Fact]
+    public void FiniteNativeServiceAlternativesRoundTripWithoutPickingAnAnchor()
+    {
+        var worker = Worker("a") with { ServicePosition = new ServicePositionRead.Possible([new(4, 5), new(6, 5)]) };
+        var read = CoupledFixtures.Empty with { Research = Read(worker) };
+        var back = OrdersJson.Deserialize<CoupledForecastRead>(OrdersJson.Serialize(read));
+        Assert.Equal(worker.ServicePosition, Assert.Single(back!.Research.Workers).ServicePosition);
+        var made = ResearchMethodCandidates.Generate(back.Research, GameTime.TicksPerDay, Claims(), 9000);
+        Assert.Equal(worker.ServicePosition, Assert.Single(made.Options).ServicePosition);
+    }
+    [Fact]
     public void TheReadRoundTripsOnTheWire()
     {
         var read = CoupledFixtures.Empty with { Research = Read(Worker("a")) };

@@ -123,8 +123,6 @@ public sealed partial record ForecastCoupledCandidates
         }
         void Route(string pawn, string from, string to, RouteTicks ticks)
             => routes.TryAdd((pawn, from, to), new(pawn, from, to, ticks));
-        void Option(string id, string pawn, double ticks, string? equipment = null)
-            => options.Add(new(id, pawn, ticks, 0) { Equipment = equipment is null ? [] : [equipment] });
         foreach (var route in read.Routes) Route(route.Pawn, route.FromStart ? "start" : Location(route.From), Location(route.To), route.Ticks);
         var availableTrade = ForecastTradeExecution.Work(facts.StockArrival);
         var blockedTrade = availableTrade.Where(w => MethodClaimsRules.TradeSubjects(w.Action).Any(resources.Claims.Targets.Contains))
@@ -252,7 +250,7 @@ public sealed partial record ForecastCoupledCandidates
                     { Resource = choice.Resource, Source = physical,
                         SelectedInputs = choice.Kind == "food"
                             ? [new(choice.Resource, target.Id, choice.Count, physical, "observed need target") { Observed = true }] : [] };
-                Option(id, pawn.Pawn, choice.End - choice.Start);
+                options.Add(new(id, pawn.Pawn, choice.End - choice.Start, 0) { ServicePosition = target.ServicePosition });
                 needTasks.Add(new(id, pawn.Pawn, choice.Kind, choice.Target, new(choice.Resource), choice.Count, choice.Gain, choice.Thoughts)
                 { Quantity = TargetQuantity.Of(target.Stock), MaxPawns = target.MaxPawns });
                 alternatives.Add(new(id, []) { ActivityCompletions = [id], ExclusiveOutcome = "need/" + pawn.Pawn + "/" + choice.Kind
@@ -371,7 +369,10 @@ public sealed partial record ForecastCoupledCandidates
             Activities = new()
             {
                 Activities = distinctTasks.ToArray(),
-                Options = options.Distinct().ToArray(),
+                Options = options.Distinct().Select(option => bindings.TryGetValue((option.Activity, option.Pawn), out var binding)
+                    ? option with { SocialMode = needs.Babies.Social.Jobs.FirstOrDefault(j => j.Kind == binding.Kind
+                        && (j.Kind != PawnActivityKind.Work || j.Job == binding.Job)) is { } service
+                            ? new ForecastSocialService.Verified(service.Mode) : new ForecastSocialService.Unprojected() } : option).ToArray(),
                 Routes = routes.Values.ToArray(),
                 Pawns = needs.Pawns.Select(p => ForecastNeeds.NeedsWorkCapacity(resources, p.Pawn, horizon).Capacity).ToArray(),
                 Equipment = equipment,

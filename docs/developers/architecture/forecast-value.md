@@ -952,22 +952,40 @@ finds (`GenClamor.DoClamor`'s region walk through open doors, at most 15 regions
 fit's memory (CryingBaby, GigglingBaby, the My* defs for a parent); the memories it holds are stacked as the game stacks them
 (`ForecastNursery.HeardMood`): per def, the count heard within a duration is Poisson at the summed rate, the latest
 `stackLimit` count, split binomially over the babies, and a baby's k of them count `offset × Σ_{i<k} stackedEffectMultiplier^i`.
-Before a nursery stands its babies are heard as now without the room and by nobody with it; a baby in a standing nursery is
-heard as now with it and as with the nursery's doors open without it. The row is `MoodGain` of the mood with the room less
-`MoodGain` of the mood without, so a giggling baby's nursery costs the giggles. Named states, each earning nothing: no baby
-(`nursery_no_baby`), no fit can start (`nursery_no_fit`), unchanged heard-fit mood (`nursery_unheard`), and a
-fit def the read does not know (`nursery_fit_hearers_not_modelled:<def>`). No fit or no hearer does not suppress the baby's own rest credit.
-Named as not modelled: the cried and giggled opinion memories, colonists moving from where they
-stand now, and prisoners, guests and slaves in reach.
+One shared projected presence timeline supplies the baby's sound source and each recipient's selected work,
+need service, observed service and actual sleeping slot. It accounts for service delays and time spent outside
+or inside the nursery; it does not hold the snapshot standing position through the day. Native feeding,
+static play, walking play, toy play and carried state use the same owner, without assigning a second carer.
+Existing map geometry uses native-equivalent clamor traversal and line of sight. Future room geometry,
+meal pickup-to-chew travel, unallocated waking time and unassigned care retain visible exposure bounds.
+The nursery takes adverse helpful and harmful endpoints on both sides, so uncertain exposure can reduce its
+credited benefit. Prisoners, guests and slaves remain the separate `nursery_other_hearers` scope.
+Heard BabyCriedSocial and BabyGiggledSocial memories also change the adult's opinion of the baby (#3943). Opinion has no
+independent currency. A shared forward nursery timeline ages the observed memories, adds conditional Poisson cohorts,
+applies native global/per-other caps, fade and signed group rounding, and normalizes the native interaction weights at
+that opinion. Insult's admitted InsultedMood (including Baby-stage eligibility) changes the baby's later mood, fit rates,
+hearer mood and existing wellbeing/break ledger. Positive interaction mood effects and their denominator share remain
+included. Homogeneous vanilla mood groups use native average-offset stacking; differing labels/offsets, fading or custom
+mood classes are named `nursery_opinion_mood_group_unprojected:<baby>/<def>`.
 
-A crying fit's disturbed sleep (#3942) is priced separately from its per-baby cry memory. Native sound reach is read
-at the hearer's sleeping slot, including a pawn who currently stands elsewhere; a ground sleeper uses its named ground
-surface. The latest rest surface selected by an outcome supplies its future bed and native rest gain; without a selected
-rest service the canonical native default surface remains the long-term sleeping location. No rest in one short
-schedule does not mean a colonist never sleeps. For rest fall `f` and that surface's gain `g`, the asleep share is
-`f / (f + g)`, independently thinning each baby's cry rate. A standing nursery uses current-door reach with it and
-nursery-open reach without it; a proposed nursery behind its closed door avoids the cry.
+This is the approved conditional expected-value approximation: opinion rounding/selection and mood-to-fit feedback act on
+mean state, with Poisson cohorts and native tracker probability mass. `nursery_opinion_mean_field_feedback` and
+`nursery_opinion_poisson_cohorts` remain visible in outcome findings; no certified small error bound is claimed. The two
+room counterfactuals use the same owner and observed starting state. Verified existing stationary spans use
+native social modes and recipient competition; rest disables initiation. For bounded positions, mode or
+recipient membership, native check/retry opportunities bound an adverse interaction envelope: potential
+harm is retained with the nursery and potential help without it. No distribution over uncertain locations
+or smaller invented recipient denominator is used. This enclosure is conditional on the approved mean-field
+feedback approximation; it does not certify its global nonlinear error. Observed non-job admission and
+incoming interaction cooldown limitations remain visible, and there are no additional model calls.
 
+A crying fit's disturbed sleep uses the same exact sleeping slots and temporal spans as its other exposure.
+The selected terminal sleeping target supplies recurrent rest; otherwise the canonical native default
+surface remains. Rest fall `f` and gain `g` give recurrent asleep share `f / (f + g)`. Actual scheduled rest
+and lying-in spans use their own slot and duration. The shared care owner supplies finite need-conservation
+time budgets, not uniform occupancy probabilities: continuous sleep arrival dose can change by at most the
+largest fit rate times the unioned care duration. Brief care can intersect a fit's only heard scream, so
+once-per-fit memory exposure retains the broader union bound instead of averaging random care timing.
 All babies feed one shared `SleepDisturbed` pool per hearer: vanilla calls `TryGainMemory` without an `otherPawn`,
 so the three-memory limit is shared. The observed thought is -1 for one day, stack limit 3, multiplier 1 in vanilla 1.7.
 The read excludes hearers the native admission predicates reject and giggles never enter the pool. For aggregate
@@ -976,7 +994,7 @@ process, then the existing Poisson memory-count model prices the shared stack. T
 not a predicted next wake or exact event simulation: fit timing is refractory, asleep share is assumed independent
 of cries, and the cooldown correction treats their superposition as Poisson. Observed movement clamor is held
 constant; its competition for the same cooldown/stack is not jointly simulated. The finding
-`nursery_sleep_disturbance_stationary` discloses this approximation; `nursery_no_sleep_hearers` names no eligible
+`nursery_sleep_disturbance_projected` discloses this approximation; `nursery_no_sleep_hearers` names no eligible
 recipient. A missing sleeping surface, rest rate, selected target or its hearing row throws `RequiredFactException`.
 
 Crib rest (#3939) also credits the baby under its pawn id. Planned cribs use the shared sleeping catalog's Normal-quality

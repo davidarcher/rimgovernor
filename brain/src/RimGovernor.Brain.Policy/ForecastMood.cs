@@ -89,6 +89,16 @@ internal sealed class MemoryShare(double baseShare = 1)
 
 public static class ForecastMood
 {
+    /// <summary>Advance one conditional target span using the same seeker/freeze mechanics as the shared mood forecast.</summary>
+    internal static (double Mean, double Final) ChaseTarget(double initial, double from, double to, double ticks,
+        double rise, double fall, bool frozen)
+    {
+        double sum = 0; var final = initial;
+        foreach (var target in TargetPieces(new(0, ticks, from, to, frozen), 0))
+            foreach (var part in ChasePieces(target.From, target.To, target.Ticks, final, rise, fall, frozen))
+            { sum += (part.From + part.To) / 2 * part.Ticks; final = part.To; }
+        return (sum / ticks, final);
+    }
     /// <summary>Response to a linear, already clamped target, split at the instant actual mood catches it.</summary>
     private static IEnumerable<(double From, double To, double Ticks)> ChasePieces(double from, double to, double duration,
         double initial, double rise, double fall, bool frozen)
@@ -128,27 +138,6 @@ public static class ForecastMood
         for (var i = 1; i < cuts.Count; i++)
             yield return (Math.Clamp(from + (to - from) * cuts[i - 1], 0, 1), Math.Clamp(from + (to - from) * cuts[i], 0, 1),
                 (target.End - target.Start) * (cuts[i] - cuts[i - 1]));
-    }
-
-    /// <summary>Actual mood at interval midpoints in one counterfactual; reuses the outcome's timed target and native response rates.</summary>
-    internal static IEnumerable<(double Mood, double Ticks)> ResponseSamples(ForecastMoodResponse response, double shift, double interval)
-    {
-        DomainException.Require(interval > 0 && double.IsFinite(interval), "mood response sample interval");
-        var actual = response.Initial;
-        foreach (var target in response.Targets)
-            foreach (var part in TargetPieces(target, shift))
-            {
-                foreach (var piece in ChasePieces(part.From, part.To, part.Ticks, actual, response.Rise, response.Fall, target.Frozen))
-                {
-                    for (double at = 0; at < piece.Ticks;)
-                    {
-                        var ticks = Math.Min(interval, piece.Ticks - at);
-                        yield return (piece.From + (piece.To - piece.From) * (at + ticks / 2) / piece.Ticks, ticks);
-                        at += ticks;
-                    }
-                    actual = piece.To;
-                }
-            }
     }
 
     /// <summary>Break tiers of any finite shift, without changing the context's registered shifts or running another forecast.</summary>

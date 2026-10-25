@@ -3,47 +3,28 @@ using RimGovernor.Brain.GameFacts.Observations;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>The cry's shared SleepDisturbed pool (#3942), separate from the fit's per-baby memories.</summary>
-internal sealed class ForecastNurserySleep(ForecastCoupledContext context, ForecastCoupledOutcome outcome)
+internal sealed class ForecastNurserySleep(ForecastCoupledContext context)
 {
     private readonly Dictionary<string, List<(HeardMemoryRead Memory, double Rate)>> with = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<(HeardMemoryRead Memory, double Rate)>> without = new(StringComparer.Ordinal);
 
-    internal void Add(BabyRead baby, IReadOnlyDictionary<string, double> rates, IReadOnlyDictionary<string, double> cribRates)
+    internal void Add(BabyRead baby,
+        IReadOnlyDictionary<(string Baby, string Pawn, string Fit, bool Sleep), ForecastNurseryExposure.Range> withRates,
+        IReadOnlyDictionary<(string Baby, string Pawn, string Fit, bool Sleep), ForecastNurseryExposure.Range> withoutRates)
     {
-        foreach (var group in baby.SleepHearers.GroupBy(h => h.Pawn, StringComparer.Ordinal))
+        // Native owns eligibility and memory mechanics. The canonical presence owner owns every sleeping
+        // location and time share; target rows must not independently allocate another day of sleep.
+        foreach (var group in baby.SleepHearers.GroupBy(h => (h.Pawn, h.Memory.Fit)))
         {
-            var pawn = context.Needs.Pawns.SingleOrDefault(p => p.Pawn == group.Key) ?? throw new RequiredFactException("sleep hearer needs:" + group.Key);
-            var surface = pawn.Sleep ?? throw new RequiredFactException("sleep hearer surface:" + pawn.Pawn);
-            // A selected terminal rest surface changes future sleep. No rest allocation means the native default
-            // surface, not a pawn that never sleeps over the investment horizon.
-            var selected = (from allocation in outcome.Plan.Allocations
-                join task in context.NeedTasks on allocation.Activity equals task.Task
-                where task.Pawn == pawn.Pawn && task.Kind == "rest" && allocation.End > allocation.Start + task.ServiceDelay
-                orderby allocation.End descending, allocation.Activity
-                select task.Target).FirstOrDefault();
-            var target = selected ?? surface.Bed;
-            var gain = surface.GainPerTick;
-            if (selected is not null)
-            {
-                var row = pawn.Targets.SingleOrDefault(t => t.Kind == "rest" && t.Id == selected)
-                    ?? throw new RequiredFactException("selected sleep target:" + pawn.Pawn + ":" + selected);
-                gain = row.Recovery is NeedRecovery.Rate rate ? rate.GainPerTick
-                    : throw new RequiredFactException("selected sleep recovery:" + selected);
-            }
-            var rest = pawn.Needs.SingleOrDefault(n => n.Kind == "rest") ?? throw new RequiredFactException("sleep hearer rest:" + pawn.Pawn);
-            if (!double.IsFinite(gain) || gain <= 0 || !double.IsFinite(rest.FallPerTick) || rest.FallPerTick < 0)
-                throw new RequiredFactException("sleep hearer rest rates:" + pawn.Pawn);
-            var asleep = rest.FallPerTick / (gain + rest.FallPerTick);
-            var hearing = group.Where(h => h.Target == target).ToArray();
-            if (hearing.Length == 0) throw new RequiredFactException("sleep target hearing:" + pawn.Pawn + ":" + target);
-            foreach (var hearer in hearing.Where(h => rates.ContainsKey(h.Memory.Fit)))
-            {
-                if (baby.InNursery && hearer.Now) Add(with, pawn.Pawn, hearer.Memory, cribRates[hearer.Memory.Fit] * asleep);
-                if (baby.InNursery ? hearer.NurseryOpen : hearer.Now) Add(without, pawn.Pawn, hearer.Memory, rates[hearer.Memory.Fit] * asleep);
-            }
+            var definitions = group.Select(h => h.Memory).Distinct().ToArray();
+            if (definitions.Length != 1) throw new RequiredFactException("sleep hearer memory:" + group.Key);
+            var memory = definitions[0];
+            var key = (baby.Pawn, group.Key.Pawn, memory.Fit, true);
+            var withRate = withRates.GetValueOrDefault(key); var withoutRate = withoutRates.GetValueOrDefault(key);
+            Add(with, group.Key.Pawn, memory, memory.Offset < 0 ? withRate.Upper : withRate.Lower);
+            Add(without, group.Key.Pawn, memory, memory.Offset < 0 ? withoutRate.Lower : withoutRate.Upper);
         }
     }
-
     private static void Add(Dictionary<string, List<(HeardMemoryRead, double)>> into, string pawn, HeardMemoryRead memory, double rate)
     {
         if (!into.TryGetValue(pawn, out var pool)) into[pawn] = pool = [];
@@ -61,7 +42,7 @@ internal sealed class ForecastNurserySleep(ForecastCoupledContext context, Forec
             if (pool.Any(p => p.Memory.Thought != memory.Thought || p.Memory.Offset != memory.Offset || p.Memory.DurationTicks != memory.DurationTicks
                 || p.Memory.StackLimit != memory.StackLimit || p.Memory.StackedMultiplier != memory.StackedMultiplier))
                 throw new RequiredFactException("shared disturbed sleep memory");
-            // Stationary approximation: independently thin cries by asleep share, then treat arrivals as Poisson.
+            // Canonical located sleep spans thin cries; the resulting mean arrivals are treated as Poisson.
             // Pawn's shared cooldown is a non-paralyzable renewal dead time: admitted rate = rate/(1+rate*interval).
             // Pool before stacking: TryGainMemory(SleepDisturbed) has no otherPawn, even for different crying babies.
             var rate = pool.Sum(p => p.Rate);

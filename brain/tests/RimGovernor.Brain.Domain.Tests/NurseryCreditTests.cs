@@ -27,10 +27,12 @@ public sealed class NurseryCreditTests
 
     private static BabyRead Baby(string pawn = "baby", bool inNursery = false, bool now = true, bool open = true, bool parent = false) => new()
     {
-        CribMood = new(0, 0, 0), Pawn = pawn, Fits = ["Crying", "Giggling"], InNursery = inNursery, SleepHearers = [],
+        Care = new() { Active = null, Food = null, Play = null, Opportunities = [] },
+        CribMood = new(0, 0, 0), Pawn = pawn, Fits = ["Crying", "Giggling"], InNursery = inNursery,
+        NurseryRoom = inNursery ? now ? 0 : 10 : -1, SleepHearers = [],
         Play = null,
-        SleepWithoutNursery = new("", false, true, 3e-5, 0, 21),
-        Hearers = now || open ? [new() { Pawn = "pawn", Now = now, NurseryOpen = open, Memories = [.. Memories(parent)] }] : [],
+        SleepWithoutNursery = new("", false, true, 3e-5, 0, 21) { Position = new ServicePositionRead.Located(new(inNursery ? open ? 0 : 15 : now ? 0 : 15, 0)) },
+        Hearers = now || open ? [new() { Pawn = "pawn", Hearing = 1, Memories = [.. Memories(parent)] }] : [],
     };
 
     /// <summary>The baby's needs row: its mood held at <paramref name="mood"/>, its rest falling 1/3 as fast as it is regained.</summary>
@@ -44,20 +46,32 @@ public sealed class NurseryCreditTests
     private static ForecastCoupledContext Context(BabyFitsRead babies, IEnumerable<NeedsForecastPawn>? rows = null, params int[] nurseries)
     {
         var hearer = ForecastValueTests.Pawn();
+        var babyRows = (rows ?? [BabyRow()]).Select(p => p.Sleep is null || p.Sleep.Position is ServicePositionRead.Located ? p : p with
+        { Sleep = p.Sleep with { Position = new ServicePositionRead.Located(new(babies.Babies.FirstOrDefault(b => b.Pawn == p.Pawn)?.NurseryRoom == 10 ? 2 : 0, 0)) } });
         return ForecastValueTests.Context(hearer) with
         {
-            Needs = NeedsFixtures.Empty with { Pawns = [hearer, .. rows ?? [BabyRow()]], Babies = babies },
+            Needs = NeedsFixtures.Empty with { Pawns = [hearer, .. babyRows], Babies = babies },
             PlannedRoomRoles = (nurseries.Length == 0 ? [1] : nurseries).ToDictionary(r => r, _ => PlannedRole.Nursery),
             RoomCredits = PlannedRoomCredits.Shipped, InvestmentHorizonDays = Horizon,
             PlannedBeds = new Dictionary<int, IReadOnlyList<SleepingBedFacts?>> { [1] = [.. babies.Babies.Select(_ => new SleepingBedFacts("Crib", "WoodLog", false, 1, .75))] },
+            NurserySites = [new("crib", 1, OpKind.Build, "Crib", "WoodLog", Rotation.North, [.. babies.Babies.Select(_ => new Cell(2, 0))])],
+            Closures = [new(1, "WoodLog", [.. Enumerable.Range(2, 8).Select(x => new Cell(x, 0))], [], [],
+                PlannedRoomPredictionTests.Closed("1", "WoodLog", "Nursery", 10, 1, 8, 0, false))],
+            Activities = new() { Deadline = Day, Activities = [new("observed-work", "cell/0/0", "cell/0/0", [])],
+                Options = [new("observed-work", "pawn", Day, 0) { ServicePosition = new ServicePositionRead.Located(new(0, 0)) }] },
         };
     }
 
-    private static BabyFitsRead Read(params BabyRead[] babies) => NeedsFixtures.NoBabies with { Babies = [.. babies] };
+    private static BabyFitsRead Read(params BabyRead[] babies) => NeedsFixtures.NoBabies with
+    {
+        Babies = [.. babies], Geometry = new(20, 1, [.. Enumerable.Range(0, 20).Select(x => x == 1 ? 1 : x is >= 2 and <= 9 ? 2 : 0)],
+            [.. Enumerable.Range(0, 20).Select(x => x != 1)], [new(0, false, true, 0, [1]), new(1, true, false, -1, [0, 2]), new(2, false, true, 10, [1])], 9.9, 6, 15)
+            { BedSlots = [new("Crib", [new(0, 0), new(0, 0), new(0, 0), new(0, 0)])] },
+    };
 
     /// <summary>The colonist's mood breaks nothing unshifted or raised, and a day in the mildest tier at each lowering shift the context asks for.</summary>
     private static ForecastCoupledOutcome Outcome(ForecastCoupledContext context) =>
-        new(new([], 0, 0), true, context.Needs.Pawns.ToDictionary(p => p.Pawn, p => new ForecastNeedsResult([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new(new(p.Pawn, "", new ForecastCapacityWindows.Unread(), 0), []), [])
+        new(new(context.Activities.Activities.Any(a => a.Id == "observed-work") ? [new("observed-work", "pawn", 0, 0, 0, Day, 0, 0, Day, 0, 0)] : [], Day, 0), true, context.Needs.Pawns.ToDictionary(p => p.Pawn, p => new ForecastNeedsResult([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new(new(p.Pawn, "", new ForecastCapacityWindows.Unread(), 0), []), [])
             {
                 Mood = FlatMood(p),
             }), [])
@@ -95,14 +109,16 @@ public sealed class NurseryCreditTests
         var memory = new HeardMemoryRead("Crying", "SleepDisturbed", -1, Day, 3, 1);
         var baby = Baby(inNursery: standing, now: false, open: false) with
         {
-            Hearers = [], SleepHearers = [new("pawn", "bed", !standing, true, memory)],
+            Hearers = [new() { Pawn = "pawn", Hearing = 1, Memories = [] }], SleepHearers = [new("pawn", memory)],
+            SleepWithoutNursery = Baby().SleepWithoutNursery,
         };
         var context = Context(Read(baby));
         context = context with { Needs = context.Needs with { Pawns = [.. context.Needs.Pawns.Select(p => p.Pawn != "pawn" ? p : p with
         {
-            Location = new(100, 100), Sleep = new("bed", false, false, 3e-5, .75, 21),
+            Location = new(100, 100), Sleep = new("bed", false, false, 3e-5, .75, 21) { Position = new ServicePositionRead.Located(new(0, 0)) },
             Needs = [NeedsFixtures.Rate("rest", .8, 1e-5, .28)],
         })] } };
+        context = context with { Activities = new() { Deadline = Day } };
         var rate = ForecastNursery.FitRates(context.Needs.Babies, [.. baby.Fits], .2, .75)["Crying"] * .25;
         var avoided = -ForecastNursery.HeardMood([(memory, rate / (1 + rate * 300))]);
         var gain = Assert.Single(Gains(context));
@@ -110,14 +126,14 @@ public sealed class NurseryCreditTests
         Assert.Equal(context.Value.WellbeingWeight * avoided / 100, gain.PerDay, 12);
         Assert.True(gain.PerDay > 0);
         Assert.DoesNotContain("nursery_disturbed_sleep", Findings(context));
-        Assert.Contains("nursery_sleep_disturbance_stationary", Findings(context));
+        Assert.Contains("nursery_sleep_disturbance_projected", Findings(context));
 
         var noSleep = context with { Needs = context.Needs with { Babies = Read(baby with { SleepHearers = [] }) } };
         Assert.Empty(Gains(noSleep));
         Assert.Contains("nursery_no_sleep_hearers", Findings(noSleep));
         if (standing)
         {
-            var open = context with { Needs = context.Needs with { Babies = Read(baby with { SleepHearers = [new("pawn", "bed", true, true, memory)] }) } };
+            var open = context with { Needs = context.Needs with { Pawns = [.. context.Needs.Pawns.Select(p => p.Pawn != "baby" ? p : p with { Sleep = p.Sleep! with { Position = new ServicePositionRead.Located(new(0, 0)) } })] } };
             Assert.Empty(Gains(open));
         }
     }
@@ -213,6 +229,46 @@ public sealed class NurseryCreditTests
     }
 
     [Fact]
+    public void ASelectedWorkLocationChangesHearingEvenWhenTheSnapshotPositionIsFarAway()
+    {
+        var outside = Context(Read(Baby(inNursery: true, now: false, open: true)));
+        var inside = outside with
+        {
+            Needs = outside.Needs with { Pawns = [.. outside.Needs.Pawns.Select(p => p.Pawn != "pawn" ? p : p with { Location = new(15, 0) })] },
+            Activities = outside.Activities with
+            {
+                Activities = [new("observed-work", "cell/2/0", "cell/2/0", [])],
+                Options = [new("observed-work", "pawn", Day, 0) { ServicePosition = new ServicePositionRead.Located(new(2, 0)) }],
+            },
+        };
+        Assert.True(Assert.Single(Gains(outside)).PerDay > 0);
+        Assert.Empty(Gains(inside));
+        Assert.DoesNotContain("nursery_hearers_move", Findings(inside));
+    }
+
+    [Fact]
+    public void WorkInAndOutOfTheNurseryContributesItsSelectedTimeShareAndExistingFitsCanBeHeardOnEntry()
+    {
+        var outside = Context(Read(Baby(inNursery: true, now: false, open: true)));
+        var mixed = outside with { Activities = outside.Activities with
+        {
+            Activities = [new("outside", "cell/0/0", "cell/0/0", []), new("inside", "cell/2/0", "cell/2/0", [])],
+            Options = [new("outside", "pawn", Day / 2, 0) { ServicePosition = new ServicePositionRead.Located(new(0, 0)) },
+                new("inside", "pawn", Day / 2, 0) { ServicePosition = new ServicePositionRead.Located(new(2, 0)) }],
+        } };
+        var outcome = Outcome(mixed) with { Plan = new([
+            new("outside", "pawn", 0, 0, 0, Day / 2, 0, 0, Day / 2, 0, 0),
+            new("inside", "pawn", Day / 2, Day / 2, Day / 2, Day, 0, 0, Day / 2, 0, 0)], Day, 0) };
+        var exposure = new ForecastNurseryExposure(mixed, outcome, Day, new HashSet<string>());
+        var baby = mixed.Needs.Babies.Babies[0];
+        Assert.Equal(0, exposure.HeardAt(baby, "pawn", 1, Day / 4, true).Upper);
+        Assert.Equal(1, exposure.HeardAt(baby, "pawn", 1, 3 * Day / 4, true).Lower);
+        Assert.Equal(1, exposure.HeardDuringFit(baby, "pawn", 1, Day / 2 - 600, 1200, true).Lower);
+        var gain = Assert.Single(ForecastNursery.NurseryCredit(Served, outcome, [], mixed, Day));
+        Assert.InRange(gain.PerDay, 0, Assert.Single(Gains(outside)).PerDay);
+    }
+
+    [Fact]
     public void ColoniesWithNoBabyOrNoFitOrNobodyInReachEarnNothing()
     {
         var none = Context(Read());
@@ -239,7 +295,7 @@ public sealed class NurseryCreditTests
     [Fact]
     public void AFitTheReadDoesNotKnowIsNamed()
     {
-        var read = Read(Baby()) with { Fits = [.. NeedsFixtures.NoBabies.Fits, new() { Def = "Babbling", MtbDaysByMood = [new(0, 1)], DurationTicks = 600, Heard = false }] };
+        var read = Read(Baby()) with { Fits = [.. NeedsFixtures.NoBabies.Fits, new() { Def = "Babbling", OpinionThought = "", MtbDaysByMood = [new(0, 1)], DurationTicks = 600, Heard = false }] };
         Assert.Contains(ForecastNursery.UnknownFit + "Babbling", Findings(Context(read)));
     }
 
@@ -269,7 +325,7 @@ public sealed class NurseryCreditTests
     [Fact]
     public void TheSameHearerGetsDifferentFitRatesWhenTheCribChangesAwakeShare()
     {
-        var baby = Baby(inNursery: true) with { SleepWithoutNursery = new("other-bed", false, false, 1e-5, .75, 21) };
+        var baby = Baby(inNursery: true) with { SleepWithoutNursery = new("other-bed", false, false, 1e-5, .75, 21) { Position = new ServicePositionRead.Located(new(0, 0)) } };
         var context = Context(Read(baby));
         var gains = Gains(context).ToDictionary(g => g.Pawn);
         Assert.Equal(.25, gains["baby"].PerDay, 12);
@@ -293,7 +349,7 @@ public sealed class NurseryCreditTests
     [Fact]
     public void AnAdmittedComfortNeedChangesTheBabysMoodAndFitMoodInput()
     {
-        var baby = Baby(inNursery: true) with { SleepWithoutNursery = new("other-bed", false, false, 3e-5, 0, 21) };
+        var baby = Baby(inNursery: true) with { SleepWithoutNursery = new("other-bed", false, false, 3e-5, 0, 21) { Position = new ServicePositionRead.Located(new(0, 0)) } };
         var stages = Enumerable.Range(0, 5).Select(i => new NeedThoughtStage("NeedComfort", ForecastHousing.NeedComfortRole,
             i, new double[] { -3, 4, 6, 8, 10 }[i], NeedsFixtures.Situational));
         var row = BabyRow() with { ThoughtStages = EquatableArray.From(stages) };
@@ -403,14 +459,16 @@ public sealed class NurseryCreditTests
         var review = ForecastCoupledTests.ConstructionReview();
         var needs = review.ForecastObserved.Needs!;
         var hearer = needs.Pawns[0].Pawn;
-        var babies = NeedsFixtures.NoBabies with { Babies = [Baby() with { SleepWithoutNursery = new("other-bed", false, false, 1e-5, .5, 21), Hearers = [.. Baby().Hearers.Select(h => h with { Pawn = hearer })] }] };
+        var babies = Read(Baby() with { SleepWithoutNursery = new("other-bed", false, false, 1e-5, .5, 21) { Position = new ServicePositionRead.Located(new(0, 0)) }, Hearers = [.. Baby().Hearers.Select(h => h with { Pawn = hearer })] });
+        babies = babies with { Geometry = new(20, 20, [.. Enumerable.Repeat(0, 400)], [.. Enumerable.Repeat(true, 400)], [new(0, false, true, 0, [])], 9.9, 6, 15) { BedSlots = [new("Crib", [new(0, 0), new(0, 0), new(0, 0), new(0, 0)])] } };
         var facts = review with
         {
             MoodBreak = ForecastValueTests.Context(needs.Pawns[0]).MoodBreaks,
             PlannedShelters = [new() { Id = 1, Role = PlannedRole.Nursery, Region = RegionRules.RectRegion(new(1, 1, 1, 1)) }],
             PlannedSites = new() { Roles = [(1, PlannedRole.Nursery)], Sites = [new("crib", 1, OpKind.Build, "Crib", "WoodLog", Rotation.North, [new(1, 1)]), new("toy", 1, OpKind.Build, "ToyBox", "WoodLog", Rotation.North, [new(2, 1)])] },
             SleepingBeds = [new("Crib", "WoodLog", false, 1, .75)],
-            ForecastObserved = review.ForecastObserved with { Needs = needs with { Pawns = [.. needs.Pawns, BabyRow()], Babies = babies } },
+            PlannedRoomPredictions = [PlannedRoomPredictionTests.Closed("1", "WoodLog", "Nursery", 10, 1, 1, 0, false)],
+            ForecastObserved = review.ForecastObserved with { Needs = needs with { Pawns = [.. needs.Pawns, BabyRow() with { Sleep = BabyRow().Sleep! with { Position = new ServicePositionRead.Located(new(0, 0)) } }], Babies = babies } },
         };
         var context = ForecastCoupledCandidates.GenerateCoupledActivities(facts)!.Context;
         Assert.Same(facts.ForecastObserved.Needs, context.Needs);
@@ -426,4 +484,179 @@ public sealed class NurseryCreditTests
         Assert.Contains(ForecastNursery.NoBaby, ForecastNursery.Findings(new(1, "", Day), Outcome(fresh), [], fresh, Day));
     }
 
+    private static (ForecastCoupledContext Context, ForecastCoupledOutcome Outcome) SocialScenario(ActivitySocialMode mode,
+        bool eligible = true, bool admitted = true, bool moving = false)
+    {
+        var cry = new SocialMemoryDefRead("BabyCriedSocial", -12, 10 * Day, 5, -1, .9, .7);
+        var giggle = cry with { Def = "BabyGiggledSocial", Offset = 12 };
+        var insult = new SocialMemoryDefRead("InsultedMood", -5, 2 * Day, 10, -1, .9, 1);
+        var social = NeedsFixtures.NoBabies.Social with
+        {
+            MoodDefs = ["InsultedMood"],
+            Pawns = [new()
+            {
+                Pawn = "pawn", MaximumMode = ActivitySocialMode.SuperActive, CooldownTicks = 0,
+                CheckAfterTicks = 60, RetryAfterTicks = 91, AbsoluteCooldownTicks = 0, WantsInteraction = false,
+                Unprojected = "", Recipients = ["baby"], Pairs = [new()
+                {
+                    Baby = "baby", Eligible = eligible, Cry = admitted ? cry : null, Giggle = admitted ? giggle : null,
+                    Opinion = new(0, 0, 1, false),
+                    Interactions = [new("Chitchat", 1, false, []), new("Slight", .02, true, []), new("Insult", .007, true, [insult])],
+                }],
+            }],
+        };
+        var context = Context(Read(Baby(inNursery: true, now: false, open: true)) with { Social = social });
+        context = context with { Activities = context.Activities with
+        {
+            Activities = [new("work", "cell/0/0", moving ? "cell/1/0" : "cell/0/0", [])],
+            Options = [new("work", "pawn", 5000, 0) { ServicePosition = new ServicePositionRead.Located(new(0, 0)), SocialMode = new ForecastSocialService.Verified(mode) }],
+        } };
+        var outcome = Outcome(context) with { Plan = new([new("work", "pawn", 0, 0, 0, 5000, 0, 0, 5000, 0, 0)], 5000, 0) };
+        return (context, outcome);
+    }
+
+    private static double SocialBabyGain((ForecastCoupledContext Context, ForecastCoupledOutcome Outcome) scenario) =>
+        ForecastNursery.NurseryCredit(Served, scenario.Outcome, [], scenario.Context, 5000).SingleOrDefault(g => g.Pawn == "baby").PerDay;
+
+    [Theory]
+    [InlineData(-5)]
+    [InlineData(5)]
+    public void BoundedRecipientMembershipCannotEarnBenefitByDroppingHarmOrHelp(double offset)
+    {
+        var scenario = SocialScenario(ActivitySocialMode.Normal);
+        var read = scenario.Context.Needs.Babies.Social;
+        var actor = read.Pawns[0];
+        var memory = new SocialMemoryDefRead("BoundedInteraction", offset, 2 * Day, 10, -1, .9, 1);
+        var social = read with { MoodDefs = [memory.Def], Pawns = [actor with
+        {
+            Recipients = ["baby", "unlocated-competitor"],
+            Pairs = [actor.Pairs[0] with { Interactions = [new("Interaction", 1, false, [memory])] }],
+        }] };
+        var context = scenario.Context with { Needs = scenario.Context.Needs with { Babies = scenario.Context.Needs.Babies with { Social = social } } };
+        Assert.True(SocialBabyGain((context, scenario.Outcome)) <= 0);
+        Assert.Contains("nursery_opinion_adverse_exposure_envelope:pawn",
+            ForecastNursery.Findings(Served, scenario.Outcome, [], context, 5000));
+    }
+
+    [Fact]
+    public void ActiveCarryAndFutureFeedUseTheSameBabyAndCarerExposureWithOneNeedBudget()
+    {
+        var baby = Baby(inNursery: true, now: false, open: true) with { Care = new()
+        {
+            Active = new("pawn", BabyCareKind.Carry, new(0, 0), new(2, 0), new ServicePositionRead.PassableMap(), ActivitySocialMode.Quiet),
+            Play = null, Food = new(.5, .00001, .0002),
+            Opportunities = [new("pawn", BabyCareKind.Breastfeed, 2, new ServicePositionRead.PassableMap(), new ServicePositionRead.PassableMap(), ActivitySocialMode.Normal),
+                new("other", BabyCareKind.BottleFeed, 2, new ServicePositionRead.PassableMap(), new ServicePositionRead.PassableMap(), ActivitySocialMode.Normal)],
+        } };
+        var context = Context(Read(baby));
+        var exposure = new ForecastNurseryExposure(context, Outcome(context), Day, new HashSet<string>());
+        Assert.Equal(0, exposure.HeardAt(baby, "pawn", 1, 0, true).Upper);
+        Assert.Equal(new ServicePositionRead.Located(new(0, 0)), exposure.BabyAt(baby, 0, true).Single(p => p.LowerShare == 1).Position);
+        // Carry has its own observed uncertainty budget; the two feeding alternatives share one food demand.
+        Assert.Equal(Day, exposure.CareBudgetTicks("baby", "pawn", true));
+        var feedOnly = baby with { Care = baby.Care with { Active = null } };
+        var fed = Context(Read(feedOnly));
+        var feedExposure = new ForecastNurseryExposure(fed, Outcome(fed), Day, new HashSet<string>());
+        Assert.Equal((.5 + .00001 * Day) / .0002, feedExposure.CareBudgetTicks("baby", "pawn", true), 8);
+        Assert.Equal(new ForecastNurseryExposure.Range(0, 1), feedExposure.HeardAt(feedOnly, "pawn", 1, 100, true));
+    }
+
+    [Fact]
+    public void AVerifiedSocialToilPricesOpinionThroughTheBabysInsultMoodAndLaterFits()
+    {
+        var normal = SocialScenario(ActivitySocialMode.Normal);
+        var off = SocialScenario(ActivitySocialMode.Off);
+        Assert.True(SocialBabyGain(normal) > SocialBabyGain(off));
+        var normalHearer = ForecastNursery.NurseryCredit(Served, normal.Outcome, [], normal.Context, 5000).Single(g => g.Pawn == "pawn");
+        var offHearer = ForecastNursery.NurseryCredit(Served, off.Outcome, [], off.Context, 5000).Single(g => g.Pawn == "pawn");
+        Assert.NotEqual(offHearer.PerDay, normalHearer.PerDay);
+        var findings = ForecastNursery.Findings(Served, normal.Outcome, [], normal.Context, 5000).ToArray();
+        Assert.Contains("nursery_opinion_mean_field_feedback", findings);
+        Assert.DoesNotContain("nursery_baby_opinion", findings);
+    }
+
+    [Fact]
+    public void NativeBabyRecipientEligibilityAndSocialThoughtStageAdmissionAreRequired()
+    {
+        Assert.Equal(SocialBabyGain(SocialScenario(ActivitySocialMode.Off)), SocialBabyGain(SocialScenario(ActivitySocialMode.Normal, eligible: false)), 12);
+        var absent = SocialScenario(ActivitySocialMode.Normal, admitted: false);
+        // Relocation still changes ordinary interactions; missing social-thought admission removes only opinion feedback.
+        Assert.NotEqual(SocialBabyGain(SocialScenario(ActivitySocialMode.Normal)), SocialBabyGain(absent));
+        Assert.Contains("nursery_no_opinion_hearer", ForecastNursery.Findings(Served, absent.Outcome, [], absent.Context, 5000));
+    }
+
+    [Fact]
+    public void ATravellingServiceDoesNotBorrowItsEndpointsSocialExposure()
+    {
+        var moving = SocialScenario(ActivitySocialMode.Normal, moving: true);
+        Assert.True(SocialBabyGain(moving) <= SocialBabyGain(SocialScenario(ActivitySocialMode.Off)));
+        Assert.Contains("nursery_transit_exposure:pawn", ForecastNursery.Findings(Served, moving.Outcome, [], moving.Context, 5000));
+    }
+
+    [Fact]
+    public void PositiveMoodInteractionsRemainInTheNativeSelectionDenominator()
+    {
+        var scenario = SocialScenario(ActivitySocialMode.Normal);
+        var read = scenario.Context.Needs.Babies.Social;
+        var actor = read.Pawns[0]; var pair = actor.Pairs[0];
+        var positive = new SocialMemoryDefRead("KindWordsMood", 5, 2 * Day, 10, -1, .9, 1);
+        var changed = read with { MoodDefs = [.. read.MoodDefs, positive.Def], Pawns = [actor with { Pairs = [pair with
+        { Interactions = [new("Chitchat", 1, false, [positive]), .. pair.Interactions.Skip(1)] }] }] };
+        var context = scenario.Context with { Needs = scenario.Context.Needs with { Babies = scenario.Context.Needs.Babies with { Social = changed } } };
+        // The nursery separates these two: removing helpful interaction exposure lowers its benefit.
+        Assert.True(SocialBabyGain((context, scenario.Outcome)) < SocialBabyGain(scenario));
+    }
+
+    [Fact]
+    public void NativeMemoryGroupsComeFromCanonicalNeedsAndDifferingModdedGroupsAreNamed()
+    {
+        var scenario = SocialScenario(ActivitySocialMode.Normal);
+        var pawns = scenario.Context.Needs.Pawns.Select(p => p.Pawn != "baby" ? p : p with { Mood = p.Mood! with
+        { Memories = [new("InsultedMood", -10, new MemoryLife.Expires(Day), false)
+            { StackLimit = 10, Group = new("pawn", 10, 2 * Day, -10, .9, -1, 1, MemoryGroupKind.Mood, 0) }] } }).ToArray();
+        var context = scenario.Context with { Needs = scenario.Context.Needs with { Pawns = [.. pawns] } };
+        Assert.Contains("nursery_opinion_mood_group_unprojected:baby/InsultedMood",
+            ForecastNursery.Findings(Served, scenario.Outcome, [], context, 5000));
+        var missing = pawns.Select(p => p.Pawn != "baby" ? p : p with { Mood = p.Mood! with
+        { Memories = [.. p.Mood!.Memories.Select(m => m with { Group = null })] } });
+        Assert.StartsWith("live memory group:", Assert.Throws<RequiredFactException>(() => ForecastNursery.Findings(Served,
+            scenario.Outcome, [], context with { Needs = context.Needs with { Pawns = [.. missing] } }, 5000)).Fact, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProductionBindingsAttachOnlyTheVerifiedNativeServiceMode()
+    {
+        var review = ForecastCoupledTests.ConstructionReview();
+        var first = ForecastCoupledCandidates.GenerateCoupledActivities(review)!.Context;
+        var binding = first.Bindings.Values.First(b => b.Kind == PawnActivityKind.Work);
+        var needs = review.ForecastObserved.Needs!;
+        var updated = review with { ForecastObserved = review.ForecastObserved with { Needs = needs with
+        { Babies = needs.Babies with { Social = needs.Babies.Social with
+        { Jobs = [new(binding.Kind, binding.Job, ActivitySocialMode.Quiet)] } } } } };
+        var context = ForecastCoupledCandidates.GenerateCoupledActivities(updated)!.Context;
+        Assert.All(context.Activities.Options.Where(o => context.Bindings.TryGetValue((o.Activity, o.Pawn), out var b)
+            && b.Kind == binding.Kind && b.Job == binding.Job), o => Assert.Equal(ActivitySocialMode.Quiet, Assert.IsType<ForecastSocialService.Verified>(o.SocialMode).Mode));
+        Assert.Contains(context.Activities.Options, o => o.SocialMode is ForecastSocialService.Unprojected);
+    }
+
+    [Fact]
+    public void SocialCohortsRetainNativeSharedStackEvictionExpiryAndSignedGroupRounding()
+    {
+        var memory = new SocialMemoryDefRead("cry", -12, 100, 2, -1, .9, .7);
+        var pool = new ForecastSocialMemories([new("one", memory, 20), new("two", memory, 10)]);
+        Assert.Equal(-12, pool.Offset("one", 0, true));
+        pool.Gain("two", memory, 0, 10, 10);
+        Assert.InRange(pool.Offset("one", 10, false), -1e-20, 0);
+        Assert.Equal(0, pool.Offset("two", 120, true));
+        Assert.Equal(1, ForecastSocialMemories.RoundGroup(.1));
+        Assert.Equal(-1, ForecastSocialMemories.RoundGroup(-.1));
+        // Same-pawn cap can evict even when the global cap has spare room.
+        var same = new ForecastSocialMemories([new("one", memory with { StackLimit = 10, SamePawnLimit = 1 }, 20)]);
+        same.Gain("one", memory with { StackLimit = 10, SamePawnLimit = 1 }, 0, 10, 10);
+        Assert.Equal(-12, same.Offset("one", 10, false), 6);
+        // Another pawn's same-pawn cap limits its competition for the shared global cap.
+        var shared = new ForecastSocialMemories([new("one", memory with { SamePawnLimit = 1 }, 20)]);
+        shared.Gain("two", memory with { SamePawnLimit = 1 }, 0, 10, 10);
+        Assert.Equal(-12, shared.Offset("one", 10, true));
+    }
 }

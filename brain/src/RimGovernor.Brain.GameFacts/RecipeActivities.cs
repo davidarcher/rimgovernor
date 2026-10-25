@@ -26,6 +26,8 @@ public sealed record RecipeActivityOption(string Id, string Pawn, string Bench, 
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<RecipeIngredientObservation>))] EquatableArray<RecipeIngredientObservation> Inputs, double TravelTicks, double WorkTicks,
     double OutputTravelTicks, Cell Destination)
 {
+    /// <summary>The native stationary service cell; target and route anchors are not service positions.</summary>
+    public ServicePositionRead ServicePosition { get; init; } = new ServicePositionRead.Unprojected("synthetic_or_unsupported_service");
     public required int RequiredCount { get; init; }
     public ProductiveSkillWork? SkillWork { get; init; }
 }

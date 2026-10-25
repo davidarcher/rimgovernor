@@ -476,33 +476,45 @@ unknown. What the game does not have is a case, never an unknown:
   clauses; "" none), and per colonist with a learning need its `LearningRateFactor` stat and the skills that
   teacher's lessons teach it (`JobDriver_Lessongiving.ChooseSkill`: not totally disabled for either, a
   `lessonInteraction`, best first, the private `TopTeachableSkillCount`), each with its `SkillLearning`.
-- `NeedsForecastRead.Babies` (#3854, `BabyFitsRead`): `MentalFitGenerator`'s private `CheckInterval` and
-  `MinTicksSinceRecoveryToHaveFit`; every `MentalFitDef` whose filter admits the Baby stage, in def order, with its
-  `mtbDaysMoodCurve`, its `maxTicksBeforeRecovery` and whether its mental state's memories are known (a
-  `MentalState_BabyCry` or `MentalState_BabyGiggle`); and per pawn a fit admits, in id order, the fits that can start for it
-  (a mood, `CanDoRandomMentalFits`, the stage and the worker's `StateCanOccur`), whether it stands in a nursery
-  (`RoomRoleWorker_Nursery`), its `SleepWithoutNursery` surface (the canonical `NeedSleep` record, read by the shared native
-  sleep reader excluding that nursery's beds; an empty bed id names ground), its CribQuality offsets for the current crib,
-  alternate surface and a new Normal crib (null for no mood; #3941), and the colonists with a mood its clamor reaches (`GenClamor.DoClamor`'s region walk through
-  open doors, `BabyScreamRadius × Hearing`) now and with that nursery's doors open, each with the memory it would gain per
-  fit (the My* def for a parent, `ThoughtUtility.CanGetThought`): offset, duration, `stackLimit` and
-  `stackedEffectMultiplier`. Its `Play` mechanics (#3940) read the loaded play giver kinds, refill/fall rates and
-  per-stuff building gain factors (null without Biotech). Each baby's `Play` is null for no play need; otherwise it
-  names the observed ongoing play carer (empty for no play job), the actual static room factor and each eligible carer's usable toy source with and without nursery
-  furniture, plus decoration exposure bounds across reachable rooms. Walking and toy-drop exposure stays a
-  range; a read never samples random jobs or changes the game to obtain it. The pure nursery credit takes the
-  lower savings bound and publishes both ends in its findings ([play valuation](../architecture/forecast-value.md)).
-  `SleepHearers` (#3942) independently reads eligible `SleepDisturbed` recipients at every canonical rest target and
-  at their native default sleeping surface, even when the pawn currently stands out of sound reach. Bed cells use
-  `RestUtility.GetBedSleepingSlotPosFor`'s assigned/occupied/free-slot order; an unreadable slot throws instead of
-  using the game's error fallback. Ground has an empty target id and its observed ground cell. Both closed/current and
-  nursery-open region reach are explicit booleans, including false for out of reach. Admission mirrors
-  `Pawn.HearClamor` / `CheckForDisturbedSleep`: alive, not downed, not deathresting or self-shutdown, player faction,
-  mood/rest, no love relation to the source, no source petness or bond, and `ThoughtUtility.CanGetThought`.
-  Only `MentalState_BabyCry` fits supply this memory; giggles do not. Each row holds the unattached shared
-  `SleepDisturbed` offset, duration, stack limit and multiplier. `SleepDisturbanceIntervalTicks` reads Pawn's private
-  `SleepDisturbanceMinInterval` (300); a missing required input raises `RequiredFactException`.
+- `NeedsForecastRead.Babies` carries native fit admission, mood curves, fit duration,
+  memory definitions and actual Hearing capacity for every eligible colony recipient.
+  Its canonical rest surface determines nursery housing, including a carried baby
+  whose rest traveler is its holder. Sleep targets expose their actual sleeping slot,
+  using the assigned/occupied/free-slot order; a bed anchor is never substituted.
+  `SleepHearers` contains native `SleepDisturbed` admission and memory mechanics;
+  it does not duplicate target locations or snapshot reach flags. The native cooldown
+  is `Pawn.SleepDisturbanceMinInterval`; giggles never enter this pool.
+- `BabyFitsRead.Geometry` is one compact map frame: passable region indices,
+  ordered links, doorway/open state, room identity and native visibility cells.
+  The pure exposure owner reproduces capped clamor traversal (doorways do not spend
+  its 15-region cap) and the integer GenSight ray, excluding both endpoints.
+  The first fit tick screams immediately; subsequent screams use the native strict
+  comparison against `ScreamInterval`, hence 151 ticks in the installed version.
+- `ForecastNurseryExposure` joins selected allocations to exact native service cells,
+  preparation and transit intervals, observed services, actual lying-in slots and
+  recurrent rest at the selected terminal sleeping surface. Future awake time and
+  unprojectable movement are named bounded spans, never the last observed position.
+  The same spans drive heard-fit mood, sleeping-hearer disturbance and all social
+  recipients, including competitors. Native care replaces both source and carer
+  presence through the same owner ([care occupancy](#baby-care-occupancy)).
+- Existing geometry is exact. A future closed nursery uses its native predicted
+  interior and native radius exclusions, with explicit exposure bounds where its
+  future region partition or visibility is unavailable. Uncertain short visits
+  retain clamor-phase and once-per-fit-memory union bounds. Harmful and helpful
+  memory endpoints are selected adversely on both room counterfactuals; these
+  geometry bounds remain conditional on the approved mean-field social feedback
+  approximation, not a certified bound on its global nonlinear error.
 
+Baby-fit social consequences use `BabyFitsRead.Social`. Native reads retain verified
+toil modes, hash phases, cooldowns, non-job eligibility, every eligible competing
+recipient, normalized interaction weights and admitted recipient mood memories.
+Live memories remain in `NeedsForecastPawn.Mood.Memories`; `NeedMemory.Group`
+owns attribution, raw offsets, age, fade and stacking. `PawnOpinionPartsRead`
+owns relations, situational social groups, scaling and hostility. Exact located
+spans use native recipient competition. Bounded membership retains an adverse
+interaction envelope limited by native check/retry opportunities; it never earns
+benefit by dropping a possible insult or a competing recipient. Tracker uncertainty
+persists after such a span. Outcome findings disclose the envelope and approximation.
 The brain mirrors the game literals these mechanics use; each constant cites its
 1.7 member ([kept constants](kept-constants.md#mirrored-game-literals-3339)).
 
@@ -948,6 +960,34 @@ The harm model's first step ([harm model](../architecture/forecast-value.md#harm
   a finding (`threat_unobserved`, `days_passed_invalid`, `storyteller_unknown:<def>`,
   `threat_comp_invalid:<shape>`), when a fact it reads is unread; the hospital credit then throws `RequiredFactException`. Non-raid
   threats are not modelled. The mirrored literals are in [kept constants](kept-constants.md#mirrored-game-literals-threat-schedule-3539).
+
+## Service positions
+
+A forecast option carries `ServicePositionRead` separately from its activity's route
+and material anchors. Research and recipes read the native interaction cell;
+stationary touch work and care use the endpoint of the priced native path, whose
+cached reversed-node list already owns that cell. Neither target position nor
+activity location supplies a missing service cell. Need targets and produced-food
+uses carry the same read through candidate composition and delayed alternatives. Internal
+recipe preparation uses `ServiceDelayTicks` independently of skill learning; that
+movement does not become time spent standing at the bench.
+
+`Located` means one observed service cell. `Possible` contains every possible native
+service cell, including conservative extra cells when the native selector is random;
+no frequency or random seed is assumed. Ingestion bounds include chairs around the
+pickup location, the standing selector's maximum radius, its final origin-region
+random draw and its pickup-cell failure behavior. Recreation uses native watch
+geometry, adjacent seating/shot cells, or its priced touch endpoint by driver family.
+These ingestion cells bound stationary chewing only: pickup-to-chew travel and its onset remain bounded across the whole uncertain interval. Moving work sets and unsupported drivers remain explicitly unprojected. These facts
+bound nursery exposure; they do not choose or reserve the eventual native service cell.
+
+### Baby care occupancy
+
+`BabyRead.Care` observes the active carer and native feeding and play opportunities. The canonical needs census retains carried free-colonist babies from their native carry tracker, with state `carried`; they receive no voluntary work or unspawned path queries. Their default sleeping surface uses the carrier as RestUtility's traveler, as Childcare does. `NurseryGeometryRead.BedSlots` carries native first-slot offsets for every planned bed definition and rotation; the catalog owns only definition stats. `NeedSleep.Position` names the actual sleeping slot, including the alternate crib; a carried, bedless baby's random safe drop has no fixed location and remains explicitly unprojected.
+
+Clamor and social checks read the baby's raw `Position`, even while `MapHeld` follows its carrier. The active snapshot therefore keeps the pickup cell and the carer's separate current cell. A current snapshot occupies one forecast tick; subsequent native service is conditional and bounded. An observed pure carry has no recovery budget: until its native drop is observed, the remaining horizon encloses the pickup source, later drop positions and regional carer locations, with unprojected future social mode. Feeding uses the native normalized recovery of 1/5000 per tick, the maximum observed hunger-category decay, and actual lactation charge or native selected baby food. Play uses the existing BabyPlay gain-factor bounds, including walking and toy-drop uncertainty and planned decoration factors. For a horizon H, total gross recovery cannot exceed the initial need deficit plus decay times H; dividing this by the least service gain bounds the occupied share. This does not average random job choices or assign carers.
+
+All carers and activity modes for one baby's food or play carry the same demand identity. Exposure consumers union those alternatives instead of adding independent need budgets. The lower future share is zero because native interruptions and carer selection remain native; the upper share comes from the recovery conservation bound and available nutrition plus native lactation recharge. These are total time budgets, not pointwise probabilities or a uniform care schedule; nonlinear fit-memory consumers retain possible care anywhere in the interval. Continuous sleeping-hearer arrival dose is tightened by at most the largest fit rate times the unioned service-time budget; alternatives of one demand take their maximum, distinct demands sum and clamp to the horizon. Random walking, chair/standing and toy-drop destinations use `ServicePositionRead.PassableMap`, the passable-region cells of the one shared geometry frame, with no probability distribution or duplicate map census. Static play uses the canonical resting source and its ClosestTouch enclosure. Observed service opportunities are conditional on the current work capabilities, policies, reachability and supply; no second childcare allocator or colony nutrition stock is introduced.
 
 ## Coherent coupled observation frame
 

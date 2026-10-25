@@ -96,11 +96,15 @@ public sealed record TaughtSkillRead(string Skill, SkillLearning Learning);
 /// </summary>
 public sealed record BabyFitsRead
 {
+    public required NurseryGeometryRead? Geometry { get; init; }
+    public required BabySocialRead Social { get; init; }
     /// <summary>Pawn.CheckForDisturbedSleep's minimum interval between gains, in ticks.</summary>
     public required double SleepDisturbanceIntervalTicks { get; init; }
     /// <summary>Loaded play activities, refill/fall mechanics and normal-quality building stats; null without Biotech.</summary>
     public required BabyPlayMechanicsRead? Play { get; init; }
     public required double CheckIntervalTicks { get; init; }
+    /// <summary>MentalState_BabyFit's first scream is immediate; normal subsequent ticks require time strictly past ScreamInterval.</summary>
+    public required double ClamorIntervalTicks { get; init; }
     public required double RecoveryAwakeTicks { get; init; }
     /// <summary>Every <c>MentalFitDef</c> whose <c>developmentalStageFilter</c> holds Baby, in def order. Empty without Biotech.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<BabyFitRead>))]
@@ -117,21 +121,23 @@ public sealed record BabyFitsRead
 public sealed record BabyFitRead
 {
     public required string Def { get; init; }
+    /// <summary>Social memory this native fit gives its hearer; empty for an unknown/unheard state.</summary>
+    public required string OpinionThought { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<CurvePointRead>))]
     public required EquatableArray<CurvePointRead> MtbDaysByMood { get; init; }
     public required double DurationTicks { get; init; }
     public required bool Heard { get; init; }
 }
 /// <summary>
-/// One baby (#3854): the fits that can start for it now (<see cref="BabyFitsRead.Fits"/> defs whose state worker's
-/// <c>StateCanOccur</c> holds), whether it lies in a room the game scores a Nursery (<c>RoomRoleWorker_Nursery</c>), and every
-/// colonist given who hears it (<c>GenClamor.DoClamor</c> at <c>MentalState_BabyFit.BabyScreamRadius</c>), with the doors as they are
-/// and with its nursery's doors open.
+/// One baby: native fit admission, its canonical resting nursery and alternate sleeping surface,
+/// eligible heard-memory recipients and observed care opportunities. Spatial and temporal exposure is projected once in policy.
 /// </summary>
 public sealed record BabyRead
 {
-    /// <summary>Eligible SleepDisturbed recipients at each canonical rest target and their native default sleeping surface.
-    /// Empty means none can gain the thought. A target with both reach flags false is explicitly out of sound reach.</summary>
+    /// <summary>Native nursery Room.ID; -1 when not in a nursery.</summary>
+    public int NurseryRoom { get; init; } = -1;
+    public required BabyCareRead Care { get; init; }
+    /// <summary>Native eligible SleepDisturbed recipients and memory mechanics; the shared exposure owner supplies sleeping slots and time.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<BabySleepHearerRead>))]
     public required EquatableArray<BabySleepHearerRead> SleepHearers { get; init; }
     /// <summary>CribQuality offsets for the current crib, the alternate surface and a new normal-quality crib; null without mood.</summary>
@@ -144,7 +150,7 @@ public sealed record BabyRead
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public required EquatableArray<string> Fits { get; init; }
     public required bool InNursery { get; init; }
-    /// <summary>In pawn id order; empty means nobody hears it either way.</summary>
+    /// <summary>Eligible colony mood recipients in pawn id order, including those whose projected service is elsewhere.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<BabyHearerRead>))]
     public required EquatableArray<BabyHearerRead> Hearers { get; init; }
 }
@@ -179,14 +185,12 @@ public sealed record BabyPlayCarerRead(string Pawn, BabyPlaySourceRead? Toy, Bab
     double WalkingMinFactor, double WalkingMaxFactor, double WalkingWithoutNurseryMinFactor, double WalkingWithoutNurseryMaxFactor);
 public sealed record BabyPlaySourceRead(double GainFactor, double MinRoomFactor, double MaxRoomFactor);
 /// <summary>
-/// A colonist who hears a baby: with the doors as they are now (<see cref="Now"/>), with the doors of the baby's nursery open
-/// (<see cref="NurseryOpen"/>; as <see cref="Now"/> for a baby in no nursery), and the memory each heard fit gives it.
+/// A native eligible baby-fit recipient, its Hearing capacity and the memories the native admission rules permit.
 /// </summary>
 public sealed record BabyHearerRead
 {
     public required string Pawn { get; init; }
-    public required bool Now { get; init; }
-    public required bool NurseryOpen { get; init; }
+    public double Hearing { get; init; }
     /// <summary>Per heard fit def, the memory it gives this hearer; a fit whose memory it cannot get (ThoughtUtility.CanGetThought) has none.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<HeardMemoryRead>))]
     public required EquatableArray<HeardMemoryRead> Memories { get; init; }
@@ -197,9 +201,8 @@ public sealed record BabyHearerRead
 /// <c>DurationTicks</c>, <c>stackLimit</c> and <c>stackedEffectMultiplier</c>.
 /// </summary>
 public sealed record HeardMemoryRead(string Fit, string Thought, double Offset, double DurationTicks, int StackLimit, double StackedMultiplier);
-/// <summary>A cry's shared SleepDisturbed memory at one hearer's sleeping target (empty Target names ground).
-/// Reach uses that target's cell, independently of the pawn's current standing position.</summary>
-public sealed record BabySleepHearerRead(string Pawn, string Target, bool Now, bool NurseryOpen, HeardMemoryRead Memory);
+/// <summary>A native eligible cry recipient and its shared SleepDisturbed memory, independent of observed standing position.</summary>
+public sealed record BabySleepHearerRead(string Pawn, HeardMemoryRead Memory);
 /// <summary>
 /// The recruitment mechanics (#3805, #3899), from <c>InteractionWorker_RecruitAttempt.Interacted</c>: while a prisoner's resistance
 /// is above 0, each warden recruit attempt lowers it by the warden's <c>StatDefOf.NegotiationAbility</c> times <see cref="MoodCurve"/>
@@ -510,7 +513,11 @@ public abstract record NeedNearbyFires
 /// ground, times RestRateMultiplier), <see cref="Comfort"/> the comfort need's instant level lying there (the bed's Comfort
 /// stat, 0 on the ground) and <see cref="Temperature"/> the ambient temperature ApplyBedThoughts compares.
 /// </summary>
-public sealed record NeedSleep(string Bed, bool Outside, bool Ground, double GainPerTick, double Comfort, double Temperature);
+public sealed record NeedSleep(string Bed, bool Outside, bool Ground, double GainPerTick, double Comfort, double Temperature)
+{
+    /// <summary>The observed native sleeping slot or ground cell, including a carried baby's future rest surface.</summary>
+    public ServicePositionRead Position { get; init; } = new ServicePositionRead.Unprojected("synthetic_sleep_surface");
+}
 /// <summary>
 /// The lie-down a pawn is in now (#3882). <see cref="Place"/> is read as <see cref="NeedsForecastPawn.Sleep"/> is, but at the
 /// pawn's own cell and its CurrentBed (<see cref="NeedSleep.Bed"/> the bed's load id, "" on the ground): what Toils_LayDown's
@@ -742,6 +749,15 @@ public abstract record MemoryLife
 public sealed record NeedMemory(string Id, double Offset, MemoryLife Life, bool Fades)
 {
     public required int StackLimit { get; init; }
+    /// <summary>Canonical live memory attribution/mechanics. Null for an unattached hypothetical gain; native live capture always fills it.</summary>
+    public NeedMemoryGroupRead? Group { get; init; }
+}
+public enum MemoryGroupKind { Mood, SocialFading, SocialCumulative }
+public sealed record NeedMemoryGroupRead(string Other, double Age, double DurationTicks, double RawOffset,
+    double Multiplier, int SamePawnLimit, double FadeStarts, MemoryGroupKind Kind, double CumulativeCap)
+{
+    public string Label { get; init; } = "";
+    public string Unprojected { get; init; } = "";
 }
 /// <summary>Native mood-point contribution in a half-open local-hour window; EndHour less than StartHour wraps midnight. CurrentOffset is already present in UnclampedTarget.</summary>
 public sealed record NeedConditionalThought(double StartHour, double EndHour, bool AwakeOnly,
@@ -1062,6 +1078,8 @@ public sealed record OrganReplacementRead(string Part, string Recipe)
 /// <summary>Native legality and mechanics, not a selected need action. Travel is an observed route cost.</summary>
 public sealed record NeedTarget(string Id, string Kind, string Resource, int AvailableCount, double TravelTicks, NeedRecovery Recovery)
 {
+    /// <summary>The native stationary service cell; target and route anchors are not service positions.</summary>
+    public ServicePositionRead ServicePosition { get; init; } = new ServicePositionRead.Unprojected("synthetic_or_unsupported_service");
     /// <summary>The observed service object's room stage, or explicitly no room.</summary>
     public NeedRoomStage RoomStage { get; init; } = new NeedRoomStage.NoRoom();
     public NeedMeal? Meal { get; init; }

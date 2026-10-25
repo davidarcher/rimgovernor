@@ -58,6 +58,8 @@ public sealed record SurgeryOutcomeRead(string Kind, double Chance, double Damag
 public sealed record SupportWorker(string Demand, string Pawn, string Target, string Job, string WorkGiver,
     Cell Location, double ApproachTicks, double WorkTicks)
 {
+    /// <summary>The native stationary service cell; target and route anchors are not service positions.</summary>
+    public ServicePositionRead ServicePosition { get; init; } = new ServicePositionRead.Unprojected("synthetic_or_unsupported_service");
     /// <summary>The medicine a tend uses or the ingredient a surgery consumes; null for a tend without medicine.</summary>
     public required SupportMedicine? Medicine { get; init; }
     public required SupportTreatment Treatment { get; init; }

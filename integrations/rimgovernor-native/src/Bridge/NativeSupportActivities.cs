@@ -83,6 +83,7 @@ internal static class NativeSupportActivities
                     workers.Add(new(id, pawn.GetUniqueLoadID(), patient.GetUniqueLoadID(), "TendPatient", tend.defName,
                         At(patient.Position), walk, Math.Ceiling(600d / speed))
                     {
+                        ServicePosition = legs.ServicePosition(pawn, medicine?.Position ?? pawn.Position, patient.Position, PathEndMode.Touch),
                         Medicine = medicine == null ? null : new(medicine.GetUniqueLoadID(), medicine.def.defName, 1, At(medicine.Position), medicine.stackCount),
                         Treatment = new RimGovernor.Brain.GameFacts.Observations.SupportTreatment.Tend(TendUtility.CalculateBaseTendQuality(pawn, patient, medicine?.def), Infection(patient, medicine != null),
                             new(learning, SkillDefOf.Medicine.defName,
@@ -121,6 +122,7 @@ internal static class NativeSupportActivities
                     workers.Add(new(id, pawn.GetUniqueLoadID(), patient.GetUniqueLoadID(), "DoBill", giver.defName, At(patient.Position),
                         walk, (double)bill.recipe.WorkAmountTotal(null) / speed)
                     {
+                        ServicePosition = legs.ServicePosition(pawn, source.Position, patient.Position, PathEndMode.Touch),
                         Medicine = new(source.GetUniqueLoadID(), source.def.defName, count, At(source.Position), source.stackCount),
                         Treatment = new RimGovernor.Brain.GameFacts.Observations.SupportTreatment.Surgery(recipe, SurgeryQualityOf(pawn, patient, bill.recipe, bill.Part, bill), skillWork)
                     });

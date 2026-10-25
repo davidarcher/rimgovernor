@@ -78,6 +78,7 @@ internal static class NativeFoodActivity
                     var (cell, route) = chosen;
                     options.Add(new(pawn.GetUniqueLoadID(), source.GetUniqueLoadID(), product.defName,
                         new(source.Position.x, source.Position.z), new(cell.x, cell.z), giver?.defName ?? "", count, work) {
+                            ServicePosition = legs.ServicePosition(pawn, pawn.Position, source, PathEndMode.Touch),
                             SkillWork = NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Plants, StatDefOf.PlantWorkSpeed,
                                 plant.def.plant.harvestWork, UnityEngine.Mathf.Lerp(3.3f, 1f, plant.Growth), .085, true, false, "JobDriver_PlantHarvest: learning before work"),
                             ApproachTicks = approach, DeliveryTicks = route, HarvestAllowed = harvestAllowed, SourceCount = sourceCount });

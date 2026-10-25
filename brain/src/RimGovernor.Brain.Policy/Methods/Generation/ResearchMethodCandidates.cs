@@ -31,7 +31,7 @@ internal sealed record ResearchMethodCandidates(ForecastActivity[] Tasks, Foreca
             var location = ForecastLocations.Of(worker.Location);
             tasks.Add(new(id, location, location, []) { ChoiceIdentity = "research/" + worker.Pawn,
                 ProjectProgress = new(worker.Project, worker.PointsPerTick) });
-            options.Add(new(id, worker.Pawn, ResearchBlockTicks, 0) { Equipment = [worker.Bench], SkillWork = worker.SkillWork });
+            options.Add(new(id, worker.Pawn, ResearchBlockTicks, 0) { ServicePosition = worker.ServicePosition, Equipment = [worker.Bench], SkillWork = worker.SkillWork });
             bindings[(id, worker.Pawn)] = new(id, worker.Pawn, [], PawnActivityKind.Work, worker.Bench, worker.WorkGiver, worker.Job,
                 0, deadline, worker.Location);
             roots.Add(new(id, []) { ActivityCompletions = [id], ExclusiveOutcome = "research/" + worker.Pawn });

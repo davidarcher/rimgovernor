@@ -57,15 +57,27 @@ public sealed record ForecastProjectProgress(string Project, double PointsPerTic
 }
 public sealed record ForecastActivityOption(string Activity, string Pawn, double WorkTicks, double RecoveryLaborTicks)
 {
+    /// <summary>The native stationary service cell; target and route anchors are not service positions.</summary>
+    public ServicePositionRead ServicePosition { get; init; } = new ServicePositionRead.Unprojected("synthetic_or_unsupported_service");
+    /// <summary>Internal preparation and movement before the stationary service begins, independent of skill learning.</summary>
+    public double ServiceDelayTicks { get; init; }
     /// <summary>Native roundtrip absence after departure. Reserves the participant through the slice; it is not awake labor.</summary>
     public double AbsenceTicks { get; init; }
     /// <summary>The existing external action can start wherever the participant finished earlier work (caravan formation).</summary>
     public bool FromCurrentLocation { get; init; }
+    /// <summary>Native verified stationary service-toil social mode, or explicitly unprojected.</summary>
+    public ForecastSocialService SocialMode { get; init; } = new ForecastSocialService.Unprojected();
     public RimGovernor.Brain.GameFacts.Observations.ProductiveSkillWork? SkillWork { get; init; }
     /// <summary>A tend's learning, paid once at completion; the observed WorkTicks stay the duration (#3632).</summary>
     public RimGovernor.Brain.GameFacts.Observations.TendLearning? TendLearning { get; init; }
     /// <summary>Exclusive equipment needed throughout service; travel does not transport this equipment.</summary>
     public EquatableArray<string> Equipment { get; init; }
+}
+public abstract record ForecastSocialService
+{
+    private ForecastSocialService() { }
+    public sealed record Verified(ActivitySocialMode Mode) : ForecastSocialService;
+    public sealed record Unprojected : ForecastSocialService;
 }
 /// <summary>Route duration supplied by observation/estimation, never inferred from straight-line distance.</summary>
 public sealed record ForecastActivityRoute(string Pawn, string From, string To, RouteTicks Ticks);

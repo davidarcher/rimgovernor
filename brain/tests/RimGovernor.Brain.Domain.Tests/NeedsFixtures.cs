@@ -21,7 +21,15 @@ internal static class NeedsFixtures
     /// <summary>The baby fit read of no baby, at the game's fits (MentalFitGenerator, MentalStates_BabyFits.xml; Biotech, 1.7).</summary>
     public static BabyFitsRead NoBabies => new()
     {
-        CheckIntervalTicks = 150, RecoveryAwakeTicks = 600, SleepDisturbanceIntervalTicks = 300,
+        Geometry = null,
+        Social = new()
+        {
+            CheckIntervalTicks = 60, RetryIntervalTicks = 91, MinInteractionTicks = 320,
+            QuietMtbTicks = 22000, NormalMtbTicks = 6600, SuperActiveMtbTicks = 550,
+            OpinionFactor = [new(-100, 6), new(-50, 4), new(-25, 2), new(0, 1), new(50, .1), new(100, 0)],
+            Jobs = [], Pawns = [], MoodDefs = [],
+        },
+        CheckIntervalTicks = 150, ClamorIntervalTicks = 151, RecoveryAwakeTicks = 600, SleepDisturbanceIntervalTicks = 300,
         Play = new()
         {
             FallPerTick = .00025 / 150, GainPerTick = .0002,
@@ -30,8 +38,8 @@ internal static class NeedsFixtures
         },
         Fits =
         [
-            new() { Def = "Crying", MtbDaysByMood = [new(0, .083), new(.25, .166), new(.5, 1), new(.75, 4), new(1, 8)], DurationTicks = 1200, Heard = true },
-            new() { Def = "Giggling", MtbDaysByMood = [new(0, 8), new(.25, 4), new(.5, 1), new(.75, .5), new(1, .25)], DurationTicks = 1200, Heard = true },
+            new() { Def = "Crying", OpinionThought = "BabyCriedSocial", MtbDaysByMood = [new(0, .083), new(.25, .166), new(.5, 1), new(.75, 4), new(1, 8)], DurationTicks = 1200, Heard = true },
+            new() { Def = "Giggling", OpinionThought = "BabyGiggledSocial", MtbDaysByMood = [new(0, 8), new(.25, 4), new(.5, 1), new(.75, .5), new(1, .25)], DurationTicks = 1200, Heard = true },
         ],
         Babies = [],
     };

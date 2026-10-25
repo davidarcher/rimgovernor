@@ -114,7 +114,7 @@ internal static class NativeCoupledFood
                                 approach, supply, capacity, availableInput)
                             {
                                 WorkGiver = giver.defName, Bill = bill.GetUniqueLoadID(), RequiresHarvest = plant != null, CanSupply = canHaul,
-                                Cooking = cooking, Delivery = carried
+                                ServicePosition = new RimGovernor.Brain.GameFacts.Observations.ServicePositionRead.Located(new(bench.InteractionCell.x, bench.InteractionCell.z)), Cooking = cooking, Delivery = carried
                             });
                             cooked.Add((product.thingDef, new(destination.x, destination.z), raw));
                         }
@@ -144,7 +144,7 @@ internal static class NativeCoupledFood
                     pawn.WillEat(resource) && pawn.foodRestriction?.GetCurrentRespectedRestriction(pawn)?.filter.Allows(resource) != false,
                     (double)nutrition / pawn.needs.food.MaxLevel,
                     resource.ingestible.baseIngestTicks / (double)(resource.ingestible.useEatingSpeedStat ? pawn.GetStatValue(StatDefOf.EatingSpeed) : 1),
-                    resource.ingestible.maxNumToIngestAtOnce, fresh) { Thoughts = thoughts, Ingredient = ingredient });
+                    resource.ingestible.maxNumToIngestAtOnce, fresh) { ServicePosition = NativeServicePositions.Meal(pawn, resource, location), Thoughts = thoughts, Ingredient = ingredient });
             }
         }
     }

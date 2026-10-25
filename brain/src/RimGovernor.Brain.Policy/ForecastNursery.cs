@@ -8,9 +8,9 @@ namespace RimGovernor.Brain.Policy;
 //   in def order and starts the first whose Rand.MTBEventOccurs(CalculateMTBDays, 60000, 150) fires. CalculateMTBDays is the def's
 //   mtbDaysMoodCurve at Need_Mood.CurLevelPercentage (Crying first, then Giggling; Baby stage only, so no newborn fits). After any
 //   mental state the generator waits MinTicksSinceRecoveryToHaveFit (600) awake ticks.
-// - A baby fit (BaseBabyMentalFit) lasts exactly maxTicksBeforeRecovery (1200, min = max, recoveryMtbDays Infinity). Every 150
+// - A baby fit (BaseBabyMentalFit) lasts exactly maxTicksBeforeRecovery (1200, min = max, recoveryMtbDays Infinity). Every 151
 //   ticks MentalState_BabyFit calls GenClamor.DoClamor(baby, BabyScreamRadius 9.9): a region walk through open doors only, at most
-//   15 regions, reaching every pawn within 9.9 × its Hearing. Each hearer gains the fit's memory once (alreadyHeard): a cry gives
+//   15 non-doorway regions, reaching every pawn within 9.9 × its Hearing. Each hearer gains the fit's memory once (alreadyHeard): a cry gives
 //   CryingBaby (−8, MyCryingBaby −4 for a parent), a giggle GigglingBaby (+4, MyGigglingBaby +8), each a quarter day, stackLimit 3,
 //   stackedEffectMultiplier 0.8.
 // - MemoryThoughtHandler.TryGainMemory renews the oldest of a baby's group once it holds stackLimit, and drops a def's oldest once
@@ -21,10 +21,9 @@ namespace RimGovernor.Brain.Policy;
 /// The Nursery room credit (#3854): a crib's rest compared with the baby's other sleeping surface, and the crying and giggling
 /// it changes for the colonists. A baby fits at the rates its mood
 /// gives (<see cref="FitRates"/>); each colonist who hears it gains the fit's memory, stacked as the game stacks them
-/// (<see cref="HeardMood"/>). Who hears a baby is the native sound-reach read now (<see cref="BabyRead.Hearers"/>). Before a
-/// nursery stands, its baby is heard as now without the room and by nobody with it (behind its closed door, with no colonist inside);
-/// a baby in a standing nursery is heard as now with the room and as with that nursery's doors open without it. Each colonist is
-/// credited <see cref="PlannedRoomCredits.MoodGain"/> of its mood with the room less its mood without it: a crying baby's room gains,
+/// (<see cref="HeardMood"/>). One projected presence owner joins selected service cells, exact native sleeping slots and
+/// native care exposure. Existing topology is exact; future room geometry and uncertain transit/care retain explicit bounds.
+/// Each colonist is credited <see cref="PlannedRoomCredits.MoodGain"/> of its mood with the room less its mood without it: a crying baby's room gains,
 /// a giggling baby's loses the giggles. The lowest-id planned nursery takes every baby (the layout sizes its cribs for them all).
 /// </summary>
 public static class ForecastNursery
@@ -47,8 +46,6 @@ public static class ForecastNursery
     /// <summary>The mechanics the credit leaves out, named with each served nursery.</summary>
     public static readonly EquatableArray<string> NotModelled =
     [
-        "nursery_baby_opinion", // #3943: the BabyCriedSocial and BabyGiggledSocial opinion memories
-        "nursery_hearers_move", // #3944: colonists held where they stand now; a colonist who enters the nursery hears its babies
         "nursery_other_hearers", // #3945: prisoners, guests and slaves in reach
     ];
 
@@ -56,16 +53,26 @@ public static class ForecastNursery
     public static IReadOnlyList<RoomGain> NurseryCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {
         if (Taker(context) != room.Room) return [];
-        var read = Of(context, outcome);
-        return [.. read.Moods.Keys.Concat(read.Rest.Keys).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
+        var read = Of(context, outcome, horizon);
+        return [.. read.Moods.Keys.Concat(read.Rest.Keys).Concat(read.Responses.Keys).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
             .Select(pawn => new RoomGain(pawn, pawn, (read.Moods.TryGetValue(pawn, out var mood)
                 ? MoodGain(mood.With, pawn, outcome, context, horizon)
-                    - MoodGain(mood.Without, pawn, outcome, context, horizon) : 0) + read.Rest.GetValueOrDefault(pawn))), .. read.Play];
+                    - MoodGain(mood.Without, pawn, outcome, context, horizon) : 0) + read.Rest.GetValueOrDefault(pawn)
+                + (read.Responses.TryGetValue(pawn, out var responses) ? ResponseValue(responses.With, context, horizon)
+                    - ResponseValue(responses.Without, context, horizon) : 0))), .. read.Play];
     }
 
     /// <summary>The findings (<see cref="RoomFindings"/>): what the credit leaves out and the room's named states.</summary>
     public static IEnumerable<string> Findings(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon) =>
-        Taker(context) != room.Room ? [.. NotModelled, Housed] : [.. NotModelled, .. Of(context, outcome).States];
+        Taker(context) != room.Room ? [.. NotModelled, Housed] : [.. NotModelled, .. Of(context, outcome, horizon).States];
+
+    private static double ResponseValue(ForecastMoodResponse response, ForecastCoupledContext context, double horizon)
+    {
+        var lost = context.MoodBreaks.DaysLost(ForecastMood.ShiftedTierTicks(response, 0))
+            ?? throw new RequiredFactException("nursery social break costs");
+        return context.Value.WellbeingWeight * response.Targets.Sum(t => (t.From + t.To) / 2 * (t.End - t.Start)) / horizon
+            - lost / (horizon / GameTime.TicksPerDay);
+    }
 
     private static double MoodGain(double delta, string pawn, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
     {
@@ -76,21 +83,6 @@ public static class ForecastNursery
         var after = context.MoodBreaks.DaysLost(ForecastMood.ShiftedTierTicks(response, delta / 100));
         if (before is null || after is null) throw new RequiredFactException("nursery hearer break costs:" + pawn);
         return context.Value.WellbeingWeight * delta / 100 + (before.Value - after.Value) / (horizon / GameTime.TicksPerDay);
-    }
-
-    /// <summary>Time-weighted steady fit rates at the outcome's changing actual mood, sampled at the native check interval.</summary>
-    private static Dictionary<string, double> Rates(BabyFitsRead read, BabyRead baby, ForecastMoodResponse response, double shift, double awake)
-    {
-        var rates = baby.Fits.ToDictionary(f => f, _ => 0d, StringComparer.Ordinal);
-        double duration = 0;
-        foreach (var sample in ForecastMood.ResponseSamples(response, shift, read.CheckIntervalTicks))
-        {
-            duration += sample.Ticks;
-            foreach (var (fit, rate) in FitRates(read, [.. baby.Fits], sample.Mood, awake)) rates[fit] += rate * sample.Ticks;
-        }
-        if (duration <= 0) throw new RequiredFactException("baby mood response duration:" + baby.Pawn);
-        foreach (var fit in rates.Keys.ToArray()) rates[fit] /= duration;
-        return rates;
     }
 
     /// <summary>
@@ -152,10 +144,7 @@ public static class ForecastNursery
 
             var total = entries.Sum(e => e.Rate);
             var mean = total * memory.DurationTicks;
-            var counts = new double[limit + 1];
-            var pmf = Math.Exp(-mean);
-            for (var n = 0; n < limit; n++) { counts[n] = pmf; pmf *= mean / (n + 1); }
-            counts[limit] = Math.Max(0, 1 - counts.Take(limit).Sum());
+            var counts = ForecastSocialMemories.PoissonCounts(mean, limit, true);
             foreach (var (m, rate) in entries)
             {
                 var share = rate / total;
@@ -183,13 +172,15 @@ public static class ForecastNursery
     {
         public IReadOnlyDictionary<string, double> Rest { get; init; } = new Dictionary<string, double>();
         public IReadOnlyList<RoomGain> Play { get; init; } = [];
+        public IReadOnlyDictionary<string, (ForecastMoodResponse With, ForecastMoodResponse Without)> Responses { get; init; }
+            = new Dictionary<string, (ForecastMoodResponse, ForecastMoodResponse)>();
     }
 
 
 
 
 
-    private static Heard Of(ForecastCoupledContext context, ForecastCoupledOutcome outcome)
+    private static Heard Of(ForecastCoupledContext context, ForecastCoupledOutcome outcome, double horizon)
     {
         var read = context.Needs.Babies;
         var states = new SortedSet<string>(read.Fits.Where(f => !f.Heard).Select(f => UnknownFit + f.Def), StringComparer.Ordinal);
@@ -201,7 +192,11 @@ public static class ForecastNursery
         var ownMood = new Dictionary<string, (double With, double Without)>(StringComparer.Ordinal);
         var restDays = new Dictionary<string, double>(StringComparer.Ordinal);
         var playDays = new List<RoomGain>();
-        var sleep = new ForecastNurserySleep(context, outcome);
+        var scenarios = new List<NurseryBabyScenario>();
+        var sleep = new ForecastNurserySleep(context);
+        states.Add("nursery_stationary_service_exposure");
+        states.Add("nursery_clamor_phase_and_presence_correlation_bounded");
+        if (read.Babies.Any(b => !b.InNursery)) states.Add("nursery_projected_acoustic_exposure_bounded");
         var beds = context.PlannedBeds.GetValueOrDefault(Taker(context)) ?? [];
         var babyIndex = 0;
         static void Add(Dictionary<string, List<(HeardMemoryRead, double)>> into, string pawn, HeardMemoryRead memory, double rate)
@@ -251,14 +246,27 @@ public static class ForecastNursery
             if (baby.Fits.Count == 0) continue;
             if (outcome.Needs.GetValueOrDefault(baby.Pawn)?.Mood is not ForecastMoodResult.Projected { Response: { } response })
                 throw new RequiredFactException("baby outcome mood response:" + baby.Pawn);
-            var rates = Rates(read, baby, response, withoutMood / 100, now.GainPerTick / (now.GainPerTick + rest.FallPerTick));
-            var cribRates = Rates(read, baby, response, withMood / 100, gain / (gain + rest.FallPerTick));
-            sleep.Add(baby, rates, cribRates);
+            scenarios.Add(new(baby, response, withMood / 100, withoutMood / 100,
+                gain / (gain + rest.FallPerTick), now.GainPerTick / (now.GainPerTick + rest.FallPerTick)));
+        }
+
+        var emptySide = new ForecastBabySocial.Side(new Dictionary<string, ForecastMoodResponse>(),
+            new Dictionary<(string, string, string, bool), ForecastNurseryExposure.Range>());
+        var social = scenarios.Count == 0 ? new ForecastBabySocial.Result(emptySide, emptySide)
+            : ForecastBabySocial.Of(scenarios, context, outcome, new(context, outcome, horizon, states), horizon, states);
+        foreach (var scenario in scenarios)
+        {
+            var baby = scenario.Baby;
+            sleep.Add(baby, social.With.Heard, social.Without.Heard);
             foreach (var hearer in baby.Hearers)
-                foreach (var memory in hearer.Memories.Where(m => heard.Contains(m.Fit) && rates.ContainsKey(m.Fit)))
+                foreach (var memory in hearer.Memories.Where(m => heard.Contains(m.Fit) && baby.Fits.Contains(m.Fit)))
                 {
-                    if (baby.InNursery && hearer.Now) Add(with, hearer.Pawn, memory, cribRates[memory.Fit]);
-                    if (baby.InNursery ? hearer.NurseryOpen : hearer.Now) Add(without, hearer.Pawn, memory, rates[memory.Fit]);
+                    var key = (baby.Pawn, hearer.Pawn, memory.Fit, false);
+                    var withRate = social.With.Heard.GetValueOrDefault(key);
+                    var withoutRate = social.Without.Heard.GetValueOrDefault(key);
+                    Add(with, hearer.Pawn, memory, memory.Offset < 0 ? withRate.Upper : withRate.Lower);
+                    Add(without, hearer.Pawn, memory, memory.Offset < 0 ? withoutRate.Lower : withoutRate.Upper);
+                    if (withRate.Lower != withRate.Upper || withoutRate.Lower != withoutRate.Upper) states.Add("nursery_hearing_time_share_bounded");
                 }
         }
 
@@ -275,14 +283,17 @@ public static class ForecastNursery
             var fitMood = moods.GetValueOrDefault(pawn);
             moods[pawn] = (fitMood.With + delta.With, fitMood.Without + delta.Without);
         }
-        states.Add(read.Babies.Any(b => b.SleepHearers.Count != 0) ? "nursery_sleep_disturbance_stationary" : "nursery_no_sleep_hearers");
+        states.Add(read.Babies.Any(b => b.SleepHearers.Count != 0) ? "nursery_sleep_disturbance_projected" : "nursery_no_sleep_hearers");
         if (moods.All(m => m.Value.With == m.Value.Without) && !states.Contains(NoFit)) states.Add(Unheard);
         foreach (var (pawn, delta) in ownMood)
         {
+            if (social.With.Responses.ContainsKey(pawn)) continue;
             var heardMood = moods.GetValueOrDefault(pawn);
             moods[pawn] = (heardMood.With + delta.With, heardMood.Without + delta.Without);
         }
         foreach (var pawn in moods.Where(m => m.Value.With == m.Value.Without).Select(m => m.Key).ToArray()) moods.Remove(pawn);
-        return new(moods, [.. states]) { Rest = restDays, Play = playDays };
+        return new(moods, [.. states]) { Rest = restDays, Play = playDays,
+            Responses = social.With.Responses.Where(p => !p.Value.Equals(social.Without.Responses[p.Key]))
+                .ToDictionary(p => p.Key, p => (p.Value, social.Without.Responses[p.Key])) };
     }
 }

@@ -359,7 +359,30 @@ public static class ForecastPrison
             var total = read.Relations + read.Situational + groups.Sum(g => SocialGroupAt(g.StackedMultiplier, g.LerpAfter, g.Members.Select(m => Member(m, tick, g.LerpAfter))))
                 + SocialGroupAt(chitchat.StackedMultiplier, 0, cumulative.Select(m => Member(m, tick - cumulativeClock, 0)))
                 + SocialGroupAt(rapport.StackedMultiplier, rapport.LerpAfter, mine.Select(m => (tick - m.Born, Fading(m.Offset, tick - m.Born, m.Duration, rapport.LerpAfter))));
-            if (total != 0) total = (int)Math.Round(total * read.Factor, MidpointRounding.ToEven);
+            return Finish(read, total);
+        }
+
+        internal static int Finish(WardenOpinionRead read, double raw)
+            => Finish(new PawnOpinionPartsRead(read.Relations, read.Situational, read.Factor, read.Hostile), raw);
+
+        internal static int ObservedRaw(PawnOpinionPartsRead read, IEnumerable<NeedMemory> memories,
+            string other, double tick, IReadOnlySet<string> excluded) => read.Relations + read.Situational
+            + memories.Where(m => !excluded.Contains(m.Id) && m.Group is { } g && g.Other == other && g.Kind != MemoryGroupKind.Mood)
+                .GroupBy(m => m.Id).Sum(group =>
+                {
+                    var first = group.First().Group!;
+                    return SocialGroupAt(first.Multiplier, first.FadeStarts, group.Select(m =>
+                    {
+                        var g = m.Group!;
+                        return g.Kind == MemoryGroupKind.SocialCumulative
+                            ? Member(new SocialMemoryRead.Cumulative(g.RawOffset, g.Age, g.CumulativeCap), tick, g.FadeStarts)
+                            : Member(new SocialMemoryRead.Fading(g.RawOffset, g.Age, g.DurationTicks), tick, g.FadeStarts);
+                    }));
+                });
+
+        internal static int Finish(PawnOpinionPartsRead read, double raw)
+        {
+            var total = raw == 0 ? 0 : (int)Math.Round(raw * read.Factor, MidpointRounding.ToEven);
             if (total > 0 && read.Hostile) total = 0;
             return Math.Clamp(total, -100, 100);
         }
@@ -402,8 +425,7 @@ public static class ForecastPrison
                 factor *= multiplier;
             }
 
-            var rounded = (int)Math.Round(sum, MidpointRounding.ToEven);
-            return sum == 0 ? 0 : sum > 0 ? Math.Max(rounded, 1) : Math.Min(rounded, -1);
+            return ForecastSocialMemories.RoundGroup(sum);
         }
     }
 

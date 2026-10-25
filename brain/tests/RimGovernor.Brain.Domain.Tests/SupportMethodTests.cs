@@ -62,6 +62,20 @@ public sealed class SupportMethodTests
         Assert.Equal(20d, result.SelectedVector.Support.UrgentFirstCareTicks);
     }
 
+    [Fact]
+    public void MedicalServiceKeepsTheNativeStandingCellBesideThePatient()
+    {
+        var standing = new ServicePositionRead.Located(new(1, 2));
+        var read = CoupledFixtures.NoSupport with {
+            Demands = [CoupledFixtures.Demand("care", "care", "patient", new(1, 1), 0, .1)],
+            Workers = [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), 0d, 20d)
+                { ServicePosition = standing, Medicine = null, Treatment = CoupledFixtures.Tend() }] };
+        var facts = Facts(read);
+        var context = facts.CoupledAlternatives!.Context;
+        var option = Assert.Single(context.Activities.Options, o => o.Activity.StartsWith("support/care/", StringComparison.Ordinal));
+        Assert.Equal(standing, option.ServicePosition);
+        Assert.Equal("cell/1/1", Assert.Single(context.Activities.Activities, a => a.Id == option.Activity).Location);
+    }
     private static SupportActivityRead Delivery(int required, double duration = 10) => CoupledFixtures.NoSupport with {
         Deliveries = [new("bill:stone:Chunk", "helper", "useful-chunk", "Chunk", "bench", "stone", new(2, 2), new(1, 1), required, 20, 20, 0d, duration)]
     };

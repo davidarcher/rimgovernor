@@ -11,6 +11,8 @@ namespace RimGovernor.Brain.GameFacts.Observations;
 public sealed record FoodActivityOption(string Pawn, string Target, string Resource, Cell Origin, Cell Destination,
     string WorkGiver, int Count, double WorkTicks)
 {
+    /// <summary>The native stationary service cell; target and route anchors are not service positions.</summary>
+    public ServicePositionRead ServicePosition { get; init; } = new ServicePositionRead.Unprojected("synthetic_or_unsupported_service");
     /// <summary>The Plants learning the harvest gives, when the pawn's Plants skill is not disabled.</summary>
     public required ProductiveSkillWork? SkillWork { get; init; }
     /// <summary>The plant's whole yield now (Plant.YieldNow), whatever one carrier's load.</summary>

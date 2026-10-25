@@ -82,7 +82,10 @@ public sealed record PlannedRoomTerrain(
 /// </summary>
 public sealed record ConstructionActivityOption(string Site, string Definition, Cell Location, string Pawn,
     string Resource, string Input, Cell Origin, int Count, int Capacity, string WorkGiver,
-    double SiteApproachTicks, ConstructionDelivery Delivery, ConstructionFinish Finish, int AvailableInput, StackStorage Storage);
+    double SiteApproachTicks, ConstructionDelivery Delivery, ConstructionFinish Finish, int AvailableInput, StackStorage Storage)
+{
+    public ServicePositionRead ServicePosition { get; init; } = new ServicePositionRead.Unprojected("synthetic_or_unsupported_service");
+}
 
 /// <summary>How a row's pawn carries its stack to the site.</summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]

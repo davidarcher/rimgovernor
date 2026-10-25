@@ -61,7 +61,7 @@ internal static class NativeResearchActivities
                     / project.CostFactor(pawn.Faction.def.techLevel);
                 workers.Add(new(pawn.GetUniqueLoadID(), bench.GetUniqueLoadID(), new(cell.x, cell.z), project.defName,
                     giver.defName, JobDefOf.Research.defName, (double)perTick)
-                { SkillWork = NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Intellectual, StatDefOf.ResearchSpeed, project.Cost - project.ProgressReal,
+                { ServicePosition = new RimGovernor.Brain.GameFacts.Observations.ServicePositionRead.Located(new(cell.x, cell.z)), SkillWork = NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Intellectual, StatDefOf.ResearchSpeed, project.Cost - project.ProgressReal,
                     bench.GetStatValue(StatDefOf.ResearchSpeedFactor) * PointsPerSpeedTick * difficulty / project.CostFactor(pawn.Faction.def.techLevel),
                     0.1, false, true, "JobDriver_Research: points then Intellectual 0.1 XP per callback tick") is { } learning
                     ? learning with { CallbackOrder = order.TryGetValue(pawn, out var at) ? at

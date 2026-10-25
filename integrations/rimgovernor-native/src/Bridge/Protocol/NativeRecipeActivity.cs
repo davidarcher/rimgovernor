@@ -97,7 +97,7 @@ internal static class NativeRecipeActivity
                     options.Add(new(options.Count.ToString(System.Globalization.CultureInfo.InvariantCulture), pawn.GetUniqueLoadID(), bench.GetUniqueLoadID(), giver.defName,
                         recipe.defName, product.defName, stuff.defName, selectedBill?.GetUniqueLoadID() ?? "", uft?.GetUniqueLoadID() ?? "",
                         new(bench.InteractionCell.x, bench.InteractionCell.z), EquatableArray.From(inputs), travel, (double)work / speed,
-                        output, new(destination.x, destination.z)) { RequiredCount = (int)required, SkillWork = NativeProductiveSkill.Read(pawn, recipe, bench, work) });
+                        output, new(destination.x, destination.z)) { ServicePosition = new RimGovernor.Brain.GameFacts.Observations.ServicePositionRead.Located(new(bench.InteractionCell.x, bench.InteractionCell.z)), RequiredCount = (int)required, SkillWork = NativeProductiveSkill.Read(pawn, recipe, bench, work) });
                 }
                 }
             }

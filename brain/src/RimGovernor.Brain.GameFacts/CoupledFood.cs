@@ -12,6 +12,8 @@ public sealed record CoupledFoodConversion(string Source, string Pawn, string Be
     Cell SourceCell, Cell BenchCell, Cell Destination,
     double ApproachTicks, double SupplyTicks, int CarryingCapacity, int AvailableInput)
 {
+    /// <summary>The native stationary service cell; target and route anchors are not service positions.</summary>
+    public ServicePositionRead ServicePosition { get; init; } = new ServicePositionRead.Unprojected("synthetic_or_unsupported_service");
     /// <summary>Whether the pawn may haul the ingredient: hauling enabled, manipulation, and room for one unit.</summary>
     public required bool CanSupply { get; init; }
     public required bool RequiresHarvest { get; init; }
@@ -67,6 +69,7 @@ public abstract record FoodFreshness
 public sealed record CoupledFoodUse(string Pawn, string Resource, Cell Location, bool Eligible,
     double Nutrition, double ChewTicks, int MaxCount, FoodFreshness FreshTicks)
 {
+    public ServicePositionRead ServicePosition { get; init; } = new ServicePositionRead.Unprojected("synthetic_or_unsupported_service");
     /// <summary>The memories eating a fresh unit of the resource gives the pawn (FoodUtility.ThoughtsFromIngesting on an
     /// unspawned unit), as a food target's MealThoughts (#3598). A cooked meal's unit holds its <see cref="Ingredient"/> (#3872).
     /// Empty for a consumer without a mood.</summary>

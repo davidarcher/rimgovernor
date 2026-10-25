@@ -209,7 +209,7 @@ internal static class PlannedRoomCandidates
                     foreach (var row in rows.Where(r => r.Finish is ConstructionFinish.Finishes).GroupBy(r => r.Pawn).Select(p => p.First()))
                     {
                         if (row.Finish is not ConstructionFinish.Finishes work) continue;
-                        roomOptions.Add(ConstructionMethodCandidates.Option(finish, row.Pawn, work.Ticks, work.SkillWork));
+                        roomOptions.Add(ConstructionMethodCandidates.Option(finish, row.Pawn, work.Ticks, work.SkillWork) with { ServicePosition = row.ServicePosition });
                         roomRoutes.Add(ConstructionMethodCandidates.Start(row.Pawn, siteLocation, row.SiteApproachTicks));
                     }
                     foreach (var clearing in site.Clearing.OrderBy(c => c.Id, StringComparer.Ordinal))
@@ -224,7 +224,7 @@ internal static class PlannedRoomCandidates
                             { Producer = clearing.Id, Kind = ForecastRequirementKind.Reusable, Provenance = "native-planned-clearing:" + site.Id }]));
                         foreach (var (row, work) in clearingRows)
                         {
-                            roomOptions.Add(ConstructionMethodCandidates.Option(clearing.Id, row.Pawn, work.Ticks, work.SkillWork));
+                            roomOptions.Add(ConstructionMethodCandidates.Option(clearing.Id, row.Pawn, work.Ticks, work.SkillWork) with { ServicePosition = row.ServicePosition });
                             roomRoutes.Add(ConstructionMethodCandidates.Start(row.Pawn, from, work.ApproachTicks));
                             // The building, stack or plants under the footprint stand now: their removal binds before placement, a
                             // building as Work/Deconstruct on it (#3557; a roof-holder's order removes the roof over the op's

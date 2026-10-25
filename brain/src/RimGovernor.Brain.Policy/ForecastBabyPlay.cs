@@ -9,6 +9,7 @@ internal static class ForecastBabyPlay
 {
     internal readonly record struct Credit(string Carer, double Lower, double Upper);
     private readonly record struct CareRange(double WithLower, double WithUpper, double WithoutLower, double WithoutUpper);
+    internal readonly record struct GainRange(double WithMin, double WithoutMin);
 
     /// <summary>WorkGiver_PlayWithBaby chooses the first viable def in random order: uniform per job,
     /// not uniform per tick. Refill from .15 to .99 takes D/(g-f) ticks, then D/f ticks before the next job.
@@ -40,6 +41,21 @@ internal static class ForecastBabyPlay
     }
 
     private static CareRange ForCarer(BabyRead baby, int index, int room, ForecastCoupledContext context, BabyPlayMechanicsRead mechanics, BabyPlayCarerRead carer)
+    {
+        var gains = Gains(baby, index, room, context, mechanics, carer);
+        return new(CareShare(mechanics.FallPerTick, gains.WithUpper), CareShare(mechanics.FallPerTick, gains.WithLower),
+            CareShare(mechanics.FallPerTick, gains.WithoutUpper), CareShare(mechanics.FallPerTick, gains.WithoutLower));
+    }
+
+    /// <summary>Extrema bound each possible native job; unlike CareShare they make no claim about random job frequencies.</summary>
+    internal static GainRange GainBounds(BabyRead baby, int index, int room, ForecastCoupledContext context, BabyPlayCarerRead carer)
+    {
+        var gains = Gains(baby, index, room, context, context.Needs.Babies.Play ?? throw new RequiredFactException("baby play mechanics"), carer);
+        return new(gains.WithLower.Min(), gains.WithoutLower.Min());
+    }
+
+    private static (List<double> WithLower, List<double> WithUpper, List<double> WithoutLower, List<double> WithoutUpper) Gains(
+        BabyRead baby, int index, int room, ForecastCoupledContext context, BabyPlayMechanicsRead mechanics, BabyPlayCarerRead carer)
     {
         var play = baby.Play!;
         if (!context.Needs.Pawns.Any(p => p.Pawn == carer.Pawn)) throw new RequiredFactException("baby play carer:" + carer.Pawn);
@@ -110,7 +126,6 @@ internal static class ForecastBabyPlay
             }
         }
         if (lowerWith.Count == 0 || lowerWithout.Count == 0) throw new RequiredFactException("baby play activities:" + baby.Pawn);
-        return new(CareShare(mechanics.FallPerTick, upperWith), CareShare(mechanics.FallPerTick, lowerWith),
-            CareShare(mechanics.FallPerTick, upperWithout), CareShare(mechanics.FallPerTick, lowerWithout));
+        return (lowerWith, upperWith, lowerWithout, upperWithout);
     }
 }

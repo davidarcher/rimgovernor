@@ -391,7 +391,9 @@ internal static class NativeConstructionActivity
             if (legs.Cost(pawn, pawn.Position, nearest, PathEndMode.Touch) is not { } route) continue;
             var cell = new Cell(nearest.Position.x, nearest.Position.z);
             rows.Add(new(id, definition, cell, pawn.GetUniqueLoadID(), "", "", cell, 0, 0, giver, route,
-                new RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery.Unsourced(), Finish(finish(pawn), () => learning?.Invoke(pawn)), 0, new RimGovernor.Brain.GameFacts.Observations.StackStorage.Unsourced()));
+                new RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery.Unsourced(), Finish(finish(pawn), () => learning?.Invoke(pawn)), 0, new RimGovernor.Brain.GameFacts.Observations.StackStorage.Unsourced())
+            { ServicePosition = targets.Length == 1 ? legs.ServicePosition(pawn, pawn.Position, nearest, PathEndMode.Touch)
+                : new RimGovernor.Brain.GameFacts.Observations.ServicePositionRead.Unprojected("work_set_moves_between_targets") });
         }
         return rows;
     }
@@ -537,7 +539,9 @@ internal static class NativeConstructionActivity
                     SkillDefOf.Construction, StatDefOf.ConstructionSpeed, total, 1.7, 0, false, false,
                     "JobDriver_RemoveBuilding: construction speed, no learning") is { } learning ? learning with
                     { Stages = EquatableArray.From(Enumerable.Repeat(new RimGovernor.Brain.GameFacts.Observations.ProductiveWorkStage(RemoveRoofWorkPerCell, 1, 0d), roofCells?.Count ?? 0)
-                        .Append(new(work, 1, 0d))) } : null), 0, new RimGovernor.Brain.GameFacts.Observations.StackStorage.Unsourced()));
+                        .Append(new(work, 1, 0d))) } : null), 0, new RimGovernor.Brain.GameFacts.Observations.StackStorage.Unsourced())
+            { ServicePosition = roofed ? legs.ServicePosition(pawn, pawn.Position, building, PathEndMode.Touch)
+                : new RimGovernor.Brain.GameFacts.Observations.ServicePositionRead.Unprojected("roof_removal_moves_between_cells") });
         }
         return rows;
     }
@@ -675,7 +679,8 @@ internal static class NativeConstructionActivity
                 else delivery = new RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery.Unreachable();
                 options.Add(new(site.Id, site.Definition.defName, new(site.Location.x, site.Location.z), pawn.GetUniqueLoadID(),
                     source?.def.defName ?? "", source?.GetUniqueLoadID() ?? "", new(source?.Position.x ?? site.Location.x, source?.Position.z ?? site.Location.z),
-                    count, capacity, finishGiver?.defName ?? "", siteRoute, delivery, finishes, source?.stackCount ?? 0, storage));
+                    count, capacity, finishGiver?.defName ?? "", siteRoute, delivery, finishes, source?.stackCount ?? 0, storage)
+                { ServicePosition = legs.ServicePosition(pawn, pawn.Position, To(pawn.Position), PathEndMode.Touch) });
             }
         }
     }

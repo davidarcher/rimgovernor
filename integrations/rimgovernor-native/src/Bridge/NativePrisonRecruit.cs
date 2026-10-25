@@ -190,15 +190,9 @@ internal static class NativePrisonRecruit
     /// the ages of the rapport memories of other pawns; and, for a wild man, InteractionWorker_RecruitAttempt's taming chance
     /// in a prison cell (no Inspired_Taming).
     /// </summary>
-    private static RimGovernor.Brain.GameFacts.Observations.WardenOpinionRead OpinionOf(Pawn pawn, Pawn other, ThoughtDef rapport, ThoughtDef chitchat)
+    private static RimGovernor.Brain.GameFacts.Observations.WardenOpinionRead OpinionOf(Pawn pawn, Pawn other, ThoughtDef rapport, ThoughtDef chitchat, bool required = false)
     {
-        if (!other.RaceProps.Humanlike) throw new InvalidOperationException("warden is not humanlike: " + other.GetUniqueLoadID());
-        var relations = 0;
-        foreach (var relation in pawn.GetRelations(other)) relations += relation.opinionOffset;
-        var factor = 1f;
-        foreach (var hediff in pawn.health.hediffSet.hediffs)
-            if (hediff.CurStage != null) factor *= hediff.CurStage.opinionOfOthersFactor;
-        var situational = 0;
+        var parts = OpinionPartsOf(pawn, other, required);
         var groups = new List<RimGovernor.Brain.GameFacts.Observations.SocialMemoryGroupRead>();
         var others = new List<double>();
         var otherChitchat = new List<RimGovernor.Brain.GameFacts.Observations.SocialMemoryRead.Cumulative>();
@@ -207,11 +201,6 @@ internal static class NativePrisonRecruit
         // OpinionOf counts thoughts only for a humanlike pawn with a mood need.
         if (pawn.RaceProps.Humanlike && pawn.needs?.mood is { } mood)
         {
-            foreach (var thought in SituationalSocial(pawn, other))
-            {
-                var offset = thought.OpinionOffset();
-                situational += offset == 0f ? 0 : offset > 0f ? Mathf.Max(Mathf.RoundToInt(offset), 1) : Mathf.Min(Mathf.RoundToInt(offset), -1);
-            }
             var social = mood.thoughts.memories.Memories.OfType<Thought_MemorySocial>().Where(m => m.OtherPawn() == other).ToList();
             foreach (var head in Heads(social))
                 groups.Add(new(head.def.defName, head.def.stackedEffectMultiplier, head.def.lerpOpinionToZeroAfterDurationPct)
@@ -224,7 +213,7 @@ internal static class NativePrisonRecruit
             chat = InteractionOffset(pawn, other, rapport);
             conversionChat = InteractionOffset(pawn, other, chitchat);
         }
-        return new(other.GetUniqueLoadID(), relations, situational, F(factor, "opinion of others factor"), pawn.HostileTo(other))
+        return new(other.GetUniqueLoadID(), parts.Relations, parts.Situational, parts.Factor, parts.Hostile)
         {
             Memories = EquatableArray.From(groups), Rapport = chat, OtherRapport = EquatableArray.From(others.OrderBy(a => a)),
             Chitchat = conversionChat, OtherChitchat = EquatableArray.From(otherChitchat),
@@ -232,6 +221,24 @@ internal static class NativePrisonRecruit
         };
     }
 
+    // Shared non-memory opinion terms. Colonist memories remain owned by NeedsForecastPawn.Mood;
+    // prisoners retain their dedicated observation because they are not colonist needs rows.
+    internal static RimGovernor.Brain.GameFacts.Observations.PawnOpinionPartsRead OpinionPartsOf(Pawn pawn, Pawn other, bool required = false)
+    {
+        if (!other.RaceProps.Humanlike) throw new InvalidOperationException("opinion target is not humanlike:" + other.GetUniqueLoadID());
+        var relations = pawn.GetRelations(other).Sum(r => r.opinionOffset);
+        var factor = 1f;
+        foreach (var hediff in pawn.health.hediffSet.hediffs)
+            if (hediff.CurStage != null) factor *= hediff.CurStage.opinionOfOthersFactor;
+        var situational = 0;
+        if (pawn.RaceProps.Humanlike && pawn.needs?.mood != null)
+            foreach (var thought in SituationalSocial(pawn, other, required))
+            {
+                var offset = thought.OpinionOffset();
+                situational += offset == 0f ? 0 : offset > 0f ? Mathf.Max(Mathf.RoundToInt(offset), 1) : Mathf.Min(Mathf.RoundToInt(offset), -1);
+            }
+        return new(relations, situational, F(factor, "opinion of others factor"), pawn.HostileTo(other));
+    }
     // AddInteractionThought scales the new memory's stage-0 opinionOffset by the other pawn's SocialImpact; TryGainMemory gates it.
     private static double InteractionOffset(Pawn pawn, Pawn other, ThoughtDef thought) =>
         ThoughtUtility.CanGetThought(pawn, thought) && thought.socialTargetDevelopmentalStageFilter.Has(other.DevelopmentalStage) && !ThoughtUtility.ThoughtNullified(pawn, thought)
@@ -265,7 +272,7 @@ internal static class NativePrisonRecruit
     // SituationalThoughtHandler's active social thoughts of other, each built as TryCreateSocialThought builds it but staged directly
     // (curStageIndex = the state's stage) instead of by RecalculateState. A def whose worker throws is absent, as
     // TryCreateSocialThought logs and leaves it. Each is its own group (one thought per def).
-    private static List<Thought_SituationalSocial> SituationalSocial(Pawn pawn, Pawn other)
+    private static List<Thought_SituationalSocial> SituationalSocial(Pawn pawn, Pawn other, bool required = false)
     {
         var thoughts = new List<Thought_SituationalSocial>();
         var stage = SituationalStage ?? throw new InvalidOperationException("Thought_Situational.curStageIndex is not readable.");
@@ -285,6 +292,7 @@ internal static class NativePrisonRecruit
             }
             catch (Exception)
             {
+                if (required) throw new RimGovernor.Brain.Policy.RequiredFactException("situational social thought:" + def.defName);
                 continue;
             }
             thoughts.Add(thought);

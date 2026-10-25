@@ -145,6 +145,15 @@ internal sealed partial class NativePathLegs
         return new Found(leg.Cost, leg.Cardinal, leg.Diagonal, leg.CardinalTicks, leg.DiagonalTicks);
     }
 
+    /// <summary>The endpoint of the already-priced leg (NodesReversed[0]); collection has no endpoint yet.</summary>
+    internal RimGovernor.Brain.GameFacts.Observations.ServicePositionRead ServicePosition(Pawn pawn, IntVec3 from, LocalTargetInfo to, PathEndMode mode)
+    {
+        Find(pawn, from, to, mode);
+        if (!store.TryGet(new Key(from, to.Cell, to.Thing, mode), out var leg) || leg == null || leg.Cells.Length == 0)
+            return new RimGovernor.Brain.GameFacts.Observations.ServicePositionRead.Unprojected(collecting ? "path_collection" : "no_service_path");
+        var cell = map.cellIndices.IndexToCell(leg.Cells[0]);
+        return new RimGovernor.Brain.GameFacts.Observations.ServicePositionRead.Located(new(cell.x, cell.z));
+    }
     /// <summary>
     /// Runs <paramref name="read"/> twice: once collecting every leg it asks (each unsearched <see cref="Cost"/>
     /// answers 0 without a search, so the read asks every leg it could need and its result is discarded), then, after

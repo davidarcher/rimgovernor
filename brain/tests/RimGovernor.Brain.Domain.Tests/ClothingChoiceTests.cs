@@ -67,6 +67,21 @@ public sealed class ClothingChoiceTests
     private static PawnActivityRecipe Recipe(PawnActivities batch) => batch.Tasks.Single(t => t.Step.Recipe != null).Step.Recipe!;
 
     [Fact]
+    public void RecipeTransitDelaysStationaryServiceEvenWithoutSkillLearning()
+    {
+        var row = Option("Cloth") with { TravelTicks = 20, ServicePosition = new ServicePositionRead.Located(new(10, 11)) };
+        var needs = ClothingActivitiesRules.ClothingActivityRequirements(Census());
+        var family = RimGovernor.Brain.Policy.Methods.Generation.ClothingMethodCandidates.Generate(Read(row), needs, 2000, Resources());
+        var makes = family.Problem!.Options.Where(o => o.Equipment.Contains("bench")).ToArray();
+        Assert.NotEmpty(makes);
+        Assert.All(makes, make =>
+        {
+            Assert.Null(make.SkillWork);
+            Assert.Equal(5, make.ServiceDelayTicks); // The pickup approach is already the allocation's travel leg.
+            Assert.Equal(row.ServicePosition, make.ServicePosition);
+        });
+    }
+    [Fact]
     public void OnlyCommittedConstructionScarcityChangesStuffWithoutPinningIt()
     {
         // Equal coverage and labor: the first stuff by id wins until committed construction takes it (#3330: the warmer wool

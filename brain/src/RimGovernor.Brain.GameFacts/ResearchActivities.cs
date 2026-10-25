@@ -23,5 +23,7 @@ public sealed record ResearchActivityRead
 public sealed record ResearchWorker(string Pawn, string Bench, Cell Location, string Project,
     string WorkGiver, string Job, double PointsPerTick)
 {
+    /// <summary>The native stationary service cell; target and route anchors are not service positions.</summary>
+    public ServicePositionRead ServicePosition { get; init; } = new ServicePositionRead.Unprojected("synthetic_or_unsupported_service");
     public ProductiveSkillWork? SkillWork { get; init; }
 }
