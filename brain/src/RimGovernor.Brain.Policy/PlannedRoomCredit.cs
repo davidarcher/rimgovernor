@@ -111,10 +111,11 @@ public static class PlannedRoomCredits
     /// <summary>
     /// Per pawn, the distinct shifts (mood delta / 100) its mood timeline integrates breaks at, so each mood credit's
     /// <see cref="ForecastHousing.GainPerDay"/> finds its shifted break ticks: the bedroom moves' (#3655), the corpse
-    /// credits' (#3806), the worship credit's (#3808), the deathrest chamber's (#3810), the hospital's (#3804), the dining and rec rooms' (#3803) and the nursery's (#3854). Constant per context, so the mood cache key holds.
+    /// credits' (#3806), the worship credit's (#3808), the deathrest chamber's (#3810), the hospital's (#3804) and the dining and rec rooms' (#3803). Constant per context, so the mood cache key holds.
+    /// Nursery heard-fit shifts are outcome-dependent and integrate the retained target spans directly (#3941).
     /// </summary>
     internal static IReadOnlyDictionary<string, double[]> BreakShifts(ForecastCoupledContext context) => Shifts.GetValue(context, c =>
-        ForecastHousing.BreakShifts(c).Concat(ForecastCorpses.BreakShifts(c)).Concat(ForecastWorship.Shifts(c)).Concat(ForecastDeathrest.Shifts(c)).Concat(ForecastHospital.Shifts(c)).Concat(ForecastRoomThoughts.Shifts(c)).Concat(ForecastNursery.Shifts(c)).GroupBy(p => p.Key, StringComparer.Ordinal)
+        ForecastHousing.BreakShifts(c).Concat(ForecastCorpses.BreakShifts(c)).Concat(ForecastWorship.Shifts(c)).Concat(ForecastDeathrest.Shifts(c)).Concat(ForecastHospital.Shifts(c)).Concat(ForecastRoomThoughts.Shifts(c)).GroupBy(p => p.Key, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.SelectMany(p => p.Value).Distinct().Order().ToArray(), StringComparer.Ordinal));
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledContext, IReadOnlyDictionary<string, double[]>> Shifts = new();

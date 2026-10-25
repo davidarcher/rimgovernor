@@ -128,6 +128,8 @@ public sealed record BabyFitRead
 /// </summary>
 public sealed record BabyRead
 {
+    /// <summary>CribQuality offsets for the current crib, the alternate surface and a new normal-quality crib; null without mood.</summary>
+    public required BabyCribMoodRead? CribMood { get; init; }
     /// <summary>Null when the baby has no play need; otherwise its native play opportunities.</summary>
     public required BabyPlayRead? Play { get; init; }
     public required string Pawn { get; init; }
@@ -140,6 +142,7 @@ public sealed record BabyRead
     [JsonConverter(typeof(EquatableArrayJsonConverter<BabyHearerRead>))]
     public required EquatableArray<BabyHearerRead> Hearers { get; init; }
 }
+public sealed record BabyCribMoodRead(double Current, double WithoutNursery, double Normal);
 /// <summary>A native baby-play giver, classified by its actual worker implementation.</summary>
 public enum BabyPlayKind { Static, Walking, Toys }
 public sealed record BabyPlayActivityRead(string Def, BabyPlayKind Kind);

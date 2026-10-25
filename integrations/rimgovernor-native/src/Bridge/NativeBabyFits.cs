@@ -6,6 +6,7 @@ using UnityEngine;
 using Verse;
 using Verse.AI;
 using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Native;
 
@@ -48,6 +49,29 @@ internal static class NativeBabyFits
             : fits.Where(f => f.developmentalStageFilter.Has(baby.DevelopmentalStage) && f.mentalState.Worker.StateCanOccur(baby)).ToArray();
         var room = baby.GetRoom();
         var nursery = room != null && room.Role?.Worker is RoomRoleWorker_Nursery;
+        var alternate = NativeNeedsForecast.SleepWithoutNursery(baby, map, nursery ? room : null);
+        var alternateBed = alternate.Bed.Length == 0 ? null : map.listerThings.AllThings.OfType<Building_Bed>()
+            .FirstOrDefault(b => b.GetUniqueLoadID() == alternate.Bed) ?? throw new RequiredFactException("baby alternate crib:" + baby.GetUniqueLoadID());
+        double CribMood(Building_Bed? bed, QualityCategory? quality = null)
+        {
+            if (quality == null && (bed == null || !bed.def.building.bed_crib)) return 0;
+            if (quality == null)
+            {
+                bed!.TryGetQuality(out var readQuality);
+                quality = readQuality;
+            }
+            // No DefOf field names CribQuality; its worker is the typed route.
+            var defs = DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_CribQuality)).ToArray();
+            if (defs.Length != 1 || defs[0].stages == null || (int)quality.Value >= defs[0].stages.Count)
+                throw new RequiredFactException("baby crib quality thought stages:" + baby.GetUniqueLoadID());
+            var def = defs[0];
+            if (!ThoughtUtility.CanGetThought(baby, def) || def.stages[(int)quality.Value] == null) return 0;
+            var thought = ThoughtMaker.MakeThought(def, (int)quality.Value);
+            thought.pawn = baby;
+            var offset = thought.MoodOffset();
+            if (!double.IsFinite(offset)) throw new RequiredFactException("baby crib quality mood:" + baby.GetUniqueLoadID());
+            return offset;
+        }
         var doors = nursery && room != null ? new HashSet<Building_Door>(room.ContainedAndAdjacentThings.OfType<Building_Door>()) : new HashSet<Building_Door>();
         var now = Reach(baby, map, []);
         var open = nursery ? Reach(baby, map, doors) : now;
@@ -62,8 +86,11 @@ internal static class NativeBabyFits
         return new()
         {
             Pawn = baby.GetUniqueLoadID(), Fits = EquatableArray.From(can.Select(f => f.defName)), InNursery = nursery,
+            CribMood = baby.needs?.mood == null ? null : new(CribMood(baby.CurrentBed()),
+                CribMood(alternateBed),
+                CribMood(null, QualityCategory.Normal)),
             Play = NativeBabyPlay.Read(baby, map, nursery ? room : null),
-            SleepWithoutNursery = NativeNeedsForecast.SleepWithoutNursery(baby, map, nursery ? room : null),
+            SleepWithoutNursery = alternate,
             Hearers = EquatableArray.From(hearers),
         };
     }

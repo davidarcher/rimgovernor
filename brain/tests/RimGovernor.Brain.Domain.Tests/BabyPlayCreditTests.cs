@@ -13,7 +13,7 @@ public sealed class BabyPlayCreditTests
 
     private static BabyRead Baby(bool standing = false) => new()
     {
-        Pawn = "baby", Fits = [], InNursery = standing, Hearers = [],
+        CribMood = new(0, 0, 0), Pawn = "baby", Fits = [], InNursery = standing, Hearers = [],
         SleepWithoutNursery = new("", false, true, 3e-5, 0, 21),
         Play = new() { OngoingCarer = "", RoomFactor = 1, Carers = [new("pawn", null, null, 1, 1, 1, 1)] },
     };

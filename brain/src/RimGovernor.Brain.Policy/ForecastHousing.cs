@@ -511,7 +511,7 @@ public static class ForecastHousing
     /// (the shelter plan that completes the room's roof), else the map's outdoor temperature (the open air of a room not
     /// closed by then, or one no shelter plan heats); throws when neither is read.
     /// </summary>
-    private static double PlannedSleepTemperature(int room, ForecastCoupledOutcome outcome, ForecastCoupledContext context)
+    internal static double PlannedSleepTemperature(int room, ForecastCoupledOutcome outcome, ForecastCoupledContext context)
     {
         if (context.Shelters.FirstOrDefault(s => s.PlannedRoom == room) is { } plan
             && outcome.Shelters.FirstOrDefault(s => s.Room == plan.Room) is ForecastShelterOutcome.Projected { TemperatureAtHorizon: var held }) return held;

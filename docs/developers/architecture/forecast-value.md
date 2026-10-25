@@ -933,8 +933,12 @@ every baby (`nursery_babies_housed` on the others). A baby (`NeedsForecastRead.B
 (`ForecastNursery.FitRates`): `MentalFitGenerator` checks an awake baby every `CheckInterval` ticks, trying each fit def in def
 order with the chance `interval / (mtbDaysMoodCurve(mood) × a day)`, then holds the fit for its duration and waits the
 generator's recovery awake ticks; a fit's rate is its share of the fires over that mean cycle, with the awake share the balance of
-the baby's rest fall and its actual sleeping surface's gain on each side. The mood is the baby's observed target plus any modeled
-crib comfort difference; outcome-dependent room and rest mood trajectories remain #3941. Each colonist the native sound reach
+the baby's rest fall and its actual sleeping surface's gain on each side. Each outcome supplies the baby's changing actual mood
+(#3941), including its food, rest, timed memories and conditional thoughts. The shared mood integrator retains immutable raw
+target spans and native rise/fall/freeze inputs for nursery babies and hearers. Counterfactual room offsets replay that same
+response from the observed actual mood, without another model run. Fit rates are time-weighted midpoint quadrature, split at
+target events, clamp cuts and response catches, with pieces no longer than the native 150-tick check interval. This retains
+the existing steady fit-cycle and Poisson-memory approximations; it does not assert the unobserved native hash-check phase. Each colonist the native sound reach
 finds (`GenClamor.DoClamor`'s region walk through open doors, at most 15 regions, within `BabyScreamRadius × Hearing`) gains the
 fit's memory (CryingBaby, GigglingBaby, the My* defs for a parent); the memories it holds are stacked as the game stacks them
 (`ForecastNursery.HeardMood`): per def, the count heard within a duration is Poisson at the summed rate, the latest
@@ -944,8 +948,7 @@ heard as now with it and as with the nursery's doors open without it. The row is
 `MoodGain` of the mood without, so a giggling baby's nursery costs the giggles. Named states, each earning nothing: no baby
 (`nursery_no_baby`), no fit can start (`nursery_no_fit`), unchanged heard-fit mood (`nursery_unheard`), and a
 fit def the read does not know (`nursery_fit_hearers_not_modelled:<def>`). No fit or no hearer does not suppress the baby's own rest credit.
-Named as not modelled: the babies' play,
-the baby's own room thoughts, a cry's disturbed sleep, the cried and giggled opinion memories, colonists moving from where they
+Named as not modelled: a cry's disturbed sleep, the cried and giggled opinion memories, colonists moving from where they
 stand now, and prisoners, guests and slaves in reach.
 
 Crib rest (#3939) also credits the baby under its pawn id. Planned cribs use the shared sleeping catalog's Normal-quality
@@ -962,6 +965,19 @@ Vanilla babies have no Comfort need: `NeedDef.developmentalStageFilter` defaults
 override it. This is `nursery_baby_no_comfort_need`, with zero comfort mood effect. A baby with admitted comfort thought rows
 uses the shared housing comfort term, which also feeds its fit mood input. Missing sleeping surfaces, planned crib stats or
 rest rates throw `RequiredFactException`; they never substitute ground or zero credit for an unread fact.
+
+The own room terms (#3941) include the native CribQuality thought: only a current crib gives it, indexed by quality,
+with null stages at Awful, Poor and Normal. The native read supplies current, alternate and new Normal crib offsets;
+the credit subtracts the current term once on each side. Vanilla babies have no Beauty, Comfort or Outdoors needs,
+and cannot gain bedroom/barracks, outside or ground sleep memories (their developmental stage filters exclude Baby).
+Room impressiveness and space therefore add no invented baby mood bonus. The cold/heat sleep memories do admit Baby:
+the nursery uses the shared planned sleep-temperature prediction and the alternate uses its observed temperature,
+relative to the observed surface. As in housing, these are steady service-day offsets; the generic outcome continues
+to own memory aging. A baby without an eligible temperature thought is `nursery_baby_no_temperature_thought`.
+The own mood difference is credited to the baby as well as changing its fit rates. Continuous heard-fit offsets price
+break tiers directly from the outcome's retained raw targets, with their own clamp cuts. They never mutate
+`PlannedRoomCredits.BreakShifts`, which stays constant per context and mood cache key. Missing projected response,
+crib offsets, needed sleep temperature or break costs throws `RequiredFactException`.
 
 The nursery also credits caretaker play time (#3940), under `play/<baby>`, naming the observed ongoing carer when
 one exists. With no current play job it uses a shared row and bounds every eligible carer's alternative; it does

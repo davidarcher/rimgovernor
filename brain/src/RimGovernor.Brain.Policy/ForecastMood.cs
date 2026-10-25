@@ -5,6 +5,12 @@ namespace RimGovernor.Brain.Policy;
 
 public sealed record ForecastMoodPoint(double Tick, double Target, double Actual, bool Asleep);
 
+/// <summary>A linear unclamped target between mood events; on/off thought state is constant within it.</summary>
+public sealed record ForecastMoodTarget(double Start, double End, double From, double To, bool Frozen);
+
+/// <summary>The immutable response inputs retained for outcome-dependent room credits. Derived within one forecast only.</summary>
+public sealed record ForecastMoodResponse(double Initial, double Rise, double Fall, double Threshold, EquatableArray<ForecastMoodTarget> Targets);
+
 /// <summary>
 /// A pawn's mood over the horizon (#3897): <see cref="Projected"/> with its integrated target and actual mood, or
 /// <see cref="Unprojected"/> when the timeline refuses its inputs (stacked changes, unmodeled conditional thoughts, an
@@ -18,7 +24,10 @@ public abstract record ForecastMoodResult(EquatableArray<string> Findings)
     public sealed record Projected(EquatableArray<ForecastMoodPoint> Trajectory,
         double TargetExposureTicks, double ActualExposureTicks,
         double ActualDepthTicks, double TerminalMood, double PressureTicks, ForecastMoodBreaks Breaks,
-        EquatableArray<string> Findings) : ForecastMoodResult(Findings);
+        EquatableArray<string> Findings) : ForecastMoodResult(Findings)
+    {
+        public ForecastMoodResponse? Response { get; init; }
+    }
 
     /// <summary>The timeline refused its inputs; <see cref="ForecastMoodResult.Findings"/> name why.</summary>
     public sealed record Unprojected(EquatableArray<string> Findings) : ForecastMoodResult(Findings);
@@ -80,6 +89,79 @@ internal sealed class MemoryShare(double baseShare = 1)
 
 public static class ForecastMood
 {
+    /// <summary>Response to a linear, already clamped target, split at the instant actual mood catches it.</summary>
+    private static IEnumerable<(double From, double To, double Ticks)> ChasePieces(double from, double to, double duration,
+        double initial, double rise, double fall, bool frozen)
+    {
+        if (frozen) { yield return (initial, initial, duration); yield break; }
+        var slope = (to - from) / duration;
+        var actual = initial;
+        double elapsed = 0;
+        for (var step = 0; elapsed < duration; step++)
+        {
+            var remaining = duration - elapsed;
+            var gap = from + slope * elapsed - actual;
+            var piece = remaining;
+            double next;
+            if (gap == 0 && slope >= -fall && slope <= rise) next = to;
+            else
+            {
+                var rate = gap > 0 || gap == 0 && slope > rise ? rise : -fall;
+                var meet = gap / (rate - slope);
+                if (step < 2 && gap != 0 && meet > 0 && meet < remaining) { piece = meet; next = from + slope * (elapsed + meet); }
+                else next = actual + rate * remaining;
+            }
+            yield return (actual, next, piece);
+            actual = next; elapsed += piece;
+        }
+    }
+
+    /// <summary>A shifted target's exact clamp cuts, shared by response replay and dynamic break pricing.</summary>
+    private static IEnumerable<(double From, double To, double Ticks)> TargetPieces(ForecastMoodTarget target, double shift)
+    {
+        var (from, to) = (target.From + shift, target.To + shift);
+        var cuts = new List<double> { 0, 1 };
+        if (from != to)
+            foreach (var bound in new[] { 0d, 1d })
+                if ((bound - from) / (to - from) is var cut and > 0 and < 1) cuts.Add(cut);
+        cuts.Sort();
+        for (var i = 1; i < cuts.Count; i++)
+            yield return (Math.Clamp(from + (to - from) * cuts[i - 1], 0, 1), Math.Clamp(from + (to - from) * cuts[i], 0, 1),
+                (target.End - target.Start) * (cuts[i] - cuts[i - 1]));
+    }
+
+    /// <summary>Actual mood at interval midpoints in one counterfactual; reuses the outcome's timed target and native response rates.</summary>
+    internal static IEnumerable<(double Mood, double Ticks)> ResponseSamples(ForecastMoodResponse response, double shift, double interval)
+    {
+        DomainException.Require(interval > 0 && double.IsFinite(interval), "mood response sample interval");
+        var actual = response.Initial;
+        foreach (var target in response.Targets)
+            foreach (var part in TargetPieces(target, shift))
+            {
+                foreach (var piece in ChasePieces(part.From, part.To, part.Ticks, actual, response.Rise, response.Fall, target.Frozen))
+                {
+                    for (double at = 0; at < piece.Ticks;)
+                    {
+                        var ticks = Math.Min(interval, piece.Ticks - at);
+                        yield return (piece.From + (piece.To - piece.From) * (at + ticks / 2) / piece.Ticks, ticks);
+                        at += ticks;
+                    }
+                    actual = piece.To;
+                }
+            }
+    }
+
+    /// <summary>Break tiers of any finite shift, without changing the context's registered shifts or running another forecast.</summary>
+    internal static double[] ShiftedTierTicks(ForecastMoodResponse response, double shift)
+    {
+        if (!QuestCapacityForecast.FinitePositive(response.Threshold)) throw new RequiredFactException("mood response break threshold");
+        var model = new MoodBreakModel { Threshold = response.Threshold };
+        var ticks = new double[LayoutMoodRules.MoodTierCount];
+        foreach (var target in response.Targets)
+            foreach (var part in TargetPieces(target, shift)) model.AddTierTicks(part.From, part.To, part.Ticks, ticks);
+        return ticks;
+    }
+
     /// <summary>
     /// The timed memories of a renewal list against the observed ones: each observed def's share (cut at each renewal that
     /// ends it) and each gain with its start and share (its renewal's chance, cut at each later renewal of its def). Null when
@@ -166,7 +248,7 @@ public static class ForecastMood
         IReadOnlyList<(NeedMemory Thought, double Start)>? granted = null,
         IReadOnlyList<(string Thought, double OffsetDelta, double Start)>? situational = null,
         IReadOnlyList<(string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans)>? banded = null,
-        IReadOnlyList<ForecastMemoryRenewal>? renewals = null, bool trajectory = true, IReadOnlyList<double>? breakShifts = null)
+        IReadOnlyList<ForecastMemoryRenewal>? renewals = null, bool trajectory = true, IReadOnlyList<double>? breakShifts = null, bool response = false)
     {
         ForecastNeeds.NeedHorizon(horizon);
         situational ??= [];
@@ -180,6 +262,7 @@ public static class ForecastMood
         foreach (var thought in banded.Where(b => b.Spans.Sum(s => s.End - s.Start) < horizon))
             unknown.Add("situational_thought_constant_outside_exposure:" + thought.Thought);
         var points = new List<ForecastMoodPoint>();
+        var targets = response ? new List<ForecastMoodTarget>() : null;
         var events = new SortedSet<double> { 0, horizon };
         var intervals = selected.Select(c => (Choice: c, End: interruptedAt is not null && interruptedAt.TryGetValue(c.Id, out var at)
             ? Math.Clamp(at, c.Depart, c.End) : c.End)).ToArray();
@@ -267,30 +350,10 @@ public static class ForecastMood
         // rate toward the target, then follows it while the target moves no faster than that rate.
         void Chase(double from, double to, double duration, bool frozen)
         {
-            if (frozen)
+            foreach (var piece in ChasePieces(from, to, duration, actual, mood.RisePerTick, mood.FallPerTick, frozen))
             {
-                Integrate(threshold - actual, threshold - actual, duration, ref actualExposure, ref actualDepth);
-                return;
-            }
-            var (rise, fall, slope) = (mood.RisePerTick, mood.FallPerTick, (to - from) / duration);
-            double elapsed = 0;
-            // At most an approach and then a follow; the last step takes whatever remains.
-            for (var step = 0; elapsed < duration; step++)
-            {
-                var remaining = duration - elapsed;
-                var gap = from + slope * elapsed - actual;
-                var piece = remaining;
-                double next;
-                if (gap == 0 && slope >= -fall && slope <= rise) next = to;
-                else
-                {
-                    var rate = gap > 0 || gap == 0 && slope > rise ? rise : -fall;
-                    var meet = gap / (rate - slope);
-                    if (step < 2 && gap != 0 && meet > 0 && meet < remaining) { piece = meet; next = from + slope * (elapsed + meet); }
-                    else next = actual + rate * remaining;
-                }
-                Integrate(threshold - actual, threshold - next, piece, ref actualExposure, ref actualDepth);
-                actual = next; elapsed += piece;
+                Integrate(threshold - piece.From, threshold - piece.To, piece.Ticks, ref actualExposure, ref actualDepth);
+                actual = piece.To;
             }
         }
         Span<double> cuts = stackalloc double[4];
@@ -304,6 +367,7 @@ public static class ForecastMood
             var middle = from + duration / 2;
             asleep = Asleep(middle);
             var (rawFrom, rawTo) = (Unclamped(from, asleep, middle), Unclamped(ticks[i + 1], asleep, middle));
+            targets?.Add(new(from, ticks[i + 1], rawFrom, rawTo, asleep && mood.FreezesWhileAsleep));
             var count = 0;
             cuts[count++] = 0;
             if (rawFrom != rawTo)
@@ -348,7 +412,8 @@ public static class ForecastMood
                     EquatableArray.From(shiftedTicks.AsSpan(k * LayoutMoodRules.MoodTierCount, LayoutMoodRules.MoodTierCount).ToArray())))))
             : new ForecastMoodBreaks.Unassessed();
         return new ForecastMoodResult.Projected(EquatableArray.From(points), targetExposure, actualExposure, actualDepth, actual,
-            pressure, breaks, EquatableArray.From(unknown));
+            pressure, breaks, EquatableArray.From(unknown))
+        { Response = targets is null ? null : new(mood.Level, mood.RisePerTick, mood.FallPerTick, threshold, EquatableArray.From(targets)) };
     }
 
     // The need thoughts' baseMoodEffect by stage (Core ThoughtDefs/Thoughts_Situation_Needs.xml, NeedFood and NeedRest): no

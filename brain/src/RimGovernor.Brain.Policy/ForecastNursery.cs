@@ -47,7 +47,6 @@ public static class ForecastNursery
     /// <summary>The mechanics the credit leaves out, named with each served nursery.</summary>
     public static readonly EquatableArray<string> NotModelled =
     [
-        "nursery_baby_mood", // #3941: outcome-dependent room/rest mood trajectories beyond the crib comfort difference
         "nursery_disturbed_sleep", // #3942: a cry's SleepDisturbed memory on a sleeping colonist in reach
         "nursery_baby_opinion", // #3943: the BabyCriedSocial and BabyGiggledSocial opinion memories
         "nursery_hearers_move", // #3944: colonists held where they stand now; a colonist who enters the nursery hears its babies
@@ -58,19 +57,42 @@ public static class ForecastNursery
     public static IReadOnlyList<RoomGain> NurseryCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {
         if (Taker(context) != room.Room) return [];
-        var read = Cache.GetValue(context, Of);
+        var read = Of(context, outcome);
         return [.. read.Moods.Keys.Concat(read.Rest.Keys).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
             .Select(pawn => new RoomGain(pawn, pawn, (read.Moods.TryGetValue(pawn, out var mood)
-                ? PlannedRoomCredits.MoodGain(mood.With, pawn, outcome, context, horizon)
-                    - PlannedRoomCredits.MoodGain(mood.Without, pawn, outcome, context, horizon) : 0) + read.Rest.GetValueOrDefault(pawn))), .. read.Play];
+                ? MoodGain(mood.With, pawn, outcome, context, horizon)
+                    - MoodGain(mood.Without, pawn, outcome, context, horizon) : 0) + read.Rest.GetValueOrDefault(pawn))), .. read.Play];
     }
 
     /// <summary>The findings (<see cref="RoomFindings"/>): what the credit leaves out and the room's named states.</summary>
     public static IEnumerable<string> Findings(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon) =>
-        Taker(context) != room.Room ? [.. NotModelled, Housed] : [.. NotModelled, .. Cache.GetValue(context, Of).States];
+        Taker(context) != room.Room ? [.. NotModelled, Housed] : [.. NotModelled, .. Of(context, outcome).States];
 
-    /// <summary>Per colonist, the distinct nonzero shifts (mood / 100) its timeline integrates breaks at for the nursery credit.</summary>
-    internal static IReadOnlyDictionary<string, double[]> Shifts(ForecastCoupledContext context) => Cache.GetValue(context, Of).Shifts;
+    private static double MoodGain(double delta, string pawn, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    {
+        if (delta == 0) return 0;
+        if (outcome.Needs.GetValueOrDefault(pawn)?.Mood is not ForecastMoodResult.Projected { Response: { } response })
+            throw new RequiredFactException("nursery hearer mood response:" + pawn);
+        var before = context.MoodBreaks.DaysLost(ForecastMood.ShiftedTierTicks(response, 0));
+        var after = context.MoodBreaks.DaysLost(ForecastMood.ShiftedTierTicks(response, delta / 100));
+        if (before is null || after is null) throw new RequiredFactException("nursery hearer break costs:" + pawn);
+        return context.Value.WellbeingWeight * delta / 100 + (before.Value - after.Value) / (horizon / GameTime.TicksPerDay);
+    }
+
+    /// <summary>Time-weighted steady fit rates at the outcome's changing actual mood, sampled at the native check interval.</summary>
+    private static Dictionary<string, double> Rates(BabyFitsRead read, BabyRead baby, ForecastMoodResponse response, double shift, double awake)
+    {
+        var rates = baby.Fits.ToDictionary(f => f, _ => 0d, StringComparer.Ordinal);
+        double duration = 0;
+        foreach (var sample in ForecastMood.ResponseSamples(response, shift, read.CheckIntervalTicks))
+        {
+            duration += sample.Ticks;
+            foreach (var (fit, rate) in FitRates(read, [.. baby.Fits], sample.Mood, awake)) rates[fit] += rate * sample.Ticks;
+        }
+        if (duration <= 0) throw new RequiredFactException("baby mood response duration:" + baby.Pawn);
+        foreach (var fit in rates.Keys.ToArray()) rates[fit] /= duration;
+        return rates;
+    }
 
     /// <summary>
     /// Per fit def a baby can have (<paramref name="fits"/>, def order kept from <paramref name="read"/>), its fits a tick at mood
@@ -157,21 +179,23 @@ public static class ForecastNursery
     private static int Taker(ForecastCoupledContext context) =>
         context.RoomCredits.ContainsKey(PlannedRole.Nursery) ? context.PlannedRoomRoles.Where(r => r.Value == PlannedRole.Nursery).Select(r => r.Key).DefaultIfEmpty(0).Min() : 0;
 
-    /// <summary>Per colonist its heard mood with the nursery and without it, its break shifts, and the taker's named states.</summary>
-    private sealed record Heard(IReadOnlyDictionary<string, (double With, double Without)> Moods, IReadOnlyDictionary<string, double[]> Shifts, string[] States)
+    /// <summary>Per colonist its heard mood with the nursery and without it, and the taker's named states.</summary>
+    private sealed record Heard(IReadOnlyDictionary<string, (double With, double Without)> Moods, string[] States)
     {
         public IReadOnlyDictionary<string, double> Rest { get; init; } = new Dictionary<string, double>();
         public IReadOnlyList<RoomGain> Play { get; init; } = [];
     }
 
-    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledContext, Heard> Cache = new();
 
-    private static Heard Of(ForecastCoupledContext context)
+
+
+
+    private static Heard Of(ForecastCoupledContext context, ForecastCoupledOutcome outcome)
     {
         var read = context.Needs.Babies;
         var states = new SortedSet<string>(read.Fits.Where(f => !f.Heard).Select(f => UnknownFit + f.Def), StringComparer.Ordinal);
-        if (Taker(context) == 0) return new(new Dictionary<string, (double, double)>(), new Dictionary<string, double[]>(), []);
-        if (read.Babies.Count == 0) return new(new Dictionary<string, (double, double)>(), new Dictionary<string, double[]>(), [NoBaby, .. states]);
+        if (Taker(context) == 0) return new(new Dictionary<string, (double, double)>(), []);
+        if (read.Babies.Count == 0) return new(new Dictionary<string, (double, double)>(), [NoBaby, .. states]);
         var heard = read.Fits.Where(f => f.Heard).Select(f => f.Def).ToHashSet(StringComparer.Ordinal);
         var with = new Dictionary<string, List<(HeardMemoryRead, double)>>(StringComparer.Ordinal);
         var without = new Dictionary<string, List<(HeardMemoryRead, double)>>(StringComparer.Ordinal);
@@ -210,11 +234,25 @@ public static class ForecastNursery
             // stage filter is Child|Adult); an absent comfort thought therefore changes neither mood nor fit rate.
             var comfort = ForecastHousing.ComfortMood(row, comfortLevel, context.ComfortCurve)
                 - ForecastHousing.ComfortMood(row, now.Comfort, context.ComfortCurve);
-            if (comfort != 0) ownMood[baby.Pawn] = baby.InNursery ? (0, -comfort) : (comfort, 0);
-            else if (!row.ThoughtStages.Any(t => t.Role == ForecastHousing.NeedComfortRole)) states.Add("nursery_baby_no_comfort_need");
+            var crib = mood is null ? new BabyCribMoodRead(0, 0, 0) : baby.CribMood ?? throw new RequiredFactException("baby crib mood:" + baby.Pawn);
+            var withMood = (baby.InNursery ? 0 : comfort) + (planned is null ? crib.Current : crib.Normal) - crib.Current;
+            var withoutMood = (baby.InNursery ? -comfort : 0) + crib.WithoutNursery - crib.Current;
+            if (row.ThoughtStages.Any(t => t.Role is "slept_in_cold" or "slept_in_heat" && t.Offset != 0))
+            {
+                // The generic outcome owns the currently observed sleep memories. Price only the change of surface.
+                var observed = row.Sleep ?? throw new RequiredFactException("baby observed sleeping surface:" + baby.Pawn);
+                var baseline = ForecastHousing.SleepTemperatureThought(row, observed.Temperature);
+                withMood += ForecastHousing.SleepTemperatureThought(row, ForecastHousing.PlannedSleepTemperature(Taker(context), outcome, context)) - baseline;
+                withoutMood += ForecastHousing.SleepTemperatureThought(row, now.Temperature) - baseline;
+            }
+            else states.Add("nursery_baby_no_temperature_thought");
+            if (withMood != 0 || withoutMood != 0) ownMood[baby.Pawn] = (withMood, withoutMood);
+            if (!row.ThoughtStages.Any(t => t.Role == ForecastHousing.NeedComfortRole)) states.Add("nursery_baby_no_comfort_need");
             if (baby.Fits.Count == 0) continue;
-            var rates = FitRates(read, [.. baby.Fits], Math.Clamp(mood!.Target - (baby.InNursery ? comfort / 100 : 0), 0, 1), now.GainPerTick / (now.GainPerTick + rest.FallPerTick));
-            var cribRates = FitRates(read, [.. baby.Fits], Math.Clamp(mood.Target + (baby.InNursery ? 0 : comfort / 100), 0, 1), gain / (gain + rest.FallPerTick));
+            if (outcome.Needs.GetValueOrDefault(baby.Pawn)?.Mood is not ForecastMoodResult.Projected { Response: { } response })
+                throw new RequiredFactException("baby outcome mood response:" + baby.Pawn);
+            var rates = Rates(read, baby, response, withoutMood / 100, now.GainPerTick / (now.GainPerTick + rest.FallPerTick));
+            var cribRates = Rates(read, baby, response, withMood / 100, gain / (gain + rest.FallPerTick));
             foreach (var hearer in baby.Hearers)
                 foreach (var memory in hearer.Memories.Where(m => heard.Contains(m.Fit) && rates.ContainsKey(m.Fit)))
                 {
@@ -237,7 +275,7 @@ public static class ForecastNursery
             var heardMood = moods.GetValueOrDefault(pawn);
             moods[pawn] = (heardMood.With + delta.With, heardMood.Without + delta.Without);
         }
-        var shifts = moods.ToDictionary(m => m.Key, m => new[] { m.Value.With / 100, m.Value.Without / 100 }.Where(s => s != 0).Distinct().Order().ToArray(), StringComparer.Ordinal);
-        return new(moods, shifts, [.. states]) { Rest = restDays, Play = playDays };
+        foreach (var pawn in moods.Where(m => m.Value.With == m.Value.Without).Select(m => m.Key).ToArray()) moods.Remove(pawn);
+        return new(moods, [.. states]) { Rest = restDays, Play = playDays };
     }
 }

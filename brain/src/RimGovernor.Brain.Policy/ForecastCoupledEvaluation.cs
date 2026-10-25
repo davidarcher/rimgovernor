@@ -869,7 +869,9 @@ public static partial class ForecastCoupled
                 if (!moods.TryGetValue(moodKey, out var mood))
                     moods.Add(moodKey, mood = Next(ForecastMood.ForecastMoodTimeline(pawn, horizon, choiceKeys.Array(choicesId), null,
                         grantedId == 0 ? null : grantedKeys.Array(grantedId), situationalId == 0 ? null : situationalKeys.Array(situationalId),
-                        bandedThoughts.Value, roofMood.Renewals, context.MoodTrajectory, breakShifts.GetValueOrDefault(pawn.Pawn))));
+                        bandedThoughts.Value, roofMood.Renewals, context.MoodTrajectory, breakShifts.GetValueOrDefault(pawn.Pawn),
+                        context.RoomCredits.ContainsKey(PlannedRole.Nursery) && context.PlannedRoomRoles.Values.Contains(PlannedRole.Nursery)
+                            && context.Needs.Babies.Babies.Any(b => b.Pawn == pawn.Pawn || b.Hearers.Any(h => h.Pawn == pawn.Pawn)))));
                 needsByPawn[pawn.Pawn] = Projected(projectedNeeds, mood, roof);
             }
             // Removing impossible work may invalidate its meals and therefore later work. Each pass removes at least one task.
