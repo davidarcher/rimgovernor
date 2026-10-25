@@ -20,8 +20,9 @@ or other relevant native stock observation.
 
 **Intent:** Documented in [material extraction](../developers/contracts/mining-contracts.md)
 and [resource planning](../developers/architecture/space-and-resources.md).
-**Implementation:** Unassessed across shortage-to-delivered-material. Production
-declaration and exact mining execution were sampled separately. Evidence S1–S2.
+**Implementation:** Supported for inspected deficit assessment, source selection,
+production commitments and native extraction. Delivery across a whole supply
+chain lacks a current executed result. Evidence S1–S2, S4.
 
 ## RG-SUPPLY-002 — Trade within the colony's means
 
@@ -36,8 +37,9 @@ fresh review. Outbound trading also needs enough people, provisions and carrying
 capacity for the journey and the remaining colony.
 
 **Intent:** Documented in [controllable trade](../developers/contracts/controllable-trade.md).
-**Implementation:** Supported for the inspected native deal execution; autonomous
-deal choice, travel and home provisioning remain unassessed. Evidence S3.
+**Implementation:** Supported for inspected deal selection, native exchange and
+mission reconciliation. End-to-end expedition success remains an evidence limit.
+Evidence S3, S5. Some forecast handoffs have separately tracked gaps (S6).
 
 ## Evidence and inspection coverage
 
@@ -45,7 +47,9 @@ deal choice, travel and home provisioning remain unassessed. Evidence S3.
   converts reviewed resource targets into floors and declares production using
   observed stock, benches and craft facts under the resource need. The extraction
   contract describes source selection, pending yield and fresh-stock completion.
-  Mining source selection and hauling were not fully traced in this pass.
+  RoundsResourcePlanner.StepRecordedAsync rereads stock, rejects stale context,
+  checks deep drilling, then ranks deficits against ResourceSupplyAsync's sources.
+  Acquisitions hold their promised yield until native stock can close the deficit.
 - **S2 — Exact mining work.** Registered OnDemand
   [control/pawn-activity-mine](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Control/ControlMine.cs)
   stages two unroofed sandstone rocks and a skilled miner. It installs an exact
@@ -58,7 +62,47 @@ deal choice, travel and home provisioning remain unassessed. Evidence S3.
   and checks moved stock and silver. It also checks refusal of an unaffordable
   deal and cancellation. The fixture chooses the deal and places the negotiator.
 
-Deep drilling, manufacturing chains, component supply, trade expeditions and
-competition with essential work remain unassessed. Future capability development
-can be added here as its outcome and evidence are examined.
+### S4 — Material commitments, depletion and production
+
+[RoundsResourceSupply](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsResourceSupply.cs)
+connects selected sources to acquisitions; [RoundsDeepDrill](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsDeepDrill.cs)
+handles exhausted drills and replacement locations. Resource orders connect
+manufacturing floors to available recipes and benches.
+[ProductionPromisesTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/ProductionPromisesTests.cs)
+checks that construction and batch demand add, native handoff is counted once,
+completed iterations reduce commitments, and cancellation releases only work
+whose native state permits it. Unread relevant stock refuses spending.
+[ResourceMethodTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/ResourceMethodTests.cs)
+checks missing benches, finite labor and stock demand.
+[buried-steel cases](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Production/ProductionBuriedSteel.cs)
+inspect roof safety and require designated ore removal with a replacement wall
+blueprint. [deep-resource reads](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Tools/ToolsDeepResources.cs)
+distinguish live and depleted deposits. These claims stop short of a completed
+drill-to-delivered-component chain.
+
+### S5 — Affordable trade and return cargo
+
+[TradeAcquisitionTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/TradeAcquisitionTests.cs)
+checks route, carrying mass, provisions, rot, reserves and deadlines when choosing
+a mission. [RoundsTrade](../../brain/src/RimGovernor.Brain.BuildingRuntime/RoundsTrade.cs)
+opens a current sheet, stages lines and accepts its signature or cancels.
+[TradeMissionDriver](../../brain/src/RimGovernor.Brain.BuildingRuntime/TradeMissionDriver.cs)
+requires the crew home with the actual purchased cargo before reporting delivery.
+[world-session cases](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Trade/TradeWorldSession.cs)
+check settlement and orbital purchases and cancellation against native inventory.
+A settlement purchase remains away from home until returned. Tests of arrival
+probability estimate an opportunity; they do not guarantee a trader will arrive.
+
+### S6 — Known forecast limits
+
+Existing issues [#3917](https://github.com/davidarcher/rimgovernor/issues/3917),
+[#3918](https://github.com/davidarcher/rimgovernor/issues/3918) and
+[#3919](https://github.com/davidarcher/rimgovernor/issues/3919) track brain-started
+trade stock, settlement missions and selection handoff. They qualify forecast
+claims independently of the supported native deal path. The zero-stock bootstrap
+in [#3641](https://github.com/davidarcher/rimgovernor/issues/3641) also crosses food,
+workshops, clothing and shelter; prepared production cases do not establish it.
+
+Remaining proof limits are autonomous extraction through delivered stock,
+multi-stage production under competing demand and a completed trading expedition.
 See [T8](review-queue.md#t8--connect-resource-demand-to-delivery).

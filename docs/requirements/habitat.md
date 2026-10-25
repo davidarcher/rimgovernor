@@ -19,8 +19,9 @@ receive a temporary place while permanent capacity catches up.
 
 **Intent:** Documented in [spatial](../developers/contracts/spatial-contracts.md)
 and [population](../developers/contracts/population-contracts.md) contracts.
-**Implementation:** Supported for the sampled first-room path. Growth and loss
-recovery remain unassessed. Evidence H1–H2.
+**Implementation:** Supported for sampled first-room construction and changing
+layout inputs. Repeated growth/loss recovery needs broader execution evidence.
+Evidence H1–H2, H6.
 
 ## RG-HABITAT-002 — Keep essential facilities usable
 
@@ -36,8 +37,10 @@ unavailable, the affected service and blocker should remain visible.
 
 **Intent:** Documented in [power](../developers/contracts/power-contracts.md),
 [upkeep](../developers/contracts/upkeep-contracts.md) and spatial contracts.
-**Implementation:** Unassessed across the full outcome: power choice and native refuelling sampled;
-temperature, maintenance and autonomous coordination need further tracing. Evidence H3.
+**Implementation:** Partial. Fuel, roof/temperature, cooling and Home-area
+maintenance are supported. Ordinary repairs and door-to-wall replacement are
+explicitly held (H5). Resilience across repeated losses needs further evidence.
+Evidence H3–H6.
 
 ## Evidence and inspection coverage
 
@@ -60,8 +63,55 @@ temperature, maintenance and autonomous coordination need further tracing. Evide
   stove, then waits for fuel and powered service. The fixture enables hauling;
   autonomous staffing and fuel acquisition are outside its claim.
 
-Food preservation connects to [food](food-security.md); service recovery connects
-to [protection](protection-and-recovery.md). Room upgrades, couples, extreme
-climates and large-colony layout remain unassessed. Prioritize the existing
-first-room evidence before adding broad housing tests; see
-[T7](review-queue.md#t7--finish-shelter-and-essential-care).
+### H4 — Cold shelter and useful temperature
+
+ShelterRounds routes sleeping and temperature work through shared building work;
+the room plan is reconciled against current buildings and roof cells.
+[layout/first-room-ice](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Layout/FirstRoomIce.cs)
+starts three colonists at a pinned cold temperature, injects an unbuilt plan and
+requires a closed sleeping room before serious hypothermia. It checks for a
+coupled construction selection as well as the native room.
+[production/coupled-thermal](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Production/ProductionCoupledThermal.cs)
+requires a leaky planned bedroom's roof to finish, then an occupant to sleep in a
+measurably warmer powered room. The case injects tiredness after closure.
+[temperature/building](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Temperature/BuildingTemperature.cs)
+checks temperature-setting readback, refusal of an invalid setting and replay.
+These cover prepared cold and thermal conditions, with climate-wide performance
+still an evidence limit. Food F12 separately covers completed cooling.
+
+### H5 — Maintained colony space
+
+[HomeUpkeepFamilyTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/HomeUpkeepFamilyTests.cs)
+and [UpkeepStructureTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/UpkeepStructureTests.cs)
+cover upkeep decisions and structural observation encoding respectively. Registered
+[upkeep/home-coverage](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Upkeep/HomeCoverage.cs)
+runs the governor against connected rooms, observes native Home coverage and
+requires restoration of a deliberately removed corridor cell. Home coverage
+enables native services; completed cleaning and repair have their own outcomes.
+The spatial contract's room reconciliation covers existing rooms as well as new
+construction. Growth and destroyed structures change the next required work.
+
+HomeUpkeepFamily.Propose deliberately holds ordinary repairs and door-to-wall
+replacement. Its tests assert those holds. These are implementation gaps tracked
+in [#4006](https://github.com/davidarcher/rimgovernor/issues/4006) and
+[#4007](https://github.com/davidarcher/rimgovernor/issues/4007); the working Home-area
+restoration case does not prove either action.
+
+### H6 — Growth and changed plans
+
+[ColonyLayoutReplan](../../brain/src/RimGovernor.Brain.BuildingRuntime/Colony/ColonyLayoutReplan.cs)
+builds revised room advice from population, growth and current observations, then
+adopts it only for the same loaded world and saved plan without a tick rewind.
+Rooms already under construction or in use constrain adoption.
+[LayoutInputsChangedTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/LayoutInputsChangedTests.cs)
+checks population/input drift and distinguishes structural changes from transient
+stock or mood changes. [LayoutReplanOffPathTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/LayoutReplanOffPathTests.cs)
+checks the asynchronous replan boundary. These connect later colony needs to
+replanning; H2/H4 supply bounded native room outcomes, with sustained expansion
+and repeated destruction still outside their assertions.
+
+Food preservation connects to [food](food-security.md); repairs and disruption
+connect to [protection](protection-and-recovery.md). The inspected cases cover
+specific layouts and climate conditions. Large-colony layout quality and repeated
+loss recovery require broader evidence. Reuse the existing room and temperature
+cases before adding tests; see [T7](review-queue.md#t7--finish-shelter-and-essential-care).

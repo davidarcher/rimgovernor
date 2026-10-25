@@ -10,7 +10,7 @@ The initial trace follows an unarmed colonist obtaining and eating wild berries,
 with cooking and recovery as supporting examples. Its code revision was:
 `06db87fb4deb9df2626e1dfbc7059e0655379463`, on 2026-10-24.
 Growing, preservation, hunting choices and special feeding were sampled at the
-[expansion revision](README.md). Evidence F7–F10 records that added inspection.
+[collection revisions](README.md). Evidence F7–F14 records that added inspection.
 
 ## Requirements
 
@@ -42,11 +42,11 @@ The user explicitly confirmed full autonomy on 2026-10-24. The detailed acceptan
 examples remain proposals for review.
 
 **Implementation status:** Supported for the inspected ordinary food path. Hunger
-and food observations lead to work and eating assignments. Player-visible
-explanations of unsupported situations remain unassessed.
+and food observations lead to work and eating assignments. The
+[explanations page](explanations.md) traces blockers to the player view.
 
 **Evidence:** F1–F3 trace the code; F5 checks berry designation and consumption.
-Its isolated setup leaves sustained feeding and malnutrition recovery unassessed.
+Its isolated setup supplies no sustained-feeding or malnutrition-recovery result.
 
 **Open work:** [T1](review-queue.md#t1--feeding-from-an-unarmed-start) checks the
 central outcome. [Q1](review-queue.md#q1--who-chooses-food-work) addresses conflicting
@@ -77,10 +77,11 @@ read. Reserve quantities follow the owning policy and contracts.
 **Intent status:** Documented intent in the [supply model](../developers/architecture/supply-model.md#demands)
 and [food observation contract](../developers/contracts/controller-contracts.md#observation).
 
-**Implementation status:** Unassessed for sustained replacement. The inspected
+**Implementation status:** Supported for inspected replacement decisions. The
 calculations account for consumption, arrival time, labor and spoilage, and reopen
 shortfalls as coverage drops. Farming, fishing, trade, hunting and refrigeration
-still need to be followed through to their delivered output.
+have distinct outcome limits recorded in F7–F13 and the supply page. Sustained
+sufficiency has no current executed evidence here.
 
 **Evidence:** F1/F2 and F4 cover calculations and selected decisions. The forage
 unit test starts with berries already selected in a constructed food plan. Winter
@@ -114,8 +115,8 @@ and can choose raw food when that better meets the need.
 and [cooking evidence](../developers/contracts/pawn-activities.md#observation-and-tests).
 
 **Implementation status:** Supported for exact recipe execution and the inspected
-planning connections. Autonomous kitchen construction and recovery after losing a
-stove remain unassessed.
+planning connections, including cooking-facility selection (F14). Recovery after
+losing a stove has no current native outcome evidence.
 
 **Evidence:** F2/F3 connect selected cooking to game work. F6 checks ingredient
 consumption, food creation and two failures. The test directs each attempt and
@@ -148,8 +149,8 @@ The inspected behavior covers task continuation within a running session.
 and the [food progress contract](../developers/contracts/controller-contracts.md#priority-evaluation).
 
 **Implementation status:** Supported for the inspected continuation decisions and
-missing-information checks. Recovery across the complete running system remains
-unassessed.
+missing-information checks. Autonomous recovery through a later meal still needs
+native outcome evidence.
 
 **Evidence:** F4 supplies observations to check changed ingredients, actual meal
 output and release of failed work. F6 exercises failures in the game with
@@ -173,9 +174,9 @@ capacity or a changed colony population should prompt a new assessment. A missin
 layout or unusable growing site should explain why field work cannot proceed.
 
 **Intent:** Inferred candidate from the food/supply path and seasonal policy.
-**Implementation:** Supported for sampled
-seasonal target adjustment and field-work routing. Sowing-to-harvest completion,
-crop failure and winter sufficiency remain unassessed. Evidence F7; proposed T3/T5.
+**Implementation:** Supported for seasonal targets, field planning, exact sowing
+and harvest-to-eating work. Sowing and harvesting have separate native cases;
+a complete growing season is an evidence gap. Evidence F7/F11; proposed T3/T5.
 
 ### RG-FOOD-006 — Preserve food that the colony will need
 
@@ -191,9 +192,9 @@ work. A planned cooler alone should leave the temperature outcome pending.
 
 **Intent:** Documented in the storage family and
 [spatial contract](../developers/contracts/spatial-contracts.md).
-**Implementation:** Supported for sampled storage/cooling need derivation and
-work routing. Completed hauling, freezer construction and reduced spoilage in
-game remain unassessed. Evidence F8; proposed T5/T12.
+**Implementation:** Supported for storage demand, cooler construction and measured
+chilling. Long-term loss prevention and recovery from power loss need execution
+evidence. Evidence F8/F12; proposed T5/T12.
 
 ### RG-FOOD-007 — Account for the cost and danger of hunting
 
@@ -210,7 +211,7 @@ still leaves butchery, retrieval and eating to complete where required.
 **Intent:** Inferred candidate from hunting policy and its tests; full autonomy
 is approved, while these detailed tradeoffs have not received separate approval.
 **Implementation:** Supported for inspected alternative selection. Native hunting
-safety and completion across changing conditions remain unassessed. Evidence F9
+safety and completion across changing conditions need broader evidence. Evidence F9
 and the additional tribal case below.
 
 ### RG-FOOD-008 — Feed people who need suitable food or help
@@ -225,9 +226,10 @@ Changed diet eligibility or an unavailable caregiver should keep the affected
 need visible and trigger reassessment when conditions improve.
 
 **Intent:** Inferred candidate, with baby-food provisioning documented in the
-inspected code. **Implementation:** Partial: baby-food stock assessment is present;
-completed assisted feeding, individual dietary coverage and patient feeding remain
-unassessed. Evidence F10; proposed T12 and [care](colonist-wellbeing.md).
+inspected code. **Implementation:** Partial: dietary eligibility and baby-food
+production demand are supported. Assisted feeding relies on native work; the food
+assessment does not certify that a dependent was fed. Evidence F10/F13;
+proposed T12 and [care](colonist-wellbeing.md).
 
 ## From hunger to food eaten
 
@@ -302,7 +304,7 @@ and save/reload remains pending.
   `SupplyRebindsChangedIngredientThenCookingRequiresObservedMealForDelivery`,
   `InterruptedCookingLostBenchAndChangedRecipeCannotReplayConsumption` and
   `FreshDemandCanRetireProductiveWork` check continuation against supplied
-  observations. Automatic recovery in game remains unassessed.
+  observations. Automatic recovery in game needs separate execution evidence.
 
 **F5 — Existing game test: `food/forage-unarmed`.**
 [FoodForageUnarmed](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Food/FoodForageUnarmed.cs)
@@ -362,15 +364,74 @@ feeds the active Biotech baby census into
 [BabyFeedingRules](../../brain/src/RimGovernor.Brain.Policy/BabyFeeding.cs).
 The rule counts stock with baby eater eligibility, derives a target from demand
 and rejects missing consumer rows. Its model treats a present breastfeeder as
-covering breastfeeding; caregiver availability over time was not traced.
+covering breastfeeding. F13 traces provisioning and native eligibility; the model
+does not demonstrate timely caregiver availability or completed feeding.
 Registered OnDemand
 [tools/foodchannels](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Tools/ToolsFoodChannels.cs)
 checks berry sources, absence of Odyssey fishing water in a core-only setup and
 a cow's native milk-fullness row. It checks observations, with feeding and milk
 collection outside the assertions.
 
-**Remaining inspection:** sowing and harvest completion, individual diets and
-assisted feeding, animal feed, freezer construction, spoilage prevention in game,
-trading for food, hunting prediction accuracy, visible blockers, save/reload and
-sustained colony results. See [the review queue](review-queue.md) for prioritized
-evidence work. No gameplay defect is inferred solely from these unexamined paths.
+**F11 — Planting and repeated meals.**
+[SowingProviderTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/SowingProviderTests.cs)
+checks eligible workers, exact cells, work time and invalid mechanics.
+[NativeSowingActivities](../../integrations/rimgovernor-native/src/Bridge/NativeSowingActivities.cs)
+provides legal per-cell work to NativePawnActivities, which repeats sowing and
+dispatches harvest and ingestion. Registered OnDemand
+[production/sow-block](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Production/ProductionSowBlock.cs)
+requires exactly four planted cells and completed execution for a fixture-installed
+order. Registered OnDemand
+[production/coupled-needs](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Production/ProductionCoupledNeeds.cs)
+runs the governor against ripe rice and requires output binding, eating and sleep,
+then a new method and another meal. The fixture injects rested state and a fresh
+shortage between cycles. Crop maturation and seasonal survival are separate claims.
+
+**F12 — Cooler construction through chilling.**
+[RoundsRefrigeration](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsRefrigeration.cs)
+reads rooms and food temperature, selects construction or a setpoint change and
+reports enclosure, power and heat-rejection blockers. Destroyed equipment can
+create new work. Registered Nightly
+[refrigeration/build](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Refrigeration/RefrigerationBuild.cs)
+requires one built cooler, correct hot/cold sides, the target setting and meat
+temperature below the policy exit threshold. It supplies the powered room and
+materials. Food losses over time are outside its assertions.
+
+**F13 — Diets and dependent consumers.**
+[FoodSupplyFacts.Read](../../integrations/rimgovernor-native/src/Bridge/FoodSupplyFacts.cs)
+retains every consumer's demand and credits stocks using native diet, restriction,
+reach and area checks. Downed consumers receive no independent-access credit.
+Held food belongs to its holder.
+[PreferencesFactsTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/PreferencesFactsTests.cs)
+checks vegetarian, insect-meat and human-meat choices and forbidden methods.
+[BabyFoodDeclarer](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsFood.cs)
+passes shortage to shared production; BabyFeedingRules selects baby-edible recipes.
+[WorkAssignment](../../brain/src/RimGovernor.Brain.Policy/WorkAssignment.cs) pins
+Childcare. FoodFamilyTests checks the provisioning need and breastfeeder assumption.
+These decisions stop short of measuring completed assisted feeding.
+
+**Other sources.** [FoodChannelPolicyTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/FoodChannelPolicyTests.cs)
+checks fishing capacity, regeneration and seasonal gaps; F10 checks forage and
+milk observations. [AnimalFeedRunway](../../brain/src/RimGovernor.Brain.Policy/AnimalFeedRunway.cs)
+projects pasture, edible stock and known herd growth. AnimalsReader uses that
+shortfall; resource planning provisions feed. [Commitments](colony-commitments.md)
+owns herd decisions and [supply](development-and-supply.md) owns trade execution.
+
+**Proof limits after inspection:** current native results, completed assisted
+feeding, food-loss measurements, hunting-estimate accuracy and seasonal autonomy.
+The [review queue](review-queue.md) distinguishes those evidence investments from
+confirmed behavior gaps.
+
+**F14 — Cooking facilities and acquisition designations.**
+[RoundsBuildingPlanner](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsBuildingSelection.cs)
+requires food-plan support before selecting cooking capacity, recognizes usable
+or pending facilities, and can select a campfire when capacity is missing.
+[RoundsSleeping](../../brain/src/RimGovernor.Brain.BuildingRuntime/RoundsSleeping.cs)
+connects facility work to planned placement and existing construction claims.
+The general room/construction cases establish prepared building effects; they
+do not prove a zero-stock kitchen bootstrap (tracked in #3641, supply S6).
+[RoundsAcquisitionPlanner](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsAcquisition.cs)
+selects food sources and commits acquisition actions;
+[NativeAcquire](../../integrations/rimgovernor-native/src/Bridge/Protocol/NativePlantAcquisition.cs)
+maps plant acquisition to native harvest designations. This is the reachable
+designation path behind F5. Exact work assignments are another supported path;
+[Q1](review-queue.md#q1--who-chooses-food-work) records the conflicting descriptions.

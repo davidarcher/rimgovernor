@@ -19,7 +19,8 @@ requires a change in the patient's treatment state; recovery may take longer.
 
 **Intent:** Documented in [medical care](../developers/contracts/medical-care.md).
 **Implementation:** Supported for the sampled pairing and native tending dispatch;
-completed autonomous treatment and replacement-doctor recovery remain unassessed.
+completed autonomous treatment and replacement-doctor recovery still need native
+outcome evidence.
 The contract's eligible-patient and care-policy conditions apply. Evidence W1–W3.
 
 ## RG-HEALTH-002 — Sustain recovery and everyday wellbeing
@@ -38,9 +39,10 @@ allow useful work to resume.
 **Intent:** Documented in [medical care](../developers/contracts/medical-care.md),
 [mood](../developers/contracts/mood-control.md) and
 [equipment upkeep](../developers/contracts/equipment-upkeep.md).
-**Implementation:** Unassessed across this outcome. The medical family exposes
-care, reserves and surgery needs. Recovery, rest and equipment outcomes require
-further inspection. Evidence W1–W2 covers the medical subset.
+**Implementation:** Partial. Condition tracking, selected sleep/recreation,
+clothing production and mental-break response are supported. Gatherings and some
+residual apparel replacement are held (W7). Successful disease recovery and safe
+surgery remain outcome-evidence questions. Evidence W1–W7.
 
 ## Evidence and inspection coverage
 
@@ -61,6 +63,61 @@ further inspection. Evidence W1–W2 covers the medical subset.
 
 Dependent patients follow the population and medical contracts. Patient feeding,
 babies, special diets and animal food connect to [food](food-security.md).
-Disease progression, surgery outcomes, mental-break recovery, clothing manufacture
-and recreation effects remain unassessed. See
-[T7](review-queue.md#t7--finish-shelter-and-essential-care).
+### W4 — Recovery, disease and surgery
+
+[MedicalRules.ReviewMedicalCare](../../brain/src/RimGovernor.Brain.Policy/MedicalCare.cs) tracks
+patient conditions and unresolved patients. [RoundsDisease](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsDisease.cs)
+feeds medical rest into work demand and resets history when the world or timeline
+changes. Native health observations include severity, immunity and tending.
+[medical/plague-readback](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Medical/PlagueReadback.cs)
+checks those values against two prepared patients, one tended. The
+[surgery cases](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Medical/Surgery.cs)
+check native operation eligibility, parts, medicine limits and bill handling.
+[lab/skill-learning-tend and surgery](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Lab/SkillLearning.cs)
+observe native learning callbacks; the surgery callback occurs before its outcome.
+None of these assertions guarantees patient survival or successful treatment.
+
+### W5 — Rest, recreation and mental breaks
+
+The shared need forecast selects exact activities; NativePawnActivities dispatches
+bed and recreation jobs and observes their lifecycle. Registered OnDemand
+[production/coupled-needs](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Production/ProductionCoupledNeeds.cs)
+requires sleep, waking and play under the served governor, with rested state
+injected between its cycles. [needs/recreation-gain](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Needs/NeedsRecreationGain.cs)
+checks legal native recreation targets and gain/capacity inputs.
+[RoundsBreak.ReconcileSubdueFightAsync](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsBreak.cs)
+reads current threats and injuries before ending a subdue attempt and its drafts.
+[mood/subdue](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Mood/Subdue.cs)
+orders a prepared intervention and requires the target alive, free and downed or
+no longer aggressive. Autonomous intervention selection and long-term mood are
+separate from that native effect.
+
+### W6 — Useful clothing and interruption recovery
+
+Clothing candidates participate in the shared work comparison, become exact
+recipe tasks and run through Hands and native bill execution.
+[ApparelDrugPreferencesTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/ApparelDrugPreferencesTests.cs)
+checks outfit choices and resulting demand.
+[production/clothing-activity](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Production/ProductionClothingActivity.cs)
+requires a garment of the selected material, conserved inputs and released
+participants under the served governor. Its `-unfinished` variant interrupts the
+native unfinished garment once and requires resumption. The armor-choice case
+[apparel/crafted_armor](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Apparel/CraftedArmor.cs)
+checks selected material and forecast harm, without asserting injury reduction.
+
+The inspected paths support these mechanisms. Proof limits are current case
+results, final patient outcomes, wearing the manufactured garment and sustained
+wellbeing. See [T7](review-queue.md#t7--finish-shelter-and-essential-care).
+
+### W7 — Gatherings and remaining equipment deficits
+
+[RoomsFamily.Propose](../../brain/src/RimGovernor.Brain.Policy/RoomsFamily.cs)
+holds autonomous gatherings while participant time and effects lack shared
+planning support ([#4001](https://github.com/davidarcher/rimgovernor/issues/4001)).
+The native [mood/gathering](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Mood/Gathering.cs)
+case explicitly starts a Party and checks the organizer's participation; it
+does not remove the planner hold or assert a lasting mood benefit.
+[MilitaryRounds.EquipmentVerdict](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsMilitary.cs)
+holds remaining apparel deficits after workshop work has no useful next step
+([#4009](https://github.com/davidarcher/rimgovernor/issues/4009)). Clothing production
+is supported (W6), but the broad promise of recovered worn equipment is partial.

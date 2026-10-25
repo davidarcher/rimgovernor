@@ -18,9 +18,9 @@ view. A new session should make the limits of its available history clear.
 
 **Intent:** Documented in [controls](../players/controls.md) and
 [persistence](../developers/contracts/persistence-contracts.md).
-**Implementation:** Supported for sampled cause tracking and explanation audit;
-the rendered launcher experience and usefulness of individual messages remain
-unassessed. Evidence E1–E2.
+**Implementation:** Supported from sampled cause tracking through the launcher
+data reader and render functions. Message clarity and the live rendered experience
+have no user-observation evidence. Evidence E1–E3.
 
 ## RG-EXPLAIN-002 — Distinguish plans from observed results
 
@@ -36,10 +36,13 @@ After recovery, the current state should reflect fresh evidence.
 
 **Intent:** Documented in [action completion](../developers/contracts/action-contracts.md),
 [forecast contracts](../developers/contracts/forecast-contracts.md) and
-[signals](../developers/contracts/otel-signals.md).
-**Implementation:** Unassessed across the player presentation. The food and
-continuation evidence demonstrates some underlying distinctions; E2 checks cause
-coverage. Prediction wording needs separate inspection.
+[signals](../developers/contracts/otel-signals.md). A unified player comparison
+of predicted and realized outcomes is an inferred candidate, pending Q5.
+**Implementation:** Partial. The player view separates expected work, blockers
+and progress timestamps, and diagnostics expose individual decisions. It does
+not present a complete comparison of predicted and realized colony outcomes.
+That broader presentation is an inferred candidate requiring review (Q5).
+Evidence E2–E4.
 
 ## Evidence and inspection coverage
 
@@ -60,3 +63,31 @@ The [food](food-security.md) and [continuity](continuity.md) pages identify conc
 outcomes against which explanations can be checked. Review a blocked need through
 the actual player view before judging wording or status completeness; see
 [T11](review-queue.md#t11--read-a-blocker-through-the-player-view).
+
+### E3 — From stored cause to player display
+
+[RoundsDiagnostics.RoundsStatusAsync](../../brain/src/RimGovernor.Brain.Host/HostProviders.cs)
+reads stored progress and fact freshness. [ReadProjections.ConcernProgressRow](../../brain/src/RimGovernor.Brain.PlayerApi/ReadProjections.cs)
+projects method, expected work, blocker, subject and review/progress ticks.
+[ObserveService.ViewAsync](../../tools/launcher/Observe.cs) fetches that route and
+the current colony/control state; missing route responses remain null.
+[obConcerns and obRender](../../tools/launcher/ui/index.html) render those fields,
+unknown values and stale/disconnected state. Expanded log rows show the recorded
+details. The in-game [GovernorStatusPanel](../../integrations/rimgovernor-native/src/Bridge/Protocol/GovernorStatusPanel.cs)
+only shows connection status; detailed explanations live in the launcher.
+
+This is a source trace through rendering, not an executed visual test. The view
+still uses older labels such as “Concerns” and raw reason codes. Clear reasons
+remain a product obligation; the typed-cause audit alone cannot establish clarity.
+Q5 tracks the presentation decision.
+
+### E4 — What a forecast means
+
+[ForecastObservedMealTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/ForecastObservedMealTests.cs)
+checks that two observed meals can fund separate forecast eating times and that
+insufficient or expired stock cannot fund repeated recovery. These are simulated
+outcomes from supplied facts. Food F6 observes actual production, F11 observes
+repeated eating, and continuity R3 requires terminal native readback before
+continuation. Together they explain why the player view must keep “Expected”
+separate from progress. No current test here compares all displayed predictions
+with realized outcomes or measures a player's understanding.
