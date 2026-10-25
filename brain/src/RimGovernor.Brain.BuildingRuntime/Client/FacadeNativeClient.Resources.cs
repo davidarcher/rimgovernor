@@ -5,7 +5,7 @@ using Domain = RimGovernor.Brain.Domain;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 // ReadResourceSources, decodeResourceStorage and ResourceSourceMethodOf.
-public sealed partial class FacadeNativeClient
+public sealed partial class FacadeNativeClient : IRoundsStorageSource
 {
     /// <summary>
     /// Native's saved realized-consumption ring, every completed hour after
@@ -20,7 +20,7 @@ public sealed partial class FacadeNativeClient
     /// <paramref name="sinceHour"/>, ascending. A group with no samples is absent. Game-scoped like consumption: the
     /// group load ids name the map.
     /// </summary>
-    internal Task<PbObservations.StorageOccupancySnapshot> ReadStorageOccupancyAsync(IReadOnlyCollection<string> groups, int sinceHour, CancellationToken cancellationToken) =>
+    public Task<PbObservations.StorageOccupancySnapshot> ReadStorageOccupancyAsync(IReadOnlyCollection<string> groups, int sinceHour, CancellationToken cancellationToken) =>
         Facade.ReadStorageOccupancyAsync(
             new PbObservations.StorageOccupancyRequest { Groups = Domain.EquatableArray.From(groups.Order(StringComparer.Ordinal)), SinceHour = sinceHour },
             cancellationToken);

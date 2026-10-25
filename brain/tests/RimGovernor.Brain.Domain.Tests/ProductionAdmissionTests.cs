@@ -29,7 +29,7 @@ public sealed class ProductionAdmissionTests
             WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "TestArt" },
             Skills = new Dictionary<string, ProfileSkill> { ["TestArt"] = new() { Name = "TestArt", Level = 8 } } }],
         Resources = [new(Wood, 60), new(Other, 100)],
-        CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long> { [Wood] = 40 } },
+        Gear = Known(ColonyModelFixtures.NoGear()), CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long> { [Wood] = 40 } },
         BillReservations = [],
         WorkAdmission = new()
         {

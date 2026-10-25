@@ -12,7 +12,6 @@ public static class StatNames
     public const string Nutrition = "Nutrition";
     public const string MedicalPotency = "MedicalPotency";
     public const string Beauty = "Beauty";
-    public const string DeteriorationRate = "DeteriorationRate";
     public const string WorkToBuild = "WorkToBuild";
     public const string Comfort = "Comfort";
     public const string Cleanliness = "Cleanliness";
@@ -68,9 +67,8 @@ public static class CatalogStats
     public static readonly CatalogStat InsulationCold = Declare("Insulation_Cold");
     public static readonly CatalogStat InsulationHeat = Declare("Insulation_Heat");
 
-    // Read whether or not the game shows them: DeteriorationRate of every item, Flammability and BedRestEffectiveness of
+    // Read whether or not the game shows them: Flammability and BedRestEffectiveness of
     // placed furniture, the Comfort of every sleeping bed (#3840) and the WorkToBuild of terrain, which the game does not show.
-    public static readonly CatalogStat DeteriorationRate = Declare(StatNames.DeteriorationRate, readHidden: true);
     public static readonly CatalogStat Flammability = Declare("Flammability", readHidden: true);
     public static readonly CatalogStat BedRestEffectiveness = Declare("BedRestEffectiveness", readHidden: true);
     public static readonly CatalogStat Comfort = Declare(StatNames.Comfort, readHidden: true);
@@ -104,11 +102,10 @@ public sealed partial class DefinitionCatalog
 
     /// <summary>
     /// StatValue for a stat that is legitimately absent from a def: <c>Shown</c> is false when the game does not show
-    /// the stat for the def. DeteriorationRate is a planner stat of every ThingDef, which the game hides for a def
-    /// that does not set it: it is read whether shown or not.
+    /// the stat for the def.
     /// </summary>
     public (float Value, bool Shown) ShownStatValue(string def, string stuff, CatalogStat stat) =>
-        ShownValue(stat, StatThing(def), StuffOf(stuff), stat == CatalogStats.DeteriorationRate);
+        ShownValue(stat, StatThing(def), StuffOf(stuff), false);
 
     /// <summary>The stat of a thing made of stuff, read whether or not the game shows it: a stat the def does not set has the stat def's default.</summary>
     public float PlannerStatValue(string def, string stuff, CatalogStat stat) =>

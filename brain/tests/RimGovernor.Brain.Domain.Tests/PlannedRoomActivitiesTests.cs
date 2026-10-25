@@ -764,7 +764,7 @@ public sealed class PlannedRoomActivitiesTests
             Supply = new StartingSupply { Thing = thing, Definition = def, Cell = new(20, 20) }, Count = 50, Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 0 },
             StorageHeadroom = 0L, AcceptedBy = ["Zone_w"], Deterioration = deterioration,
         };
-        var cloth = new LootDeterioration { MaxHitPoints = 100, RatePerDay = 2, Environmental = true, Outdoors = true };
+        var cloth = new LootDeterioration { BaseRatePerDay = 2, MaxHitPoints = 100, RatePerDay = 2, Environmental = true, Outdoors = true };
         var request = new StockpileRequest
         {
             Stores = stores, Zones = [zone],

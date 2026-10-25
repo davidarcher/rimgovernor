@@ -54,7 +54,8 @@ public sealed class GearStuffChoiceTests
         // The stock and the standing crop together cover the 50 units at the harvest.
         Assert.Equal(new GearArrival.InDays(3.5), Arrival(new() { [Cloth] = 20 }, field).Of(Shirt("Cloth", .1)));
         Assert.IsType<GearArrival.NoKnownDay>(Arrival(new() { [Cloth] = 10 }, field).Of(Shirt("Cloth", .1)));
-        Assert.Null(ClothingDemandRules.GrowingFieldCandidate(Cloth, "zone1", 30, Unknown<double>()));
+        Assert.Null(ClothingDemandRules.GrowingFieldCandidate(Cloth, "zone1", 0, Known(3.5)));
+        Assert.Throws<RequiredFactException>(() => ClothingDemandRules.GrowingFieldCandidate(Cloth, "zone1", 30, Unknown<double>()));
     }
 
     [Fact]

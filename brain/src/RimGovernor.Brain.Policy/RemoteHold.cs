@@ -39,17 +39,16 @@ public static partial class RemoteRules
 
     /// <summary>
     /// Known true while a colonist is an urgent patient (bleeding, or downed with a tend outstanding) or a
-    /// disaster still disrupts a colony service. Unknown patients leave it unknown; the dispatch-time
-    /// emergency check holds on the same unknown facts.
+    /// disaster still disrupts a colony service. The patient census is required; the dispatch-time emergency check uses the same evidence.
     /// </summary>
-    public static Fact<bool> UrgentWorkCompeting(RoundsFacts f)
+    public static bool UrgentWorkCompeting(RoundsFacts f)
     {
         var patients = f.UrgentPatients;
         if (patients > 0)
         {
-            return Known(true);
+            return true;
         }
-        return Known(f.Disaster is not null && Disrupting(f.Disaster.Phase));
+        return f.Disaster is not null && Disrupting(f.Disaster.Phase);
     }
 
     /// <summary>Whether a disaster in this phase still disrupts a colony service; an unread phase disrupts nothing it can name.</summary>
@@ -69,12 +68,11 @@ public static partial class RemoteRules
     }
 
     /// <summary>
-    /// Turns the urgent work verdict into the scoring competition: unknown urgency competes with nothing,
-    /// since the emergency path holds dispatch on unknown facts and reach never widens on them.
+    /// Turns the urgent work verdict into the scoring competition: the urgent-patient census is required for the comparison.
     /// </summary>
     public static AcquisitionCompetition RemoteCompetition(RoundsFacts f)
     {
-        if (UrgentWorkCompeting(f).TryGetValue(out var urgent) && urgent)
+        if (UrgentWorkCompeting(f))
         {
             return new AcquisitionCompetition { Urgent = true };
         }
@@ -120,15 +118,11 @@ public static partial class RemoteRules
 
     /// <summary>
     /// Reports the threat hold ahead of any route verdict: a hostile on the map is what the operator needs to
-    /// know. An unknown threat holds too.
+    /// know. The hostile census is required.
     /// </summary>
     internal static string RemoteThreatHold(RemoteSafety r)
     {
-        if (!r.Threat.TryGetValue(out var threat))
-        {
-            return "threat_unknown";
-        }
-        if (threat)
+        if (r.Threat)
         {
             return RemoteHoldThreat;
         }
@@ -147,13 +141,13 @@ public enum RemoteWorkKind
 }
 
 /// <summary>
-/// The observed outdoor safety every remote selection holds on: a hostile on the map (unknown holds too) and
+/// The observed outdoor safety every remote selection holds on: a hostile on the map (the census is required) and
 /// the outdoor hazard, which an open dash window lifts for extreme cold only. Distance is not a hold; the
 /// supply planner prices it.
 /// </summary>
 public sealed record RemoteSafety
 {
-    public Fact<bool> Threat { get; init; }
+    public bool Threat { get; init; }
 
     public EquatableArray<OutdoorHazard> Hazard { get; init; }
 

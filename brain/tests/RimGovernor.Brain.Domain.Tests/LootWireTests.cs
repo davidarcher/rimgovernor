@@ -17,7 +17,7 @@ public sealed class LootWireTests
         Safety = haul,
         StorageHeadroom = headroom,
         AcceptedBy = EquatableArray.From(accepted.Select(id => new C.Ref { Id = id })),
-        Deterioration = new O.LootDeterioration { MaxHitPoints = 100, RatePerDay = 2, Outdoors = true },
+        Deterioration = new O.LootDeterioration { BaseRatePerDay = 2, MaxHitPoints = 100, RatePerDay = 2, Outdoors = true },
     };
 
     private static void RoundTrips<T>(T payload)
@@ -57,6 +57,7 @@ public sealed class LootWireTests
         var json = WireJson.Serialize(Row(new O.HaulSafety.Safe { PathLength = 1 }, 0));
 
         Assert.ThrowsAny<Exception>(() => WireJson.Deserialize<O.LootItem>(json.Replace("\"safety\"", "\"safetyX\"")));
+        Assert.ThrowsAny<Exception>(() => WireJson.Deserialize<O.LootItem>(json.Replace("\"baseRatePerDay\"", "\"baseRatePerDayX\"")));
         Assert.ThrowsAny<Exception>(() => WireJson.Deserialize<O.LootItem>(json.Replace("\"storageHeadroom\"", "\"storageHeadroomX\"")));
     }
 }

@@ -55,10 +55,7 @@ internal sealed class IndustryOwner : IStoreOwner
     /// <summary>The stores whose standing zone names a bench the census no longer lists. An unread census retires nothing.</summary>
     private static List<Store> RetiredBenchStores(StoreView view)
     {
-        if (!view.Benches.TryGetValue(out var standing))
-        {
-            return [];
-        }
+        var standing = view.Benches;
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var output = new List<Store>();
         foreach (var z in view.Zones)

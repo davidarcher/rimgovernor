@@ -63,7 +63,7 @@ partial class RoundsStockpilePlanner
     /// (<paramref name="zones"/>, StockpileZones.OwnedStockpileZones: the colony's stockpile claims the cells name,
     /// their settings superseded by the latest patch of each); the registered roles judge on the projection and benches.
     /// </summary>
-    internal static Pol.StockpileRequest StockpileRequest(Observation.ColonyProjection projection, IReadOnlyList<Pol.StockpileZone> zones, Fact<IReadOnlyDictionary<string, bool>> benches, IReadOnlyList<Pol.BenchInput> inputs, Pol.GearStore? gear, IReadOnlyList<Cell> protectedCells)
+    internal static Pol.StockpileRequest StockpileRequest(Observation.ColonyProjection projection, IReadOnlyList<Pol.StockpileZone> zones, IReadOnlyDictionary<string, bool> benches, IReadOnlyList<Pol.BenchInput> inputs, Pol.GearStore? gear, IReadOnlyList<Cell> protectedCells)
     {
         var request = new Pol.StockpileRequest { Cells = projection.Cells, Bounds = projection.Bounds, Protected = protectedCells, Loot = projection.Facts.EventLoot };
         var rooms = new List<Pol.PlannedRole>();
@@ -105,29 +105,29 @@ partial class RoundsStockpilePlanner
     /// The Shelf's build cost for the storage option report: the stuff an ordinary placement builds it from
     /// (BuildStuff), that stuff's cost list and WorkToBuild; unknown without the def or a cost row for the stuff.
     /// </summary>
-    internal static Fact<Pol.StorageBuildCost> ShelfCost(Observation.ColonyProjection projection)
+    internal static Pol.StorageBuildCost ShelfCost(Observation.ColonyProjection projection)
     {
         if (!projection.TryDefinition(StorageRules.ShelfDefinition, out var d))
         {
-            return Unknown<Pol.StorageBuildCost>();
+            throw new RequiredFactException("shelf build cost");
         }
         if (d.StuffOptions.Count == 0)
         {
             return !d.Stuffed && d.Costs.TryGetValue(out var costs)
-                ? Known(new Pol.StorageBuildCost { Costs = [.. costs], WorkTicks = d.WorkToBuild })
-                : Unknown<Pol.StorageBuildCost>();
+                ? new Pol.StorageBuildCost { Costs = [.. costs], WorkTicks = d.WorkToBuild.TryGetValue(out var work) ? work : throw new RequiredFactException("shelf build work") }
+                : throw new RequiredFactException("shelf build cost");
         }
         var stuff = projection.BuildStuff(StorageRules.ShelfDefinition);
         if (d.StuffOptions.FirstOrDefault(o => o.Stuff == stuff) is not { } option)
         {
-            return Unknown<Pol.StorageBuildCost>();
+            throw new RequiredFactException("shelf build cost");
         }
-        return Known(new Pol.StorageBuildCost
+        return new Pol.StorageBuildCost
         {
             Stuff = stuff,
             Costs = option.Costs,
-            WorkTicks = option.Stats.TryGetValue(Bridge.Contracts.StatDefNames.StatWorkToBuild, out var work) ? Known(work) : Unknown<double>(),
-        });
+            WorkTicks = option.Stats.TryGetValue(Bridge.Contracts.StatDefNames.StatWorkToBuild, out var stuffedWork) ? stuffedWork : throw new RequiredFactException("shelf stuff build work"),
+        };
     }
 
     /// <summary>
@@ -135,11 +135,11 @@ partial class RoundsStockpilePlanner
     /// owes for it (PlannedConstructionOf; a yard is unfenced and owes none) and the catalog work its planned sites owe
     /// (PlannedRoomWork over PlannedRoomSitesOf); unknown while the plan is.
     /// </summary>
-    internal static Fact<IReadOnlyList<Pol.PlannedStoreRoom>> StoreRooms(Observation.ColonyProjection projection, Pol.FlooringPolicy flooring)
+    internal static IReadOnlyList<Pol.PlannedStoreRoom> StoreRooms(Observation.ColonyProjection projection, Pol.FlooringPolicy flooring)
     {
         if (projection.LayoutPlan is not { } plan)
         {
-            return Unknown<IReadOnlyList<Pol.PlannedStoreRoom>>();
+            throw new RequiredFactException("storage layout plan");
         }
         var rooms = plan.Rooms.Where(r => r.Role == Pol.PlannedRole.Storage || r.Role == Pol.PlannedRole.Yard).ToList();
         var fenced = rooms.Any(r => !r.Unfenced());
@@ -150,27 +150,33 @@ partial class RoundsStockpilePlanner
         var output = new List<Pol.PlannedStoreRoom>(rooms.Count);
         foreach (var room in rooms)
         {
-            Fact<IReadOnlyDictionary<Pol.Resource, long>> material = default;
+            IReadOnlyDictionary<Pol.Resource, long> material;
             if (room.Unfenced())
             {
-                material = Known<IReadOnlyDictionary<Pol.Resource, long>>(new Dictionary<Pol.Resource, long>());
+                material = new Dictionary<Pol.Resource, long>();
             }
             else if (owed is { } byRoom)
             {
-                material = Known(byRoom.GetValueOrDefault(room.Id) ?? new Dictionary<Pol.Resource, long>());
+                material = byRoom.GetValueOrDefault(room.Id) ?? new Dictionary<Pol.Resource, long>();
             }
+            else { throw new RequiredFactException("planned storage material"); }
             var (work, roof) = room.Unfenced() ? (Known(0.0), false)
-                : sites is null || floors is null ? (Unknown<double>(), false)
-                : PlannedRules.PlannedRoomWork(sites, room.Id, site => Rounder.PlannedSiteWork(projection, floors, site));
+                : PlannedRules.PlannedRoomWork(sites ?? throw new RequiredFactException("storage room sites"), room.Id,
+                    site => Rounder.PlannedSiteWork(projection, floors ?? throw new RequiredFactException("storage flooring"), site));
             output.Add(new Pol.PlannedStoreRoom
             {
                 Room = room.Id, Role = room.Role, Cells = [.. room.Region.Cells()], Outdoor = room.Outdoor, Material = material,
-                Work = work, RoofOwed = roof,
+                Work = work.TryGetValue(out var ticks) ? ticks : throw new RequiredFactException("planned storage work"), RoofOwed = roof,
             });
         }
-        return Known<IReadOnlyList<Pol.PlannedStoreRoom>>(output);
+        return output;
     }
 
+    /// <summary>Initial review can finish before first-plan derivation; only saved-plan geometry requires room costs and routes.</summary>
+    internal static Pol.StorageLayout StorageLayout(Observation.ColonyProjection projection, Pol.FlooringPolicy flooring) =>
+        projection.LayoutPlan is { } plan
+            ? new Pol.StorageLayout.Planned(Pol.StorageRules.PlannedWalkways(plan), StoreRooms(projection, flooring))
+            : new Pol.StorageLayout.AwaitingFirstPlan();
     /// <summary>Whether the census found the Shelf buildable (researched).</summary>
     internal static bool ShelfAvailable(Observation.ColonyProjection projection)
     {
@@ -236,7 +242,7 @@ public sealed partial class Rounder
         Stockpiles.SetDemand(RoundsStockpilePlanner.StockpileWorld(snapshot), request.RoomDemand);
         var review = Pol.StockpileRules.PlanStockpileMaintenance(request);
         fine?.Lap("d_stock/stockpile/plan");
-        Stockpiles.SetActive(snapshot, review.Known ? Known(review.Active) : Unknown<bool>());
+        Stockpiles.SetActive(snapshot, Known(review.Active));
         foreach (var e in review.Edits)
         {
             ct.ThrowIfCancellationRequested();
@@ -246,18 +252,18 @@ public sealed partial class Rounder
     }
 
     /// <summary>The stacks one Shelf holds: the load catalog's Shelf station item slots; unknown without the catalog or the station.</summary>
-    private async Task<Fact<int>> ShelfStacksAsync(GenerationSnapshot snapshot, CancellationToken ct)
+    private async Task<int> ShelfStacksAsync(GenerationSnapshot snapshot, CancellationToken ct)
     {
         if (Native is not Observation.IDefinitionSource source)
         {
-            return Unknown<int>();
+            throw new RequiredFactException("shelf station capacity");
         }
         var catalog = await source.DefinitionCatalogAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false);
         if (!catalog.StationCatalog().Stations.TryGetValue(StorageRules.ShelfDefinition, out var shelf) || shelf.Capacity.Kind != Pol.CapacityKind.Items)
         {
-            return Unknown<int>();
+            throw new RequiredFactException("shelf station capacity");
         }
-        return Known(shelf.Capacity.Slots);
+        return shelf.Capacity.Slots;
     }
 
     /// <summary>Assembles the maintenance request; the string names the fact still unread (empty when the request is whole). <paramref name="zones"/> null reads the zone claims and shelf plans here.</summary>
@@ -289,11 +295,11 @@ public sealed partial class Rounder
         fine?.Lap("d_stock/stockpile/census");
         var gear = GearStore(projection);
         var protectedCells = ReservedGround(snapshot, projection, ct);
-        var request = RoundsStockpilePlanner.StockpileRequest(projection, zonesOwned, Known<IReadOnlyDictionary<string, bool>>(benches), StockpileBenchInputs.BenchInputs(census, projection), gear, protectedCells);
+        var request = RoundsStockpilePlanner.StockpileRequest(projection, zonesOwned, benches, StockpileBenchInputs.BenchInputs(census, projection), gear, protectedCells);
         fine?.Lap("d_stock/stockpile/build");
         var canBuild = Native is IRoundsBuildingSource;
         request = request with { ShelfAvailable = canBuild && RoundsStockpilePlanner.ShelfAvailable(projection) };
-        request = request with { Walkways = projection.LayoutPlan is { } layout ? Pol.StorageRules.PlannedWalkways(layout) : Unknown<EquatableArray<Cell>>() };
+        request = request with { Layout = RoundsStockpilePlanner.StorageLayout(projection, Policy.Flooring) };
         request = request with { ShelfStacks = await ShelfStacksAsync(snapshot, ct).ConfigureAwait(false) };
         var shelfSpent = new Dictionary<string, bool>();
         var shelfRecords = new List<Pol.ShelfRecord>();
@@ -327,20 +333,19 @@ public sealed partial class Rounder
         request = request with { Occupancy = await occupancyRead.ConfigureAwait(false) };
         fine?.Lap("d_stock/stockpile/occupancy");
         request = request with { RoomDemand = request.RoomDemand with { Yard = Pol.StoreRules.YardDemand(request) } };
-        request = request with { ShelfCost = RoundsStockpilePlanner.ShelfCost(projection), StoreRooms = RoundsStockpilePlanner.StoreRooms(projection, Policy.Flooring), Items = projection.Facts.Items };
+        request = request with { ShelfCost = RoundsStockpilePlanner.ShelfCost(projection), Items = projection.Facts.Items };
         return (request, "");
     }
 
     /// <summary>
     /// The occupancy ring's samples over the inflow window for the request's zones and their built shelves
-    /// (<paramref name="plans"/> by zone, the built ones); unknown when the native cannot read it or the read fails
-    /// (a store's inflow is then unknown, never zero).
+    /// (<paramref name="plans"/> by zone, the built ones); required from the native storage source; failures propagate to the planner boundary.
     /// </summary>
-    private async Task<Fact<O.StorageOccupancySnapshot>> StorageOccupancyAsync(IReadOnlyList<Pol.StockpileZone> zones, IReadOnlyDictionary<string, List<Pol.ShelfRecord>> plans, Tick tick, CancellationToken ct)
+    private async Task<O.StorageOccupancySnapshot> StorageOccupancyAsync(IReadOnlyList<Pol.StockpileZone> zones, IReadOnlyDictionary<string, List<Pol.ShelfRecord>> plans, Tick tick, CancellationToken ct)
     {
-        if (Native is not FacadeNativeClient reader)
+        if (Native is not IRoundsStorageSource reader)
         {
-            return Unknown<O.StorageOccupancySnapshot>();
+            throw new RequiredFactException("storage occupancy source");
         }
         var groups = new HashSet<string>(StringComparer.Ordinal);
         foreach (var z in zones)
@@ -354,20 +359,8 @@ public sealed partial class Rounder
                 }
             }
         }
-        if (groups.Count == 0)
-        {
-            return Unknown<O.StorageOccupancySnapshot>();
-        }
-        try
-        {
-            return Known(await reader.ReadStorageOccupancyAsync(groups, Pol.StoreRules.StoreInflowSinceHour(tick), ct).ConfigureAwait(false));
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            return Unknown<O.StorageOccupancySnapshot>();
-        }
+        return await reader.ReadStorageOccupancyAsync(groups, Pol.StoreRules.StoreInflowSinceHour(tick), ct).ConfigureAwait(false);
     }
-
     /// <summary>
     /// The shelf plans of each owned stockpile zone (ZoneShelves under the admin/stockpiles Need in
     /// <paramref name="snapshot"/>'s world), built or in flight, and whether

@@ -30,7 +30,7 @@ public sealed class ShelfCandidatesTests
     // A 4x3 zone per store kind, 10 cells apart, on open walkable floor holding one stack per cell.
     private static Rectangle Room(int i) => new() { X = i * 10, Z = 0, Width = 4, Height = 3 };
 
-    private static StockpileRequest Request(Fact<EquatableArray<Cell>> walkways, params Cell[] doors)
+    private static StockpileRequest Request(EquatableArray<Cell> walkways, params Cell[] doors)
     {
         var zones = new List<StockpileZone>();
         var stores = new List<Policy.Store>();
@@ -46,10 +46,10 @@ public sealed class ShelfCandidatesTests
                 cells.Add(SiteCellFixtures.Ground with { Cell = c, Walkable = true, Doorway = doors.Contains(c), StorageCapacity = 1, StorageStacks = 0 });
             }
         }
-        return new StockpileRequest { Zones = zones, Stores = stores, Cells = cells, Walkways = walkways, ShelfStacks = Known(6) };
+        return new StockpileRequest { Zones = zones, Stores = stores, Cells = cells, Layout = new StorageLayout.Planned(walkways, []), ShelfStacks = 6 };
     }
 
-    private static readonly Fact<EquatableArray<Cell>> NoWalkways = Known(EquatableArray.From(new List<Cell>()));
+    private static readonly EquatableArray<Cell> NoWalkways = EquatableArray.From(new List<Cell>());
 
     private static List<ShelfCandidate> Candidates(StockpileRequest r) => StorageRules.ShelfCandidates(r, StockpileRules.CellIndex(r.Cells));
 
@@ -61,7 +61,7 @@ public sealed class ShelfCandidatesTests
         var roles = candidates.Select(RoleOf).ToHashSet();
         Assert.Equal(["yard", "bench:Stove_1", "meals", "medicine", "general", "weapons"], Kinds.Select(k => k.Role).Where(roles.Contains));
         Assert.DoesNotContain("chunks", roles);
-        Assert.All(candidates, c => Assert.Equal(Known(4), c.Stacks));
+        Assert.All(candidates, c => Assert.Equal(4, c.Stacks));
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public sealed class ShelfCandidatesTests
         // The warehouse (zone 4, x 40..43) has a walkway down its middle row and a doorway at its corner.
         var walk = Enumerable.Range(40, 4).Select(x => new Cell(x, 1)).ToList();
         var door = new Cell(40, 0);
-        var candidates = Candidates(Request(Known(EquatableArray.From(walk)), door)).Where(c => RoleOf(c) == "general").ToList();
+        var candidates = Candidates(Request(EquatableArray.From(walk), door)).Where(c => RoleOf(c) == "general").ToList();
 
         Assert.NotEmpty(candidates);
         foreach (var c in candidates)
@@ -94,15 +94,10 @@ public sealed class ShelfCandidatesTests
     }
 
     [Fact]
-    public void UnknownWalkwaysYieldNoCandidateAndUnknownShelfStacksAnUnknownEffect()
+    public void MissingStorageCellCannotBecomeZeroCapacity()
     {
-        Assert.Empty(Candidates(Request(Unknown<EquatableArray<Cell>>())));
-
-        var unknown = Candidates(Request(NoWalkways) with { ShelfStacks = Unknown<int>() });
-        Assert.NotEmpty(unknown);
-        Assert.All(unknown, c => Assert.False(c.Stacks.IsKnown));
+        Assert.Throws<RequiredFactException>(() => StockpileRules.StorageStacks([new Cell(1, 1)], new Dictionary<Cell, SiteCell>()));
     }
-
     [Fact]
     public void ARetiredStoreGetsNoCandidate()
     {

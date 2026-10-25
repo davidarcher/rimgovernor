@@ -142,7 +142,7 @@ public sealed class ForecastWorkInputsTests
         var claim = new ConstructionClaim { Plan = new PlanId("method"), Action = new ActionId("action"), Building = building };
         return new()
         {
-            Tick = new Tick(100), CurrentConstruction = CurrentConstruction.Empty with { Sites = EquatableArray.From(new[] { site }) },
+            Tick = new Tick(100), Gear = RimGovernor.Brain.Domain.Fact.Known(ColonyModelFixtures.NoGear()), CurrentConstruction = CurrentConstruction.Empty with { Sites = EquatableArray.From(new[] { site }) },
             ConstructionClaims = EquatableArray.From(new[] { claim, claim }),
             ForecastObserved = new() { WorkPawns = new WorkPawnsRead(EquatableArray.From(new[] { PawnFixtures.Worker("cook-builder") with { Schedule = Pawn().Schedule } })) },
             BillReservations = [],

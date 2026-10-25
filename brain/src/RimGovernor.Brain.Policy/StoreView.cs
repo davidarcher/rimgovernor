@@ -44,12 +44,12 @@ public sealed partial record StoreView
     public MealStore? Meals { get; init; }
 
     /// <summary>
-    /// The benches consuming stored inputs, and Benches the benches standing (unknown holds every bench store);
+    /// The benches consuming stored inputs, and Benches the required standing-bench census;
     /// both are read by the Industry department's stores.
     /// </summary>
     public IReadOnlyList<BenchInput> BenchInputs { get; init; } = [];
 
-    public Fact<IReadOnlyDictionary<string, bool>> Benches { get; init; }
+    public IReadOnlyDictionary<string, bool> Benches { get; init; } = new Dictionary<string, bool>();
 
     /// <summary>The piece shapes the hospital template plans its beds with (the medicine store sits nearest them).</summary>
     public PieceShapes Shapes { get; init; } = new();

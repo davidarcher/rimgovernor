@@ -36,7 +36,7 @@ public sealed class RecoveryQueueTests
     public void RuinWithCoveredYieldIsStillAdmitted()
     {
         // Nothing short: stock covers demand.
-        var q = RecoveryRules.RankRecovery(new RecoveryRequest { Things = [Ruin("Thing_AncientWall1")], Threat = Known(false), Urgent = Known(false) });
+        var q = RecoveryRules.RankRecovery(new RecoveryRequest { Things = [Ruin("Thing_AncientWall1")], Threat = false, Urgent = false });
 
         var e = Assert.Single(q.Entries);
         Assert.Equal(RecoveryTier.Rest, e.Tier);
@@ -49,7 +49,7 @@ public sealed class RecoveryQueueTests
     [Fact]
     public void CensusWideThreatHoldsRuinAndAdmitsNothing()
     {
-        var q = RecoveryRules.RankRecovery(new RecoveryRequest { Things = [Ruin("Thing_AncientWall1")], Threat = Known(true) });
+        var q = RecoveryRules.RankRecovery(new RecoveryRequest { Things = [Ruin("Thing_AncientWall1")], Threat = true });
 
         var e = Assert.Single(q.Entries);
         Assert.Equal(RecoveryStatus.Held, e.Status);
@@ -62,7 +62,7 @@ public sealed class RecoveryQueueTests
     [InlineData(RouteSafety.Unread)]
     public void AnUnsafeOrUnreadRouteHoldsThing(RouteSafety route)
     {
-        var q = RecoveryRules.RankRecovery(new RecoveryRequest { Things = [Ruin("Thing_AncientWall1") with { Route = route }], Threat = Known(false) });
+        var q = RecoveryRules.RankRecovery(new RecoveryRequest { Things = [Ruin("Thing_AncientWall1") with { Route = route }], Threat = false });
 
         var e = Assert.Single(q.Entries);
         Assert.Equal(RecoveryStatus.Held, e.Status);
@@ -94,7 +94,7 @@ public sealed class RecoveryQueueTests
         Assert.True(ok);
         Assert.Equal(RemoteWorkKind.Loot, thing.Kind);
 
-        var q = RecoveryRules.RankRecovery(new RecoveryRequest { Things = [thing], Threat = Known(false), Urgent = Known(false) });
+        var q = RecoveryRules.RankRecovery(new RecoveryRequest { Things = [thing], Threat = false, Urgent = false });
 
         var e = Assert.Single(q.Entries);
         Assert.Equal(RecoveryTier.Rest, e.Tier);

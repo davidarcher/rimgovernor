@@ -1,27 +1,26 @@
 namespace RimGovernor.Brain.Policy;
 
 // A store's capacity facts and the yard's further-room ask. Runway (free stacks over net inflow) is read against
-// an option's lead time, and stranded stock is the "now" signal; an unknown fact stays unknown and asks nothing.
+// an option's lead time, and stranded stock is the "now" signal; missing observations fail the review.
 
 /// <summary>
 /// One declared store's capacity now: its stacks held and holdable (the serving zones', built shelves included), its
-/// net inflow (StoreInflow) and its stranded stacks (StrandedStacks). Capacity and Used are unknown while no zone
-/// serves the store or any serving zone's count is unknown.
+/// net inflow (StoreInflow) and its stranded stacks (StrandedStacks). A standing zone and all its cell counts are required.
 /// </summary>
 public sealed record StoreCapacity
 {
-    public Fact<int> Capacity { get; init; }
+    public int Capacity { get; init; }
 
-    public Fact<int> Used { get; init; }
+    public int Used { get; init; }
 
     /// <summary>Stacks per day; negative while the store drains.</summary>
-    public Fact<double> Inflow { get; init; }
+    public StorageInflow Inflow { get; init; } = new StorageInflow.Unestablished();
 
-    public Fact<long> Stranded { get; init; }
+    public long Stranded { get; init; }
 
-    /// <summary>The stacks the store can still take; unknown while either count is.</summary>
-    public Fact<int> Free =>
-        Capacity.TryGetValue(out var capacity) && Used.TryGetValue(out var used) ? Known(Math.Max(0, capacity - used)) : Unknown<int>();
+    /// <summary>The stacks the store can still take.</summary>
+    public int Free =>
+        Math.Max(0, Capacity - Used);
 }
 
 public static partial class StoreRules
@@ -35,8 +34,7 @@ public static partial class StoreRules
         var standing = false;
         var capacity = 0;
         var used = 0;
-        var capacityKnown = true;
-        var usedKnown = true;
+
         foreach (var z in request.Zones)
         {
             if (!store.Serves(z))
@@ -44,15 +42,14 @@ public static partial class StoreRules
                 continue;
             }
             standing = true;
-            capacityKnown &= z.Capacity.TryGetValue(out var c);
-            usedKnown &= z.Used.TryGetValue(out var u);
-            capacity += c;
-            used += u;
+
+            capacity += z.Capacity;
+            used += z.Used;
         }
         return new StoreCapacity
         {
-            Capacity = standing && capacityKnown ? Known(capacity) : Unknown<int>(),
-            Used = standing && usedKnown ? Known(used) : Unknown<int>(),
+            Capacity = standing ? capacity : throw new RequiredFactException("standing store capacity"),
+            Used = used,
             Inflow = StoreInflow(request, store),
             Stranded = StrandedStacks(request, store),
         };
@@ -60,16 +57,16 @@ public static partial class StoreRules
 
     /// <summary>
     /// A capacity option's lead time in days: its build work at base construction speed (one work tick per game
-    /// tick) plus MaintenanceHorizonDays. Unknown work leaves the option unvalued.
+    /// tick) plus MaintenanceHorizonDays. Work is required for a priced option.
     /// </summary>
-    public static Fact<double> StorageLeadDays(Fact<double> workTicks) =>
-        workTicks.TryGetValue(out var work) ? Known((work / GameTime.TicksPerDay) + ColonyDiagnosticsRules.MaintenanceHorizonDays) : Unknown<double>();
+    public static double StorageLeadDays(double workTicks) =>
+        (workTicks / GameTime.TicksPerDay) + ColonyDiagnosticsRules.MaintenanceHorizonDays;
 
     /// <summary>
     /// The materials yards layout should hold (RoomDemand.Yard): one more than the declared yards once every one
     /// stands and either a yard has stranded stacks (now) or the yards' runway (their free stacks summed over their
     /// inflow summed) is shorter than a further yard's lead time; 0 asks for none. A yard whose zone does not stand
-    /// yet is a wait, and an unknown runway with no known stranded stock asks nothing.
+    /// yet is a wait, and a store accumulating history asks only for stranded stock.
     /// </summary>
     public static int YardDemand(StockpileRequest request)
     {
@@ -90,16 +87,20 @@ public static partial class StoreRules
             }
             yards++;
             var c = StoreCapacity(request, s);
-            stranded |= c.Stranded.TryGetValue(out var n) && n > 0;
-            runwayKnown &= c.Free.TryGetValue(out var f) & c.Inflow.TryGetValue(out var i);
-            free += f;
-            inflow += i;
+            stranded |= c.Stranded > 0;
+            free += c.Free;
+            switch (c.Inflow)
+            {
+                case StorageInflow.Measured(var rate): inflow += rate; break;
+                case StorageInflow.Accumulating: runwayKnown = false; break;
+                case StorageInflow.Unestablished: runwayKnown = false; break;
+            }
         }
         if (yards == 0)
         {
             return 0;
         }
-        var due = runwayKnown && StorageLeadDays(Known(FurtherYardWorkTicks)).TryGetValue(out var lead) && StoreRunwayDays(free, inflow) < lead;
+        var due = runwayKnown && StoreRunwayDays(free, inflow) < StorageLeadDays(FurtherYardWorkTicks);
         return stranded || due ? yards + 1 : 0;
     }
 

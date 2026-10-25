@@ -74,7 +74,7 @@ public sealed class ProductionPromisesTests
             ProductionPromises = promises,
             BillReservations = EmptyReservations,
             Resources = [new(Material, 100), new(Other, 20)],
-            CurrentConstruction = CurrentConstruction.Empty with
+            Gear = RimGovernor.Brain.Domain.Fact.Known(ColonyModelFixtures.NoGear()), CurrentConstruction = CurrentConstruction.Empty with
             {
                 Deficit = new Dictionary<Resource, long> { [Material] = 60 },
             },

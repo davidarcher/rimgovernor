@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class EssentialServicesTests
 {
-    private static RoundsFacts Facts() => new() { CurrentConstruction = CurrentConstruction.Empty, MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() }, Tick = new(100), Colonists = 2L, Fuel = [] };
+    private static RoundsFacts Facts() => new() { Gear = RimGovernor.Brain.Domain.Fact.Known(ColonyModelFixtures.NoGear()), CurrentConstruction = CurrentConstruction.Empty, MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() }, Tick = new(100), Colonists = 2L, Fuel = [] };
 
     /// <summary>Sleeping rooms inside the comfort band: the shelter/temperature Need is met (#3257).</summary>
     private static RoundsFacts Warm() => Facts() with { SleepingTemperature = new SleepingTemperature.Indoor(20.0, 22.0) };
@@ -19,7 +19,7 @@ public sealed class EssentialServicesTests
     [Fact]
     public void NormalInspectionExposesEveryServiceWithoutTreatingUnknownStressAsBaselineFailure()
     {
-        var normal = RoundsRules.InspectRounds(new() { CurrentConstruction = CurrentConstruction.Empty, MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() } }, new(), RoundsRules.DefaultRoundsPolicy());
+        var normal = RoundsRules.InspectRounds(new() { Gear = RimGovernor.Brain.Domain.Fact.Known(ColonyModelFixtures.NoGear()), CurrentConstruction = CurrentConstruction.Empty, MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() } }, new(), RoundsRules.DefaultRoundsPolicy());
         Assert.NotNull(normal.EssentialServices);
         Assert.Equal(Enum.GetValues<EssentialService>(), normal.EssentialServices.Coverage.Select(c => c.Service).Distinct().Order().ToArray());
         var known = Review(Warm());

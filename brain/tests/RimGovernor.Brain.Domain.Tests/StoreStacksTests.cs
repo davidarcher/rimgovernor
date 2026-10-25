@@ -3,14 +3,13 @@ using RimGovernor.Brain.Observation;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
 /// #3233: a store's capacity and use are counted in native stacks. A built shelf's cells leave the zone natively,
 /// so the owned-zone view adds them back: capacity is the zone's floor cells plus 3 per shelf cell, used is the
-/// stacks observed on all of them, and a cell the census does not hold leaves the count unknown rather than 0.
+/// stacks observed on all of them, and a cell the census does not hold rejects the incomplete census.
 /// </summary>
 public sealed class StoreStacksTests
 {
@@ -48,8 +47,8 @@ public sealed class StoreStacksTests
         var zone = Zone(2, Shelves);
 
         Assert.Equal(4, zone.Cells.Count);
-        Assert.Equal(Known(4 + (3 * 2)), zone.Capacity);
-        Assert.Equal(Known(1 + 2), zone.Used);
+        Assert.Equal(4 + (3 * 2), zone.Capacity);
+        Assert.Equal(1 + 2, zone.Used);
     }
 
     [Fact]
@@ -59,17 +58,14 @@ public sealed class StoreStacksTests
 
         var zone = Zone(2, open);
 
-        Assert.Equal(Known(4), zone.Capacity);
-        Assert.Equal(Known(1), zone.Used);
+        Assert.Equal(4, zone.Capacity);
+        Assert.Equal(1, zone.Used);
     }
 
 
     [Fact]
-    public void ShelfCellMissingFromCensusIsUnknown()
+    public void ShelfCellMissingFromCensusIsRejected()
     {
-        var (capacity, used) = StockpileRules.StorageStacks([new Cell(0, 0), new Cell(9, 9)], new Dictionary<Cell, SiteCell> { [new Cell(0, 0)] = Floor(0, 1) });
-
-        Assert.False(capacity.IsKnown);
-        Assert.False(used.IsKnown);
+        Assert.Throws<RequiredFactException>(() => StockpileRules.StorageStacks([new Cell(0, 0), new Cell(9, 9)], new Dictionary<Cell, SiteCell> { [new Cell(0, 0)] = Floor(0, 1) }));
     }
 }

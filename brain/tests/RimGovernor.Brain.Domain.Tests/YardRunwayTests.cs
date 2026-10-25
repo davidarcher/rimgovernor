@@ -29,14 +29,14 @@ public sealed class YardRunwayTests
                 Id = "Zone_yard",
                 Role = StockpileRolesConstants.YardRole,
                 Cells = PlannedRules.RectCells(YardRoom),
-                Capacity = Known(100),
-                Used = Known(used),
+                Capacity = 100,
+                Used = used,
                 Filter = new StockpileFilter(FilterBase.Nothing),
             },
         ],
         Loot = EquatableArray.From(loot),
         Occupancy = perDay is { } rate
-            ? Known(new Obs.StorageOccupancySnapshot
+            ? new Obs.StorageOccupancySnapshot
             {
                 CurrentHour = Now,
                 Groups =
@@ -47,8 +47,8 @@ public sealed class YardRunwayTests
                         Samples = EquatableArray.From(Enumerable.Range(Now - 71, 72).Select(h => new Obs.StorageOccupancySample { Hour = h, Stacks = (int)Math.Round(used - (rate * (Now - h) / 24)) })),
                     },
                 ],
-            })
-            : Unknown<Obs.StorageOccupancySnapshot>(),
+            }
+            : new Obs.StorageOccupancySnapshot { CurrentHour = Now, Groups = [] },
     };
 
     private static LootItem Stranded() => new()
@@ -96,8 +96,7 @@ public sealed class YardRunwayTests
     [Fact]
     public void LeadTimeIsBuildWorkAtBaseSpeedPlusTheHorizon()
     {
-        Assert.Equal(Known(ColonyDiagnosticsRules.MaintenanceHorizonDays), StoreRules.StorageLeadDays(Known(StoreRules.FurtherYardWorkTicks)));
-        Assert.Equal(Known(ColonyDiagnosticsRules.MaintenanceHorizonDays + 0.5), StoreRules.StorageLeadDays(Known(GameTime.TicksPerDay / 2.0)));
-        Assert.False(StoreRules.StorageLeadDays(Unknown<double>()).IsKnown);
+        Assert.Equal(ColonyDiagnosticsRules.MaintenanceHorizonDays, StoreRules.StorageLeadDays(StoreRules.FurtherYardWorkTicks));
+        Assert.Equal(ColonyDiagnosticsRules.MaintenanceHorizonDays + 0.5, StoreRules.StorageLeadDays(GameTime.TicksPerDay / 2.0));
     }
 }

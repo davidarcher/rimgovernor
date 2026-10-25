@@ -152,7 +152,7 @@ public sealed class MaterialChoiceTests
             ForecastObserved = new() { WorkPawns = new WorkPawnsRead(default(EquatableArray<WorkPawn>)) },
             WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
             Resources = [new(Metal, 10), new(Timber, 10)],
-            CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long>() },
+            Gear = Known(ColonyModelFixtures.NoGear()), CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long>() },
             BillReservations = [],
             WorkAdmission = new() { Recipes = View().Recipes, Bills = Known(default(EquatableArray<ProductionBatchState>)) } };
         var review = journal.ReviewRounds(new() { Current = world, Tick = facts.Tick, Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);

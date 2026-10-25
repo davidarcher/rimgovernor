@@ -35,7 +35,6 @@ separate rectangle drags and excluded from growth.
 
 ## The stores
 
-
 | Store | Role | Where | Priority | Holds |
 | --- | --- | --- | --- | --- |
 | Warehouse | `general` | One zone over the whole interior of each planned storage room (15x7): from plan time on open ground, once the interior is open for a dug or partly rocky room | Low | The `indoor_only` preset plus Buildings, less the burnable special |
@@ -74,24 +73,20 @@ and an outgrown room gets a successor ([facilities](facilities.md#station-plan-a
 A store's capacity and use are counted in stacks, from the native per-cell
 `storage_stacks` and `storage_capacity` grid columns: one stack per zone cell,
 plus `maxItemsInCell` (3) per cell of each built shelf serving the zone (a
-shelf's cells leave the zone natively, so they are added back). A cell whose
-count is unknown leaves the store's count unknown, never 0.
+shelf's cells leave the zone natively, so they are added back). Missing cell observations raise `RequiredFactException`; the review never substitutes zero capacity or use.
 
 `policy.StoreCapacity` reports a declared store's facts: capacity and used
 stacks over the zones serving it, net inflow (below), stranded stacks (below)
-and its runway, free stacks over net inflow in days (known infinite when inflow
-is not positive, unknown while inflow or a count is). An option's lead time
+and its runway, free stacks over net inflow in days (infinite when measured inflow is not positive). An option's lead time
 (`StorageLeadDays`) is its build work at base construction speed (one work tick
-per game tick) plus `MaintenanceHorizonDays` (5 days); unknown work leaves the
-option unvalued. A further yard builds nothing, so its lead time is the horizon.
+per game tick) plus `MaintenanceHorizonDays` (5 days); missing work fails the review with `RequiredFactException`. A further yard builds nothing, so its lead time is the horizon.
 
 The yard asks layout for a further room (`policy.YardDemand`, `RoomDemand.Yard`:
 one more than the declared yards) once every yard's zone stands and either a
 yard has stranded stacks (the "now" signal) or the yards' runway (their free
 stacks summed over their inflow summed) is shorter than that lead time. A
 small colony filling its yard in a day asks long before a large one filling it
-in a month at the same fill. Unknown stays unknown: an unread inflow with no
-stranded stock asks nothing, and a draining yard never asks. The ask needs the
+in a month at the same fill. A store accumulating its first day of history asks only for stranded stock; a draining yard never asks. A missing native occupancy read fails the review. The ask needs the
 loot census and the occupancy ring, so it is decided over the stockpile
 request rather than the owners' `StoreView`. The new room's zone is
 created once it is planned and open.
@@ -103,10 +98,7 @@ unforbidden and safe with zero `StorageHeadroom`. For each such row (and each
 zero-headroom row of unknown safety) native names the player's storage groups,
 stockpile zones and storage buildings by load id, whose settings accept the item,
 ignoring space (`LootItem.AcceptedBy`). `policy.StrandedStacks` counts a
-store's stranded stacks over the zones serving it and the shelves in them. It
-is unknown, never zero, while the census is unread, while any unforbidden row's
-headroom is unknown, or when a zero-headroom row of unknown safety names the
-store. The yard's further-room ask reads it.
+store's stranded stacks over the zones serving it and the shelves in them. Only safe, reached stacks count; exposed or unreached stacks cannot be hauled into that store now. The loot census and its numeric headroom are required observations. The yard's further-room ask reads it.
 
 The same census prices the planned storage rooms, meal closets and yards (#3798,
 `StoreRules.PlannedStoreStock`): a room's stock is the stranded rows its role's
@@ -127,8 +119,7 @@ of its zones and built shelves over the inflow window
 `policy.StoreInflow` is a store's net inflow in stacks per day: the sum over its
 zones and their shelves of each group's least-squares slope of held stacks over the
 last `StoreInflowWindowDays` (3). A negative inflow is a known reading (the store
-drains). It is unknown, never zero, while the ring is unread, when the store has no
-group, or while any of its groups has under a day of samples. The yard runway
+drains). `StorageInflow` names three states: `Unestablished` when no standing group serves the store, `Accumulating` while any group has under a day of samples, and `Measured` with a signed rate. A missing native ring raises `RequiredFactException`. The yard runway
 reads it.
 
 ### Shelves
@@ -144,8 +135,7 @@ walkable floor, off the layout plan's walkways (`policy.PlannedWalkways`: every
 cell a planned route crosses, since a shelf costs 50 to path over and is
 pass-through only) and not beside a doorway, leaving the zone contiguous. Each
 reports its effect in stacks: the catalog Shelf's item slots less the floor
-stacks its cells give up (6 - 2 = +4); unknown when either count is. While the
-walkways are unknown (plan unread, or its routes fail) there is no candidate.
+stacks its cells give up (6 - 2 = +4). Both counts are required. Before the initial layout is derived, `StorageLayout.AwaitingFirstPlan` leaves shelf and room candidates absent while the rest of the review completes; `Planned` supplies valid walkways and room costs.
 Candidates are generation only. The one-at-a-time warehouse shelf
 (`NextWarehouseShelf`, one open shelf, at most a third of the footprint) still
 chooses what is built until the storage options portfolio (#3239) replaces it.
@@ -164,19 +154,13 @@ one value, and the report ranks nothing:
 | Successor room (warehouse) | the plan's owed material for a planned storage room no warehouse zone stands in (`PlannedOwedCost`); work is its planned sites' catalog `WorkToBuild` times pieces over the first stuff's full alternative (`PlannedRoomWork`), the roof left out and named (`room_roof_work_unassessed`) | its interior cells and stacks |
 | Further room (yard) | a planned yard no yard zone stands in: no material, 0 work | its interior cells and stacks |
 
-Each option's lead time is `StorageLeadDays` over its work. With no planned
-room waiting, the room option is unsized: every value unknown, finding
-`room_unsized`. Deterioration avoided is HP per day over the store's stranded
-stacks only: the worst rows first (the def's `DeteriorationRate`, from
-`ItemFacts`, times the exposure of the cell it lies on: 0.5 unroofed plus 0.5
+Each option's lead time is `StorageLeadDays` over its work. With no planned room waiting, no room option is generated. Deterioration avoided is HP per day over the store's stranded
+stacks only: the worst rows first (the stack's native base deterioration rate, times its native roof/outdoor exposure: 0.5 unroofed plus 0.5
 not indoors), up to the stacks gained, each less the exposure where the option
 puts it (0 on a shelf, the added cells' for zone growth, none in a roofed room
 and open air in a yard). A shelf skips Chunks, Plants and Buildings rows. The
 yard preset admits no deteriorating item a shelf holds, so a yard shelf reads a
-known 0. A stuffed item def has a rate only when every stuff gives it the same
-one (a loot row names no stuff). Any unknown value stays unknown, never zero,
-and names a finding (`work_unknown`, `room_work_unknown`, `room_roof_work_unassessed`,
-`deterioration_unknown`, ...): such an option is not ranked on a guess. The
+known 0. The rate comes from each native loot row's `LootDeterioration.BaseRatePerDay`, read for its actual stuff. Missing required costs, counts or exposure cells raise `RequiredFactException`. Roof work remains named by `room_roof_work_unassessed`. The
 placed options (zone growth, shelf) feed the storage portfolio (#3239); the
 room options reach layout through the yard's runway and stranded signal and the
 station plan's successor rooms.

@@ -24,16 +24,15 @@ public sealed class StoreInflowTests
     {
         Zones = [Zone("Zone_yard", "yard", YardRoom), Zone("Zone_warehouse", "general", WarehouseRoom)],
         Shelves = [new StockpileShelf { Building = "Shelf_7", Zone = "Zone_warehouse" }],
-        Occupancy = Known(new Obs.StorageOccupancySnapshot { CurrentHour = Now, Groups = [.. groups.Select(g => new Obs.StorageOccupancyGroup { Group = g.Key, Samples = g.Value })] }),
+        Occupancy = new Obs.StorageOccupancySnapshot { CurrentHour = Now, Groups = [.. groups.Select(g => new Obs.StorageOccupancyGroup { Group = g.Key, Samples = g.Value })] },
     };
 
     private static EquatableArray<Obs.StorageOccupancySample> Ring(int from, int to, Func<int, int> stacks) =>
         EquatableArray.From(Enumerable.Range(from, to - from + 1).Select(h => new Obs.StorageOccupancySample { Hour = h, Stacks = stacks(h) }));
 
-    private static double Rate(Fact<double> inflow)
+    private static double Rate(StorageInflow inflow)
     {
-        Assert.True(inflow.TryGetValue(out var rate), "inflow unknown");
-        return rate;
+        return Assert.IsType<StorageInflow.Measured>(inflow).StacksPerDay;
     }
 
     [Fact]
@@ -62,7 +61,7 @@ public sealed class StoreInflowTests
     public void UnderADayOfSamplesReadsUnknownNotZero()
     {
         var request = Request(new() { ["Zone_yard"] = Ring(Now - 10, Now, h => h) });
-        Assert.False(StoreRules.StoreInflow(request, Yard).IsKnown);
+        Assert.IsType<StorageInflow.Accumulating>(StoreRules.StoreInflow(request, Yard));
     }
 
     [Fact]
@@ -70,7 +69,7 @@ public sealed class StoreInflowTests
     {
         var request = Request(new() { ["Zone_yard"] = Ring(Now - 71, Now, _ => 3) });
         Assert.Equal(0, Rate(StoreRules.StoreInflow(request, Yard)), 6);
-        Assert.False(StoreRules.StoreInflow(request, Warehouse).IsKnown);
+        Assert.IsType<StorageInflow.Accumulating>(StoreRules.StoreInflow(request, Warehouse));
     }
 
     [Fact]
@@ -88,7 +87,7 @@ public sealed class StoreInflowTests
             ["Zone_warehouse"] = Ring(Now - 71, Now, _ => 10),
             ["Shelf_7"] = Ring(Now - 5, Now, h => h),
         });
-        Assert.False(StoreRules.StoreInflow(young, Warehouse).IsKnown);
+        Assert.IsType<StorageInflow.Accumulating>(StoreRules.StoreInflow(young, Warehouse));
     }
 
     [Fact]
@@ -104,12 +103,15 @@ public sealed class StoreInflowTests
     }
 
     [Fact]
-    public void AnUnreadRingReadsUnknown()
+    public void AStoreWithoutAStandingGroupIsUnestablished()
     {
-        var request = Request([]) with { Occupancy = Unknown<Obs.StorageOccupancySnapshot>() };
-        Assert.False(StoreRules.StoreInflow(request, Yard).IsKnown);
+        Assert.IsType<StorageInflow.Unestablished>(StoreRules.StoreInflow(Request([]) with { Zones = [], Shelves = [] }, Yard));
     }
-
+    [Fact]
+    public void MissingNativeHistoryIsRequiredRatherThanAnAccumulatingStore()
+    {
+        Assert.Throws<RequiredFactException>(() => StoreRules.StoreInflow(Request([]) with { Occupancy = null! }, Yard));
+    }
     [Fact]
     public void TheReadAsksForTheInflowWindow()
     {

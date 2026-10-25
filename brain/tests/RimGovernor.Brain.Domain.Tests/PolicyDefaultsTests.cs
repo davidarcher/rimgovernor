@@ -13,7 +13,7 @@ public sealed class PolicyDefaultsTests
     [Fact]
     public void ResourceDemandRequiresConstructionCensus()
     {
-        var f = new RoundsFacts();
+        var f = new RoundsFacts { Gear = RimGovernor.Brain.Domain.Fact.Known(ColonyModelFixtures.NoGear()) };
         Assert.NotNull(f.ResourceNeeds);
         Assert.Throws<RequiredFactException>(() => ResourceRules.ResourceDemandOf(f, RoundsRules.DefaultRoundsPolicy(), new RoundsLatches()));
         var demand = ResourceRules.ResourceDemandOf(f with { CurrentConstruction = CurrentConstruction.Empty }, RoundsRules.DefaultRoundsPolicy(), new RoundsLatches());

@@ -18,19 +18,19 @@ public sealed record StockpileZone
 
     /// <summary>
     /// The stacks the store can hold: one per zone cell plus each built shelf cell's (3); shelf cells leave the
-    /// zone natively, so they are added back. Unknown when any of those cells' capacity is.
+    /// zone natively, so they are added back. Each cell count is required.
     /// </summary>
-    public Fact<int> Capacity { get; init; }
+    public int Capacity { get; init; }
 
-    /// <summary>The item stacks held on the zone's and its built shelves' cells; unknown when any cell's count is.</summary>
-    public Fact<int> Used { get; init; }
+    /// <summary>The item stacks held on the zone's and its built shelves' cells; required from every cell.</summary>
+    public int Used { get; init; }
 
     public required StockpileFilter Filter { get; init; }
 
     public StockpilePriority Priority { get; init; }
 
-    /// <summary>The held stacks for an explanation: the count, or "unknown".</summary>
-    internal string UsedText() => Used.TryGetValue(out var used) ? used.ToString(CultureInfo.InvariantCulture) : "unknown";
+    /// <summary>The held stacks for an explanation.</summary>
+    internal string UsedText() => Used.ToString(CultureInfo.InvariantCulture);
 }
 
 public enum StockpileEditKind
@@ -131,11 +131,11 @@ public sealed record StockpileRequest
     /// <summary>Names the zones whose shelf attempts are used up.</summary>
     public IReadOnlyDictionary<string, bool> ShelfSpent { get; init; } = new Dictionary<string, bool>();
 
-    /// <summary>The layout plan's walkways (PlannedWalkways): no shelf stands on them. Unknown while the plan is unread or its routes fail.</summary>
-    public Fact<EquatableArray<Cell>> Walkways { get; init; }
+    /// <summary>The saved plan is absent during the first review; geometry-dependent options wait for its derivation.</summary>
+    public StorageLayout Layout { get; init; } = new StorageLayout.AwaitingFirstPlan();
 
-    /// <summary>The stacks one Shelf holds (the catalog station's item slots); unknown without the catalog.</summary>
-    public Fact<int> ShelfStacks { get; init; }
+    /// <summary>The stacks one Shelf holds (the catalog station's item slots); required from the catalog.</summary>
+    public int ShelfStacks { get; init; }
 
     /// <summary>Whether a Shelf is buildable (researched) and the planner can place it.</summary>
     public bool ShelfAvailable { get; init; }
@@ -144,13 +144,10 @@ public sealed record StockpileRequest
     public EquatableArray<LootItem> Loot { get; init; }
 
     /// <summary>The native occupancy ring's samples of the zones' and built shelves' groups, read for each store's inflow (StoreInflow).</summary>
-    public Fact<Obs.StorageOccupancySnapshot> Occupancy { get; init; }
+    public Obs.StorageOccupancySnapshot Occupancy { get; init; } = null!;
 
-    /// <summary>The catalog Shelf's build cost from the stuff it is built from (StorageOptions); unknown without the def or its cost row.</summary>
-    public Fact<StorageBuildCost> ShelfCost { get; init; }
-
-    /// <summary>The layout plan's storage rooms and yards with their owed material (StorageOptions' room options); unknown while the plan is.</summary>
-    public Fact<IReadOnlyList<PlannedStoreRoom>> StoreRooms { get; init; }
+    /// <summary>The catalog Shelf's build cost from the stuff it is built from (StorageOptions); required from the def and its cost row.</summary>
+    public StorageBuildCost ShelfCost { get; init; } = null!;
 
     /// <summary>The catalog's item facts, read for a stranded stack's deterioration rate and categories (StorageOptions).</summary>
     public ItemFacts Items { get; init; } = new();
@@ -164,10 +161,10 @@ public sealed record StockpileShelf
     public string Zone { get; init; } = "";
 
     /// <summary>The stacks the shelf's cells hold at most (maxItemsInCell each); unknown when any cell's capacity is.</summary>
-    public Fact<int> Capacity { get; init; }
+    public int Capacity { get; init; }
 
-    /// <summary>The item stacks on the shelf's cells; unknown when any cell's count is.</summary>
-    public Fact<int> Used { get; init; }
+    /// <summary>The item stacks on the shelf's cells; required from every cell.</summary>
+    public int Used { get; init; }
 
     public bool Patched { get; init; }
 
@@ -179,8 +176,6 @@ public sealed record StockpileShelf
 /// <summary>The outcome: the zone edits this cycle proposes, the planned rooms whose shells are owed, and why none stands.</summary>
 public sealed record StockpileReview
 {
-    public bool Known { get; init; }
-
     public bool Active { get; init; }
 
     public IReadOnlyList<StockpileEdit> Edits { get; init; } = [];
@@ -211,9 +206,9 @@ public sealed record StockpileRoleCount
 
     public int Cells { get; init; }
 
-    public Fact<int> Capacity { get; init; }
+    public int Capacity { get; init; }
 
-    public Fact<int> Used { get; init; }
+    public int Used { get; init; }
 }
 
 /// <summary>
@@ -301,7 +296,7 @@ public static partial class StockpileRules
                 Priority = priority,
                 Explanation = string.Create(
                     CultureInfo.InvariantCulture,
-                    $"shelf {s.Building} in stockpile {z.Id} ({z.Role}): configure like its zone (priority {Wire.Name(priority)}); {(s.Used.TryGetValue(out var held) ? held.ToString(CultureInfo.InvariantCulture) : "unknown")} held stacks may rehome"
+                    $"shelf {s.Building} in stockpile {z.Id} ({z.Role}): configure like its zone (priority {Wire.Name(priority)}); {s.Used.ToString(CultureInfo.InvariantCulture)} held stacks may rehome"
                 ),
             });
         }
@@ -324,7 +319,7 @@ public static partial class StockpileRules
     /// <summary>Counts the owned zones by role kind, sorted by role.</summary>
     public static List<StockpileRoleCount> StockpileRoleCounts(IReadOnlyList<StockpileZone> zones)
     {
-        var byRole = new Dictionary<string, (int Zones, int Cells, Fact<int> Capacity, Fact<int> Used)>(StringComparer.Ordinal);
+        var byRole = new Dictionary<string, (int Zones, int Cells, int Capacity, int Used)>(StringComparer.Ordinal);
         foreach (var z in zones)
         {
             var kind = StockpileRolePrefix(z.Role);
@@ -334,9 +329,9 @@ public static partial class StockpileRules
             }
             if (!byRole.TryGetValue(kind, out var count))
             {
-                count = (0, 0, Known(0), Known(0));
+                count = (0, 0, 0, 0);
             }
-            byRole[kind] = (count.Zones + 1, count.Cells + z.Cells.Count, Sum(count.Capacity, z.Capacity), Sum(count.Used, z.Used));
+            byRole[kind] = (count.Zones + 1, count.Cells + z.Cells.Count, count.Capacity + z.Capacity, count.Used + z.Used);
         }
         return
         [
@@ -344,28 +339,25 @@ public static partial class StockpileRules
                 .Select(kv => new StockpileRoleCount { Role = kv.Key, Zones = kv.Value.Zones, Cells = kv.Value.Cells, Capacity = kv.Value.Capacity, Used = kv.Value.Used })
                 .OrderBy(c => c.Role, StringComparer.Ordinal),
         ];
-
-        static Fact<int> Sum(Fact<int> a, Fact<int> b) =>
-            a.TryGetValue(out var x) && b.TryGetValue(out var y) ? Known(x + y) : Unknown<int>();
     }
 
     /// <summary>
     /// The stack capacity and held stacks of a store's cells (its zone cells and its built shelves' cells) in the
     /// planning census: each unknown when any cell is not in the census (fogged), never 0.
     /// </summary>
-    public static (Fact<int> Capacity, Fact<int> Used) StorageStacks(IEnumerable<Cell> cells, IReadOnlyDictionary<Cell, SiteCell> census)
+    public static (int Capacity, int Used) StorageStacks(IEnumerable<Cell> cells, IReadOnlyDictionary<Cell, SiteCell> census)
     {
         int capacity = 0, used = 0;
         foreach (var c in cells)
         {
             if (!census.TryGetValue(c, out var site))
             {
-                return (Unknown<int>(), Unknown<int>());
+                throw new RequiredFactException($"storage cell {c}");
             }
             capacity += site.StorageCapacity;
             used += site.StorageStacks;
         }
-        return (Known(capacity), Known(used));
+        return (capacity, used);
     }
 
     /// <summary>
@@ -441,7 +433,6 @@ public static partial class StockpileRules
         var active = edits.Count > 0 || r.Rooms.Count > 0 || shelf.Kind == ShelfStepKind.Build;
         return new StockpileReview
         {
-            Known = true,
             Rooms = r.Rooms,
             Edits = edits,
             Shelf = shelf,
@@ -453,12 +444,12 @@ public static partial class StockpileRules
 
     /// <summary>
     /// The shelf upgrade: the next shelf for the standing warehouse (the general store) once a Shelf is
-    /// buildable, off the planned walkways (none while those are unknown). A retired store's zone and a zone
+    /// buildable, off the planned walkways (the layout routes must be valid). A retired store's zone and a zone
     /// whose shelf attempts are spent get none.
     /// </summary>
     private static ShelfStep NextWarehouseShelf(StockpileRequest r, IReadOnlyList<StockpileZone> zones, IReadOnlyDictionary<Cell, SiteCell> cells)
     {
-        if (!r.ShelfAvailable || !r.Walkways.TryGetValue(out var walkways))
+        if (!r.ShelfAvailable || r.Layout is not StorageLayout.Planned(var walkways, _))
         {
             return new ShelfStep();
         }

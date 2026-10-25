@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-
 /// <summary>
 /// A garment the apparel policy lets the colonists wear that covers a core body-part group (GearCoreGroups):
 /// its groups and the native recipe's ingredient slots, each the stuff alternatives with their counts.
@@ -152,7 +151,7 @@ public static class ClothingDemandRules
     /// The replacement demand of every worn garment that is tattered or projected to be within
     /// ClothingHorizonDays: one garment's recipe slots at the cheapest member of its filter (OpenBillDemand's
     /// rule), less the serviceable stored garments covering the same core group. A garment without a recipe, a
-    /// pawn without a loadout model or an unread census asks for nothing. The demand is an absolute stock
+    /// pawn without a loadout model asks for nothing; the gear census is required. The demand is an absolute stock
     /// level, counted only where the stock falls short.
     /// </summary>
     public static ClothingRunway PlanClothingRunway(ClothingDemandInput input)
@@ -177,10 +176,7 @@ public static class ClothingDemandRules
     {
         var bills = new List<OpenBill>();
         var reserve = new Dictionary<Resource, int>();
-        if (!input.Gear.TryGetValue(out var gear))
-        {
-            return (bills, reserve);
-        }
+        if (!input.Gear.TryGetValue(out var gear)) throw new RequiredFactException("clothing gear census");
 
         var spare = new Dictionary<Resource, int>();
         foreach (var s in gear.Stored)
@@ -301,6 +297,7 @@ public static class ClothingDemandRules
         }
 
         var units = f.Cells * f.UnitsPerCell;
+
         return new SupplyCandidate
         {
             Kind = CandidateKind.Harvest,
@@ -329,14 +326,15 @@ public static class ClothingDemandRules
 
     /// <summary>
     /// A growing field as the arrival of its harvest (<see cref="StuffArrival"/>): the standing crop's
-    /// <paramref name="units"/> of <paramref name="resource"/> at its harvest lead. Null without a known lead or yield.
+    /// <paramref name="units"/> of <paramref name="resource"/> at its harvest lead. Null without a positive yield; a positive-yield harvest requires its lead.
     /// </summary>
     public static SupplyCandidate? GrowingFieldCandidate(Resource resource, string id, double units, Fact<double> lead)
     {
-        if (!(units >= 1) || !lead.TryGetValue(out var days))
+        if (!(units >= 1))
         {
             return null;
         }
+        if (!lead.TryGetValue(out var days)) throw new RequiredFactException("growing field harvest lead");
         return new SupplyCandidate
         {
             Kind = CandidateKind.Harvest,

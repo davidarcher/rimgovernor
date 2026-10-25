@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // The storage option report: per standing store, what each capacity option costs and what it physically does,
 // reported apart. Cost (material, construction work, lead time) and effect (cells, stacks, deterioration avoided)
-// are never folded into one value, and an unknown stays unknown with a finding. The report ranks nothing: the
+// are never folded into one value, and missing required observations fail the review. The report ranks nothing: the
 // placed options (zone growth, shelf) feed the storage portfolio (#3239); the room options reach layout through
 // the yard's runway and stranded signal and the station plan's successor rooms.
 
@@ -28,14 +28,13 @@ public sealed record StorageBuildCost
 
     public IReadOnlyList<Amount> Costs { get; init; } = [];
 
-    /// <summary>Work ticks (WorkToBuild); unknown when the catalog does not show it.</summary>
-    public Fact<double> WorkTicks { get; init; }
+    /// <summary>Work ticks (WorkToBuild); required from the catalog.</summary>
+    public double WorkTicks { get; init; }
 }
 
 /// <summary>
 /// One planned storage room or yard of the layout plan: its id, role, interior cells, whether it stands in open air
-/// (PlannedRoom.Outdoor) and the material the plan still owes for it (PlannedOwedCost; unknown while the plan's
-/// owed cost is, empty for a yard, which builds nothing).
+/// (PlannedRoom.Outdoor) and the material the plan still owes for it (PlannedOwedCost; empty for a yard, which builds nothing).
 /// </summary>
 public sealed record PlannedStoreRoom
 {
@@ -47,10 +46,10 @@ public sealed record PlannedStoreRoom
 
     public bool Outdoor { get; init; }
 
-    public Fact<IReadOnlyDictionary<Resource, long>> Material { get; init; }
+    public IReadOnlyDictionary<Resource, long> Material { get; init; } = new Dictionary<Resource, long>();
 
-    /// <summary>The catalog work its planned sites owe (PlannedRoomWork); unknown while the plan or a def's work is.</summary>
-    public Fact<double> Work { get; init; }
+    /// <summary>The catalog work its planned sites owe (PlannedRoomWork); required from the plan and catalog.</summary>
+    public double Work { get; init; }
 
     /// <summary>A roof is owed: its work has no catalog figure and is not in Work.</summary>
     public bool RoofOwed { get; init; }
@@ -58,10 +57,10 @@ public sealed record PlannedStoreRoom
 
 /// <summary>
 /// One capacity option of a store, its cost and effect reported apart. Zone names the zone a placed option stands in,
-/// Piece the shelf site, Room the planned room (0 for an unsized room). Material is the build's cost list; WorkTicks
+/// Piece the shelf site, Room the planned room. Material is the build's cost list; WorkTicks
 /// its construction work; CellsLost the floor stacks' cells it gives up and CellsTaken the ground it newly takes;
 /// Stacks the stacks the store gains; DeteriorationAvoided the HP per day of the store's stranded stacks it would take
-/// off their exposed ground. Findings name every unknown.
+/// off their exposed ground. Findings name work excluded from the catalog cost.
 /// </summary>
 public sealed record StorageOption
 {
@@ -75,22 +74,22 @@ public sealed record StorageOption
 
     public string Stuff { get; init; } = "";
 
-    public Fact<IReadOnlyDictionary<Resource, long>> Material { get; init; }
+    public IReadOnlyDictionary<Resource, long> Material { get; init; } = new Dictionary<Resource, long>();
 
-    public Fact<double> WorkTicks { get; init; }
+    public double WorkTicks { get; init; }
 
-    public Fact<int> CellsLost { get; init; }
+    public int CellsLost { get; init; }
 
-    public Fact<int> CellsTaken { get; init; }
+    public int CellsTaken { get; init; }
 
-    public Fact<int> Stacks { get; init; }
+    public int Stacks { get; init; }
 
-    public Fact<double> DeteriorationAvoided { get; init; }
+    public double DeteriorationAvoided { get; init; }
 
     public EquatableArray<string> Findings { get; init; }
 
-    /// <summary>The option's lead time in days (StorageLeadDays over WorkTicks); unknown while the work is.</summary>
-    public Fact<double> LeadDays => StoreRules.StorageLeadDays(WorkTicks);
+    /// <summary>The option's lead time in days (StorageLeadDays over WorkTicks); computed from required work.</summary>
+    public double LeadDays => StoreRules.StorageLeadDays(WorkTicks);
 }
 
 /// <summary>One standing store's capacity facts and its options: the store's role, the zones serving it (by id), its StoreCapacity and every option.</summary>
@@ -107,46 +106,21 @@ public sealed record StoreOptions
 
 public static partial class StorageRules
 {
-    /// <summary>A shelf build cost the catalog does not give (no Shelf def, or no cost row for its stuff).</summary>
-    public const string FindingShelfCostUnknown = "shelf_cost_unknown";
-
-    /// <summary>A build whose WorkToBuild the catalog does not show.</summary>
-    public const string FindingWorkUnknown = "work_unknown";
-
-    /// <summary>A planned room's build work is unknown: the plan is unread or a planned site's def shows no WorkToBuild (#3276).</summary>
-    public const string FindingRoomWorkUnknown = "room_work_unknown";
 
     /// <summary>A planned room owes a roof, whose work has no catalog figure: the room's WorkTicks leave it out.</summary>
     public const string FindingRoomRoofWorkUnassessed = "room_roof_work_unassessed";
-
-    /// <summary>A planned room whose owed material is unknown (the plan's owed cost is unread).</summary>
-    public const string FindingRoomMaterialUnknown = "room_material_unknown";
-
-    /// <summary>No planned room of the role is waiting to become a store: layout has not sized one.</summary>
-    public const string FindingRoomUnsized = "room_unsized";
-
-    /// <summary>The layout plan is unread, so no room option can be read.</summary>
-    public const string FindingPlanUnknown = "layout_plan_unknown";
-
-    /// <summary>The stacks gained are unknown (a census or catalog count).</summary>
-    public const string FindingStacksUnknown = "stacks_unknown";
-
-    /// <summary>Deterioration avoided is unknown: the loot census, a stranded row's rate or a roof or indoors reading is.</summary>
-    public const string FindingDeteriorationUnknown = "deterioration_unknown";
 
     /// <summary>
     /// The storage option report of every declared, non-retired store a zone serves, in declaration order: its
     /// capacity facts and its options. Zone growth for a whole-footprint store with open footprint ground left; a
     /// shelf per shelf candidate (ShelfCandidates) in its zones; for a warehouse (general) store a successor room per planned
-    /// storage room no warehouse zone stands in; for a yard store a further room per such planned yard. With no
-    /// such room, one unsized room option, every value unknown. Generation only: nothing is ranked or chosen.
+    /// storage room no warehouse zone stands in; for a yard store a further room per such planned yard. With no such planned room, there is no room candidate. Generation only: nothing is ranked or chosen.
     /// <paramref name="open"/> is the request's open ground; growth is priced over it with no ground taken, as the
     /// ground stood before this pass's edits.
     /// </summary>
     internal static List<StoreOptions> StorageOptions(StockpileRequest r, IReadOnlyList<ShelfCandidate> shelves, StockpileOpen open)
     {
         var output = new List<StoreOptions>();
-        var census = open.Cells;
         var untaken = open with { Taken = [] };
         foreach (var store in r.Stores)
         {
@@ -170,17 +144,17 @@ public static partial class StorageRules
             {
                 if (ids.Contains(c.Zone))
                 {
-                    options.Add(ShelfOption(r, c, stranded, census));
+                    options.Add(ShelfOption(r, c, stranded));
                 }
             }
             var prefix = StockpileRules.StockpileRolePrefix(store.Role);
             if (prefix == StockpileRolesConstants.GeneralRole)
             {
-                options.AddRange(RoomOptions(r, StorageOptionKind.SuccessorRoom, PlannedRole.Storage, prefix, stranded, census));
+                options.AddRange(RoomOptions(r, StorageOptionKind.SuccessorRoom, PlannedRole.Storage, prefix, stranded));
             }
             else if (prefix == StockpileRolesConstants.YardRole)
             {
-                options.AddRange(RoomOptions(r, StorageOptionKind.FurtherRoom, PlannedRole.Yard, prefix, stranded, census));
+                options.AddRange(RoomOptions(r, StorageOptionKind.FurtherRoom, PlannedRole.Yard, prefix, stranded));
             }
             output.Add(new StoreOptions
             {
@@ -194,7 +168,7 @@ public static partial class StorageRules
     }
 
     /// <summary>Zone growth: the store's open, reachable footprint cells (StoreGrowth), no material and no work, one stack per new cell; null when none is left or the store is a fixed-size patch.</summary>
-    private static StorageOption? ZoneGrowthOption(StockpileRequest r, Store store, StockpileZone keep, List<LootItem>? stranded, StockpileOpen untaken)
+    private static StorageOption? ZoneGrowthOption(StockpileRequest r, Store store, StockpileZone keep, List<LootItem> stranded, StockpileOpen untaken)
     {
         if (!store.Site.WholeFootprint())
         {
@@ -206,47 +180,43 @@ public static partial class StorageRules
             return null;
         }
         var slots = add.Select(c => CellExposure(untaken.Cells, c)).ToList();
-        var avoided = DeteriorationAvoided(r.Items, stranded, Known(add.Count), slots, false, untaken.Cells);
+        var avoided = DeteriorationAvoided(r.Items, stranded, add.Count, slots, false);
         return new StorageOption
         {
             Kind = StorageOptionKind.ZoneGrowth,
             Zone = keep.Id,
-            Material = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),
-            WorkTicks = Known(0.0),
-            CellsLost = Known(0),
-            CellsTaken = Known(add.Count),
-            Stacks = Known(add.Count),
+            Material = new Dictionary<Resource, long>(),
+            WorkTicks = 0.0,
+            CellsLost = 0,
+            CellsTaken = add.Count,
+            Stacks = add.Count,
             DeteriorationAvoided = avoided,
-            Findings = Findings(avoided.IsKnown ? null : FindingDeteriorationUnknown),
+            Findings = [],
         };
     }
 
     /// <summary>A shelf on a candidate site: the catalog Shelf's cost from its build stuff and its WorkToBuild; its cells' floor stacks lost; the candidate's stacks.</summary>
-    private static StorageOption ShelfOption(StockpileRequest r, ShelfCandidate c, List<LootItem>? stranded, Dictionary<Cell, SiteCell> census)
+    private static StorageOption ShelfOption(StockpileRequest r, ShelfCandidate c, List<LootItem> stranded)
     {
         var cells = PlannedRules.RectCells(c.Piece.Rect).Count;
-        var costKnown = r.ShelfCost.TryGetValue(out var cost);
-        var material = costKnown ? Known<IReadOnlyDictionary<Resource, long>>(MaterialOf(cost!.Costs)) : Unknown<IReadOnlyDictionary<Resource, long>>();
-        var work = costKnown ? cost!.WorkTicks : Unknown<double>();
-        var slots = c.Stacks.TryGetValue(out var n) ? Enumerable.Repeat(Known(0.0), Math.Max(0, n)).ToList() : [];
-        var avoided = DeteriorationAvoided(r.Items, stranded, c.Stacks, slots, true, census);
+        var cost = r.ShelfCost ?? throw new RequiredFactException("shelf build cost");
+        var material = MaterialOf(cost.Costs);
+        var work = cost.WorkTicks;
+        var slots = Enumerable.Repeat(0.0, Math.Max(0, c.Stacks)).ToList();
+        var avoided = DeteriorationAvoided(r.Items, stranded, c.Stacks, slots, true);
         return new StorageOption
         {
             Kind = StorageOptionKind.Shelf,
             Zone = c.Zone,
             Piece = c.Piece,
-            Stuff = costKnown ? cost!.Stuff : "",
+            Stuff = cost.Stuff,
             Material = material,
             WorkTicks = work,
-            CellsLost = Known(cells),
-            CellsTaken = Known(0),
+            CellsLost = cells,
+            CellsTaken = 0,
             Stacks = c.Stacks,
             DeteriorationAvoided = avoided,
-            Findings = Findings(
-                costKnown ? null : FindingShelfCostUnknown,
-                !costKnown || work.IsKnown ? null : FindingWorkUnknown,
-                c.Stacks.IsKnown ? null : FindingStacksUnknown,
-                avoided.IsKnown ? null : FindingDeteriorationUnknown),
+            Findings = [],
         };
     }
 
@@ -254,14 +224,11 @@ public static partial class StorageRules
     /// The room options of a store role: one per planned room of the plan role no zone of the store role stands in,
     /// priced from the plan's owed material and work (a yard owes none and its work is FurtherYardWorkTicks; a storage
     /// room's work is its planned sites' catalog work, PlannedStoreRoom.Work, its roof named apart); its interior is the ground taken and the stacks gained, its exposure that of
-    /// open air for an outdoor room and none for a roofed one. With none, one unsized option.
+    /// open air for an outdoor room and none for a roofed one. With none, no room candidate.
     /// </summary>
-    private static List<StorageOption> RoomOptions(StockpileRequest r, StorageOptionKind kind, PlannedRole role, string prefix, List<LootItem>? stranded, Dictionary<Cell, SiteCell> census)
+    private static List<StorageOption> RoomOptions(StockpileRequest r, StorageOptionKind kind, PlannedRole role, string prefix, List<LootItem> stranded)
     {
-        if (!r.StoreRooms.TryGetValue(out var planned))
-        {
-            return [new StorageOption { Kind = kind, Findings = Findings(FindingPlanUnknown) }];
-        }
+        if (r.Layout is not StorageLayout.Planned(_, var planned)) return [];
         var zoned = new HashSet<Cell>();
         foreach (var z in r.Zones)
         {
@@ -277,30 +244,25 @@ public static partial class StorageRules
             {
                 continue;
             }
-            var work = role == PlannedRole.Yard ? Known(StoreRules.FurtherYardWorkTicks) : room.Work;
-            var slots = Enumerable.Repeat(Known(room.Outdoor ? 1.0 : 0.0), room.Cells.Count).ToList();
-            var avoided = DeteriorationAvoided(r.Items, stranded, Known(room.Cells.Count), slots, false, census);
+            var work = role == PlannedRole.Yard ? StoreRules.FurtherYardWorkTicks : room.Work;
+            var slots = Enumerable.Repeat(room.Outdoor ? 1.0 : 0.0, room.Cells.Count).ToList();
+            var avoided = DeteriorationAvoided(r.Items, stranded, room.Cells.Count, slots, false);
             output.Add(new StorageOption
             {
                 Kind = kind,
                 Room = room.Room,
                 Material = room.Material,
                 WorkTicks = work,
-                CellsLost = Known(0),
-                CellsTaken = Known(room.Cells.Count),
-                Stacks = Known(room.Cells.Count),
+                CellsLost = 0,
+                CellsTaken = room.Cells.Count,
+                Stacks = room.Cells.Count,
                 DeteriorationAvoided = avoided,
                 Findings = Findings(
-                    room.Material.IsKnown ? null : FindingRoomMaterialUnknown,
-                    work.IsKnown ? null : FindingRoomWorkUnknown,
-                    role != PlannedRole.Yard && room.RoofOwed ? FindingRoomRoofWorkUnassessed : null,
-                    avoided.IsKnown ? null : FindingDeteriorationUnknown),
+
+                    role != PlannedRole.Yard && room.RoofOwed ? FindingRoomRoofWorkUnassessed : null),
             });
         }
-        if (output.Count == 0)
-        {
-            output.Add(new StorageOption { Kind = kind, Findings = Findings(FindingRoomUnsized) });
-        }
+
         return output;
     }
 
@@ -308,14 +270,12 @@ public static partial class StorageRules
     /// The HP per day an option saves the store's stranded stacks: the worst rows first (rate times the exposure of
     /// the cell each lies on), up to the stacks gained, each paired with the option's most sheltered slot left and
     /// counted as rate times (exposure now less the slot's). A shelf takes no Chunks, Plants or Buildings row.
-    /// Unknown, never zero, when the census, the stacks gained, a row's rate or any exposure is unknown.
+    /// Required counts and exposure cells fail the review when absent; native reads each stack's actual-stuff rate.
     /// </summary>
-    internal static Fact<double> DeteriorationAvoided(ItemFacts items, List<LootItem>? stranded, Fact<int> stacks, IReadOnlyList<Fact<double>> slots, bool shelf, IReadOnlyDictionary<Cell, SiteCell> census)
+    internal static double DeteriorationAvoided(ItemFacts items, List<LootItem> stranded, int stacks, IReadOnlyList<double> slots, bool shelf)
     {
-        if (stranded is not { } rows || !stacks.TryGetValue(out var n))
-        {
-            return Unknown<double>();
-        }
+        var rows = stranded;
+        var n = stacks;
         var exposed = new List<(LootItem Row, double Rate, double Exposure)>();
         foreach (var row in rows)
         {
@@ -324,10 +284,9 @@ public static partial class StorageRules
             {
                 continue;
             }
-            if (!items.DeteriorationRate.TryGetValue(def, out var rate) || !CellExposure(census, row.Supply.Cell).TryGetValue(out var exposure))
-            {
-                return Unknown<double>();
-            }
+            // Loot spans the whole map, including cells outside the planning census. Native already read this stack's exposure.
+            var rate = row.Deterioration?.BaseRatePerDay ?? 0;
+            var exposure = row.Deterioration is { } d ? (d.Roofed ? 0.0 : 0.5) + (d.Outdoors ? 0.5 : 0.0) : 0;
             exposed.Add((row, rate, exposure));
         }
         var taken = exposed
@@ -337,37 +296,30 @@ public static partial class StorageRules
             .ToList();
         if (taken.Count > slots.Count)
         {
-            return Unknown<double>();
+            throw new RequiredFactException("storage exposure slots");
         }
         var after = new List<double>(slots.Count);
-        foreach (var s in slots)
-        {
-            if (!s.TryGetValue(out var v))
-            {
-                return Unknown<double>();
-            }
-            after.Add(v);
-        }
+        after.AddRange(slots);
         after.Sort();
         var avoided = 0.0;
         for (var i = 0; i < taken.Count; i++)
         {
             avoided += taken[i].Rate * (taken[i].Exposure - after[i]);
         }
-        return Known(avoided);
+        return avoided;
     }
 
     /// <summary>
     /// A cell's deterioration exposure, the factor the game multiplies an item's DeteriorationRate by
-    /// (SteadyEnvironmentEffects): 0.5 unroofed plus 0.5 not indoors. Unknown when the census does not hold the cell.
+    /// (SteadyEnvironmentEffects): 0.5 unroofed plus 0.5 not indoors. A missing census cell raises RequiredFactException.
     /// </summary>
-    internal static Fact<double> CellExposure(IReadOnlyDictionary<Cell, SiteCell> census, Cell cell)
+    internal static double CellExposure(IReadOnlyDictionary<Cell, SiteCell> census, Cell cell)
     {
         if (!census.TryGetValue(cell, out var c))
         {
-            return Unknown<double>();
+            throw new RequiredFactException("storage exposure slots");
         }
-        return Known((c.Roofed ? 0.0 : 0.5) + (c.Indoors ? 0.0 : 0.5));
+        return (c.Roofed ? 0.0 : 0.5) + (c.Indoors ? 0.0 : 0.5);
     }
 
     private static Dictionary<Resource, long> MaterialOf(IReadOnlyList<Amount> costs)
@@ -384,4 +336,12 @@ public static partial class StorageRules
     }
 
     private static EquatableArray<string> Findings(params string?[] findings) => EquatableArray.From(findings.OfType<string>().ToList());
+}
+
+/// <summary>First-plan derivation runs after the initial review, so its absence is a lifecycle state rather than missing native geometry.</summary>
+public abstract record StorageLayout
+{
+    private StorageLayout() { }
+    public sealed record AwaitingFirstPlan : StorageLayout;
+    public sealed record Planned(EquatableArray<Cell> Walkways, IReadOnlyList<PlannedStoreRoom> Rooms) : StorageLayout;
 }

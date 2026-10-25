@@ -58,7 +58,7 @@ public sealed record ShelfRequest
 /// <summary>
 /// One shelf a declared store could take: the zone it would stand in, the 2x1 site and the
 /// stacks the store gains (the shelf's stacks less the floor stacks its cells give up: 6 - 2 = +4 for Core's
-/// Shelf); unknown when either count is.
+/// Shelf). Both counts are required.
 /// </summary>
 public sealed record ShelfCandidate
 {
@@ -66,7 +66,7 @@ public sealed record ShelfCandidate
 
     public required InteriorPiece Piece { get; init; }
 
-    public Fact<int> Stacks { get; init; }
+    public int Stacks { get; init; }
 }
 
 // Shelves. Core's Shelf (Buildings_Furniture.xml, StorageShelfBase) is a 2x1 Building_Storage that holds
@@ -133,16 +133,13 @@ public static partial class StorageRules
     /// <summary>
     /// Every shelf site of every declared, non-retired store a shelf can hold (<see cref="ShelfHolds"/>), zone
     /// by zone (by id), each with its effect in stacks. Generation only: which to build is chosen elsewhere
-    /// (NextWarehouseShelf today). None while the planned walkways are unknown. <paramref name="cells"/> is the
+    /// (NextWarehouseShelf today). The planned walkways are required. <paramref name="cells"/> is the
     /// request's planning cells keyed by cell.
     /// </summary>
     public static List<ShelfCandidate> ShelfCandidates(StockpileRequest r, IReadOnlyDictionary<Cell, SiteCell> cells)
     {
         var output = new List<ShelfCandidate>();
-        if (!r.Walkways.TryGetValue(out var walkways))
-        {
-            return output;
-        }
+        if (r.Layout is not StorageLayout.Planned(var walkways, _)) return output;
         var avoid = new HashSet<Cell>(walkways);
         foreach (var z in r.Zones.OrderBy(z => z.Id, StringComparer.Ordinal))
         {
@@ -153,7 +150,7 @@ public static partial class StorageRules
             foreach (var piece in ShelfSites(z.Cells, cells, avoid))
             {
                 var (floor, _) = StockpileRules.StorageStacks(PlannedRules.RectCells(piece.Rect), cells);
-                var stacks = r.ShelfStacks.TryGetValue(out var shelf) && floor.TryGetValue(out var given) ? Known(shelf - given) : Unknown<int>();
+                var stacks = r.ShelfStacks - floor;
                 output.Add(new ShelfCandidate { Zone = z.Id, Piece = piece, Stacks = stacks });
             }
         }
@@ -191,13 +188,12 @@ public static partial class StorageRules
 
     /// <summary>
     /// The layout plan's walkways: every cell a planned route crosses (<see cref="CheckRoutes"/>' per-cell path
-    /// counts). A shelf costs 50 to path over and is pass-through only, so none stands there. Unknown when the
-    /// plan's routes fail.
+    /// counts). A shelf costs 50 to path over and is pass-through only, so none stands there. Invalid routes raise RequiredFactException.
     /// </summary>
-    public static Fact<EquatableArray<Cell>> PlannedWalkways(LayoutPlan plan)
+    public static EquatableArray<Cell> PlannedWalkways(LayoutPlan plan)
     {
         var routes = LayoutPlan.CheckRoutes(plan);
-        return routes.Ok ? Known(EquatableArray.From(StockpileRules.StockpileSorted(routes.Traffic.Keys))) : Unknown<EquatableArray<Cell>>();
+        return routes.Ok ? EquatableArray.From(StockpileRules.StockpileSorted(routes.Traffic.Keys)) : throw new RequiredFactException("valid layout routes");
     }
 
     /// <summary>

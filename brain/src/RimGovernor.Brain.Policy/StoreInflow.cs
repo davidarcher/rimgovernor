@@ -19,44 +19,41 @@ public static partial class StoreRules
     /// <summary>
     /// The store's net inflow in stacks per day: the sum, over the zones serving it and their built shelves, of each
     /// group's least-squares slope of held stacks over the window. Negative is a known reading (the store drains).
-    /// Unknown, never zero, when the ring is unread, the store has no group, or any group's samples span less than
-    /// a day (a group created mid-window counts once it has a day of its own samples).
+    /// The native ring is required. A store without groups is Unestablished; one whose history spans less than a day
+    /// is Accumulating. A group created mid-window counts once it has a day of its own samples.
     /// </summary>
-    public static Fact<double> StoreInflow(StockpileRequest request, Store store)
+    public static StorageInflow StoreInflow(StockpileRequest request, Store store)
     {
-        if (!request.Occupancy.TryGetValue(out var occupancy))
-        {
-            return Unknown<double>();
-        }
+        var occupancy = request.Occupancy ?? throw new RequiredFactException("storage occupancy");
         var groups = StoreGroups(request, store);
         if (groups.Count == 0)
         {
-            return Unknown<double>();
+            return new StorageInflow.Unestablished();
         }
         var total = 0.0;
         foreach (var group in groups)
         {
-            if (!GroupInflow(occupancy, group).TryGetValue(out var rate))
+            if (GroupInflow(occupancy, group) is not StorageInflow.Measured(var rate))
             {
-                return Unknown<double>();
+                return new StorageInflow.Accumulating();
             }
             total += rate;
         }
-        return Known(total);
+        return new StorageInflow.Measured(total);
     }
 
-    /// <summary>One group's held-stack slope in stacks per day over the window; unknown under a day of samples.</summary>
-    internal static Fact<double> GroupInflow(Obs.StorageOccupancySnapshot occupancy, string group)
+    /// <summary>One group's held-stack slope in stacks per day over the window; Accumulating under a day of samples.</summary>
+    internal static StorageInflow GroupInflow(Obs.StorageOccupancySnapshot occupancy, string group)
     {
         if (occupancy.Groups.FirstOrDefault(g => g.Group == group)?.Samples is not { } samples)
         {
-            return Unknown<double>();
+            return new StorageInflow.Accumulating();
         }
         var start = occupancy.CurrentHour - (StoreInflowWindowDays * 24);
         var points = samples.Where(s => s.Hour > start && s.Hour <= occupancy.CurrentHour).ToList();
         if (points.Count < 2 || points[^1].Hour - points[0].Hour < StoreInflowMinHours)
         {
-            return Unknown<double>();
+            return new StorageInflow.Accumulating();
         }
         var meanHour = points.Average(s => (double)s.Hour);
         var meanStacks = points.Average(s => (double)s.Stacks);
@@ -67,6 +64,15 @@ public static partial class StoreRules
             covariance += (s.Hour - meanHour) * (s.Stacks - meanStacks);
             variance += (s.Hour - meanHour) * (s.Hour - meanHour);
         }
-        return Known(covariance / variance * 24);
+        return new StorageInflow.Measured(covariance / variance * 24);
     }
+}
+
+/// <summary>Rate evidence is unavailable until a store exists and its groups have a day of history.</summary>
+public abstract record StorageInflow
+{
+    private StorageInflow() { }
+    public sealed record Unestablished : StorageInflow;
+    public sealed record Accumulating : StorageInflow;
+    public sealed record Measured(double StacksPerDay) : StorageInflow;
 }

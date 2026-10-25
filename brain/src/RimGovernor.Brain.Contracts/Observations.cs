@@ -59,7 +59,6 @@ public enum Passion
     Major = 3,
 }
 
-
 /// <summary>
 /// HolderKind is what holds a held stack: a building container, a corpse's
 /// inventory, a living pawn's inventory or its carry tracker.
@@ -1255,7 +1254,6 @@ public sealed record InventoryStockSetting
 
     public required int Count { get; init; }
 }
-
 
 public sealed record TrainingEntry
 {
@@ -5474,7 +5472,6 @@ public abstract record BedQuality
     public sealed record Ungraded : BedQuality;
 }
 
-
 /// <summary>
 /// One damageable (useHitPoints) spawned player building, read whole: its def, stuff (null for a def not made from
 /// stuff) and position, whether the Home area covers its whole footprint, and its hit points. Its flammability and
@@ -6230,7 +6227,6 @@ public sealed record ChoiceDialog
     public required bool Interactive { get; init; }
 }
 
-
 public sealed record DevelopmentSection
 {
     public required DevelopmentFacts Outcome { get; init; }
@@ -6763,6 +6759,9 @@ public sealed record LootItem
 /// </summary>
 public sealed record LootDeterioration
 {
+    /// <summary>The def and actual stuff rate before environmental exposure.</summary>
+    public required double BaseRatePerDay { get; init; }
+
     public double MaxHitPoints { get; init; }
 
     public double RatePerDay { get; init; }
@@ -8099,8 +8098,6 @@ public sealed record IdeoBuilding
 
 /// <summary>A room requirement's thing count: at least Count of the ThingDef Def in the room.</summary>
 public sealed record IdeoThingCount(string Def, int Count);
-
-
 
 /// <summary>
 /// Anomaly facts of one pawn row. entity is Pawn.IsEntity and mutant Pawn.IsMutant (hostility is PawnState.hostile).

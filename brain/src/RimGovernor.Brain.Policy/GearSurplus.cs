@@ -29,10 +29,7 @@ public static class GearSurplusRules
     /// </summary>
     public static (IReadOnlyList<GearStock> Rows, bool Known) ApparelSurplus(ClothingDemandInput input)
     {
-        if (!input.Gear.TryGetValue(out var gear))
-        {
-            return ([], false);
-        }
+        if (!input.Gear.TryGetValue(out var gear)) throw new RequiredFactException("apparel surplus gear census");
         GearReview review;
         try
         {

@@ -201,7 +201,7 @@ internal static class ReadProjections
     internal static ColonyStatusDto Colony(ColonyStatusReport v)
     {
         IReadOnlyList<ColonyStockpileDto>? stockpiles = v.Stockpiles.TryGetValue(out var zones)
-            ? [.. zones.Select(z => new ColonyStockpileDto(z.Role, z.Zones, z.Cells, z.Capacity.TryGetValue(out var capacity) ? capacity : (int?)null, z.Used.TryGetValue(out var used) ? used : (int?)null))]
+            ? [.. zones.Select(z => new ColonyStockpileDto(z.Role, z.Zones, z.Cells, z.Capacity, z.Used))]
             : null;
         var downed = 0;
         var moodSum = 0.0;

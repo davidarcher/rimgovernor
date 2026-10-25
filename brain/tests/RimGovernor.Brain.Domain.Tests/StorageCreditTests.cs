@@ -20,7 +20,7 @@ public sealed class StorageCreditTests
     private const string Cloth = "Thing_Cloth1", Steel = "Thing_Steel1", Rice = "Thing_RawRice1";
 
     private static LootDeterioration OpenAir(double rate, double maxHitPoints = 100) =>
-        new() { MaxHitPoints = maxHitPoints, RatePerDay = rate, Environmental = true, Roofed = false, Outdoors = true };
+        new() { BaseRatePerDay = rate, MaxHitPoints = maxHitPoints, RatePerDay = rate, Environmental = true, Roofed = false, Outdoors = true };
 
     private static LootItem Row(string thing, string def, long count, LootDeterioration? deterioration) => new()
     {

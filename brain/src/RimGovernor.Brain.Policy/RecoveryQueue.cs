@@ -99,14 +99,14 @@ public sealed record RecoveryRequest
 
     public Cell Center { get; init; }
 
-    public Fact<bool> Threat { get; init; }
+    public bool Threat { get; init; }
 
     public EquatableArray<OutdoorHazard> Hazard { get; init; }
 
     /// <summary>A planned dash window is open, which lifts the extreme cold hold (and only that hazard).</summary>
     public bool DashOpen { get; init; }
 
-    public Fact<bool> Urgent { get; init; }
+    public bool Urgent { get; init; }
 }
 
 /// <summary>One ranked thing as journaled.</summary>
@@ -178,7 +178,7 @@ public static partial class RecoveryRules
     /// </summary>
     private static string RecoveryHold(RecoveryThing t, RecoveryRequest r)
     {
-        if (r.Threat.TryGetValue(out var threat) && threat)
+        if (r.Threat)
         {
             return RemoteRules.RemoteHoldThreat;
         }
@@ -202,7 +202,7 @@ public static partial class RecoveryRules
         {
             return RemoteRules.RemoteHoldRouteUnsafe;
         }
-        if (r.Urgent.TryGetValue(out var urgent) && urgent)
+        if (r.Urgent)
         {
             return RemoteRules.RemoteHoldUrgentWork;
         }
@@ -434,11 +434,12 @@ public static partial class RecoveryRules
     {
         var extent = ColonyExtentRules.DeriveColonyExtent(f.MapBounds, f.CurrentConstruction, f.ConstructionClaims, f.HomeCoverage);
         var shortSet = RecoveryShortResources(p, f);
-        var threat = Unknown<bool>();
+        bool threat;
         if (f.Hostiles.TryGetValue(out var hostiles))
         {
-            threat = Known(hostiles > 0);
+            threat = hostiles > 0;
         }
+        else { throw new RequiredFactException("recovery hostile census"); }
         var origins = new List<Cell>();
         var center = new Cell();
         if (extent is ExtentDerivation.Derived { Extent: var e })

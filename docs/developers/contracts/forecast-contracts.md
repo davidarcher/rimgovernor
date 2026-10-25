@@ -1774,3 +1774,11 @@ them does not create a benefit for unfinished rooms.
 Unassessed detailed terms do not invalidate unrelated covered
 continuation inputs. Missing terminal needs and unavailable native mechanics
 remain explicit. Initial recovery and continuation ranking are separate stages.
+
+## Storage capacity observations
+
+Storage reviews require native zone and shelf stack counts, shelf costs and storage occupancy history. `StorageLayout.AwaitingFirstPlan` names the first review before layout is derived at its end; it reads the census and inflow but produces no shelf or room option. `StorageLayout.Planned` carries valid walkways and required planned-room costs for geometry-dependent candidates. Missing required observations raise `RequiredFactException`; they never become empty history, zero capacity or an unpriced option. The ordinary review and direct stockpile step use `IRoundsStorageSource` for the same native occupancy read.
+
+`StorageInflow.Unestablished` means no standing group serves the store. `StorageInflow.Accumulating` means at least one group's observed history spans less than one day; it is a history state, not a failed read. `StorageInflow.Measured` carries signed stacks per day. A yard still accumulating history can ask for room from safe, reached stranded stacks; runway comparison requires measured history.
+
+Each loot row that can deteriorate includes required `LootDeterioration.BaseRatePerDay`, computed by native from that stack's def and actual stuff before environmental exposure. Storage options use it with their destination exposure; a stack that cannot deteriorate has no deterioration relation. No per-def catalog rate is retained. An unplanned successor room generates no capacity option. Roof work remains explicitly unassessed apart from catalog construction work.

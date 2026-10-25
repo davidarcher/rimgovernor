@@ -93,14 +93,15 @@ public static partial class RemoteRules
         return new RemoteWorkRequest { Safety = LootSafety(f), Extent = extent, Competition = RemoteCompetition(f) };
     }
 
-    /// <summary>Assembles the outdoor safety from the review facts. Unknown hostiles stay unknown.</summary>
+    /// <summary>Assembles outdoor safety from the required hostile census.</summary>
     public static RemoteSafety LootSafety(RoundsFacts f)
     {
         var r = new RemoteSafety { Hazard = OutdoorHazardRules.OutdoorHazardsOf(f), DashOpen = f.DashOpen() };
         if (f.Hostiles.TryGetValue(out var hostiles))
         {
-            r = r with { Threat = Known(hostiles > 0) };
+            r = r with { Threat = hostiles > 0 };
         }
+        else { throw new RequiredFactException("remote hostile census"); }
         return r;
     }
 }

@@ -54,6 +54,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!thing.def.useHitPoints || !thing.def.CanEverDeteriorate) return null;
             return new Obs.LootDeterioration {
+                BaseRatePerDay = thing.def.GetStatValueAbstract(StatDefOf.DeteriorationRate, thing.Stuff),
                 MaxHitPoints = thing.MaxHitPoints, RatePerDay = SteadyEnvironmentEffects.FinalDeteriorationRate(thing),
                 Environmental = thing.def.deteriorateFromEnvironmentalEffects,
                 TerrainFactor = thing.Position.GetTerrain(map)?.extraDeteriorationFactor ?? 0,

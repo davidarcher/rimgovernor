@@ -16,14 +16,11 @@ public static class LootReleaseRules
     /// <summary>
     /// Narrows the census's release side (a safe, forbidden stack): a stack whose def a native spawner forbids on
     /// purpose is never released, and neither is one within ThreatReachCells of a danger seed (a live hostile, a
-    /// hive: DangerSeeds). Unknown seeds hold nothing back: the native census's own route check still refuses an
-    /// item a live hostile can see. Forbidding an unsafe stack and allowed stacks are untouched. The returned rows
+    /// hive: DangerSeeds). The danger seeds are required, alongside the native route check. Forbidding an unsafe stack and allowed stacks are untouched. The returned rows
     /// are the census the safety review acts on.
     /// </summary>
     public static (EquatableArray<LootItem> Rows, IReadOnlyList<LootHold> Holds) FilterLootRelease(EquatableArray<LootItem> rows, Fact<EquatableArray<Cell>> seeds)
     {
-        seeds.TryGetValue(out var danger);
-
         var kept = new List<LootItem>();
         var holds = new List<LootHold>();
         foreach (var row in rows)
@@ -38,9 +35,10 @@ public static class LootReleaseRules
             {
                 reason = LootHoldSpawnForbidden;
             }
-            else if (ShelterRules.NearDanger(danger, row.Supply.Cell))
+            else
             {
-                reason = LootHoldDanger;
+                if (!seeds.TryGetValue(out var danger)) throw new RequiredFactException("loot danger seeds");
+                if (ShelterRules.NearDanger(danger, row.Supply.Cell)) reason = LootHoldDanger;
             }
             if (reason == "")
             {

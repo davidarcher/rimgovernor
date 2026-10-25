@@ -76,25 +76,15 @@ public static partial class StoreRules
         new MedicalOwner(),
     ];
 
-    /// <summary>
-    /// The store's stranded stacks: unforbidden, safe loot rows with zero storage headroom whose accepting storage
-    /// groups include a zone serving the store or a shelf in one. Such a stack can be hauled nowhere now, and this
-    /// store would take it. Headroom is read as the haul backlog reads it (WorkAssignment). Unknown, never zero, when
-    /// the census is unread, when a row's headroom is unknown (it could belong to any store) or when a zero-headroom
-    /// row of unknown safety is accepted by this store.
-    /// </summary>
-    public static Fact<long> StrandedStacks(StockpileRequest request, Store store) =>
-        StrandedRows(request, store) is { } rows ? Known((long)rows.Count) : Unknown<long>();
+    /// <summary>Counts safe, reached, unforbidden stacks with no storage headroom that this store accepts.</summary>
+    public static long StrandedStacks(StockpileRequest request, Store store) =>
+        StrandedRows(request, store).Count;
 
-    /// <summary>The store's stranded loot rows (<see cref="StrandedStacks"/>), one stack each; null (unread) on the same terms.</summary>
-    internal static List<LootItem>? StrandedRows(StockpileRequest request, Store store) => StrandedRows(request, StoreGroups(request, store));
+    /// <summary>The store's stranded loot rows (<see cref="StrandedStacks"/>), one stack each.</summary>
+    internal static List<LootItem> StrandedRows(StockpileRequest request, Store store) => StrandedRows(request, StoreGroups(request, store));
 
-    /// <summary>
-    /// The stranded loot rows one of whose accepting storage groups is in <paramref name="groups"/>; null (unread) on the terms of
-    /// <see cref="StrandedStacks"/>. With <paramref name="reachedOnly"/> (a planned store's stock, #3835) a row of unknown safety,
-    /// which no colonist reaches now (HaulingSafety.Safe), is left out: no hauler can carry it to the store.
-    /// </summary>
-    private static List<LootItem>? StrandedRows(StockpileRequest request, HashSet<string> groups, bool reachedOnly = false)
+    /// <summary>The safe, reached stranded rows accepted by one of the named native storage groups.</summary>
+    private static List<LootItem> StrandedRows(StockpileRequest request, HashSet<string> groups)
     {
         var stranded = new List<LootItem>();
         foreach (var row in request.Loot)
@@ -107,14 +97,7 @@ public static partial class StoreRules
             {
                 continue;
             }
-            if (row.IsUnreached)
-            {
-                if (reachedOnly)
-                {
-                    continue;
-                }
-                return null;
-            }
+            if (row.IsUnreached) continue;
             stranded.Add(row);
         }
         return stranded;
@@ -125,8 +108,7 @@ public static partial class StoreRules
     /// stack each) and the stranded rows whose accepting storage groups include a zone of the role of a store sited on its
     /// region (or a shelf in one), each row once. Zones of one role carry one filter, so a room whose own zone is not yet
     /// laid is read through its role's standing zones, as StorageOptions prices a successor room. A room no store is
-    /// sited on keeps nothing, and a stack no colonist reaches is no room's; a room whose rows are unread (the loot census or a
-    /// row's headroom) has no entry.
+    /// sited on keeps nothing, and a stack no colonist reaches is no room's. The census and headroom are required.
     /// </summary>
     public static IReadOnlyDictionary<int, PlannedStock> PlannedStoreStock(StockpileRequest request, IReadOnlyList<PlannedRoom> rooms)
     {
@@ -149,7 +131,7 @@ public static partial class StoreRules
                     groups.Add(s.Building);
                 }
             }
-            if (StrandedRows(request, groups, reachedOnly: true) is { } rows)
+            if (StrandedRows(request, groups) is { } rows)
             {
                 output[room.Id] = new PlannedStock(room.Region.Area(), EquatableArray.From(rows));
             }

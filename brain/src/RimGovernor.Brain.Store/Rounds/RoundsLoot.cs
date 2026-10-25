@@ -15,6 +15,7 @@ public sealed partial class Store
     {
         var f = request.Facts;
         var (released, held) = LootReleaseRules.FilterLootRelease(f.EventLoot, f.DangerSeeds);
+        if (!released.Any(row => row.IsSafe && row.Forbidden)) return (released, held);
         var (census, reach) = RemoteRules.FilterLootReach(released, RemoteRules.LootContext(f));
         return (census, [.. held.Concat(reach).OrderBy(hold => hold.Thing, StringComparer.Ordinal)]);
     }

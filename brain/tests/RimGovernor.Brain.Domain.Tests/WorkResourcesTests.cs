@@ -50,7 +50,7 @@ internal static class WorkResourceTestFacts
             WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "Art" },
             Skills = new Dictionary<string, ProfileSkill> { ["Art"] = new() { Name = "Art", Level = 8 } } }],
         Resources = [new(new("Rice"), 10)],
-        CurrentConstruction = CurrentConstruction.Empty,
+        Gear = RimGovernor.Brain.Domain.Fact.Known(ColonyModelFixtures.NoGear()), CurrentConstruction = CurrentConstruction.Empty,
         BillReservations = [],
         WorkResources = Known(EquatableArray.From(pawns.Select(p => new WorkResourcePawn(p, "", 0, "", "", "", 0) { LocalHour = 12 }))),
         ForecastObserved = new() { WorkPawns = new WorkPawnsRead(EquatableArray.From(pawns.Select(p => PawnFixtures.Worker(p) with

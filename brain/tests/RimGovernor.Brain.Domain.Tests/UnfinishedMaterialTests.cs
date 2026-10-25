@@ -64,7 +64,7 @@ public sealed class UnfinishedMaterialTests
         {
             ProductionPromises = Promises(state),
             BillReservations = [],
-            CurrentConstruction = CurrentConstruction.Empty with
+            Gear = RimGovernor.Brain.Domain.Fact.Known(ColonyModelFixtures.NoGear()), CurrentConstruction = CurrentConstruction.Empty with
             {
                 Deficit = new Dictionary<Resource, long> { [Material] = 40 },
             },
