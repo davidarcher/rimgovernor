@@ -53,6 +53,25 @@ internal static class NewColonyJson
         };
     }
 
+    private static readonly string[] LimitKeys = ["type", "value"];
+
+    /// <summary>A temperature bound is the wire union: <c>{"type":"open"}</c> or <c>{"type":"at","value":degrees}</c>; an absent bound is open.</summary>
+    private static TemperatureLimit Limit(Members d, string name)
+    {
+        if (d.Child(name) is not { } element)
+        {
+            return new TemperatureLimit.OpenCase();
+        }
+
+        var limit = Members.Of(element, LimitKeys);
+        return limit.String("type") switch
+        {
+            "open" => new TemperatureLimit.OpenCase(),
+            "at" => new TemperatureLimit.AtCase(limit.Single("value") ?? throw Missing(name, "value")),
+            _ => throw new StrictJsonException("expected a temperature limit of type open or at"),
+        };
+    }
+
     private static readonly JsonElement EmptyObject = JsonDocument.Parse("{}").RootElement.Clone();
 
     private static NewColonySpec Spec(Members d)
@@ -68,8 +87,8 @@ internal static class NewColonyJson
             MapSize = d.UInt32("mapSize") ?? 0,
             PlanetCoverage = d.Single("planetCoverage") ?? 0,
             SaveName = d.String("saveName") ?? "",
-            MinTemperature = d.Single("minTemperature") is { } min ? new TemperatureLimit.AtCase(min) : new TemperatureLimit.OpenCase(),
-            MaxTemperature = d.Single("maxTemperature") is { } max ? new TemperatureLimit.AtCase(max) : new TemperatureLimit.OpenCase(),
+            MinTemperature = Limit(d, "minTemperature"),
+            MaxTemperature = Limit(d, "maxTemperature"),
             GovernorIdeoligion = d.Bool("governorIdeoligion") == true,
             PlayerFaction = d.String("playerFaction") is { Length: > 0 } faction
                 ? EnumByName<ScenarioPlayerFaction>(faction, "SCENARIO_PLAYER_FACTION_", "playerFaction")
@@ -195,11 +214,11 @@ internal static class NewColonyJson
     private static ScenarioPawnContext PawnContext(Members m) =>
         EnumByName<ScenarioPawnContext>(m.String("context") ?? "", "SCENARIO_PAWN_CONTEXT_", "context");
 
-    // A lower-case wire name maps to the enum value of that prefixed upper-case name.
+    // A lower-case short name maps to the enum value of that prefixed upper-case name; the full wire name (what a serialized wire record carries) maps as itself.
     private static T EnumByName<T>(string name, string prefix, string part)
         where T : struct, Enum
     {
-        if (!Domain.Wire.TryParse<T>(prefix + name.ToUpperInvariant(), out var value))
+        if (!Domain.Wire.TryParse<T>(name.StartsWith(prefix, StringComparison.Ordinal) ? name : prefix + name.ToUpperInvariant(), out var value))
         {
             throw new ScenarioPartException($"{part}: unknown value \"{name}\"");
         }

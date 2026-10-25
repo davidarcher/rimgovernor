@@ -312,8 +312,6 @@ public sealed record SnapshotRef
 public sealed record ReadIssue
 {
     public string? Field { get; init; }
-
-    public Common.Unavailable? Unavailable { get; init; }
 }
 
 public sealed record Rectangle

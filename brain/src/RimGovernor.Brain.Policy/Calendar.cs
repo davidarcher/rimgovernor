@@ -50,10 +50,10 @@ public abstract record CropStand
     private CropStand() { }
 
     /// <summary>
-    /// <paramref name="Planted"/> cells hold plants (at least one), <paramref name="FertilePlanted"/> of them on fertile soil;
+    /// <paramref name="FertilePlanted"/> cells hold plants on fertile soil (at least one cell is planted);
     /// <paramref name="GrowthMean"/> and <paramref name="FertilityMean"/> are the plants' mean growth fraction and fertility factor.
     /// </summary>
-    public sealed record Sown(long Planted, long FertilePlanted, double GrowthMean, double FertilityMean) : CropStand;
+    public sealed record Sown(long FertilePlanted, double GrowthMean, double FertilityMean) : CropStand;
 
     /// <summary>No plant is sown: the zone grows nothing and has no harvest to wait for.</summary>
     public sealed record Fallow : CropStand;

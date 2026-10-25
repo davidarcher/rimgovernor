@@ -390,8 +390,8 @@ public sealed class BedMergePriceTests
         var observed = new Dictionary<string, EquatableArray<MoodThought>> { ["b"] = EquatableArray.From(new[] { new MoodThought("Ascetic", 3) }) };
         Assert.Equal(new RoomMoodDelta.Priced(-3.0), ForecastHousing.BedroomMoodDelta(ascetic, 0, observed, barracks: true));
         // A delta lacking a read is unpriced and names it: the ascetic's observed thoughts, or the room thought at the stage.
-        Assert.Equal(new RoomMoodDelta.Unpriced("observed thoughts"), ForecastHousing.BedroomMoodDelta(ascetic, 0, none, barracks: true));
-        Assert.Equal(new RoomMoodDelta.Unpriced("slept_in_bedroom thought stage 5"), ForecastHousing.BedroomMoodDelta(plain, 5, none));
+        Assert.IsType<RoomMoodDelta.Unpriced>(ForecastHousing.BedroomMoodDelta(ascetic, 0, none, barracks: true));
+        Assert.IsType<RoomMoodDelta.Unpriced>(ForecastHousing.BedroomMoodDelta(plain, 5, none));
         Assert.True(PlannedRoomCredits.Shipped.ContainsKey(PlannedRole.Barracks));
     }
 

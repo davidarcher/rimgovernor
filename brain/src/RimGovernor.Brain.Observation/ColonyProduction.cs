@@ -72,7 +72,7 @@ public static class ColonyProductionReads
             {
                 throw new RequiredFactException("zone plant means");
             }
-            stand = new CropStand.Sown(farm.PlantedCells, farm.FertilePlantedCells, growth, fertility);
+            stand = new CropStand.Sown(farm.FertilePlantedCells, growth, fertility);
         }
         return new CropGrowth
         {

@@ -24,7 +24,7 @@ public static class RoundsWorkReads
     {
         if (colony is null || (int)colony.ColonistCount != emergency.Colonists.Count || snapshot.Pawns.Count != emergency.Colonists.Count)
         {
-            return new WorkPawnsRead.Unread("the colony and pawn censuses disagree on the colonist count");
+            return new WorkPawnsRead.Unread();
         }
         var byId = new Dictionary<string, O.PawnState>(StringComparer.Ordinal);
         foreach (var row in snapshot.Pawns)
@@ -38,7 +38,7 @@ public static class RoundsWorkReads
             if (!byId.TryGetValue(p.Id.Value, out var row)
                 || row.Dead != p.Dead || row.Downed != p.Downed || !row.Colonist)
             {
-                return new WorkPawnsRead.Unread($"colonist {p.Id.Value} has no matching pawn row");
+                return new WorkPawnsRead.Unread();
             }
             var w = WorkPawnRow(row, catalog, things);
             if (w.Biotech is PawnBiotechStatus.Active { Facts: var bt })

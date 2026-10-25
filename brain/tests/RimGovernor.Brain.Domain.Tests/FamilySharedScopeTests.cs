@@ -77,7 +77,7 @@ public sealed class FamilySharedScopeTests
         Assert.Equal(0, ticks.Hops);
 
         var own = await StepScope.StepScopeAsync(new FamilyReadScope(World, false), ticks, ct);
-        Assert.Equal(known, own);
+        Assert.Equal(known with { Paused = Known(false) }, own);
         Assert.Equal(1, ticks.Hops);
     }
 

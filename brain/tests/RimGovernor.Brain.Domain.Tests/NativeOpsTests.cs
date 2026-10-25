@@ -36,6 +36,11 @@ public sealed class NativeOpsTests
                 : ReferenceEquals(op, NativeOps.DemandRendering) ? """{"viewer":{"identity":{"colonyId":"","loadToken":"","mapId":0}},"leaseSeconds":0}"""
                 : ReferenceEquals(op, NativeOps.ReadNotifications) ? """{"identity":{"colonyId":"","loadToken":"","mapId":0},"letterLimit":0,"messageLimit":0,"alertLimit":0,"includeLetters":false,"includeMessages":false,"includeAlerts":false}"""
                 : ReferenceEquals(op, NativeOps.OpenFrames) ? """{"routePathBudget":{"type":"unlimited"},"linesOfFireBudget":{"type":"unlimited"}}"""
+                : ReferenceEquals(op, NativeOps.PreviewPlacement) ? """{"placements":[],"identity":{"colonyId":"","loadToken":"","mapId":0}}"""
+                : ReferenceEquals(op, NativeOps.SaveGame) ? """{"expectedTick":{"type":"any"}}"""
+                : ReferenceEquals(op, NativeOps.StartLoad) ? """{"readiness":"READINESS_MAP","timeoutMs":0}"""
+                : ReferenceEquals(op, NativeOps.StartNewColony) ? """{"timeoutMs":0}"""
+                : ReferenceEquals(op, NativeOps.WaitSaveSignal) ? """{"timeoutMs":0}"""
                 : ReferenceEquals(op, NativeOps.ListSupplies) ? """{"filter":{"category":"STOCK_CATEGORY_HAULABLE","ownership":"STOCK_OWNERSHIP_OURS","includeHeld":true}}""" : "{}";
             _ = op.InvokeJsonAsync(facade, body, CancellationToken.None);
         }

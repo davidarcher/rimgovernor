@@ -56,11 +56,17 @@ public sealed class Codecs
     /// <summary>Writes <paramref name="value"/> with the record codec of its runtime type.</summary>
     public void WriteBoxed(Utf8JsonWriter w, object value)
     {
-        if (!_codecs.TryGetValue(value.GetType(), out var codec) || codec is not IBoxedCodec boxed)
+        // A union's arm writes with the codec its base registers.
+        for (var type = value.GetType(); type is not null; type = type.BaseType)
         {
-            throw new InvalidOperationException("no record codec for " + value.GetType());
+            if (_codecs.TryGetValue(type, out var codec) && codec is IBoxedCodec boxed)
+            {
+                boxed.EncodeBoxed(w, value, this);
+                return;
+            }
         }
-        boxed.EncodeBoxed(w, value, this);
+
+        throw new InvalidOperationException("no record codec for " + value.GetType());
     }
 
     public string Serialize<T>(T value)

@@ -24,7 +24,7 @@ public sealed class HomeUpkeepFamilyTests
         Assert.Single(new HomeUpkeepFamily(id == HomeUpkeepFamily.Repairs, id == HomeUpkeepFamily.Clearance).Derive(facts));
 
     [Fact]
-    public void RepairsIsMetUnmetOrUnknownByTheDamagedHomeStructures()
+    public void RepairsIsMetOrUnmetByTheDamagedHomeStructures()
     {
         var met = Derive(new HomeUpkeepFacts { Structures = [Structure("whole", 100), Structure("outside", 10, home: false)] }, HomeUpkeepFamily.Repairs);
         Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Wellbeing), (met.Satisfaction, met.Deficit, met.Tier));
@@ -32,7 +32,8 @@ public sealed class HomeUpkeepFamilyTests
         var unmet = Derive(new HomeUpkeepFacts { Structures = [Structure("wall", 60), Structure("door", 90)] }, HomeUpkeepFamily.Repairs);
         Assert.Equal((Satisfaction.Unmet, 50.0), (unmet.Satisfaction, unmet.Deficit));
 
-        Assert.Equal("repair census", Assert.Throws<RequiredFactException>(() => Derive(new HomeUpkeepFacts(), HomeUpkeepFamily.Repairs)).Fact);
+        var empty = Derive(new HomeUpkeepFacts(), HomeUpkeepFamily.Repairs);
+        Assert.Equal((Satisfaction.Met, 0.0), (empty.Satisfaction, empty.Deficit));
     }
 
     [Fact]

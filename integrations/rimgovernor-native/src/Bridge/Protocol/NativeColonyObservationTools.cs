@@ -115,7 +115,7 @@ namespace HomeBridge.BridgeTools
             var anomaly = NativeAnomalyColony.Read();
             Span("cf.deep");
             var issues = new List<Obs.ReadIssue>();
-            if (demand <= 0) issues.Add(Issue("food_runway_days", Common.UnavailableReason.NotApplicable, "No observed nutrition demand."));
+            if (demand <= 0) issues.Add(Issue("food_runway_days"));
             // No eligible indoor sleeping place is a named state, not a missing read.
             Obs.SleepingTemperature sleeping = temperatures.Count > 0
                 ? new Obs.SleepingTemperature.Indoor(temperatures.Min(), temperatures.Max()) : new Obs.SleepingTemperature.NoIndoorBed();
@@ -145,7 +145,7 @@ namespace HomeBridge.BridgeTools
             Span("cf.recovery");
             var waste = HomeWasteTools.Project(map, context);
             Span("cf.waste");
-            issues.Add(Issue("food_corpses", Common.UnavailableReason.Unsupported, "Section is not yet projected."));
+            issues.Add(Issue("food_corpses"));
             Obs.FoodClimate? foodClimate = null;
             try {
                 var (season, dayOfYear) = GrowingCalendar.Calendar(map);
@@ -156,7 +156,7 @@ namespace HomeBridge.BridgeTools
                 SowingNow = !OutdoorsPermanentlyDark(map) && DefDatabase<ThingDef>.AllDefsListForReading.Any(d => d.plant != null && d.plant.Sowable && d.plant.harvestedThingDef?.IsNutritionGivingIngestible == true
                     && (d.plant.sowResearchPrerequisites == null || d.plant.sowResearchPrerequisites.All(r => r.IsFinished)) && PlantUtility.GrowthSeasonNow(map, d)),
                 GrowingDays = GenTemperature.TwelfthsInAverageTemperatureRange(map.Tile,Plant.DefaultMinOptimalGrowthTemperature,Plant.DefaultMaxOptimalGrowthTemperature).Count * GenDate.DaysPerTwelfth }; }
-            catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); issues.Add(Issue("food_climate", Common.UnavailableReason.ReadFailed, "Seasonal crop budget unavailable.")); }
+            catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); issues.Add(Issue("food_climate")); }
             Span("cf.climate");
             // The pending harvest, wood and hunt values are required: a read that cannot make them fails the colony read.
             var acquisition = NativePlantAcquisition.Read(map, center, humanFood, request, context);
@@ -489,6 +489,6 @@ namespace HomeBridge.BridgeTools
             return result;
         }
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
-        private static Obs.ReadIssue Issue(string field, Common.UnavailableReason reason, string detail) => new Obs.ReadIssue { Field = field, Unavailable = Unavailable(reason, detail) };
+        private static Obs.ReadIssue Issue(string field) => new Obs.ReadIssue { Field = field };
     }
 }

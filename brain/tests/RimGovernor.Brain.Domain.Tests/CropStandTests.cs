@@ -57,7 +57,7 @@ public sealed class CropStandTests
     [Fact]
     public void ASownZoneGrowsItsFertileCellsAndLeadsByTheRemainingGrowth()
     {
-        var growth = Growth(new CropStand.Sown(10, 8, 0.5, 1.0));
+        var growth = Growth(new CropStand.Sown(8, 0.5, 1.0));
 
         Assert.Equal(8L, growth.GrowingCells().Value);
         Assert.Equal(3.0, CalendarRules.HarvestLeadDays(growth, Known(6.0), Known(Summer)).Value, 9);
@@ -69,7 +69,7 @@ public sealed class CropStandTests
         Assert.IsType<CropStand.Fallow>(ColonyProductionReads.FarmGrowth(Farm(0), []).Stand);
 
         var sown = Assert.IsType<CropStand.Sown>(ColonyProductionReads.FarmGrowth(Farm(10), []).Stand);
-        Assert.Equal((10L, 5L, 0.5, 1.0), (sown.Planted, sown.FertilePlanted, sown.GrowthMean, sown.FertilityMean));
+        Assert.Equal((5L, 0.5, 1.0), (sown.FertilePlanted, sown.GrowthMean, sown.FertilityMean));
     }
 
     [Fact]

@@ -74,7 +74,7 @@ public abstract record RoomMoodDelta
 {
     private protected RoomMoodDelta() { }
     public sealed record Priced(double Delta) : RoomMoodDelta;
-    public sealed record Unpriced(string Missing) : RoomMoodDelta;
+    public sealed record Unpriced : RoomMoodDelta;
 }
 
 /// <summary>
@@ -167,31 +167,31 @@ public static class ForecastHousing
     /// </summary>
     public static RoomMoodDelta BedroomMoodDelta(NeedsForecastPawn pawn, int stage, IReadOnlyDictionary<string, EquatableArray<MoodThought>> observed, bool barracks = false)
     {
-        if (SleepNow(pawn) is not { } now) return new RoomMoodDelta.Unpriced("sleep place");
+        if (SleepNow(pawn) is not { } now) return new RoomMoodDelta.Unpriced();
         var stages = pawn.ThoughtStages;
         double outside = 0;
         if (now.Read.Outside)
         {
-            if (stages.FirstOrDefault(r => r.Role == "slept_outside" && r.Stage == 0) is not { } row) return new RoomMoodDelta.Unpriced("slept_outside thought stage");
+            if (stages.FirstOrDefault(r => r.Role == "slept_outside" && r.Stage == 0) is not { } row) return new RoomMoodDelta.Unpriced();
             outside = -row.Offset;
         }
         if (pawn.Ascetic)
         {
             var defs = stages.Where(r => r.Role == "ascetic").Select(r => r.Thought).Distinct(StringComparer.Ordinal).ToArray();
-            if (defs.Length == 0) return new RoomMoodDelta.Unpriced("ascetic thought stages");
-            if (!observed.TryGetValue(pawn.Pawn, out var thoughts)) return new RoomMoodDelta.Unpriced("observed thoughts");
+            if (defs.Length == 0) return new RoomMoodDelta.Unpriced();
+            if (!observed.TryGetValue(pawn.Pawn, out var thoughts)) return new RoomMoodDelta.Unpriced();
             double next = 0;
             foreach (var def in barracks ? Array.Empty<string>() : defs)
             {
                 if (stages.FirstOrDefault(r => r.Thought == def && r.Role == "ascetic" && r.Stage == stage) is not { } row)
-                    return new RoomMoodDelta.Unpriced("ascetic thought stage " + def + "/" + stage.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    return new RoomMoodDelta.Unpriced();
                 next += row.Offset;
             }
             return new RoomMoodDelta.Priced(next - thoughts.Where(t => defs.Contains(t.Def, StringComparer.Ordinal)).Sum(t => t.Offset) + outside);
         }
         var role = barracks ? "slept_in_barracks" : "slept_in_bedroom";
         if (stages.FirstOrDefault(r => r.Role == role && r.Stage == stage) is not { } gained)
-            return new RoomMoodDelta.Unpriced(role + " thought stage " + stage.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            return new RoomMoodDelta.Unpriced();
         return new RoomMoodDelta.Priced(gained.Offset - now.RoomThought + outside);
     }
 

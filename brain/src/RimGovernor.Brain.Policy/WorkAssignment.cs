@@ -175,11 +175,11 @@ public abstract record WorkPawnsRead
     }
 
     /// <summary>The state of a projection no routine pawn frame built.</summary>
-    public static readonly WorkPawnsRead NotRead = new Unread("no routine pawn census");
+    public static readonly WorkPawnsRead NotRead = new Unread();
 
     public sealed record Read(EquatableArray<WorkPawn> Pawns) : WorkPawnsRead;
 
-    public sealed record Unread(string Reason) : WorkPawnsRead;
+    public sealed record Unread : WorkPawnsRead;
 
     /// <summary>The pawn rows of a whole census; throws <see cref="RequiredFactException"/> (pawn rows) while it is <see cref="Unread"/>.</summary>
     public EquatableArray<WorkPawn> Require() => this is Read read ? read.Pawns : throw new RequiredFactException("pawn rows");
@@ -373,7 +373,7 @@ public enum WorkCoverageState
     Unmatched,
 }
 
-/// <summary>The planner's per-work-type coverage rows as the review read them: <see cref="Read"/> once PlanWork planned, <see cref="Unread"/> with the reason it did not.</summary>
+/// <summary>The planner's per-work-type coverage rows as the review read them: <see cref="Read"/> once PlanWork planned, <see cref="Unread"/> when it did not.</summary>
 public abstract record WorkRosterRead
 {
     private WorkRosterRead()
@@ -381,11 +381,11 @@ public abstract record WorkRosterRead
     }
 
     /// <summary>The state of a review the planner did not run for.</summary>
-    public static readonly WorkRosterRead NotRead = new Unread("no work plan");
+    public static readonly WorkRosterRead NotRead = new Unread();
 
     public sealed record Read(EquatableArray<WorkCoverage> Coverage) : WorkRosterRead;
 
-    public sealed record Unread(string Reason) : WorkRosterRead;
+    public sealed record Unread : WorkRosterRead;
 }
 
 /// <summary>

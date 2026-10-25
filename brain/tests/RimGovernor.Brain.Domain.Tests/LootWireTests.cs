@@ -52,11 +52,11 @@ public sealed class LootWireTests
     }
 
     [Fact]
-    public void ARowWithoutAHaulVerdictOrHeadroomIsRefused()
+    public void ARowWithoutASafetyVerdictOrHeadroomIsRefused()
     {
         var json = WireJson.Serialize(Row(new O.HaulSafety.Safe { PathLength = 1 }, 0));
 
-        Assert.ThrowsAny<Exception>(() => WireJson.Deserialize<O.LootItem>(json.Replace("\"haul\"", "\"haulX\"")));
+        Assert.ThrowsAny<Exception>(() => WireJson.Deserialize<O.LootItem>(json.Replace("\"safety\"", "\"safetyX\"")));
         Assert.ThrowsAny<Exception>(() => WireJson.Deserialize<O.LootItem>(json.Replace("\"storageHeadroom\"", "\"storageHeadroomX\"")));
     }
 }

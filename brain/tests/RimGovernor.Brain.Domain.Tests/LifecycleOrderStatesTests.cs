@@ -46,10 +46,12 @@ public sealed class LifecycleOrderStatesTests
     }
 
     [Fact]
-    public void ScenarioBaseMembersAreTheZeroOfEachEnum()
+    public void ScenarioBaseIsANamedMemberAndZeroIsNoState()
     {
-        Assert.Equal(0, (int)ScenarioPlayerFaction.Base);
-        Assert.Equal(0, (int)ScenarioArrivalMethod.Base);
+        Assert.DoesNotContain(0, Enum.GetValues<ScenarioPlayerFaction>().Select(v => (int)v));
+        Assert.DoesNotContain(0, Enum.GetValues<ScenarioArrivalMethod>().Select(v => (int)v));
+        Assert.Equal(ScenarioPlayerFaction.Base, WireJson.Deserialize<ScenarioPlayerFaction>(WireJson.Serialize(ScenarioPlayerFaction.Base)));
+        Assert.Equal(ScenarioArrivalMethod.Base, WireJson.Deserialize<ScenarioArrivalMethod>(WireJson.Serialize(ScenarioArrivalMethod.Base)));
         Assert.Equal(StartingThingPlacement.ScatteredRoofed, Enum.Parse<StartingThingPlacement>("ScatteredRoofed"));
     }
 

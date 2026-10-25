@@ -137,7 +137,7 @@ public sealed class BuildingsWireTests
 
         var json = string.Join("\n", settings.Select(x => WireJson.Serialize(x)));
 
-        const string Snap = """{"context":{"identity":{"colonyId":"colony","loadToken":"load","mapId":0},"tick":10,"nativeGeneration":null},"entityId":"b-1","token":"tok"}""";
+        const string Snap = """{"context":{"identity":{"colonyId":"colony","loadToken":"load","mapId":0},"tick":10,"nativeGeneration":{"type":"unclaimed"}},"entityId":"b-1","token":"tok"}""";
         Assert.Equal(
             string.Join("\n",
                 $$$"""{"forbidden":true,"control":{"type":"temperature","snapshot":{{{Snap}}},"targetC":-5.5}}""",

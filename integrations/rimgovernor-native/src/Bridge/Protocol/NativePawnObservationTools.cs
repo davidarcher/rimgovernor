@@ -239,7 +239,6 @@ namespace HomeBridge.BridgeTools
         internal static bool IsFinite(double value)=>!double.IsNaN(value)&&!double.IsInfinity(value);
         internal static double Number(double value)=>IsFinite(value)?value:throw new InvalidOperationException("Nonfinite native fact.");
         internal static Common.Unavailable Unavailable(Common.UnavailableReason reason,string detail)=>new Common.Unavailable {Reason=reason,Detail=detail};
-        internal static Obs.ReadIssue Issue(string field,Common.UnavailableReason reason,string detail)=>new Obs.ReadIssue {Field=field,Unavailable=Unavailable(reason,detail)};
         internal sealed class ReadLimit:Exception { internal ReadLimit(string message):base(message) {} }
     }
 }
