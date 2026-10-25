@@ -3,8 +3,6 @@ using RimGovernor.Brain.GameOrders.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
-public sealed record ForecastMoodPoint(double Tick, double Target, double Actual, bool Asleep);
-
 /// <summary>A linear unclamped target between mood events; on/off thought state is constant within it.</summary>
 public sealed record ForecastMoodTarget(double Start, double End, double From, double To, bool Frozen);
 
@@ -18,11 +16,10 @@ public sealed record ForecastMoodResponse(double Initial, double Rise, double Fa
 /// </summary>
 public abstract record ForecastMoodResult(EquatableArray<string> Findings)
 {
-    /// <summary>The projected mood: the trajectory (empty when the search asked for integrals only), the target's ticks below the
+    /// <summary>The projected mood: the target's ticks below the
     /// break threshold, the actual mood's ticks below it and their depth, the actual mood at the horizon, the target's pressure ticks and
     /// its break state.</summary>
-    public sealed record Projected(EquatableArray<ForecastMoodPoint> Trajectory,
-        double TargetExposureTicks, double ActualExposureTicks,
+    public sealed record Projected(double TargetExposureTicks, double ActualExposureTicks,
         double ActualDepthTicks, double TerminalMood, double PressureTicks, ForecastMoodBreaks Breaks,
         EquatableArray<string> Findings) : ForecastMoodResult(Findings)
     {
@@ -229,15 +226,15 @@ public static class ForecastMood
     /// memories (a commitment's MoodMemories) start at their tick like a completed meal's thoughts. A situational
     /// change adds its offset delta from its tick. A banded thought (#3327) adds its delta inside each of its spans and
     /// stays at the observed constant outside them, naming itself in a finding when they do not cover the horizon.
-    /// Every other situational thought stays inside the mood's UnclampedTarget. Without trajectory the per-point mood is left
-    /// empty: the search reads only the integrated results (#3467). The pawn is asleep only inside its rest services: one asleep
+    /// Every other situational thought stays inside the mood's UnclampedTarget. The search reads the integrated results;
+    /// response inputs are retained only for outcome-dependent room credits. The pawn is asleep only inside its rest services: one asleep
     /// now without a rest from tick 0 is woken at it (#3882), its observed sleep continuing only as such a rest.</summary>
     public static ForecastMoodResult ForecastMoodTimeline(NeedsForecastPawn pawn, double horizon,
         IReadOnlyList<ForecastNeedChoice> selected, IReadOnlyDictionary<string, double>? interruptedAt = null,
         IReadOnlyList<(NeedMemory Thought, double Start)>? granted = null,
         IReadOnlyList<(string Thought, double OffsetDelta, double Start)>? situational = null,
         IReadOnlyList<(string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans)>? banded = null,
-        IReadOnlyList<ForecastMemoryRenewal>? renewals = null, bool trajectory = true, IReadOnlyList<double>? breakShifts = null, bool response = false)
+        IReadOnlyList<ForecastMemoryRenewal>? renewals = null, IReadOnlyList<double>? breakShifts = null, bool response = false)
     {
         ForecastNeeds.NeedHorizon(horizon);
         situational ??= [];
@@ -250,7 +247,6 @@ public static class ForecastMood
         var unknown = new SortedSet<string>(StringComparer.Ordinal) { "unmodeled_situational_thoughts_constant" };
         foreach (var thought in banded.Where(b => b.Spans.Sum(s => s.End - s.Start) < horizon))
             unknown.Add("situational_thought_constant_outside_exposure:" + thought.Thought);
-        var points = new List<ForecastMoodPoint>();
         var targets = response ? new List<ForecastMoodTarget>() : null;
         var events = new SortedSet<double> { 0, horizon };
         var intervals = selected.Select(c => (Choice: c, End: interruptedAt is not null && interruptedAt.TryGetValue(c.Id, out var at)
@@ -316,7 +312,6 @@ public static class ForecastMood
         }
         var currentConditionalOffset = effects.Sum(e => e.CurrentOffset);
         var bandedSpans = banded.SelectMany(b => b.Spans).ToArray();
-        double Target(double time, bool asleep) => Math.Clamp(Unclamped(time, asleep, time), 0, 1);
         // The target's linear terms at a time, with every on/off state (hour bands, starts, ends, expiries) as at the
         // state time: inside a segment that is its midpoint, so a rounded boundary tick cannot flip the segment.
         double Unclamped(double time, bool asleep, double state)
@@ -348,13 +343,12 @@ public static class ForecastMood
         Span<double> cuts = stackalloc double[4];
         for (var i = 0; i < ticks.Length; i++)
         {
-            var from = ticks[i]; var asleep = Asleep(from); var target = Target(from, asleep);
-            if (trajectory) points.Add(new(from, target, actual, asleep));
+            var from = ticks[i];
             if (i == ticks.Length - 1) break;
             var duration = ticks[i + 1] - from;
             // The target is linear between events except where the clamp cuts it at 0 or 1.
             var middle = from + duration / 2;
-            asleep = Asleep(middle);
+            var asleep = Asleep(middle);
             var (rawFrom, rawTo) = (Unclamped(from, asleep, middle), Unclamped(ticks[i + 1], asleep, middle));
             targets?.Add(new(from, ticks[i + 1], rawFrom, rawTo, asleep && mood.FreezesWhileAsleep));
             var count = 0;
@@ -400,7 +394,7 @@ public static class ForecastMood
                 EquatableArray.From(shifts.Select((shift, k) => new ForecastShiftedBreaks(shift,
                     EquatableArray.From(shiftedTicks.AsSpan(k * LayoutMoodRules.MoodTierCount, LayoutMoodRules.MoodTierCount).ToArray())))))
             : new ForecastMoodBreaks.Unassessed();
-        return new ForecastMoodResult.Projected(EquatableArray.From(points), targetExposure, actualExposure, actualDepth, actual,
+        return new ForecastMoodResult.Projected(targetExposure, actualExposure, actualDepth, actual,
             pressure, breaks, EquatableArray.From(unknown))
         { Response = targets is null ? null : new(mood.Level, mood.RisePerTick, mood.FallPerTick, threshold, EquatableArray.From(targets)) };
     }

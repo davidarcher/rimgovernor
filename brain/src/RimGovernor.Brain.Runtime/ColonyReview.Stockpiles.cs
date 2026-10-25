@@ -101,82 +101,10 @@ partial class StockpilePlanner
         return new Decision { Kind = TelemetryKinds.LayoutEditKind, Component = "layout", Verdict = verdict, Reason = reason, Target = target, Attrs = attrs };
     }
 
-    /// <summary>
-    /// The Shelf's build cost for the storage option report: the stuff an ordinary placement builds it from
-    /// (BuildStuff), that stuff's required cost list and WorkToBuild.
-    /// </summary>
-    internal static Pol.StorageBuildCost ShelfCost(RimGovernor.Brain.GameAccess.ColonyReading projection)
-    {
-        if (!ColonyPlanningRules.TryDefinition(projection.Facts, StorageRules.ShelfDefinition, out var d))
-        {
-            throw new RequiredFactException("shelf build cost");
-        }
-        if (d.StuffOptions.Count == 0)
-        {
-            if (d.Stuffed) throw new RequiredFactException("shelf stuff recipes");
-            var recipe = d.FixedConstruction ?? throw new RequiredFactException("shelf construction recipe");
-            return new Pol.StorageBuildCost { Costs = [.. recipe.Costs], WorkTicks = recipe.WorkToBuild };
-        }
-        var stuff = ColonyPlanningRules.BuildStuff(projection.Facts, ResourceStockRules.Count(projection.Snapshot.Resources), StorageRules.ShelfDefinition);
-        if (d.StuffOptions.FirstOrDefault(o => o.Stuff == stuff) is not { } option)
-        {
-            throw new RequiredFactException("shelf build cost");
-        }
-        return new Pol.StorageBuildCost
-        {
-            Stuff = stuff,
-            Costs = option.Costs,
-            WorkTicks = option.Stats.TryGetValue(Domain.StatDefNames.StatWorkToBuild, out var stuffedWork) ? stuffedWork : throw new RequiredFactException("shelf stuff build work"),
-        };
-    }
-
-    /// <summary>
-    /// The layout plan's storage rooms and yards for the storage option report, each with the material the plan still
-    /// owes for it (PlannedConstructionOf; a yard is unfenced and owes none) and the catalog work its planned sites owe
-    /// (PlannedRoomWork over PlannedRoomSitesOf). The saved plan is required.
-    /// </summary>
-    internal static IReadOnlyList<Pol.PlannedStoreRoom> StoreRooms(RimGovernor.Brain.GameAccess.ColonyReading projection, Pol.FlooringPolicy flooring)
-    {
-        if (projection.Facts.LayoutPlan is not { } plan)
-        {
-            throw new RequiredFactException("storage layout plan");
-        }
-        var functions = Pol.PlannedRoomCredits.FunctionsOf(projection.Facts);
-        var rooms = plan.Rooms.Where(r => r.Role == Pol.PlannedRole.Yard || functions.GetValueOrDefault(r.Id).Contains(Pol.PlannedRole.Storage)).ToList();
-        var fenced = rooms.Any(r => !r.Unfenced());
-        var plannedOwed = fenced ? ColonyReview.PlannedOwedOf(projection, flooring) : null;
-        var owed = fenced ? ColonyReview.PlannedConstructionOf(projection, plannedOwed) : null;
-        var sites = fenced ? ColonyReview.PlannedRoomSitesOf(projection, plannedOwed) : null;
-        var floors = sites is null ? null : BuildingPlanner.FlooringFactsOf(projection);
-        var output = new List<Pol.PlannedStoreRoom>(rooms.Count);
-        foreach (var room in rooms)
-        {
-            IReadOnlyDictionary<Pol.Resource, long> material;
-            if (room.Unfenced())
-            {
-                material = new Dictionary<Pol.Resource, long>();
-            }
-            else if (owed is { } byRoom)
-            {
-                material = byRoom.GetValueOrDefault(room.Id) ?? new Dictionary<Pol.Resource, long>();
-            }
-            else { throw new RequiredFactException("planned storage material"); }
-            var (work, roof) = room.Unfenced() ? (0.0, false)
-                : PlannedRules.PlannedRoomWork(sites ?? throw new RequiredFactException("storage room sites"), room.Id,
-                    site => ColonyReview.PlannedSiteWork(projection, floors ?? throw new RequiredFactException("storage flooring"), site));
-            output.Add(new Pol.PlannedStoreRoom
-            {
-                Room = room.Id, Role = room.Role == Pol.PlannedRole.Yard ? Pol.PlannedRole.Yard : Pol.PlannedRole.Storage, Cells = [.. room.Region.Cells()], Outdoor = room.Outdoor, Material = material,
-                Work = work, RoofOwed = roof,
-            });
-        }
-        return output;
-    }
-
-    /// <summary>Initial review can finish before first-plan derivation; only saved-plan geometry requires room costs and routes.</summary>
-    internal static Pol.StorageLayout StorageLayout(RimGovernor.Brain.GameAccess.ColonyReading projection, Pol.FlooringPolicy flooring) =>
+    /// <summary>Initial review can finish before first-plan derivation; saved-plan geometry supplies the walkways.</summary>
+    internal static Pol.StorageLayout StorageLayout(RimGovernor.Brain.GameAccess.ColonyReading projection) =>
         projection.Facts.LayoutPlan is { } plan
-            ? new Pol.StorageLayout.Planned(Pol.StorageRules.PlannedWalkways(plan), StoreRooms(projection, flooring))
+            ? new Pol.StorageLayout.Planned(Pol.StorageRules.PlannedWalkways(plan))
             : new Pol.StorageLayout.AwaitingFirstPlan();
     /// <summary>Whether the census found the Shelf buildable (researched).</summary>
     internal static bool ShelfAvailable(RimGovernor.Brain.GameAccess.ColonyReading projection)
@@ -253,21 +181,6 @@ public sealed partial class ColonyReview
         return (review.ShelfCandidates, request);
     }
 
-    /// <summary>The stacks one Shelf holds: the load catalog's Shelf station item slots; unknown without the catalog or the station.</summary>
-    private async Task<int> ShelfStacksAsync(GenerationSnapshot snapshot, CancellationToken ct)
-    {
-        if (Native is not IDefinitionSource source)
-        {
-            throw new RequiredFactException("shelf station capacity");
-        }
-        var catalog = await source.DefinitionCatalogAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false);
-        if (!catalog.StationCatalog().Stations.TryGetValue(StorageRules.ShelfDefinition, out var shelf) || shelf.Capacity.Kind != Pol.CapacityKind.Items)
-        {
-            throw new RequiredFactException("shelf station capacity");
-        }
-        return shelf.Capacity.Slots;
-    }
-
     /// <summary>Assembles the maintenance request; the string names the fact still unread (empty when the request is whole). <paramref name="zones"/> null reads the zone claims and shelf plans here.</summary>
     internal Task<(Pol.StockpileRequest Request, string Missing)> StockpileRequestAsync(GenerationSnapshot snapshot, RimGovernor.Brain.GameAccess.ColonyReading projection, CancellationToken ct) =>
         StockpileRequestAsync(snapshot, projection, null, ct);
@@ -301,8 +214,7 @@ public sealed partial class ColonyReview
         fine?.Lap("d_stock/stockpile/build");
         var canBuild = Native is IReviewBuildingSource;
         request = request with { ShelfAvailable = canBuild && StockpilePlanner.ShelfAvailable(projection) };
-        request = request with { Layout = StockpilePlanner.StorageLayout(projection, Policy.Flooring) };
-        request = request with { ShelfStacks = await ShelfStacksAsync(snapshot, ct).ConfigureAwait(false) };
+        request = request with { Layout = StockpilePlanner.StorageLayout(projection) };
         var shelfSpent = new Dictionary<string, bool>();
         var shelfRecords = new List<Pol.ShelfRecord>();
         var shelfRows = new List<Pol.StockpileShelf>();
@@ -317,8 +229,8 @@ public sealed partial class ColonyReview
                 {
                     continue;
                 }
-                var (capacity, used) = Pol.StockpileRules.StorageStacks(s.Cells, cells);
-                var shelf = new Pol.StockpileShelf { Building = s.Building, Zone = z.Id, Capacity = capacity, Used = used };
+                var (_, used) = Pol.StockpileRules.StorageStacks(s.Cells, cells);
+                var shelf = new Pol.StockpileShelf { Building = s.Building, Zone = z.Id, Used = used };
                 if (patches.TryGetValue(s.Building, out var applied) && applied.Kind == StorageTargetKind.Building)
                 {
                     shelf = shelf with { Patched = true };
@@ -335,7 +247,6 @@ public sealed partial class ColonyReview
         request = request with { Occupancy = await occupancyRead.ConfigureAwait(false) };
         fine?.Lap("d_stock/stockpile/occupancy");
         request = request with { RoomDemand = request.RoomDemand with { Yard = Pol.StoreRules.YardDemand(request) } };
-        request = request with { ShelfCost = StockpilePlanner.ShelfCost(projection), Items = projection.Facts.Items };
         return (request, "");
     }
 

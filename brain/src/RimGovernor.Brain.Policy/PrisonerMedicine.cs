@@ -15,8 +15,6 @@ public static partial class PrisonerMedicineRules
     /// </summary>
     public const long PrisonerSurgeryHerbal = 2;
 
-    private readonly record struct CareOp(PawnId Pawn, string Recipe, int Part);
-
     /// <summary>
     /// The organ harvest, else the part recovery, that SelectOrganHarvest or SelectPartRecovery would choose
     /// were every care-limited operation stocked, when the chosen operation is care-limited. Null when nothing
@@ -30,7 +28,7 @@ public static partial class PrisonerMedicineRules
         RecipeFacts facts)
     {
         var relaxed = new List<PrisonerFacts>(census.Prisoners.Count);
-        var limited = new HashSet<CareOp>();
+        var limited = new HashSet<(PawnId Pawn, string Recipe, int Part)>();
         foreach (var row in census.Prisoners)
         {
             var copied = new List<CareOperation>(row.Operations);
@@ -40,7 +38,7 @@ public static partial class PrisonerMedicineRules
                 if (op.MedicineCareLimited)
                 {
                     copied[j] = copied[j] with { Operation = op with { IngredientsOnMap = true } };
-                    limited.Add(new CareOp(row.Pawn, op.Recipe, SurgeryRules.PartOf(op)));
+                    limited.Add((row.Pawn, op.Recipe, SurgeryRules.PartOf(op)));
                 }
             }
             relaxed.Add(row with { Operations = EquatableArray.From(copied) });
@@ -51,7 +49,7 @@ public static partial class PrisonerMedicineRules
         }
         var relaxedFacts = census with { Prisoners = EquatableArray.From(relaxed) };
         var h = OrganHarvestRules.SelectOrganHarvest(relaxedFacts, needs, inFlight) ?? OrganHarvestRules.SelectPartRecovery(relaxedFacts, parts, inFlight, facts);
-        return h is not null && limited.Contains(new CareOp((PawnId)h.Prisoner, h.Recipe, h.Part)) ? h : null;
+        return h is not null && limited.Contains(((PawnId)h.Prisoner, h.Recipe, h.Part)) ? h : null;
     }
 
     /// <summary>

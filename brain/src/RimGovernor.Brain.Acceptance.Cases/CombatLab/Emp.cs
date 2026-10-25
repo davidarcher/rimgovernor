@@ -73,7 +73,7 @@ internal static class CombatLabEmp
             s,
             "emp",
             cancellationToken,
-            CombatLabKit.Order(thrower, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DraftCase(new RimGovernor.Brain.GameOrders.Operations.Clear())),
+            CombatLabKit.Order(thrower, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DraftCase()),
             CombatLabKit.Order(thrower, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AttackGroundCase(lab.Cell(0, 2)))).ConfigureAwait(false);
         CombatLabKit.Applied("draft", results[0]);
         CombatLabKit.Applied("attack_ground", results[1]);

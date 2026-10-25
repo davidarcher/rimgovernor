@@ -79,7 +79,7 @@ public sealed class HospitalCreditTests
     private static ForecastCoupledOutcome Served(double shift, double servedAt = 0, ForecastActivityAllocation[]? allocations = null) =>
         new(new(allocations ?? [], 0, 0), true, new Dictionary<string, ForecastNeedsResult>
         {
-            ["pawn"] = new([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
+            ["pawn"] = new([], new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
             {
                 Mood = MoodResults.Flat(0d, [Day, 0, 0], [new(shift, [0, 0, 0])]),
             },
@@ -415,7 +415,7 @@ public sealed class HospitalCreditTests
                 [("operate", "doctor")] = new("operate", "doctor", [], PawnActivityKind.Work, "pawn", "DoBillsMedicalHumanOperation", "DoBill", 1, 0, new(1, 1)) { SupportDemand = Surgery },
             },
         };
-        var outcome = Served(0, servedAt: 1000, allocations: [new("operate", "doctor", 0, 0, 0, 500, 0, 0, 500, 0, 0)]);
+        var outcome = Served(0, servedAt: 1000, allocations: [new("operate", "doctor", 0, 0, 0, 500, 0, 500, 0, 0)]);
         Assert.Empty(Credits(ForecastValue.Of(outcome, context, Day)));
     }
 

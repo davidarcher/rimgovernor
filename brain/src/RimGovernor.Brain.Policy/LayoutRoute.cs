@@ -285,18 +285,18 @@ public sealed class RouteGrid
 /// <summary>Route checks and traffic over the planned core.</summary>
 public static partial class LayoutRouteRules
 {
-    internal readonly record struct RouteTrip(PlannedRole From, PlannedRole To, int Weight);
+    internal readonly record struct RouteTrip(PlannedRole From, PlannedRole To);
 
-    /// <summary>The room pairs pawns travel between; the empty role is the entrance. Weight is the trip's frequency, the affinity between the two ends: plan scoring weights each walking distance by it.</summary>
+    /// <summary>The room pairs pawns travel between; the empty role is the entrance. These pairs determine route connectivity.</summary>
     internal static RouteTrip[] RouteTrips =>
     [
-        new(LayoutSurveyRules.PlannedBedroom, LayoutSurveyRules.PlannedDining, 3),
-        new(LayoutTripsRules.PlannedSuite, LayoutSurveyRules.PlannedDining, 3),
-        new(LayoutSurveyRules.PlannedKitchen, LayoutSurveyRules.PlannedFreezer, 3),
-        new(default, LayoutSurveyRules.PlannedFreezer, 2),
-        new(LayoutSurveyRules.PlannedStorage, LayoutSurveyRules.PlannedWorkshop, 2),
-        new(default, LayoutSurveyRules.PlannedStorage, 1),
-        new(LayoutSurveyRules.PlannedHospital, default, 1),
+        new(LayoutSurveyRules.PlannedBedroom, LayoutSurveyRules.PlannedDining),
+        new(LayoutTripsRules.PlannedSuite, LayoutSurveyRules.PlannedDining),
+        new(LayoutSurveyRules.PlannedKitchen, LayoutSurveyRules.PlannedFreezer),
+        new(default, LayoutSurveyRules.PlannedFreezer),
+        new(LayoutSurveyRules.PlannedStorage, LayoutSurveyRules.PlannedWorkshop),
+        new(default, LayoutSurveyRules.PlannedStorage),
+        new(LayoutSurveyRules.PlannedHospital, default),
     ];
 
     /// <summary>The roles nobody walks through in a room with no RoomCrossing (one that is not a station group); a station group's room carries its own RoomCrossing instead.</summary>

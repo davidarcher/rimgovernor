@@ -6,8 +6,6 @@ public sealed record QuestGravInspectionWork
 {
     public QuestId Quest { get; init; }
 
-    public RecoveryService? Service { get; init; }
-
     public bool Waiting { get; init; }
 
     public QuestSkipReason Reason { get; init; }
@@ -52,8 +50,7 @@ public static class QuestGravInspection
                 {
                     return result with { Reason = "inspector_unavailable" };
                 }
-                var service = new RecoveryService(spawned.EligiblePawnIds.Min(), engine.EngineId, RecoveryMethod.InspectGravEngine);
-                return result with { Service = service, Waiting = false };
+                return result with { Waiting = false };
             }
         }
         return new QuestGravInspectionWork();

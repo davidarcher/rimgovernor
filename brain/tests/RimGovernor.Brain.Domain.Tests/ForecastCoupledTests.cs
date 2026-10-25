@@ -10,6 +10,22 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class ForecastCoupledTests
 {
+    [Theory]
+    [InlineData("Rice", -1)]
+    [InlineData("", 1)]
+    public void RefusedScenariosStillRejectMalformedObservedStock(string definition, long units)
+    {
+        var facts = Review();
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300.0 / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
+        request = request with { Facts = request.Facts with { Census = request.Facts.Census with
+        { Resources = [new() { DefName = definition, Units = units }] } } };
+        ForecastCommitment[] conflicts =
+        [new("first", []) { ExclusiveOutcome = "same" }, new("second", []) { ExclusiveOutcome = "same" }];
+
+        Assert.Throws<DomainException>(() => CoupledForecastKit.Forecast(request, conflicts).Proposed);
+    }
+
     private static bool Original(ForecastCommitment commitment, string id) => commitment.Id.StartsWith(id + "/composition/", StringComparison.Ordinal)
         && !commitment.Id.Contains("/after/", StringComparison.Ordinal);
     private static readonly ObservationContext Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
@@ -263,7 +279,7 @@ public sealed class ForecastCoupledTests
     public void ShelterProjectionsAreSharedOnlyAcrossSchedulesThatCompleteTheShellAtOneTick()
     {
         var room = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], ["wall"], ShelterOutcomes.Estimated(-10.0, -10.0, .0001), [Heater(.35, 20.0)], []);
-        static ForecastActivityPlan Wall(double end) => new([new("wall", "pawn", 0, 0, 0, end, 0, 0, end, end, 0)], end, end);
+        static ForecastActivityPlan Wall(double end) => new([new("wall", "pawn", 0, 0, 0, end, 0, end, end, 0)], end, end);
         var early = ForecastShelterPolicy.ForecastShelters([room], Wall(60), 300).Single();
         var late = ForecastShelterPolicy.ForecastShelters([room], Wall(120), 300).Single();
         Assert.Equal(ForecastShelterPolicy.ForecastShelter(room, Wall(60), 300), early);
@@ -373,7 +389,7 @@ public sealed class ForecastCoupledTests
         var projection = ForecastShelterPolicy.ForecastShelters([room], new([], 0, 0), 300);
         ForecastThermalExposure Exposure(string location, params (double, double, double)[] comfort)
         {
-            ForecastActivityAllocation[] work = [new("work", "pawn", 0, 0, 0, 300, 0, 0, 300, 300, 0)];
+            ForecastActivityAllocation[] work = [new("work", "pawn", 0, 0, 0, 300, 0, 300, 300, 0)];
             return ForecastThermalExposure.PawnExposureOf(context, new() { ["work"] = new("work", location, location, []) }, context.Needs.Pawns[0], work, work, projection, 300, comfort, []);
         }
         var outdoors = Exposure("cell/5/5"); var indoors = Exposure("cell/1/1");
@@ -395,7 +411,7 @@ public sealed class ForecastCoupledTests
             Shelters = [], Thermal = thermal,
             Needs = context.Needs with { Pawns = [context.Needs.Pawns[0] with { ComfortableMin = 10.0, ComfortableMax = 30.0 }] }
         };
-        ForecastActivityAllocation[] work = [new("work", "pawn", 100, 100, 100, 200, 0, 0, 100, 100, 0)];
+        ForecastActivityAllocation[] work = [new("work", "pawn", 100, 100, 100, 200, 0, 100, 100, 0)];
         var tasks = new Dictionary<string, ForecastActivity> { ["work"] = new("work", "cell/5/5", "cell/5/5", []) };
         // Before the work the pawn is outdoors (-10), after it at the work cell's 0: 20*100 + 10*100 + 10*100.
         var filled = ForecastThermalExposure.PawnExposureOf(context, tasks, context.Needs.Pawns[0], work, work, [], 300, [], []);
@@ -471,8 +487,8 @@ public sealed class ForecastCoupledTests
     }
 
     [Theory]
-    [InlineData(100, .4)]
-    [InlineData(1000, .5)]
+    [InlineData(100, 170)]
+    [InlineData(1000, 150)]
     public void OrdinaryReviewPreservesThoughtExpiryInCoupledOutcome(double expiry, double expected)
     {
         var facts = Review();
@@ -481,11 +497,11 @@ public sealed class ForecastCoupledTests
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = facts.ForecastObserved.Needs! with
-                { Pawns = [facts.ForecastObserved.Needs!.Pawns[0] with { Mood = facts.ForecastObserved.Needs!.Pawns[0].Mood! with { Memories = [NeedsFixtures.Memory("happy", 10, expiry, false)] }}] }
+                { Pawns = [facts.ForecastObserved.Needs!.Pawns[0] with { Needs = [], Mood = facts.ForecastObserved.Needs!.Pawns[0].Mood! with { UnclampedTarget = .5, Memories = [NeedsFixtures.Memory("happy", 10, expiry, false)] }}] }
             }
         };
         facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([])));
-        Assert.Equal(expected, Evaluate(facts).Proposed.Coupled!.Alternatives.Single().Needs["pawn"].MemoryAdjustedMoodTarget.Number(), 8);
+        Assert.Equal(expected, Evaluate(facts).Proposed.Coupled!.Alternatives.Single().Needs["pawn"].Mood.Projected().PressureTicks, 8);
     }
 
     [Fact]
@@ -608,7 +624,7 @@ public sealed class ForecastCoupledTests
         facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([])));
         var wall = facts.CoupledAlternatives!.Alternatives.Single(c => Original(c, "site-0-finish"));
         var result = Evaluate(facts, wall).Proposed.Coupled!.Alternatives.Single(p => p.Feasible);
-        Assert.False(result.Needs["pawn"].MemoryAdjustedMoodTarget is ForecastTerm.Assessed);
+        Assert.IsType<ForecastMoodResult.Unprojected>(result.Needs["pawn"].Mood);
         Assert.Contains(result.Plan.Allocations, a => a.Activity == wall.ActivityCompletions[0]);
     }
     [Theory]

@@ -42,7 +42,7 @@ internal static class CombatLabMortarShell
             s,
             "load-he",
             cancellationToken,
-            CombatLabKit.Order(crew, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DraftCase(new RimGovernor.Brain.GameOrders.Operations.Clear())),
+            CombatLabKit.Order(crew, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DraftCase()),
             Fire("Shell_HighExplosive"),
             CombatLabKit.Order(crew, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.ManMortarCase(mortar)),
             Fire("Steel")).ConfigureAwait(false);

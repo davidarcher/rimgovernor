@@ -47,8 +47,7 @@ public sealed class JoinerSituationTests
                 worn.Add(new() { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("weapon", "weapon", "", GearSource.Worn)), Slot = GearSlot.Primary,
                     Weapon = new() { TraitRanged = s.RangedWeapon, TraitIncendiary = s.IncendiaryWeapon } });
             outfits[colonist.Pawn] = EquatableArray.From(worn);
-            needs[colonist.Pawn] = new([], new ForecastTerm.Unassessed("unused"), new ForecastTerm.Unassessed("unused"),
-                new(new(colonist.Pawn, "", new ForecastCapacityWindows.Unread(), 0), []), [])
+            needs[colonist.Pawn] = new([], new(new(colonist.Pawn, "", new ForecastCapacityWindows.Unread(), 0), []), [])
                 { Services = [new("service", colonist.Pawn, target.Kind, target.Id, "", 0, 0, 0, 1, 1, [])] };
         }
         var context = ForecastValueTests.Context(NeedsFixtures.Pawn(), outfits: outfits) with { Needs = NeedsFixtures.Read(0, [.. pawns]) };

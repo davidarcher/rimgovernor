@@ -730,8 +730,7 @@ Stage 1 of the [forecast value search engine](../architecture/forecast-value.md#
 stops three kinds of wasted work:
 
 - The physiology timeline computes no mood. Its capacity was the only part read.
-- The search builds no per-point mood trajectory. `ForecastCoupledContext.MoodTrajectory` keeps it
-  for tests that inspect it.
+- The search builds no per-point mood trajectory. Tests inspect the integrated outcomes and the response inputs used by room credits.
 - Each pawn's needs result is cached per search, keyed by that pawn's own inputs.
 
 Every quality row, at all six budgets and at one day, is identical before and after. Best of

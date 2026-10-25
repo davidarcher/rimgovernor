@@ -13,24 +13,11 @@ public sealed record FuelInputs
     public StockReader Stock { get; init; }
 }
 
-/// <summary>The fuel domain of the forward projection.</summary>
-public abstract record FuelProjection
-{
-    private protected FuelProjection() { }
-
-    /// <summary>Continuous demand is projected; per-use consumers with fuel are explicitly listed as gaps.</summary>
-    public sealed record Projected(IReadOnlyList<string> Gaps) : FuelProjection;
-
-    /// <summary>The nonempty rain-driven consumers have no fixed daily burn to project.</summary>
-    public sealed record RainDependent(IReadOnlyList<string> Consumers) : FuelProjection;
-}
-
-/// <summary>The review's fuel runway: Needs the stock levels the economy/resource Need must reach, the projection beside them.</summary>
+/// <summary>The review's fuel runway: the stock levels the economy/resource Need must reach.</summary>
 public sealed record FuelRunway
 {
     public IReadOnlyDictionary<Resource, long> Needs { get; init; } = new Dictionary<Resource, long>();
 
-    public required FuelProjection Projection { get; init; }
 }
 
 public static class FactsFuelExtensions
@@ -55,8 +42,8 @@ public static class FuelRunwayRules
     /// <summary>
     /// Rolls every refuelable building forward over MaintenanceHorizonDays. A building
     /// that burns at a known daily rate needs the horizon's burn less its tank; one already empty needs its refill
-    /// (runway zero, whatever its rate). A building that burns per use and still holds fuel has no runway and is
-    /// listed in Gaps. Rain-driven consumers with fuel name the weather dependence of the projection.
+    /// (runway zero, whatever its rate). Nonempty per-use and rain-driven consumers have no fixed daily burn,
+    /// so they supply no projected stock target.
     /// A malformed consumer fails the calculation. The demand
     /// is an absolute stock level, counted only where the stock falls short of it.
     /// </summary>
@@ -64,8 +51,6 @@ public static class FuelRunwayRules
     {
         var consumers = input.Consumers;
         var accounts = new Dictionary<Resource, double>();
-        var rainDependent = new List<string>();
-        var gaps = new List<string>();
         foreach (var c in consumers)
         {
             var burn = c.Burn;
@@ -87,34 +72,15 @@ public static class FuelRunwayRules
             {
                 need = Math.Max(0, c.Target - fuel);
             }
-            else if (burn.UseDriven)
-            {
-                gaps.Add(c.Id);
-                continue;
-            }
-            else
-            {
-                rainDependent.Add(c.Id);
-                continue;
-            }
+            else { continue; }
             accounts[item] = accounts.GetValueOrDefault(item) + need / burn.UnitsPerItem;
         }
-        gaps.Sort(StringComparer.Ordinal);
         var needs = new Dictionary<Resource, long>();
         foreach (var (item, amount) in accounts)
         {
             var need = (long)Math.Ceiling(amount);
             if (need > input.Stock.Count(item)) needs[item] = need;
         }
-        if (rainDependent.Count > 0)
-        {
-            rainDependent.Sort(StringComparer.Ordinal);
-            return new FuelRunway { Needs = needs, Projection = new FuelProjection.RainDependent(rainDependent) };
-        }
-        return new FuelRunway
-        {
-            Needs = needs,
-            Projection = new FuelProjection.Projected(gaps),
-        };
+        return new FuelRunway { Needs = needs };
     }
 }

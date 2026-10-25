@@ -184,8 +184,7 @@ internal static class Gate
 
     /// <summary>
     /// The orphan check (<see cref="ContractOrphans"/>) over the brain assemblies the solution built and the native
-    /// mod's own, against its shrink-only baseline <c>brain/analyzers/baseline/orphans.txt</c>: an orphan not listed
-    /// fails, and so does a listed line that is no longer an orphan (delete it). Without the game the native mod is not
+    /// mod's own, with no baseline: every orphan fails. Tool-host readers count too. Without the game the native mod is not
     /// built and the game-reading brain projects are empty, so the wire and Policy checks have no evidence and say
     /// unavailable; the fixture contracts, whose readers are the acceptance cases, are checked either way.
     /// </summary>
@@ -197,12 +196,12 @@ internal static class Gate
             .Select(name => Path.Combine(p.Bin(name), name + ".dll"))
             .Where(File.Exists)
             .ToList();
+        brain.Add(Path.Combine(p.Bin("rg"), "rg.dll"));
         var found = new List<(string Key, string Reason)>();
         var counts = new List<string>();
         var fixtures = Path.Combine(p.Bin("RimGovernor.Fixtures.Contracts"), "RimGovernor.Fixtures.Contracts.dll");
         found.AddRange(ContractOrphans.Find(ContractOrphans.Fixtures, fixtures, brain, [], out var fixtureCount));
         counts.Add($"{ContractOrphans.Fixtures.Name} {fixtureCount}");
-        var targets = new List<string> { ContractOrphans.Fixtures.Name };
         if (File.Exists(p.Manifest))
         {
             var native = Directory.EnumerateFiles(Path.Combine(p.Mod, "RimGovernor"), "RimGovernor.*.dll", SearchOption.AllDirectories)
@@ -214,33 +213,17 @@ internal static class Gate
                 found.AddRange(ContractOrphans.Find(
                     target, declaring, brain.Where(f => f != declaring), native, out var checkedCount));
                 counts.Add($"{target.Name} {checkedCount}");
-                targets.Add(target.Name);
             }
         }
         else
         {
             counts.Add("Contracts and Policy unavailable (the native mod is not built)");
         }
-        var baselinePath = Path.Combine(p.Repo, "brain", "analyzers", "baseline", "orphans.txt");
-        var baseline = File.ReadAllLines(baselinePath)
-            .Where(l => l.Length > 0 && targets.Contains(l[..l.IndexOf('|', StringComparison.Ordinal)]))
-            .ToHashSet(StringComparer.Ordinal);
-        var added = found.Where(f => !baseline.Contains(f.Key)).Select(f => $"{f.Key}: {f.Reason}").ToList();
-        var stale = baseline.Except(found.Select(f => f.Key), StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
-        var problems = new List<string>();
-        if (added.Count > 0)
+        if (found.Count > 0)
         {
-            problems.Add($"{added.Count} new orphans; delete each through every layer (never add a baseline line):\n  {string.Join("\n  ", added)}");
+            throw new ToolException($"{found.Count} orphans; delete each through every layer:\n  {string.Join("\n  ", found.Select(f => $"{f.Key}: {f.Reason}"))}");
         }
-        if (stale.Count > 0)
-        {
-            problems.Add($"{stale.Count} baseline lines are no longer orphans; delete them from {baselinePath}:\n  {string.Join("\n  ", stale)}");
-        }
-        if (problems.Count > 0)
-        {
-            throw new ToolException(string.Join("\n", problems));
-        }
-        return $"members checked: {string.Join(", ", counts)}; new orphans: none; baselined: {baseline.Count}\n";
+        return $"members checked: {string.Join(", ", counts)}; orphans: none\n";
     }
 
     /// <summary>

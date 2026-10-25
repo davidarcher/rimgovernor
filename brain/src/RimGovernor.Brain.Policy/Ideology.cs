@@ -57,27 +57,8 @@ public sealed record PreceptEffect
     public bool Forbids() => Kind == PreceptEffectKind.Unwilling;
 }
 
-/// <summary>
-/// One PreceptDef other than a role's, reduced to what planners read: its comps as effects, the issue it is a degree of,
-/// the memes it needs (RequiredMemes) and the memes that rule it out (ConflictingMemes); the def name is its key in IdeologyDefs.Precepts.
-/// </summary>
-public sealed record PreceptDef(IReadOnlyList<PreceptEffect> Effects)
-{
-    public string Issue { get; init; } = string.Empty;
-
-    public IReadOnlyList<string> RequiredMemes { get; init; } = [];
-
-    public IReadOnlyList<string> ConflictingMemes { get; init; } = [];
-}
-
-/// <summary>
-/// One MemeDef: the precept groups it requires (one precept of each group must be held, MemeDef.requireOne) and the
-/// precepts that conflict with it (those naming it in ConflictingMemes), sorted.
-/// </summary>
-public sealed record MemeDef(IReadOnlyList<IReadOnlyList<string>> RequireOne, IReadOnlyList<string> ForbiddenPrecepts);
-
-/// <summary>The memes that unlock or rule out the precepts of an issue; each list is sorted and distinct.</summary>
-public sealed record MemeGate(IReadOnlyList<string> Required, IReadOnlyList<string> Conflicting);
+/// <summary>A precept's effects read by policy, keyed by def name in IdeologyDefs.</summary>
+public sealed record PreceptDef(IReadOnlyList<PreceptEffect> Effects);
 
 /// <summary>A role requirement's skill minimum.</summary>
 public readonly record struct SkillRequirement(string Skill, int MinLevel);
@@ -168,23 +149,12 @@ public sealed record IdeologyDefs
 
     public IReadOnlyDictionary<string, RitualDef> Rituals { get; init; } = new Dictionary<string, RitualDef>();
 
-    public IReadOnlyDictionary<string, MemeDef> Memes { get; init; } = new Dictionary<string, MemeDef>();
+    /// <summary>The catalog's defined meme names.</summary>
+    public IReadOnlySet<string> Memes { get; init; } = new HashSet<string>(StringComparer.Ordinal);
 
     /// <summary>The moods of a building precept's presence demand; null when the catalog lacks either thought.</summary>
     public BuildingDemandMoods? BuildingMoods { get; init; }
 
-    /// <summary>
-    /// The memes that gate the precepts of the named issues (game IssueDef names, such as the nudity, cannibalism and
-    /// insect meat issues): the memes some such precept requires and the memes some such precept conflicts with.
-    /// </summary>
-    public MemeGate Gate(IEnumerable<string> issues)
-    {
-        var wanted = issues.ToHashSet(StringComparer.Ordinal);
-        var precepts = Precepts.Values.Where(p => wanted.Contains(p.Issue)).ToList();
-        return new MemeGate(
-            [.. precepts.SelectMany(p => p.RequiredMemes).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)],
-            [.. precepts.SelectMany(p => p.ConflictingMemes).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)]);
-    }
 }
 
 /// <summary>A building precept joined with the catalog's forbidden building definitions.</summary>

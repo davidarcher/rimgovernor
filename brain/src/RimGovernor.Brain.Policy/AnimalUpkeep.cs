@@ -2,7 +2,6 @@ using Sex = RimGovernor.Brain.GameFacts.Defs.Gender;
 
 namespace RimGovernor.Brain.Policy;
 
-
 /// <summary>A native animal and its catalog- and policy-derived herd inputs.</summary>
 public sealed record UpkeepAnimal
 {
@@ -20,7 +19,6 @@ public sealed record UpkeepAnimal
     public string AllowedArea => Pawn.Settings.AllowedAreaId ?? "";
     public bool RequiresPen => Colony?.Roping is RimGovernor.Brain.GameFacts.Observations.AnimalRoping.Roped;
     public bool Contained => State.PenId is not null;
-    public string Pen => State.PenId ?? "";
     public string SuitablePen => Colony?.Roping is RimGovernor.Brain.GameFacts.Observations.AnimalRoping.Roped roped ? roped.SuitablePen ?? "" : "";
     public bool Release => State.Release;
     public bool Slaughter => State.Slaughter;
@@ -35,7 +33,6 @@ public sealed record UpkeepAnimal
     public bool Sterilized => State.Sterilized;
     public bool SterilizeQueued => State.SterilizeQueued;
     public bool FollowDrafted => State.FollowDrafted;
-    public bool FollowFieldwork => State.FollowFieldwork;
     public bool Obedient => State.Obedient;
     public EquatableArray<Hediff> Conditions => Pawn.Health.Hediffs;
     public bool LifeThreatening => Pawn.Health.LifeThreatening;
@@ -190,7 +187,6 @@ public abstract record RaceCombat
 
     public sealed record Rated(double Power) : RaceCombat;
 }
-
 
 /// <summary>A good a source yields beside its main one, in units (leather from a hunted deer).</summary>
 public sealed record SourceProduct(Resource Def, double Amount);

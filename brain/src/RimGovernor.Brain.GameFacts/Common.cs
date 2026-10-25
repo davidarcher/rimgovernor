@@ -173,10 +173,6 @@ public abstract record TradeTargetKind
 
     public static implicit operator TradeTargetKind(MapTradeTarget value) => new MapTraderCase(value);
 
-    /// <summary>The <c>Settlement</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public SettlementTradeTarget? Settlement => (this as SettlementCase)?.Value;
-
     public sealed record SettlementCase(SettlementTradeTarget Value) : TradeTargetKind;
 
     public static implicit operator TradeTargetKind(SettlementTradeTarget value) => new SettlementCase(value);

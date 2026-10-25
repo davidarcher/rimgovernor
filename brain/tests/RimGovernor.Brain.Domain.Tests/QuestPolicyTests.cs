@@ -245,13 +245,13 @@ public sealed class QuestPolicyTests
     {
         var home = new MapId(0);
         var step = QuestGravInspection.SelectQuestGravInspection(Inspecting(Engine), home);
-        Assert.Equal((new PawnId("a"), "Thing_GravEngine7", false), (step.Service!.Pawn, step.Service.Thing, step.Waiting));
+        Assert.False(step.Waiting);
         Assert.True(QuestGravInspection.GravInspectionDeficit(Inspecting(Engine)));
 
         // No single engine, an unspawned engine or one already being inspected waits; another map is skipped with a reason.
-        Assert.True(QuestGravInspection.SelectQuestGravInspection(Inspecting(null), home) is { Service: null, Waiting: true });
-        Assert.True(QuestGravInspection.SelectQuestGravInspection(Inspecting(Engine with { Place = new RimGovernor.Brain.GameFacts.Observations.GravEnginePlace.Unspawned() }), home) is { Service: null, Waiting: true });
-        Assert.True(QuestGravInspection.SelectQuestGravInspection(Inspecting(Engine with { Place = new RimGovernor.Brain.GameFacts.Observations.GravEnginePlace.Spawned(0, [new PawnId("a")], [new PawnId("a")]) }), home) is { Service: null, Waiting: true });
+        Assert.True(QuestGravInspection.SelectQuestGravInspection(Inspecting(null), home) is { Waiting: true });
+        Assert.True(QuestGravInspection.SelectQuestGravInspection(Inspecting(Engine with { Place = new RimGovernor.Brain.GameFacts.Observations.GravEnginePlace.Unspawned() }), home) is { Waiting: true });
+        Assert.True(QuestGravInspection.SelectQuestGravInspection(Inspecting(Engine with { Place = new RimGovernor.Brain.GameFacts.Observations.GravEnginePlace.Spawned(0, [new PawnId("a")], [new PawnId("a")]) }), home) is { Waiting: true });
         Assert.Equal("off_map", QuestGravInspection.SelectQuestGravInspection(Inspecting(Engine), new MapId(3)).Reason.Value);
         Assert.Equal("inspector_unavailable", QuestGravInspection.SelectQuestGravInspection(Inspecting(Engine with { Place = new RimGovernor.Brain.GameFacts.Observations.GravEnginePlace.Spawned(0, [], []) }), home).Reason.Value);
 

@@ -214,8 +214,7 @@ public sealed class PrisonCreditTests
         var outcome = review.Outcome with
         {
             Needs = review.Outcome.Needs.Concat(new[] { new KeyValuePair<string, ForecastNeedsResult>("baby",
-                new([], new ForecastTerm.Unassessed("fixture"), new ForecastTerm.Unassessed("fixture"),
-                    new(new("baby", "", new ForecastCapacityWindows.Unread(), 0), []), [])
+                new([], new(new("baby", "", new ForecastCapacityWindows.Unread(), 0), []), [])
                 { Mood = MoodResults.Flat(.2, [0, 0, 0]) with { Response = new(.2, 1, 1, .3, [new(0, Day, .2, .2, false)]) } }) }).ToDictionary(),
             ServedRooms = [new(1, "", 0), new(2, "", 0)],
         };

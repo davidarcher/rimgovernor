@@ -40,7 +40,7 @@ public sealed class ApparelCreditTests
     private static ForecastCoupledOutcome Delivering(double at, double shift) =>
         new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>
         {
-            ["pawn"] = new([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
+            ["pawn"] = new([], new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
             {
                 Mood = MoodResults.Flat(0d, [Day, 0, 0], [new(shift, [0, 0, 0])]),
             },

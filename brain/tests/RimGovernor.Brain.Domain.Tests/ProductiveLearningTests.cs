@@ -60,7 +60,7 @@ public sealed class ProductiveLearningTests
         var result = ForecastActivities.CompareActivityPlans(problem);
         Assert.NotEmpty(result.Alternatives);
         Assert.Equal(260, result.Alternatives[0].CompletedAt);
-        Assert.Equal(260, ForecastActivities.EquipmentClaimsOf(problem, result.Alternatives[0]).Max(c => c.End));
+        Assert.Equal(260, result.Alternatives[0].Allocations.Max(c => c.End));
         Assert.Empty(ForecastActivities.CompareActivityPlans(Meals(3, learning: 0, deadline: 265)).Alternatives);
         Assert.Equal("experienced", ForecastActivities.CompareActivityPlans(Meals(1, deadline: 95)).Alternatives[0].Allocations[0].Pawn);
     }
@@ -126,7 +126,7 @@ public sealed class ProductiveLearningTests
         Assert.Equal("Medicine", Timed(duration).Evidence!.Skill);
         // Only the current level's rate is read (#3633 adds the others): a level reached before the work has no rate.
         var promoted = option with { SkillWork = Surgery() with { Learning = Work().Learning with { Xp = 99.5d } } };
-        Assert.IsType<ForecastProductiveDuration.Unprojectable>(ForecastProductiveWorkPolicy.ForecastProductiveWork(promoted, [new("tend", "doctor", 0, 0, 0, 10, 0, 0, 10, 10, 0)
+        Assert.IsType<ForecastProductiveDuration.Unprojectable>(ForecastProductiveWorkPolicy.ForecastProductiveWork(promoted, [new("tend", "doctor", 0, 0, 0, 10, 0, 10, 10, 0)
             { Learning = new("Medicine", [new("tend", 10, 5d, SkillXpPath.NormalTracker)], Projection(), Projection(), 10, 10, "native-test") }], 10));
     }
 
@@ -138,7 +138,7 @@ public sealed class ProductiveLearningTests
         Assert.Equal(400, Timed(first).WorkTicks);
         Assert.Equal(new SkillXpEvent("tend/1", 400, 250d, SkillXpPath.NormalTracker, BeforeDecay: true), Timed(first).Evidence!.Callbacks.Single());
         Assert.Equal(250, Timed(first).Evidence!.After.AppliedGain);
-        var allocation = new ForecastActivityAllocation("tend/1", "doctor", 0, 0, 0, 400, 0, 0, 400, 400, 0) { Learning = Timed(first).Evidence };
+        var allocation = new ForecastActivityAllocation("tend/1", "doctor", 0, 0, 0, 400, 0, 400, 400, 0) { Learning = Timed(first).Evidence };
         var second = ForecastProductiveWorkPolicy.ForecastProductiveWork(option with { Activity = "tend/2" }, [allocation], 400);
         Assert.Equal(250, Timed(second).Evidence!.Before.AppliedGain);
         Assert.Equal(500, Timed(second).Evidence!.After.AppliedGain);

@@ -133,9 +133,6 @@ public sealed record StockpileRequest
     /// <summary>The saved plan is absent during the first review; geometry-dependent options wait for its derivation.</summary>
     public StorageLayout Layout { get; init; } = new StorageLayout.AwaitingFirstPlan();
 
-    /// <summary>The stacks one Shelf holds (the catalog station's item slots); required from the catalog.</summary>
-    public int ShelfStacks { get; init; }
-
     /// <summary>Whether a Shelf is buildable (researched) and the planner can place it.</summary>
     public bool ShelfAvailable { get; init; }
 
@@ -145,11 +142,6 @@ public sealed record StockpileRequest
     /// <summary>The native occupancy ring's samples of the zones' and built shelves' groups, read for each store's inflow (StoreInflow).</summary>
     public RimGovernor.Brain.GameFacts.Observations.StorageOccupancySnapshot Occupancy { get; init; } = null!;
 
-    /// <summary>The catalog Shelf's build cost from the stuff it is built from (StorageOptions); required from the def and its cost row.</summary>
-    public StorageBuildCost ShelfCost { get; init; } = null!;
-
-    /// <summary>The catalog's item facts, read for a stranded stack's deterioration rate and categories (StorageOptions).</summary>
-    public ItemFacts Items { get; init; } = new();
 }
 
 /// <summary>One built shelf serving an owned zone and the settings last patched onto it (Patched false: never patched, native defaults).</summary>
@@ -158,9 +150,6 @@ public sealed record StockpileShelf
     public string Building { get; init; } = "";
 
     public string Zone { get; init; } = "";
-
-    /// <summary>The stacks the shelf's cells hold at most (maxItemsInCell each); unknown when any cell's capacity is.</summary>
-    public int Capacity { get; init; }
 
     /// <summary>The item stacks on the shelf's cells; required from every cell.</summary>
     public int Used { get; init; }
@@ -185,11 +174,9 @@ public sealed record StockpileReview
     /// <summary>The shelf upgrade: the next shelf for the warehouse. It ranks after every zone edit, so the planner places it only when none stands.</summary>
     public ShelfStep Shelf { get; init; } = new();
 
-    /// <summary>Every shelf site a declared store could take, with its effect in stacks (ShelfCandidates). Generation only: nothing chooses from it yet.</summary>
+    /// <summary>Every shelf site a declared store could take (ShelfCandidates). Generation only: nothing chooses from it yet.</summary>
     public IReadOnlyList<ShelfCandidate> ShelfCandidates { get; init; } = [];
 
-    /// <summary>Every standing store's capacity facts and costed options (StorageOptions). Generation only: nothing chooses from it yet.</summary>
-    public IReadOnlyList<StoreOptions> Options { get; init; } = [];
 }
 
 /// <summary>
@@ -436,7 +423,6 @@ public static partial class StockpileRules
             Edits = edits,
             Shelf = shelf,
             ShelfCandidates = shelfSites,
-            Options = StorageRules.StorageOptions(r, shelfSites, open),
             Active = active,
         };
     }
@@ -448,7 +434,7 @@ public static partial class StockpileRules
     /// </summary>
     private static ShelfStep NextWarehouseShelf(StockpileRequest r, IReadOnlyList<StockpileZone> zones, IReadOnlyDictionary<Cell, SiteCell> cells)
     {
-        if (!r.ShelfAvailable || r.Layout is not StorageLayout.Planned(var walkways, _))
+        if (!r.ShelfAvailable || r.Layout is not StorageLayout.Planned(var walkways))
         {
             return new ShelfStep();
         }

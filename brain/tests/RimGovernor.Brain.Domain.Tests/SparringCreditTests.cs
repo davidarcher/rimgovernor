@@ -58,7 +58,7 @@ public sealed class SparringCreditTests
     private static double RaidLoss(ForecastCoupledContext context, double shift)
     {
         var rows = context.Needs.Pawns.ToDictionary(p => p.Pawn, p => p, StringComparer.Ordinal);
-        var outcome = new ForecastCoupledOutcome(new([], 0, 0), default, rows.Keys.ToDictionary(p => p, _ => new ForecastNeedsResult([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new ForecastCapacityResult(default!, []), [])), []);
+        var outcome = new ForecastCoupledOutcome(new([], 0, 0), default, rows.Keys.ToDictionary(p => p, _ => new ForecastNeedsResult([], new ForecastCapacityResult(default!, []), [])), []);
         return HarmLedger.Of(outcome, context, Day, new(), rows, null, null, shift).Detail!.RaidLoss;
     }
 

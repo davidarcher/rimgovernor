@@ -117,7 +117,7 @@ public sealed class ForecastStockHandoffTests
                 new() { Day = .5, Kind = ModelEventKind.Harvest, Id = "food", Stock = ModelStock.Nutrition, Resource = Meal, Amount = 1 },
                 new() { Day = .5, Kind = ModelEventKind.ProjectCompletion, Id = "research", Stock = ModelStock.ResearchPoints, Amount = 3 }] } }
         } };
-        var plan = new ForecastActivityPlan([new("cook", "worker", 0, 0, 0, 100, 0, 0, 100, 0, 0)], 100, 0);
+        var plan = new ForecastActivityPlan([new("cook", "worker", 0, 0, 0, 100, 0, 100, 0, 0)], 100, 0);
         var outcome = new ForecastCoupled.CoupledSearchCache().Evaluate(request, new Dictionary<string, ForecastCommitment>(), request.Coupled.Activities, plan);
         Assert.True(outcome.Feasible);
         var handoff = ForecastHandoffPolicy.Project(outcome)!;

@@ -616,7 +616,7 @@ internal sealed class SeatController : IFightController
 
         if (!_drafted)
         {
-            Record(_seat.Apply(Orders(me.Id.Value, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DraftCase(new RimGovernor.Brain.GameOrders.Operations.Clear()))));
+            Record(_seat.Apply(Orders(me.Id.Value, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DraftCase())));
             _drafted = true;
         }
 
@@ -649,7 +649,6 @@ internal sealed class SeatController : IFightController
     };
 }
 
-
 // --doortest (with --hive): the draft-and-cancel door trick. A colonist walks to the cell beside the outer corridor door, is
 // ordered onto the door cell, and is stopped the moment the door starts to open; the door is then watched, a hold-open set and
 // cleared, and a manual close tried. Prints the door and pawn every few ticks.
@@ -681,7 +680,7 @@ internal sealed class DoorProbe : IFightController
 
         if (tick == 1)
         {
-            Do(new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DraftCase(new RimGovernor.Brain.GameOrders.Operations.Clear()));
+            Do(new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DraftCase());
             Do(new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.MoveCase(new RimGovernor.Brain.Domain.Cell { X = 37, Z = 30 }));
             _phase = 1;
         }
@@ -697,7 +696,7 @@ internal sealed class DoorProbe : IFightController
         if (_phase == 2 && (door.Open || Convert.ToInt32(Field("visualTicksOpen") ?? 0) > 0))
         {
             Say("door started opening; stopping the pawn");
-            Do(new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.StopCase(new RimGovernor.Brain.GameOrders.Operations.Clear()));
+            Do(new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.StopCase());
             _phase = 3;
             _since = tick;
         }

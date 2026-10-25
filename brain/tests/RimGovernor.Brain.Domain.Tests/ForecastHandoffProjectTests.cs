@@ -24,7 +24,7 @@ public sealed class ForecastHandoffProjectTests
         var duration = ProductiveLearningTests.Timed(ForecastProductiveWorkPolicy.ForecastProductiveWork(Assert.Single(generated.Options), [], 0));
         Assert.NotNull(duration.Evidence);
         var end = duration.WorkTicks;
-        var plan = new ForecastActivityPlan([new(task.Id, "Bo", 0, 0, 0, end, 0, 0, end, 0, 0) { Learning = duration.Evidence }], end, 0);
+        var plan = new ForecastActivityPlan([new(task.Id, "Bo", 0, 0, 0, end, 0, end, 0, 0) { Learning = duration.Evidence }], end, 0);
         var context = Context(generated.Tasks) with { Bindings = generated.Bindings };
         var result = ForecastHandoffProjects.Project(new(input, new() { MedicineTendsPerDay = 0, Projects = graph }), context,
             new(plan, true, new Dictionary<string, ForecastNeedsResult>(), []), new Dictionary<string, double> { [task.Id] = end }, 1, []);
@@ -64,7 +64,7 @@ public sealed class ForecastHandoffProjectTests
         var binding = new RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate("craft", "Anna", [], PawnActivityKind.Recipe, "bench", "", "DoBill", 1, 60000, new(1, 1))
         { Recipe = new("bill", ColonyModelFixtures.Recipe, []) { Unfinished = unfinished ? "native-unfinished-item" : "" } };
         var context = Context([task]) with { Bindings = new Dictionary<(string, string), RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate> { [("craft", "Anna")] = binding } };
-        var outcome = new ForecastCoupledOutcome(new([new("craft", "Anna", 0, 0, 0, 100, 0, 0, 100, 0, 0)], 100, 0), true, new Dictionary<string, ForecastNeedsResult>(), []);
+        var outcome = new ForecastCoupledOutcome(new([new("craft", "Anna", 0, 0, 0, 100, 0, 100, 0, 0)], 100, 0), true, new Dictionary<string, ForecastNeedsResult>(), []);
         var projected = ForecastHandoffProjects.Project(new(input, new() { MedicineTendsPerDay = 0, Projects = graph }), context, outcome,
             new Dictionary<string, double> { ["craft"] = 100 }, 1, []);
         Assert.Equal(ModelProjectStatus.Done, projected.States[node.Id].Status);
@@ -88,7 +88,7 @@ public sealed class ForecastHandoffProjectTests
         var binding = new RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate("harvest", "Bo", [], PawnActivityKind.Work, "plant-7", "Grower", "Harvest", 0, 60000, new(7, 1));
         var context = Context([task]) with { Bindings = new Dictionary<(string, string), RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate> { [("harvest", "Bo")] = binding } };
         var result = ForecastHandoffProjects.Project(new(input, new() { MedicineTendsPerDay = 0, Projects = graph }), context,
-            new(new([new("harvest", "Bo", 0, 0, 0, 100, 0, 0, 100, 0, 0)], 100, 0), true, new Dictionary<string, ForecastNeedsResult>(), []),
+            new(new([new("harvest", "Bo", 0, 0, 0, 100, 0, 100, 0, 0)], 100, 0), true, new Dictionary<string, ForecastNeedsResult>(), []),
             new Dictionary<string, double> { ["harvest"] = 100 }, 1, []);
         Assert.All(result.Graph.Nodes.Where(n => n.Field == "zone1"), n => Assert.Equal(11, n.Cells));
         var original = Assert.Single(graph.Nodes, n => n.Kind == ProjectKind.Sow);

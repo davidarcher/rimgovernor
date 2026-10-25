@@ -12,7 +12,7 @@ public sealed class ForecastShelterStateTests
     private static readonly ThermalSource Heater = new("heater", new(1, 1), true, .35, 20d, CoupledThermalTests.Powered(1e6));
     private static ForecastShelterPlan Plan(ForecastShelterThermal thermal, params string[] prerequisites) =>
         new(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], EquatableArray.From(prerequisites), thermal, [Heater], []);
-    private static ForecastActivityPlan Wall(double end) => new([new("wall", "pawn", 0, 0, 0, end, 0, 0, end, end, 0)], end, end);
+    private static ForecastActivityPlan Wall(double end) => new([new("wall", "pawn", 0, 0, 0, end, 0, end, end, 0)], end, end);
 
     [Fact]
     public void AnEstimatedShelterWhoseShellCompletesIsProjected()

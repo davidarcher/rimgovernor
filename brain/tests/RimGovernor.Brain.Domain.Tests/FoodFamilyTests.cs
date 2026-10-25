@@ -44,37 +44,6 @@ public sealed class FoodFamilyTests
     }
 
     [Fact]
-    public void TheForecastFoodRowReadsTheSupplyNeedWithTheSameAssessmentForTheSameFacts()
-    {
-        var policy = Rules.DefaultPlannerSettings();
-        var facts = new ReviewFacts { MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } }, Tick = new(100), Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 2 }, FoodDays = new FoodRunway.Days(0), Fuel = [] };
-        var met = facts with
-        {
-            FoodDays = new FoodRunway.Days(1000.0), GrowingCells = 10_000L, FieldCoverage = 1.0,
-            EssentialInputs = new() { Benches = [ProductionBenchFixtures.Butchering("table", "TableButcher", "table-token", true)] },
-        };
-        foreach (var f in new[] { facts, met, met with { FoodDays = new FoodRunway.Days(0.0) }, met with { EssentialInputs = new() } })
-        {
-            var row = Assert.Single(EssentialServicesRules.ReviewEssentialServices(f, policy, new() { Work = new() { Tick = f.Tick } }).Coverage,
-                c => c.Service == EssentialService.Food && c.Target == ServiceTarget.ForNeed(FoodRules.FoodSupplyNeed));
-            // The review keeps an unread Need's row as unknown coverage.
-            ServiceCoverage expected;
-            try
-            {
-                expected = FoodRules.FoodSupplyNeedOf(FoodFacts.From(f, policy)).Satisfaction == Satisfaction.Met ? ServiceCoverage.Adequate : ServiceCoverage.Shortfall;
-            }
-            catch (RequiredFactException)
-            {
-                expected = ServiceCoverage.EvidenceGap;
-            }
-            Assert.Equal(expected, row.Coverage);
-        }
-        Assert.Equal(Satisfaction.Met, FoodRules.FoodSupplyNeedOf(FoodFacts.From(met, policy)).Satisfaction);
-        // No butcher bench is a whole read: the facility is unmet, never unread.
-        Assert.Equal(Satisfaction.Unmet, FoodRules.FoodSupplyNeedOf(FoodFacts.From(facts, policy)).Satisfaction);
-    }
-
-    [Fact]
     public void TheCookingNeedIsMetWhileAMealCanBeMadeAndReopensWhenTheKitchenIsLost()
     {
         var met = Cooking(new() { Cooking = true, CampfireRetireOwed = false });
@@ -102,20 +71,6 @@ public sealed class FoodFamilyTests
         Assert.Equal([FoodRules.FoodSupplyNeed, FoodRules.CookingNeed], new FoodFamily(true, true).Derive(facts).Select(n => n.Id));
         var family = new FoodFamily(true, true);
         Assert.Empty(family.Propose(family.Derive(facts), facts));
-    }
-
-    [Fact]
-    public void TheForecastCookingRowReadsTheNeedWithTheSameAssessmentForTheSameFacts()
-    {
-        var facts = new ReviewFacts { MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } }, Tick = new(100), Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 2 }, FoodDays = new FoodRunway.Days(0), Fuel = [] };
-        ServiceCoverage Coverage(ReviewFacts f) => Assert.Single(
-            EssentialServicesRules.ReviewEssentialServices(f, Rules.DefaultPlannerSettings(), new() { Work = new() { Tick = f.Tick } }).Coverage,
-            c => c.Service == EssentialService.Cooking && c.Target == ServiceTarget.ForNeed(FoodRules.CookingNeed)).Coverage;
-        Assert.Equal(ServiceCoverage.Adequate, Coverage(facts with { Cooking = true, CampfireRetireOwed = false }));
-        Assert.Equal(ServiceCoverage.Shortfall, Coverage(facts with { Cooking = false }));
-        Assert.Equal(ServiceCoverage.Shortfall, Coverage(facts with { Cooking = true, CampfireRetireOwed = true }));
-        // Cooking is read whole: nothing cooking is a shortfall, not an unread row.
-        Assert.Equal(ServiceCoverage.Shortfall, Coverage(facts));
     }
 
     private sealed class Colony : IDisposable

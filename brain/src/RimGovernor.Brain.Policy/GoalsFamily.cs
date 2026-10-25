@@ -881,7 +881,7 @@ public static partial class GoalRules
         }
         var unmet = GoalDeficit.Of(1.0);
         var defined = goal.Kind == GoalKind.Precept ? ideo.Defs.Precepts.ContainsKey(goal.Target)
-            : goal.Kind == GoalKind.Meme ? ideo.Defs.Memes.ContainsKey(goal.Target)
+            : goal.Kind == GoalKind.Meme ? ideo.Defs.Memes.Contains(goal.Target)
             : goal.Target != "";
         if (!defined)
         {

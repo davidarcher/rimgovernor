@@ -201,9 +201,7 @@ building of the power census (generators, turret barrels) is a `FuelConsumer`; i
 it needs the horizon's burn (`ProjectionHorizonDays`) less its tank, in items, as a stock
 level kept in the ColonyReview's `constructionMemory`. A barrel already empty has runway zero
 whatever its rate and needs its refill to target. A comp that burns per use
-(`consumeFuelOnlyWhenUsed`, a turret per shot) holding fuel has no daily rate: it is
-listed in `FuelProjection.Gaps`. Any consumer whose fuel level, burn, gate or fuel item is
-unknown makes the projection unknown and asks for nothing. The shortfall is the
+(`consumeFuelOnlyWhenUsed`, a turret per shot) or in rain while holding fuel has no fixed daily rate and supplies no projected stock target. A malformed or missing fuel level, burn, gate or fuel item fails the calculation. The shortfall is the
 projector's `Fuel` domain (`ShadowFuel`, under `economy/resource`). Difficulty's
 maintenance cost factor, which scales `fuelMultiplier` for a `factorByDifficulty` comp
 (turret barrels), is not observed; the def's own multiplier is used.

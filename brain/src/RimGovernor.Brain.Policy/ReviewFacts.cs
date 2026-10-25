@@ -191,7 +191,6 @@ public sealed partial record ReviewFacts
 
     public RecoverySafety RecoverySafety { get; init; } = new();
 
-
     public EquatableArray<DisasterCondition> DisasterConditions { get; init; }
 
     /// <summary>The colony biome's permanent darkness: its map conditions include a no-sunlight class.</summary>
@@ -385,7 +384,6 @@ public sealed partial record ReviewFacts
     /// </summary>
     public RimGovernor.Brain.GameFacts.Observations.BiotechSection Biotech { get; init; } = new RimGovernor.Brain.GameFacts.Observations.BiotechSection.Inactive();
 
-
     /// <summary>The bestowing-ceremony quests the title claim gate allows to accept now (ClaimQuests); the review fills it once the plan, rooms and royalty read are known.</summary>
     public EquatableArray<QuestId> TitleClaimQuests { get; init; }
 
@@ -404,7 +402,6 @@ public sealed partial record ReviewFacts
 
     /// <summary>The catalog's storyteller disease comps, biomes and disease incidents (#3824), read by IllnessSchedule.Of; empty without a catalog.</summary>
     public DiseaseTable DiseaseTable { get; init; } = new();
-
 
     /// <summary>The built mortars' shell targets (ArmoryShellsRules.MortarShellTargets), read once per review: ShellsShort and the armory declarer's shell orders derive from them (#3566). Empty without a built mortar or a known threat.</summary>
     public EquatableArray<Amount> ShellTargets { get; init; }
@@ -551,7 +548,6 @@ public sealed partial record ReviewFacts
     public EquatableArray<PawnValue> PreviousPawnValues { get; init; }
     public EssentialServiceInputs EssentialInputs { get; init; } = new();
 
-
     /// <summary>The refuelable buildings of the power census (FuelRunway).</summary>
     public EquatableArray<FuelConsumer> Fuel { get; init; }
 
@@ -560,7 +556,6 @@ public sealed partial record ReviewFacts
 
     /// <summary>The player's unfinished gear bills with their recipe slots (OpenBillDemand): ingredient demand ResourceDemandOf counts.</summary>
     public EquatableArray<OpenBill> OpenBills { get; init; }
-
 
     /// <summary>The safe surface ore per material the consumption ring names; a material without an entry (its source read failed, or none was read) has none.</summary>
     public IReadOnlyDictionary<Resource, long> ResourceSurfaceOre { get; init; } = new Dictionary<Resource, long>();
@@ -572,7 +567,6 @@ public sealed partial record ReviewFacts
 
     /// <summary>The colonists whose drug policy permits each social drug (DrugUsers); it sets the drug runway's reserve before any dose is observed.</summary>
     public IReadOnlyDictionary<Resource, long>? DrugUsers { get; init; }
-
 
     private ResearchFacts? research;
 
@@ -709,7 +703,6 @@ public sealed record Findings
     /// <summary>Whether the review owes work assignments, settings or coupled activities (WorkAssignmentsOwed), which the admin/work-assignments Need reads; derived, not saved.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public WorkAssignmentsReview WorkAssignments { get; set; }
-    public EssentialServiceReview? EssentialServices { get; set; }
 }
 
 public static partial class Rules
@@ -794,7 +787,6 @@ public static partial class Rules
         HostileCensus.Active { Count: > 0 } => Situation.Active,
         HostileCensus unexpected => throw new DomainException($"invalid hostile census state: {unexpected.GetType().Name}"),
     };
-
 
     /// <summary>
     /// The full review: it validates the facts and derives once what the families read (the latches, the resource
@@ -887,7 +879,6 @@ public static partial class Rules
         r.Disaster = DisasterRules.ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, DisasterServiceFacts(f, p), f.Disaster, f.DisasterTick, f.ShortCircuit);
         r.Trade = TradeReviewOf(f, p, medicine, demand);
         r.WorkAssignments = WorkAssignmentsOwed(f, r.CoupledSelection);
-        r.EssentialServices = EssentialServicesRules.ReviewEssentialServices(f, p, demand, medicineActive: latches.MedicalReserve);
         return r;
     }
 

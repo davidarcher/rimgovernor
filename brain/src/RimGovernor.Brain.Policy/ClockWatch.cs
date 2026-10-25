@@ -178,8 +178,6 @@ public static class ClockWatchRules
         {
             Run = true,
             Refused = EquatableArray.From(refused),
-            Snapshot = f.Current,
-            Tick = f.Tick,
             Mode = ClockWatchMode.Colony,
             Downed = EquatableArray.From(KnownDownedPatients(f.Emergency)),
             Hungry = EquatableArray.From(AcknowledgedHungry(f)),

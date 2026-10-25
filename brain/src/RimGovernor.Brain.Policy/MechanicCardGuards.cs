@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Policy;
 // `thoughtaudit -guards` fails when a table row names a decl or site absent from the card file or the decompiled game.
 
 /// <summary>A grant site and the existing action kind that, under Constraint, makes its guards false.</summary>
-public sealed record CardSiteAction(string Site, ActionKind Action, string Constraint);
+public sealed record CardSiteAction(string Site, string Constraint);
 
 /// <summary>
 /// What a card's stage offset is evaluated against for one pawn (#3281): its trait and hediff def names, whether Ideology is
@@ -62,7 +62,7 @@ public static class MechanicCardGuards
     /// <summary>The site -> action-kind map: the apparel thought's count falls to 0 under a pawn's apparel filter that disallows the counted items.</summary>
     public static readonly IReadOnlyList<CardSiteAction> SiteActions =
     [
-        new("ThoughtWorker_ApparelThought.CurrentStateInternal", ActionKind.ApparelPolicy, DisallowCounted),
+        new("ThoughtWorker_ApparelThought.CurrentStateInternal", DisallowCounted),
     ];
 
     /// <summary>The count collections the items of <see cref="CardStageOffset(MechanicCard, CardPawnFacts, IReadOnlyList{GearOption}, IReadOnlyList{CardItemBinding}?)"/> stand for: a pawn's worn apparel, priced as the outfit's gear options.</summary>

@@ -133,37 +133,12 @@ chunks, plants and buildings, so a filter allowing only those gets none
 A candidate is a 2x1 site inside the store's zone (`policy.ShelfSites`): free
 walkable floor, off the layout plan's walkways (`policy.PlannedWalkways`: every
 cell a planned route crosses, since a shelf costs 50 to path over and is
-pass-through only) and not beside a doorway, leaving the zone contiguous. Each
-reports its effect in stacks: the catalog Shelf's item slots less the floor
-stacks its cells give up (6 - 2 = +4). Both counts are required. Before the initial layout is derived, `StorageLayout.AwaitingFirstPlan` leaves shelf and room candidates absent while the rest of the review completes; `Planned` supplies valid walkways and room costs.
+pass-through only) and not beside a doorway, leaving the zone contiguous. Each candidate retains its zone and physical site. Before the initial layout is derived, `StorageLayout.AwaitingFirstPlan` leaves shelf candidates absent while the rest of the review completes; `Planned` supplies valid walkways.
 Candidates are generation only. The one-at-a-time warehouse shelf
 (`NextWarehouseShelf`, one open shelf, at most a third of the footprint) still
-chooses what is built until the storage options portfolio (#3239) replaces it.
+chooses what is built.
 
-### Storage options
-
-`policy.StorageOptions` (on the review as `Options`) reports, for every
-standing, non-retired store, its capacity facts (`StoreCapacity`) and its
-costed options. Cost and effect are reported apart, with no conversion into
-one value, and the report ranks nothing:
-
-| Option | Cost | Effect |
-|---|---|---|
-| Zone growth | no material, 0 work | the open footprint cells the zone can still reach (`StoreGrowth`, as the review's grow edit reads them); one stack per cell |
-| Shelf | the catalog Shelf's cost list from its build stuff (`BuildStuff`) and that stuff's `WorkToBuild` | one per shelf candidate: its 2 floor cells lost, its stacks |
-| Successor room (warehouse) | the plan's owed material for a planned storage room no warehouse zone stands in (`PlannedOwedCost`); work is its planned sites' catalog `WorkToBuild` times pieces over the first stuff's full alternative (`PlannedRoomWork`), the roof left out and named (`room_roof_work_unassessed`) | its interior cells and stacks |
-| Further room (yard) | a planned yard no yard zone stands in: no material, 0 work | its interior cells and stacks |
-
-Each option's lead time is `StorageLeadDays` over its work. With no planned room waiting, no room option is generated. Deterioration avoided is HP per day over the store's stranded
-stacks only: the worst rows first (the stack's native base deterioration rate, times its native roof/outdoor exposure: 0.5 unroofed plus 0.5
-not indoors), up to the stacks gained, each less the exposure where the option
-puts it (0 on a shelf, the added cells' for zone growth, none in a roofed room
-and open air in a yard). A shelf skips Chunks, Plants and Buildings rows. The
-yard preset admits no deteriorating item a shelf holds, so a yard shelf reads a
-known 0. The rate comes from each native loot row's `LootDeterioration.BaseRatePerDay`, read for its actual stuff. Missing required costs, counts or exposure cells raise `RequiredFactException`. Roof work remains named by `room_roof_work_unassessed`. The
-placed options (zone growth, shelf) feed the storage portfolio (#3239); the
-room options reach layout through the yard's runway and stranded signal and the
-station plan's successor rooms.
+Capacity pressure is read from `StoreCapacity` and the store's stranded stacks. Layout owns successor rooms and yards; shelf candidates retain their zone and physical site. The review computes no separate cost-and-deterioration option report.
 
 ## Planned rooms
 

@@ -107,7 +107,7 @@ public static partial class StoreRules
     /// The stock each planned storage room, yard and meal closet would keep (#3798), by room id: its interior's cells (one
     /// stack each) and the stranded rows whose accepting storage groups include a zone of the role of a store sited on its
     /// region (or a shelf in one), each row once. Zones of one role carry one filter, so a room whose own zone is not yet
-    /// laid is read through its role's standing zones, as StorageOptions prices a successor room. A room no store is
+    /// laid is read through its role's standing zones. A room no store is
     /// sited on keeps nothing, and a stack no colonist reaches is no room's. The census and headroom are required.
     /// </summary>
     public static IReadOnlyDictionary<int, PlannedStock> PlannedStoreStock(StockpileRequest request, IReadOnlyList<PlannedRoom> rooms, IReadOnlyDictionary<int, EquatableArray<PlannedRole>>? functions = null)

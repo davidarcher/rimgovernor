@@ -53,7 +53,7 @@ internal static class CombatLabOrders
         }
 
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
-        var drafted = await CombatLabKit.OrdersAsync(s, "draft", cancellationToken, [.. colonists.Select(c => CombatLabKit.Order(c, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DraftCase(new RimGovernor.Brain.GameOrders.Operations.Clear())))]).ConfigureAwait(false);
+        var drafted = await CombatLabKit.OrdersAsync(s, "draft", cancellationToken, [.. colonists.Select(c => CombatLabKit.Order(c, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DraftCase()))]).ConfigureAwait(false);
         foreach (var r in drafted)
         {
             CombatLabKit.Applied("draft", r);
@@ -71,9 +71,9 @@ internal static class CombatLabOrders
             CombatLabKit.Order(colonists[1], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.MoveCase(moveTo)),
             CombatLabKit.Order(colonists[2], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AttackCase(CombatLabKit.Pawn(hostiles[2]))),
             CombatLabKit.Order(colonists[3], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.FireModeCase(RimGovernor.Brain.GameFacts.Operations.CombatFireMode.Hold)),
-            CombatLabKit.Order(colonists[3], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.HoldPositionCase(new RimGovernor.Brain.GameOrders.Operations.Clear())),
+            CombatLabKit.Order(colonists[3], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.HoldPositionCase()),
             CombatLabKit.Order(colonists[4], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.MoveCase(stopFrom)),
-            CombatLabKit.Order(colonists[4], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.StopCase(new RimGovernor.Brain.GameOrders.Operations.Clear())),
+            CombatLabKit.Order(colonists[4], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.StopCase()),
             CombatLabKit.Order(null, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DoorCase(new RimGovernor.Brain.GameOrders.Operations.CombatDoor { Cell = door, Mode = RimGovernor.Brain.GameOrders.Operations.CombatDoorMode.HoldOpen })),
             CombatLabKit.Order(hostiles[0], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.MoveCase(moveTo)),
             CombatLabKit.Order(null, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DoorCase(new RimGovernor.Brain.GameOrders.Operations.CombatDoor { Cell = lab.Cell(10, 0), Mode = RimGovernor.Brain.GameOrders.Operations.CombatDoorMode.Close })))

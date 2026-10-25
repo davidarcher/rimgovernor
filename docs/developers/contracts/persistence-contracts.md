@@ -392,11 +392,7 @@ frame and selected forecast inputs, in memory only; `ReviewFacts.NeedsAlternativ
 is not admitted intent. It adds no persistence owner or second progress record.
 The existing Method/Plan journal owns any subsequently selected execution.
 
-Essential-service coverage, bounded stress checks and development proposals in
-`Findings.EssentialServices` are likewise transient full-review evidence.
-They reference existing Concern-owned predicates and shared demand, never own a
-second stock target, saved goal queue or progress journal. Missing/partial review
-evidence cannot establish satisfaction. See [essential services](essential-services.md).
+Selected service-investment explanations are transient forecast evidence. They reference existing Need predicates and shared demand and add no saved goal queue, stock target or progress journal. See [essential services](essential-services.md).
 
 Selected practice references live role requirements through the existing Method action payload. The session journal stores the admitted participants and exact targets; requirements, XP projections and rejected alternatives remain derived in memory. The existing native bout registry owns transient selected rosters; no skill target or additional save state is written.
 

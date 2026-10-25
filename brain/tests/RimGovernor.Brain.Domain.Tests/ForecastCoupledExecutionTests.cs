@@ -12,7 +12,7 @@ public sealed class ForecastCoupledExecutionTests
     private static ForecastCoupledSelection Selection(params (string Task, string Pawn)[] tasks)
     {
         var plan = new ForecastActivityPlan(tasks.Select(t => new ForecastActivityAllocation(t.Task, t.Pawn,
-            0, 0, 0, 10, 0, 0, 10, 10, 0)).ToArray(), 10, 10);
+            0, 0, 0, 10, 0, 10, 10, 0)).ToArray(), 10, 10);
         var outcome = new ForecastCoupledOutcome(plan, true, new Dictionary<string, ForecastNeedsResult>(), []);
         var vector = ForecastCoupledSelection.CoupledConsequences(outcome);
         return new(new(tasks.Select(t => t.Task).ToArray(), plan, [], 0, false), outcome,

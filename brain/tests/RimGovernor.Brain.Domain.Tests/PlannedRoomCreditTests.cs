@@ -305,7 +305,7 @@ public sealed class PlannedRoomCreditTests
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts)!.Context;
         var pawns = generated.Needs.Pawns.Select(p => p.Pawn).Distinct(StringComparer.Ordinal).ToArray();
         Assert.NotEmpty(pawns);
-        var outcome = new ForecastCoupledOutcome(new([], 0, 0), true, pawns.ToDictionary(p => p, p => new ForecastNeedsResult([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new(new(p, "", new ForecastCapacityWindows.Unread(), 0), []), [])
+        var outcome = new ForecastCoupledOutcome(new([], 0, 0), true, pawns.ToDictionary(p => p, p => new ForecastNeedsResult([], new(new(p, "", new ForecastCapacityWindows.Unread(), 0), []), [])
         {
             Mood = MoodResults.Flat(0d, [0, 0, 0], [new(0, [Day, 0, 0])]),
         }), []);
@@ -333,7 +333,7 @@ public sealed class PlannedRoomCreditTests
         // The ingredient memory is priced: the same meal without it leaves a higher thought offset at the horizon.
         var plain = cooking with { ForecastObserved = cooking.ForecastObserved with { Coupled = coupled } };
         var (_, unflavoured) = Selected(WithEveryShippedRoom(plain), 150);
-        Assert.True(outcome.Needs["pawn"].ThoughtOffsetAtHorizon.Number() < unflavoured.Needs["pawn"].ThoughtOffsetAtHorizon.Number());
+        Assert.True(outcome.Needs["pawn"].Mood.Projected().PressureTicks > unflavoured.Needs["pawn"].Mood.Projected().PressureTicks);
         RunsEveryShippedCredit(generated, outcome, 150);
     }
 
@@ -571,11 +571,11 @@ public sealed class PlannedRoomCreditTests
         bool Ordered(ForecastCoupledOutcome o) => RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.OrderedAtStart(
             ["selected"], o.Plan.Allocations, context.Bindings, context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal)).Contains("pawn");
         var woken = outcomes.First(Ordered).Needs["pawn"].Mood!;
-        Assert.NotEqual(woken.Projected().Trajectory[0].Actual, woken.Projected().Trajectory.First(p => p.Tick > 0).Actual);
+        Assert.False(woken.Projected().Response!.Targets[0].Frozen);
         var distant = outcomes.First(o => !Ordered(o));
         var asleep = distant.Needs["pawn"].Mood!;
         asleep.Assessed();
-        Assert.Equal(asleep.Projected().Trajectory[0].Actual, asleep.Projected().Trajectory.First(p => p.Tick >= distant.Plan.Allocations[0].Depart).Actual);
+        Assert.True(asleep.Projected().Response!.Targets[0].Frozen);
     }
 
     /// <summary>The builder asleep in its bed gaining 0.00002 rest a tick, its bed thoughts given, and the forecast outcomes of each
@@ -587,7 +587,6 @@ public sealed class PlannedRoomCreditTests
             Awake = false, Location = pawn.Targets[0].Location, SleepBlockedUntilTicks = 0, BedThoughts = new BedThoughtOnset.Given(),
             LyingIn = LyingInBed with { Place = LyingInBed.Place with { GainPerTick = .00002 } },
         }, WithEveryShippedRoom);
-        facts = facts with { CoupledAlternatives = facts.CoupledAlternatives! with { Context = facts.CoupledAlternatives.Context with { MoodTrajectory = true } } };
         var generated = facts.CoupledAlternatives!;
         var rests = generated.Context.NeedTasks.Where(n => n.Kind == "rest").Select(n => n.Task).ToHashSet(StringComparer.Ordinal);
         var outcomes = generated.Alternatives.Where(c => c.ActivityCompletions.Count == 1 && rests.Contains(c.ActivityCompletions[0]))
@@ -623,9 +622,9 @@ public sealed class PlannedRoomCreditTests
         context = context with { Activities = context.Activities with { Activities = [.. context.Activities.Activities, new("cook", "start", "start", [])] } };
         ForecastActivityAllocation Rest(double depart, double start) => rest with
         {
-            Depart = depart, Arrive = depart + rest.TravelTicks, Start = start, End = start + (rest.End - rest.Start), WaitTicks = start - depart - rest.TravelTicks,
+            Depart = depart, Arrive = depart + rest.TravelTicks, Start = start, End = start + (rest.End - rest.Start),
         };
-        var cooking = new ForecastActivityAllocation("cook", "helper", 0, 0, 0, 100, 0, 0, 100, 0, 0);
+        var cooking = new ForecastActivityAllocation("cook", "helper", 0, 0, 0, 100, 0, 100, 0, 0);
         void Agree(bool ordered, ForecastCoupledContext bound, ForecastActivityAllocation sleeping)
         {
             var plan = new ForecastActivityPlan([sleeping, cooking], sleeping.End, 0);
@@ -639,7 +638,7 @@ public sealed class PlannedRoomCreditTests
             if (started is null) { Assert.False(outcome.Feasible); return; }
             var mood = outcome.Needs["pawn"].Mood!;
             mood.Assessed();
-            Assert.Equal(ordered, mood.Projected().Trajectory[0].Actual != mood.Projected().Trajectory.First(p => p.Tick > 0).Actual);
+            Assert.Equal(ordered, !mood.Projected().Response!.Targets[0].Frozen);
         }
         Dictionary<(string Task, string Pawn), RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate> Bindings(bool cookBound, bool waits)
         {
@@ -675,7 +674,7 @@ public sealed class PlannedRoomCreditTests
         var (facts, outcomes) = SleeperRests();
         var source = outcomes.First(o => o.Plan.Allocations[0].Start > 0).Plan.Allocations[0];
         // A rest due in 300 ticks: an order now, when the review dispatches it (TheForecastWakesASleeperExactlyWhenTheBindingOrdersIt).
-        var rest = source with { Depart = 300, Arrive = 300 + source.TravelTicks, Start = 300, End = 300 + (source.End - source.Start), WaitTicks = -source.TravelTicks };
+        var rest = source with { Depart = 300, Arrive = 300 + source.TravelTicks, Start = 300, End = 300 + (source.End - source.Start)};
         var commitment = facts.CoupledAlternatives!.Alternatives.Single(c => c.ActivityCompletions.SequenceEqual([rest.Activity]));
         var request = SleeperRequest(facts);
         var context = request.Coupled!;
@@ -688,8 +687,8 @@ public sealed class PlannedRoomCreditTests
             Activities = context.Activities with { Activities = [.. context.Activities.Activities, new("cook", "start", "start", []),
                 new("incumbent/service", "start", "start", [])] },
         };
-        var cooking = new ForecastActivityAllocation("cook", "helper", 0, 0, 0, 100, 0, 0, 100, 0, 0);
-        var service = new ForecastActivityAllocation("incumbent/service", "helper", 0, 0, 0, 100, 0, 0, 100, 0, 0);
+        var cooking = new ForecastActivityAllocation("cook", "helper", 0, 0, 0, 100, 0, 100, 0, 0);
+        var service = new ForecastActivityAllocation("incumbent/service", "helper", 0, 0, 0, 100, 0, 100, 0, 0);
         ForecastObservedIncumbent Incumbent(string pawn) => new(new("old-plan"), new(1,
             [new(pawn, "assignment", "method", 0, 1, false, [new(PawnActivityKind.Recreation, "pin", "", "", 0, 1000)])]), "incumbent/service",
             new(pawn, "assignment", "method", 1, "started")) { Activities = ["incumbent/service"] };
@@ -720,7 +719,7 @@ public sealed class PlannedRoomCreditTests
             }
             var mood = forecast.Needs["pawn"].Mood!;
             mood.Assessed();
-            Assert.Equal(ordered, mood.Projected().Trajectory[0].Actual != mood.Projected().Trajectory.First(p => p.Tick > 0).Actual);
+            Assert.Equal(ordered, !mood.Projected().Response!.Targets[0].Frozen);
         }
         Agree(false, null, [commitment.Id, "incumbent/service"], [Incumbent("pawn")], context, rest, cooking);
         Agree(true, null, [commitment.Id, "incumbent/service"], [Incumbent("helper")], context, rest, service);
@@ -765,7 +764,7 @@ public sealed class PlannedRoomCreditTests
         foreach (var pawn in drills.Select(d => d.Worker.Pawn).Distinct())
         {
             outcome.Needs[pawn].Mood.Projected().Assessed();
-            Assert.True(outcome.Needs[pawn].ThoughtOffsetAtHorizon.Number() > alone.Needs[pawn].ThoughtOffsetAtHorizon.Number());
+            Assert.True(outcome.Needs[pawn].Mood.Projected().PressureTicks < alone.Needs[pawn].Mood.Projected().PressureTicks);
         }
         RunsEveryShippedCredit(generated, outcome, 300);
     }

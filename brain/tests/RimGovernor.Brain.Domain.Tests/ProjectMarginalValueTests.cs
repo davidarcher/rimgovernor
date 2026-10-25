@@ -204,7 +204,7 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
         };
 
         ForecastValueResult Ledger(double researchTicks) => ForecastValue.Of(
-            new(new(researchTicks == 0 ? Array.Empty<ForecastActivityAllocation>() : [new("research/Anna/bench", "Anna", 0, 0, 0, researchTicks, 0, 0, researchTicks, 0, 0)], researchTicks, 0),
+            new(new(researchTicks == 0 ? Array.Empty<ForecastActivityAllocation>() : [new("research/Anna/bench", "Anna", 0, 0, 0, researchTicks, 0, researchTicks, 0, 0)], researchTicks, 0),
                 true, new Dictionary<string, ForecastNeedsResult>(), []),
             context, GameTime.TicksPerDay, new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>(), []));
 

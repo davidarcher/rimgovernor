@@ -108,7 +108,7 @@ public static class ForecastHandoffPolicy
 
         var active = EquatableArray.From(commitments.Values.Where(c => c.MoodMemories.Count + c.SituationalChanges.Count + c.ComfortShifts.Count + c.OutfitChanges.Count > 0
             && c.ActivityCompletions.All(finished.ContainsKey))
-            .Select(c => new ForecastTerminalEffect(c with { StockChanges = [], MaterialClaims = [], EquipmentClaims = [], ActivityCompletions = [],
+            .Select(c => new ForecastTerminalEffect(c with { StockChanges = [], MaterialClaims = [], ActivityCompletions = [],
                 Outcome = null, UnsupportedEffects = [], ExclusiveOutcome = "" },
                 c.ActivityCompletions.Count == 0 ? 0 : c.ActivityCompletions.Max(id => finished[id]) / GameTime.TicksPerDay))
             .OrderBy(c => c.Day).ThenBy(c => c.Effect.Id, StringComparer.Ordinal));

@@ -44,7 +44,7 @@ internal static class CombatLabHoldFire
             s,
             "hold",
             cancellationToken,
-            CombatLabKit.Order(held, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.StopCase(new RimGovernor.Brain.GameOrders.Operations.Clear())),
+            CombatLabKit.Order(held, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.StopCase()),
             CombatLabKit.Order(held, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.FireModeCase(RimGovernor.Brain.GameFacts.Operations.CombatFireMode.Hold)),
             CombatLabKit.Order(shooter, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AttackCase(CombatLabKit.Pawn(hostiles[1])))).ConfigureAwait(false);
         foreach (var r in results)

@@ -671,7 +671,7 @@ public sealed class ForecastCoupledSelectionTests
         facts = facts with { CoupledAlternatives = candidates with
         {
             Alternatives = [harvest with { Id = "mood", MoodMemories = [new("pawn", memory)] }, harvest],
-            Context = candidates.Context with { Needs = candidates.Context.Needs with { Pawns = [pawn] }, MoodTrajectory = true }
+            Context = candidates.Context with { Needs = candidates.Context.Needs with { Pawns = [pawn] } }
         } };
         var result = Select(facts);
         Assert.True(result.Selected.Feasible);
@@ -705,7 +705,7 @@ public sealed class ForecastCoupledSelectionTests
         facts = facts with { CoupledAlternatives = candidates with
         {
             Alternatives = [change],
-            Context = candidates.Context with { Needs = candidates.Context.Needs with { Pawns = [pawn] }, MoodTrajectory = true }
+            Context = candidates.Context with { Needs = candidates.Context.Needs with { Pawns = [pawn] } }
         } };
         var result = Select(facts);
         var vector = wins ? result.SelectedVector : result.Rejected.First(r => r.Commitments.SequenceEqual(["gear"])).Consequences!;
@@ -721,7 +721,7 @@ public sealed class ForecastCoupledSelectionTests
         Assert.True(vector.BreakRisk.Number() < result.BaselineVector.BreakRisk.Number());
         var moodResult = result.Selected.Needs["pawn"].Mood!;
         // The change counts from the forecast start; every other situational thought is still held constant.
-        Assert.Equal(mood + .11, moodResult.Projected().Trajectory[0].Target, 9);
+        Assert.Equal(mood + .11, 1 - moodResult.Projected().PressureTicks / Horizon, 9);
         Assert.Contains("unmodeled_situational_thoughts_constant", moodResult.Findings);
     }
 
@@ -735,12 +735,12 @@ public sealed class ForecastCoupledSelectionTests
         facts = facts with { CoupledAlternatives = candidates with
         {
             Alternatives = [new ForecastCommitment("memory", []) { MoodMemories = [new("pawn", memory)] }],
-            Context = candidates.Context with { Needs = candidates.Context.Needs with { Pawns = [pawn] }, MoodTrajectory = true }
+            Context = candidates.Context with { Needs = candidates.Context.Needs with { Pawns = [pawn] } }
         } };
         var result = Select(facts);
         Assert.Equal(["memory"], result.Selection.Selected);
         var needs = result.Selected.Needs["pawn"];
-        Assert.Equal(.32, needs.Mood!.Projected().Trajectory[0].Target, 9);
+        Assert.Equal(.32, 1 - needs.Mood!.Projected().PressureTicks / Horizon, 9);
         Assert.True(result.SelectedVector.BreakRisk.Number() < result.BaselineVector.BreakRisk.Number());
     }
 
@@ -870,7 +870,7 @@ public sealed class ForecastCoupledSelectionTests
 
     private static ForecastCoupledOutcome Outcome(ReviewFacts facts, params ForecastCommitment[] add) =>
         CoupledForecastKit.Forecast(ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay,
-            facts with { CoupledAlternatives = facts.CoupledAlternatives! with { Context = facts.CoupledAlternatives.Context with { MoodTrajectory = true } } },  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) },
+            facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) },
             []), add).Proposed.Coupled!.Alternatives.First(p => p.Feasible);
 
     [Fact]
@@ -880,9 +880,9 @@ public sealed class ForecastCoupledSelectionTests
         var cold = Outcome(facts, work).Needs["pawn"].Mood!;
         var warm = Outcome(facts, work, gear).Needs["pawn"].Mood!;
         // Without the shift the card along the work matches the observed -12: today's constant.
-        Assert.All(cold.Projected().Trajectory, p => Assert.Equal(.28, p.Target, 9));
-        Assert.Contains(warm.Projected().Trajectory, p => Math.Abs(p.Target - .40) < 1e-9);
-        Assert.All(warm.Projected().Trajectory, p => Assert.True(p.Target >= .28 - 1e-9));
+        Assert.Equal(.28, cold.Projected().TerminalMood, 9);
+        Assert.True(warm.Projected().PressureTicks < cold.Projected().PressureTicks);
+        Assert.True(warm.Projected().TerminalMood >= cold.Projected().TerminalMood - 1e-9);
         Assert.True(warm.Assessed().Risk < cold.Assessed().Risk);
         // Every tick after the work is at its temperature (#3673), so the exposure covers the horizon the card is read over.
         Assert.DoesNotContain("situational_thought_constant_outside_exposure:EnvironmentCold", warm.Findings);
@@ -963,7 +963,7 @@ public sealed class ForecastCoupledSelectionTests
         var idle = Outcome(Unread(facts), gear).Needs["pawn"].Mood!;
         var plain = Outcome(Unread(today), gear).Needs["pawn"].Mood!;
         Assert.Equal(0, Outcome(Unread(facts), gear).ThermalExposure.Single().AssessedTicks);
-        Assert.Equal(plain.Projected().Trajectory, idle.Projected().Trajectory);
+        Assert.Equal(plain.Projected().TerminalMood, idle.Projected().TerminalMood);
         Assert.Equal(plain.Projected().Breaks, idle.Projected().Breaks);
         Assert.Contains("situational_thought_constant_outside_exposure:EnvironmentCold", idle.Findings);
         Assert.DoesNotContain(plain.Findings, f => f.StartsWith("situational_thought_constant_outside_exposure:", StringComparison.Ordinal));

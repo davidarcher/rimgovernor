@@ -45,7 +45,7 @@ public sealed class DiningRecCreditTests
         };
 
     private static ForecastCoupledOutcome Serving(string[] pawns, params (int Room, double At)[] served) =>
-        new(new([], 0, 0), true, pawns.ToDictionary(p => p, p => new ForecastNeedsResult([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new(new(p, "", new ForecastCapacityWindows.Unread(), 0), []), [])
+        new(new([], 0, 0), true, pawns.ToDictionary(p => p, p => new ForecastNeedsResult([], new(new(p, "", new ForecastCapacityWindows.Unread(), 0), []), [])
         {
             Mood = MoodResults.Flat(0d, [Day, 0, 0]) with
             { Response = new(.34, .12 / 2500, .08 / 2500, .35, [new(0, Day, .34, .34, false)]) },

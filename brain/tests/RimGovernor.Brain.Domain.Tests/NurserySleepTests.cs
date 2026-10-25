@@ -79,7 +79,7 @@ public sealed class NurserySleepTests
             Activities = new() { Deadline = 60000, Activities = [new("rest", "bed", "bed", [])],
                 Options = [new("rest", "pawn", 1000, 0) { ServicePosition = new ServicePositionRead.Located(new(15, 0)) }] },
         };
-        var outcome = Outcome with { Plan = new([new("rest", "pawn", 0, 0, 0, 1000, 0, 0, 1000, 0, 0)], 1000, 0) };
+        var outcome = Outcome with { Plan = new([new("rest", "pawn", 0, 0, 0, 1000, 0, 1000, 0, 0)], 1000, 0) };
         Assert.Equal((0d, 0d), Mood(context, outcome));
         var audible = context with { Needs = context.Needs with { Pawns = [.. context.Needs.Pawns.Select(p => p.Pawn != "pawn" ? p : p with
         { Targets = [.. p.Targets.Select(t => t with { ServicePosition = new ServicePositionRead.Located(new(0, 0)) })] })] } };

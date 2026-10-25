@@ -13,7 +13,7 @@ public sealed class ForecastTradeExecutionTests
         ForecastTradeRequestTests.Catalog(Arm), new TradeVisitFacts
         { Requests = [ForecastTradeRequestTests.Request() with { ConsoleId = "console", ConsoleCell = new(1, 1) }] }, 800));
     private static ForecastActivityAllocation Allocation(string id, double depart, double end) =>
-        new(id, "pawn", depart, depart, depart, end, 0, 0, end - depart, end - depart, 0);
+        new(id, "pawn", depart, depart, depart, end, 0, end - depart, end - depart, 0);
     private static ForecastActivityOutcomeComparison Selection(string root, params ForecastActivityAllocation[] allocations) =>
         new([root], new(allocations, allocations.Select(a => a.End).DefaultIfEmpty(0).Max(), 0), [], 0, false);
 
@@ -26,7 +26,7 @@ public sealed class ForecastTradeExecutionTests
         var context = ForecastValueTests.Context(ForecastValueTests.Pawn()) with
         { Stock = stock, TradeWork = [work], Activities = new() { Deadline = 100, Activities = [new("after", "start", "start", [work.Task])] } };
         var selected = Selection(request.Id, Allocation("eat", 0, 10), Allocation(work.Task, 10, 20), Allocation("sleep", 20, 30),
-            new("after", "other", 30, 30, 30, 40, 0, 0, 10, 10, 0));
+            new("after", "other", 30, 30, 30, 40, 0, 10, 10, 0));
         Assert.Empty(ForecastTradeExecution.Ready(selected, context));
         Assert.Equal("eat", Assert.Single(RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.BeforeExternalWork(selected.Plan!, context).Allocations).Activity);
         var fresh = Selection(request.Id, Allocation(work.Task, 0, 10), Allocation("sleep", 10, 20));

@@ -27,8 +27,6 @@ public static partial class CombatFireRules
     /// <summary>Bridge.CombatGeometryMaxCells.</summary>
     internal const int MaxGeometryCells = 64;
 
-    private readonly record struct SightKey(Cell Cell, PawnId Hostile);
-
     /// <summary>
     /// Orders candidate firing cells so the first ones keep at least <paramref name="gap"/> empty tiles (8-way)
     /// between each other: a greedy spaced pick in the given order, then, one tile tighter at a time down to
@@ -170,10 +168,10 @@ public static partial class CombatFireRules
         CombatMemory m
     )
     {
-        var sight = new Dictionary<SightKey, SightLine>();
+        var sight = new Dictionary<(Cell Cell, PawnId Hostile), SightLine>();
         foreach (var l in geometry.Lines.Items)
         {
-            sight[new SightKey(l.Cell, l.Hostile)] = l;
+            sight[(l.Cell, l.Hostile)] = l;
         }
 
         var cells = new Dictionary<PawnId, Cell>();
@@ -198,7 +196,7 @@ public static partial class CombatFireRules
                 return true;
             }
 
-            return sight.TryGetValue(new SightKey(from, target), out var l) && (l.ColonistInPath || (ranged.GetValueOrDefault(pawn) && !l.LineOfFire));
+            return sight.TryGetValue((from, target), out var l) && (l.ColonistInPath || (ranged.GetValueOrDefault(pawn) && !l.LineOfFire));
         }
 
         var ranked = CombatThreatRules.RankThreats(view);
@@ -217,7 +215,7 @@ public static partial class CombatFireRules
             o = o with { Target = default };
             foreach (var h in ranked)
             {
-                if (sight.TryGetValue(new SightKey(from, h.Id), out var l) && l.LineOfFire && !Blocked(o.Pawn, h.Id, from))
+                if (sight.TryGetValue((from, h.Id), out var l) && l.LineOfFire && !Blocked(o.Pawn, h.Id, from))
                 {
                     o = o with { Target = h.Id };
                     break;
@@ -236,7 +234,7 @@ public static partial class CombatFireRules
 
                 foreach (var h in ranked)
                 {
-                    if (sight.TryGetValue(new SightKey(from, h.Id), out var l) && !l.LineOfFire && !m.RefusedHit(o.Pawn, h.Id, from))
+                    if (sight.TryGetValue((from, h.Id), out var l) && !l.LineOfFire && !m.RefusedHit(o.Pawn, h.Id, from))
                     {
                         refused.Add(new HitRefusal(o.Pawn, h.Id, from));
                     }
@@ -297,7 +295,7 @@ public static partial class CombatFireRules
     private static (Cell Cell, PawnId Target)? FiringCell(
         Cell from,
         GeometryReply geometry,
-        IReadOnlyDictionary<SightKey, SightLine> sight,
+        Dictionary<(Cell Cell, PawnId Hostile), SightLine> sight,
         IReadOnlyList<CombatPawnState> ranked,
         HashSet<Cell> taken
     )
@@ -318,7 +316,7 @@ public static partial class CombatFireRules
 
             foreach (var h in ranked)
             {
-                if (sight.TryGetValue(new SightKey(c, h.Id), out var l) && l.LineOfFire && !l.ColonistInPath)
+                if (sight.TryGetValue((c, h.Id), out var l) && l.LineOfFire && !l.ColonistInPath)
                 {
                     best = c;
                     target = h.Id;

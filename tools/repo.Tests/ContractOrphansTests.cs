@@ -75,6 +75,32 @@ public sealed class ContractOrphansTests : IDisposable
     private readonly string dir = Directory.CreateTempSubdirectory("contract-orphans-").FullName;
 
     [Fact]
+    public void ToolReadersReachHandwrittenFormattingButGeneratedRecordPlumbingDoesNotReadSpares()
+    {
+        var policy = Compile("RimGovernor.Brain.Policy", """
+            namespace RimGovernor.Brain.Policy;
+            public readonly record struct Purpose(string Value)
+            {
+                public override string ToString() => Value;
+            }
+            public sealed record Row(int Used, int Spare);
+            """);
+        var tool = Compile("rg", """
+            using RimGovernor.Brain.Policy;
+            public static class Audit
+            {
+                public static string Print() => new Purpose("food").ToString();
+                public static int Read(Row row) => row.Used;
+                public static bool Compare(Row left, Row right) => left == right;
+            }
+            """, policy);
+
+        var orphans = ContractOrphans.Find(ContractOrphans.PolicyRecords, policy, [tool], [], out var count);
+        Assert.Equal(3, count);
+        Assert.Equal([("Policy|Row.Spare", "not referenced outside its declaration")], orphans);
+    }
+
+    [Fact]
     public void AsyncPolicyReadsReachTheStateMachineWithoutHidingUnreadMembers()
     {
         var policy = Compile("RimGovernor.Brain.Policy", """

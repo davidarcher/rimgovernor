@@ -67,9 +67,7 @@ previous ready-work report exists; a missing census refuses planning.
 
 Fuel consumers carry the observed tank, target, empty flag and catalog burn
 directly. Continuous burns project the maintenance horizon; per-use consumers
-with fuel name a runway gap, while empty barrels have an exact refill demand.
-Nonempty rain-driven consumers name `RainDependent`, since weather does not
-provide a fixed daily burn. Invalid consumer facts fail the calculation rather
+with fuel and nonempty rain-driven consumers supply no projected stock target because their use or weather supplies no fixed daily burn. Empty barrels have an exact refill demand. Invalid consumer facts fail the calculation rather
 than silently dropping demand. Native/catalog disagreement about a refuelable
 comp fails the read.
 

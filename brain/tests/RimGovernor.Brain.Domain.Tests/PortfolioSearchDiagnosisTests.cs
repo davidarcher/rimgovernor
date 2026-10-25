@@ -60,7 +60,7 @@ public sealed class PortfolioSearchDiagnosisTests
                 return closure;
             }, StringComparer.Ordinal);
             static bool GraphOnly(ForecastCommitment c) => c.ActivityCompletions.Count > 0 && c.Outcome is null
-                && c.StockChanges.Count == 0 && c.MaterialClaims.Count == 0 && c.EquipmentClaims.Count == 0
+                && c.StockChanges.Count == 0 && c.MaterialClaims.Count == 0
                 && c.UnsupportedEffects.Count == 0;
             return roots.Where(GraphOnly).SelectMany(a => roots.Where(b => a.Id != b.Id && closures[a.Id].IsSubsetOf(closures[b.Id]))
                 .Select(b => (a.Id, b.Id))).ToHashSet();

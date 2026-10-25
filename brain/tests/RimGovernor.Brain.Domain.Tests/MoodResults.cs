@@ -14,5 +14,5 @@ internal static class MoodResults
 
     /// <summary>A projected mood with only its pressure and assessed break tiers set (no risk, trajectory or findings).</summary>
     public static ForecastMoodResult.Projected Flat(double pressure, EquatableArray<double> tiers, EquatableArray<ForecastShiftedBreaks> shifted = default) =>
-        new([], 0, 0, 0, 0, pressure, new ForecastMoodBreaks.Assessed(0, tiers, shifted), []);
+        new(0, 0, 0, 0, pressure, new ForecastMoodBreaks.Assessed(0, tiers, shifted), []);
 }

@@ -34,7 +34,7 @@ public sealed class ForecastHandoffTests
                 ModelBasis = new(input, policy), Needs = NeedsFixtures.Empty, Resources = new(evidence, new([], [], [], []), new MaterialAvailability.Blocked(MaterialBudgetBlock.AwaitingReview)),
                 InitialLots = [new("meal", "", Food, 10d) { Freshness = new FoodFreshness.Rots(120000d) }] } };
     }
-    private static ForecastCoupledOutcome Outcome() => new(new([new("research", "pawn", 0, 0, 0, 50, 0, 0, 50, 0, 0)], 50, 0), true,
+    private static ForecastCoupledOutcome Outcome() => new(new([new("research", "pawn", 0, 0, 0, 50, 0, 50, 0, 0)], 50, 0), true,
         new Dictionary<string, ForecastNeedsResult>(), []);
 
     private static ForecastHandoff Handoff(ColonyForecastRequest request, IReadOnlyDictionary<Resource, double> stock,
@@ -123,7 +123,7 @@ public sealed class ForecastHandoffTests
     public void UnknownTerminalNeedIsPreservedRatherThanReset()
     {
         var outcome = Outcome() with { Needs = new Dictionary<string, ForecastNeedsResult>
-        { ["pawn"] = new([new("food", new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected")), new("rest", new ForecastTerm.Assessed(.17), new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"))], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), []) } };
+        { ["pawn"] = new([new("food", new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected")), new("rest", new ForecastTerm.Assessed(.17), new ForecastTerm.Unassessed("not_projected"))], new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), []) } };
         var handoff = Handoff(Request(), new Dictionary<Resource, double> { [Steel] = 20d, [Food] = 10d, [Medicine] = 3d }, outcome);
         Assert.False(Assert.Single(handoff.Needs, n => n.Kind == "food").Level is ForecastTerm.Assessed);
         Assert.Equal(.17, Assert.Single(handoff.Needs, n => n.Kind == "rest").Level.Number());
@@ -195,7 +195,7 @@ public sealed class ForecastHandoffTests
         var input = basis.Input with { Climate = basis.Input.Climate with { TicksToNextTwelfth = 12000 } };
         request = request with { Coupled = request.Coupled with { ModelBasis = new(input, basis.Policy with { Projects = nodes }),
             Activities = new() { Deadline = 0, Activities = [new("research", "", "", []) { ProjectProgress = new("sow:zone1", 1d / 50) }] } } };
-        var outcome = Outcome() with { Plan = new([new("research", "pawn", 0, 0, completion * GameTime.TicksPerDay - 50, completion * GameTime.TicksPerDay, 0, 0, 50, 0, 0)], completion * GameTime.TicksPerDay, 0) };
+        var outcome = Outcome() with { Plan = new([new("research", "pawn", 0, 0, completion * GameTime.TicksPerDay - 50, completion * GameTime.TicksPerDay, 0, 50, 0, 0)], completion * GameTime.TicksPerDay, 0) };
         var handoff = Handoff(request, new Dictionary<Resource, double> { [Steel] = 20d, [Food] = 10d, [Medicine] = 3d }, outcome);
         Assert.Empty(handoff.Gaps);
         Assert.Equal(ModelProjectStatus.Done, Assert.Single(handoff.State!.Projects, p => p.Id == "sow:zone1").Status);

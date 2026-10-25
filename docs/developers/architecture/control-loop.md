@@ -248,12 +248,7 @@ latches (Housing, Comfort, Medical).
 
 ### Forecast owners and coverage
 
-ColonyForecast proposals and essential-service rows already attach to an owner
-and are recomputed every review. The owner is the NeedId: `ServiceTarget`s
-(`EssentialServices.cs`) and the coupled-candidate gates
-(`ForecastCoupledCandidates.cs`) are keyed by NeedIds, and coverage stays honest:
-an owner that moves must not turn its service row into Unknown. A family whose
-choice is not yet on the shared comparator moves there under its own issue.
+ColonyForecast proposals reference their owning Need and are recomputed from each review. `ServiceTarget`s (`EssentialServices.cs`) and the coupled-candidate gates (`ForecastCoupledCandidates.cs`) are keyed by NeedIds. Each family owns observed recovery; selected forecast outcomes explain conditional service relief. A family whose choice is not yet on the shared comparator moves there under its own issue.
 
 ### Explain, progress and telemetry keys
 

@@ -69,7 +69,7 @@ internal static class CombatLabNativeHold
 
         var frames = new LabFrames(s);
         _ = await frames.UntilAsync("arrive", CombatLabKit.ProbeTicks, 0, f => LabFrames.Row(f, defender)?.Cell == cell, cancellationToken).ConfigureAwait(false);
-        CombatLabKit.Applied("hold-position", await CombatLabKit.OrderAsync(s, "hold-position", defender, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.HoldPositionCase(new RimGovernor.Brain.GameOrders.Operations.Clear()), cancellationToken).ConfigureAwait(false));
+        CombatLabKit.Applied("hold-position", await CombatLabKit.OrderAsync(s, "hold-position", defender, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.HoldPositionCase(), cancellationToken).ConfigureAwait(false));
 
         // Hold fire: the defender stays on the cell and silent while a live hostile is in range.
         var start = await CombatLabKit.TickAsync(s, "hold-start", cancellationToken).ConfigureAwait(false);
@@ -94,7 +94,7 @@ internal static class CombatLabNativeHold
             s,
             "engage",
             cancellationToken,
-            CombatLabKit.Order(defender, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.HoldPositionCase(new RimGovernor.Brain.GameOrders.Operations.Clear())),
+            CombatLabKit.Order(defender, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.HoldPositionCase()),
             CombatLabKit.Order(defender, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.FireModeCase(RimGovernor.Brain.GameFacts.Operations.CombatFireMode.AtWill))).ConfigureAwait(false))
         {
             CombatLabKit.Applied("engage", r);

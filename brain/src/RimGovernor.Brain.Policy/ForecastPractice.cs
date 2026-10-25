@@ -30,7 +30,7 @@ public sealed record PracticeTrainees(EquatableArray<PracticeTrainee> Trainees, 
 /// </summary>
 internal static class ForecastPractice
 {
-    private static readonly ForecastNeedsResult NoNeeds = new([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new ForecastCapacityResult(default!, []), []);
+    private static readonly ForecastNeedsResult NoNeeds = new([], new ForecastCapacityResult(default!, []), []);
 
     private sealed class Cache
     {

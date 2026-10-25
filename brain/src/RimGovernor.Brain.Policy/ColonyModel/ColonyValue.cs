@@ -44,7 +44,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     private const string TendCare = "colony/tend";
 
     // The stub outcome the harm ledger prices a single pawn's outfit with: it reads the pawn set and the support only.
-    private static readonly ForecastNeedsResult NoNeeds = new([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new ForecastCapacityResult(default!, []), []);
+    private static readonly ForecastNeedsResult NoNeeds = new([], new ForecastCapacityResult(default!, []), []);
 
     private readonly ConcurrentDictionary<HarmFightKey, HarmDistribution> harmCache = new();
     private readonly Dictionary<string, NeedsForecastPawn> rows = context.Needs.Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal)

@@ -162,15 +162,8 @@ bodies). Record equality, hashing, printing and cloning, and the JSON context an
 every member and count as nothing: a member that only takes part in equality is an orphan. A parameterless
 constructor's field initializers are not a write by whoever constructs the type. Findings
 read `GameFacts|Type.Member`, `GameOrders|Type.Member` or `Policy|Type.Member` with a reason (`not referenced outside its
-declaration`, `written, never read`, `written by the native side, never read by the brain`). The baseline
-`brain/analyzers/baseline/orphans.txt` holds the orphans that predate the check, and the members the check
-exposed when it stopped counting acceptance string keys as reads (#3410; burndown for both:
-[#3351](https://github.com/davidarcher/rimgovernor/issues/3351)). It only shrinks: a new
-orphan fails (delete it through every layer, never add a line), and so does a line that is no
-longer an orphan (delete the line). In any epic, a Policy member whose only reader is a later child issue of the same epic may be baselined; the commit body lists it, and the reading issue deletes it. The epic's final issue leaves none (for example the harm model epic [#3471](https://github.com/davidarcher/rimgovernor/issues/3471): readers in #3539 to #3547). The baseline's `Operations.CombatOrderOrder.*`,
-`Operations.CombatAnimalAreaArea.Clear*` and `Operations.AbilityIntentTarget.*` lines stay on purpose: the combat
-shapes are unread only while combat is away, and its return will read them. The wire and Policy checks are unavailable without the game, because then the
-native mod is not built and the game-reading brain projects are empty.
+declaration`, `written, never read`, `written by the native side, never read by the brain`).
+The check has no baseline or exemptions: every finding fails and must be removed through every layer or traced to a real compile-checked reader. Tool-host (`rg`) readers count alongside brain readers. Handwritten formatting and equality methods count when called; compiler-generated record equality, hashing, printing and cloning do not. The wire and Policy checks are unavailable without the game, because then the native mod is not built and the game-reading brain projects are empty.
 
 The public types of `RimGovernor.Fixtures.Contracts` (the stage spec and its reply, enums aside) are checked
 the same way, as `Fixtures|Type.Member`. Their other end is the fixture build's `test/stage`, which the gate

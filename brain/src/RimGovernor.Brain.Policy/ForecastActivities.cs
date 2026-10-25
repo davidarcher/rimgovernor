@@ -96,15 +96,13 @@ public sealed record ForecastActivityProblem
 }
 
 public sealed record ForecastActivityAllocation(string Activity, string Pawn, double Depart, double Arrive,
-    double Start, double End, double TravelTicks, double WaitTicks, double WorkTicks,
+    double Start, double End, double TravelTicks, double WorkTicks,
     double DisplacedLaborTicks, double RecoveryLaborTicks)
 {
     public ForecastProductiveLearning? Learning { get; init; }
     public double LaborCost => DisplacedLaborTicks + RecoveryLaborTicks;
 }
-/// <summary>A schedule: its allocations by activity id, completion and labor cost. Its stock changes and equipment claims
-/// are derived from the problem by <see cref="ForecastActivities.StockChangesOf"/> and
-/// <see cref="ForecastActivities.EquipmentClaimsOf"/> for the plans a caller reads (#3468): a search emits thousands and ranks on neither.</summary>
+/// <summary>A schedule: its allocations by activity id, completion and labor cost.</summary>
 public sealed record ForecastActivityPlan(ForecastActivityAllocation[] Allocations, double CompletedAt, double LaborCost);
 /// <summary>A search's feasible plans, cheapest first, with what it refused and whether its budget ran out.</summary>
 public sealed record ForecastActivityComparison(ForecastActivityPlan[] Alternatives, string[] Findings, int Expansions, bool SearchTruncated);
@@ -123,11 +121,6 @@ public static class ForecastActivities
         }
         return EquatableArray.From(effects);
     }
-
-    /// <summary>A plan's equipment claims: each allocation's option equipment, in id order, over the allocation's service.</summary>
-    public static EquatableArray<ForecastEquipmentClaim> EquipmentClaimsOf(ForecastActivityProblem problem, ForecastActivityPlan plan) =>
-        EquatableArray.From(plan.Allocations.SelectMany(a => problem.Options.Single(o => o.Activity == a.Activity && o.Pawn == a.Pawn).Equipment
-            .Order(StringComparer.Ordinal).Select(e => new ForecastEquipmentClaim(e, a.Start, a.End))));
 
     // The (task, pawn) rejections a search reports once each, by kind (#3468): flagged in the loop, named after it.
     private static readonly string[] PairRejections = ["unread_capacity", "unknown_equipment", "equipment_location_mismatch", "capacity_or_deadline", "equipment_occupied"];
@@ -283,7 +276,7 @@ public static class ForecastActivities
                                 { Reject(3, taskAt, pawn.Pawn); continue; }
                                 if (EquipmentOccupied(option, equipment, shared, start, end))
                                 { Reject(4, taskAt, pawn.Pawn); continue; }
-                                assigned.Add(placed[taskAt] = new(task.Id, pawn.Pawn, depart, arrive, start, end, travel, start - arrive, work,
+                                assigned.Add(placed[taskAt] = new(task.Id, pawn.Pawn, depart, arrive, start, end, travel, work,
                                     (start + work - depart) * rate, recovery) { Learning = evidence });
                                 var (low, high) = PrefixHash(taskAt, pawnIndex[pawn.Pawn], depart, start, end);
                                 prefixLow += low; prefixHigh += high;

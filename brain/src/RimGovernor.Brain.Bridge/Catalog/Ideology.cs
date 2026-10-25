@@ -39,19 +39,11 @@ public sealed partial class DefinitionCatalog
             }
         }
 
-        var memes = new Dictionary<string, P.MemeDef>(StringComparer.Ordinal);
-        foreach (var (name, row) in Rows<MemeDef>())
-        {
-            memes[name] = new P.MemeDef(
-                [.. row.requireOne.Seq().Select(group => (IReadOnlyList<string>)[.. (group ?? throw new CatalogException($"meme {name} has a null required precept group")).Select(p => p.defName).Order(StringComparer.Ordinal)])],
-                [.. preceptRows.Values.Where(p => p.conflictingMemes.Seq().Contains(row)).Select(p => p.defName).Order(StringComparer.Ordinal)]);
-        }
-
         return new P.IdeologyDefs
         {
             Precepts = precepts,
             Roles = roles,
-            Memes = memes,
+            Memes = Rows<MemeDef>().Keys.ToHashSet(StringComparer.Ordinal),
             Rituals = patternRows.ToDictionary(pair => pair.Key, pair => RitualDef(pair.Value), StringComparer.Ordinal),
             BuildingMoods = BuildingDemandMoods(),
         };
@@ -127,12 +119,7 @@ public sealed partial class DefinitionCatalog
 
     // A precept def with one effect per PreceptComp, in comp order.
     private P.PreceptDef PreceptDef(PreceptDef row) =>
-        new([.. row.comps.Seq().Select(comp => PreceptEffect(row.defName, comp))])
-        {
-            Issue = row.issue?.defName ?? string.Empty,
-            RequiredMemes = [.. row.requiredMemes.Seq().Select(m => m.defName).Order(StringComparer.Ordinal)],
-            ConflictingMemes = [.. row.conflictingMemes.Seq().Select(m => m.defName).Order(StringComparer.Ordinal)],
-        };
+        new([.. row.comps.Seq().Select(comp => PreceptEffect(row.defName, comp))]);
 
     // The base mood effect of each stage of the named thought; no thought is no stage. A null stage (the game keeps
     // unused stages null) is a stage of no mood.
@@ -396,7 +383,6 @@ public sealed partial class DefinitionCatalog
 
         return new P.DesignOptions
         {
-            Memes = memes,
             Precepts = designPrecepts,
             RequiredMemes = [.. f.requiredMemes.Seq().Select(m => m.defName)],
             // The game's own offer for the venerated-animal precept (animals, no insects or dryads); native rechecks CanUse.

@@ -32,10 +32,8 @@ public sealed class ResourceCensusTests
     public void ContinuousFuelProjectsTheObservedTankAndConversion()
     {
         var runway = Plan(Consumer());
-        var projected = Assert.IsType<FuelProjection.Projected>(runway.Projection);
         var need = (long)Math.Ceiling((2 * ColonyDiagnosticsRules.MaintenanceHorizonDays - 2) / 2);
         Assert.Equal(need, runway.Needs[Fuel]);
-        Assert.Empty(projected.Gaps);
     }
 
     [Fact]
@@ -45,24 +43,21 @@ public sealed class ResourceCensusTests
         consumer = consumer with { Service = consumer.Service with { Fuel = consumer.Refuelable with { Burn = consumer.Burn with { Flickable = true } }, SwitchedOn = false } };
         var runway = Plan(consumer);
         Assert.Empty(runway.Needs);
-        Assert.Empty(Assert.IsType<FuelProjection.Projected>(runway.Projection).Gaps);
     }
 
     [Fact]
-    public void PerUseFuelNamesItsGapUntilTheBarrelIsEmpty()
+    public void PerUseFuelHasNoProjectedTargetUntilTheBarrelIsEmpty()
     {
-        Assert.Equal(["consumer"], Assert.IsType<FuelProjection.Projected>(Plan(Consumer(useDriven: true)).Projection).Gaps);
+        Assert.Empty(Plan(Consumer(useDriven: true)).Needs);
         var empty = Plan(Consumer(useDriven: true, empty: true));
-        Assert.Empty(Assert.IsType<FuelProjection.Projected>(empty.Projection).Gaps);
         Assert.Equal(5, empty.Needs[Fuel]);
     }
 
     [Fact]
-    public void RainDependentFuelNamesTheWeatherStateButAnEmptyTankCanBeRefilled()
+    public void RainDependentFuelHasNoProjectedTargetButAnEmptyTankCanBeRefilled()
     {
-        Assert.Equal(["consumer"], Assert.IsType<FuelProjection.RainDependent>(Plan(Consumer(rain: true)).Projection).Consumers);
+        Assert.Empty(Plan(Consumer(rain: true)).Needs);
         var empty = Plan(Consumer(rain: true, empty: true));
-        Assert.IsType<FuelProjection.Projected>(empty.Projection);
         Assert.Equal(5, empty.Needs[Fuel]);
     }
 

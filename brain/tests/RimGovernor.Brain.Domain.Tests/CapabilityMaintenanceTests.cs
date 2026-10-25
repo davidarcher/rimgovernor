@@ -42,7 +42,7 @@ public sealed class CapabilityMaintenanceTests
             => ForecastMaintenancePolicy.ForecastMaintenance([new(requirement, observed)], [], plan, completed, 200)[0];
         Assert.True(Assert.IsType<ForecastMaintenanceGap.Projected>(Forecast(EquatableArray.From(skills), new([], 0, 0)).MissingXp).Xp > 0);
         var projection = ForecastSkillTests.Projected(ForecastSkillPolicy.ForecastSkill(Learning(), [], 0));
-        var work = new ForecastActivityPlan([new("work", "pawn", 0, 0, 0, 1, 0, 0, 1, 1, 0)
+        var work = new ForecastActivityPlan([new("work", "pawn", 0, 0, 0, 1, 0, 1, 1, 0)
         { Learning = new("Shooting", [new("work", 1, 20d, SkillXpPath.NormalTracker)], projection, projection, 1, 1, "native") }], 1, 1);
         Assert.Equal(new ForecastMaintenanceGap.Projected(0), Forecast(EquatableArray.From(skills), work).MissingXp);
         Assert.IsType<ForecastMaintenanceGap.Unprojectable>(Forecast([skills[0]], new([], 0, 0)).MissingXp);

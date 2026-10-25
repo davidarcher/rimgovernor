@@ -71,7 +71,7 @@ public sealed class NurseryCreditTests
 
     /// <summary>The colonist's mood breaks nothing unshifted or raised, and a day in the mildest tier at each lowering shift the context asks for.</summary>
     private static ForecastCoupledOutcome Outcome(ForecastCoupledContext context) =>
-        new(new(context.Activities.Activities.Any(a => a.Id == "observed-work") ? [new("observed-work", "pawn", 0, 0, 0, Day, 0, 0, Day, 0, 0)] : [], Day, 0), true, context.Needs.Pawns.ToDictionary(p => p.Pawn, p => new ForecastNeedsResult([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new(new(p.Pawn, "", new ForecastCapacityWindows.Unread(), 0), []), [])
+        new(new(context.Activities.Activities.Any(a => a.Id == "observed-work") ? [new("observed-work", "pawn", 0, 0, 0, Day, 0, Day, 0, 0)] : [], Day, 0), true, context.Needs.Pawns.ToDictionary(p => p.Pawn, p => new ForecastNeedsResult([], new(new(p.Pawn, "", new ForecastCapacityWindows.Unread(), 0), []), [])
             {
                 Mood = FlatMood(p),
             }), [])
@@ -313,8 +313,8 @@ public sealed class NurseryCreditTests
                 new("inside", "pawn", Day / 2, 0) { ServicePosition = new ServicePositionRead.Located(new(2, 0)) }],
         } };
         var outcome = Outcome(mixed) with { Plan = new([
-            new("outside", "pawn", 0, 0, 0, Day / 2, 0, 0, Day / 2, 0, 0),
-            new("inside", "pawn", Day / 2, Day / 2, Day / 2, Day, 0, 0, Day / 2, 0, 0)], Day, 0) };
+            new("outside", "pawn", 0, 0, 0, Day / 2, 0, Day / 2, 0, 0),
+            new("inside", "pawn", Day / 2, Day / 2, Day / 2, Day, 0, Day / 2, 0, 0)], Day, 0) };
         var exposure = new ForecastNurseryExposure(mixed, outcome, Day, new HashSet<string>());
         var baby = mixed.Needs.Babies.Babies[0];
         Assert.Equal(0, exposure.HeardAt(baby, "pawn", 1, Day / 4, true).Upper);
@@ -567,7 +567,7 @@ public sealed class NurseryCreditTests
             Activities = [new("work", "cell/0/0", moving ? "cell/1/0" : "cell/0/0", [])],
             Options = [new("work", "pawn", 5000, 0) { ServicePosition = new ServicePositionRead.Located(new(0, 0)), SocialMode = new ForecastSocialService.Verified(mode) }],
         } };
-        var outcome = Outcome(context) with { Plan = new([new("work", "pawn", 0, 0, 0, 5000, 0, 0, 5000, 0, 0)], 5000, 0) };
+        var outcome = Outcome(context) with { Plan = new([new("work", "pawn", 0, 0, 0, 5000, 0, 5000, 0, 0)], 5000, 0) };
         return (context, outcome);
     }
 

@@ -100,7 +100,7 @@ public sealed class QuestMonumentHackGiftTests
         // An installed marker hauls loose material first, then builds its open piece at the marker offset.
         var loose = new RimGovernor.Brain.GameFacts.Observations.QuestMonumentResource { Id = "Steel1", DefName = "Steel", Cell = new Cell(4, 4), EligibleHaulers = [new PawnId("Human2"), new PawnId("Human1")] };
         var haul = Select(Monument(Standing, Open, loose));
-        Assert.Equal(("haul", new PawnId("Human1")), (haul.Kind, haul.Haul!.Pawn));
+        Assert.Equal("haul", haul.Kind);
         var build = Select(Monument(Standing, Open));
         Assert.Equal(("build", new Cell(11, 10), Rotation.East, "Steel"), (build.Kind, build.Build!.Cell, build.Build.Rotation, build.Build.Stuff));
 

@@ -31,7 +31,7 @@ public sealed class InvestmentCreditTests
         var tend = ProductiveLearningTests.Tend() with { Learning = ProductiveLearningTests.Work().Learning with { XpSinceMidnight = todayXp } };
         var option = new ForecastActivityOption("tend/1", "doctor", 400d, 0d) { TendLearning = tend };
         var learning = ProductiveLearningTests.Timed(ForecastProductiveWorkPolicy.ForecastProductiveWork(option, [], 0)).Evidence!;
-        var plan = new ForecastActivityPlan([new("tend/1", "doctor", 0, 0, 0, 400, 0, 0, 400, 400, 0) { Learning = learning }], 400, 400);
+        var plan = new ForecastActivityPlan([new("tend/1", "doctor", 0, 0, 0, 400, 0, 400, 400, 0) { Learning = learning }], 400, 400);
         return ForecastValue.Of(new(plan, true, new Dictionary<string, ForecastNeedsResult>(), []), Context(investment), GameTime.TicksPerDay,
             new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>(), []));
     }

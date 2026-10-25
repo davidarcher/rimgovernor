@@ -10,8 +10,7 @@ public sealed record ForecastNeedChoice(string Id, string Pawn, string Kind, str
     public ForecastActivity Activity => new(Id, Target, Target, [])
     { Inputs = Kind == "food" ? [new(new(Resource), Count)] : [] };
 }
-public sealed record ForecastNeedMetric(string Kind, ForecastTerm FinalLevel, ForecastTerm DeficitTicks,
-    ForecastTerm ThresholdExposureTicks, ForecastTerm WastedGain)
+public sealed record ForecastNeedMetric(string Kind, ForecastTerm FinalLevel, ForecastTerm ThresholdExposureTicks)
 {
     public ForecastTerm ZeroTicks { get; init; } = new ForecastTerm.Unassessed("need_unprojected");
     public ForecastTerm ThresholdDepthTicks { get; init; } = new ForecastTerm.Unassessed("need_unprojected");
@@ -27,7 +26,6 @@ public readonly record struct ForecastNeedSpan(double Start, double End);
 /// <summary>A span the need thought holds one stage; -1 is no thought (fed, rested).</summary>
 public readonly record struct ForecastNeedStageSpan(double Start, double End, int Stage);
 public sealed record ForecastNeedsResult(EquatableArray<ForecastNeedMetric> Needs,
-    ForecastTerm ThoughtOffsetAtHorizon, ForecastTerm MemoryAdjustedMoodTarget,
     ForecastCapacityResult Capacity, EquatableArray<string> Findings)
 {
     /// <summary>The evaluator's selected services, including the retained observed sleep. Shares its interned choice rows.</summary>
@@ -37,18 +35,15 @@ public sealed record ForecastNeedsResult(EquatableArray<ForecastNeedMetric> Need
 }
 public sealed record ForecastNeedsCandidates(EquatableArray<ForecastNeedChoice> Choices,
     EquatableArray<string> Findings, bool Truncated);
-public sealed record ForecastNeedsReview(NeedsForecastRead Observation,
-    IReadOnlyDictionary<string, ForecastNeedsCandidates> Alternatives);
+public sealed record ForecastNeedsReview(NeedsForecastRead Observation);
 
 public static class ForecastNeeds
 {
-    /// <summary>Ordinary review exposes all generated choices for coupled comparison, not a shadow winner.</summary>
-    public static ForecastNeedsReview? ReviewNeedsAlternatives(NeedsForecastRead? observed, WorkResourceView? resources,
-        double horizon = GameTime.TicksPerDay)
+    /// <summary>Retains the canonical needs read for ordinary model composition.</summary>
+    public static ForecastNeedsReview? ReviewNeedsAlternatives(NeedsForecastRead? observed, WorkResourceView? resources)
     {
         if (observed is null || resources is null) return null;
-        return new(observed, observed.Pawns.ToDictionary(p => p.Pawn, p => GenerateNeedsAlternatives(p,
-            NeedsWorkCapacity(resources, p.Pawn, horizon), horizon), StringComparer.Ordinal));
+        return new(observed);
     }
 
     /// <summary>Native timetable is descriptive here. Only actual current work and journal ownership protect time.
@@ -228,22 +223,21 @@ public static class ForecastNeeds
         IReadOnlyList<(NeedMemory Thought, double Start)>? granted = null,
         IReadOnlyList<(string Thought, double OffsetDelta, double Start)>? situational = null,
         IReadOnlyList<(string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans)>? banded = null,
-        IReadOnlyList<ForecastMemoryRenewal>? renewals = null, bool mood = true, bool moodTrajectory = true)
+        IReadOnlyList<ForecastMemoryRenewal>? renewals = null, bool mood = true)
     {
-        var core = NeedsCoreOf(pawn, input.HorizonTicks, selected, interruptedAt, granted, renewals);
+        var core = NeedsCoreOf(pawn, input.HorizonTicks, selected, interruptedAt);
         var timeline = mood ? ForecastMood.ForecastMoodTimeline(pawn, input.HorizonTicks, selected, interruptedAt, granted, situational,
-            [.. banded ?? [], .. ForecastMood.NeedThoughts(core.Needs)], renewals, moodTrajectory) : null;
+            [.. banded ?? [], .. ForecastMood.NeedThoughts(core.Needs)], renewals) : null;
         return NeedsWithCapacity(pawn, core, input, timeline);
     }
 
     /// <summary>What a needs timeline settles before its occupancy (#3468): the need metrics, the time the needs themselves
-    /// occupy, the memory delta and target, the useful food gains, the findings so far and the service intervals. A search
-    /// evaluates a pawn's choices under many occupancies, so this is computed once per distinct choices, grants and renewals.</summary>
-    internal sealed record NeedsCore(EquatableArray<ForecastNeedMetric> Needs, ForecastOccupancy[] Occupied, ForecastTerm ThoughtOffsetAtHorizon,
-        ForecastTerm MemoryAdjustedMoodTarget, Dictionary<string, double> UsefulFoodGain, string[] Findings, (ForecastNeedChoice Choice, double End)[] Intervals);
+    /// occupy, the useful food gains, the findings so far and the service intervals. A search
+    /// evaluates a pawn's choices under many occupancies, so this is computed once per distinct choices.</summary>
+    internal sealed record NeedsCore(EquatableArray<ForecastNeedMetric> Needs, ForecastOccupancy[] Occupied, Dictionary<string, double> UsefulFoodGain, string[] Findings, (ForecastNeedChoice Choice, double End)[] Intervals);
 
     internal static NeedsCore NeedsCoreOf(NeedsForecastPawn pawn, double horizonTicks, IReadOnlyList<ForecastNeedChoice> selected,
-        IReadOnlyDictionary<string, double>? interruptedAt, IReadOnlyList<(NeedMemory Thought, double Start)>? granted, IReadOnlyList<ForecastMemoryRenewal>? renewals)
+        IReadOnlyDictionary<string, double>? interruptedAt)
     {
         NeedHorizon(horizonTicks);
         if (selected.Any(c => c.Pawn != pawn.Pawn) || selected.Select(c => c.Id).Distinct().Count() != selected.Count)
@@ -270,14 +264,14 @@ public static class ForecastNeeds
             if (need.Kind == "rest" && sleepEnds is null)
             {
                 var unprojected = new ForecastTerm.Unassessed("sleep_unprojected");
-                metrics.Add(new(need.Kind, unprojected, unprojected, unprojected, unprojected) { ZeroTicks = unprojected, ThresholdDepthTicks = unprojected });
+                metrics.Add(new(need.Kind, unprojected, unprojected) { ZeroTicks = unprojected, ThresholdDepthTicks = unprojected });
                 occupied.Add(new("unknown_sleep", pawn.Pawn, 0d, 0d, ForecastOccupancyState.Untimed));
                 continue;
             }
             var (level, fall, threshold) = (need.Level, need.FallPerTick, need.Threshold);
             if (!double.IsFinite(level) || level < 0 || level > 1 || !double.IsFinite(fall) || fall < 0
                 || !double.IsFinite(threshold) || threshold < 0 || threshold > 1) throw new DomainException("invalid need mechanics");
-            double deficit = 0, exposure = 0, waste = 0, zero = 0, depth = 0;
+            double exposure = 0, zero = 0, depth = 0;
             zeroSpans = null;
             List<ForecastNeedStageSpan>? stageSpans = null;
             var events = new SortedSet<double> { 0, horizonTicks };
@@ -315,7 +309,6 @@ public static class ForecastNeeds
                 {
                     var a = split[k]; var b = split[k + 1];
                     var lo = Math.Clamp(level + gain * a, 0, 1); var hi = Math.Clamp(level + gain * b, 0, 1);
-                    deficit += (1 - (lo + hi) / 2) * (b - a);
                     if ((lo + hi) / 2 < threshold) exposure += b - a;
                     depth += Math.Max(0, threshold - (lo + hi) / 2) * (b - a);
                     if (lo == 0 && hi == 0)
@@ -332,55 +325,25 @@ public static class ForecastNeeds
                         occupied.Add(new("need_zero/" + need.Kind + "/" + from + "/" + k, pawn.Pawn,
                             from + a, from + b, ForecastOccupancyState.Active));
                 }
-                waste += Math.Max(0, raw - 1);
                 level = next;
                 foreach (var eat in intervals)
                 {
                     if (eat.Choice.Kind != need.Kind || need.Kind != "food" || eat.End != to || eat.End != eat.Choice.End) continue;
                     usefulFood[eat.Choice.Id] = Math.Min(1 - level, eat.Choice.Gain);
-                    waste += Math.Max(0, level + eat.Choice.Gain - 1); level = Math.Min(1, level + eat.Choice.Gain);
+                    level = Math.Min(1, level + eat.Choice.Gain);
                 }
             }
-            metrics.Add(new(need.Kind, new ForecastTerm.Assessed(level), new ForecastTerm.Assessed(deficit), new ForecastTerm.Assessed(exposure), new ForecastTerm.Assessed(waste))
+            metrics.Add(new(need.Kind, new ForecastTerm.Assessed(level), new ForecastTerm.Assessed(exposure))
             {
                 ZeroTicks = new ForecastTerm.Assessed(zero), ThresholdDepthTicks = new ForecastTerm.Assessed(depth), ZeroSpans = zeroSpans is null ? default : EquatableArray.From(zeroSpans),
                 StageSpans = stageSpans is null ? default : EquatableArray.From(stageSpans),
             });
         }
-        ForecastTerm thoughtDelta = new ForecastTerm.Unassessed("thought_projection_unavailable");
-        if (pawn.Mood is { } mood)
-        {
-            var memories = mood.Memories;
-            static double Remaining(NeedMemory m, double elapsed) => ForecastMood.MemoryAt(m, elapsed, elapsed);
-            var complete = true;
-            if (ForecastMood.StackedMemoryFinding(memories) is { } stacked) findings.Add(stacked);
-            var added = intervals.Where(r => r.Choice.Kind == "food" && r.End == r.Choice.End)
-                .SelectMany(r => r.Choice.Thoughts.Select(t => (Thought: t, Start: r.End))).Concat(granted ?? []).ToArray();
-            var schedule = ForecastMood.RenewalSchedule(memories, renewals, added.Select(a => a.Thought.Id));
-            if (schedule is null) { findings.Add("unsupported_memory_renewal_or_stacking"); complete = false; }
-            // A stackLimit-1 meal renews the memory live before it (#3598); any other shared def is not additive evidence.
-            var planned = ForecastMood.PlannedMemoryEnds(memories, added);
-            if (planned is null) { findings.Add("unsupported_meal_memory_overlap"); complete = false; }
-            // The share of each observed memory left at the horizon: its renewals' expected cut, nothing once a planned memory renewed it.
-            double ObservedShare(string id) => planned is { } p && p.ObservedEnds.TryGetValue(id, out var at) && at <= horizonTicks ? 0
-                : schedule is { } s ? s.Observed[id].At(horizonTicks) : 1;
-            var delta = memories.Sum(m => Remaining(m, horizonTicks) * ObservedShare(m.Id) - m.Offset);
-            if (schedule is { } renewedSchedule)
-                foreach (var gain in renewedSchedule.Gains.Where(g => g.Start <= horizonTicks))
-                    delta += Remaining(gain.Thought, horizonTicks - gain.Start) * gain.Share.At(horizonTicks);
-            for (var i = 0; i < added.Length; i++)
-            {
-                var (thought, start) = added[i];
-                if (planned is { } ends && ends.Ends[i] <= horizonTicks) continue;
-                delta += Remaining(thought, horizonTicks - start);
-            }
-            thoughtDelta = complete ? new ForecastTerm.Assessed(delta) : new ForecastTerm.Unassessed("memory_projection_unsupported");
-        }
-        else findings.Add("unknown_thought_expiry");
-        ForecastTerm target = thoughtDelta is ForecastTerm.Assessed(var offset) && pawn.Mood is { } moodNow ? new ForecastTerm.Assessed(Math.Clamp(moodNow.Target + offset / 100, 0, 1)) : new ForecastTerm.Unassessed("mood_target_unprojected");
+        if (pawn.Mood is { } mood && ForecastMood.StackedMemoryFinding(mood.Memories) is { } stacked) findings.Add(stacked);
+        if (pawn.Mood is null) findings.Add("unknown_thought_expiry");
         findings.Add("need_rates_constant_current_conditions");
         findings.Add("room_mood_changes_unassessed");
-        return new(EquatableArray.From(metrics), [.. occupied], thoughtDelta, target, usefulFood, [.. findings], intervals);
+        return new(EquatableArray.From(metrics), [.. occupied], usefulFood, [.. findings], intervals);
     }
 
     /// <summary>A needs core under the given occupancy: the services must not overlap protected time and must lie in the
@@ -421,7 +384,7 @@ public static class ForecastNeeds
         for (var i = 0; i < findings.Count; i++) if (i == 0 || findings[i] != findings[i - 1]) findings[distinct++] = findings[i];
         var merged = new string[distinct];
         findings.CopyTo(0, merged, 0, distinct);
-        return new(core.Needs, core.ThoughtOffsetAtHorizon, core.MemoryAdjustedMoodTarget, capacity, EquatableArray.Wrap(merged))
+        return new(core.Needs, capacity, EquatableArray.Wrap(merged))
         { Mood = timeline, UsefulFoodGain = core.UsefulFoodGain };
     }
 

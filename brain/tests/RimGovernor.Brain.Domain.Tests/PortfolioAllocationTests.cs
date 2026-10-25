@@ -82,7 +82,7 @@ public sealed class PortfolioAllocationTests
         selection.Selected.Plan.LaborCost,
         Physical = selection.Selected.Plan.Allocations.Select(a => new
         {
-            a.Activity, a.Pawn, a.Depart, a.Arrive, a.Start, a.End, a.TravelTicks, a.WaitTicks, a.WorkTicks,
+            a.Activity, a.Pawn, a.Depart, a.Arrive, a.Start, a.End, a.TravelTicks, a.WorkTicks,
             a.DisplacedLaborTicks, a.RecoveryLaborTicks, a.Learning
         }).ToArray(),
         selection.BaselineVector, selection.SelectedVector,

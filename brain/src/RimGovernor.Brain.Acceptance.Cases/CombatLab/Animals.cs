@@ -100,7 +100,7 @@ internal static class CombatLabAnimals
             throw new AcceptanceException($"zoned husky not restricted to a one-cell \"Combat {pup}\" area: {area}");
         }
 
-        CombatLabKit.Applied("clear", (await CombatLabKit.OrdersAsync(s, "clear", cancellationToken, CombatLabKit.Order(pup, Zone(new RimGovernor.Brain.GameOrders.Operations.CombatAnimalAreaArea.ClearCase(new RimGovernor.Brain.GameOrders.Operations.Clear())))).ConfigureAwait(false))[0]);
+        CombatLabKit.Applied("clear", (await CombatLabKit.OrdersAsync(s, "clear", cancellationToken, CombatLabKit.Order(pup, Zone(new RimGovernor.Brain.GameOrders.Operations.CombatAnimalAreaArea.ClearCase()))).ConfigureAwait(false))[0]);
         if (await PupAreaAsync(s, "cleared", pup, cancellationToken).ConfigureAwait(false) is { } left)
         {
             throw new AcceptanceException($"cleared husky still restricted to {left}");
@@ -145,7 +145,7 @@ internal static class CombatLabAnimals
             for (var i = 0; i < 2; i++)
             {
                 var label = $"clear-{mode}-{i}";
-                var r = (await CombatLabKit.OrdersAsync(s, label, cancellationToken, CombatLabKit.Order(animal, Zone(new RimGovernor.Brain.GameOrders.Operations.CombatAnimalAreaArea.ClearCase(new RimGovernor.Brain.GameOrders.Operations.Clear())))).ConfigureAwait(false))[0];
+                var r = (await CombatLabKit.OrdersAsync(s, label, cancellationToken, CombatLabKit.Order(animal, Zone(new RimGovernor.Brain.GameOrders.Operations.CombatAnimalAreaArea.ClearCase()))).ConfigureAwait(false))[0];
                 if (r.Applied == true || r.Refusal is not ("not_found" or "not_ours"))
                 {
                     throw new AcceptanceException($"{label}: want refusal not_found or not_ours, got {r}");

@@ -12,8 +12,6 @@ public sealed record QuestMonumentMethod
 
     public Building? Build { get; init; }
 
-    public Haul? Haul { get; init; }
-
     public string Reason { get; init; } = "";
 }
 
@@ -117,7 +115,7 @@ public static class QuestMonumentPolicy
             {
                 continue;
             }
-            return step with { Kind = "haul", Haul = new Haul(resource.EligibleHaulers.Min(), resource.Id, resource.DefName, resource.Cell) };
+            return step with { Kind = "haul" };
         }
         foreach (var piece in marker.Pieces)
         {

@@ -159,7 +159,5 @@ public sealed class ForecastWorkInputsTests
         var facts = Facts();
         var demand = ResourceRules.ResourceDemandOf(facts, Rules.DefaultPlannerSettings(), new());
         Assert.Equal(facts.Tick, demand.Work.Tick);
-        Assert.Equal(facts.ForecastObserved.WorkPawns, demand.Work.Pawns);
-        Assert.Equal(facts.BillReservations, demand.Work.IngredientReservations);
     }
 }

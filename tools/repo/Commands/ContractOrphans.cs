@@ -350,7 +350,10 @@ internal static class ContractOrphans
         private static bool IsPlumbing(MetadataReader md, Names names, TypeDefinitionHandle type, MethodDefinition method)
         {
             var name = md.GetString(method.Name);
-            if (Plumbing.Contains(name))
+            if (Plumbing.Contains(name) && method.GetCustomAttributes().Any(a =>
+                md.GetCustomAttribute(a).Constructor is { Kind: HandleKind.MemberReference } constructor
+                && names.Type(md.GetMemberReference((MemberReferenceHandle)constructor).Parent)
+                    == "System.Runtime.CompilerServices.CompilerGeneratedAttribute"))
             {
                 return true;
             }
@@ -445,7 +448,6 @@ internal static class ContractOrphans
             return roots;
         }
     }
-
 
     /// <summary>
     /// Names types, methods and fields the same way in every assembly: <c>Namespace.Outer/Inner</c> and

@@ -17,7 +17,7 @@ public sealed class DistantServiceDeferralTests
         new("work/" + pawn, pawn, EquatableArray.From(prerequisites), PawnActivityKind.Work, "site", "", "FinishFrame", 0, 90000, new(1, 1));
     /// <summary>The task's schedule row: departing at <paramref name="depart"/> with no travel, starting at <paramref name="start"/>.</summary>
     private static ForecastActivityAllocation Row(ActivityTaskCandidate task, double depart, double? start = null) =>
-        new(task.Id, task.Pawn, depart, depart, start ?? depart, (start ?? depart) + 2000, 0, (start ?? depart) - depart, 2000, 0, 0);
+        new(task.Id, task.Pawn, depart, depart, start ?? depart, (start ?? depart) + 2000, 0, 2000, 0, 0);
     private static PawnActivities? Started(ActivityTaskCandidate[] tasks, params ForecastActivityAllocation[] rows) =>
         CoordinatedActivityBinding.StartSelected(new(["selected"], new(rows, 0, 0), [], 0, false),
             tasks.ToDictionary(t => (t.Id, t.Pawn)), 1, "m", Tick);

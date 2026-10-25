@@ -98,7 +98,7 @@ public sealed class PracticeHarmTests
                 Activities = new() { Deadline = 0, Activities = [new("practice/a", "ring", "ring", [])] }, Needs = NeedsFixtures.Empty, Resources = ForecastValueTests.Resources(),
                 Investment = investment, PracticeTasks = [session],
             }.Priced();
-            var plan = new ForecastActivityPlan([new("practice/a", "a", 0, 0, 0, 1000, 0, 0, 1000, 1000, 0)], 1000, 1000);
+            var plan = new ForecastActivityPlan([new("practice/a", "a", 0, 0, 0, 1000, 0, 1000, 1000, 0)], 1000, 1000);
             return ForecastValue.Of(new(plan, true, new Dictionary<string, ForecastNeedsResult>(), []), context, GameTime.TicksPerDay,
                 new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>(), []));
         }

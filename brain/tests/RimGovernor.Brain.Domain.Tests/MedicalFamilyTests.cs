@@ -251,19 +251,6 @@ public sealed class MedicalFamilyTests
     }
 
     [Fact]
-    public void TheForecastMedicalRowsAreTheFamilysNeeds()
-    {
-        var facts = new ReviewFacts { MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } }, Tick = new(100), Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 2 }, Fuel = [], CriticalPatients = 1L };
-        var review = EssentialServicesRules.ReviewEssentialServices(facts, Rules.DefaultPlannerSettings(), new() { Work = new() { Tick = facts.Tick } });
-        var medical = review.Coverage.Where(c => c.Service == EssentialService.Medical).ToArray();
-        Assert.Contains(medical, c => c.Target.Owner == MedicalRules.CriticalCensusNeed.FilingKey && c.Coverage == ServiceCoverage.Shortfall);
-        Assert.Contains(medical, c => c.Target.Owner == MedicalRules.SurgeryNeed.FilingKey);
-        Assert.Contains(medical, c => c.Target.Owner == MedicalRules.MedicalReservesNeed.FilingKey);
-        var calm = EssentialServicesRules.ReviewEssentialServices(facts with { CriticalPatients = 0L }, Rules.DefaultPlannerSettings(), new() { Work = new() { Tick = facts.Tick } });
-        Assert.Contains(calm.Coverage, c => c.Target.Owner == MedicalRules.CriticalCensusNeed.FilingKey && c.Coverage == ServiceCoverage.Adequate);
-    }
-
-    [Fact]
     public void ACriticalNeedReadsAsMedicalInOperationIntents()
     {
         Assert.Equal("Medical", OperationIntent.ConcernLabel(MedicalRules.CriticalNeed(P1).FilingKey));

@@ -32,7 +32,7 @@ public sealed class PresentTraderDepartureTests
         });
         Assert.Equal(fits, compared.Alternatives.Length > 0);
         var context = ForecastValueTests.Context(ForecastValueTests.Pawn()) with { Stock = new() { Visits = [visit] }, TradeWork = [work] };
-        var allocation = new ForecastActivityAllocation(work.Task, work.Pawn, 0, finish, finish, finish, finish, 0, 0, finish, 0);
+        var allocation = new ForecastActivityAllocation(work.Task, work.Pawn, 0, finish, finish, finish, finish, 0, finish, 0);
         var selected = new ForecastActivityOutcomeComparison([visit.Id], new([allocation], finish, finish), [], 0, false);
         Assert.Equal(fits, ForecastTradeExecution.Ready(selected, context).Count == 1);
     }

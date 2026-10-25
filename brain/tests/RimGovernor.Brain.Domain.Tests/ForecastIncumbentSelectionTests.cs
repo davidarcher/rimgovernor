@@ -188,7 +188,7 @@ public sealed class ForecastIncumbentSelectionTests
 
         // Admission of the selected schedule's haul and eat orders, or of both at once when nothing was selected.
         var plan = fits ? outcomes.First(a => a.Feasible).Plan
-            : new ForecastActivityPlan([new("haul", "helper", 0, 0, 0, 20, 0, 0, 20, 0, 0), new("eat", "pawn", 0, 0, 0, 20, 0, 0, 20, 0, 0)], 20, 40);
+            : new ForecastActivityPlan([new("haul", "helper", 0, 0, 0, 20, 0, 20, 0, 0), new("eat", "pawn", 0, 0, 0, 20, 0, 20, 0, 0)], 20, 40);
         plan = plan with { Allocations = plan.Allocations.Where(a => a.Activity != "work").ToArray() };
         var batch = RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.Start(plan, bindings, 1, "coupled", 100);
         var refusal = WorkRules.WorkResourcesRefusal(view, new(new("both"), new(1), [DomainAction.NewPawnActivitiesAction(new("both-action"), batch)]));

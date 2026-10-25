@@ -220,8 +220,6 @@ public sealed record ForecastCoupledContext
     public IReadOnlyDictionary<Resource, double> CookedNutritionRatio { get; init; } = new Dictionary<Resource, double>();
     /// <summary>The catalog's break curve whose tier mixes price a break in days lost (#3520); unknown by default.</summary>
     public MoodBreakModel MoodBreaks { get; init; } = new();
-    /// <summary>Diagnostic only: keep each needs result's per-point mood. The search never reads it (#3467).</summary>
-    public bool MoodTrajectory { get; init; }
 }
 /// <summary>One number the forecast ranks or explains an outcome by: the value it assessed, or the reason it could not
 /// (the finding or unread input that names why).</summary>
@@ -282,7 +280,6 @@ public static partial class ForecastCoupled
         {
             Origin = origin,
             HorizonDays = horizonDays,
-            Demand = demand,
             Facts = ColonyForecastFactsRules.ColonyForecastFactsOf(facts),
             Commitments = commitments,
             Coupled = new() { Activities = activities, Needs = needs, Resources = resources, NeedTasks = needTasks }
@@ -309,6 +306,10 @@ public static partial class ForecastCoupled
     {
         var context = request.Coupled!;
         cache ??= new();
+        // Refused or truncated scenarios still validate the observed frame, even without a stock projection.
+        foreach (var row in request.Facts.Census.Resources)
+            if (!AdmissionRules.ValidResource(new Resource(row.DefName)) || row.Units < 0)
+                throw new DomainException("invalid forecast observed stock");
         if (commitments.Values.Any(c => c.ActivityCompletions.Count != 0 && c.StockChanges.Count != 0))
             throw new DomainException("coupled commitments have one timed effect source");
         var horizon = request.HorizonDays * GameTime.TicksPerDay;
@@ -339,7 +340,7 @@ public static partial class ForecastCoupled
         if (commitments.Values.Where(c => c.ExclusiveOutcome.Length != 0).GroupBy(c => c.ExclusiveOutcome).Any(g => g.Count() > 1)
     || commitments.Values.Any(c => c.Outcome is { } o && commitments.Values.Any(other => other.Id != c.Id
         && (o.Excludes.Contains(other.Id) || o.ExclusiveOutput.Length != 0 && o.ExclusiveOutput == other.Outcome?.ExclusiveOutput))))
-            return ColonyForecastRules.ForecastInventory(request.Facts.ObservedStock(), commitments, request.HorizonDays) with
+            return new ColonyForecastScenario
             { Coupled = new([], ["exclusive_outcome_conflict"], false) };
         var perSearch = bound ?? context.Activities.ExpansionBudget;
         var problem = context.Activities with
@@ -350,9 +351,9 @@ public static partial class ForecastCoupled
             ExpansionBudget = perSearch
         };
         if (problem.Activities.Where(t => t.ChoiceIdentity.Length != 0).GroupBy(t => t.ChoiceIdentity).Any(g => g.Count() > 1))
-            return ColonyForecastRules.ForecastInventory(request.Facts.ObservedStock(), commitments, request.HorizonDays) with
+            return new ColonyForecastScenario
             { Coupled = new([], ["exclusive_operation_conflict"], false) };
-        if (included.Count > 32) return ColonyForecastRules.ForecastInventory(request.Facts.ObservedStock(), commitments, request.HorizonDays) with
+        if (included.Count > 32) return new ColonyForecastScenario
         { Coupled = new([], [.. findings, "selected_activity_budget_truncated"], true) };
         // Necessary physical-lot conservation before expensive assignment search. Ignoring time,
         // expiry and reservations only overestimates supply; their authoritative checks remain below.
@@ -361,7 +362,7 @@ public static partial class ForecastCoupled
             var output = problem.Activities.SelectMany(t => t.Outputs).Where(o => o.Lot == input.Key.Lot && o.Resource == input.Key.Resource).ToArray();
             var observed = context.InitialLots.Where(l => l.Lot == input.Key.Lot && l.Resource == input.Key.Resource).ToArray();
             if (input.Sum(i => i.Units) > output.Sum(o => o.Units) + observed.Sum(l => l.Count))
-                return ColonyForecastRules.ForecastInventory(request.Facts.ObservedStock(), commitments, request.HorizonDays) with
+                return new ColonyForecastScenario
                 { Coupled = new([], [.. findings, "physical_lot_quantity_shortfall:" + input.Key.Lot], false) };
         }
         // Every schedule search and every outcome evaluation of this scenario, the retries' included, is charged to the ledger (#3722).
@@ -406,8 +407,7 @@ public static partial class ForecastCoupled
                 if (Compare(retried) is { } again) Evaluate(retried, again.Alternatives);
             }
         }
-        // Inventory-only clients keep their conditional diagnostics; migrated consumers inspect each coupled alternative.
-        return ColonyForecastRules.ForecastInventory(request.Facts.ObservedStock(), commitments, request.HorizonDays) with
+        return new ColonyForecastScenario
         {
             Coupled = new(EquatableArray.From(results), EquatableArray.From(findings), truncated),
         };

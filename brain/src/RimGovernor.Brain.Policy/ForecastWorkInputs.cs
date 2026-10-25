@@ -4,12 +4,10 @@ namespace RimGovernor.Brain.Policy;
 public sealed record ForecastWorkInputs
 {
     public Tick Tick { get; init; }
-    public WorkPawnsRead Pawns { get; init; } = new WorkPawnsRead([]);
-    public EquatableArray<IngredientReservation> IngredientReservations { get; init; }
 
-    /// <summary>The observed work roster and bill reservations at the review tick.</summary>
+    /// <summary>The review tick shared by demand and forecast inputs.</summary>
     public static ForecastWorkInputs ForecastWorkInputsOf(ReviewFacts facts) => new()
     {
-        Tick = facts.Tick, Pawns = facts.ForecastObserved.WorkPawns, IngredientReservations = facts.BillReservations,
+        Tick = facts.Tick,
     };
 }

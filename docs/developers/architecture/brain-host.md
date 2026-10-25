@@ -446,7 +446,7 @@ The fourth cut, the stock lap and the armory's bounds (session `1e95d65fbaec4f0f
 one passing colony-review day of the same colony):
 
 - **What changed.** The stockpile plan (`d_stock/stockpile/plan`, pure CPU) indexed the planning cells by cell once
-  per stage and once per store: `NewStockpileOpen`, the storage options' census and a fresh open per store for zone
+  per stage and once per store: `NewStockpileOpen`, a fresh open per store for zone
   growth, the shelf candidates' census and one more per zone in `ShelfSites`, and the runtime's `CensusByCell` twice;
   on a 250 x 250 map that is 62,500 inserts each. The plan now builds the index once (the open ground's `Cells`) and
   every stage reads it; zone growth is priced over the same open with no ground taken. The rectangle search for an

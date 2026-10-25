@@ -10,8 +10,6 @@ public sealed record CoreSiteWork
 
     public Acquisition? Mine { get; init; }
 
-    public RecoveryService? Help { get; init; }
-
     public PrisonerInteraction? Recruit { get; init; }
 }
 
@@ -121,13 +119,7 @@ public static class QuestCoreSite
                         {
                             continue;
                         }
-                        try
-                        {
-                            return result with { Kind = "help", Help = new RecoveryService((Domain.PawnId)actor, id.ToString(), RecoveryMethod.OfferHelp) };
-                        }
-                        catch (DomainException)
-                        {
-                        }
+                        return result with { Kind = "help" };
                     }
                 }
                 return result with { Reason = "rescue_actor_unavailable" };

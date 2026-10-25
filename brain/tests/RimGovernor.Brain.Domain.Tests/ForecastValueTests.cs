@@ -34,7 +34,7 @@ public sealed class ForecastValueTests
 
     internal static ForecastNeedsResult Timeline(NeedsForecastPawn pawn) => ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), [], mood: false);
 
-    private static ForecastMoodResult.Projected Mood(double pressure, double[]? tiers) => new([], 0, 0, 0, 0, pressure,
+    private static ForecastMoodResult.Projected Mood(double pressure, double[]? tiers) => new(0, 0, 0, 0, pressure,
         tiers is null ? new ForecastMoodBreaks.Unassessed() : new ForecastMoodBreaks.Assessed(0, EquatableArray.From(tiers), []), []);
 
     // By default the pawn's whole day is assessed with no span outside its comfort range, so the thermal term is a known 0.
@@ -185,7 +185,7 @@ public sealed class ForecastValueTests
     // A pawn whose rest is zero over the given spans, with nothing else wrong.
     private static ForecastNeedsResult Exhausted(params ForecastNeedSpan[] spans) => Calm() with
     {
-        Needs = [new("rest", new ForecastTerm.Assessed(0d), new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected")) { ZeroTicks = new ForecastTerm.Assessed(spans.Sum(s => s.End - s.Start)), ZeroSpans = EquatableArray.From(spans) },
+        Needs = [new("rest", new ForecastTerm.Assessed(0d), new ForecastTerm.Unassessed("not_projected")) { ZeroTicks = new ForecastTerm.Assessed(spans.Sum(s => s.End - s.Start)), ZeroSpans = EquatableArray.From(spans) },
             .. Calm().Needs.Where(n => n.Kind != "rest")],
     };
 
@@ -239,7 +239,7 @@ public sealed class ForecastValueTests
             CookedNutritionRatio = ratios,
             NeedTasks = [new("eat", "pawn", "food", "rice", new("RawRice"), 5, 0.25, []), new("meal", "pawn", "food", "cell/1/1", new("MealSimple"), 1, 0.9, [])],
         };
-        ForecastCoupledOutcome Eating(string task) => Outcome(Calm()) with { Plan = new([new(task, "pawn", 0, 0, 0, 100, 0, 0, 100, 0, 0)], 100, 0) };
+        ForecastCoupledOutcome Eating(string task) => Outcome(Calm()) with { Plan = new([new(task, "pawn", 0, 0, 0, 100, 0, 100, 0, 0)], 100, 0) };
 
         var raw = ForecastValue.Of(Eating("eat"), context, Day, Outcome(Calm()));
         var meal = ForecastValue.Of(Eating("meal"), context, Day, Outcome(Calm()));
@@ -273,7 +273,7 @@ public sealed class ForecastValueTests
         // Review 12245 (#3598): food is at zero for the same span in both portfolios, so the urgent-zero floor ties; the
         // portfolio that keeps working leaves rest at zero for 33068 ticks but has less joy exposure. The sleep wins on rest.
         var hungry = Calm().Needs.Single(n => n.Kind == "food") with { ZeroTicks = new ForecastTerm.Assessed(47025d), ZeroSpans = [new(Day - 47025, Day)] };
-        static ForecastNeedMetric Joy(double exposure) => new("joy", new ForecastTerm.Assessed(.5), new ForecastTerm.Assessed(0d), new ForecastTerm.Assessed(exposure), new ForecastTerm.Assessed(0d)) { ZeroTicks = new ForecastTerm.Assessed(0d), ThresholdDepthTicks = new ForecastTerm.Assessed(0d) };
+        static ForecastNeedMetric Joy(double exposure) => new("joy", new ForecastTerm.Assessed(.5), new ForecastTerm.Assessed(exposure)) { ZeroTicks = new ForecastTerm.Assessed(0d), ThresholdDepthTicks = new ForecastTerm.Assessed(0d) };
         var exhausted = Exhausted(new ForecastNeedSpan(Day - 33068, Day)).Needs.Single(n => n.Kind == "rest");
         var rested = Calm().Needs.Single(n => n.Kind == "rest");
         var working = Calm() with { Needs = [exhausted, hungry, Joy(0)] };
@@ -318,7 +318,7 @@ public sealed class ForecastValueTests
     public void AnUnassessedRestTimelineLeavesTheRestTermUnknown()
     {
         var pawn = Pawn();
-        var unknown = Calm() with { Needs = [new("rest", new ForecastTerm.Unassessed("rest_unprojected"), new ForecastTerm.Unassessed("rest_unprojected"), new ForecastTerm.Unassessed("rest_unprojected"), new ForecastTerm.Unassessed("rest_unprojected")), .. Calm().Needs.Where(n => n.Kind != "rest")] };
+        var unknown = Calm() with { Needs = [new("rest", new ForecastTerm.Unassessed("rest_unprojected"), new ForecastTerm.Unassessed("rest_unprojected")), .. Calm().Needs.Where(n => n.Kind != "rest")] };
 
         var value = ForecastValue.Of(Outcome(unknown), Context(pawn), Day, Outcome(unknown));
 

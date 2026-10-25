@@ -85,7 +85,7 @@ internal static class ColonyModelFixtures
             {
                 Items = EquatableArray.From(new[] { new RimGovernor.Brain.GameFacts.Observations.UpkeepItem { Id = "m1", Definition = "MedicineHerbal", Count = 4, Forbidden = false, Rot = new RimGovernor.Brain.GameFacts.Observations.ItemRot.Never() }, new RimGovernor.Brain.GameFacts.Observations.UpkeepItem { Id = "m2", Definition = "MedicineIndustrial", Count = 9, Forbidden = true, Rot = new RimGovernor.Brain.GameFacts.Observations.ItemRot.Never() }, }),
             },
-            NeedsAlternatives = new ForecastNeedsReview(NeedsFixtures.Empty with { Pawns = [Pawn()], ResearchBenches = [new("bench", "SimpleResearchBench", new(0, 0), 1.0)], }, new Dictionary<string, ForecastNeedsCandidates>()),
+            NeedsAlternatives = new ForecastNeedsReview(NeedsFixtures.Empty with { Pawns = [Pawn()], ResearchBenches = [new("bench", "SimpleResearchBench", new(0, 0), 1.0)], }),
             WorkAdmission = new WorkAdmissionObservation
             {
                 Recipes = EquatableArray.From(new[] { new ProductionRecipeInput(Recipe, EquatableArray.From(new[] { EquatableArray.From(new[] { new Amount(new Resource(Cloth), 80) }) }), false) { Products = EquatableArray.From(new[] { new Amount(new Resource("Apparel_Duster"), 1) }), WorkAmount = 10_000.0, }, }),

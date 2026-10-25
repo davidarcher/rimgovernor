@@ -27,13 +27,13 @@ public static class CombatBatchActionRules
 
     private static RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder CombatOrderFor(CombatCommand c) => c.Kind switch
     {
-        "draft" => new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DraftCase(new RimGovernor.Brain.GameOrders.Operations.Clear()),
+        "draft" => new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DraftCase(),
         "move" => new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.MoveCase(IntentActionRules.WireCell(c.Cell)),
         "attack" => new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AttackCase(new RimGovernor.Brain.GameOrders.Operations.EntityPrecondition { EntityId = c.Target.Value }),
         "attack_ground" => new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AttackGroundCase(IntentActionRules.WireCell(c.Cell)),
         "fire_mode" => new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.FireModeCase(FireModeOf(c.FireMode)),
-        "stop" => new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.StopCase(new RimGovernor.Brain.GameOrders.Operations.Clear()),
-        "hold_position" => new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.HoldPositionCase(new RimGovernor.Brain.GameOrders.Operations.Clear()),
+        "stop" => new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.StopCase(),
+        "hold_position" => new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.HoldPositionCase(),
         "door" => new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DoorCase(new RimGovernor.Brain.GameOrders.Operations.CombatDoor { Cell = IntentActionRules.WireCell(c.Cell), Mode = DoorModeOf(c.Door) }),
         "rescue" => new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.RescueCase(new RimGovernor.Brain.GameOrders.Operations.CombatRescue { Bed = new RimGovernor.Brain.GameOrders.Operations.RescueBed.Search(), Downed = new RimGovernor.Brain.GameOrders.Operations.EntityPrecondition { EntityId = c.Target.Value } }),
         "repair" => new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.RepairCase(new RimGovernor.Brain.GameOrders.Operations.CombatRepair { Cell = IntentActionRules.WireCell(c.Cell) }),
@@ -41,7 +41,7 @@ public static class CombatBatchActionRules
         "mortar_fire" => new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.MortarFireCase(new RimGovernor.Brain.GameOrders.Operations.CombatMortarFire { Mortar = IntentActionRules.WireCell(c.Cell), Aim = c.Clear ? new RimGovernor.Brain.GameOrders.Operations.MortarAim.Cleared() : new RimGovernor.Brain.GameOrders.Operations.MortarAim.At(c.Aim), Shell = c.Clear || c.Shell.Length == 0 ? null : c.Shell }),
         "release" => new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.ReleaseCase(new RimGovernor.Brain.GameOrders.Operations.EntityPrecondition { EntityId = c.Target.Value }),
         "animal_area" => new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AnimalAreaCase(new RimGovernor.Brain.GameOrders.Operations.CombatAnimalArea { Area = new RimGovernor.Brain.GameOrders.Operations.CombatAnimalAreaArea.CellCase(IntentActionRules.WireCell(c.Cell)) }),
-        "animal_clear" => new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AnimalAreaCase(new RimGovernor.Brain.GameOrders.Operations.CombatAnimalArea { Area = new RimGovernor.Brain.GameOrders.Operations.CombatAnimalAreaArea.ClearCase(new RimGovernor.Brain.GameOrders.Operations.Clear()) }),
+        "animal_clear" => new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AnimalAreaCase(new RimGovernor.Brain.GameOrders.Operations.CombatAnimalArea { Area = new RimGovernor.Brain.GameOrders.Operations.CombatAnimalAreaArea.ClearCase() }),
         "drug" => new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.CombatDrugCase(c.Drug),
         _ => throw BridgeContractException.Contract($"combat command {c.Kind} has no combat order"),
     };

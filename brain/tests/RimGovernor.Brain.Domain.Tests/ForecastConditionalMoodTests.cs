@@ -32,8 +32,8 @@ public sealed class ForecastConditionalMoodTests
         CurrentWork = new(new("pawn"), false, WorkType.None, new ForecastWorkRemaining.Timed(0d)), Occupancy = new ForecastProtection.Read([]),
         LocationAfterProtectedTime = "bed", ProtectTimetable = false,
     };
-    private static ForecastMoodPoint At(ForecastMoodResult result, double tick)
-        => Assert.Single(result.Projected().Trajectory, p => Math.Abs(p.Tick - tick) < .000001);
+    private static ForecastMoodTarget At(ForecastMoodResult result, double tick)
+        => Assert.Single(result.Projected().Response!.Targets, p => Math.Abs(p.Start - tick) < .000001);
 
     [Fact]
     public void GeneratedDayAndNightSleepCompareConditionalConsequencesAndControlRemovesThatPreference()
@@ -42,15 +42,15 @@ public sealed class ForecastConditionalMoodTests
         var generated = ForecastNeeds.GenerateNeedsAlternatives(pawn, ForecastCapacity.ForecastPawnCapacityOf(Capacity()), Day);
         var day = Assert.Single(generated.Choices, c => Math.Abs(c.Start - 5 * Hour) < .001 && Math.Abs(c.End - 12 * Hour) < .001);
         var night = Assert.Single(generated.Choices, c => Math.Abs(c.Start - 17 * Hour) < .001 && Math.Abs(c.End - Day) < .001);
-        var dayResult = ForecastMood.ForecastMoodTimeline(pawn, Day, [day]);
-        var nightResult = ForecastMood.ForecastMoodTimeline(pawn, Day, [night]);
+        var dayResult = ForecastMood.ForecastMoodTimeline(pawn, Day, [day], response: true);
+        var nightResult = ForecastMood.ForecastMoodTimeline(pawn, Day, [night], response: true);
         Assert.True(dayResult.Projected().PressureTicks < nightResult.Projected().PressureTicks);
-        Assert.Equal(.5, At(dayResult, 5 * Hour).Target, 8);
-        Assert.Equal(.4, At(nightResult, 5 * Hour).Target, 8);
-        Assert.Equal(.66, At(dayResult, 17 * Hour).Target, 8);
-        Assert.Equal(.5, At(nightResult, 17 * Hour).Target, 8);
-        var controlDay = ForecastMood.ForecastMoodTimeline(Pawn(false), Day, [day]);
-        var controlNight = ForecastMood.ForecastMoodTimeline(Pawn(false), Day, [night]);
+        Assert.Equal(.5, Math.Clamp(At(dayResult, 5 * Hour).From, 0, 1), 8);
+        Assert.Equal(.4, Math.Clamp(At(nightResult, 5 * Hour).From, 0, 1), 8);
+        Assert.Equal(.66, Math.Clamp(At(dayResult, 17 * Hour).From, 0, 1), 8);
+        Assert.Equal(.5, Math.Clamp(At(nightResult, 17 * Hour).From, 0, 1), 8);
+        var controlDay = ForecastMood.ForecastMoodTimeline(Pawn(false), Day, [day], response: true);
+        var controlNight = ForecastMood.ForecastMoodTimeline(Pawn(false), Day, [night], response: true);
         Assert.Equal(controlDay.Projected().PressureTicks, controlNight.Projected().PressureTicks, 8);
         Assert.Equal(controlDay.Projected().TerminalMood, controlNight.Projected().TerminalMood, 8);
     }
@@ -60,24 +60,24 @@ public sealed class ForecastConditionalMoodTests
     {
         // #3327: EnvironmentCold at -12 is observed; an assessed warm span from hour 2 to 4 removes it (+12).
         var pawn = Pawn(false);
-        var plain = ForecastMood.ForecastMoodTimeline(pawn, Day, []);
-        var banded = ForecastMood.ForecastMoodTimeline(pawn, Day, [], banded: [("EnvironmentCold", [(2 * Hour, 4 * Hour, 12.0)])]);
-        Assert.Equal(.5, At(banded, 0).Target, 9);
-        Assert.Equal(.62, At(banded, 2 * Hour).Target, 9);
-        Assert.Equal(.5, At(banded, 4 * Hour).Target, 9);
+        var plain = ForecastMood.ForecastMoodTimeline(pawn, Day, [], response: true);
+        var banded = ForecastMood.ForecastMoodTimeline(pawn, Day, [], banded: [("EnvironmentCold", [(2 * Hour, 4 * Hour, 12.0)])], response: true);
+        Assert.Equal(.5, Math.Clamp(At(banded, 0).From, 0, 1), 9);
+        Assert.Equal(.62, Math.Clamp(At(banded, 2 * Hour).From, 0, 1), 9);
+        Assert.Equal(.5, Math.Clamp(At(banded, 4 * Hour).From, 0, 1), 9);
         Assert.True(banded.Projected().PressureTicks < plain.Projected().PressureTicks);
         Assert.Contains("situational_thought_constant_outside_exposure:EnvironmentCold", banded.Findings);
         Assert.Contains("unmodeled_situational_thoughts_constant", banded.Findings);
         // A span covering the horizon leaves nothing at the observed constant; no span changes nothing but names the thought.
         Assert.DoesNotContain("situational_thought_constant_outside_exposure:EnvironmentCold",
-            ForecastMood.ForecastMoodTimeline(pawn, Day, [], banded: [("EnvironmentCold", [(0, Day, 0.0)])]).Findings);
-        var none = ForecastMood.ForecastMoodTimeline(pawn, Day, [], banded: [("EnvironmentCold", [])]);
-        Assert.Equal(plain.Projected().Trajectory, none.Projected().Trajectory);
+            ForecastMood.ForecastMoodTimeline(pawn, Day, [], banded: [("EnvironmentCold", [(0, Day, 0.0)])], response: true).Findings);
+        var none = ForecastMood.ForecastMoodTimeline(pawn, Day, [], banded: [("EnvironmentCold", [])], response: true);
+        Assert.Equal(plain.Projected().Response, none.Projected().Response);
         Assert.Equal(plain.Projected().Breaks, none.Projected().Breaks);
         Assert.Equal(plain.Findings.Append("situational_thought_constant_outside_exposure:EnvironmentCold").Order(StringComparer.Ordinal), none.Findings);
         // One thought changed both ways is stacking.
         Assert.Equal(["unsupported_situational_change_stacking"], ForecastMood.ForecastMoodTimeline(pawn, Day, [], situational: [("EnvironmentCold", 4, 0)],
-            banded: [("EnvironmentCold", [])]).Findings);
+            banded: [("EnvironmentCold", [])], response: true).Findings);
     }
 
     [Fact]
@@ -110,11 +110,11 @@ public sealed class ForecastConditionalMoodTests
     public void BreakRiskIntegratesEachTiersRenewalRateOverTheTargetTrajectory(double target, double perDay)
     {
         var pawn = Pawn(false) with { Mood = Pawn(false).Mood! with { UnclampedTarget = target, Target = target }};
-        var result = ForecastMood.ForecastMoodTimeline(pawn, Day, []);
+        var result = ForecastMood.ForecastMoodTimeline(pawn, Day, [], response: true);
         Assert.Equal(perDay, result.Assessed().Risk, 8);
         Assert.DoesNotContain("mental_break_probability_unassessed", result.Findings);
         // A fading -10 memory lifts the target across the minor threshold halfway: in that tier for half the horizon.
-        var fading = ForecastMood.ForecastMoodTimeline(Pawn(false) with { Mood = Pawn(false).Mood! with { UnclampedTarget = .4, Target = .4, Memories = [NeedsFixtures.Memory("sting", -10, Day, true)] }}, Day, []);
+        var fading = ForecastMood.ForecastMoodTimeline(Pawn(false) with { Mood = Pawn(false).Mood! with { UnclampedTarget = .4, Target = .4, Memories = [NeedsFixtures.Memory("sting", -10, Day, true)] }}, Day, [], response: true);
         Assert.Equal(.5 / 4.25, fading.Assessed().Risk, 4);
     }
 
@@ -122,10 +122,10 @@ public sealed class ForecastConditionalMoodTests
     public void ActualMoodRespondsGraduallyAndSleepFreezesActualRatherThanOnlyRemovingThought()
     {
         var pawn = Pawn(false) with { Mood = Pawn(false).Mood! with { Level = .2, UnclampedTarget = .8, Target = .8 }};
-        var awake = ForecastMood.ForecastMoodTimeline(pawn, Hour, []);
-        var asleep = ForecastMood.ForecastMoodTimeline(pawn, Hour, [Sleep("sleep", 0, Hour)]);
-        Assert.Equal(.8, awake.Projected().Trajectory[0].Target, 8);
-        Assert.Equal(.2, awake.Projected().Trajectory[0].Actual, 8);
+        var awake = ForecastMood.ForecastMoodTimeline(pawn, Hour, [], response: true);
+        var asleep = ForecastMood.ForecastMoodTimeline(pawn, Hour, [Sleep("sleep", 0, Hour)], response: true);
+        Assert.Equal(.8, Math.Clamp(awake.Projected().Response!.Targets[0].From, 0, 1), 8);
+        Assert.Equal(.2, awake.Projected().Response!.Initial, 8);
         Assert.Equal(.32, awake.Projected().TerminalMood, 8);
         Assert.Equal(.2, asleep.Projected().TerminalMood, 8);
         Assert.True(awake.Projected().ActualExposureTicks > 0);
@@ -137,26 +137,26 @@ public sealed class ForecastConditionalMoodTests
     public void WrappedWindowReappearsAfterMorningBoundaryWithoutDuplicateCurrentCredit()
     {
         var pawn = Pawn() with { LocalHour = 1d, Mood = Pawn(false).Mood! with { Target = .66, UnclampedTarget = .66, Conditional = new ConditionalMood.Modeled([new(23, 6, true, 16, 16)]) }};
-        var result = ForecastMood.ForecastMoodTimeline(pawn, Day, []);
-        Assert.Equal(.66, result.Projected().Trajectory[0].Target, 8);
-        Assert.Equal(.5, At(result, 5 * Hour).Target, 8);
-        Assert.Equal(.66, At(result, 22 * Hour).Target, 8);
-        Assert.Equal(.66, result.Projected().Trajectory[^1].Target, 8);
+        var result = ForecastMood.ForecastMoodTimeline(pawn, Day, [], response: true);
+        Assert.Equal(.66, Math.Clamp(result.Projected().Response!.Targets[0].From, 0, 1), 8);
+        Assert.Equal(.5, Math.Clamp(At(result, 5 * Hour).From, 0, 1), 8);
+        Assert.Equal(.66, Math.Clamp(At(result, 22 * Hour).From, 0, 1), 8);
+        Assert.Equal(.66, Math.Clamp(result.Projected().Response!.Targets[^1].To, 0, 1), 8);
     }
 
     [Fact]
     public void InterruptedSleepEndsSuppressionAndAllowsActualMoodToResumeChanging()
     {
         var sleep = Sleep("sleep", 5 * Hour, 12 * Hour);
-        var full = ForecastMood.ForecastMoodTimeline(Pawn(), Day, [sleep]);
-        var interrupted = ForecastMood.ForecastMoodTimeline(Pawn(), Day, [sleep], new Dictionary<string, double> { [sleep.Id] = 8 * Hour });
-        Assert.True(At(full, 5 * Hour).Asleep);
-        Assert.False(At(interrupted, 8 * Hour).Asleep);
-        Assert.Equal(.4, At(interrupted, 8 * Hour).Target, 8);
+        var full = ForecastMood.ForecastMoodTimeline(Pawn(), Day, [sleep], response: true);
+        var interrupted = ForecastMood.ForecastMoodTimeline(Pawn(), Day, [sleep], new Dictionary<string, double> { [sleep.Id] = 8 * Hour }, response: true);
+        Assert.True(At(full, 5 * Hour).Frozen);
+        Assert.False(At(interrupted, 8 * Hour).Frozen);
+        Assert.Equal(.4, Math.Clamp(At(interrupted, 8 * Hour).From, 0, 1), 8);
         Assert.True(interrupted.Projected().PressureTicks > full.Projected().PressureTicks);
         // Points fall only at events; the mood at 9h is the terminal mood of a 9h horizon.
-        var fullAtNine = ForecastMood.ForecastMoodTimeline(Pawn(), 9 * Hour, [sleep]);
-        var interruptedAtNine = ForecastMood.ForecastMoodTimeline(Pawn(), 9 * Hour, [sleep], new Dictionary<string, double> { [sleep.Id] = 8 * Hour });
+        var fullAtNine = ForecastMood.ForecastMoodTimeline(Pawn(), 9 * Hour, [sleep], response: true);
+        var interruptedAtNine = ForecastMood.ForecastMoodTimeline(Pawn(), 9 * Hour, [sleep], new Dictionary<string, double> { [sleep.Id] = 8 * Hour }, response: true);
         Assert.True(interruptedAtNine.Projected().TerminalMood < fullAtNine.Projected().TerminalMood);
     }
 
@@ -164,25 +164,25 @@ public sealed class ForecastConditionalMoodTests
     public void MemoryExpiryChangesTargetOnce()
     {
         var pawn = Pawn(false) with { Mood = Pawn(false).Mood! with { UnclampedTarget = .6, Target = .6, Memories = [NeedsFixtures.Memory("memory", 10, 1000d, false)] }};
-        var result = ForecastMood.ForecastMoodTimeline(pawn, Hour, []);
-        Assert.Equal(.6, result.Projected().Trajectory[0].Target, 8);
-        Assert.Equal(.5, At(result, 1000).Target, 8);
+        var result = ForecastMood.ForecastMoodTimeline(pawn, Hour, [], response: true);
+        Assert.Equal(.6, Math.Clamp(result.Projected().Response!.Targets[0].From, 0, 1), 8);
+        Assert.Equal(.5, Math.Clamp(At(result, 1000).From, 0, 1), 8);
     }
 
     [Fact]
     public void UnclampedObservedTargetPreservesOverflowWhenCurrentEffectEnds()
     {
         var pawn = Pawn(false) with { LocalHour = 1d, Mood = Pawn(false).Mood! with { Target = 1d, UnclampedTarget = 1.1, Conditional = new ConditionalMood.Modeled([new(23, 6, true, 16, 16)]) }};
-        var result = ForecastMood.ForecastMoodTimeline(pawn, Day, []);
-        Assert.Equal(1, result.Projected().Trajectory[0].Target);
-        Assert.Equal(.94, At(result, 5 * Hour).Target, 8);
+        var result = ForecastMood.ForecastMoodTimeline(pawn, Day, [], response: true);
+        Assert.Equal(1, Math.Clamp(result.Projected().Response!.Targets[0].From, 0, 1));
+        Assert.Equal(.94, Math.Clamp(At(result, 5 * Hour).From, 0, 1), 8);
     }
 
     [Fact]
     public void UnmodeledConditionalsCannotCreateBenefit()
     {
         var unknown = ForecastMood.ForecastMoodTimeline(Pawn() with { Mood = Pawn().Mood! with
-            { Conditional = new ConditionalMood.Unmodeled(["NightOwl"]) } }, Hour, []);
+            { Conditional = new ConditionalMood.Unmodeled(["NightOwl"]) } }, Hour, [], response: true);
         Assert.IsType<ForecastMoodResult.Unprojected>(unknown);
         Assert.Equal(["unknown_conditional_mood_mechanics:NightOwl"], unknown.Findings);
     }
@@ -209,8 +209,8 @@ public sealed class ForecastConditionalMoodTests
         var sleep = new ForecastNeedChoice("long", "pawn", "rest", "bed", "", 0, 0, 0, 1000, 1, []);
         var result = ForecastNeeds.ForecastNeedsTimeline(pawn, Capacity() with { HorizonTicks = 1000 }, [sleep]);
         Assert.Equal(.8, result.Needs.Single(n => n.Kind == "rest").FinalLevel.Number(), 8);
-        Assert.False(At(result.Mood!, 500).Asleep);
-        Assert.Equal(.4, At(result.Mood!, 500).Target, 8);
+        Assert.Equal(550, result.Mood.Projected().PressureTicks, 8);
+        Assert.Equal(.484, result.Mood.Projected().TerminalMood, 8);
         Assert.Contains("sleep_service_capped_at_native_wake:long", result.Findings);
         Assert.DoesNotContain(result.Capacity.Capacity.Windows.ReadWindows(), w => w.Start < 1000);
     }
@@ -238,10 +238,10 @@ public sealed class ForecastConditionalMoodTests
         Assert.False(result.Needs.Single(n => n.Kind == "rest").FinalLevel is ForecastTerm.Assessed);
         Assert.IsType<ForecastMoodResult.Unprojected>(result.Mood);
         // Asleep now without a rest from tick 0, the outcome wakes the pawn there (#3882): its mood runs awake from it.
-        var woken = ForecastMood.ForecastMoodTimeline(Pawn() with { Awake = false }, Day, []);
+        var woken = ForecastMood.ForecastMoodTimeline(Pawn() with { Awake = false }, Day, [], response: true);
         woken.Projected();
-        Assert.Equal(ForecastMood.ForecastMoodTimeline(Pawn(), Day, []).Projected().PressureTicks, woken.Projected().PressureTicks);
-        var continuation = ForecastMood.ForecastMoodTimeline(Pawn() with { Awake = false }, Day, [Sleep("continue", 0, Hour)]);
+        Assert.Equal(ForecastMood.ForecastMoodTimeline(Pawn(), Day, [], response: true).Projected().PressureTicks, woken.Projected().PressureTicks);
+        var continuation = ForecastMood.ForecastMoodTimeline(Pawn() with { Awake = false }, Day, [Sleep("continue", 0, Hour)], response: true);
         continuation.Projected();
     }
 

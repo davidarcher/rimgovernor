@@ -53,14 +53,3 @@ public abstract record ControlRequestOperation
 
     public static implicit operator ControlRequestOperation(Revoke value) => new RevokeCase(value);
 }
-
-/// <summary>
-/// Writes atomically require current colony/load/map identity and a fresh
-/// attempt; Auto has a single bot owner.
-/// </summary>
-public sealed record WritePrecondition
-{
-    public RimGovernor.Brain.GameFacts.Common.Identity? Identity { get; init; }
-
-    public RimGovernor.Brain.GameFacts.Common.AttemptKey? Attempt { get; init; }
-}

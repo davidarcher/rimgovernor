@@ -72,7 +72,7 @@ public sealed class MechanicCardGuardsTests
         var problems = GuardTableCheck.Problems(
             MechanicCards.ByDef,
             [.. MechanicCardGuards.BoundDecls, "Corpse.everBuriedInGrave"],
-            [.. MechanicCardGuards.SiteActions, new CardSiteAction("Building_Grave.Notify_HauledTo", ActionKind.Haul, "colonist")],
+            [.. MechanicCardGuards.SiteActions, new CardSiteAction("Building_Grave.Notify_HauledTo", "colonist")],
             null);
 
         Assert.Equal(["binding Corpse.everBuriedInGrave is not in the card file", "site Building_Grave.Notify_HauledTo is not in the card file"], problems);
@@ -82,7 +82,7 @@ public sealed class MechanicCardGuardsTests
     public void TableCheckFailsOnAPreventionRowAtASiteWithoutACount()
     {
         var problems = GuardTableCheck.Problems(MechanicCards.ByDef, [],
-            [new CardSiteAction("Building_Sarcophagus.Notify_HauledTo", ActionKind.ApparelPolicy, MechanicCardGuards.DisallowCounted)], null);
+            [new CardSiteAction("Building_Sarcophagus.Notify_HauledTo", MechanicCardGuards.DisallowCounted)], null);
 
         Assert.Equal(["site Building_Sarcophagus.Notify_HauledTo has a guard that is not a count, so disallow-counted cannot falsify it"], problems);
     }

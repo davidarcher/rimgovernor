@@ -13,6 +13,8 @@ choice. Host replies use their source-generated JSON context. Native game
 operations use the GameFacts and GameOrders contexts and the same records as the
 in-process Game API.
 
+Payload-free order cases carry only their discriminator: combat draft, stop and hold-position, combat animal-area clear and ability no-target have no `Value` member. Payload-bearing cases are read through their typed case records; nullable convenience accessors are not part of these contracts.
+
 ## Observation scope
 
 The brain's observation identity retains the native `ObservationContext` reference;

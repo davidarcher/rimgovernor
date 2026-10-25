@@ -850,19 +850,14 @@ and prior users' release times, including early approach/wait and just-in-time
 approach. Each departure attempt consumes the existing expansion budget. Service
 intervals are half-open, so the next pawn may start when the prior user ends; the
 whole service must fit a free window. Pawn occupancy still covers approach,
-waiting and work. Selected plans expose equipment claims once per use.
+waiting and work. Equipment use is checked directly against selected allocation intervals.
 
-Construction options use this mechanism directly. A selected plan removes its
-equipment intervals before evaluating the next commitment. Declared external
-`EquipmentClaims` protect ongoing obligations; overlapping intervals are unioned,
-and an unknown endpoint makes only that equipment's availability unknown. Removing
-a commitment releases its forecast intervals in the proposed scenario. Equipment
-availability is an explicit supplied estimate, not a new native observation claim.
+Construction options use this mechanism directly. Each task's declared equipment and each selected allocation's service interval constrain later tasks in the same schedule. External availability is supplied through equipment windows; no separate equipment-claim report or unused commitment reservation is maintained.
 
 `ForecastClaimsTests` and the construction scenarios cover ingredient handoff,
 cancellation with native holds still active, scarce material, resource-local
 unknowns, one tool versus two, waiting and release candidates, deterministic
-truncation, location refusal, overlapping equipment obligations and native bill-ID
+truncation, location refusal and native bill-ID
 projection. This proves conditional accounting and combination generation. Live
 claim generation beyond fixed batches, native equipment reservation/dispatch and full production
 coordination remain unfinished; no gameplay improvement is established here.
@@ -1344,16 +1339,15 @@ native chewing-position or play-position choice, identified in findings.
 Memory expiry/fading changes the observed mood target conditionally. Permanent
 memories carry an explicit flag. Unknown expiry, repeated/grouped memories or
 unsupported renewal/stacking make the memory result unknown. The
-`MemoryAdjustedMoodTarget` remains the memory contribution applied to the current
-target. The coupled [mood timeline](portfolio-selection.md#needs-and-observed-execution)
-separately models supported conditional thoughts and actual seeker response,
+coupled [mood timeline](portfolio-selection.md#needs-and-observed-execution)
+models supported conditional thoughts and actual seeker response,
 plus memories a commitment grants at completion, and prices
 [break risk](../contracts/forecast-contracts.md#coupled-mood-break-risk) for pawns
 with an observed threshold. Unmodeled need-category/room changes remain unassessed.
 Existing Mood/comfort functions are diagnostics, not a second forecast scheduler.
 
 Pure tests cover equal current
-mood with different thought expiry, meals, quantity waste, recovery, timing,
+mood with different thought expiry, meals, capped useful food gain, recovery, timing,
 interruption, unknowns, protected work, distance and bounded generation.
 
 ### Clothing activity consumer

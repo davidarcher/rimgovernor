@@ -52,7 +52,7 @@ public sealed class BedroomCreditTests
     internal static ForecastCoupledOutcome Closing(double closedAt, double shift) =>
         new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>
         {
-            ["pawn"] = new([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
+            ["pawn"] = new([], new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
             {
                 Mood = MoodResults.Flat(0d, [Day, 0, 0], [new(shift, [0, 0, 0])]),
             },
@@ -190,7 +190,7 @@ public sealed class BedroomCreditTests
 
         // Calm colonists (no break days either way): the credit a colonist-day is the wellbeing of the delta plus the rest.
         var shifts = ForecastHousing.BreakShifts(context);
-        var outcome = new ForecastCoupledOutcome(new([], 0, 0), true, ids.ToDictionary(id => id, id => new ForecastNeedsResult([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new(new(id, "", new ForecastCapacityWindows.Unread(), 0), []), [])
+        var outcome = new ForecastCoupledOutcome(new([], 0, 0), true, ids.ToDictionary(id => id, id => new ForecastNeedsResult([], new(new(id, "", new ForecastCapacityWindows.Unread(), 0), []), [])
         {
             Mood = MoodResults.Flat(0d, [0, 0, 0], [.. shifts[id].Select(s => new ForecastShiftedBreaks(s, [0, 0, 0]))]),
         }, StringComparer.Ordinal), []) { ServedRooms = [new(1, "WoodLog", 0)] };

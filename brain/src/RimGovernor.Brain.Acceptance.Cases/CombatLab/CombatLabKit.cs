@@ -67,7 +67,7 @@ internal static class CombatLabKit
     /// <summary>Drafts <paramref name="pawns"/> in one batch; an order that does not apply fails.</summary>
     internal static async Task DraftAsync(TypedSession s, IEnumerable<string> pawns, CancellationToken cancellationToken)
     {
-        foreach (var r in await OrdersAsync(s, "draft", cancellationToken, [.. pawns.Select(p => Order(p, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DraftCase(new RimGovernor.Brain.GameOrders.Operations.Clear())))]).ConfigureAwait(false))
+        foreach (var r in await OrdersAsync(s, "draft", cancellationToken, [.. pawns.Select(p => Order(p, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DraftCase()))]).ConfigureAwait(false))
         {
             Applied("draft", r);
         }

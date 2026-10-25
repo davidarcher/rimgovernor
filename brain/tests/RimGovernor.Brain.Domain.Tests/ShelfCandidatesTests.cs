@@ -45,7 +45,7 @@ public sealed class ShelfCandidatesTests
                 cells.Add(SiteCellFixtures.At(c, doorway: doors.Contains(c)));
             }
         }
-        return new StockpileRequest { Zones = zones, Stores = stores, Cells = cells, Layout = new StorageLayout.Planned(walkways, []), ShelfStacks = 6 };
+        return new StockpileRequest { Zones = zones, Stores = stores, Cells = cells, Layout = new StorageLayout.Planned(walkways) };
     }
 
     private static readonly EquatableArray<Cell> NoWalkways = EquatableArray.From(new List<Cell>());
@@ -60,7 +60,6 @@ public sealed class ShelfCandidatesTests
         var roles = candidates.Select(RoleOf).ToHashSet();
         Assert.Equal(["yard", "bench:Stove_1", "meals", "medicine", "general", "weapons"], Kinds.Select(k => k.Role).Where(roles.Contains));
         Assert.DoesNotContain("chunks", roles);
-        Assert.All(candidates, c => Assert.Equal(4, c.Stacks));
     }
 
     [Fact]

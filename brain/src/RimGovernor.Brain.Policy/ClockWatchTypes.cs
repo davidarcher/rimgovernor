@@ -157,10 +157,6 @@ public sealed record ClockWatchDecision
 
     public EquatableArray<ClockWatchReason> Refused { get; init; }
 
-    public GenerationSnapshot Snapshot { get; init; }
-
-    public Tick Tick { get; init; }
-
     public ClockWatchMode Mode { get; init; }
 
     public EquatableArray<PawnId> Hostiles { get; init; }

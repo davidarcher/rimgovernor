@@ -75,9 +75,9 @@ public sealed class ForecastActivitiesTests
         var result = ForecastActivities.CompareActivityPlans(Hunt(harvestTime: 300));
         var row = Assigned(result, "retrieve");
         Assert.Equal(200, row.Depart);
-        Assert.Equal(0, row.WaitTicks);
+        Assert.Equal(0, (row.Start - row.Arrive));
         Assert.Equal(500, row.DisplacedLaborTicks);
-        Assert.Contains(result.Alternatives, p => p.Allocations.Any(a => a.Pawn == "generalist" && a.WaitTicks == 200 && a.DisplacedLaborTicks == 700));
+        Assert.Contains(result.Alternatives, p => p.Allocations.Any(a => a.Pawn == "generalist" && (a.Start - a.Arrive) == 200 && a.DisplacedLaborTicks == 700));
         Assert.Equal(result.Alternatives[0].LaborCost, result.Alternatives[0].Allocations.Sum(a => a.DisplacedLaborTicks + a.RecoveryLaborTicks));
     }
 

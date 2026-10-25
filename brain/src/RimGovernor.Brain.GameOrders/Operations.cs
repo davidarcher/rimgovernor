@@ -293,8 +293,6 @@ public sealed record EntityPrecondition
     public string? ExpectedSnapshotToken { get; init; }
 }
 
-public sealed record Clear;
-
 public sealed record Assignment
 {
     public AssignmentValue? Value { get; init; }
@@ -323,8 +321,6 @@ public sealed record DefCount
 
     public required int Count { get; init; }
 }
-
-
 
 public sealed record Rectangle
 {
@@ -438,13 +434,8 @@ public abstract record CombatAnimalAreaArea
 
     public static implicit operator CombatAnimalAreaArea(RimGovernor.Brain.Domain.Cell value) => new CellCase(value);
 
-    /// <summary>The <c>Clear</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Clear? Clear => (this as ClearCase)?.Value;
+    public sealed record ClearCase : CombatAnimalAreaArea;
 
-    public sealed record ClearCase(Clear Value) : CombatAnimalAreaArea;
-
-    public static implicit operator CombatAnimalAreaArea(Clear value) => new ClearCase(value);
 }
 
 public sealed record CombatDoor
@@ -491,9 +482,6 @@ public abstract record CombatOrderOrder
     /// picks melee or ranged as the vanilla float menu does for the pawn's
     /// weapon; there is no other attack order.
     /// </summary>
-    /// <summary>The <c>Attack</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public EntityPrecondition? Attack => (this as AttackCase)?.Value;
 
     public sealed record AttackCase(EntityPrecondition Value) : CombatOrderOrder;
 
@@ -504,23 +492,11 @@ public abstract record CombatOrderOrder
 
     public sealed record FireModeCase(CombatFireMode Value) : CombatOrderOrder;
 
-    public sealed record HoldPositionCase(Clear Value) : CombatOrderOrder;
-
-    /// <summary>The <c>Door</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public CombatDoor? Door => (this as DoorCase)?.Value;
+    public sealed record HoldPositionCase : CombatOrderOrder;
 
     public sealed record DoorCase(CombatDoor Value) : CombatOrderOrder;
 
-    /// <summary>The <c>Stop</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Clear? Stop => (this as StopCase)?.Value;
-
-    public sealed record StopCase(Clear Value) : CombatOrderOrder;
-
-    /// <summary>The <c>Rescue</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public CombatRescue? Rescue => (this as RescueCase)?.Value;
+    public sealed record StopCase : CombatOrderOrder;
 
     public sealed record RescueCase(CombatRescue Value) : CombatOrderOrder;
 
@@ -531,11 +507,8 @@ public abstract record CombatOrderOrder
     /// again. The controller undrafts pawns no live plan needs.
     /// Refusal: cannot_draft (not eligible).
     /// </summary>
-    /// <summary>The <c>Draft</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Clear? Draft => (this as DraftCase)?.Value;
 
-    public sealed record DraftCase(Clear Value) : CombatOrderOrder;
+    public sealed record DraftCase : CombatOrderOrder;
 
     /// <summary>
     /// ManMortar: the drafted pawn mans the unroofed player mortar
@@ -551,9 +524,6 @@ public abstract record CombatOrderOrder
     /// pawn by the vanilla melee attack job, as a released animal does.
     /// Refusals: not_ours, untrained, not_found, cannot_hit, unreachable.
     /// </summary>
-    /// <summary>The <c>Release</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public EntityPrecondition? Release => (this as ReleaseCase)?.Value;
 
     public sealed record ReleaseCase(EntityPrecondition Value) : CombatOrderOrder;
 
@@ -645,7 +615,6 @@ public sealed record FilterPatch
     /// of a range are required together. Absent ranges are preserved.
     /// </summary>
     public required HitPointRange HitPoints { get; init; }
-
 
     public string? QualityMin { get; init; }
 
@@ -1063,7 +1032,6 @@ public abstract record ActionIntent
 
     public static implicit operator ActionIntent(GiveJobIntent value) => new GiveJobCase(value);
 
-    /// <summary>The <c>Draft</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
     public DraftIntent? Draft => (this as DraftCase)?.Value;
 
@@ -1346,7 +1314,7 @@ public abstract record AbilityIntentTarget
 {
     private protected AbilityIntentTarget() { }
 
-    public sealed record NoTargetCase(AbilityNoTarget Value) : AbilityIntentTarget;
+    public sealed record NoTargetCase : AbilityIntentTarget;
 
     public sealed record CellCase(RimGovernor.Brain.Domain.Cell Value) : AbilityIntentTarget;
 
@@ -1397,8 +1365,6 @@ public sealed record PsycastAbility
 {
     public string? Ability { get; init; }
 }
-
-public sealed record AbilityNoTarget;
 
 /// <summary>
 /// Set one per-pawn Assign-tab setting on one colony pawn: exactly one arm per intent. hostility_response is the
@@ -2261,7 +2227,6 @@ public sealed record ConversionIntent
 
     public string? TargetId { get; init; }
 }
-
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(HitPointRange.Preserve), "preserve")]

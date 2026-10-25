@@ -163,7 +163,7 @@ public sealed class IdeoligionGoalReformTests
             new IdeologyDefs
             {
                 Precepts = new Dictionary<string, PreceptDef> { [Naked] = new([]) },
-                Memes = new Dictionary<string, MemeDef> { [Nudism] = new([], []) },
+                Memes = new HashSet<string>(StringComparer.Ordinal) { Nudism },
             },
             new IdeoligionFacts { Observed = IdeologyReadsTests.NoPrecepts with { Memes = [.. memes], Development = development } })),
         Reform = reform,

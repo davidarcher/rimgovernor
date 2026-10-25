@@ -235,9 +235,9 @@ public static partial class ForecastCoupled
         private readonly Dictionary<(int Use, int Shelters), ReliefOutcome> reliefByUse = [];
         private readonly Dictionary<(int Pawn, int Allocations, int Shelters, int Comfort), Cached<ForecastThermalExposure>> exposures = [];
         private readonly Dictionary<(int Pawn, int Allocations), Cached<ForecastThermalExposure>> unchangedExposures = [];
-        private readonly Dictionary<(int Pawn, int Choices, int Granted, int Renewals), ForecastNeeds.NeedsCore> cores = [];
+        private readonly Dictionary<(int Pawn, int Choices), ForecastNeeds.NeedsCore> cores = [];
         private readonly Dictionary<(int Pawn, int Occupancy), ForecastCapacityResult> capacities = [];
-        private readonly Dictionary<(int Pawn, int Occupancy, int Choices, int Granted, int Renewals), Cached<ForecastNeedsResult>> needs = [];
+        private readonly Dictionary<(int Pawn, int Occupancy, int Choices), Cached<ForecastNeedsResult>> needs = [];
         private readonly Dictionary<(int Pawn, int Choices, int Granted, int Situational, int Banded, int Renewals), Cached<ForecastMoodResult>> moods = [];
         private readonly Dictionary<(int Pawn, int Choices, EquatableArray<ForecastClosedRoom> Rooms), Cached<ForecastRoofMood>> roofs = [];
         private readonly Dictionary<(int Pawn, int Exposure, int Roof, int Choices), Cached<BandedThought[]>> banded = [];
@@ -851,7 +851,7 @@ public static partial class ForecastCoupled
                 var occupancyId = context.Resources.Claims.Truncated ? -1 : occupancies.Id(protectedTime);
                 var choicesId = choiceKeys.Id(choices);
                 // Needs recovery is assessed without masking physiological unavailability beneath planned work.
-                var physiology = NeedsAt(p, 0, choicesId, 0, 0, null, facts, horizon);
+                var physiology = NeedsAt(p, 0, choicesId, facts, horizon);
                 if (physiology.Value.Capacity.Capacity.Windows is not ForecastCapacityWindows.Read(var able))
                 { if (productive.Count != 0 || choices.Count != 0) Refuse("unread_future_capacity", pawn.Pawn); }
                 else foreach (var work in productive)
@@ -873,13 +873,13 @@ public static partial class ForecastCoupled
                 var situationalId = pawns.Situational[p].Count == 0 ? 0 : situationalKeys.Id(pawns.Situational[p]);
                 var bandedThoughts = Banded(p, pawns.Exposure[p], roof, temperatureCards, pawn, choicesId, physiology.Value.Needs);
                 var renewalsKey = roofMood.Renewals.Count == 0 ? 0 : roof.Id + 1;
-                var projectedNeeds = NeedsAt(p, occupancyId, choicesId, grantedId, renewalsKey, roofMood.Renewals, facts, horizon);
+                var projectedNeeds = NeedsAt(p, occupancyId, choicesId, facts, horizon);
                 // Mood reads neither occupancy nor capacity, so it is cached on its own inputs (#3468).
                 var moodKey = (p, choicesId, grantedId, situationalId, bandedThoughts.Id, renewalsKey);
                 if (!moods.TryGetValue(moodKey, out var mood))
                     moods.Add(moodKey, mood = Next(ForecastMood.ForecastMoodTimeline(pawn, horizon, choiceKeys.Array(choicesId), null,
                         grantedId == 0 ? null : grantedKeys.Array(grantedId), situationalId == 0 ? null : situationalKeys.Array(situationalId),
-                        bandedThoughts.Value, roofMood.Renewals, context.MoodTrajectory, breakShifts.GetValueOrDefault(pawn.Pawn),
+                        bandedThoughts.Value, roofMood.Renewals, breakShifts.GetValueOrDefault(pawn.Pawn),
                         context.PlannedRoomRoles.Keys.Any(room => PlannedRoomCredits.Functions(context, room).Any(r => (r is PlannedRole.Dining or PlannedRole.Rec) && context.RoomCredits.ContainsKey(r)))
                         || context.RoomCredits.ContainsKey(PlannedRole.Nursery) && context.PlannedRoomRoles.Values.Contains(PlannedRole.Nursery)
                             && context.Needs.Babies.Babies.Any(b => b.Pawn == pawn.Pawn || b.Hearers.Any(h => h.Pawn == pawn.Pawn)))));
@@ -997,15 +997,14 @@ public static partial class ForecastCoupled
                 plannedRooms.Where(r => r.Complete.Count == 0).Select(r => "planned/room" + r.Room).ToArray());
         }
 
-        private Cached<ForecastNeedsResult> NeedsAt(int p, int occupancyId, int choicesId, int grantedId, int renewalsKey,
-            IReadOnlyList<ForecastMemoryRenewal>? renewals, PawnFacts facts, double horizon)
+        private Cached<ForecastNeedsResult> NeedsAt(int p, int occupancyId, int choicesId, PawnFacts facts, double horizon)
         {
-            var key = (p, occupancyId, choicesId, grantedId, renewalsKey);
+            var key = (p, occupancyId, choicesId);
             if (needs.TryGetValue(key, out var result)) return result;
             // The core reads no occupancy, so it is shared by every occupancy the schedules give the pawn (#3468).
-            var coreKey = (p, choicesId, grantedId, renewalsKey);
+            var coreKey = (p, choicesId);
             if (!cores.TryGetValue(coreKey, out var core))
-                cores.Add(coreKey, core = ForecastNeeds.NeedsCoreOf(facts.Pawn, horizon, choiceKeys.Array(choicesId), null, grantedId == 0 ? null : grantedKeys.Array(grantedId), renewals));
+                cores.Add(coreKey, core = ForecastNeeds.NeedsCoreOf(facts.Pawn, horizon, choiceKeys.Array(choicesId), null));
             var input = facts.Input with { Occupancy = occupancyId < 0 ? new ForecastProtection.Truncated() : new ForecastProtection.Read(occupancies.Canonical(occupancyId)) };
             var capacityKey = (p, occupancyId);
             if (!capacities.TryGetValue(capacityKey, out var capacity)) capacities.Add(capacityKey, capacity = ForecastCapacity.ForecastPawnCapacityOf(input));

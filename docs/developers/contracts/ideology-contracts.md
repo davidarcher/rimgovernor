@@ -157,12 +157,7 @@ per load, and a row a def names that the catalog lacks is an error.
   `UnwillingToDo` comp is what the member refuses (forbids), with the traits and
   hediffs that cancel it and, for the `_Chance` class, its chance.
   `policy.PreceptEffect` exposes `Penalises`, `Approves` and `Forbids`.
-- `policy.PreceptDef` also carries its `Issue`, `RequiredMemes` and
-  `ConflictingMemes`; `policy.MemeDef` (`IdeologyDefs.Memes`) lists a meme's
-  `RequireOne` precept groups and the precepts that conflict with it.
-  `IdeologyDefs.Gate(issues)` answers which memes require or rule out the
-  precepts of the named game issues (nudity, cannibalism, insect meat), so a
-  reform planner can pick memes for a precept.
+- `IdeologyDefs.Memes` contains the catalog's defined meme names for goal validation. Policy retains precept effects; design legality and compatible precept choices are read from the native catalog design path.
 - `policy.RoleDef` is a role precept def: `maxCount`, the skills of each
   `RoleRequirement_MinSkillAny` and `DisabledWork`, the work types whose
   `workTags` meet its `roleDisabledWorkTags` (the game's

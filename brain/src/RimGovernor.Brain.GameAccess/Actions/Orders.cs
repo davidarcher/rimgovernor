@@ -253,7 +253,7 @@ public static class Orders
     {
         if (target.Kind == AbilityTargetKind.None)
         {
-            return new RimGovernor.Brain.GameOrders.Operations.AbilityIntentTarget.NoTargetCase(new RimGovernor.Brain.GameOrders.Operations.AbilityNoTarget());
+            return new RimGovernor.Brain.GameOrders.Operations.AbilityIntentTarget.NoTargetCase();
         }
         if (target.Kind == AbilityTargetKind.Cell)
         {

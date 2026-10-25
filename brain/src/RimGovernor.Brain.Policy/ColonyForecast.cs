@@ -20,7 +20,6 @@ public sealed record ForecastCommitment(string Id, EquatableArray<ForecastStockC
     public string TradeVisit { get; init; } = "";
     public ForecastActivityOutcome? Outcome { get; init; }
     public EquatableArray<ForecastMaterialClaim> MaterialClaims { get; init; }
-    public EquatableArray<ForecastEquipmentClaim> EquipmentClaims { get; init; }
     public EquatableArray<string> UnsupportedEffects { get; init; }
     /// <summary>Mood memories this Method grants when all its activities complete (at the forecast start when it has
     /// none); in-memory forecast evidence, not a wire or save field. The same effective tick applies below.</summary>
@@ -63,10 +62,8 @@ public sealed record ForecastSituationalChange(string Pawn, string Thought, doub
 /// Observed stats include the current outfit, so the deltas are relative to it. Shifts for one pawn add.</summary>
 public sealed record ForecastComfortShift(string Pawn, double MinDelta, double MaxDelta);
 
-
 public sealed record ColonyForecastRequest
 {
-    public DerivedDemand Demand { get; init; } = new();
     public required ColonyForecastOrigin Origin { get; init; }
     public required double HorizonDays { get; init; }
     public ColonyForecastFacts Facts { get; init; } = new();
@@ -79,7 +76,6 @@ public sealed record ForecastFinding(string Reason, string Commitment);
 public sealed record ColonyForecastScenario
 {
     public ForecastCoupledScenario? Coupled { get; init; }
-    public EquatableArray<ForecastCommitment> Commitments { get; init; }
 }
 
 public static class ColonyForecastRules
@@ -107,12 +103,6 @@ public static class ColonyForecastRules
 
     /// <summary>The commitment id a coupled schedule's own timed stock effects are projected under.</summary>
     internal const string TimedEffects = "coupled/timed-effects";
-
-    /// <summary>The scenario frame over the validated observed stock and commitments. The stock shortfalls are each coupled
-    /// outcome's findings, walked by <see cref="InventoryWalk"/> against the schedule's own effects (#3468).</summary>
-    internal static ColonyForecastScenario ForecastInventory(EquatableArray<Amount> observed,
-        IReadOnlyDictionary<string, ForecastCommitment> commitments, double horizon)
-        => new() { Commitments = EquatableArray.From(new InventoryBase(observed, commitments, horizon).Ordered) };
 
     /// <summary>One stock effect in projection order, with the finding it always raises (a day beyond the horizon), made
     /// once. Only a schedule's own activity output can carry unread units (#3894's activity yields).</summary>

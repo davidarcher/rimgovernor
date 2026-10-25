@@ -5,8 +5,6 @@ public sealed record ForecastMaterialClaim(Resource Resource, MaterialUnits Unit
 
 /// <summary>Exclusive equipment at one service location. Windows exclude external/native occupancy.</summary>
 public sealed record ForecastEquipmentCapacity(string Id, string Location, EquatableArray<ForecastTimeWindow> Windows);
-/// <summary>One scheduled use of the equipment over [Start, End] ticks.</summary>
-public sealed record ForecastEquipmentClaim(string Equipment, double Start, double End);
 
 public static class ForecastClaims
 {
@@ -91,38 +89,4 @@ public static class ForecastClaims
         return result;
     }
 
-    /// <summary>Remove declared equipment occupancy once, rebuilding independently for baseline and delta.</summary>
-    public static ForecastEquipmentCapacity[] ForecastEquipmentAvailabilityOf(IEnumerable<ForecastEquipmentCapacity> equipment,
-        IEnumerable<ForecastEquipmentClaim> claims)
-    {
-        var rows = new Dictionary<string, ForecastEquipmentCapacity>(StringComparer.Ordinal);
-        foreach (var item in equipment)
-        {
-            if (string.IsNullOrWhiteSpace(item.Id) || string.IsNullOrWhiteSpace(item.Location) || !rows.TryAdd(item.Id, item))
-                throw new DomainException("invalid or duplicate equipment capacity");
-            double end = 0;
-            foreach (var window in item.Windows)
-            {
-                if (!double.IsFinite(window.Start) || !double.IsFinite(window.End) || window.Start < end || window.End < window.Start)
-                    throw new DomainException("invalid equipment availability");
-                end = window.End;
-            }
-        }
-        foreach (var claim in claims)
-        {
-            if (string.IsNullOrWhiteSpace(claim.Equipment)) throw new DomainException("invalid equipment claim identity");
-            if (!double.IsFinite(claim.Start) || claim.Start < 0 || !double.IsFinite(claim.End) || claim.End < claim.Start)
-                throw new DomainException("invalid equipment claim interval");
-            if (!rows.TryGetValue(claim.Equipment, out var row) || claim.Start == claim.End) continue;
-            var remaining = new List<ForecastTimeWindow>();
-            foreach (var window in row.Windows)
-            {
-                if (claim.End <= window.Start || claim.Start >= window.End) { remaining.Add(window); continue; }
-                if (window.Start < claim.Start) remaining.Add(window with { End = claim.Start });
-                if (claim.End < window.End) remaining.Add(window with { Start = claim.End });
-            }
-            rows[row.Id] = row with { Windows = EquatableArray.From(remaining) };
-        }
-        return rows.Values.OrderBy(e => e.Id, StringComparer.Ordinal).ToArray();
-    }
 }
