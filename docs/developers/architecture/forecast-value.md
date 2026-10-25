@@ -874,7 +874,13 @@ social thoughts plus its social memory groups (a fading memory's InverseLerp, a 
 the hediff factor, rounded and clamped as `Pawn_RelationsTracker.OpinionOf`. Its mood at the attempt is its unclamped mood now with
 its prison thought replaced by the room's PrisonCell (one bed) or PrisonBarracks stage and each mood memory group at its fade and
 expiry then (`ForecastPrison.Mood`). An attempt with resistance left lowers it by NegotiationAbility × the mood curve × the opinion
-curve; at 0 the next one recruits. A wild man is tamed at the warden's tame chance each attempt. The warden's inspiration is a
+curve; at 0 the next one recruits. A prisoner of another ideoligion that the autopilot converts first
+(`PopulationRules.RecruitIntent` sets Convert, `ForecastCoupledContext.PrisonerPopulation`, #3915) is converted before any of that, in
+the same chat slots (`ForecastPrison.Converted`): a job is three chitchat toils then a `ConvertIdeoAttempt` 1,050 ticks in, which
+takes the converter's `CertaintyReduction` times the tracker's change factor from the prisoner's certainty (read now, drifting up
+hourly by `ConversionTuning.CertaintyPerDayByMoodCurve` at its mood, over the factor), and at 0 it takes the colony's
+ideoligion; the converter is the warden holding the colony's ideoligion with the largest reduction, and the recruit jobs start in
+the slots after the conversion. A conversion the served days do not reach leaves the prisoner unrecruited. A wild man is tamed at the warden's tame chance each attempt. The warden's inspiration is a
 renewal process (`ForecastPrison.Inspirations`, one-hour steps): the one it has now runs out, a new one starts at the MTB its mood
 target gives, the def picked by its share of the defs that can occur; `Inspired_Recruitment` (`Inspired_Taming` for a wild man)
 recruits at the next attempt, and any other blocks new ones while it lasts. The prisoner's value is its #3825 value
@@ -885,10 +891,12 @@ Greedy, Jealous and Ascetic at the median over the colonists of the stage their 
 pain, added body parts and Recluse at their stage now) and memories; its free hours the median over the colonists of its own need
 falls served as each is served. The row is that value a day with a `Once` of −value × the expected recruitment days, less the
 expected chat jobs × the warden work a job takes (its 2,100 toil ticks as the shortfall rows they would fill, as the classroom
-charges its teacher). A non-positive value earns nothing
+charges its teacher), less the converter's work for each conversion job (its 1,400 toil ticks). A non-positive value earns nothing
 (`prison_joiner_costs_more`). Named states, each earning nothing: no prisoner (`prison_no_prisoner`), no recruitable prisoner
 without a bed (`prison_no_recruit`, with `prison_unrecruitable` for a loyal one), no warden (`prison_no_warden`), a prison closing
-no bed (`prison_no_bed`) and the review before the first layout plan (`prison_awaiting:layout_plan`). Named as not modelled: the
+no bed (`prison_no_bed`), a prisoner to convert that no warden can convert (`prison_no_converter`) and the review before the first
+layout plan (`prison_awaiting:layout_plan`). Named as not modelled with a converted prisoner: the chitchat opinion memories a conversion
+gives it (`prison_conversion_chitchat`, #3985). Named as not modelled: the
 warden's walks (`prison_warden_walk`, #3964), the other trait thoughts whose worker reads the situation
 (`joiner_situational_trait_thoughts`, #3965), memories a bedless prisoner renews until bedded (`prison_bedless_memory_renewal`,
 #3966), the memories the cell gives over the recruitment (`prison_cell_memories`, #3967) and one inspiration counted for every

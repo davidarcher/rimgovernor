@@ -429,12 +429,19 @@ unknown. What the game does not have is a case, never an unknown:
   (`WardenOpinionRead`: relations, situational social thoughts each rounded away from 0, the hediffs' opinionOfOthersFactor,
   hostility, its social memory groups of the warden, fading or cumulative, the rapport one chat gives, the ages of its
   rapport memories of other pawns, and the warden's tame chance for a wild man; rebuilt without `OpinionOf`, whose
-  recalculation drops memories), and its `JoinerRead`: its upkeep as a colonist,
+  recalculation drops memories), its conversion (#3915, `PrisonerConversionRead`; null unless Ideology is active outside classic
+  mode, the colony has a primary ideoligion and the prisoner holds another: the private
+  `CertaintyChangeFactor`, and each warden holding the primary ideoligion who can talk with its
+  `InteractionWorker_ConvertIdeoAttempt.CertaintyReduction` on the prisoner), with the read's `ConvertTalks`
+  (`JobDriver_ConvertPrisoner.NumTalks`, private) and `CertaintyDrift` (`ConversionTuning.CertaintyPerDayByMoodCurve`), and its `JoinerRead`: its upkeep as a colonist,
   its joiner mood (base level, colonistMoodOffset, break threshold, trait thoughts as unattached
   `MakeThought` offsets or their worker's `CurrentState` stage for pain, added body parts and Recluse, the Greedy, Ascetic
   and Jealous stage rows, the names of the other trait thoughts whose worker reads the situation, and its
   memories, which `RecruitUtility.Recruit` keeps) and its need rates, joy from its own Need\_Joy or a
   detached one built under `Rand.PushState`.
+- `ForecastCoupledContext.PrisonerPopulation` retains the canonical population census. The prison credit calls
+  `PopulationRules.RecruitIntent` (the same recruit and convert rules as the autopilot) and reads certainty from
+  the matching pawn's canonical `PawnIdeo.Member`; conversion reads do not duplicate that certainty.
 - `NeedsForecastRead.School` (#3809, `SchoolRead`): `Need_Learning.BaseFallPerTick`,
   `LearningUtility.NeedSatisfiedPerTick`, `LearningDesireDefOf.Lessontaking` and its `xpPerTick` ("" and 0 without
   Biotech), every `LearningDesireDef`'s `selectionWeight` and its worker's `CanGiveDesire`, the colony's spawned

@@ -304,19 +304,7 @@ public static partial class PopulationRules
         {
             return null;
         }
-        if (row.Recruitable && current == PrisonerInteractionMode.Recruit && row.Resistance <= 0)
-        {
-            return PrisonerInteractionMode.Recruit;
-        }
-        var foreign = colony.PrimaryIdeo is { Length: > 0 } ours && row.Ideo.Length != 0 && row.Ideo != ours;
-        if (row.Recruitable && foreign && colony.BelieversWanted)
-        {
-            return PrisonerInteractionMode.Convert;
-        }
-        if (row.Recruitable && row.WorthRecruiting(colony))
-        {
-            return foreign ? PrisonerInteractionMode.Convert : PrisonerInteractionMode.Recruit;
-        }
+        if (RecruitIntent(row, colony) is { } recruit) return recruit;
         if (colony.SlaveryAllowed() && !row.WildMan && CanLabor(row.Prospect))
         {
             return PrisonerInteractionMode.Enslave;
@@ -329,6 +317,35 @@ public static partial class PopulationRules
         if (!runway.Reaches(p.FoodTargetDays) || row.HeldTicks >= p.ReleaseAfterDays * GameTime.TicksPerDay)
         {
             return PrisonerInteractionMode.Release;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// The first rules of <see cref="PrisonerIntent"/>, which keep a prisoner for the colony's own people: Recruit for one already
+    /// being recruited with its resistance broken, Convert for a recruitable prisoner of another ideoligion under an unmet
+    /// Believers goal or worth recruiting, Recruit for one worth recruiting that shares the colony's ideoligion; null when the
+    /// colony does not recruit or convert it (or the row is dead or under a mode the colony never sets). The prison credit asks
+    /// this to know whether a prisoner is converted first (#3915).
+    /// </summary>
+    internal static PrisonerInteractionMode? RecruitIntent(PrisonerFacts row, PrisonerColony colony)
+    {
+        if (row.Dead || row.CurrentInteraction is not PrisonerHeldInteraction.Settable { Mode: var current })
+        {
+            return null;
+        }
+        if (row.Recruitable && current == PrisonerInteractionMode.Recruit && row.Resistance <= 0)
+        {
+            return PrisonerInteractionMode.Recruit;
+        }
+        var foreign = colony.PrimaryIdeo is { Length: > 0 } ours && row.Ideo.Length != 0 && row.Ideo != ours;
+        if (row.Recruitable && foreign && colony.BelieversWanted)
+        {
+            return PrisonerInteractionMode.Convert;
+        }
+        if (row.Recruitable && row.WorthRecruiting(colony))
+        {
+            return foreign ? PrisonerInteractionMode.Convert : PrisonerInteractionMode.Recruit;
         }
         return null;
     }

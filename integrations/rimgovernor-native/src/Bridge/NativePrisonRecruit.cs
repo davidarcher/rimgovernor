@@ -28,7 +28,8 @@ internal static class NativePrisonRecruit
         return new()
         {
             MoodCurve = Points(WorkerCurve("ResistanceImpactFactorCurve_Mood")), OpinionCurve = Points(WorkerCurve("ResistanceImpactFactorCurve_Opinion")),
-            MaxInteractionsPerDay = Pawn_GuestTracker.MaxInteractionsPerDay,
+            MaxInteractionsPerDay = Pawn_GuestTracker.MaxInteractionsPerDay, ConvertTalks = ConvertTalks(),
+            CertaintyDrift = Points(ConversionTuning.CertaintyPerDayByMoodCurve),
             Rapport = new(rapport.defName, rapport.DurationTicks, rapport.stackLimit, rapport.stackLimitForSameOtherPawn, rapport.stackedEffectMultiplier, rapport.lerpOpinionToZeroAfterDurationPct),
             RecruitInspiration = InspirationDefOf.Inspired_Recruitment.defName, TamingInspiration = InspirationDefOf.Inspired_Taming.defName,
             Wardens = EquatableArray.From(wardens.Select(WardenOf)),
@@ -49,6 +50,10 @@ internal static class NativePrisonRecruit
         BridgeCommon.PrivateStaticField(typeof(InteractionWorker_RecruitAttempt), field)?.GetValue(null) is float factor
             ? factor : throw new InvalidOperationException("InteractionWorker_RecruitAttempt." + field + " is not readable.");
 
+    // NumTalks has no public typed route; read the private constant rather than copy its value.
+    private static int ConvertTalks() =>
+        BridgeCommon.PrivateStaticField(typeof(JobDriver_ConvertPrisoner), "NumTalks")?.GetValue(null) is int talks
+            ? talks : throw new InvalidOperationException("JobDriver_ConvertPrisoner.NumTalks is not readable.");
     private static EquatableArray<RimGovernor.Brain.GameFacts.Observations.CurvePointRead> Points(SimpleCurve curve) => EquatableArray.From(curve.Points.Select(p => new RimGovernor.Brain.GameFacts.Observations.CurvePointRead(p.x, p.y)));
 
     /// <summary>
@@ -76,7 +81,29 @@ internal static class NativePrisonRecruit
             Pawn = pawn.GetUniqueLoadID(), Recruitable = guest.Recruitable, Resistance = F(guest.Resistance, "resistance"),
             PrisonBed = pawn.ownership?.OwnedBed?.ForPrisoners == true, WildMan = pawn.IsWildMan(), Mood = MoodOf(pawn),
             Opinions = EquatableArray.From(wardens.Select(w => OpinionOf(pawn, w, rapport))),
+            Conversion = ConversionOf(pawn, wardens),
             Joiner = JoinerOf(pawn, map, climate),
+        };
+    }
+
+    /// <summary>
+    /// What converting the prisoner to the colony's primary ideoligion takes (#3915, RimGovernor.Brain.GameFacts.Observations.PrisonerConversionRead); null when it needs
+    /// none, which is the case PopulationRules.RecruitIntent calls not foreign: no Ideology, classic mode (IdeoConversionAttempt
+    /// refuses), no primary ideoligion, or the prisoner holds none or the primary one. A converter is a warden holding the primary
+    /// ideoligion (WorkGiver_Warden_Convert.JobOnThing compares it with guest.ideoForConversion, which the colony sets to it) who can talk.
+    /// </summary>
+    private static RimGovernor.Brain.GameFacts.Observations.PrisonerConversionRead? ConversionOf(Pawn pawn, Pawn[] wardens)
+    {
+        if (!ModsConfig.IdeologyActive || Find.IdeoManager.classicMode || Faction.OfPlayer.ideos?.PrimaryIdeo is not { } primary) return null;
+        if (pawn.Ideo is not { } held || held == primary) return null;
+        var tracker = pawn.ideo ?? throw new InvalidOperationException("prisoner with an ideoligion and no ideo tracker: " + pawn.GetUniqueLoadID());
+        // The tracker exposes no public member for this factor; the private property name is the only route.
+        var factor = BridgeCommon.PrivateInstanceProperty(typeof(Pawn_IdeoTracker), "CertaintyChangeFactor")?.GetValue(tracker) is float f
+            ? f : throw new InvalidOperationException("Pawn_IdeoTracker.CertaintyChangeFactor is not readable.");
+        return new(F(factor, "certainty change factor"))
+        {
+            Converters = EquatableArray.From(wardens.Where(w => w.Ideo == primary && w.health.capacities.CapableOf(PawnCapacityDefOf.Talking))
+                .Select(w => new RimGovernor.Brain.GameFacts.Observations.ConversionReductionRead(w.GetUniqueLoadID(), F(InteractionWorker_ConvertIdeoAttempt.CertaintyReduction(w, pawn), "certainty reduction")))),
         };
     }
 

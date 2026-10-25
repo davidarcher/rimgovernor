@@ -386,6 +386,7 @@ factors are read (`NeedsForecastRead.Prison`).
 | --- | --- | --- |
 | `RapportToils` | 5: ConvinceRecruitee toils (a BuildRapport chat each) before the attempt | `JobDriver_ChatWithPrisoner.MakeNewToils` |
 | `ToilTicks` | 350: each chat toil's delay; 2,100 toil ticks a job (`ChatJobTicks`), the attempt 1,750 after the first rapport | `Toils_Interpersonal.ConvinceRecruitee`, `TryRecruit` (`defaultDuration = 350`) |
+| `ConvertTalks` | read, not mirrored: 3 Chitchat toils before the attempt; the 350-tick `ToilTicks` is the same literal as above, so a conversion job is 1,400 toil ticks and its attempt 1,050 after the first chitchat (#3915) | `JobDriver_ConvertPrisoner.NumTalks` (private const), `Toils_Interpersonal.TryConvert` (`defaultDuration = 350`) |
 | `Inspirations.CheckTicks` | 100: the ticks between inspiration start checks | `InspirationHandler.CheckStartInspirationIntervalTicks` |
 | Start MTB | `LerpDouble(0.5, 1, 210, 10, mood)` days, none below mood 0.5 | `InspirationHandler.StartInspirationMTBDays` |
 | Cumulative decay | 1 toward 0 for each 60,000 ticks of age | `Thought_MemorySocialCumulative.ThoughtInterval` |

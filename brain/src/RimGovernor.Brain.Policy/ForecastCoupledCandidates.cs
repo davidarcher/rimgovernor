@@ -361,6 +361,7 @@ public sealed partial record ForecastCoupledCandidates
             PlannedSites = plannedRealized,
             PlannedRooms = EquatableArray.From(planned.Rooms),
             PlannedRoomRoles = PlannedRoomRolesOf(facts),
+            PrisonerPopulation = facts.Population,
             StoreStock = facts.PlannedStoreStock,
             Connectors = PlannedRoomCredits.ConnectorsOf(facts.PlannedShelters, facts.PlannedLinks),
             Closures = closures,

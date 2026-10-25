@@ -30,11 +30,11 @@ internal static class NeedsFixtures
         Babies = [],
     };
 
-    /// <summary>The recruitment read of no warden and no prisoner, at the game's curves (InteractionWorker_RecruitAttempt, 1.7).</summary>
+    /// <summary>The recruitment read of no warden and no prisoner, at the game's curves (InteractionWorker_RecruitAttempt, ConversionTuning, JobDriver_ConvertPrisoner.NumTalks, 1.7).</summary>
     public static PrisonRecruitRead NoPrison => new()
     {
         MoodCurve = [new(0, .2), new(.5, 1), new(1, 1.5)], OpinionCurve = [new(-100, .5), new(0, 1), new(100, 1.5)],
-        MaxInteractionsPerDay = 2, Rapport = Rapport, RecruitInspiration = "Inspired_Recruitment", TamingInspiration = "Inspired_Taming",
+        MaxInteractionsPerDay = 2, ConvertTalks = 3, CertaintyDrift = [new(0.2, 0.01), new(0.5, 0.02), new(0.8, 0.03)], Rapport = Rapport, RecruitInspiration = "Inspired_Recruitment", TamingInspiration = "Inspired_Taming",
         Wardens = [], Prisoners = [],
     };
 

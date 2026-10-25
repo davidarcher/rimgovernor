@@ -34,6 +34,12 @@ namespace RimGovernor.Native
             return type == null ? null : type.GetField(name, BindingFlags.NonPublic | BindingFlags.Instance);
         }
 
+        /// <summary>A private instance property, same contract.</summary>
+        internal static PropertyInfo? PrivateInstanceProperty(Type type, string name)
+        {
+            return type == null ? null : type.GetProperty(name, BindingFlags.NonPublic | BindingFlags.Instance);
+        }
+
         /// <summary>A private static field, same contract.</summary>
         internal static FieldInfo? PrivateStaticField(Type type, string name)
         {

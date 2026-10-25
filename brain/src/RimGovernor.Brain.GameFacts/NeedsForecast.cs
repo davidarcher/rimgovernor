@@ -164,6 +164,13 @@ public sealed record HeardMemoryRead(string Fit, string Thought, double Offset, 
 /// recipient thought); an initiator inspired by <see cref="RecruitInspiration"/> (<c>InspirationDefOf.Inspired_Recruitment</c>)
 /// recruits a prisoner at once, one inspired by <see cref="TamingInspiration"/> (<c>InspirationDefOf.Inspired_Taming</c>) tames a
 /// wild man at once, either ending the inspiration.
+/// <para>
+/// A prisoner of another ideoligion is converted before it is recruited (#3915): <c>WorkGiver_Warden_Convert</c> runs a
+/// <c>JobDriver_ConvertPrisoner</c> job per chat slot, <see cref="ConvertTalks"/> chitchat toils (its private <c>NumTalks</c>) and
+/// then a <c>ConvertIdeoAttempt</c>, which lowers the prisoner's certainty (<see cref="PrisonerConversionRead"/>); the certainty
+/// also drifts up each day by <see cref="CertaintyDrift"/> (<c>ConversionTuning.CertaintyPerDayByMoodCurve</c>, over the
+/// prisoner's mood level).
+/// </para>
 /// </summary>
 public sealed record PrisonRecruitRead
 {
@@ -172,6 +179,9 @@ public sealed record PrisonRecruitRead
     [JsonConverter(typeof(EquatableArrayJsonConverter<CurvePointRead>))]
     public required EquatableArray<CurvePointRead> OpinionCurve { get; init; }
     public required int MaxInteractionsPerDay { get; init; }
+    public required int ConvertTalks { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<CurvePointRead>))]
+    public required EquatableArray<CurvePointRead> CertaintyDrift { get; init; }
     public required RapportRead Rapport { get; init; }
     public required string RecruitInspiration { get; init; }
     public required string TamingInspiration { get; init; }
@@ -275,8 +285,25 @@ public sealed record PrisonerRecruitRead
     public required PrisonerMoodRead? Mood { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<WardenOpinionRead>))]
     public required EquatableArray<WardenOpinionRead> Opinions { get; init; }
+    /// <summary>The conversion it needs before it can be recruited; null when it needs none: Ideology is off or in classic mode, the colony has no primary ideoligion, or the prisoner holds none or the colony's.</summary>
+    public required PrisonerConversionRead? Conversion { get; init; }
     public required JoinerRead Joiner { get; init; }
 }
+/// <summary>
+/// A prisoner's conversion to the colony's primary ideoligion (#3915): the
+/// <c>CertaintyChangeFactor</c> that scales every change to it (the native age curve under Biotech, else 1; a reduction multiplies by it, a
+/// drift divides by it), and each warden who can convert it (<c>WorkGiver_Warden_Convert.JobOnThing</c>: a warden who holds the
+/// primary ideoligion, <c>guest.ideoForConversion</c>, and can talk) with the certainty one of its attempts removes before the
+/// factor (<c>InteractionWorker_ConvertIdeoAttempt.CertaintyReduction</c>: the warden's ConversionPower, the prisoner's
+/// CertaintyLossFactor, the memes against the traits, relics and the difficulty). At 0 certainty it takes the warden's ideoligion.
+/// </summary>
+public sealed record PrisonerConversionRead(double ChangeFactor)
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<ConversionReductionRead>))]
+    public required EquatableArray<ConversionReductionRead> Converters { get; init; }
+}
+/// <summary>One warden's <c>CertaintyReduction</c> on a prisoner (<see cref="PrisonerConversionRead"/>).</summary>
+public sealed record ConversionReductionRead(string Warden, double Reduction);
 /// <summary>
 /// A prisoner's mood now (#3805, #3899): its unclamped instant mood (as <see cref="NeedMood.UnclampedTarget"/>: the base level
 /// plus the thoughts' total and the difficulty's colonistMoodOffset, over 100; <c>Need_Mood.CurInstantLevel</c> clamps it), the

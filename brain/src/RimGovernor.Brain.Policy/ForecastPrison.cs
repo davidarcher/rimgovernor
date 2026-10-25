@@ -31,6 +31,14 @@ namespace RimGovernor.Brain.Policy;
 // - RoomRoleWorker_PrisonCell scores a room with exactly one non-medical prison bed, PrisonBarracks one with two or more; the
 //   PrisonCell and PrisonBarracks thoughts (ThoughtWorker_RoomImpressiveness) stage by the room's Impressiveness score stage.
 // - RecruitUtility.Recruit and Pawn.SetFaction clear no memories: the recruit keeps them as a colonist.
+// - A recruitable prisoner of another ideoligion is converted first (#3915; PopulationRules.RecruitIntent sets Convert, switching to
+//   Recruit once the prisoner shares the colony's): WorkGiver_Warden_Convert runs JobDriver_ConvertPrisoner in the same
+//   ScheduledForInteraction slots, NumTalks (3) Chitchat toils then TryConvert (a ConvertIdeoAttempt), 350 ticks each, the attempt
+//   1,050 ticks after the first chitchat. Pawn_IdeoTracker.IdeoConversionAttempt takes certainty down by CertaintyReduction x the
+//   tracker's CertaintyChangeFactor (clamped to 0..1) and at 0 sets the warden's ideoligion (certainty 0.5, no roll). Certainty
+//   also drifts up each tick by ConversionTuning.CertaintyPerDayByMoodCurve at the mood need's CurLevelPercentage (0 without a mood
+//   need) over the factor; CurLevel follows the instant level at the need's seeker rates, so the instant level stands for it. A
+//   failed attempt on a prisoner starts no resentment or fight (InteractionWorker_ConvertIdeoAttempt.Interacted).
 
 /// <summary>
 /// The Prison room credit (#3805, #3899): the recruitment a planned prison enables. A held prisoner without a prison bed is never
@@ -40,7 +48,9 @@ namespace RimGovernor.Brain.Policy;
 /// prisoner's mood memories expire and fade, each chat adds rapport, its opinion of the warden follows, and an inspiration the
 /// warden may have or start recruits it at once. From the expected recruitment day the prisoner adds its value as a colonist a
 /// day (<see cref="JoinerMoodRules.ValueOf"/>, #3825, against the work the outcome leaves short): the credit is the value over the
-/// served days less the expected days to recruitment, less the warden's work the chats take.
+/// served days less the expected days to recruitment, less the warden's work the chats take. A prisoner the autopilot converts first
+/// (<see cref="PopulationRules.RecruitIntent"/>, #3915) is chatted to a conversion before its recruitment: those days, and the converter's chat jobs, come
+/// first.
 /// </summary>
 public static class ForecastPrison
 {
@@ -59,6 +69,9 @@ public static class ForecastPrison
     /// <summary>The named state of a colony no colonist of which can do Warden work: no prisoner is recruited.</summary>
     public const string NoWarden = "prison_no_warden";
 
+    /// <summary>The named state of a prisoner to convert that no warden can convert (none holds the colony's ideoligion and can talk): it is never recruited, so it earns nothing.</summary>
+    public const string NoConverter = "prison_no_converter";
+
     /// <summary>The named state of a served prison that closes no room with a bed: it beds nobody.</summary>
     public const string NoBed = "prison_no_bed";
 
@@ -67,6 +80,9 @@ public static class ForecastPrison
 
     /// <summary>The not-modelled finding of a recruit's trait thought whose worker reads its situation (JoinerMoodRead.SituationalTraits, #3965).</summary>
     public const string SituationalTraits = "joiner_situational_trait_thoughts";
+
+    /// <summary>The not-modelled finding of a conversion's chitchat memories (#3915): the converter's Chitchat toils give the prisoner a cumulative opinion memory of it, which the recruitment's opinion leaves out.</summary>
+    public const string ConversionChitchat = "prison_conversion_chitchat";
 
     /// <summary>The mechanics the credit leaves out, named with each served prison.</summary>
     public static readonly EquatableArray<string> NotModelled =
@@ -104,8 +120,14 @@ public static class ForecastPrison
     private static double Curve(EquatableArray<CurvePointRead> points, double x, string what) => points.Count != 0
         ? LayoutFilthRules.EvaluateCurve([.. points.Select(p => new CurvePoint(p.X, p.Y))], x) : throw new RequiredFactException(what);
 
-    /// <summary>A prisoner's expected recruitment from its room's service (#3899): the days to it within the served days, and the chat jobs it takes.</summary>
-    public sealed record Expected(double Days, double Jobs);
+    /// <summary>
+    /// A prisoner's expected recruitment from its room's service (#3899): the days to it within the served days (after its conversion,
+    /// #3915), the recruit chat jobs it takes, and the conversion jobs before them.
+    /// </summary>
+    public sealed record Expected(double Days, double Jobs, double ConvertJobs);
+
+    /// <summary>The toil ticks of one conversion job: its chitchat toils and the TryConvert toil, <see cref="ToilTicks"/> each (JobDriver_ConvertPrisoner).</summary>
+    public static double ConvertJobTicks(PrisonRecruitRead read) => (read.ConvertTalks + 1) * ToilTicks;
 
     /// <summary>
     /// The chat-by-chat recruitment of <paramref name="prisoner"/> by <paramref name="warden"/> (#3899) in a room serving from
@@ -115,9 +137,13 @@ public static class ForecastPrison
     /// the prisoner's instant mood (<see cref="Mood"/>) and its opinion of the warden (<see cref="Opinion"/>) at its tick: with
     /// resistance above 0 it lowers it by <see cref="PerChat"/>, at 0 it recruits; a wild man is tamed at the warden's
     /// TameChance instead. The warden's inspiration (<see cref="Inspirations"/>, from its <paramref name="wardenMood"/>) recruits
-    /// or tames at once while it is the recruiting def. Expiry and age count from now (Q4 of #3899).
+    /// or tames at once while it is the recruiting def. Expiry and age count from now (Q4 of #3899). A prisoner to convert
+    /// (<paramref name="converter"/>, the warden whose attempts convert it) is first chatted to a conversion
+    /// (<see cref="Converted"/>); its recruit jobs start in the slots after it, and a conversion the served days do not reach leaves
+    /// it unrecruited.
     /// </summary>
-    public static Expected Recruitment(PrisonRecruitRead read, WardenRead warden, double? wardenMood, PrisonerRecruitRead prisoner, double? cell, double servedAt, double units)
+    public static Expected Recruitment(PrisonRecruitRead read, WardenRead warden, double? wardenMood, PrisonerRecruitRead prisoner, double? cell, double servedAt, double units,
+        ConversionReductionRead? converter = null, double? certainty = null)
     {
         DomainException.Require(read.MaxInteractionsPerDay > 0, "recruit chats a day");
         var opinion = prisoner.Opinions.FirstOrDefault(o => o.Warden == warden.Pawn) ?? throw new RequiredFactException("prisoner opinion:" + prisoner.Pawn);
@@ -126,8 +152,18 @@ public static class ForecastPrison
         var inspirations = new Inspirations(read, warden, wardenMood, prisoner.WildMan ? read.TamingInspiration : read.RecruitInspiration, end);
         var opinionOf = new Opinion(read.Rapport, opinion);
         var resistance = prisoner.Resistance;
-        double alive = 1, days = 0, jobs = 0;
-        for (var k = 0; alive > 0; k++)
+        double alive = 1, days = 0, jobs = 0, converting = 0;
+        var first = 0;
+        if (converter is not null)
+        {
+            var (next, attempts) = Converted(read, prisoner, converter, cell, servedAt, end,
+                certainty ?? throw new RequiredFactException("prisoner certainty:" + prisoner.Pawn));
+            converting = attempts;
+            if (next is not { } slot) return new(units, 0, converting);
+            first = slot;
+        }
+
+        for (var k = first; alive > 0; k++)
         {
             var start = servedAt + (k * interval);
             var attempt = start + (RapportToils * ToilTicks);
@@ -149,7 +185,39 @@ public static class ForecastPrison
             alive = recruited >= alive ? 0 : alive - recruited;
         }
 
-        return new(days + (alive * units), jobs);
+        return new(days + (alive * units), jobs, converting);
+    }
+
+    /// <summary>
+    /// A prisoner's conversion (#3915) by <paramref name="converter"/> in a room serving from <paramref name="servedAt"/> to
+    /// <paramref name="end"/>: job k starts <c>servedAt + k x TicksPerDay / MaxInteractionsPerDay</c> and its attempt comes
+    /// <c>ConvertTalks x ToilTicks</c> later. Certainty, from its value now, drifts up hourly by the curve at the prisoner's
+    /// instant mood (<see cref="Mood"/>; its prison thought now before the room serves) over the change factor, and an attempt takes
+    /// <c>Reduction x ChangeFactor</c> from it; at 0 it is converted. Returns the slot of the first recruit job (null when the served
+    /// days end first) and the attempts made.
+    /// </summary>
+    public static (int? NextSlot, double Attempts) Converted(PrisonRecruitRead read, PrisonerRecruitRead prisoner, ConversionReductionRead converter, double? cell, double servedAt, double end, double certainty)
+    {
+        var conversion = prisoner.Conversion ?? throw new RequiredFactException("prisoner conversion:" + prisoner.Pawn);
+        DomainException.Require(conversion.ChangeFactor > 0, "certainty change factor");
+        var interval = (double)GameTime.TicksPerDay / read.MaxInteractionsPerDay;
+        double clock = 0;
+        for (var k = 0; ; k++)
+        {
+            var attempt = servedAt + (k * interval) + (read.ConvertTalks * ToilTicks);
+            if (attempt > end) return (null, k);
+            while (clock < attempt)
+            {
+                var step = Math.Min(GameTime.TicksPerHour, attempt - clock);
+                var level = Mood(prisoner.Mood, clock < servedAt ? prisoner.Mood?.CellThought : cell, clock);
+                var perDay = level is { } l ? Curve(read.CertaintyDrift, l, "certainty drift curve") : 0;
+                certainty = Math.Min(1, certainty + (perDay / conversion.ChangeFactor * step / GameTime.TicksPerDay));
+                clock += step;
+            }
+
+            certainty = Math.Max(0, certainty - (converter.Reduction * conversion.ChangeFactor));
+            if (certainty <= 0) return (k + 1, k + 1);
+        }
     }
 
     /// <summary>
@@ -426,23 +494,55 @@ public static class ForecastPrison
 
         var shortfall = JoinerMoodRules.ShortfallOf(outcome, commitments, context, horizon);
         var valued = new List<(PrisonerRecruitRead Prisoner, double Value)>();
+        var certaintyByPawn = new Dictionary<string, double>(StringComparer.Ordinal);
+        var converters = new Dictionary<string, ConversionReductionRead>(StringComparer.Ordinal);
         foreach (var prisoner in recruits)
         {
             var value = JoinerMoodRules.ValueOf(prisoner.Pawn, prisoner.Joiner, shortfall, context);
             states.UnionWith(value.NotModelled);
             if (prisoner.Joiner.Mood is { SituationalTraits.Count: > 0 }) states.Add(SituationalTraits);
-            if (value.PerDay > 0) valued.Add((prisoner, value.PerDay));
-            else states.Add(CostsMore);
+            if (value.PerDay <= 0)
+            {
+                states.Add(CostsMore);
+                continue;
+            }
+
+            // A prisoner the autopilot converts first (#3915) is converted by the warden whose attempts take the most certainty.
+            var population = context.PrisonerPopulation ?? throw new RequiredFactException("prisoner population");
+            var person = population.Prisoners.FirstOrDefault(p => p.Pawn.Value == prisoner.Pawn)
+                ?? throw new RequiredFactException("population prisoner:" + prisoner.Pawn);
+            if (PopulationRules.RecruitIntent(person, population.Colony) == PrisonerInteractionMode.Convert)
+            {
+                var conversion = prisoner.Conversion ?? throw new RequiredFactException("prisoner conversion:" + prisoner.Pawn);
+                if (conversion.Converters.MaxBy(c => c.Reduction) is not { } converter)
+                {
+                    states.Add(NoConverter);
+                    continue;
+                }
+
+                certaintyByPawn[prisoner.Pawn] = person.Observed.Settings.PolicyInputs.Ideo is PawnIdeo.Member member ? member.Certainty
+                    : throw new RequiredFactException("prisoner certainty:" + prisoner.Pawn);
+                converters[prisoner.Pawn] = converter;
+                states.Add(ConversionChitchat);
+            }
+
+            valued.Add((prisoner, value.PerDay));
         }
 
-        // The warden's chat jobs charged as the work they take from it (#3899, as the classroom charges its teacher, #3809): the
+        // A warden's chat jobs charged as the work they take from it (#3899, as the classroom charges its teacher, #3809): the
         // shortfall rows its chat toil ticks a day would fill, a job's share of them.
         var pawn = context.Needs.Pawns.FirstOrDefault(p => p.Pawn == warden.Pawn) ?? throw new RequiredFactException("warden upkeep:" + warden.Pawn);
-        var lostPerJob = PawnValueRules.WorkAdded(new PawnValueFacts(warden.Pawn)
+        double LostPerJob(string wardenPawn, double jobTicks)
         {
-            Speeds = pawn.Upkeep.Speeds.ToDictionary(s => s.Stat, s => s.Value, StringComparer.Ordinal), Incapable = pawn.Upkeep.IncapableWork,
-            FreeTicksPerDay = ChatJobTicks * read.MaxInteractionsPerDay,
-        }, shortfall).Sum(s => s.TicksPerDay) / GameTime.TicksPerDay / read.MaxInteractionsPerDay;
+            var upkeep = context.Needs.Pawns.FirstOrDefault(p => p.Pawn == wardenPawn) ?? throw new RequiredFactException("warden upkeep:" + wardenPawn);
+            return PawnValueRules.WorkAdded(new PawnValueFacts(wardenPawn)
+            {
+                Speeds = upkeep.Upkeep.Speeds.ToDictionary(s => s.Stat, s => s.Value, StringComparer.Ordinal), Incapable = upkeep.Upkeep.IncapableWork,
+                FreeTicksPerDay = jobTicks * read.MaxInteractionsPerDay,
+            }, shortfall).Sum(s => s.TicksPerDay) / GameTime.TicksPerDay / read.MaxInteractionsPerDay;
+        }
+
+        var lostPerJob = LostPerJob(warden.Pawn, ChatJobTicks);
         var queue = new Queue<(PrisonerRecruitRead Prisoner, double Value)>(valued.OrderByDescending(v => v.Value).ThenBy(v => v.Prisoner.Pawn, StringComparer.Ordinal));
         foreach (var room in served)
         {
@@ -458,8 +558,11 @@ public static class ForecastPrison
             {
                 var (prisoner, value) = queue.Dequeue();
                 var cell = CellOffset(prisoner, role, prediction!.Prediction.Stage);
-                var expected = Recruitment(read, warden, pawn.Mood?.Target, prisoner, cell, room.ServedAt, units);
-                gains.Add(new(prisoner.Pawn, "", value) { Once = -(value * expected.Days) - (lostPerJob * expected.Jobs) });
+                converters.TryGetValue(prisoner.Pawn, out var converter);
+                var expected = Recruitment(read, warden, pawn.Mood?.Target, prisoner, cell, room.ServedAt, units, converter,
+                    converter is null ? null : certaintyByPawn[prisoner.Pawn]);
+                var converting = converter is null ? 0 : LostPerJob(converter.Warden, ConvertJobTicks(read)) * expected.ConvertJobs;
+                gains.Add(new(prisoner.Pawn, "", value) { Once = -(value * expected.Days) - (lostPerJob * expected.Jobs) - converting });
             }
 
             output[room.Room] = new([.. gains], [.. NotModelled, .. roomStates]);

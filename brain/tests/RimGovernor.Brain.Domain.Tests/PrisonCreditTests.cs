@@ -29,7 +29,7 @@ public sealed class PrisonCreditTests
         // Its prison thought now none, the decent cell's +4 brings its instant mood to 0.5: the mood curve is 1 there, and the
         // opinion curve 1 at opinion 0.
         Mood = new(0.5 - 0.04, 0) { CellStages = [DecentCell], Memories = [] },
-        Opinions = [Opinion()],
+        Opinions = [Opinion()], Conversion = null,
         Joiner = new()
         {
             Upkeep = context.Needs.Pawns[0].Upkeep,
@@ -58,7 +58,7 @@ public sealed class PrisonCreditTests
     /// review's), its tier-2 bases set, and room 1 a planned prison closing a decent (Impressiveness stage 3) cell of one bed,
     /// served from day 1, the colony holding <paramref name="prisoners"/>.
     /// </summary>
-    private static Review Of(Func<ForecastCoupledContext, PrisonerRecruitRead[]> prisoners, bool planned = true, bool warden = true, WardenRead? wardenRead = null)
+    private static Review Of(Func<ForecastCoupledContext, PrisonerRecruitRead[]> prisoners, bool planned = true, bool warden = true, WardenRead? wardenRead = null, PrisonerCensus? census = null)
     {
         var catalog = Game.WorkSpeedFactsTests.Catalog();
         var facts = ForecastCoupledTests.ConstructionReview(1, 100);
@@ -66,6 +66,7 @@ public sealed class PrisonCreditTests
         var needs = facts.ForecastObserved.Needs!;
         facts = facts with
         {
+            Population = census is null ? facts.Population : census,
             MoodBreak = Breaks, WorkSpeeds = catalog.WorkSpeedFacts(), FoodWork = catalog.FoodWork(new HashSet<string>(StringComparer.Ordinal)),
             ForecastObserved = facts.ForecastObserved with
             {
@@ -110,19 +111,20 @@ public sealed class PrisonCreditTests
         {
             Needs = context.Needs with { Prison = NeedsFixtures.NoPrison with { Wardens = warden ? [wardenRead ?? Warden()] : [], Prisoners = [.. prisoners(context)] } },
         };
+        context = context with { PrisonerPopulation = census ?? PopulationFixtures.Census(context.Needs.Prison.Prisoners.Select(p => PopulationFixtures.Held(p.Pawn, p.Recruitable))) };
         return new(context, selected.Selected with { ServedRooms = [Served] },
             [.. coupled.Alternatives.Concat(coupled.Incumbents).Where(c => chosen.Contains(c.Id))], selected.Horizon);
     }
 
     // The warden's work one chat job takes (#3899): the shortfall rows its toil ticks a day fill, a job's share.
-    private static double LostPerJob(Review review)
+    private static double LostPerJob(Review review, double jobTicks = ForecastPrison.ChatJobTicks)
     {
         var shortfall = JoinerMoodRules.ShortfallOf(review.Outcome, review.Commitments, review.Context, review.Horizon);
         var pawn = review.Context.Needs.Pawns[0];
         return PawnValueRules.WorkAdded(new PawnValueFacts("pawn")
         {
             Speeds = pawn.Upkeep.Speeds.ToDictionary(s => s.Stat, s => s.Value, StringComparer.Ordinal), Incapable = pawn.Upkeep.IncapableWork,
-            FreeTicksPerDay = ForecastPrison.ChatJobTicks * 2,
+            FreeTicksPerDay = jobTicks * 2,
         }, shortfall).Sum(s => s.TicksPerDay) / Day / 2;
     }
 
@@ -177,7 +179,7 @@ public sealed class PrisonCreditTests
     private static PrisonerRecruitRead Bare(double resistance, bool wild = false, double rapport = 0, double tame = 0) => new()
     {
         Pawn = "prisoner", Recruitable = true, Resistance = resistance, PrisonBed = false, WildMan = wild, Mood = null,
-        Opinions = [Opinion(rapport, tame)],
+        Opinions = [Opinion(rapport, tame)], Conversion = null,
         Joiner = new() { Upkeep = NeedsFixtures.Upkeep, Mood = null, Needs = [] },
     };
 
@@ -295,6 +297,103 @@ public sealed class PrisonCreditTests
         Assert.Empty(review.Gains());
         Assert.Contains(ForecastPrison.Unrecruitable, review.Findings());
         Assert.Contains(ForecastPrison.NoRecruit, review.Findings());
+    }
+
+    // A prisoner of another ideoligion the colony converts: Believers wanted makes PopulationRules.RecruitIntent set Convert (#3915).
+    private static PrisonerCensus ForeignCensus() => PopulationFixtures.Census(
+        [PopulationFixtures.Held("prisoner", ideo: "Ideo_other") with { Observed = PawnFixtures.Row("prisoner") with { Settings = PawnFixtures.Row("prisoner").Settings with { PolicyInputs = PawnFixtures.Row("prisoner").Settings.PolicyInputs with { Ideo = new PawnIdeo.Member("Ideo_other", [], null, 0.5) } } } }],
+        colony: new PrisonerColony { Colonists = 1, BelieversWanted = true, Ideology = new ColonyIdeology.Installed(false, "Ideo_ours") });
+
+    private static PrisonerConversionRead Conversion(double reduction = 0.25, double factor = 1) =>
+        new(factor) { Converters = [new("pawn", reduction)] };
+
+    [Fact]
+    public void AConversionTakesAttemptsUntilCertaintyIsGoneThenTheRecruitJobsStartInTheNextSlots()
+    {
+        var read = NeedsFixtures.NoPrison;
+        var converter = new ConversionReductionRead("pawn", 0.25);
+        // No mood need: no drift. Certainty 1 falls 0.25 an attempt: the fourth converts, its job the fourth slot.
+        var prisoner = Bare(0) with { Conversion = Conversion() };
+        Assert.Equal((4, 4d), ForecastPrison.Converted(read, prisoner, converter, null, Day, Day + (30 * Day), 1));
+        // Resistance 0: the first recruit attempt, in slot 4, recruits; every attempt is 1,050 or 1,750 ticks into its job.
+        var expected = ForecastPrison.Recruitment(read, Warden(), null, prisoner, null, Day, 29, converter, 1);
+        Assert.Equal(new ForecastPrison.Expected(((4 * Day / 2) + 1750) / Day, 1, 4), expected);
+        // Without the conversion it is recruited at the first slot.
+        Assert.Equal(1750 / Day, ForecastPrison.Recruitment(read, Warden(), null, Bare(0), null, Day, 29).Days, 12);
+    }
+
+    [Fact]
+    public void CertaintyDriftsUpEachDayByTheMoodCurveAndAChildsFactorScalesBothWays()
+    {
+        var read = NeedsFixtures.NoPrison;
+        var converter = new ConversionReductionRead("pawn", 0.25);
+        var moody = Bare(0) with { Mood = new(0.5 - 0.04, 0) { CellStages = [DecentCell], Memories = [] } };
+        // Certainty 0.5 falls to 0 in two attempts undrifted; the mood drifts it up (0.02 a day at mood 0.5), so a third is needed.
+        Assert.Equal((2, 2d), ForecastPrison.Converted(read, Bare(0) with { Conversion = Conversion() }, converter, null, Day, 31 * Day, 0.5));
+        Assert.Equal((3, 3d), ForecastPrison.Converted(read, moody with { Conversion = Conversion() }, converter, 4, Day, 31 * Day, 0.5));
+        // A child (change factor 2) loses twice the reduction: two attempts from 1.
+        Assert.Equal((2, 2d), ForecastPrison.Converted(read, Bare(0) with { Conversion = Conversion(factor: 2) }, converter, null, Day, 31 * Day, 1));
+    }
+
+    [Fact]
+    public void AConversionTheServedDaysDoNotReachLeavesThePrisonerUnrecruited()
+    {
+        var read = NeedsFixtures.NoPrison;
+        var converter = new ConversionReductionRead("pawn", 0.01);
+        var prisoner = Bare(0) with { Conversion = Conversion() };
+        // Attempts at Day + k half-days + 1,050 within three days: k = 0..3.
+        Assert.Equal(new ForecastPrison.Expected(2, 0, 4), ForecastPrison.Recruitment(read, Warden(), null, prisoner, null, Day, 2, converter, 1));
+    }
+
+    [Fact]
+    public void AConvertFirstPrisonerIsCreditedItsConversionDaysAndTheConvertersWorkBeforeItsRecruitment()
+    {
+        var census = ForeignCensus();
+        var review = Of(c => [Prisoner(c) with { Mood = null, Conversion = Conversion() }], census: census);
+        // The production census made it a conversion: the autopilot's rule, called.
+        Assert.Same(census, review.Context.PrisonerPopulation);
+        var shortfall = JoinerMoodRules.ShortfallOf(review.Outcome, review.Commitments, review.Context, review.Horizon);
+        var value = JoinerMoodRules.ValueOf("prisoner", review.Context.Needs.Prison.Prisoners[0].Joiner, shortfall, review.Context).PerDay;
+        Assert.True(value > 0);
+        // Certainty 0.5 is gone in two attempts; no mood need: the mood curve at 1 (1.5), so seven recruit jobs lower resistance 10 and
+        // the eighth, in slot 2 + 7, recruits.
+        var days = ((9 * Day / 2) + 1750) / Day;
+        var gain = Assert.Single(review.Gains());
+        var lost = LostPerJob(review);
+        var convertLost = LostPerJob(review, 4 * ForecastPrison.ToilTicks);
+        Assert.True(convertLost > 0);
+        Assert.Equal(-(value * days) - (lost * 8) - (convertLost * 2), gain.Once, 9);
+        var rows = new List<ForecastInvestmentContribution>();
+        PlannedRoomCredits.Credit(review.Outcome, review.Commitments, review.Context, review.Horizon, rows, new SortedSet<string>(StringComparer.Ordinal));
+        var row = Assert.Single(rows);
+        Assert.Equal("prison/1/prisoner", row.Key);
+        Assert.Equal(-((value * (Horizon - 1 - days)) - (lost * 8) - (convertLost * 2)), row.Value, 9);
+        var findings = review.Findings();
+        Assert.Contains(ForecastPrison.ConversionChitchat, findings);
+        Assert.DoesNotContain(ForecastPrison.NoConverter, findings);
+
+        // The same prisoner already of the colony's ideoligion is recruited at once: the conversion is the whole difference.
+        var own = Of(c => [Prisoner(c) with { Mood = null }]);
+        Assert.True(Assert.Single(own.Gains()).Once > gain.Once);
+        Assert.DoesNotContain(ForecastPrison.ConversionChitchat, own.Findings());
+    }
+
+    [Fact]
+    public void APrisonerNoWardenCanConvertEarnsNothingAndNamesIt()
+    {
+        var review = Of(c => [Prisoner(c) with { Conversion = new(1) { Converters = [] } }], census: ForeignCensus());
+        Assert.Empty(review.Gains());
+        Assert.Contains(ForecastPrison.NoConverter, review.Findings());
+    }
+
+    [Fact]
+    public void ConvertingWithoutTheConversionReadOrTheCensusIsAnUnreadFact()
+    {
+        var review = Of(c => [Prisoner(c)], census: ForeignCensus());
+        Assert.Equal("prisoner conversion:prisoner", Assert.Throws<RequiredFactException>(() => review.Gains()).Fact);
+        var unread = Of(c => [Prisoner(c)]);
+        unread = unread with { Context = unread.Context with { PrisonerPopulation = null } };
+        Assert.Equal("prisoner population", Assert.Throws<RequiredFactException>(() => unread.Gains()).Fact);
     }
 
     [Fact]
