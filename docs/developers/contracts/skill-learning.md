@@ -197,7 +197,9 @@ MedicalOperationSpeed and MedicalSurgerySuccessChance against Medicine, and
 health, equipment and environment fixed; they are not a forecast of those. Registered
 `lab/skill-stat-curve` compares each curve level with the live native stat at that level
 (set temporarily by the fixture only), checks that an anesthetized colonist carries the same
-curves (#3912) and that a Shooting accuracy inspiration disqualifies that stat and no other. Valuing the curves is #3635.
+curves (#3912) and that a Shooting accuracy inspiration disqualifies that stat and no other.
+The fixture starts and ends that inspiration through the native handler API and
+checks that it actually started before comparing curves. Valuing the curves is #3635.
 It also carries MeleeDPS against Melee (#3813) and `RangedDefenseDps` against Shooting (#3846): the
 primary's ranged DPS times its hit factor at each level's ShootingAccuracyPawn, all zeros without a
 ranged primary. Shooting's `SkillPractice.Range.DailyBudget` is the native `RangeTraining.DailyXpBudget`

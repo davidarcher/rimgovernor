@@ -390,10 +390,8 @@ namespace RimGovernor.Native
                 // An inspiration that changes the stat disqualifies it (#3912): it applies after the skill term, so the substituted value is not exact.
                 var frenzy = DefDatabase<InspirationDef>.AllDefs.First(d => d.statOffsets != null && d.statOffsets.GetStatOffsetFromList(StatDefOf.ShootingAccuracyPawn) != 0f);
                 var handler = qualified.mindState.inspirationHandler;
-                var state = (Activator.CreateInstance(frenzy.inspirationClass) as Inspiration ?? throw new InvalidOperationException("Inspiration construction failed."));
-                state.def = frenzy;
-                state.pawn = qualified;
-                (BridgeCommon.PrivateInstanceField(typeof(InspirationHandler), "curState") ?? throw new System.MissingFieldException(typeof(InspirationHandler).FullName, "curState")).SetValue(handler, state);
+                if (!handler.TryStartInspiration(frenzy, sendLetter: false) || qualified.InspirationDef != frenzy)
+                    throw new InvalidOperationException("Shooting accuracy inspiration did not start.");
                 try
                 {
                     if (NativeSkillStat.Levels(qualified, StatDefOf.ShootingAccuracyPawn, SkillDefOf.Shooting, out var inspired) != null || inspired != "inspired")
@@ -401,7 +399,7 @@ namespace RimGovernor.Native
                     if (NativeSkillStat.Levels(qualified, StatDefOf.ConstructionSpeed, SkillDefOf.Construction, out var unrelated) == null)
                         failures.Add("inspiration_disqualified_unrelated_stat: " + unrelated);
                 }
-                finally { handler.Reset(); }
+                finally { handler.EndInspiration(frenzy); }
                 return FixtureKit.Reply(new Fx.SkillStatCurvePrepared { Qualified = qualified.GetUniqueLoadID(), Disqualified = disqualified.GetUniqueLoadID(),
                     Samples = samples, Failures = failures });
             }, cancellationToken);
