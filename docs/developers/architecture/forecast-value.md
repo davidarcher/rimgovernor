@@ -337,9 +337,9 @@ Its cost grows with the number of events, not with ticks.
   factor (the game has none): the outdoor hours become one stationary thermal
   span against the pawn's comfort range, which the hypothermia and heatstroke
   integration prices. Skills gate tasks (`PawnCycle.SowGate`: devilstrand
-  sowing needs Plants 10; an unread skill makes the task unavailable, reported)
-  and set work speed. A rate the review did not observe leaves the cycle unknown
-  and is named in `ColonyModelInput.Unknowns()`; timetables are not modelled.
+  sowing needs Plants 10) and set work speed. A rate the review did not observe
+  leaves the cycle unknown and is named by a finding; a frame that lacks a section
+  of the input yields no input (`ColonyModelInputRead.Unready`); timetables are not modelled.
 - **Stocks and flows.** Arrays indexed by resource id: food, materials,
   research points, power, medicine. Production, consumption and labor are
   rates that change only at events.
@@ -454,8 +454,7 @@ a field of the same stuff adds nothing to it. No fibre stock is priced, and whil
 exist, the harm is `apparel_harm_unassessed` and the chain's investment credit is 0.
 
 *Skills and medicine (#3634, #3344).* Each pawn's skills are stocks keyed `skill/<pawn>/<skill>` (`SkillStock`), started from
-the observed `SkillLearning` (a skill whose mechanics are unread is `skill_stock_unknown:<key>:<gap>`, a pawn whose skills are
-unread `skill_stock_unknown:<pawn>:skills_unread`). No tier-2 work pays XP: between
+the observed `SkillLearning` (a skill whose mechanics are unread is `skill_stock_unknown:<key>:<gap>`). No tier-2 work pays XP: between
 events a stock falls by its level's native decay (`DecayXp` per `DecayInterval` while learning is allowed), and a level is lost at the
 loss threshold by `ForecastSkill`'s level rule, each change dated inside the interval (`ColonyTrajectory.Skills`). Medicine is held by
 kind, best potency first, and tending (`ColonyModelPolicy.MedicineTendsPerDay`, set from `ColonyValue.TreatmentsPerDay`: the

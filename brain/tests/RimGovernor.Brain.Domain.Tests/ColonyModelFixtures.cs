@@ -113,7 +113,19 @@ internal static class ColonyModelFixtures
     };
 
     /// <summary>The model input of the worked case.</summary>
-    internal static ColonyModelInput Devilstrand() => RoundsColonyModel.InputOf(Projection()).Input;
+    internal static ColonyModelInput Devilstrand() => ReadyOf(Projection());
+
+    /// <summary>The input a frame yields; the test fails when the frame left it unready.</summary>
+    internal static ColonyModelInput ReadyOf(ColonyProjection projection) => RoundsColonyModel.InputOf(projection) switch
+    {
+        ColonyModelInputRead.Ready ready => ready.Input,
+        ColonyModelInputRead.Unready unready => throw new InvalidOperationException("the frame left the input unready: " + string.Join("; ", unready.Gaps)),
+        _ => throw new InvalidOperationException("an unnamed input read"),
+    };
+
+    /// <summary>The gaps a frame leaves; empty when the input is ready.</summary>
+    internal static IReadOnlyList<string> GapsOf(ColonyProjection projection) =>
+        RoundsColonyModel.InputOf(projection) is ColonyModelInputRead.Unready unready ? unready.Gaps : [];
 
     /// <summary>
     /// A temperate year's share of each twelfth in which outdoor recreation is enjoyable (NeedRate.OutdoorShareByTwelfth, #3825 D7):

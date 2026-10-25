@@ -34,7 +34,7 @@ public sealed class PracticeHarmTests
     private static ColonyModelInput Colony()
     {
         var anna = SkillStockTests.WithMedicine(ProjectGraphTests.Pawn("Anna", null, null), SkillStockTests.Mechanics(3, 0), "Melee", "Shooting");
-        return ProjectGraphTests.Colony() with { Pawns = Known(EquatableArray.From(new[] { anna with { SkillStatCurves = EquatableArray.From(new[] { TendCurve }) } })) };
+        return ProjectGraphTests.Colony() with { Pawns = EquatableArray.From(new[] { anna with { SkillStatCurves = EquatableArray.From(new[] { TendCurve }) } }) };
     }
 
     private static ColonyValue Value(ColonyModelInput input, PracticeTrainees? sparring, PracticeTrainees? range, HarmInputs? harm = null)

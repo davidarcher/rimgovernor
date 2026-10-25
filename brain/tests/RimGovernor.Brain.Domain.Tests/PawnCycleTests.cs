@@ -16,20 +16,28 @@ public sealed class PawnCycleTests
         Pawn = name,
         Needs = EquatableArray.From(new[]
         {
-            new ModelNeed { Kind = "rest", Fall = 0.00001, Gain = 0.00002, Threshold = 0.28 },
-            new ModelNeed { Kind = "food", Fall = 0.000025, Threshold = 0.3, GainPerUse = Known(0.6), ServiceTicks = Known(400.0), ApproachTicks = Known(100.0), Gain = 0 },
-            new ModelNeed { Kind = "joy", Fall = 0.00001, Gain = 0.00015, Threshold = 0.3 },
+            new ModelNeed { Kind = "rest", Fall = 0.00001, Gain = 0.00002, Threshold = 0.28, Service = new ModelService.NoneObserved() },
+            new ModelNeed { Kind = "food", Fall = 0.000025, Threshold = 0.3, Service = new ModelService.Observed(0.6, 400.0, 100.0), Gain = 0 },
+            new ModelNeed { Kind = "joy", Fall = 0.00001, Gain = 0.00015, Threshold = 0.3, Service = new ModelService.NoneObserved() },
         }),
-        Skills = Known(EquatableArray.From(new[] { new WorkSkill { Name = "Plants", Level = 10 } })),
-        ComfortableMin = Known(16.0),
-        ComfortableMax = Known(26.0),
+        Skills = EquatableArray.From(new[] { new WorkSkill { Name = "Plants", Level = 10 } }),
+        ComfortableMin = 16.0,
+        ComfortableMax = 26.0,
+        Consciousness = 1.0,
+        Moving = 1.0,
+        Manipulation = 1.0,
+        Sight = 1.0,
+        Talking = 1.0,
+        ResearchSpeed = 1.0,
+        PlantWorkSpeed = 1.0,
+        Hunts = false,
     };
 
     private static ColonyModelInput Input(ModelPawn pawn)
     {
         var input = ColonyModelFixtures.Devilstrand();
-        var climate = input.Climate.Value with { DaylightHours = EquatableArray.From(Daylight) };
-        return input with { Climate = Known(climate), Pawns = Known(EquatableArray.From(new[] { pawn })) };
+        var climate = input.Climate with { DaylightHours = EquatableArray.From(Daylight) };
+        return input with { Climate = climate, Pawns = EquatableArray.From(new[] { pawn }) };
     }
 
     [Fact]
@@ -124,11 +132,11 @@ public sealed class PawnCycleTests
         // weighs the two days by their days.
         var pawn = Pawn();
         var input = Input(pawn);
-        var climate = input.Climate.Value;
+        var climate = input.Climate;
         var shares = new double[12];
         shares[climate.CurrentTwelfth] = 1;
         pawn = pawn with { Needs = EquatableArray.From(pawn.Needs.Select(n => n.Kind == "joy" ? n with { OutdoorShares = EquatableArray.From(shares) } : n)) };
-        input = input with { Pawns = Known(EquatableArray.From(new[] { pawn })) };
+        input = input with { Pawns = EquatableArray.From(new[] { pawn }) };
         var first = climate.TicksToNextTwelfth / (double)GameTime.TicksPerDay;
         var horizon = first + (CalendarRules.YearDays / 12.0);
 
@@ -138,14 +146,14 @@ public sealed class PawnCycleTests
     }
 
     [Fact]
-    public void EveryUnknownRateIsNamed()
+    public void EveryUnreadRateIsNamed()
     {
-        var pawn = Pawn() with { Needs = default, Skills = default, ComfortableMin = default };
+        var pawn = Pawn() with { Needs = default, Skills = default };
 
         var cycle = PawnCycle.Of(Input(pawn), pawn, 5);
 
         Assert.Equal(
-            ["comfort_range_unknown:Anna", "food_fall_unknown:Anna", "joy_fall_unknown:Anna", "rest_fall_unknown:Anna"],
+            ["food_fall_unknown:Anna", "joy_fall_unknown:Anna", "rest_fall_unknown:Anna"],
             cycle.Findings);
         Assert.False(cycle.OutdoorThermal.IsKnown);
     }
@@ -176,11 +184,11 @@ public sealed class PawnCycleTests
     [Fact]
     public void PlantsEightIsGatedOutOfDevilstrandSowingAndPlantsTenIsIn()
     {
-        var crop = ColonyModelFixtures.Devilstrand().Crops.Value.Single(c => c.Name == ColonyModelFixtures.Crop);
+        var crop = ColonyModelFixtures.Devilstrand().Crops.Single(c => c.Name == ColonyModelFixtures.Crop);
         Assert.Equal(10, crop.SowMinSkill.Value);
 
         (bool Available, string Finding) Gate(int level, bool disabled = false) =>
-            PawnCycle.SowGate(Pawn() with { Skills = Known(EquatableArray.From(new[] { new WorkSkill { Name = "Plants", Level = level, Disabled = disabled } })) }, crop);
+            PawnCycle.SowGate(Pawn() with { Skills = EquatableArray.From(new[] { new WorkSkill { Name = "Plants", Level = level, Disabled = disabled } }) }, crop);
 
         Assert.Equal((false, ""), Gate(8));
         Assert.Equal((true, ""), Gate(10));
@@ -190,7 +198,7 @@ public sealed class PawnCycleTests
     [Fact]
     public void AnUnreadSkillMakesSowingUnavailableAndReported()
     {
-        var crop = ColonyModelFixtures.Devilstrand().Crops.Value.Single(c => c.Name == ColonyModelFixtures.Crop);
+        var crop = ColonyModelFixtures.Devilstrand().Crops.Single(c => c.Name == ColonyModelFixtures.Crop);
         var pawn = Pawn() with { Skills = default };
 
         Assert.Equal((false, "plants_skill_unknown:Anna"), PawnCycle.SowGate(pawn, crop));
@@ -201,14 +209,14 @@ public sealed class PawnCycleTests
     public void ARealReviewFrameYieldsTwelveCyclesPerPawn()
     {
         var input = ColonyModelFixtures.Devilstrand();
-        var pawn = input.Pawns.Value.Single();
+        var pawn = input.Pawns.Single();
 
         var year = PawnCycle.Year(input, pawn);
 
         Assert.Equal(Enumerable.Range(0, 12), year.Select(c => c.Twelfth));
         Assert.All(year, c => Assert.True(c.Valid(), string.Join(",", c.Findings)));
         Assert.True(year[0].DaylightHours.Value < year[6].DaylightHours.Value);
-        Assert.Empty(input.Unknowns());
+        Assert.Empty(input.Gaps());
     }
 
     [Fact]

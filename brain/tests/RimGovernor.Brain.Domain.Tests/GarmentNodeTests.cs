@@ -35,9 +35,9 @@ public sealed class GarmentNodeTests
         var input = ProjectGraphTests.Colony();
         return input with
         {
-            Land = Known(EquatableArray.From(input.Land.Value.Select(f => f with { Crop = ColonyModelFixtures.Crop }))),
-            Stocks = input.Stocks with { Materials = Known(EquatableArray.From(new[] { new Amount(Devilstrand, devilstrand), new Amount(Cloth, cloth) })) },
-            Recipes = Known(EquatableArray.From(recipes)),
+            Land = EquatableArray.From(input.Land.Select(f => f with { Crop = ColonyModelFixtures.Crop })),
+            Stocks = input.Stocks with { Materials = EquatableArray.From(new[] { new Amount(Devilstrand, devilstrand), new Amount(Cloth, cloth) }) },
+            Recipes = EquatableArray.From(recipes),
         };
     }
 
@@ -51,7 +51,7 @@ public sealed class GarmentNodeTests
         {
             Needs = NeedsFixtures.Empty with { Pawns = [.. pawns] },
         };
-        return new ColonyValue(context, options, horizon, default, new ItemFacts());
+        return new ColonyValue(context, options, horizon, [ProjectGraphTests.Pawn("Anna", 1, 1)], new ItemFacts());
     }
 
     private static ApparelMade Made(string def, Resource stuff, double day) =>
@@ -94,9 +94,9 @@ public sealed class GarmentNodeTests
         var input = Colony(8, 0, Recipe("Apparel_Jacket", Leather, 70, 5_000)) with
         {
             Land = default,
-            Wildlife = Known(HuntSquadRules.Herds([deer, deer with { Id = "deer1" }])),
+            Wildlife = HuntSquadRules.Herds([deer, deer with { Id = "deer1" }]),
         };
-        input = input with { Pawns = Known(EquatableArray.From(input.Pawns.Value.Select(p => p with { Hunts = Known(true) }))) };
+        input = input with { Pawns = EquatableArray.From(input.Pawns.Select(p => p with { Hunts = true })) };
         var graph = ProjectGraph.Standing(input, [option], ColonyModelFixtures.NoThreat);
 
         var trajectory = ProjectGraphTests.Run(input, graph);

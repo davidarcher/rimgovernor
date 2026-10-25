@@ -9,7 +9,7 @@ internal static class ForecastHandoffProjects
         IReadOnlyDictionary<string, double> finished, double day, SortedSet<string> gaps)
     {
         var nodes = basis.Policy.Projects.Nodes.ToDictionary(n => n.Id, StringComparer.Ordinal);
-        var states = ColonyModelState.Observed(basis.Input, basis.Policy).Projects.Value.ToDictionary(p => p.Id, StringComparer.Ordinal);
+        var states = ColonyModelState.Observed(basis.Input, basis.Policy).Projects.ToDictionary(p => p.Id, StringComparer.Ordinal);
         var dates = new List<ForecastProjectDate>();
         var tasks = context.Activities.Activities.ToDictionary(t => t.Id, StringComparer.Ordinal);
         var sown = new Dictionary<string, List<double>>(StringComparer.Ordinal);
@@ -47,9 +47,9 @@ internal static class ForecastHandoffProjects
                         && n.Products.All(p => task.Outputs.Any(o => o.Resource == p.Resource))
                         && ((recipe.Stuff.Length == 0 && binding.ProductStuff.Length == 0)
                             || n.Ingredients.Any(i => i.Resource.Value == (recipe.Stuff.Length == 0 ? binding.ProductStuff : recipe.Stuff))));
-                else if (binding.Job == "Harvest" && basis.Input.Land.TryGetValue(out var land))
+                else if (binding.Job == "Harvest")
                 {
-                    var field = land.FirstOrDefault(f => f.Cells.Contains(binding.Location));
+                    var field = basis.Input.Land.FirstOrDefault(f => f.Cells.Contains(binding.Location));
                     node = field is null ? null : nodes.Values.FirstOrDefault(n => n.Kind == ProjectKind.Harvest && n.Field == field.Id);
                 }
                 // A detailed operation absent from the long-term graph changes physical stock only; never infer identity from overlapping resources.
@@ -148,8 +148,8 @@ internal static class ForecastHandoffProjects
 
     private static (double Remaining, double? Mature, bool Known) Growth(ColonyModelInput input, ProjectNode node, double from, double until)
     {
-        if (!input.Crops.TryGetValue(out var crops) || !input.Land.TryGetValue(out var land) || !input.Climate.TryGetValue(out var climate)) return (0, null, false);
-        var crop = crops.FirstOrDefault(c => c.Name == node.Crop); var field = land.FirstOrDefault(f => f.Id == node.Field);
+        var climate = input.Climate;
+        var crop = input.Crops.FirstOrDefault(c => c.Name == node.Crop); var field = input.Land.FirstOrDefault(f => f.Id == node.Field);
         if (crop is null || field is null || field.Fertility.Count == 0 || !crop.HarvestMinGrowth.TryGetValue(out var remaining)) return (0, null, false);
         var twelfth = climate.CurrentTwelfth; var boundary = Math.Max(1, climate.TicksToNextTwelfth) / (double)GameTime.TicksPerDay;
         while (boundary <= from) { twelfth = (twelfth + 1) % 12; boundary += ColonyModel.TwelfthDays; }

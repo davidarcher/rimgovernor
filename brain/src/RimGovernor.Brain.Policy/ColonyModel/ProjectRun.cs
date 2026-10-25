@@ -50,7 +50,7 @@ internal sealed class ProjectRun
         this.horizon = horizon;
         this.findings = findings;
         nodes = [.. graph.Nodes.Select(n => new Live(n))];
-        foreach (var carried in start.Projects.Value)
+        foreach (var carried in start.Projects)
         {
             var live = nodes.Single(n => n.Node.Id == carried.Id);
             live.Remaining = carried.Remaining;
@@ -74,16 +74,13 @@ internal sealed class ProjectRun
             findings.Add(finding);
         }
 
-        if (start.Materials.TryGetValue(out var held))
+        foreach (var amount in start.Materials)
         {
-            foreach (var amount in held)
-            {
-                ledger[amount.Resource] = ledger.GetValueOrDefault(amount.Resource) + amount.Count;
-            }
+            ledger[amount.Resource] = ledger.GetValueOrDefault(amount.Resource) + amount.Count;
         }
 
         // Both kinds of holds stay in the physical aggregate but are unavailable to new reservations.
-        foreach (var hold in start.ExternalHolds.Value)
+        foreach (var hold in start.ExternalHolds)
         {
             ledger[hold.Resource] = ledger.GetValueOrDefault(hold.Resource) - hold.Count;
         }
@@ -260,17 +257,16 @@ internal sealed class ProjectRun
         }
     }
 
-    private CropChoice? CropOf(ProjectNode node) =>
-        input.Crops.TryGetValue(out var crops) ? crops.FirstOrDefault(c => c.Name == node.Crop) : null;
+    private CropChoice? CropOf(ProjectNode node) => input.Crops.FirstOrDefault(c => c.Name == node.Crop);
 
     private double MeanFertility(ProjectNode node) =>
-        input.Land.TryGetValue(out var land) && land.FirstOrDefault(f => f.Id == node.Field) is { } field && field.Fertility.Count > 0 ? field.Fertility.Average() : double.NaN;
+        input.Land.FirstOrDefault(f => f.Id == node.Field) is { } field && field.Fertility.Count > 0 ? field.Fertility.Average() : double.NaN;
 
     private void Grow(Live live, int twelfth, double boundary)
     {
         var node = live.Node;
-        if (CropOf(node) is not { } crop || double.IsNaN(MeanFertility(node)) || !crop.HarvestMinGrowth.TryGetValue(out var target)
-            || !input.Climate.TryGetValue(out var climate))
+        var climate = input.Climate;
+        if (CropOf(node) is not { } crop || double.IsNaN(MeanFertility(node)) || !crop.HarvestMinGrowth.TryGetValue(out var target))
         {
             findings.Add($"crop_growth_unknown:{node.Id}");
             return;
@@ -352,19 +348,13 @@ internal sealed class ProjectRun
         }
     }
 
-    /// <summary>The pawn's work speed on the node, or null when it cannot work on it; every gap is named, never read as permission or as speed 1.</summary>
+    /// <summary>The pawn's work speed on the node, or null when it cannot work on it (a speed of nothing is a pawn who cannot).</summary>
     private double? Speed(ProjectNode node, CropChoice? crop, ModelPawn pawn)
     {
         switch (node.Kind)
         {
             case ProjectKind.Research:
-                if (pawn.ResearchSpeed.TryGetValue(out var research))
-                {
-                    return research;
-                }
-
-                findings.Add($"research_speed_unknown:{pawn.Pawn}");
-                return null;
+                return pawn.ResearchSpeed > 0 ? pawn.ResearchSpeed : null;
             case ProjectKind.Sow:
             case ProjectKind.Harvest:
                 if (crop is null)
@@ -386,22 +376,10 @@ internal sealed class ProjectRun
                     }
                 }
 
-                if (pawn.PlantWorkSpeed.TryGetValue(out var plants))
-                {
-                    return plants;
-                }
-
-                findings.Add($"plant_work_speed_unknown:{pawn.Pawn}");
-                return null;
+                return pawn.PlantWorkSpeed > 0 ? pawn.PlantWorkSpeed : null;
             case ProjectKind.Hunt:
                 // The work is the hunt planner's pursuit ticks of a hunter, so a pawn who may hunt works it at speed 1.
-                if (pawn.Hunts.TryGetValue(out var hunts))
-                {
-                    return hunts ? 1 : null;
-                }
-
-                findings.Add($"hunt_capability_unknown:{pawn.Pawn}");
-                return null;
+                return pawn.Hunts ? 1 : null;
             case ProjectKind.Craft:
                 // Toils_Recipe.DoRecipeWork: the recipe's workSpeedStat of the crafter, 1 when it names none. The bench's speed
                 // factor and the recipe's skill gates are not read on the node (#3868 reads them for the stock arrival).
@@ -423,17 +401,8 @@ internal sealed class ProjectRun
         }
     }
 
-    /// <summary>The research benches, one researcher each; unread, the researchers are not limited and the gap is named.</summary>
-    private int Benches()
-    {
-        if (input.Research.TryGetValue(out var research) && research.Benches.TryGetValue(out var benches))
-        {
-            return benches;
-        }
-
-        findings.Add("research_bench_count_unread");
-        return int.MaxValue;
-    }
+    /// <summary>The research benches, one researcher each.</summary>
+    private int Benches() => input.Research.Benches;
 
     /// <summary>Takes the node's ingredients from the ledger at its start; false while the ledger cannot supply them all.</summary>
     private bool Reserve(ProjectNode node)

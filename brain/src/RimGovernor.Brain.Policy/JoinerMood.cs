@@ -126,7 +126,7 @@ public static class JoinerMoodRules
         var needs = new List<ModelNeed>();
         foreach (var need in joiner.Needs)
         {
-            var own = new ModelNeed { Kind = need.Kind, Fall = need.FallPerTick, Gain = need.UnservedGainPerTick, Threshold = need.Threshold, OutdoorShares = need.OutdoorShareByTwelfth };
+            var own = new ModelNeed { Kind = need.Kind, Fall = need.FallPerTick, Gain = need.UnservedGainPerTick, Threshold = need.Threshold, OutdoorShares = need.OutdoorShareByTwelfth, Service = new ModelService.NoneObserved() };
             var served = colonist.Needs.FirstOrDefault(n => n.Kind == need.Kind) is not { } theirs ? own : need.Kind switch
             {
                 "rest" => theirs with
@@ -143,7 +143,8 @@ public static class JoinerMoodRules
             needs.Add(served);
         }
 
-        return new ModelPawn { Pawn = id, Needs = EquatableArray.From(needs) };
+        // Only its needs are read (the free hours of its day); the rest of the row is the colonist's.
+        return colonist with { Pawn = id, Needs = EquatableArray.From(needs) };
     }
 
     /// <summary>

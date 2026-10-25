@@ -14,7 +14,7 @@ public sealed class ForecastHandoffProjectTests
     public void GeneratedPartialSowingRetainsEachCellsGrowthAndHarvestsBeforeTheUnsownRemainder(double growDays, bool mature)
     {
         var input = ProjectGraphTests.Colony();
-        input = input with { Crops = Known(EquatableArray.From(input.Crops.Value.Select(c => c with { GrowDays = Known(growDays) }))) };
+        input = input with { Crops = EquatableArray.From(input.Crops.Select(c => c with { GrowDays = Known(growDays) })) };
         var graph = ProjectGraph.CropChain(input, ColonyModelFixtures.Crop, "zone1", []);
         var learning = ProductiveLearningTests.Work() with { Recipe = new("Plants", .085, true), WorkAmount = 2d,
             Rates = [new(0, .005), new(1, .005), new(2, .005)], LearnBeforeWork = true };
@@ -34,15 +34,15 @@ public sealed class ForecastHandoffProjectTests
         Assert.Equal(2, grown.Length);
         if (mature)
         {
-            var crop = input.Crops.Value.Single(c => c.Name == ColonyModelFixtures.Crop);
-            var rate = CropGrowthModel.DailyGrowth(crop, 1, input.Climate.Value.Temperatures[input.Climate.Value.CurrentTwelfth]).Value;
+            var crop = input.Crops.Single(c => c.Name == ColonyModelFixtures.Crop);
+            var rate = CropGrowthModel.DailyGrowth(crop, 1, input.Climate.Temperatures[input.Climate.CurrentTwelfth]).Value;
             Assert.Equal(200d / GameTime.TicksPerDay + crop.HarvestMinGrowth.Value / rate,
                 Assert.Single(result.Completed, d => d.Project == grown[0].Id).Day, 8);
         }
         else Assert.True(result.States[grown[0].Id].Remaining < result.States[grown[1].Id].Remaining);
         Assert.All(grown, g => Assert.True(result.States[g.Id].GrowthInitialized));
-        var state = ColonyModelState.Observed(input, new() { Projects = result.Graph }) with { Day = 1, Projects = Known(EquatableArray.From(result.States.Values)) };
-        var cycles = input.Pawns.Value.Select(p => PawnCycle.Year(input, p).ToArray()).ToArray();
+        var state = ColonyModelState.Observed(input, new() { Projects = result.Graph }) with { Day = 1, Projects = EquatableArray.From(result.States.Values) };
+        var cycles = input.Pawns.Select(p => PawnCycle.Year(input, p).ToArray()).ToArray();
         var continuation = ColonyModel.Run(input, state, cycles, new() { Projects = result.Graph, MedicineTendsPerDay = Known(0d) });
         Assert.False(continuation.Truncated);
         var first = Assert.Single(continuation.Events, e => e.Id == "harvest:zone1/cohort/0");
@@ -81,8 +81,8 @@ public sealed class ForecastHandoffProjectTests
     public void HarvestUsesNativeFieldCellIdentityAndRemovesItsAlreadyPaidCropCycle()
     {
         var input = ProjectGraphTests.Colony();
-        input = input with { Land = Known(EquatableArray.From(input.Land.Value.Select(f => f with
-        { Cells = EquatableArray.From(Enumerable.Range(0, 12).Select(x => new Cell(x, 1))) }))) };
+        input = input with { Land = EquatableArray.From(input.Land.Select(f => f with
+        { Cells = EquatableArray.From(Enumerable.Range(0, 12).Select(x => new Cell(x, 1))) })) };
         var graph = ProjectGraph.CropChain(input, ColonyModelFixtures.Crop, "zone1", []);
         var task = new ForecastActivity("harvest", "field", "field", []);
         var binding = new RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate("harvest", "Bo", [], PawnActivityKind.Work, "plant-7", "Grower", "Harvest", 0, 60000, new(7, 1));

@@ -6,8 +6,12 @@ public sealed record ForecastProjectDate(string Project, double Day);
 public sealed record ForecastTerminalNeed(string Pawn, string Kind, Fact<double> Level);
 /// <summary>Effects already in force, with their original start date for memory aging and outfit ordering.</summary>
 public sealed record ForecastTerminalEffect(ForecastCommitment Effect, double Day);
-/// <summary>Compact terminal evidence from one evaluated schedule; no trajectory or durable ownership.</summary>
-public sealed record ForecastHandoff(ColonyModelState State, EquatableArray<ForecastTerminalNeed> Needs,
+/// <summary>
+/// Compact terminal evidence from one evaluated schedule; no trajectory or durable ownership. <paramref name="State"/> is the colony
+/// model's state at <paramref name="Day"/>, absent while the terminal accounting leaves the food, a stock, the medicine or the holds unread
+/// (<paramref name="Gaps"/> names which).
+/// </summary>
+public sealed record ForecastHandoff(double Day, double EndDay, ColonyModelState? State, EquatableArray<ForecastTerminalNeed> Needs,
     EquatableArray<ForecastProjectDate> Completed, EquatableArray<string> Gaps)
 {
     public ProjectGraph Graph { get; init; } = new();
@@ -56,7 +60,7 @@ public static class ForecastHandoffPolicy
         foreach (var n in needs.Where(n => !n.Level.IsKnown)) gaps.Add($"terminal_need_unknown:{n.Pawn}:{n.Kind}");
         foreach (var e in basis.Policy.Scheduled.Where(e => e.Day <= day && e.Stock is ModelStock.Materials or ModelStock.Medicine && string.IsNullOrEmpty(e.Resource.Value)))
             gaps.Add("terminal_scheduled_resource_unknown:" + e.Id);
-        foreach (var pawn in basis.Input.Pawns.IsKnown ? basis.Input.Pawns.Value : EquatableArray.From<ModelPawn>([]))
+        foreach (var pawn in basis.Input.Pawns)
             foreach (var need in pawn.Needs)
                 if (!needs.Any(n => n.Pawn == pawn.Pawn && n.Kind == need.Kind)) gaps.Add($"terminal_need_missing:{pawn.Pawn}:{need.Kind}");
         if (outcome.Feasible != Known(true)) gaps.Add("terminal_schedule_not_known_feasible");
@@ -71,7 +75,7 @@ public static class ForecastHandoffPolicy
         { stockKnown = false; gaps.Add("terminal_material_census_scope_mismatch"); }
         if (!stockKnown) gaps.Add("terminal_stock_unknown");
         var nutrition = Nutrition(terminal, gaps);
-        Fact<EquatableArray<ModelResourceStock>> medicine = default;
+        EquatableArray<ModelResourceStock>? medicine = null;
         if (terminal.MedicineComplete)
         {
             var result = new List<ModelResourceStock>();
@@ -81,16 +85,16 @@ public static class ForecastHandoffPolicy
                 if (group.Any(l => !l.Count.IsKnown || !l.FreshUntil.IsKnown)) break;
                 result.Add(new(group.Key, group.Sum(l => l.Count.Value)));
             }
-            if (result.Count == medicineLots.Select(l => l.Resource).Distinct().Count()) medicine = Known(EquatableArray.From(result));
+            if (result.Count == medicineLots.Select(l => l.Resource).Distinct().Count()) medicine = EquatableArray.From(result);
         }
-        if (!medicine.IsKnown) gaps.Add("terminal_medicine_unknown");
+        if (medicine is null) gaps.Add("terminal_medicine_unknown");
 
         var tasks = context.Activities.Activities.ToDictionary(t => t.Id, StringComparer.Ordinal);
         var projected = ForecastHandoffProjects.Project(basis, context, outcome, finished, day, gaps);
         var nodes = projected.Graph.Nodes;
         var projects = projected.States;
         dates.AddRange(projected.Completed);
-        Fact<EquatableArray<ModelResourceStock>> external = default;
+        EquatableArray<ModelResourceStock>? external = null;
         var budget = ForecastCoupledMaterials.CoupledMaterialBudgetOf(request, holds, tasks, outcome.Plan);
         if (holds is not null && budget.TryGetValue(out var available) && request.Facts.Stock.TryGetValue(out var initial))
         {
@@ -107,9 +111,9 @@ public static class ForecastHandoffPolicy
                 count -= Math.Min(delivered, holds.Owed.GetValueOrDefault(resource));
                 if (count > 0) reserved.Add(new(resource, count));
             }
-            if (!gaps.Any(g => g.StartsWith("terminal_hold_unknown:", StringComparison.Ordinal))) external = Known(EquatableArray.From(reserved));
+            if (!gaps.Any(g => g.StartsWith("terminal_hold_unknown:", StringComparison.Ordinal))) external = EquatableArray.From(reserved);
         }
-        if (!external.IsKnown) gaps.Add("terminal_holds_unknown");
+        if (external is null) gaps.Add("terminal_holds_unknown");
 
         var active = EquatableArray.From(commitments.Values.Where(c => c.MoodMemories.Count + c.SituationalChanges.Count + c.ComfortShifts.Count + c.OutfitChanges.Count > 0
             && c.ActivityCompletions.All(finished.ContainsKey))
@@ -117,54 +121,53 @@ public static class ForecastHandoffPolicy
                 Outcome = null, UnsupportedEffects = [], ExclusiveOutcome = "" },
                 c.ActivityCompletions.Count == 0 ? 0 : c.ActivityCompletions.Max(id => finished[id]) / GameTime.TicksPerDay))
             .OrderBy(c => c.Day).ThenBy(c => c.Effect.Id, StringComparer.Ordinal));
-        var pawns = Pawns(start.Pawns, context.PracticeTasks, outcome, finished, day, gaps);
-        if (pawns.TryGetValue(out var terminalPawns))
-            pawns = Known(EquatableArray.From(terminalPawns.Select(p =>
-            {
-                var shifts = active.SelectMany(c => c.Effect.ComfortShifts).Where(s => s.Pawn == p.Pawn).ToArray();
-                return p with { ComfortableMin = p.ComfortableMin.IsKnown ? Known(p.ComfortableMin.Value + shifts.Sum(s => s.MinDelta)) : default,
-                    ComfortableMax = p.ComfortableMax.IsKnown ? Known(p.ComfortableMax.Value + shifts.Sum(s => s.MaxDelta)) : default };
-            })));
-        var state = start with { Day = day, Nutrition = nutrition, Materials = stockKnown ? Known(EquatableArray.From(stocks)) : default,
-            ResearchPoints = basis.Policy.Projects.Nodes.Where(n => n.Kind == ProjectKind.Research).Sum(n => n.Work - projects[n.Id].Remaining)
-                + basis.Policy.Scheduled.Where(e => e.Day <= day && e.Stock == ModelStock.ResearchPoints).Sum(e => e.Amount),
-            Medicine = medicine, ExternalHolds = external, Projects = Known(EquatableArray.From(nodes.Select(n => projects[n.Id]))), Pawns = pawns };
-        if (state.Gap(projected.Graph) is { } gap) gaps.Add(gap);
+        var pawns = EquatableArray.From(Pawns(start.Pawns, context.PracticeTasks, outcome, finished, day, gaps).Select(p =>
+        {
+            var shifts = active.SelectMany(c => c.Effect.ComfortShifts).Where(s => s.Pawn == p.Pawn).ToArray();
+            return p with { ComfortableMin = p.ComfortableMin + shifts.Sum(s => s.MinDelta), ComfortableMax = p.ComfortableMax + shifts.Sum(s => s.MaxDelta) };
+        }));
+        ColonyModelState? state = null;
+        if (nutrition is { } food && stockKnown && medicine is { } medicineRows && external is { } holdRows)
+        {
+            state = start with { Day = day, Nutrition = food, Materials = EquatableArray.From(stocks),
+                ResearchPoints = basis.Policy.Projects.Nodes.Where(n => n.Kind == ProjectKind.Research).Sum(n => n.Work - projects[n.Id].Remaining)
+                    + basis.Policy.Scheduled.Where(e => e.Day <= day && e.Stock == ModelStock.ResearchPoints).Sum(e => e.Amount),
+                Medicine = medicineRows, ExternalHolds = holdRows, Projects = EquatableArray.From(nodes.Select(n => projects[n.Id])), Pawns = pawns };
+            if (state.Gap(projected.Graph) is { } gap) gaps.Add(gap);
+        }
         var shelterPlans = EquatableArray.From(context.Shelters.Where(p => outcome.Shelters.Any(s => s.Room == p.Room && s.CompleteAt.IsKnown))
             .Select(p => p with { InitialTemperature = outcome.Shelters.Single(s => s.Room == p.Room).TemperatureAtHorizon,
                 Prerequisites = [], AlternativePrerequisites = [], RoofCells = [], StandingExchangePerTick = p.ExchangePerTick,
                 Sources = EquatableArray.From(p.Sources.Select(s => s with { Complete = true,
                     Supply = HeatSupplies.After(s.Supply,
                         day * GameTime.TicksPerDay - outcome.Shelters.Single(o => o.Room == p.Room).CompleteAt.Value) })) }));
-        return new(state, EquatableArray.From(needs), EquatableArray.From(dates), EquatableArray.From(gaps))
+        return new(day, start.EndDay, state, EquatableArray.From(needs), EquatableArray.From(dates), EquatableArray.From(gaps))
         { Graph = projected.Graph, ActiveEffects = active, Shelters = outcome.Shelters, ShelterPlans = shelterPlans, ServedRooms = outcome.ServedRooms };
     }
 
-    private static bool SameStocks(Fact<EquatableArray<Amount>> a, Fact<EquatableArray<Amount>> b) => a.IsKnown && b.IsKnown
-        && a.Value.Concat(b.Value).Select(s => s.Resource).Distinct().All(r => a.Value.Where(s => s.Resource == r).Sum(s => s.Count) == b.Value.Where(s => s.Resource == r).Sum(s => s.Count));
+    private static bool SameStocks(Fact<EquatableArray<Amount>> a, EquatableArray<Amount> b) => a.IsKnown
+        && a.Value.Concat(b).Select(s => s.Resource).Distinct().All(r => a.Value.Where(s => s.Resource == r).Sum(s => s.Count) == b.Where(s => s.Resource == r).Sum(s => s.Count));
 
-    private static Fact<double> Nutrition(ForecastTerminalAccounting terminal, SortedSet<string> gaps)
+    private static double? Nutrition(ForecastTerminalAccounting terminal, SortedSet<string> gaps)
     {
-        if (terminal.FoodUnread) { gaps.Add("terminal_food_census_unknown"); return default; }
+        if (terminal.FoodUnread) { gaps.Add("terminal_food_census_unknown"); return null; }
         double total = 0;
         foreach (var lot in terminal.Lots)
         {
-            if (!lot.FoodEligible.IsKnown) { gaps.Add("terminal_food_eligibility_unknown:" + lot.Id); return default; }
+            if (!lot.FoodEligible.IsKnown) { gaps.Add("terminal_food_eligibility_unknown:" + lot.Id); return null; }
             if (!lot.FoodEligible.Value) continue;
             if (!lot.Count.IsKnown || !lot.NutritionPerUnit.IsKnown || !lot.FreshUntil.IsKnown)
-            { gaps.Add("terminal_food_lot_unknown:" + lot.Id); return default; }
+            { gaps.Add("terminal_food_lot_unknown:" + lot.Id); return null; }
             total += lot.Count.Value * lot.NutritionPerUnit.Value;
         }
-        return Known(total);
+        return total;
     }
-    private static Fact<EquatableArray<ModelPawn>> Pawns(Fact<EquatableArray<ModelPawn>> original, EquatableArray<ForecastPracticeTask> practice, ForecastCoupledOutcome outcome,
+    private static ModelPawn[] Pawns(EquatableArray<ModelPawn> original, EquatableArray<ForecastPracticeTask> practice, ForecastCoupledOutcome outcome,
         IReadOnlyDictionary<string, double> finished, double day, SortedSet<string> gaps)
     {
-        if (!original.TryGetValue(out var pawns)) { gaps.Add("terminal_pawns_unknown"); return default; }
-        return Known(EquatableArray.From(pawns.Select(p =>
+        return original.Select(p =>
         {
-            if (!p.Skills.TryGetValue(out var skills)) { gaps.Add("terminal_skills_unknown:" + p.Pawn); return p; }
-            var projected = skills.Select(s =>
+            var projected = p.Skills.Select(s =>
             {
                 var events = outcome.Plan.Allocations.Where(a => a.Pawn == p.Pawn && finished.ContainsKey(a.Activity) && a.Learning?.Skill == s.Name)
                     .SelectMany(a => a.Learning!.Callbacks).ToList();
@@ -180,8 +183,8 @@ public static class ForecastHandoffPolicy
                 { gaps.Add($"terminal_skill_unprojectable:{p.Pawn}:{s.Name}"); return s with { Learning = null }; }
                 return s with { Level = result.Level, Stored = result.StoredLevel, Learning = result.TerminalLearning };
             });
-            return p with { Skills = Known(EquatableArray.From(projected)) };
-        })));
+            return p with { Skills = EquatableArray.From(projected) };
+        }).ToArray();
     }
 
 }

@@ -12,13 +12,13 @@ public sealed class ColonyModelContinuationTests
 
     private static ColonyModelInput Input() => ProjectGraphTests.Colony() with
     {
-        Climate = Known(ColonyModelFixtures.Climate() with { CurrentTwelfth = 0, TicksToNextTwelfth = 5 * GameTime.TicksPerDay }),
-        Pawns = Known(EquatableArray.From(new[] { ProjectGraphTests.Pawn("Anna", 1, 1) with
+        Climate = ColonyModelFixtures.Climate() with { CurrentTwelfth = 0, TicksToNextTwelfth = 5 * GameTime.TicksPerDay },
+        Pawns = EquatableArray.From(new[] { ProjectGraphTests.Pawn("Anna", 1, 1) with
         {
-            Needs = EquatableArray.From(new[] { new ModelNeed { Kind = "food", Fall = 0d, Gain = 0, Threshold = .3 } }),
-            Skills = Known(EquatableArray.From<WorkSkill>([])),
-        } })),
-        Stocks = new ModelStocks { Nutrition = Known(100d), Materials = Known(EquatableArray.From(new[] { new Amount(Steel, 20) })), Medicine = Known(EquatableArray.From<Amount>([])) },
+            Needs = EquatableArray.From(new[] { new ModelNeed { Kind = "food", Fall = 0d, Gain = 0, Threshold = .3, Service = new ModelService.NoneObserved() } }),
+            Skills = EquatableArray.From<WorkSkill>([]),
+        } }),
+        Stocks = new ModelStocks { Nutrition = 100d, Materials = EquatableArray.From(new[] { new Amount(Steel, 20) }), Medicine = EquatableArray.From<Amount>([]) },
     };
 
     private static PawnCycle[][] Cycles() => [Enumerable.Range(0, 12).Select(t => new PawnCycle
@@ -57,13 +57,13 @@ public sealed class ColonyModelContinuationTests
         var remaining = cut <= 5 ? (6 - cut) * Hour : (1 - 2 * (cut - 5)) * Hour;
         var state = ColonyModelState.Observed(input, policy) with
         {
-            Day = cut, Nutrition = Known(cut >= 5 ? 112d : 102d),
-            Materials = Known(EquatableArray.From(new[] { new ModelResourceStock(Steel, done ? 10 : 20) })),
-            Projects = Known(EquatableArray.From(new[]
+            Day = cut, Nutrition = cut >= 5 ? 112d : 102d,
+            Materials = EquatableArray.From(new[] { new ModelResourceStock(Steel, done ? 10 : 20) }),
+            Projects = EquatableArray.From(new[]
             {
                 new ModelProjectState("a", done ? 0 : remaining, done ? ModelProjectStatus.Done : ModelProjectStatus.Waiting, done ? ModelProjectInputs.Consumed : ModelProjectInputs.Held, false),
                 new ModelProjectState("b", 0, done ? ModelProjectStatus.Done : ModelProjectStatus.Waiting, done ? ModelProjectInputs.Consumed : ModelProjectInputs.Unpaid, false),
-            })),
+            }),
         };
         var resumed = ColonyModel.Run(input, state, Cycles(), policy);
         Assert.Equal(whole.Events.Where(e => e.Day > cut), resumed.Events);
@@ -92,15 +92,15 @@ public sealed class ColonyModelContinuationTests
         var state = ColonyModelState.Observed(input, policy) with
         {
             Day = 1,
-            Materials = Known(EquatableArray.From(new[] { new ModelResourceStock(Steel, physical) })),
-            ExternalHolds = Known(EquatableArray.From(new[] { new ModelResourceStock(Steel, 5) })),
-            Projects = Known(EquatableArray.From(new[] { new ModelProjectState("a", Hour / 2, ModelProjectStatus.Waiting, payment, false) })),
+            Materials = EquatableArray.From(new[] { new ModelResourceStock(Steel, physical) }),
+            ExternalHolds = EquatableArray.From(new[] { new ModelResourceStock(Steel, 5) }),
+            Projects = EquatableArray.From(new[] { new ModelProjectState("a", Hour / 2, ModelProjectStatus.Waiting, payment, false) }),
         };
         var run = ColonyModel.Run(input, state, Cycles(), policy);
         Assert.Contains(run.Events, e => e.Id == "a" && e.Day == 1.5);
         Assert.Equal(expected, run.Events[^1].Levels[(int)ModelStock.Materials]);
 
-        var unpaid = state with { Projects = Known(EquatableArray.From(new[] { new ModelProjectState("a", Hour, ModelProjectStatus.Waiting, ModelProjectInputs.Unpaid, false) })), ExternalHolds = Known(EquatableArray.From(new[] { new ModelResourceStock(Steel, physical) })) };
+        var unpaid = state with { Projects = EquatableArray.From(new[] { new ModelProjectState("a", Hour, ModelProjectStatus.Waiting, ModelProjectInputs.Unpaid, false) }), ExternalHolds = EquatableArray.From(new[] { new ModelResourceStock(Steel, physical) }) };
         Assert.DoesNotContain(ColonyModel.Run(input, unpaid, Cycles(), policy).Events, e => e.Id == "a");
     }
 
@@ -112,11 +112,11 @@ public sealed class ColonyModelContinuationTests
         var state = ColonyModelState.Observed(input, policy) with
         {
             Day = 1,
-            Projects = Known(EquatableArray.From(new[]
+            Projects = EquatableArray.From(new[]
             {
                 new ModelProjectState("a", 0, ModelProjectStatus.Done, ModelProjectInputs.Consumed, false),
                 new ModelProjectState("b", Hour / 2, ModelProjectStatus.Waiting, ModelProjectInputs.Consumed, false),
-            })),
+            }),
         };
         var run = ColonyModel.Run(input, state, Cycles(), policy);
         Assert.DoesNotContain(run.Events, e => e.Id == "a");
@@ -130,8 +130,8 @@ public sealed class ColonyModelContinuationTests
     [InlineData(.3)]
     public void ExistingGrowthKeepsItsRemainingFractionAcrossTheCalendarBoundary(double cut)
     {
-        var input = Input() with { Climate = Known(ProjectGraphTests.Colony().Climate.Value) };
-        var crop = input.Crops.Value.Single(c => c.Name == ColonyModelFixtures.Crop);
+        var input = Input() with { Climate = ProjectGraphTests.Colony().Climate };
+        var crop = input.Crops.Single(c => c.Name == ColonyModelFixtures.Crop);
         var policy = Policy() with
         {
             HorizonDays = 40, Scheduled = default,
@@ -141,17 +141,17 @@ public sealed class ColonyModelContinuationTests
                 new ProjectNode { Id = "harvest", Kind = ProjectKind.Harvest, Crop = crop.Name, Field = "zone1", Cells = 1, Prerequisites = EquatableArray.From(["grow"]) },
             }) },
         };
-        var first = CropGrowthModel.DailyGrowth(crop, 1, input.Climate.Value.Temperatures[4]).Value;
-        var second = CropGrowthModel.DailyGrowth(crop, 1, input.Climate.Value.Temperatures[5]).Value;
+        var first = CropGrowthModel.DailyGrowth(crop, 1, input.Climate.Temperatures[4]).Value;
+        var second = CropGrowthModel.DailyGrowth(crop, 1, input.Climate.Temperatures[5]).Value;
         var remaining = crop.HarvestMinGrowth.Value - first * Math.Min(cut, .2) - second * Math.Max(0, cut - .2);
         var state = ColonyModelState.Observed(input, policy) with
         {
             Day = cut,
-            Projects = Known(EquatableArray.From(new[]
+            Projects = EquatableArray.From(new[]
             {
                 new ModelProjectState("grow", remaining, ModelProjectStatus.Waiting, ModelProjectInputs.Unpaid, true),
                 new ModelProjectState("harvest", 0, ModelProjectStatus.Waiting, ModelProjectInputs.Unpaid, false),
-            })),
+            }),
         };
         var whole = ColonyModel.Run(input, Cycles(), policy);
         var resumed = ColonyModel.Run(input, state, Cycles(), policy);
@@ -172,34 +172,33 @@ public sealed class ColonyModelContinuationTests
             Levels = EquatableArray.From(new[] { new SkillLevelMechanics(0, 1000, 0), new SkillLevelMechanics(1, 1000, 100), new SkillLevelMechanics(2, 1000, 200) }),
         };
         var input = Input();
-        input = input with { Pawns = Known(EquatableArray.From(new[] { SkillStockTests.WithMedicine(input.Pawns.Value[0], mechanics) })) };
+        input = input with { Pawns = EquatableArray.From(new[] { SkillStockTests.WithMedicine(input.Pawns[0], mechanics) }) };
         var policy = Policy() with { Projects = new ProjectGraph(), Scheduled = default };
         var whole = ColonyModel.Run(input, Cycles(), policy);
         var state = ColonyModelState.Observed(input, policy) with
         {
             Day = .25,
-            Pawns = Known(EquatableArray.From(new[] { SkillStockTests.WithMedicine(input.Pawns.Value[0], mechanics with { Xp = -50d }) })),
+            Pawns = EquatableArray.From(new[] { SkillStockTests.WithMedicine(input.Pawns[0], mechanics with { Xp = -50d }) }),
         };
         Assert.Equal(whole.Skills, ColonyModel.Run(input, state, Cycles(), policy).Skills);
     }
 
     [Fact]
-    public void ObservedOriginKeepsPartialTrajectoryWhenOptionalCensusIsUnavailable()
+    public void AnEmptyMaterialsAndMedicineCensusRunsToTheHorizonWithoutACensusFinding()
     {
-        var input = Input() with { Stocks = new ModelStocks { Nutrition = Known(100d) } };
+        var input = Input() with { Stocks = new ModelStocks { Nutrition = 100d, Materials = [], Medicine = [] } };
         var run = ColonyModel.Run(input, Cycles(), Policy() with { Projects = new ProjectGraph() });
         Assert.Equal(ModelEventKind.HorizonEnd, run.Events[^1].Kind);
-        Assert.Contains("colony_model_materials_unknown", run.Findings);
-        Assert.Contains("colony_model_medicine_unknown", run.Findings);
+        Assert.DoesNotContain(run.Findings, f => f.StartsWith("colony_model_materials", StringComparison.Ordinal) || f.StartsWith("colony_model_medicine", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void InvalidOrUnavailableStartDoesNotProduceACompleteTrajectory()
+    public void InvalidStartDoesNotProduceACompleteTrajectory()
     {
         var input = Input();
         var policy = Policy();
         var start = ColonyModelState.Observed(input, policy);
-        foreach (var state in new[] { start with { Day = 9 }, start with { Day = double.NaN }, start with { Day = 1, Materials = default }, start with { Projects = default }, start with { ExternalHolds = Known(EquatableArray.From(new[] { new ModelResourceStock(Steel, 21) })) } })
+        foreach (var state in new[] { start with { Day = 9 }, start with { Day = double.NaN }, start with { ExternalHolds = EquatableArray.From(new[] { new ModelResourceStock(Steel, 21) }) } })
         {
             var run = ColonyModel.Run(input, state, Cycles(), policy);
             Assert.Empty(run.Events);

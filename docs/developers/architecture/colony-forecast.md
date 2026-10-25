@@ -1379,8 +1379,11 @@ in-play proof is `production/devilstrand-investment` (#3560: a research block wi
 already carries and makes no native call: the seasonal climate, the calendar, the growing zones and planned fields with
 per-cell fertility, the crop catalog, the research census, the stocks (nutrition of the edible food census, materials,
 medicine), the pawns (need mechanics, capacities, comfort range, research and plant work speed from the coupled research and
-sowing reads), the recipes, and the planned construction sites. A section the frame did not carry is an unknown
-`Fact`, never a default; `ColonyModelInput.Unknowns()` names each and the `colony_model` event reports it as `input:<section>`.
+sowing reads), the recipes, and the planned construction sites. Every member is plain: a frame that lacks a section
+yields `ColonyModelInputRead.Unready` naming each gap (and `Gaps()` a value outside its range) instead of an input, the review of
+it has no run and no basis (`colony_model_input_unready`), and the `colony_model` event reports each gap as `input:<section>`.
+A need's service by use is `ModelService.Observed` or `ModelService.NoneObserved`; a pawn who cannot research or plant has a work
+speed of 0, and the research benches are a count that limits the researchers.
 
 **Pawn cycle.** `PawnCycle.Year` derives, per pawn, twelve entries (one per twelfth of the year) of sleep, recreation, eating,
 outdoor-capable and indoor labor hours from the pawn's need rates and the twelfth's daylight, and the skill gates of tasks

@@ -45,7 +45,7 @@ public sealed class KnowledgeValueTests
         IReadOnlyDictionary<string, string> overflow)
     {
         var summary = EconomyRules.ResearchSummary(EconomyRules.ResearchCensusOf(read, catalog, overflow));
-        var research = RoundsColonyModel.InputOf(ColonyModelFixtures.Projection() with { Facts = ColonyModelFixtures.Projection().Facts with { Research = summary } }).Input.Research;
+        var research = ColonyModelFixtures.ReadyOf(ColonyModelFixtures.Projection() with { Facts = ColonyModelFixtures.Projection().Facts with { Research = summary } }).Research;
         var input = ProjectGraphTests.Colony() with { Research = research };
         var policy = new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), Projects = ProjectGraph.Standing(input, [], ColonyModelFixtures.NoThreat) };
         return (input, ProjectMarginalValue.Of(input, policy, new Completion(ProjectGraph.ResearchId(new ResearchProjectId(Bioferrite)))));
@@ -68,8 +68,8 @@ public sealed class KnowledgeValueTests
         // Basic's slot is empty, so the research Need funds the startable Bioferrite into it; Advanced funds nothing and overflows into Basic.
         var (input, marginals) = Review(AnomalyRead(), AnomalyCatalog, new Dictionary<string, string>(StringComparer.Ordinal) { [Basic] = "", [Advanced] = Basic });
 
-        Assert.Equal([Advanced, Basic], input.Research.Value.Knowledge.Select(k => k.Category));
-        Assert.Equal(Bioferrite, input.Research.Value.Knowledge.Single(k => k.Category == Basic).Project.Value);
+        Assert.Equal([Advanced, Basic], input.Research.Knowledge.Select(k => k.Category));
+        Assert.Equal(Bioferrite, input.Research.Knowledge.Single(k => k.Category == Basic).Project.Value);
         // The node is the 3 knowledge points still to give (4 less the quarter given), and no researcher works it: study alone gives them.
         var node = Assert.Single(ProjectGraph.Standing(input, [], ColonyModelFixtures.NoThreat).Nodes, n => n.Kind == ProjectKind.Knowledge);
         Assert.Equal(3, node.Work, 9);
@@ -87,7 +87,7 @@ public sealed class KnowledgeValueTests
         // The one Basic project waits on a prerequisite, so the empty slot funds nothing; Basic has no overflow, so a point is lost.
         var (input, marginals) = Review(AnomalyRead("prerequisite:Other"), AnomalyCatalog, new Dictionary<string, string>(StringComparer.Ordinal) { [Basic] = "", [Advanced] = Basic });
 
-        Assert.True(input.Research.Value.Knowledge.All(k => k.Project.IsEmpty));
+        Assert.True(input.Research.Knowledge.All(k => k.Project.IsEmpty));
         Assert.DoesNotContain(ProjectGraph.Standing(input, [], ColonyModelFixtures.NoThreat).Nodes, n => n.Kind == ProjectKind.Knowledge);
         Assert.Equal(0, marginals.PerUnit[ProjectGraph.KnowledgeKey(Basic)]);
         Assert.Equal(0, marginals.PerUnit[ProjectGraph.KnowledgeKey(Advanced)]);
@@ -116,7 +116,7 @@ public sealed class KnowledgeValueTests
     internal static ProjectMarginals Priced(Obs.ResearchSnapshot read, IReadOnlyDictionary<string, ResearchProjectFacts> catalog, IReadOnlyDictionary<string, string> overflow, IReadOnlyList<GearOption> options)
     {
         var summary = EconomyRules.ResearchSummary(EconomyRules.ResearchCensusOf(read, catalog, overflow));
-        var research = RoundsColonyModel.InputOf(ColonyModelFixtures.Projection() with { Facts = ColonyModelFixtures.Projection().Facts with { Research = summary } }).Input.Research;
+        var research = ColonyModelFixtures.ReadyOf(ColonyModelFixtures.Projection() with { Facts = ColonyModelFixtures.Projection().Facts with { Research = summary } }).Research;
         var recipe = new ProductionRecipeInput($"Make_{Unlocked}", EquatableArray.From(new[] { EquatableArray.From(new[] { new Amount(Cloth, 80) }) }), false)
         {
             Products = EquatableArray.From(new[] { new Amount(new Resource(Unlocked), 1) }),
@@ -126,8 +126,8 @@ public sealed class KnowledgeValueTests
         var input = colony with
         {
             Research = research,
-            Stocks = colony.Stocks with { Materials = Known(EquatableArray.From(new[] { new Amount(Cloth, 80) })) },
-            Recipes = Known(EquatableArray.From(new[] { recipe })),
+            Stocks = colony.Stocks with { Materials = EquatableArray.From(new[] { new Amount(Cloth, 80) }) },
+            Recipes = EquatableArray.From(new[] { recipe }),
         };
         var worn = EquatableArray.From(new[] { ForecastValueTests.Duster(0.3) with { Slot = GearSlot.Outer } });
         var pawn = ForecastValueTests.HarmPawn() with { Pawn = "Anna" };
@@ -167,7 +167,7 @@ public sealed class KnowledgeValueTests
         var (input, marginals) = Review(FreshRead, new Dictionary<string, ResearchProjectFacts>(StringComparer.Ordinal) { ["Devilstrand"] = new() { Cost = 800 } },
             new Dictionary<string, string>(StringComparer.Ordinal));
 
-        Assert.Empty(input.Research.Value.Knowledge);
+        Assert.Empty(input.Research.Knowledge);
         Assert.DoesNotContain(marginals.PerUnit.Keys, k => k.StartsWith(ProjectGraph.KnowledgeKey(""), StringComparison.Ordinal));
     }
 }

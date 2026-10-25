@@ -78,10 +78,8 @@ public static class ProjectMarginalValue
     public static ProjectMarginals Of(ColonyModelInput input, ColonyModelPolicy policy, ITrajectoryValue valuation, IReadOnlyList<GoalTerminal>? goals = null)
     {
         goals ??= [];
-        IReadOnlyList<ModelPawn> roster = [];
-        var cycles = input.Pawns.TryGetValue(out var pawns)
-            ? (roster = pawns).Select(p => PawnCycle.Year(input, p).ToArray()).ToArray()
-            : [];
+        IReadOnlyList<ModelPawn> roster = input.Pawns;
+        var cycles = roster.Select(p => PawnCycle.Year(input, p).ToArray()).ToArray();
         var start = ColonyModelState.Observed(input, policy);
         var baseline = ColonyModel.Run(input, start, cycles, policy);
         var value = valuation.Price(baseline);

@@ -225,8 +225,8 @@ public sealed class PawnValueTests
     public void AFreshColonyWithNoRecreationBuildingValuesItsColonistOverTheHoursAWalkLeaves()
     {
         var projection = ColonyModelInputTests.NoBedNoRecreation(ColonyModelFixtures.Projection(), ColonyModelInputTests.Walk);
-        var input = RimGovernor.Brain.BuildingRuntime.RoundsColonyModel.InputOf(projection).Input;
-        var pawn = input.Pawns.Value[0];
+        var input = ColonyModelFixtures.ReadyOf(projection);
+        var pawn = input.Pawns[0];
         var free = PawnCycle.FreeHoursByPawn(input, 30)[pawn.Pawn];
         var joy = pawn.Needs.Single(n => n.Kind == "joy");
         Assert.Equal(ColonyModelInputTests.Walk, joy.Gain);
@@ -235,10 +235,10 @@ public sealed class PawnValueTests
         var walk = 24 * joy.Fall / (joy.Fall + joy.Gain);
         Assert.Equal(0.8 * walk, PawnCycle.Of(input, pawn, 6).RecreationHours.Value, 9);
         Assert.Contains("joy_unserved:" + pawn.Pawn, PawnCycle.Of(input, pawn, 0).Findings);
-        double Free(double share) => PawnCycle.FreeHoursByPawn(input with { Pawns = Known(EquatableArray.From(new[] { pawn with
+        double Free(double share) => PawnCycle.FreeHoursByPawn(input with { Pawns = EquatableArray.From(new[] { pawn with
         {
             Needs = EquatableArray.From(pawn.Needs.Select(n => n.Kind == "joy" ? n with { OutdoorShares = EquatableArray.From(Enumerable.Repeat(share, 12)) } : n)),
-        } })) }, 30)[pawn.Pawn];
+        } }) }, 30)[pawn.Pawn];
         Assert.InRange(free, Free(1), Free(0));
         Assert.Equal(walk, Free(0) - Free(1), 9);
 
@@ -299,7 +299,7 @@ public sealed class PawnValueTests
         };
         facts = ForecastCoupledCandidates.ReviewCoupledActivities(facts);
         var input = model ?? ColonyModelFixtures.Devilstrand();
-        input = input with { Pawns = Known(EquatableArray.From(input.Pawns.Value.Select(p => p with { Pawn = "pawn" }))) };
+        input = input with { Pawns = EquatableArray.From(input.Pawns.Select(p => p with { Pawn = "pawn" })) };
         var coupled = facts.CoupledAlternatives!;
         facts = facts with
         {

@@ -10,14 +10,24 @@ public sealed class ColonyCalendarContinuationTests
 {
     private static ColonyModelInput Input(bool[] year, double nutrition) => ColonyModelFixtures.Devilstrand() with
     {
-        Calendar = Known(new Calendar { DayOfYear = 58, GrowingYear = EquatableArray.From(year) }),
-        Climate = Known(ColonyModelFixtures.Climate() with { CurrentTwelfth = 11, TicksToNextTwelfth = 2 * GameTime.TicksPerDay }),
-        Pawns = Known(EquatableArray.From(new[] { new ModelPawn
+        Calendar = new Calendar { DayOfYear = 58, GrowingYear = EquatableArray.From(year) },
+        Climate = ColonyModelFixtures.Climate() with { CurrentTwelfth = 11, TicksToNextTwelfth = 2 * GameTime.TicksPerDay },
+        Pawns = EquatableArray.From(new[] { new ModelPawn
         {
-            Pawn = "Anna", Needs = EquatableArray.From(new[] { new ModelNeed { Kind = "food", Fall = 1d / GameTime.TicksPerDay, Gain = 0, Threshold = .3 } }),
-            Skills = Known(EquatableArray.From<WorkSkill>([])),
-        } })),
-        Stocks = new ModelStocks { Nutrition = Known(nutrition), Materials = Known(EquatableArray.From<Amount>([])), Medicine = Known(EquatableArray.From<Amount>([])) },
+            Pawn = "Anna", Needs = EquatableArray.From(new[] { new ModelNeed { Kind = "food", Fall = 1d / GameTime.TicksPerDay, Gain = 0, Threshold = .3, Service = new ModelService.NoneObserved() } }),
+            Skills = EquatableArray.From<WorkSkill>([]),
+            Consciousness = 1.0,
+            Moving = 1.0,
+            Manipulation = 1.0,
+            Sight = 1.0,
+            Talking = 1.0,
+            ComfortableMin = 16.0,
+            ComfortableMax = 26.0,
+            ResearchSpeed = 1.0,
+            PlantWorkSpeed = 1.0,
+            Hunts = false,
+        } }),
+        Stocks = new ModelStocks { Nutrition = nutrition, Materials = EquatableArray.From<Amount>([]), Medicine = EquatableArray.From<Amount>([]) },
     };
 
     private static PawnCycle[][] Cycles() => [Enumerable.Range(0, 12).Select(t => new PawnCycle
@@ -58,7 +68,7 @@ public sealed class ColonyCalendarContinuationTests
         var input = Input(Enumerable.Range(0, 60).Select(d => d >= 20).ToArray(), 24);
         var policy = Policy(-1);
         var whole = ColonyModel.Run(input, Cycles(), policy);
-        var carried = ColonyModelState.Observed(input, policy) with { Day = cut, Nutrition = Known(24 - 2 * cut) };
+        var carried = ColonyModelState.Observed(input, policy) with { Day = cut, Nutrition = 24 - 2 * cut };
         var resumed = ColonyModel.Run(input, carried, Cycles(), policy);
         Assert.Equal(1, whole.FoodRunwayDay!.Value, 9);
         Assert.Equal(whole.FoodRunwayDay!.Value, resumed.FoodRunwayDay!.Value, 9);
@@ -83,7 +93,7 @@ public sealed class ColonyCalendarContinuationTests
         var input = Input(Enumerable.Range(0, 60).Select(d => d < 35).ToArray(), 45);
         var policy = Policy(.7, 120);
         var whole = ColonyModel.Run(input, Cycles(), policy);
-        var carried = ColonyModelState.Observed(input, policy) with { Day = cut, Nutrition = Known(45 - .3 * cut) };
+        var carried = ColonyModelState.Observed(input, policy) with { Day = cut, Nutrition = 45 - .3 * cut };
         var resumed = ColonyModel.Run(input, carried, Cycles(), policy);
         Assert.InRange(whole.FoodRunwayDay!.Value, 60.5, 95);
         Assert.Equal(whole.FoodRunwayDay.Value, resumed.FoodRunwayDay!.Value, 9);
@@ -109,7 +119,7 @@ public sealed class ColonyCalendarContinuationTests
         var decoded = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.FoodClimate>(WireJson.Serialize(wire));
         var calendar = ColonyProductionReads.ColonyCalendar(decoded);
         Assert.Equal(year, calendar.Value.GrowingYear);
-        var input = Input(year, 25) with { Calendar = calendar };
+        var input = Input(year, 25) with { Calendar = calendar.Value };
         var policy = Policy(1);
         var whole = ColonyModel.Run(input, Cycles(), policy);
         var resumed = ColonyModel.Run(input, ColonyModelState.Observed(input, policy) with { Day = 20 }, Cycles(), policy);
@@ -132,7 +142,7 @@ public sealed class ColonyCalendarContinuationTests
     public void MissingAnnualReadIsUnknownRatherThanAnOriginBasedCrossing()
     {
         var input = Input([], 20);
-        Assert.Contains(input.Unknowns(), gap => gap.Contains("daily growing year", StringComparison.Ordinal));
+        Assert.Contains(input.Gaps(), gap => gap.Contains("daily growing year", StringComparison.Ordinal));
         var run = ColonyModel.Run(input, Cycles(), Policy(0));
         Assert.Contains("food_lead_unknown", run.Findings);
         Assert.Null(run.FoodRunwayDay);

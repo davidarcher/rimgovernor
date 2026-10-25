@@ -12,42 +12,39 @@ public sealed class ColonyModelInputTests
     [Fact]
     public void TheReviewFrameYieldsAValidInput()
     {
-        var (input, unknowns) = RoundsColonyModel.InputOf(ColonyModelFixtures.Projection());
+        var input = ColonyModelFixtures.ReadyOf(ColonyModelFixtures.Projection());
 
-        Assert.Empty(unknowns);
         Assert.True(input.Valid());
-        Assert.Equal(12, input.Climate.Value.Temperatures.Count);
-        Assert.Equal(4, input.Climate.Value.CurrentTwelfth);
-        Assert.Equal(40, input.Calendar.Value.GrowingDays);
-        var field = Assert.Single(input.Land.Value);
+        Assert.Empty(input.Gaps());
+        Assert.Equal(12, input.Climate.Temperatures.Count);
+        Assert.Equal(4, input.Climate.CurrentTwelfth);
+        Assert.Equal(40, input.Calendar.GrowingDays);
+        var field = Assert.Single(input.Land);
         Assert.Equal(("zone1", ColonyModelFixtures.Crop, false), (field.Id, field.Crop, field.Planned));
         Assert.Equal([0.5, 0.6, 0.7, 0.8], field.Fertility.Select(f => Math.Round(f, 6)));
-        Assert.Equal(12.5, input.Stocks.Nutrition.Value);
-        Assert.Equal([new Amount(new Resource("MedicineHerbal"), 4)], input.Stocks.Medicine.Value);
-        Assert.Equal(["DevilstrandCloth", "Steel"], input.Stocks.Materials.Value.Select(a => a.Resource.Value));
-        Assert.Equal(ColonyModelFixtures.Project, Assert.Single(input.Research.Value.Projects).Project.Value);
-        Assert.Empty(input.PlannedSites.Value);
+        Assert.Equal(12.5, input.Stocks.Nutrition);
+        Assert.Equal([new Amount(new Resource("MedicineHerbal"), 4)], input.Stocks.Medicine);
+        Assert.Equal(["DevilstrandCloth", "Steel"], input.Stocks.Materials.Select(a => a.Resource.Value));
+        Assert.Equal(ColonyModelFixtures.Project, Assert.Single(input.Research.Projects).Project.Value);
     }
 
     [Fact]
-    public void AFrameMissingTheClimateHasAnUnknownClimateAndNamesIt()
+    public void AFrameMissingTheClimateIsUnreadyAndNamesIt()
     {
         var projection = ColonyModelFixtures.Projection();
         projection = projection with { Facts = projection.Facts with { Gear = Unknown<GearObservation>() } };
 
-        var (input, unknowns) = RoundsColonyModel.InputOf(projection);
+        var read = RoundsColonyModel.InputOf(projection);
 
-        Assert.False(input.Climate.IsKnown);
-        Assert.False(input.Valid());
-        Assert.StartsWith("climate:", Assert.Single(unknowns));
+        var unready = Assert.IsType<ColonyModelInputRead.Unready>(read);
+        Assert.StartsWith("climate:", Assert.Single(unready.Gaps));
     }
 
     [Fact]
     public void TheCalendarAndEveryOtherUnreadSectionAreNamedNotDefaulted()
     {
-        var (input, unknowns) = RoundsColonyModel.InputOf(ColonyFactsCoreTests.Projection());
+        var unknowns = ColonyModelFixtures.GapsOf(ColonyFactsCoreTests.Projection());
 
-        Assert.False(input.Valid());
         foreach (var section in new[] { "climate:", "calendar:", "crops:", "research:", "stocks:", "pawns:", "recipes:", "sites:", "wildlife:" })
         {
             Assert.Contains(unknowns, u => u.StartsWith(section, StringComparison.Ordinal));
@@ -60,10 +57,10 @@ public sealed class ColonyModelInputTests
         var input = ColonyModelFixtures.Devilstrand();
 
         Assert.True(input.Valid());
-        var project = Assert.Single(input.Research.Value.Projects);
+        var project = Assert.Single(input.Research.Projects);
         Assert.Equal(800, project.Cost);
         Assert.Equal([ColonyModelFixtures.Prerequisite], project.Prerequisites.Select(p => p.Value));
-        var crop = Assert.Single(input.Crops.Value);
+        var crop = Assert.Single(input.Crops);
         Assert.Equal(10, crop.SowMinSkill.Value);
         Assert.Equal(400, crop.SowWork.Value);
         Assert.Equal(0.5, crop.FertilityMin.Value);
@@ -71,10 +68,10 @@ public sealed class ColonyModelInputTests
         Assert.Equal(6, crop.UnitsPerCell.Value);
         // 22.5 growing days at the 0.55 of a day a plant grows are about 41 calendar days.
         Assert.Equal(41, Math.Round(crop.GrowDays.Value / (1 - crop.RestingDayFraction.Value)));
-        var recipe = Assert.Single(input.Recipes.Value);
+        var recipe = Assert.Single(input.Recipes);
         Assert.Equal(10_000, recipe.WorkAmount);
         Assert.Equal(80, Assert.Single(Assert.Single(recipe.Slots)).Count);
-        var skills = Assert.Single(input.Pawns.Value).Skills.Value;
+        var skills = Assert.Single(input.Pawns).Skills;
         Assert.Equal(10, Assert.Single(skills).Level);
     }
 
@@ -88,12 +85,12 @@ public sealed class ColonyModelInputTests
     }
 
     [Fact]
-    public void ACropWithAnUnorderedBandIsNamedInTheUnknowns()
+    public void ACropWithAnUnorderedBandLeavesTheInputUnreadyAndIsNamed()
     {
         var projection = ColonyModelFixtures.Projection();
         projection = projection with { Definitions = [ColonyModelFixtures.CropRow() with { MinOptimalGrowthTemperature = Known(60.0) }] };
 
-        var (_, unknowns) = RoundsColonyModel.InputOf(projection);
+        var unknowns = ColonyModelFixtures.GapsOf(projection);
 
         Assert.Equal($"crops: {ColonyModelFixtures.Crop} lacks growth temperature band", Assert.Single(unknowns));
     }
@@ -109,7 +106,7 @@ public sealed class ColonyModelInputTests
             Cells = [.. projection.Cells, new SiteCell { Cell = new Cell(4, 0), Fertility = Known(1.1) }, new SiteCell { Cell = new Cell(5, 0), Fertility = Known(0.9) }],
         };
 
-        var planned = Assert.Single(RoundsColonyModel.InputOf(projection).Input.Land.Value, f => f.Planned);
+        var planned = Assert.Single(ColonyModelFixtures.ReadyOf(projection).Land, f => f.Planned);
 
         // Cells 2 and 3 already belong to the standing zone.
         Assert.Equal(("plan-0", ""), (planned.Id, planned.Crop));
@@ -117,15 +114,14 @@ public sealed class ColonyModelInputTests
     }
 
     [Fact]
-    public void ACellWithoutAFertilityReadingMakesTheLandUnknown()
+    public void ACellWithoutAFertilityReadingLeavesTheInputUnready()
     {
         var projection = ColonyModelFixtures.Projection();
         var plan = new LayoutPlan { Zones = [new LayoutZone { Kind = LayoutPlanRules.ZoneField, Runs = [new RowRun(0, 4, 2)] }] };
         projection = projection with { LayoutPlan = Known(plan), Cells = [.. projection.Cells, new SiteCell { Cell = new Cell(4, 0), Fertility = Known(1.1) }] };
 
-        var (input, unknowns) = RoundsColonyModel.InputOf(projection);
+        var unknowns = ColonyModelFixtures.GapsOf(projection);
 
-        Assert.False(input.Land.IsKnown);
         Assert.Contains(unknowns, u => u.StartsWith("land:", StringComparison.Ordinal));
     }
 
@@ -140,22 +136,22 @@ public sealed class ColonyModelInputTests
     [Fact]
     public void TheResearchBenchesAreTheBenchesTheNeedsReadCountsWhateverTheCurrentProjectIs()
     {
-        var input = RoundsColonyModel.InputOf(WithWorkRead(ColonyModelFixtures.Projection(), [1.0, 1.5], 0.8, 0.9)).Input;
+        var input = ColonyModelFixtures.ReadyOf(WithWorkRead(ColonyModelFixtures.Projection(), [1.0, 1.5], 0.8, 0.9));
 
-        Assert.Equal(2, input.Research.Value.Benches.Value);
-        var pawn = input.Pawns.Value[0];
+        Assert.Equal(2, input.Research.Benches);
+        var pawn = input.Pawns[0];
         // The researcher takes the best bench: the pawn's stat times the best factor.
-        Assert.Equal(1.2, pawn.ResearchSpeed.Value, 9);
-        Assert.Equal(0.9, pawn.PlantWorkSpeed.Value, 9);
+        Assert.Equal(1.2, pawn.ResearchSpeed, 9);
+        Assert.Equal(0.9, pawn.PlantWorkSpeed, 9);
     }
 
     [Fact]
-    public void ABenchlessColonyHasZeroBenchesAndNoResearchSpeed()
+    public void ABenchlessColonyHasZeroBenchesAndZeroResearchSpeed()
     {
-        var input = RoundsColonyModel.InputOf(WithWorkRead(ColonyModelFixtures.Projection(), [], 0.8, 1.2)).Input;
+        var input = ColonyModelFixtures.ReadyOf(WithWorkRead(ColonyModelFixtures.Projection(), [], 0.8, 1.2));
 
-        Assert.Equal(0, input.Research.Value.Benches.Value);
-        Assert.False(input.Pawns.Value[0].ResearchSpeed.IsKnown);
+        Assert.Equal(0, input.Research.Benches);
+        Assert.Equal(0, input.Pawns[0].ResearchSpeed);
     }
 
     [Fact]
@@ -163,13 +159,22 @@ public sealed class ColonyModelInputTests
     {
         // No bed and no recreation target: the rest need carries the ground recovery the game applies to a pawn lying down
         // without a bed, the joy need the walk a pawn takes without a building (#3825).
-        var (input, unknowns) = RoundsColonyModel.InputOf(NoBedNoRecreation(ColonyModelFixtures.Projection(), Walk));
+        var input = ColonyModelFixtures.ReadyOf(NoBedNoRecreation(ColonyModelFixtures.Projection(), Walk));
 
-        var needs = input.Pawns.Value[0].Needs;
+        var needs = input.Pawns[0].Needs;
         Assert.Equal(0.00002, needs.Single(n => n.Kind == "rest").Gain);
         Assert.Equal(Walk, needs.Single(n => n.Kind == "joy").Gain);
-        Assert.Empty(unknowns);
+        Assert.IsType<ModelService.NoneObserved>(needs.Single(n => n.Kind == "joy").Service);
+        Assert.IsType<ModelService.NoneObserved>(needs.Single(n => n.Kind == "rest").Service);
         Assert.True(input.Valid());
+    }
+
+    [Fact]
+    public void ABuiltTargetIsAnObservedServiceNotAnAbsentOne()
+    {
+        var input = ColonyModelFixtures.Devilstrand();
+
+        Assert.IsType<ModelService.Observed>(input.Pawns[0].Needs.Single(n => n.Kind == "food").Service);
     }
 
     [Fact]

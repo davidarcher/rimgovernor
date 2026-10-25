@@ -323,7 +323,7 @@ public sealed class StockArrivalCatalogTests
 
         // The model buys from day 3 at 0.2 a day and from day 5 at 0.2 + 1/3: 0.4 by day 5, the 9 of the target on day 21.125.
         var input = MedicineValueTests.Colony(6, 0);
-        var run = ColonyModel.Run(input, [.. input.Pawns.Value.Select(p => PawnCycle.Year(input, p).ToArray())], MedicineValueTests.Policy(0) with { MedicineTrade = trade });
+        var run = ColonyModel.Run(input, [.. input.Pawns.Select(p => PawnCycle.Year(input, p).ToArray())], MedicineValueTests.Policy(0) with { MedicineTrade = trade });
         var stop = run.Events.First(e => e is { Kind: ModelEventKind.MedicineTrade, Id: "stop" });
         Assert.Equal(21.125, stop.Day, 9);
         Assert.Equal(9, stop.Levels[(int)ModelStock.Medicine], 9);

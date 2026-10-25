@@ -20,8 +20,8 @@ public static class ColonyModel
 
     /// <summary>
     /// Steps the colony over <see cref="ColonyModelPolicy.HorizonDays"/>. <paramref name="cycles"/> holds one <see cref="PawnCycle.Year"/>
-    /// per pawn of the input, in the input's order; each twelfth entered contributes its findings. An input without pawns, nutrition or
-    /// a climate runs nothing and says so.
+    /// per pawn of the input, in the input's order; each twelfth entered contributes its findings. An input whose other-consumer demand is not a
+    /// finite non-negative number runs nothing and says so.
     /// </summary>
     public static ColonyTrajectory Run(ColonyModelInput input, PawnCycle[][] cycles, ColonyModelPolicy policy) =>
         Run(input, ColonyModelState.Observed(input, policy), cycles, policy);
@@ -31,10 +31,13 @@ public static class ColonyModel
     {
         DomainException.Require(policy.HorizonDays > 0 && policy.MaxEvents > 0, "invalid colony model policy");
         var findings = new SortedSet<string>(StringComparer.Ordinal) { ColonyTrajectory.MoodUnassessedFinding };
-        if (!start.Pawns.TryGetValue(out var pawns) || !start.Nutrition.TryGetValue(out var nutrition) || !input.Climate.TryGetValue(out var climate)
-            || !input.OtherNutritionPerDay.TryGetValue(out var otherNutrition) || !double.IsFinite(otherNutrition) || otherNutrition < 0)
+        var pawns = start.Pawns;
+        var nutrition = start.Nutrition;
+        var climate = input.Climate;
+        var otherNutrition = input.OtherNutritionPerDay;
+        if (!double.IsFinite(otherNutrition) || otherNutrition < 0)
         {
-            findings.Add("colony_model_input_unknown");
+            findings.Add("colony_model_input_invalid");
             return new ColonyTrajectory { Findings = EquatableArray.From(findings) };
         }
 
@@ -44,18 +47,14 @@ public static class ColonyModel
             return new ColonyTrajectory { Findings = EquatableArray.From(findings) };
         }
 
-        // Preserve the observed-origin model's partial trajectories. Carried runs require these stocks; origin gaps remain
-        // explicit findings, so callers must not treat an unobserved stock's placeholder aggregate as measured zero.
-        if (!start.Materials.IsKnown) findings.Add("colony_model_materials_unknown");
-        if (!start.Medicine.IsKnown) findings.Add("colony_model_medicine_unknown");
         DomainException.Require(cycles.Length == pawns.Count && cycles.All(c => c.Length == Twelfths), "one twelve-entry cycle per pawn");
         var levels = new double[StockNames.Length];
         levels[(int)ModelStock.Nutrition] = nutrition;
         levels[(int)ModelStock.ResearchPoints] = start.ResearchPoints;
-        levels[(int)ModelStock.Materials] = start.Materials.TryGetValue(out var materials) ? materials.Sum(a => a.Count) : 0;
+        levels[(int)ModelStock.Materials] = start.Materials.Sum(a => a.Count);
         // Medicine is held by kind, used up best first; the stock is their sum.
-        var kinds = start.Medicine.TryGetValue(out var medicine) ? medicine.Select(a => a.Resource).ToArray() : [];
-        var held = start.Medicine.TryGetValue(out medicine) ? medicine.Select(a => (double)a.Count).ToArray() : [];
+        var kinds = start.Medicine.Select(a => a.Resource).ToArray();
+        var held = start.Medicine.Select(a => (double)a.Count).ToArray();
         if (policy.Injected is { } injected && Array.FindIndex(kinds, k => ProjectGraph.MedicineKey(k) == injected.Node) is var bumped and >= 0)
         {
             held[bumped] += injected.Work;
@@ -122,8 +121,8 @@ public static class ColonyModel
 
         var medicineBase = net[(int)ModelStock.Medicine];
 
-        var calendarKnown = input.Calendar.TryGetValue(out var calendar)
-            && calendar.Valid() && calendar.GrowingYear.Count == CalendarRules.YearDays;
+        var calendar = input.Calendar;
+        var calendarKnown = calendar.Valid() && calendar.GrowingYear.Count == CalendarRules.YearDays;
         if (!calendarKnown) findings.Add("food_lead_unknown");
         var graph = new ProjectRun(input, start, [.. pawns], cycles, policy.Projects, policy.Injected, start.EndDay, findings);
         var scheduled = policy.Scheduled.Where(e => start.Day == 0 ? e.Day >= 0 : e.Day > start.Day).OrderBy(e => e.Day).ThenBy(e => e.Kind).ThenBy(e => e.Id, StringComparer.Ordinal).ToArray();
@@ -262,7 +261,7 @@ public static class ColonyModel
 
             // Stocks and the seasonal reserve both move. Scan its native daily segments up to the next
             // physical event, including phase-in knees; a restart uses the same review-relative calendar.
-            if (runway is null && calendarKnown && CalendarRunway.Crossing(calendar!, now, when,
+            if (runway is null && calendarKnown && CalendarRunway.Crossing(calendar, now, when,
                 levels[(int)ModelStock.Nutrition], net[(int)ModelStock.Nutrition], consumption) is { } crossing)
             {
                 Consider(crossing, ModelEventKind.FoodRunway, "");

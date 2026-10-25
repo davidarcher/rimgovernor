@@ -124,15 +124,13 @@ public sealed record ProjectGraph
     /// </summary>
     public static ProjectGraph Standing(ColonyModelInput input, IReadOnlyList<GearOption> options, RaidThreat? threat)
     {
-        var graph = input.Research.TryGetValue(out var research) && !research.Current.IsEmpty ? ResearchChain(input, research.Current) : new ProjectGraph();
-        var knowledge = research is null ? new ProjectGraph() : Knowledge(input, research, options);
-        if (input.Land.TryGetValue(out var land))
+        var research = input.Research;
+        var graph = !research.Current.IsEmpty ? ResearchChain(input, research.Current) : new ProjectGraph();
+        var knowledge = Knowledge(input, research, options);
+        foreach (var field in input.Land.Where(f => f.Crop.Length > 0))
         {
-            foreach (var field in land.Where(f => f.Crop.Length > 0))
-            {
-                var gates = input.Crops.TryGetValue(out var crops) && crops.FirstOrDefault(c => c.Name == field.Crop) is { } choice ? choice.Research : default;
-                graph = graph.Then(CropChain(input, field.Crop, field.Id, gates));
-            }
+            var gates = input.Crops.FirstOrDefault(c => c.Name == field.Crop) is { } choice ? choice.Research : default;
+            graph = graph.Then(CropChain(input, field.Crop, field.Id, gates));
         }
 
         graph = graph.Then(Hunts(input));
@@ -159,11 +157,11 @@ public sealed record ProjectGraph
     /// </summary>
     public static ProjectGraph Garments(ColonyModelInput input, ProjectGraph sources, IReadOnlyList<GearOption> options, RaidThreat threat)
     {
-        var held = input.Stocks.Materials.TryGetValue(out var materials) ? materials.GroupBy(a => a.Resource).ToDictionary(g => g.Key, g => g.Sum(a => a.Count)) : [];
+        var held = input.Stocks.Materials.GroupBy(a => a.Resource).ToDictionary(g => g.Key, g => g.Sum(a => a.Count));
         var yielded = new HashSet<Resource>();
         foreach (var node in sources.Nodes)
         {
-            if (node.Kind == ProjectKind.Harvest && input.Crops.TryGetValue(out var crops) && crops.FirstOrDefault(c => c.Name == node.Crop) is { } crop
+            if (node.Kind == ProjectKind.Harvest && input.Crops.FirstOrDefault(c => c.Name == node.Crop) is { } crop
                 && crop.Harvests.TryGetValue(out var harvested))
             {
                 yielded.Add(harvested);
@@ -248,12 +246,7 @@ public sealed record ProjectGraph
     /// </summary>
     public static ProjectGraph Hunts(ColonyModelInput input)
     {
-        if (!input.Wildlife.TryGetValue(out var herds))
-        {
-            return Gap("wildlife_unknown");
-        }
-
-        var nodes = herds.Select(h => new ProjectNode
+        var nodes = input.Wildlife.Select(h => new ProjectNode
         {
             Id = HuntId(h.Race),
             Kind = ProjectKind.Hunt,
@@ -275,11 +268,7 @@ public sealed record ProjectGraph
     /// </summary>
     public static ProjectGraph ResearchChain(ColonyModelInput input, ResearchProjectId project)
     {
-        if (!input.Research.TryGetValue(out var research))
-        {
-            return Gap("research_unknown");
-        }
-
+        var research = input.Research;
         var nodes = new List<ProjectNode>();
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var done = research.Finished.ToHashSet();
@@ -323,12 +312,12 @@ public sealed record ProjectGraph
     public static ProjectGraph CropChain(ColonyModelInput input, string crop, string field, EquatableArray<ResearchProjectId> gates = default)
     {
         var research = gates.Aggregate(new ProjectGraph(), (graph, gate) => graph.Then(ResearchChain(input, gate)));
-        if (!input.Crops.TryGetValue(out var crops) || crops.FirstOrDefault(c => c.Name == crop) is not { } choice)
+        if (input.Crops.FirstOrDefault(c => c.Name == crop) is not { } choice)
         {
             return research.Then(Gap($"crop_unknown:{crop}"));
         }
 
-        if (!input.Land.TryGetValue(out var land) || land.FirstOrDefault(f => f.Id == field) is not { } zone)
+        if (input.Land.FirstOrDefault(f => f.Id == field) is not { } zone)
         {
             return research.Then(Gap($"field_unknown:{field}"));
         }
@@ -365,7 +354,7 @@ public sealed record ProjectGraph
     /// </summary>
     public static ProjectGraph Craft(ColonyModelInput input, string recipe, EquatableArray<string> after, bool productsToStock, int copies = 1, Resource? stuff = null)
     {
-        if (!input.Recipes.TryGetValue(out var recipes) || recipes.FirstOrDefault(r => r.Recipe == recipe) is not { } row)
+        if (input.Recipes.FirstOrDefault(r => r.Recipe == recipe) is not { } row)
         {
             return Gap($"recipe_unknown:{recipe}");
         }

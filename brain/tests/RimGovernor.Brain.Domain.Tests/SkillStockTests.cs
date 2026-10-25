@@ -29,20 +29,20 @@ public sealed class SkillStockTests
     /// <summary>The pawn with a Medicine skill on the mechanics, and each of <paramref name="others"/> on the same mechanics.</summary>
     internal static ModelPawn WithMedicine(ModelPawn pawn, SkillLearning mechanics, params string[] others) => pawn with
     {
-        Skills = Known(EquatableArray.From(others.Prepend("Medicine").Select(name => new WorkSkill { Name = name, Learning = mechanics }))),
+        Skills = EquatableArray.From(others.Prepend("Medicine").Select(name => new WorkSkill { Name = name, Learning = mechanics })),
     };
 
     /// <summary>Anna alone, with the skills of <see cref="WithMedicine"/>.</summary>
     private static ColonyModelInput Anna(SkillLearning mechanics, params string[] others)
     {
         var input = ProjectGraphTests.Colony();
-        return input with { Pawns = Known(EquatableArray.From(new[] { WithMedicine(ProjectGraphTests.Pawn("Anna", null, null), mechanics, others) })) };
+        return input with { Pawns = EquatableArray.From(new[] { WithMedicine(ProjectGraphTests.Pawn("Anna", null, null), mechanics, others) }) };
     }
 
     private static ColonyModelPolicy Policy(ProjectGraph graph) => new() { MedicineTendsPerDay = Known(0.0), Projects = graph };
 
     private static SkillStock Stock(SkillLearning mechanics) =>
-        SkillStock.Of(new ModelPawn { Pawn = "Anna", Skills = Known(EquatableArray.From(new[] { new WorkSkill { Name = "Medicine", Learning = mechanics } })) }, new SortedSet<string>()).Single();
+        SkillStock.Of(new ModelPawn { Pawn = "Anna", Skills = EquatableArray.From(new[] { new WorkSkill { Name = "Medicine", Learning = mechanics } }), Consciousness = 1.0, Moving = 1.0, Manipulation = 1.0, Sight = 1.0, Talking = 1.0, ComfortableMin = 16.0, ComfortableMax = 26.0, ResearchSpeed = 1.0, PlantWorkSpeed = 1.0, Hunts = false }, new SortedSet<string>()).Single();
 
     // A value that rises with the Medicine level: the level-days it stands over the horizon.
     internal sealed class LevelDays(double horizon) : ITrajectoryValue
@@ -74,15 +74,6 @@ public sealed class SkillStockTests
             new(Known(trajectory.MedicineKinds.Select((k, i) => weights[k.Value] * trajectory.Events[^1].Medicine[i]).Sum()), []);
 
         public double GoalValue(GoalTerminal goal, double? completionDay) => 0;
-    }
-
-    [Fact]
-    public void APawnWhoseSkillsAreUnreadIsNamedNotSilent()
-    {
-        // #3663: a review read without the biography left every stock out with no finding.
-        var findings = new SortedSet<string>(StringComparer.Ordinal);
-        Assert.Empty(SkillStock.Of(new ModelPawn { Pawn = "Anna" }, findings));
-        Assert.Equal(["skill_stock_unknown:Anna:skills_unread"], findings);
     }
 
     [Fact]
@@ -167,7 +158,7 @@ public sealed class SkillStockTests
         {
             Stocks = ProjectGraphTests.Colony().Stocks with
             {
-                Medicine = Known(EquatableArray.From(new[] { new Amount(new Resource("MedicineIndustrial"), 5), new Amount(new Resource("MedicineHerbal"), 13) })),
+                Medicine = EquatableArray.From(new[] { new Amount(new Resource("MedicineIndustrial"), 5), new Amount(new Resource("MedicineHerbal"), 13) }),
             },
         };
         var weights = new Dictionary<string, double> { ["MedicineIndustrial"] = 3, ["MedicineHerbal"] = 1 };

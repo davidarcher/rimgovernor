@@ -25,8 +25,8 @@ public sealed class MedicineValueTests
         var input = ProjectGraphTests.Colony();
         return input with
         {
-            Pawns = Known(EquatableArray.From(new[] { doctor })),
-            Stocks = input.Stocks with { Medicine = Known(EquatableArray.From(new[] { new Amount(new Resource(Industrial), medicine) })) },
+            Pawns = EquatableArray.From(new[] { doctor }),
+            Stocks = input.Stocks with { Medicine = EquatableArray.From(new[] { new Amount(new Resource(Industrial), medicine) }) },
         };
     }
 
@@ -65,7 +65,7 @@ public sealed class MedicineValueTests
 
     private static double Priced(ColonyModelInput input, HarmInputs? harm = null, double tends = 0)
     {
-        var trajectory = ColonyModel.Run(input, [.. input.Pawns.Value.Select(p => PawnCycle.Year(input, p).ToArray())], Policy(tends));
+        var trajectory = ColonyModel.Run(input, [.. input.Pawns.Select(p => PawnCycle.Year(input, p).ToArray())], Policy(tends));
         var result = Value(input, harm).Price(trajectory);
         Assert.Empty(result.Unpriced);
         return result.Value.Value;
@@ -115,7 +115,7 @@ public sealed class MedicineValueTests
         // #3868: 30 industrial medicine held, tended at 1 a day, crafted at 2 a day toward a target of 3.
         double Held(ColonyModelInput input, ColonyModelPolicy policy, double day)
         {
-            var trajectory = ColonyModel.Run(input, [.. input.Pawns.Value.Select(p => PawnCycle.Year(input, p).ToArray())], policy);
+            var trajectory = ColonyModel.Run(input, [.. input.Pawns.Select(p => PawnCycle.Year(input, p).ToArray())], policy);
             // The stock moves at a constant rate between events: interpolate at the day.
             var (from, at) = (0.0, trajectory.StartMedicine.Sum());
             foreach (var e in trajectory.Events)
@@ -155,11 +155,11 @@ public sealed class MedicineValueTests
     private static ColonyModelInput Stocked(double industrial, double herbal)
     {
         var input = Colony(6, 0);
-        return input with { Stocks = input.Stocks with { Medicine = Known(EquatableArray.From(new[] { new Amount(new Resource(Industrial), (long)industrial), new Amount(Herbal, (long)herbal) })) } };
+        return input with { Stocks = input.Stocks with { Medicine = EquatableArray.From(new[] { new Amount(new Resource(Industrial), (long)industrial), new Amount(Herbal, (long)herbal) }) } };
     }
 
     private static ColonyTrajectory Run(ColonyModelInput input, ColonyModelPolicy policy) =>
-        ColonyModel.Run(input, [.. input.Pawns.Value.Select(p => PawnCycle.Year(input, p).ToArray())], policy);
+        ColonyModel.Run(input, [.. input.Pawns.Select(p => PawnCycle.Year(input, p).ToArray())], policy);
 
     private static (double Day, double Industrial, double Herbal) At(ColonyTrajectory run, string id)
     {
@@ -226,7 +226,7 @@ public sealed class MedicineValueTests
         // 0.8 × 0.3 without; the horizon's average falls when the stock runs out, and crafting toward the target keeps it up.
         ForecastTending Tending(ColonyModelInput input, ColonyModelPolicy policy)
         {
-            var trajectory = ColonyModel.Run(input, [.. input.Pawns.Value.Select(p => PawnCycle.Year(input, p).ToArray())], policy);
+            var trajectory = ColonyModel.Run(input, [.. input.Pawns.Select(p => PawnCycle.Year(input, p).ToArray())], policy);
             var tending = Value(input).TendingOverHorizon(trajectory, new SortedSet<string>(StringComparer.Ordinal));
             Assert.NotNull(tending);
             Assert.True(tending.Tended);
@@ -275,7 +275,7 @@ public sealed class MedicineValueTests
     public void AnUnassessedIllnessThrowsRatherThanPricingTheRaidsAlone()
     {
         var input = Colony(6, 1000);
-        var trajectory = ColonyModel.Run(input, [.. input.Pawns.Value.Select(p => PawnCycle.Year(input, p).ToArray())], Policy());
+        var trajectory = ColonyModel.Run(input, [.. input.Pawns.Select(p => PawnCycle.Year(input, p).ToArray())], Policy());
         var unread = Value(input, ForecastValueTests.RaidDay() with { Illness = new() { Findings = ["disease_facts_unobserved"] } });
 
         Assert.Equal("illness_schedule", Assert.Throws<RequiredFactException>(() => unread.Price(trajectory)).Fact);

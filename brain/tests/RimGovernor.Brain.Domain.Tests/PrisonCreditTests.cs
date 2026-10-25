@@ -89,7 +89,7 @@ public sealed class PrisonCreditTests
             ForecastCoupled.TierOneHorizonDays, facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), coupled);
         var chosen = selected.Selection.Selected.ToHashSet(StringComparer.Ordinal);
         var input = ColonyModelFixtures.Devilstrand();
-        input = input with { Pawns = Known(EquatableArray.From(input.Pawns.Value.Select(p => p with { Pawn = "pawn" }))) };
+        input = input with { Pawns = EquatableArray.From(input.Pawns.Select(p => p with { Pawn = "pawn" })) };
         var context = coupled.Context with
         {
             ModelBasis = new(input, new()),
@@ -101,7 +101,7 @@ public sealed class PrisonCreditTests
             Closures = [new(1, "", [], [], [], PlannedRoomPredictionTests.Closed("1", "", "PrisonCell", 40d, 3, 9, 0, false) with { Beds = ["Bed"] })],
         };
         // The colonist's needs read as tier 2 models them (RoundsColonyModel.InputOf reads the model's needs from it), at bed effectiveness 1.
-        EquatableArray<NeedRate> rates = [.. input.Pawns.Value[0].Needs.Select(n => NeedsFixtures.Rate(n.Kind, 0.5, n.Fall, n.Threshold) with
+        EquatableArray<NeedRate> rates = [.. input.Pawns[0].Needs.Select(n => NeedsFixtures.Rate(n.Kind, 0.5, n.Fall, n.Threshold) with
         {
             OutdoorShareByTwelfth = n.OutdoorShares, GainPerTickPerEffectiveness = 1,
         })];

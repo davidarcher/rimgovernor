@@ -16,13 +16,21 @@ public sealed class ColonyModelTests
         Pawn = name,
         Needs = EquatableArray.From(new[]
         {
-            new ModelNeed { Kind = "rest", Fall = 0.00001, Gain = 0.00002, Threshold = 0.28 },
-            new ModelNeed { Kind = "food", Fall = 0.00002, Threshold = 0.3, GainPerUse = Known(0.6), ServiceTicks = Known(400.0), ApproachTicks = Known(100.0), Gain = 0 },
-            new ModelNeed { Kind = "joy", Fall = 0.00001, Gain = 0.00015, Threshold = 0.3 },
+            new ModelNeed { Kind = "rest", Fall = 0.00001, Gain = 0.00002, Threshold = 0.28, Service = new ModelService.NoneObserved() },
+            new ModelNeed { Kind = "food", Fall = 0.00002, Threshold = 0.3, Service = new ModelService.Observed(0.6, 400.0, 100.0), Gain = 0 },
+            new ModelNeed { Kind = "joy", Fall = 0.00001, Gain = 0.00015, Threshold = 0.3, Service = new ModelService.NoneObserved() },
         }),
-        Skills = Known(EquatableArray.From(new[] { new WorkSkill { Name = "Plants", Level = 10 } })),
-        ComfortableMin = Known(16.0),
-        ComfortableMax = Known(26.0),
+        Skills = EquatableArray.From(new[] { new WorkSkill { Name = "Plants", Level = 10 } }),
+        ComfortableMin = 16.0,
+        ComfortableMax = 26.0,
+        Consciousness = 1.0,
+        Moving = 1.0,
+        Manipulation = 1.0,
+        Sight = 1.0,
+        Talking = 1.0,
+        ResearchSpeed = 1.0,
+        PlantWorkSpeed = 1.0,
+        Hunts = false,
     };
 
     private static readonly string[] Names = ["Anna", "Bo", "Cy", "Di"];
@@ -33,17 +41,17 @@ public sealed class ColonyModelTests
         var pawns = EquatableArray.From(Names.Select(Worker));
         return input with
         {
-            Pawns = Known(pawns),
-            Stocks = new ModelStocks { Nutrition = Known(nutrition), Materials = Known(EquatableArray.From(new[] { new Amount(new Resource("Steel"), 120) })), Medicine = Known(EquatableArray.From(new[] { new Amount(new Resource("MedicineHerbal"), 13) })) },
+            Pawns = pawns,
+            Stocks = new ModelStocks { Nutrition = nutrition, Materials = EquatableArray.From(new[] { new Amount(new Resource("Steel"), 120) }), Medicine = EquatableArray.From(new[] { new Amount(new Resource("MedicineHerbal"), 13) }) },
         };
     }
 
-    private static PawnCycle[][] Cycles(ColonyModelInput input) => [.. input.Pawns.Value.Select(p => PawnCycle.Year(input, p).ToArray())];
+    private static PawnCycle[][] Cycles(ColonyModelInput input) => [.. input.Pawns.Select(p => PawnCycle.Year(input, p).ToArray())];
 
     private static ColonyTrajectory Run(ColonyModelInput input, ColonyModelPolicy? policy = null) => ColonyModel.Run(input, Cycles(input), policy ?? new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0) });
 
     private static double Lead(ColonyModelInput input) =>
-        CalendarRules.HarvestGapDays(input.Calendar, EquatableArray.From(Array.Empty<DisasterCondition>())).Value;
+        CalendarRules.HarvestGapDays(Known(input.Calendar), EquatableArray.From(Array.Empty<DisasterCondition>())).Value;
 
     [Fact]
     public void BetweenEventsEachStockChangesByItsIntegratedFlow()
@@ -159,7 +167,7 @@ public sealed class ColonyModelTests
     public void UnknownRatesAreReportedNeverDefaulted()
     {
         var input = Colony(100);
-        var noFall = input with { Pawns = Known(EquatableArray.From(input.Pawns.Value.Select((p, i) => i == 0 ? p with { Needs = default } : p))) };
+        var noFall = input with { Pawns = EquatableArray.From(input.Pawns.Select((p, i) => i == 0 ? p with { Needs = default } : p)) };
 
         var trajectory = Run(noFall, new ColonyModelPolicy());
 
@@ -169,12 +177,4 @@ public sealed class ColonyModelTests
         Assert.Equal(100 / 3.6, trajectory.Events.Single(e => e.Kind == ModelEventKind.StockZero).Day, 9);
     }
 
-    [Fact]
-    public void AnInputWithoutPawnsRunsNothing()
-    {
-        var trajectory = ColonyModel.Run(new ColonyModelInput(), [], new ColonyModelPolicy());
-
-        Assert.Empty(trajectory.Events);
-        Assert.Contains("colony_model_input_unknown", trajectory.Findings);
-    }
 }

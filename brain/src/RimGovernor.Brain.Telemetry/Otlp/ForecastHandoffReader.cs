@@ -10,11 +10,10 @@ public static class ForecastHandoffReader
     public const string Key = "handoff";
     public static Dictionary<string, object?>? Fields(ForecastHandoff? handoff) => handoff is null ? null : new()
     {
-        ["day"] = handoff.State.Day, ["end_day"] = handoff.State.EndDay,
+        ["day"] = handoff.Day, ["end_day"] = handoff.EndDay,
         ["available"] = handoff.Gaps.Count == 0, ["gaps"] = handoff.Gaps.ToArray(),
-        ["nutrition"] = handoff.State.Nutrition.IsKnown ? handoff.State.Nutrition.Value : null,
-        ["materials_known"] = handoff.State.Materials.IsKnown, ["holds_known"] = handoff.State.ExternalHolds.IsKnown,
-        ["medicine_known"] = handoff.State.Medicine.IsKnown,
+        ["nutrition"] = handoff.State?.Nutrition,
+        ["state_read"] = handoff.State is not null,
         ["graph_nodes"] = handoff.Graph.Nodes.Count,
         ["active_outfits"] = handoff.ActiveEffects.Sum(c => c.Effect.OutfitChanges.Count),
         ["shelters"] = handoff.Shelters.Count(s => s.CompleteAt.IsKnown),

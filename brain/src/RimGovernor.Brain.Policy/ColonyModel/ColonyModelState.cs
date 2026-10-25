@@ -1,5 +1,3 @@
-using static RimGovernor.Brain.Domain.Fact;
-
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>A divisible projected stock; unlike native Amount, forecast consumption can leave fractional units.</summary>
@@ -23,14 +21,14 @@ public sealed record ColonyModelState
 {
     public double Day { get; init; }
     public double EndDay { get; init; }
-    public Fact<double> Nutrition { get; init; }
+    public required double Nutrition { get; init; }
     /// <summary>Research produced since the original review, separate from each project's remaining work.</summary>
     public double ResearchPoints { get; init; }
-    public Fact<EquatableArray<ModelResourceStock>> Materials { get; init; }
-    public Fact<EquatableArray<ModelResourceStock>> Medicine { get; init; }
-    public Fact<EquatableArray<ModelResourceStock>> ExternalHolds { get; init; }
-    public Fact<EquatableArray<ModelProjectState>> Projects { get; init; }
-    public Fact<EquatableArray<ModelPawn>> Pawns { get; init; }
+    public required EquatableArray<ModelResourceStock> Materials { get; init; }
+    public required EquatableArray<ModelResourceStock> Medicine { get; init; }
+    public required EquatableArray<ModelResourceStock> ExternalHolds { get; init; }
+    public required EquatableArray<ModelProjectState> Projects { get; init; }
+    public required EquatableArray<ModelPawn> Pawns { get; init; }
 
     /// <summary>The ordinary observed-origin entry, shared by the production baseline and marginal perturbations.</summary>
     public static ColonyModelState Observed(ColonyModelInput input, ColonyModelPolicy policy) => new()
@@ -39,13 +37,13 @@ public sealed record ColonyModelState
         Nutrition = input.Stocks.Nutrition,
         Materials = Stocks(input.Stocks.Materials),
         Medicine = Stocks(input.Stocks.Medicine),
-        ExternalHolds = Known(EquatableArray.From<ModelResourceStock>([])),
-        Projects = Known(EquatableArray.From(policy.Projects.Nodes.Select(n => new ModelProjectState(n.Id, n.Work, ModelProjectStatus.Waiting, ModelProjectInputs.Unpaid, false)))),
+        ExternalHolds = EquatableArray.From<ModelResourceStock>([]),
+        Projects = EquatableArray.From(policy.Projects.Nodes.Select(n => new ModelProjectState(n.Id, n.Work, ModelProjectStatus.Waiting, ModelProjectInputs.Unpaid, false))),
         Pawns = input.Pawns,
     };
 
-    private static Fact<EquatableArray<ModelResourceStock>> Stocks(Fact<EquatableArray<Amount>> amounts) =>
-        amounts.TryGetValue(out var rows) ? Known(EquatableArray.From(rows.Select(a => new ModelResourceStock(a.Resource, a.Count)))) : default;
+    private static EquatableArray<ModelResourceStock> Stocks(EquatableArray<Amount> amounts) =>
+        EquatableArray.From(amounts.Select(a => new ModelResourceStock(a.Resource, a.Count)));
 
     internal string? Gap(ProjectGraph graph)
     {
@@ -54,17 +52,9 @@ public sealed record ColonyModelState
             return "colony_model_time_invalid";
         }
 
-        var materialKnown = Materials.TryGetValue(out var materials);
-        var medicineKnown = Medicine.TryGetValue(out var medicine);
-        if (!Nutrition.TryGetValue(out var nutrition) || Day > 0 && (!materialKnown || !medicineKnown)
-            || !ExternalHolds.TryGetValue(out var holds) || !Projects.TryGetValue(out var projects) || !Pawns.IsKnown)
-        {
-            return "colony_model_state_unknown";
-        }
-
-        var materialRows = materialKnown ? materials : EquatableArray.From<ModelResourceStock>([]);
-        var medicineRows = medicineKnown ? medicine : EquatableArray.From<ModelResourceStock>([]);
-        if (!double.IsFinite(nutrition) || nutrition < 0 || !double.IsFinite(ResearchPoints) || ResearchPoints < 0 || materialRows.Concat(medicineRows).Concat(holds).Any(a => !double.IsFinite(a.Count) || a.Count < 0))
+        var holds = ExternalHolds;
+        var projects = Projects;
+        if (!double.IsFinite(Nutrition) || Nutrition < 0 || !double.IsFinite(ResearchPoints) || ResearchPoints < 0 || Materials.Concat(Medicine).Concat(holds).Any(a => !double.IsFinite(a.Count) || a.Count < 0))
         {
             return "colony_model_stock_invalid";
         }
@@ -92,13 +82,8 @@ public sealed record ColonyModelState
 
         var reserved = holds.Concat(projects.Where(p => p.Inputs == ModelProjectInputs.Held)
             .SelectMany(p => byId[p.Id].Ingredients.Select(a => new ModelResourceStock(a.Resource, a.Count)))).ToArray();
-        if (reserved.Length > 0 && !materialKnown)
-        {
-            return "colony_model_holds_stock_unknown";
-        }
-
         // Duplicate census/hold rows are summed, never last-wins.
-        var physical = materialRows.GroupBy(a => a.Resource).ToDictionary(g => g.Key, g => g.Sum(a => a.Count));
+        var physical = Materials.GroupBy(a => a.Resource).ToDictionary(g => g.Key, g => g.Sum(a => a.Count));
         if (reserved.GroupBy(a => a.Resource).Any(g => g.Sum(a => a.Count) > physical.GetValueOrDefault(g.Key)))
         {
             return "colony_model_holds_exceed_stock";

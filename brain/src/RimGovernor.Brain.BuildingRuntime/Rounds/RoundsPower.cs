@@ -29,7 +29,7 @@ public sealed partial class RoundsBuildingPlanner
         planning = planning with
         {
             Generators = generators,
-            DaylightHours = RoundsColonyModel.ClimateOf(facts.Facts.Gear).TryGetValue(out var climate) ? climate.DaylightHoursIn(climate.CurrentTwelfth) : default,
+            DaylightHours = facts.Facts.Gear.TryGetValue(out var gear) ? gear.Climate.DaylightHoursIn(gear.Climate.CurrentTwelfth) : default,
             Sources = facts.PowerSources,
             Battery = facts.PowerBattery,
             Light = facts.LightTerrains,

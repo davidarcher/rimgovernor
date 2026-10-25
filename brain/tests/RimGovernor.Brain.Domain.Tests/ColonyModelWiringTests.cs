@@ -42,6 +42,19 @@ public sealed class ColonyModelWiringTests
     }
 
     [Fact]
+    public void AFrameThatLeavesTheInputUnreadyReviewsToNoRunNoBasisAndNamesTheGaps()
+    {
+        var frame = ColonyFactsCoreTests.Projection();
+
+        var review = RoundsColonyModel.Review(frame, Context(ForecastValueTests.RaidDay()), null);
+
+        Assert.Null(review.Basis);
+        Assert.Contains("colony_model_input_unready", review.Marginals.Findings);
+        Assert.Empty(review.Marginals.Trajectory.Events);
+        Assert.Contains(review.Unknowns, u => u.StartsWith("climate:", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void AReviewBuildsTheResearchGateTheCropChainAndTheCraftNodeAndPricesThemByTheHarmLedger()
     {
         var review = RoundsColonyModel.Review(Frame(), Context(ForecastValueTests.RaidDay()), null);
@@ -100,7 +113,7 @@ public sealed class ColonyModelWiringTests
     [Fact]
     public void EachReachableStuffAndSlotIsAGarmentNodeOfTheDefWithTheMostArmor()
     {
-        var (input, _) = RoundsColonyModel.InputOf(Frame());
+        var input = ColonyModelFixtures.ReadyOf(Frame());
         var better = BillDuster() with { ID = "bill:Apparel_Parka/DevilstrandCloth", Definition = new Resource("Apparel_Parka"), Sharp = 0.9 };
         var cotton = BillDuster() with { ID = "bill:Apparel_Duster/Cloth", Stuff = new Resource("Cloth"), Sharp = 0.99 };
         ProjectNode[] Garments(ProjectGraph graph) => [.. graph.Nodes.Where(n => n.Kind == ProjectKind.Craft)];

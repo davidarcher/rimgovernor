@@ -12,7 +12,8 @@ namespace RimGovernor.Brain.BuildingRuntime;
 internal sealed record ColonyModelReview(ProjectMarginals Marginals, IReadOnlyList<string> Unknowns, double HorizonDays, double ElapsedMs, IReadOnlyDictionary<string, int> Etas, IReadOnlyList<string> GoalNotes,
     IReadOnlyDictionary<(PawnId Pawn, GearSlot Slot), Resource> ClothingStuff)
 {
-    internal required ForecastModelBasis Basis { get; init; }
+    /// <summary>What the review ran from; null when the frame left the input unready (<see cref="Unknowns"/> names why).</summary>
+    internal ForecastModelBasis? Basis { get; init; }
     /// <summary>The tending a wound gets over the horizon (<see cref="ColonyValue.TendingOverHorizon"/>, #3804, #3868); null when unread.</summary>
     internal ForecastTending? Tending { get; init; }
     /// <summary>The <see cref="ColonyModelTelemetry.Kind"/> row's attrs.</summary>
@@ -55,11 +56,14 @@ internal sealed record ColonyModelReview(ProjectMarginals Marginals, IReadOnlyLi
 
 /// <summary>
 /// Assembles the tier-2 colony model's input (#3523 of #3470) from the review frame: reads of facts the frame already carries,
-/// no native call of its own; a section the frame did not carry stays an unknown Fact. <see cref="Review"/> runs it once per
+/// no native call of its own; a frame that lacks a section yields no input (<see cref="ColonyModelInputRead.Unready"/> names each gap). <see cref="Review"/> runs it once per
 /// review (#3531) and hands the project graph and the pricing to Policy.
 /// </summary>
 internal static class RoundsColonyModel
 {
+    /// <summary>The finding of a review whose frame left the colony model without an input.</summary>
+    private const string UnreadyFinding = "colony_model_input_unready";
+
     /// <summary>
     /// Runs the model over the review's frame and prices it in the coupled context's currency. Once per review, no caching: the
     /// marginal value of each valued project goes to <see cref="ForecastCoupledContext.Investment"/> and the event to telemetry.
@@ -67,7 +71,13 @@ internal static class RoundsColonyModel
     internal static ColonyModelReview Review(ColonyProjection colony, ForecastCoupledContext context, GoalsFacts? goals)
     {
         var clock = System.Diagnostics.Stopwatch.StartNew();
-        var (input, unknowns) = InputOf(colony);
+        var read = InputOf(colony);
+        if (read is ColonyModelInputRead.Unready unready)
+        {
+            return Unready(unready.Gaps, clock);
+        }
+
+        var input = ((ColonyModelInputRead.Ready)read).Input;
         // Each unmet goal with a path through the project graph is a terminal of it (#3505); the rest are named and keep the flat value.
         var paths = (goals?.Goals ?? []).Where(g => GoalRules.Evaluate(g, goals!).State != GoalState.Met).OrderBy(g => g.Id)
             .Select(g => (Goal: GoalRules.NeedOf(g).Value, Path: GoalPaths.Of(g, goals!, input))).ToList();
@@ -106,44 +116,99 @@ internal static class RoundsColonyModel
             }
         }
 
-        return new(marginals, unknowns, policy.HorizonDays, clock.Elapsed.TotalMilliseconds, etas, notes,
+        return new(marginals, [], policy.HorizonDays, clock.Elapsed.TotalMilliseconds, etas, notes,
             valuation.ClothingStuff(marginals.Trajectory, ClothingDemandRules.ClothingHorizonDays))
         { Basis = new(input, policy), Tending = valuation.TendingOverHorizon(marginals.Trajectory, new SortedSet<string>(StringComparer.Ordinal)) };
     }
 
-    /// <summary>The input and the sections it cannot start from, each named with its reason (<see cref="ColonyModelInput.Unknowns"/>).</summary>
-    internal static (ColonyModelInput Input, IReadOnlyList<string> Unknowns) InputOf(ColonyProjection colony)
+    /// <summary>The review of a frame that left the input unready: no run, no basis, and the gaps named.</summary>
+    private static ColonyModelReview Unready(IReadOnlyList<string> gaps, System.Diagnostics.Stopwatch clock) =>
+        new(new ProjectMarginals { Findings = [UnreadyFinding] }, gaps, new ColonyModelPolicy().HorizonDays,
+            clock.Elapsed.TotalMilliseconds, new Dictionary<string, int>(), [], new Dictionary<(PawnId Pawn, GearSlot Slot), Resource>());
+
+    /// <summary>
+    /// The input when the frame carries every section it needs and each value is inside its range (<see cref="ColonyModelInput.Gaps"/>);
+    /// otherwise the sections it cannot start from, each named with its reason.
+    /// </summary>
+    internal static ColonyModelInputRead InputOf(ColonyProjection colony)
     {
         var facts = colony.Facts;
+        var gaps = new List<string>();
+        GearClimate? climate = null;
+        if (facts.Gear.TryGetValue(out var gear))
+        {
+            climate = gear.Climate;
+        }
+        else
+        {
+            gaps.Add("climate: the review frame carries no seasonal temperatures");
+        }
+
+        if (!facts.Calendar.TryGetValue(out var calendar))
+        {
+            gaps.Add("calendar: the review frame carries no growing calendar");
+        }
+
+        var recipes = default(EquatableArray<ProductionRecipeInput>);
+        if (facts.WorkAdmission.Recipes.TryGetValue(out var recipeRows))
+        {
+            recipes = recipeRows;
+        }
+        else
+        {
+            gaps.Add("recipes: the review carries no bench recipe census");
+        }
+
+        var wildlife = default(EquatableArray<ModelHerd>);
+        if (colony.Acquisition.TryGetValue(out var sources))
+        {
+            wildlife = HuntSquadRules.Herds(sources);
+        }
+        else
+        {
+            gaps.Add("wildlife: the review frame carries no acquisition census");
+        }
+
+        var otherDemand = 0d;
+        if (!ForecastStockScope.OtherDemand(colony.CombinedFoodSupply, facts.NeedsAlternatives?.Observation.Pawns.Select(p => p.Pawn) ?? []).TryGetValue(out otherDemand))
+        {
+            gaps.Add("stocks: other food-consumer demand is unknown or invalid");
+        }
+
+        var land = LandOf(colony, gaps);
+        var crops = CropsOf(colony, gaps);
+        var research = ResearchOf(facts.Research, facts.NeedsAlternatives?.Observation, gaps);
+        var stocks = StocksOf(colony, gaps);
+        var pawns = PawnsOf(colony, gaps);
+        if (gaps.Count > 0)
+        {
+            return new ColonyModelInputRead.Unready(gaps);
+        }
+
         var input = new ColonyModelInput
         {
-            Climate = ClimateOf(facts.Gear),
-            Calendar = facts.Calendar,
-            Land = LandOf(colony),
-            Crops = CropsOf(colony),
-            Research = ResearchOf(facts.Research, facts.NeedsAlternatives?.Observation),
-            Stocks = new ModelStocks { Nutrition = NutritionOf(colony.CombinedFoodSupply), Materials = MaterialsOf(colony.Resources), Medicine = MedicineOf(facts.MedicalReserve, facts.ResourceThings) },
-            Pawns = PawnsOf(colony),
-            OtherNutritionPerDay = ForecastStockScope.OtherDemand(colony.CombinedFoodSupply,
-                facts.NeedsAlternatives?.Observation.Pawns.Select(p => p.Pawn) ?? []),
-            Recipes = facts.WorkAdmission.Recipes,
-            PlannedSites = facts.PlannedSites.TryGetValue(out var planned) ? Known(planned.Sites) : Unknown<EquatableArray<PlannedBuildSite>>(),
-            Wildlife = colony.Acquisition.TryGetValue(out var sources) ? Known(HuntSquadRules.Herds(sources)) : Unknown<EquatableArray<ModelHerd>>(),
+            OtherNutritionPerDay = otherDemand,
+            Climate = climate!,
+            Calendar = calendar!,
+            Land = land,
+            Crops = crops,
+            Research = research!,
+            Stocks = stocks!,
+            Pawns = pawns,
+            Recipes = recipes,
+            Wildlife = wildlife,
         };
-        return (input, input.Unknowns());
+        return input.Gaps() is { Count: > 0 } outOfRange ? new ColonyModelInputRead.Unready(outOfRange) : new ColonyModelInputRead.Ready(input);
     }
-
-    /// <summary>The map's seasonal curve, as the gear census reads it.</summary>
-    internal static Fact<GearClimate> ClimateOf(Fact<GearObservation> gear) =>
-        gear.TryGetValue(out var observation) ? Known(observation.Climate) : Unknown<GearClimate>();
 
     /// <summary>
     /// Each growing zone's cells and each planned field's cells (the layout plan's field zones off the standing zones), with their
-    /// fertility. A cell outside the planning window or without a fertility reading makes the land unknown: a field is not priced
+    /// fertility. A cell outside the planning window or without a fertility reading makes the land unread: a field is not priced
     /// on the cells that happened to be read.
     /// </summary>
-    internal static Fact<EquatableArray<ModelField>> LandOf(ColonyProjection colony)
+    internal static EquatableArray<ModelField> LandOf(ColonyProjection colony, List<string> gaps)
     {
+        const string Unread = "land: a cell of a growing zone or planned field has no fertility reading";
         var cells = new Dictionary<Cell, SiteCell>(colony.Cells.Count);
         foreach (var cell in colony.Cells)
         {
@@ -166,7 +231,8 @@ internal static class RoundsColonyModel
 
             if (!cell.Fertility.TryGetValue(out var f))
             {
-                return Unknown<EquatableArray<ModelField>>();
+                gaps.Add(Unread);
+                return default;
             }
 
             fertility.Add(f);
@@ -198,7 +264,8 @@ internal static class RoundsColonyModel
 
                         if (!cells.TryGetValue(at, out var cell) || !cell.Fertility.TryGetValue(out var f))
                         {
-                            return Unknown<EquatableArray<ModelField>>();
+                            gaps.Add(Unread);
+                            return default;
                         }
 
                         fertility.Add(f);
@@ -214,20 +281,33 @@ internal static class RoundsColonyModel
             }
         }
 
-        return Known(EquatableArray.From(fields));
+        return EquatableArray.From(fields);
     }
 
-    private static Fact<EquatableArray<CropChoice>> CropsOf(ColonyProjection colony)
+    private static EquatableArray<CropChoice> CropsOf(ColonyProjection colony, List<string> gaps)
     {
         var crops = RoundsFieldPlanner.CropChoices(colony);
-        return crops.Count == 0 ? Unknown<EquatableArray<CropChoice>>() : Known(EquatableArray.From(crops));
+        if (crops.Count == 0)
+        {
+            gaps.Add("crops: the catalog lists no sowable crop");
+            return default;
+        }
+
+        return EquatableArray.From(crops);
     }
 
-    private static Fact<ModelResearch> ResearchOf(ResearchFacts? facts, NeedsForecastRead? needs)
+    private static ModelResearch? ResearchOf(ResearchFacts? facts, NeedsForecastRead? needs, List<string> gaps)
     {
         if (facts is null)
         {
-            return Unknown<ModelResearch>();
+            gaps.Add("research: the review frame carries no research census");
+            return null;
+        }
+
+        if (needs is null)
+        {
+            gaps.Add("research: the review frame carries no research bench read");
+            return null;
         }
 
         var finished = facts.Finished.ToHashSet();
@@ -259,46 +339,73 @@ internal static class RoundsColonyModel
             Project = slot.Current.IsEmpty ? new ResearchProjectId(ResearchRules.KnowledgeFunding(facts.Details, done, slot.Category)) : slot.Current,
             Overflow = slot.Overflow,
         });
-        return Known(new ModelResearch { Current = facts.Current, Finished = facts.Finished, Projects = EquatableArray.From(projects), Benches = BenchesOf(needs), Knowledge = EquatableArray.From(knowledge) });
+        return new ModelResearch { Current = facts.Current, Finished = facts.Finished, Projects = EquatableArray.From(projects), Benches = needs.ResearchBenches.Count, Knowledge = EquatableArray.From(knowledge) };
     }
 
-    /// <summary>The research benches the needs read counts, whatever the current project is; unknown without the read.</summary>
-    private static Fact<int> BenchesOf(NeedsForecastRead? read) => read is null ? Unknown<int>() : Known(read.ResearchBenches.Count);
+    /// <summary>The colony's nutrition, materials and medicine; each census the frame did not carry is named.</summary>
+    private static ModelStocks? StocksOf(ColonyProjection colony, List<string> gaps)
+    {
+        var nutrition = 0d;
+        var materials = default(EquatableArray<Amount>);
+        var medicine = default(EquatableArray<Amount>);
+        var whole = true;
+        if (!NutritionOf(colony.CombinedFoodSupply).TryGetValue(out nutrition))
+        {
+            gaps.Add("stocks: the food census is unknown");
+            whole = false;
+        }
+
+        if (colony.Resources.TryGetValue(out var held))
+        {
+            materials = EquatableArray.From(held.OrderBy(p => p.Key).Select(p => new Amount(p.Key, p.Value)));
+        }
+        else
+        {
+            gaps.Add("stocks: the resource census is unknown");
+            whole = false;
+        }
+
+        if (!MedicineOf(colony.Facts.MedicalReserve, colony.Facts.ResourceThings, out medicine))
+        {
+            gaps.Add("stocks: the medicine census is unknown");
+            whole = false;
+        }
+
+        return whole ? new ModelStocks { Nutrition = nutrition, Materials = materials, Medicine = medicine } : null;
+    }
 
     /// <summary>The nutrition of the food stacks the colony can eat; unknown while the food census is incomplete or a stack's nutrition is.</summary>
     private static Fact<double> NutritionOf(Fact<FoodSupply> supply) => supply.TryGetValue(out var food) ? ForecastStockScope.Nutrition(food) : default;
 
-    private static Fact<EquatableArray<Amount>> MaterialsOf(Fact<IReadOnlyDictionary<Resource, long>> resources) =>
-        resources.TryGetValue(out var held)
-            ? Known(EquatableArray.From(held.OrderBy(p => p.Key).Select(p => new Amount(p.Key, p.Value))))
-            : Unknown<EquatableArray<Amount>>();
-
     /// <summary>
     /// The medicine on hand by kind: the unforbidden stacks of the medical reserve census, highest potency first (the catalog's
-    /// potency order, a kind it does not rank last), then by name.
+    /// potency order, a kind it does not rank last), then by name. False while the census or the resource identities are unread.
     /// </summary>
-    private static Fact<EquatableArray<Amount>> MedicineOf(MedicalReserveObservation reserve, Fact<EquatableArray<string>> resourceThings)
+    private static bool MedicineOf(MedicalReserveObservation reserve, Fact<EquatableArray<string>> resourceThings, out EquatableArray<Amount> medicine)
     {
+        medicine = default;
         if (!reserve.Items.TryGetValue(out var items) || !resourceThings.TryGetValue(out var identities))
         {
-            return Unknown<EquatableArray<Amount>>();
+            return false;
         }
 
         var potency = reserve.Catalog.MedicalPotency;
-        return Known(EquatableArray.From(items.Where(i => !i.Forbidden && identities.Contains(i.Id)).GroupBy(i => i.Definition)
+        medicine = EquatableArray.From(items.Where(i => !i.Forbidden && identities.Contains(i.Id)).GroupBy(i => i.Definition)
             .Select(g => new Amount(g.Key, g.Sum(i => i.Count)))
-            .OrderByDescending(a => potency.TryGetValue(a.Resource, out var p) ? p : double.NegativeInfinity).ThenBy(a => a.Resource)));
+            .OrderByDescending(a => potency.TryGetValue(a.Resource, out var p) ? p : double.NegativeInfinity).ThenBy(a => a.Resource));
+        return true;
     }
 
-    private static Fact<EquatableArray<ModelPawn>> PawnsOf(ColonyProjection colony)
+    private static EquatableArray<ModelPawn> PawnsOf(ColonyProjection colony, List<string> gaps)
     {
         if (colony.Facts.NeedsAlternatives is not { } review)
         {
-            return Unknown<EquatableArray<ModelPawn>>();
+            gaps.Add("pawns: the review frame carries no needs read");
+            return default;
         }
 
         var skills = new Dictionary<string, EquatableArray<WorkSkill>>(StringComparer.Ordinal);
-        var hunters = new Dictionary<string, Fact<bool>>(StringComparer.Ordinal);
+        var hunters = new Dictionary<string, bool>(StringComparer.Ordinal);
         var curves = new Dictionary<string, EquatableArray<SkillStatCurve>>(StringComparer.Ordinal);
         if (colony.WorkPawns.TryGetValue(out var workers))
         {
@@ -311,12 +418,13 @@ internal static class RoundsColonyModel
             // The hunt planner's armed hunter: a hunting weapon and the Hunting work.
             foreach (var profile in PawnRules.Profiles(workers))
             {
-                hunters[profile.Id.Value] = Known(HuntSquadRules.ArmedHunter(profile));
+                hunters[profile.Id.Value] = HuntSquadRules.ArmedHunter(profile);
             }
         }
 
         // The best bench is the one the researcher takes, so the bench factor joins the pawn's stat here, as the points a tick at speed 1 does in the model.
-        var bestBench = review.Observation.ResearchBenches.Count == 0 ? (double?)null : review.Observation.ResearchBenches.Max(b => b.Factor);
+        // A colony with no bench has no research speed; its bench count of 0 keeps anyone from researching.
+        var bestBench = review.Observation.ResearchBenches.Count == 0 ? 0 : review.Observation.ResearchBenches.Max(b => b.Factor);
         var pawns = new List<ModelPawn>();
         foreach (var pawn in review.Observation.Pawns)
         {
@@ -363,32 +471,37 @@ internal static class RoundsColonyModel
                     OutdoorShares = need.OutdoorShareByTwelfth,
                     ShelteredGain = sheltered,
                     Threshold = need.Threshold,
-                    GainPerUse = meal is null ? Unknown<double>() : Known(meal.GainPerUnit),
-                    ServiceTicks = meal is null ? Unknown<double>() : Known(meal.ServiceTicks),
-                    ApproachTicks = approach.Count == 0 ? Unknown<double>() : Known(approach.Average()),
+                    // The meal came from a target of the kind, which also gave an approach.
+                    Service = meal is null ? new ModelService.NoneObserved() : new ModelService.Observed(meal.GainPerUnit, meal.ServiceTicks, approach.Average()),
                 });
+            }
+
+            if (!skills.TryGetValue(pawn.Pawn, out var workerSkills) || !hunters.TryGetValue(pawn.Pawn, out var hunts))
+            {
+                gaps.Add($"pawns: '{pawn.Pawn}' lacks skills or the hunt capability (the work census carries no row for it)");
+                continue;
             }
 
             pawns.Add(new ModelPawn
             {
                 Pawn = pawn.Pawn,
                 Needs = EquatableArray.From(needs),
-                Skills = skills.TryGetValue(pawn.Pawn, out var workerSkills) ? Known(workerSkills) : default,
-                Consciousness = Known(pawn.Consciousness),
-                Moving = Known(pawn.Moving),
-                Manipulation = Known(pawn.Manipulation),
-                Sight = Known(pawn.Sight),
-                Talking = Known(pawn.Talking),
-                ComfortableMin = Known(pawn.ComfortableMin),
-                ComfortableMax = Known(pawn.ComfortableMax),
-                ResearchSpeed = bestBench is { } factor ? Known(pawn.ResearchSpeed * factor) : Unknown<double>(),
-                PlantWorkSpeed = Known(pawn.PlantWorkSpeed),
-                Hunts = hunters.GetValueOrDefault(pawn.Pawn),
+                Skills = workerSkills,
+                Consciousness = pawn.Consciousness,
+                Moving = pawn.Moving,
+                Manipulation = pawn.Manipulation,
+                Sight = pawn.Sight,
+                Talking = pawn.Talking,
+                ComfortableMin = pawn.ComfortableMin,
+                ComfortableMax = pawn.ComfortableMax,
+                ResearchSpeed = pawn.ResearchSpeed * bestBench,
+                PlantWorkSpeed = pawn.PlantWorkSpeed,
+                Hunts = hunts,
                 SkillStatCurves = curves.GetValueOrDefault(pawn.Pawn),
                 WorkSpeeds = pawn.Upkeep.Speeds,
             });
         }
 
-        return Known(EquatableArray.From(pawns));
+        return EquatableArray.From(pawns);
     }
 }

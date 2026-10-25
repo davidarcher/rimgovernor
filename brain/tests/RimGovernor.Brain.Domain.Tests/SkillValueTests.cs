@@ -67,7 +67,7 @@ public sealed class SkillValueTests
     [Fact]
     public void ASkillStockRaisedLastsUntilDecayTakesTheLevelBack()
     {
-        ModelPawn Of(SkillLearning learning) => new() { Pawn = "pawn", Skills = Fact.Known(EquatableArray.From<WorkSkill>([new() { Name = "Shooting", Level = 1, Learning = learning }])) };
+        ModelPawn Of(SkillLearning learning) => new() { Pawn = "pawn", Skills = EquatableArray.From<WorkSkill>([new() { Name = "Shooting", Level = 1, Learning = learning }]), Consciousness = 1, Moving = 1, Manipulation = 1, Sight = 1, Talking = 1, ComfortableMin = 16, ComfortableMax = 26, ResearchSpeed = 1, PlantWorkSpeed = 1, Hunts = false };
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         // Level 1 of 0-2 at -95 XP, 5 over the loss threshold: the raised level (the top) decays 6000 XP a day and is gone within the hour.
         var lasts = Assert.Single(SkillStock.Of(Of(CapabilityMaintenanceTests.Learning()), findings)).RaisedLasts(300);

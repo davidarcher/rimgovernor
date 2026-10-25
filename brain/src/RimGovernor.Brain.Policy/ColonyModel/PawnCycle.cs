@@ -62,7 +62,7 @@ public sealed record PawnCycle
         var sleep = Split(pawn, "rest", twelfth, findings);
         var recreation = Split(pawn, "joy", twelfth, findings);
         var eating = Eating(pawn, findings);
-        var daylight = Daylight(input, twelfth, findings);
+        var daylight = Daylight(input, twelfth);
         var left = Left(pawn, twelfth, findings);
         if (left < 0)
         {
@@ -121,7 +121,7 @@ public sealed record PawnCycle
             return (false, $"sow_skill_requirement_unknown:{crop.Name}");
         }
 
-        if (!pawn.Skills.TryGetValue(out var skills) || skills.FirstOrDefault(s => s.Name == PlantsSkillName) is not { } plants)
+        if (pawn.Skills.FirstOrDefault(s => s.Name == PlantsSkillName) is not { } plants)
         {
             return (false, $"plants_skill_unknown:{pawn.Pawn}");
         }
@@ -176,7 +176,7 @@ public sealed record PawnCycle
             return Unknown<double>();
         }
 
-        if (!need.GainPerUse.TryGetValue(out var meal) || !(meal > 0) || !need.ServiceTicks.TryGetValue(out var service) || !need.ApproachTicks.TryGetValue(out var approach))
+        if (need.Service is not ModelService.Observed { GainPerUse: var meal, ServiceTicks: var service, ApproachTicks: var approach } || !(meal > 0))
         {
             findings.Add($"meal_unknown:{pawn.Pawn}");
             return Unknown<double>();
@@ -206,10 +206,8 @@ public sealed record PawnCycle
         DomainException.Require(horizonDays > 0 && double.IsFinite(horizonDays), "free hours horizon");
         var output = new Dictionary<string, double>(StringComparer.Ordinal);
         var findings = new SortedSet<string>(StringComparer.Ordinal);
-        if (!input.Pawns.TryGetValue(out var pawns) || !input.Climate.TryGetValue(out var climate))
-        {
-            return output;
-        }
+        var pawns = input.Pawns;
+        var climate = input.Climate;
 
         var days = new double[12];
         var twelfth = climate.CurrentTwelfth;
@@ -256,31 +254,19 @@ public sealed record PawnCycle
         Split(pawn, "rest", twelfth, findings).TryGetValue(out var asleep) && Eating(pawn, findings).TryGetValue(out var eats)
             && Split(pawn, "joy", twelfth, findings).TryGetValue(out var plays) ? HoursPerDay - asleep - eats - plays : null;
 
-    private static Fact<double> Daylight(ColonyModelInput input, int twelfth, SortedSet<string> findings)
-    {
-        if (!input.Climate.TryGetValue(out var climate))
-        {
-            findings.Add("climate_unknown");
-            return Unknown<double>();
-        }
-
-        return climate.DaylightHoursIn(twelfth);
-    }
+    private static Fact<double> Daylight(ColonyModelInput input, int twelfth) => input.Climate.DaylightHoursIn(twelfth);
 
     private static Fact<ForecastThermalSpan> Thermal(ColonyModelInput input, ModelPawn pawn, int twelfth, Fact<double> outdoor, SortedSet<string> findings)
     {
-        if (!input.Climate.TryGetValue(out var climate) || climate.Temperatures.Count != 12)
+        var climate = input.Climate;
+        if (climate.Temperatures.Count != 12)
         {
             findings.Add("temperature_unknown");
             return Unknown<ForecastThermalSpan>();
         }
 
-        if (!pawn.ComfortableMin.TryGetValue(out var coldest) || !pawn.ComfortableMax.TryGetValue(out var hottest))
-        {
-            findings.Add($"comfort_range_unknown:{pawn.Pawn}");
-            return Unknown<ForecastThermalSpan>();
-        }
-
+        var coldest = pawn.ComfortableMin;
+        var hottest = pawn.ComfortableMax;
         if (!outdoor.TryGetValue(out var hours))
         {
             return Unknown<ForecastThermalSpan>();

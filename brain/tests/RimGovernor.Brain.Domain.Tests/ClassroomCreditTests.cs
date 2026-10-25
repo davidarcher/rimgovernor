@@ -116,14 +116,14 @@ public sealed class ClassroomCreditTests
     private static ColonyModelInput Colony(bool learning = false)
     {
         var input = ColonyModelFixtures.Devilstrand();
-        var anna = input.Pawns.Value[0];
+        var anna = input.Pawns[0];
         if (learning)
         {
             // Each child holds a Construction stock that does not decay, so a level gained lasts the horizon.
-            anna = anna with { Skills = Known(EquatableArray.From<WorkSkill>([new() { Name = "Construction", Level = 1, Learning = CapabilityMaintenanceTests.Learning() with { TrackerAllowsLearning = false } }])) };
+            anna = anna with { Skills = EquatableArray.From<WorkSkill>([new() { Name = "Construction", Level = 1, Learning = CapabilityMaintenanceTests.Learning() with { TrackerAllowsLearning = false } }]) };
         }
 
-        return input with { Pawns = Known(EquatableArray.From(new[] { anna with { Pawn = "child" }, anna with { Pawn = "other" } })) };
+        return input with { Pawns = EquatableArray.From(new[] { anna with { Pawn = "child" }, anna with { Pawn = "other" } }) };
     }
 
     // The teacher's lost work a day for lesson ticks at the child's learning rate on a 1.4 desk.

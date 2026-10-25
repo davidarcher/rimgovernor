@@ -36,7 +36,7 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
     private static ColonyModelPolicy Policy(ProjectGraph graph) => new() { MedicineTendsPerDay = Known(0.0), Projects = graph };
 
     private static ProjectMarginals Marginals(ColonyModelInput input, ProjectGraph graph, ForecastCoupledContext? context = null) =>
-        ProjectMarginalValue.Of(input, Policy(graph), new ColonyValue(context ?? Context(), [BillDuster()], CalendarRules.YearDays, default, new ItemFacts()));
+        ProjectMarginalValue.Of(input, Policy(graph), new ColonyValue(context ?? Context(), [BillDuster()], CalendarRules.YearDays, input.Pawns, new ItemFacts()));
 
     [Fact]
     public void AnHourOfResearchOrSowingIsWorthTheDustersDailyHarmAvoidedForTheHourTheChainShiftsEarlier()
@@ -55,25 +55,25 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
         Assert.Equal(expected, marginals.PerHour["research:Devilstrand"], expected * 0.02);
         Assert.Equal(expected, marginals.PerHour["sow:zone1"], expected * 0.02);
         Assert.Equal(marginals.PerHour["research:Devilstrand"] / (ProjectGraph.ResearchPointsPerWorkTick * Hour), marginals.PerUnit["Devilstrand"], 12);
-        // No doctor census is given, so the raid tending medicine buys is unpriced: a finding, not a zero (#3635).
+        // No pawn here has a tend quality curve, so the raid tending medicine buys is unpriced: a finding, not a zero (#3635).
         Assert.Equal(["Devilstrand", "sow:zone1"], marginals.PerUnit.Keys.Order());
-        Assert.Contains(ColonyValue.MedicineSkillValueUnassessed + ":pawns_unknown", marginals.Findings);
+        Assert.Contains(ColonyValue.MedicineSkillValueUnassessed + ":Anna", marginals.Findings);
         // Growth, harvest and crafting take no tier-1 task, so they are not valued.
         Assert.DoesNotContain(marginals.PerHour.Keys, id => id.StartsWith("grow:", StringComparison.Ordinal) || id.StartsWith("harvest:", StringComparison.Ordinal) || id.StartsWith("craft:", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void ASkillWithoutADoctorCensusIsUnpricedNotZero()
+    public void ASkillOfAPawnWithoutATendQualityCurveIsUnpricedNotZero()
     {
         var input = ProjectGraphTests.Colony();
         input = input with
         {
-            Pawns = Known(EquatableArray.From(new[] { SkillStockTests.WithMedicine(input.Pawns.Value[0], SkillStockTests.Mechanics(0, 0)), input.Pawns.Value[1] })),
+            Pawns = EquatableArray.From(new[] { SkillStockTests.WithMedicine(input.Pawns[0], SkillStockTests.Mechanics(0, 0)), input.Pawns[1] }),
         };
         var marginals = Marginals(input, ProjectGraphTests.Chain(input));
 
         Assert.DoesNotContain("skill/Anna/Medicine", marginals.PerUnit.Keys);
-        Assert.Contains(ColonyValue.MedicineSkillValueUnassessed + ":pawns_unknown", marginals.Findings);
+        Assert.Contains(ColonyValue.MedicineSkillValueUnassessed + ":Anna", marginals.Findings);
         Assert.True(marginals.PerHour["research:Devilstrand"] > 0);
     }
 
@@ -84,7 +84,7 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
         var input = ProjectGraphTests.Colony();
         input = input with
         {
-            Pawns = Known(EquatableArray.From(new[] { SkillStockTests.WithMedicine(ProjectGraphTests.Pawn("Anna", null, null), SkillStockTests.Mechanics(3, 0), "Cooking", "Plants") })),
+            Pawns = EquatableArray.From(new[] { SkillStockTests.WithMedicine(ProjectGraphTests.Pawn("Anna", null, null), SkillStockTests.Mechanics(3, 0), "Cooking", "Plants") }),
         };
         var valuation = new SkillStockTests.LevelDays(CalendarRules.YearDays);
 
@@ -104,7 +104,7 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
         // the days of the horizon a raise of it lasts, not only the stocks the harm price reads.
         var input = ProjectGraphTests.Colony() with
         {
-            Pawns = Known(EquatableArray.From(new[] { SkillStockTests.WithMedicine(ProjectGraphTests.Pawn("Anna", null, null), SkillStockTests.Mechanics(3, 0), "Cooking", "Plants") })),
+            Pawns = EquatableArray.From(new[] { SkillStockTests.WithMedicine(ProjectGraphTests.Pawn("Anna", null, null), SkillStockTests.Mechanics(3, 0), "Cooking", "Plants") }),
         };
         var policy = Policy(new ProjectGraph());
 
@@ -123,7 +123,7 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
     {
         var curve = new SkillStatCurve(ColonyValue.TendQualityStat, "Medicine", EquatableArray.From(new[] { new SkillStatLevel(0, 0.2) }), "test");
         var anna = ProjectGraphTests.Pawn("Anna", null, null) with { SkillStatCurves = EquatableArray.From(new[] { curve }) };
-        ColonyValue Value(HarmInputs harm) => new(Context(harm, wearers: 1), [], CalendarRules.YearDays, Known(EquatableArray.From(new[] { anna })), new ItemFacts());
+        ColonyValue Value(HarmInputs harm) => new(Context(harm, wearers: 1), [], CalendarRules.YearDays, EquatableArray.From(new[] { anna }), new ItemFacts());
         SkillTrack Track(string pawn, string skill) => new() { Key = ProjectGraph.SkillKey(pawn, skill), Pawn = pawn, Skill = skill, NextLevel = new SkillNextLevel.Top() };
 
         var raids = Value(ForecastValueTests.RaidDay());
@@ -158,10 +158,10 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
     public void StarvationCostsTheMalnutritionStagesAndALethalOneTheRestOfTheHorizonPlusTheTerminalValue()
     {
         // 4.8 nutrition against two pawns eating 1.2 a day each is gone in two days; the hunger after rises past the lethal severity in about 2.2.
-        var input = ProjectGraphTests.Colony() with { Stocks = ProjectGraphTests.Colony().Stocks with { Nutrition = Known(4.8) } };
+        var input = ProjectGraphTests.Colony() with { Stocks = ProjectGraphTests.Colony().Stocks with { Nutrition = 4.8 } };
         var context = Context();
-        var starving = ProjectMarginalValue.Of(input, Policy(new ProjectGraph()), new ColonyValue(context, [], CalendarRules.YearDays, default, new ItemFacts()));
-        var fed = ProjectMarginalValue.Of(ProjectGraphTests.Colony(), Policy(new ProjectGraph()), new ColonyValue(context, [], CalendarRules.YearDays, default, new ItemFacts()));
+        var starving = ProjectMarginalValue.Of(input, Policy(new ProjectGraph()), new ColonyValue(context, [], CalendarRules.YearDays, input.Pawns, new ItemFacts()));
+        var fed = ProjectMarginalValue.Of(ProjectGraphTests.Colony(), Policy(new ProjectGraph()), new ColonyValue(context, [], CalendarRules.YearDays, input.Pawns, new ItemFacts()));
 
         Assert.Equal(0, fed.Value.Value);
         var died = 2 + (1 / ForecastValue.MalnutritionSeverityPerDay);
@@ -213,10 +213,10 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
         var input = ProjectGraphTests.Colony();
         input = input with
         {
-            Pawns = Known(EquatableArray.From(new[]
+            Pawns = EquatableArray.From(new[]
             {
                 ProjectGraphTests.Pawn("Anna", 1, null), ProjectGraphTests.Pawn("Bo", null, 1), ProjectGraphTests.Pawn("Cy", 1, 1), ProjectGraphTests.Pawn("Di", 1, 1),
-            })),
+            }),
         };
         var graph = ProjectGraphTests.Chain(input);
         var context = Context(wearers: 4);

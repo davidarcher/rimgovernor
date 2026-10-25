@@ -28,7 +28,7 @@ public sealed class ForecastStockHandoffTests
             Medicine = new() { Items = Known<EquatableArray<MedicineStackRow>>([new() { Id = "med", Definition = Medicine, Count = 5, Perishable = Known(false) }, new() { Id = "barred-med", Definition = Medicine, Count = 100, Forbidden = true, Perishable = Known(false) }]) },
             Items = new() { Nutrition = new Dictionary<Resource, double> { [Meal] = .5 }, MedicalPotency = new Dictionary<Resource, double> { [Medicine] = 1 } }
         };
-        var input = ProjectGraphTests.Colony() with { OtherNutritionPerDay = ForecastStockScope.OtherDemand(Known(facts.Food), []), Stocks = new() { Materials = Known(physical), Nutrition = ForecastStockScope.Nutrition(facts.Food), Medicine = Known<EquatableArray<Amount>>([new(Medicine, 5)]) }, Pawns = Known<EquatableArray<ModelPawn>>([]) };
+        var input = ProjectGraphTests.Colony() with { OtherNutritionPerDay = ForecastStockScope.OtherDemand(Known(facts.Food), []).Value, Stocks = new() { Materials = physical, Nutrition = ForecastStockScope.Nutrition(facts.Food).Value, Medicine = [new(Medicine, 5)] }, Pawns = [] };
         return new() { Origin = new(0), HorizonDays = 1, Facts = facts, Coupled = new()
         {
             Activities = new() { Deadline = 0 }, Needs = NeedsFixtures.Empty, ModelBasis = new(input, new()),
@@ -49,9 +49,9 @@ public sealed class ForecastStockHandoffTests
         Assert.Empty(handoff.Gaps);
         Assert.Equal(0, Assert.Single(result.Terminal!.Lots, l => l.Id == "early").Count.Value);
         Assert.Equal(10, Assert.Single(result.Terminal.Lots, l => l.Id == "late").Count.Value);
-        Assert.Equal(5.5, handoff.State.Nutrition.Value);
-        Assert.Equal(5, Assert.Single(handoff.State.Medicine.Value).Count);
-        Assert.Equal(10, Assert.Single(handoff.State.Materials.Value, r => r.Resource == Meal).Count);
+        Assert.Equal(5.5, handoff.State!.Nutrition);
+        Assert.Equal(5, Assert.Single(handoff.State!.Medicine).Count);
+        Assert.Equal(10, Assert.Single(handoff.State!.Materials, r => r.Resource == Meal).Count);
         var basis = request.Coupled!.ModelBasis!;
         var continued = ColonyModel.Run(basis.Input, handoff.State with { EndDay = 2 }, [], basis.Policy);
         Assert.Equal(4.5, continued.Events[^1].Levels[(int)ModelStock.Nutrition], 8);
@@ -66,9 +66,9 @@ public sealed class ForecastStockHandoffTests
         Assert.Equal(Known(true), outcome.Feasible);
         var handoff = ForecastHandoffPolicy.Project(outcome)!;
         Assert.Empty(handoff.Gaps);
-        Assert.Equal(6.5, handoff.State.Nutrition.Value);
-        Assert.Equal(13, Assert.Single(handoff.State.Materials.Value, r => r.Resource == Meal).Count);
-        Assert.Equal(3, Assert.Single(handoff.State.Medicine.Value).Count);
+        Assert.Equal(6.5, handoff.State!.Nutrition);
+        Assert.Equal(13, Assert.Single(handoff.State!.Materials, r => r.Resource == Meal).Count);
+        Assert.Equal(3, Assert.Single(handoff.State!.Medicine).Count);
     }
 
     [Fact]
@@ -92,11 +92,11 @@ public sealed class ForecastStockHandoffTests
         Assert.Equal(Known(true), outcome.Feasible);
         var handoff = ForecastHandoffPolicy.Project(outcome)!;
         Assert.Empty(handoff.Gaps);
-        Assert.Equal(6, handoff.State.Nutrition.Value, 8);
-        Assert.Equal(12, Assert.Single(handoff.State.Materials.Value, r => r.Resource == Meal).Count, 8);
-        Assert.Equal(7, Assert.Single(handoff.State.Medicine.Value).Count);
-        Assert.Equal(7, Assert.Single(handoff.State.Materials.Value, r => r.Resource == Medicine).Count);
-        Assert.Equal(3, handoff.State.ResearchPoints);
+        Assert.Equal(6, handoff.State!.Nutrition, 8);
+        Assert.Equal(12, Assert.Single(handoff.State!.Materials, r => r.Resource == Meal).Count, 8);
+        Assert.Equal(7, Assert.Single(handoff.State!.Medicine).Count);
+        Assert.Equal(7, Assert.Single(handoff.State!.Materials, r => r.Resource == Medicine).Count);
+        Assert.Equal(3, handoff.State!.ResearchPoints);
         var continued = ColonyModel.Run(request.Coupled.ModelBasis!.Input, handoff.State, [], request.Coupled.ModelBasis.Policy);
         Assert.Equal(3, continued.Events[^1].Levels[(int)ModelStock.ResearchPoints]);
     }
@@ -143,8 +143,8 @@ public sealed class ForecastStockHandoffTests
         { Id = "unreachable", Definition = Medicine, Count = 100, Perishable = Known(true), RotTicks = Known(30000L) }))) } } };
         var handoff = ForecastHandoffPolicy.Project(Evaluate(request))!;
         Assert.Empty(handoff.Gaps);
-        Assert.Equal(5, Assert.Single(handoff.State.Medicine.Value).Count);
-        Assert.Equal(5, Assert.Single(handoff.State.Materials.Value, r => r.Resource == Medicine).Count);
+        Assert.Equal(5, Assert.Single(handoff.State!.Medicine).Count);
+        Assert.Equal(5, Assert.Single(handoff.State!.Materials, r => r.Resource == Medicine).Count);
     }
 
     [Fact]
@@ -156,8 +156,8 @@ public sealed class ForecastStockHandoffTests
         var outcome = Evaluate(request);
         var handoff = ForecastHandoffPolicy.Project(outcome)!;
         Assert.Empty(handoff.Gaps);
-        Assert.Equal(1.5, handoff.State.Nutrition.Value);
-        Assert.DoesNotContain(handoff.State.Materials.Value, r => string.IsNullOrEmpty(r.Resource.Value));
+        Assert.Equal(1.5, handoff.State!.Nutrition);
+        Assert.DoesNotContain(handoff.State!.Materials, r => string.IsNullOrEmpty(r.Resource.Value));
         var basis = request.Coupled.ModelBasis!;
         var continued = ColonyModel.Run(basis.Input, handoff.State with { EndDay = 2 }, [], basis.Policy);
         Assert.Equal(.5, continued.Events[^1].Levels[(int)ModelStock.Nutrition], 8);

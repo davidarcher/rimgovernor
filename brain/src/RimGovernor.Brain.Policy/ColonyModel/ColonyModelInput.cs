@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // The tier-2 colony model's input (#3523 of #3470): one record per review, collected from facts the review frame already carries.
 // The pawn cycle, engine, graph and valuation read it (RoundsColonyModel.Review runs them once per review, #3531); this is the contract they
-// read. A section the frame did not carry is an unknown Fact, never an empty default, and Unknowns() names each one.
+// read. Every section is present: a frame that lacks one yields no input (ColonyModelInputRead.Unready names each gap), and Gaps() names a value outside its range.
 
 /// <summary>A growing zone or planned field: its soil. Fertility lists each cell's fertility, so a poor cell is not averaged away.</summary>
 public sealed record ModelField
@@ -67,11 +67,10 @@ public sealed record ModelResearch
     public EquatableArray<ModelProject> Projects { get; init; }
 
     /// <summary>
-    /// The research benches the current project can be researched at, one researcher each; unknown until the research provider's read
-    /// reaches the frame (#3527 reads it in the coupled path only). A pawn's <see cref="ModelPawn.ResearchSpeed"/> already carries the
-    /// factor of its bench, so only the count limits the labor.
+    /// The research benches the current project can be researched at, one researcher each; 0 for a colony with none. A pawn's
+    /// <see cref="ModelPawn.ResearchSpeed"/> already carries the factor of its bench, so only the count limits the labor.
     /// </summary>
-    public Fact<int> Benches { get; init; }
+    public required int Benches { get; init; }
 
     /// <summary>Every knowledge category, sorted by category; empty without Anomaly.</summary>
     public EquatableArray<ModelKnowledge> Knowledge { get; init; }
@@ -80,12 +79,12 @@ public sealed record ModelResearch
 /// <summary>The colony's stocks the model moves: nutrition, materials and medicine. Research points are per project (<see cref="ModelProject.Progress"/>); power is not a stock in v1.</summary>
 public sealed record ModelStocks
 {
-    public Fact<double> Nutrition { get; init; }
+    public required double Nutrition { get; init; }
 
-    public Fact<EquatableArray<Amount>> Materials { get; init; }
+    public required EquatableArray<Amount> Materials { get; init; }
 
     /// <summary>The usable medicine by kind, in the order the colony uses it up: highest potency first, as a doctor takes the best medicine (#3634).</summary>
-    public Fact<EquatableArray<Amount>> Medicine { get; init; }
+    public required EquatableArray<Amount> Medicine { get; init; }
 }
 
 /// <summary>One need's observed mechanics: it falls by Fall per tick, a service gives Gain per tick, and the pawn seeks service under Threshold.</summary>
@@ -109,14 +108,20 @@ public sealed record ModelNeed
 
     public required double Threshold { get; init; }
 
-    /// <summary>The need level one use of the best observed service gives (a meal's nutrition); unknown while no service is observed or the service is continuous.</summary>
-    public Fact<double> GainPerUse { get; init; }
+    /// <summary>The best observed service by use (a meal): what one use gives, how long it takes and how far it is; <see cref="ModelService.NoneObserved"/> while no service by use is observed or the service is continuous.</summary>
+    public required ModelService Service { get; init; }
+}
 
-    /// <summary>Ticks one use of that service takes (eating a meal); unknown while none is observed.</summary>
-    public Fact<double> ServiceTicks { get; init; }
+/// <summary>A need's best service by use (eating a meal), read from the need tasks observed now.</summary>
+public abstract record ModelService
+{
+    private protected ModelService() { }
 
-    /// <summary>The mean ticks to reach a service of this need, over the targets the need tasks observe now; unknown while none is observed.</summary>
-    public Fact<double> ApproachTicks { get; init; }
+    /// <summary>One use gives <paramref name="GainPerUse"/> of the need level and takes <paramref name="ServiceTicks"/>; reaching one of the need's targets takes <paramref name="ApproachTicks"/> on average.</summary>
+    public sealed record Observed(double GainPerUse, double ServiceTicks, double ApproachTicks) : ModelService;
+
+    /// <summary>No service by use is observed, or the need's service is continuous.</summary>
+    public sealed record NoneObserved : ModelService;
 }
 
 /// <summary>
@@ -146,32 +151,32 @@ public sealed record ModelPawn
 
     public EquatableArray<ModelNeed> Needs { get; init; }
 
-    public Fact<EquatableArray<WorkSkill>> Skills { get; init; }
+    public required EquatableArray<WorkSkill> Skills { get; init; }
 
     /// <summary>The five capacities a pawn-day is counted in (#3519).</summary>
-    public Fact<double> Consciousness { get; init; }
+    public required double Consciousness { get; init; }
 
-    public Fact<double> Moving { get; init; }
+    public required double Moving { get; init; }
 
-    public Fact<double> Manipulation { get; init; }
+    public required double Manipulation { get; init; }
 
-    public Fact<double> Sight { get; init; }
+    public required double Sight { get; init; }
 
-    public Fact<double> Talking { get; init; }
+    public required double Talking { get; init; }
 
     /// <summary>The comfortable temperature range of the pawn's gear now, the pawn cycle's thermal term is read against it (#3526).</summary>
-    public Fact<double> ComfortableMin { get; init; }
+    public required double ComfortableMin { get; init; }
 
-    public Fact<double> ComfortableMax { get; init; }
+    public required double ComfortableMax { get; init; }
 
-    /// <summary>The ResearchSpeed stat; unknown until the research provider's read reaches the frame (#3527 reads it in the coupled path only).</summary>
-    public Fact<double> ResearchSpeed { get; init; }
+    /// <summary>The ResearchSpeed stat times the factor of the colony's best research bench; 0 in a colony with no bench, where <see cref="ModelResearch.Benches"/> keeps anyone from researching.</summary>
+    public required double ResearchSpeed { get; init; }
 
-    /// <summary>The PlantWorkSpeed stat; unknown until the sowing provider's read reaches the frame (#3528 reads it in the coupled path only).</summary>
-    public Fact<double> PlantWorkSpeed { get; init; }
+    /// <summary>The PlantWorkSpeed stat.</summary>
+    public required double PlantWorkSpeed { get; init; }
 
-    /// <summary>Whether the pawn may hunt: a hunting weapon and the Hunting work (<see cref="HuntSquadRules.ArmedHunter"/>); unknown without the work census.</summary>
-    public Fact<bool> Hunts { get; init; }
+    /// <summary>Whether the pawn may hunt: a hunting weapon and the Hunting work (<see cref="HuntSquadRules.ArmedHunter"/>).</summary>
+    public required bool Hunts { get; init; }
 
     /// <summary>The pawn's native stat values at each stored skill level (#3633); the practice node reads its surgery speed here.</summary>
     public EquatableArray<RimGovernor.Contracts.Wire.Observations.SkillStatCurve> SkillStatCurves { get; init; }
@@ -181,50 +186,46 @@ public sealed record ModelPawn
 }
 
 /// <summary>
-/// Everything the tier-2 colony model starts from, assembled per review by <c>RoundsColonyModel.InputOf</c>. Every section is a
-/// Fact: unknown means the frame did not carry it, and <see cref="Unknowns"/> names it.
+/// Everything the tier-2 colony model starts from, assembled per review by <c>RoundsColonyModel.InputOf</c>. Every section is
+/// present; <see cref="Gaps"/> names a value outside its range.
 /// </summary>
 public sealed record ColonyModelInput
 {
     /// <summary>Observed daily food demand from consumers without a modeled pawn cycle, such as colony animals.</summary>
-    public Fact<double> OtherNutritionPerDay { get; init; } = Known(0d);
+    public required double OtherNutritionPerDay { get; init; }
+
     /// <summary>The twelve twelfth temperatures, the current twelfth and the ticks to the next.</summary>
-    public Fact<GearClimate> Climate { get; init; }
+    public required GearClimate Climate { get; init; }
 
     /// <summary>The tile's growing days, the days remaining and until, and the non-growing stretch.</summary>
-    public Fact<Calendar> Calendar { get; init; }
+    public required Calendar Calendar { get; init; }
 
     /// <summary>Standing growing zones and planned fields with their cells' fertility.</summary>
-    public Fact<EquatableArray<ModelField>> Land { get; init; }
+    public required EquatableArray<ModelField> Land { get; init; }
 
     /// <summary>The sowable crops with their growth, sowing, soil and temperature facts.</summary>
-    public Fact<EquatableArray<CropChoice>> Crops { get; init; }
+    public required EquatableArray<CropChoice> Crops { get; init; }
 
-    public Fact<ModelResearch> Research { get; init; }
+    public required ModelResearch Research { get; init; }
 
-    public ModelStocks Stocks { get; init; } = new();
+    public required ModelStocks Stocks { get; init; }
 
-    public Fact<EquatableArray<ModelPawn>> Pawns { get; init; }
+    public required EquatableArray<ModelPawn> Pawns { get; init; }
 
     /// <summary>The recipes of the standing benches the model may craft: their work, input slots and products.</summary>
-    public Fact<EquatableArray<ProductionRecipeInput>> Recipes { get; init; }
-
-    /// <summary>The sites the layout plan would place, with the material each takes.</summary>
-    public Fact<EquatableArray<PlannedBuildSite>> PlannedSites { get; init; }
+    public required EquatableArray<ProductionRecipeInput> Recipes { get; init; }
 
     /// <summary>The huntable wildlife, one herd per race; empty when nothing on the map can be hunted for food.</summary>
-    public Fact<EquatableArray<ModelHerd>> Wildlife { get; init; }
+    public required EquatableArray<ModelHerd> Wildlife { get; init; }
 
-    /// <summary>Whether every section the model needs is known and well formed.</summary>
-    public bool Valid() => Unknowns().Count == 0;
+    /// <summary>Whether every value is inside its range.</summary>
+    public bool Valid() => Gaps().Count == 0;
 
     /// <summary>
-    /// Names each section or member the model cannot start from, with the reason: an unknown the frame did not carry, or a value
-    /// outside its range. The bench count, research speeds and plant work speeds are not named while unknown (the providers'
-    /// reads reach them later); once known they must be finite and not negative. A pawn's unknown <see cref="ModelPawn.Hunts"/> is
-    /// named by the run (<c>hunt_capability_unknown</c>), which leaves the pawn off the hunts.
+    /// Names each section or member the model cannot start from, with the reason: a value outside its range, a pawn cycle that is
+    /// not a day. The bench count, research speeds and plant work speeds must be finite and not negative.
     /// </summary>
-    public IReadOnlyList<string> Unknowns()
+    public IReadOnlyList<string> Gaps()
     {
         var gaps = new List<string>();
         ClimateGaps(gaps);
@@ -233,30 +234,23 @@ public sealed record ColonyModelInput
         CropGaps(gaps);
         ResearchGaps(gaps);
         StockGaps(gaps);
-        if (!OtherNutritionPerDay.IsKnown || !Nonnegative(OtherNutritionPerDay)) gaps.Add("stocks: other food-consumer demand is unknown or invalid");
+        if (!Number(OtherNutritionPerDay) || OtherNutritionPerDay < 0) gaps.Add("stocks: other food-consumer demand is invalid");
         PawnGaps(gaps);
         CycleGaps(gaps);
         RecipeGaps(gaps);
-        SiteGaps(gaps);
         WildlifeGaps(gaps);
         return gaps;
     }
 
     private static bool Number(double v) => double.IsFinite(v);
 
-    private static bool Nonnegative(Fact<double> v) => !v.TryGetValue(out var x) || Number(x) && x >= 0;
+    private static bool Nonnegative(double v) => Number(v) && v >= 0;
 
     private void ClimateGaps(List<string> gaps)
     {
-        if (!Climate.TryGetValue(out var climate))
-        {
-            gaps.Add("climate: the review frame carries no seasonal temperatures");
-            return;
-        }
-
         try
         {
-            climate.Validate();
+            Climate.Validate();
         }
         catch (DomainException e)
         {
@@ -266,15 +260,11 @@ public sealed record ColonyModelInput
 
     private void CalendarGaps(List<string> gaps)
     {
-        if (!Calendar.TryGetValue(out var calendar))
-        {
-            gaps.Add("calendar: the review frame carries no growing calendar");
-        }
-        else if (!calendar.Valid())
+        if (!Calendar.Valid())
         {
             gaps.Add("calendar: a day count is outside the year");
         }
-        else if (calendar.GrowingYear.Count != CalendarRules.YearDays)
+        else if (Calendar.GrowingYear.Count != CalendarRules.YearDays)
         {
             gaps.Add("calendar: the native daily growing year is unavailable");
         }
@@ -282,13 +272,7 @@ public sealed record ColonyModelInput
 
     private void LandGaps(List<string> gaps)
     {
-        if (!Land.TryGetValue(out var fields))
-        {
-            gaps.Add("land: a cell of a growing zone or planned field has no fertility reading");
-            return;
-        }
-
-        foreach (var field in fields)
+        foreach (var field in Land)
         {
             if (field.Id.Length == 0 || field.Fertility.Count == 0 || field.Fertility.Any(f => !Number(f) || f < 0) || field.Planned && field.Crop.Length != 0)
             {
@@ -299,13 +283,7 @@ public sealed record ColonyModelInput
 
     private void CropGaps(List<string> gaps)
     {
-        if (!Crops.TryGetValue(out var crops))
-        {
-            gaps.Add("crops: the catalog lists no sowable crop");
-            return;
-        }
-
-        foreach (var crop in crops)
+        foreach (var crop in Crops)
         {
             var missing = new List<string>();
             if (!crop.GrowDays.TryGetValue(out var days) || !(days > 0))
@@ -352,19 +330,13 @@ public sealed record ColonyModelInput
 
     private void ResearchGaps(List<string> gaps)
     {
-        if (!Research.TryGetValue(out var research))
+        var listed = Research.Projects.Select(p => p.Project).Concat(Research.Finished).ToHashSet();
+        if (!Research.Current.IsEmpty && !listed.Contains(Research.Current))
         {
-            gaps.Add("research: the review frame carries no research census");
-            return;
+            gaps.Add($"research: current project {Research.Current} is not in the census");
         }
 
-        var listed = research.Projects.Select(p => p.Project).Concat(research.Finished).ToHashSet();
-        if (!research.Current.IsEmpty && !listed.Contains(research.Current))
-        {
-            gaps.Add($"research: current project {research.Current} is not in the census");
-        }
-
-        foreach (var project in research.Projects)
+        foreach (var project in Research.Projects)
         {
             var unknownPrerequisite = project.Prerequisites.FirstOrDefault(p => !listed.Contains(p));
             if (project.Project.IsEmpty || !Number(project.Cost) || project.Cost <= 0
@@ -375,7 +347,7 @@ public sealed record ColonyModelInput
             }
         }
 
-        if (research.Benches.TryGetValue(out var benches) && benches < 0)
+        if (Research.Benches < 0)
         {
             gaps.Add("research: the bench count is negative");
         }
@@ -383,29 +355,17 @@ public sealed record ColonyModelInput
 
     private void StockGaps(List<string> gaps)
     {
-        if (!Stocks.Nutrition.TryGetValue(out var nutrition))
-        {
-            gaps.Add("stocks: the food census is unknown");
-        }
-        else if (!Number(nutrition) || nutrition < 0)
+        if (!Number(Stocks.Nutrition) || Stocks.Nutrition < 0)
         {
             gaps.Add("stocks: nutrition is not a finite non-negative number");
         }
 
-        if (!Stocks.Materials.TryGetValue(out var materials))
-        {
-            gaps.Add("stocks: the resource census is unknown");
-        }
-        else if (materials.Any(a => a.Count < 0))
+        if (Stocks.Materials.Any(a => a.Count < 0))
         {
             gaps.Add("stocks: a material count is negative");
         }
 
-        if (!Stocks.Medicine.TryGetValue(out var medicine))
-        {
-            gaps.Add("stocks: the medicine census is unknown");
-        }
-        else if (medicine.Any(a => a.Count < 0))
+        if (Stocks.Medicine.Any(a => a.Count < 0))
         {
             gaps.Add("stocks: a medicine count is negative");
         }
@@ -413,26 +373,20 @@ public sealed record ColonyModelInput
 
     private void PawnGaps(List<string> gaps)
     {
-        if (!Pawns.TryGetValue(out var pawns))
-        {
-            gaps.Add("pawns: the review frame carries no needs read");
-            return;
-        }
-
-        foreach (var pawn in pawns)
+        foreach (var pawn in Pawns)
         {
             var missing = new List<string>();
             foreach (var need in pawn.Needs)
             {
                 if (need.Kind.Length == 0 || !Number(need.Fall) || !Number(need.Threshold)
-                    || !(need.Gain >= 0) || !Nonnegative(need.GainPerUse) || !Nonnegative(need.ServiceTicks) || !Nonnegative(need.ApproachTicks)
+                    || !(need.Gain >= 0) || need.Service is ModelService.Observed use && !(Nonnegative(use.GainPerUse) && Nonnegative(use.ServiceTicks) && Nonnegative(use.ApproachTicks))
                     || need.OutdoorShares.Count is not (0 or 12) || need.OutdoorShares.Any(s => !(s >= 0 && s <= 1)) || !(need.ShelteredGain >= 0) || double.IsInfinity(need.ShelteredGain))
                 {
                     missing.Add($"need '{need.Kind}'");
                 }
             }
 
-            if (!pawn.Skills.TryGetValue(out var skills) || skills.Any(s => s.Name.Length == 0 || s.Level < 0))
+            if (pawn.Skills.Any(s => s.Name.Length == 0 || s.Level < 0))
             {
                 missing.Add("skills");
             }
@@ -443,13 +397,13 @@ public sealed record ColonyModelInput
                 (nameof(pawn.Sight), pawn.Sight), (nameof(pawn.Talking), pawn.Talking),
             })
             {
-                if (!capacity.TryGetValue(out var level) || !Number(level) || level < 0)
+                if (!Nonnegative(capacity))
                 {
                     missing.Add(name);
                 }
             }
 
-            if (pawn.ComfortableMin.TryGetValue(out var coldest) != pawn.ComfortableMax.TryGetValue(out var hottest) || !Number(coldest) || !Number(hottest) || coldest > hottest)
+            if (!Number(pawn.ComfortableMin) || !Number(pawn.ComfortableMax) || pawn.ComfortableMin > pawn.ComfortableMax)
             {
                 missing.Add("comfortable range");
             }
@@ -474,13 +428,7 @@ public sealed record ColonyModelInput
     /// <summary>The pawn cycle (#3526) is derived per twelfth; a pawn whose year has a twelfth that is not a valid day names the twelfths and every unknown rate behind them.</summary>
     private void CycleGaps(List<string> gaps)
     {
-        // Every twelfth reads the climate, which ClimateGaps already names when it is missing.
-        if (!Pawns.TryGetValue(out var pawns) || !Climate.IsKnown)
-        {
-            return;
-        }
-
-        foreach (var pawn in pawns)
+        foreach (var pawn in Pawns)
         {
             var broken = PawnCycle.Year(this, pawn).Where(c => !c.Valid()).ToList();
             if (broken.Count > 0)
@@ -492,13 +440,7 @@ public sealed record ColonyModelInput
 
     private void RecipeGaps(List<string> gaps)
     {
-        if (!Recipes.TryGetValue(out var recipes))
-        {
-            gaps.Add("recipes: the review carries no bench recipe census");
-            return;
-        }
-
-        foreach (var recipe in recipes)
+        foreach (var recipe in Recipes)
         {
             if (recipe.Recipe.Length == 0 || !Number(recipe.WorkAmount) || recipe.WorkAmount < 0)
             {
@@ -507,23 +449,9 @@ public sealed record ColonyModelInput
         }
     }
 
-    private void SiteGaps(List<string> gaps)
-    {
-        if (!PlannedSites.IsKnown)
-        {
-            gaps.Add("sites: the layout plan's sites are not assembled this review");
-        }
-    }
-
     private void WildlifeGaps(List<string> gaps)
     {
-        if (!Wildlife.TryGetValue(out var herds))
-        {
-            gaps.Add("wildlife: the review frame carries no acquisition census");
-            return;
-        }
-
-        foreach (var herd in herds)
+        foreach (var herd in Wildlife)
         {
             if (herd.Race.IsEmpty || herd.Animals <= 0 || !Number(herd.Work) || herd.Work < 0 || !Number(herd.Nutrition) || herd.Nutrition < 0
                 || herd.Products.Any(p => !Number(p.Amount) || p.Amount < 0))
@@ -532,4 +460,16 @@ public sealed record ColonyModelInput
             }
         }
     }
+}
+
+/// <summary>What the review frame yields for the colony model: the input, or the sections it could not start from.</summary>
+public abstract record ColonyModelInputRead
+{
+    private protected ColonyModelInputRead() { }
+
+    /// <summary>Every section is present and inside its range.</summary>
+    public sealed record Ready(ColonyModelInput Input) : ColonyModelInputRead;
+
+    /// <summary>The frame lacks a section, or a value is outside its range; each entry names one with its reason.</summary>
+    public sealed record Unready(IReadOnlyList<string> Gaps) : ColonyModelInputRead;
 }

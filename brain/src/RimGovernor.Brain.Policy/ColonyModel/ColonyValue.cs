@@ -26,7 +26,7 @@ public sealed record ColonyValueResult(Fact<double> Value, EquatableArray<string
 /// <see cref="ForecastValuePolicy.DeathTerminalValue"/>, as the ledger's thermal term does.
 /// </summary>
 public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<GearOption> options, double horizonDays,
-    Fact<EquatableArray<ModelPawn>> doctors, ItemFacts medicine) : ITrajectoryValue
+    EquatableArray<ModelPawn> doctors, ItemFacts medicine) : ITrajectoryValue
 {
     /// <summary>The finding of apparel the model cannot price: the harm model gave no number, or no gear option matches the product.</summary>
     public const string ApparelHarmUnassessed = "apparel_harm_unassessed";
@@ -81,8 +81,8 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     /// (none while neither a raid nor a disease is to be expected), and a fighter's Melee or Shooting stock (<see cref="Fighter"/>,
     /// #3852; none while no raid is to be expected).
     /// </summary>
-    public bool Reads(SkillTrack track) => HarmExpected && doctors.TryGetValue(out var pawns)
-        && pawns.Any(p => p.Pawn == track.Pawn && p.SkillStatCurves.FirstOrDefault(c => c.Stat == TendQualityStat)?.Skill == track.Skill)
+    public bool Reads(SkillTrack track) => HarmExpected
+        && doctors.Any(p => p.Pawn == track.Pawn && p.SkillStatCurves.FirstOrDefault(c => c.Stat == TendQualityStat)?.Skill == track.Skill)
         || HarmLedger.RaidsPerDay(context.Harm) is not 0 && Fighter(track) is not null;
 
     /// <summary>
@@ -261,13 +261,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     /// </summary>
     private List<(SkillTrack Track, SkillStatCurve Curve)>? Doctors(ColonyTrajectory trajectory, SortedSet<string> findings, SortedSet<string> unpriced)
     {
-        if (!doctors.TryGetValue(out var pawns))
-        {
-            findings.Add(MedicineSkillValueUnassessed + ":pawns_unknown");
-            return null;
-        }
-
-        var curves = pawns.Select(p => (Pawn: p, Curve: p.SkillStatCurves.FirstOrDefault(c => c.Stat == TendQualityStat))).ToArray();
+        var curves = doctors.Select(p => (Pawn: p, Curve: p.SkillStatCurves.FirstOrDefault(c => c.Stat == TendQualityStat))).ToArray();
         var skill = curves.Select(c => c.Curve?.Skill).FirstOrDefault(s => s is not null);
         var found = new List<(SkillTrack, SkillStatCurve)>();
         var unassessed = false;
@@ -281,7 +275,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
             }
 
             // NativeSkillStat gives a pawn whose skill is disabled no curve: it never tends.
-            if (curve is null && skill is not null && pawn.Skills.TryGetValue(out var skills) && skills.Any(s => s.Name == skill && s.Learning is { Disabled: true }))
+            if (curve is null && skill is not null && pawn.Skills.Any(s => s.Name == skill && s.Learning is { Disabled: true }))
             {
                 continue;
             }
@@ -459,10 +453,10 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
         }
 
         var findings = new SortedSet<string>(StringComparer.Ordinal);
-        var held = input.Stocks.Medicine.TryGetValue(out var medicine) ? medicine : [];
+        var held = input.Stocks.Medicine;
         var start = new ColonyTrajectory
         {
-            Skills = EquatableArray.From((doctors.TryGetValue(out var pawns) ? pawns : []).SelectMany(p => SkillStock.Of(p, findings)).Select(s => s.Track())),
+            Skills = EquatableArray.From(doctors.SelectMany(p => SkillStock.Of(p, findings)).Select(s => s.Track())),
             MedicineKinds = EquatableArray.From(held.Select(a => a.Resource)),
             StartMedicine = EquatableArray.From(held.Select(a => (double)a.Count)),
         };

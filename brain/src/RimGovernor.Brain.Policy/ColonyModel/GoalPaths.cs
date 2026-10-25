@@ -55,11 +55,6 @@ public static class GoalPaths
         }
 
         var stuff = new Resource(goal.Qualifier);
-        if (!input.Recipes.IsKnown || !input.Stocks.Materials.TryGetValue(out var materials))
-        {
-            return Unmodelled("recipes_or_stock_unread");
-        }
-
         var recipe = RecipeFor(input, goal.Target, stuff);
         if (recipe is null)
         {
@@ -67,17 +62,17 @@ public static class GoalPaths
         }
 
         var owed = recipe.Slots[0].First(a => a.Resource == stuff && a.Count > 0).Count * missing.Value;
-        var held = materials.Where(a => a.Resource == stuff).Sum(a => a.Count);
+        var held = input.Stocks.Materials.Where(a => a.Resource == stuff).Sum(a => a.Count);
         var graph = new ProjectGraph();
         string[] after = [];
         if (held < owed)
         {
-            if (!input.Crops.TryGetValue(out var crops) || crops.FirstOrDefault(c => c.Harvests.TryGetValue(out var yields) && yields == stuff) is not { } crop)
+            if (input.Crops.FirstOrDefault(c => c.Harvests.TryGetValue(out var yields) && yields == stuff) is not { } crop)
             {
                 return Unmodelled("no_crop:" + goal.Qualifier);
             }
 
-            if (!input.Land.TryGetValue(out var land) || (land.FirstOrDefault(x => x.Crop == crop.Name) ?? land.FirstOrDefault(x => x.Crop.Length == 0)) is not { } field)
+            if ((input.Land.FirstOrDefault(x => x.Crop == crop.Name) ?? input.Land.FirstOrDefault(x => x.Crop.Length == 0)) is not { } field)
             {
                 return Unmodelled("no_field");
             }
@@ -100,10 +95,8 @@ public static class GoalPaths
 
     /// <summary>The recipe that makes <paramref name="product"/> with <paramref name="stuff"/> as an ingredient alternative of its first slot (the one <see cref="ProjectGraph.Craft"/> consumes when given the stuff); null when the input has none.</summary>
     public static ProductionRecipeInput? RecipeFor(ColonyModelInput input, string product, Resource stuff) =>
-        input.Recipes.TryGetValue(out var recipes)
-            ? recipes.FirstOrDefault(r => r.Products.Any(p => p.Resource.Value == product && p.Count > 0)
-                && r.Slots.Count > 0 && r.Slots[0].Any(a => a.Resource == stuff && a.Count > 0))
-            : null;
+        input.Recipes.FirstOrDefault(r => r.Products.Any(p => p.Resource.Value == product && p.Count > 0)
+            && r.Slots.Count > 0 && r.Slots[0].Any(a => a.Resource == stuff && a.Count > 0));
 
     /// <summary>The path of <paramref name="goal"/>; a kind with no path through the project graph is unmodelled.</summary>
     public static GoalPath Of(GoalRecord goal, GoalsFacts f, ColonyModelInput input) => goal.Kind switch

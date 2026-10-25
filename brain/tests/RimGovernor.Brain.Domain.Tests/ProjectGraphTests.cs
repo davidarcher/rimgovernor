@@ -24,15 +24,21 @@ public sealed class ProjectGraphTests
         Pawn = name,
         Needs = EquatableArray.From(new[]
         {
-            new ModelNeed { Kind = "rest", Fall = 0.00001, Gain = 0.00002, Threshold = 0.28 },
-            new ModelNeed { Kind = "food", Fall = 0.00002, Threshold = 0.3, GainPerUse = Known(0.6), ServiceTicks = Known(400.0), ApproachTicks = Known(100.0), Gain = 0 },
-            new ModelNeed { Kind = "joy", Fall = 0.00001, Gain = 0.00015, Threshold = 0.3 },
+            new ModelNeed { Kind = "rest", Fall = 0.00001, Gain = 0.00002, Threshold = 0.28, Service = new ModelService.NoneObserved() },
+            new ModelNeed { Kind = "food", Fall = 0.00002, Threshold = 0.3, Service = new ModelService.Observed(0.6, 400.0, 100.0), Gain = 0 },
+            new ModelNeed { Kind = "joy", Fall = 0.00001, Gain = 0.00015, Threshold = 0.3, Service = new ModelService.NoneObserved() },
         }),
-        Skills = Known(EquatableArray.From(new[] { new WorkSkill { Name = "Plants", Level = 10 } })),
-        ComfortableMin = Known(16.0),
-        ComfortableMax = Known(26.0),
-        ResearchSpeed = research is { } r ? Known(r) : default,
-        PlantWorkSpeed = plants is { } p ? Known(p) : default,
+        Skills = EquatableArray.From(new[] { new WorkSkill { Name = "Plants", Level = 10 } }),
+        ComfortableMin = 16.0,
+        ComfortableMax = 26.0,
+        ResearchSpeed = research ?? 0,
+        PlantWorkSpeed = plants ?? 0,
+        Consciousness = 1.0,
+        Moving = 1.0,
+        Manipulation = 1.0,
+        Sight = 1.0,
+        Talking = 1.0,
+        Hunts = false,
     };
 
     // A year warm enough for devilstrand to be sown in spring: the fixture's temperatures, except that twelfths 10 and 11 stay at 12 C.
@@ -46,14 +52,14 @@ public sealed class ProjectGraphTests
         var pawns = EquatableArray.From(new[] { Pawn("Anna", annaResearch, null), Pawn("Bo", null, 1) });
         return input with
         {
-            Pawns = Known(pawns),
-            Climate = Known(input.Climate.Value with { CurrentTwelfth = twelfth, Temperatures = EquatableArray.From(Temperatures) }),
-            Land = Known(EquatableArray.From(new[] { new ModelField { Id = "zone1", Fertility = EquatableArray.From(Enumerable.Repeat(fertility, 12)) } })),
+            Pawns = pawns,
+            Climate = input.Climate with { CurrentTwelfth = twelfth, Temperatures = EquatableArray.From(Temperatures) },
+            Land = EquatableArray.From(new[] { new ModelField { Id = "zone1", Fertility = EquatableArray.From(Enumerable.Repeat(fertility, 12)) } }),
             Stocks = new ModelStocks
             {
-                Nutrition = Known(10_000.0),
-                Materials = Known(EquatableArray.From(new[] { new Amount(new Resource("Steel"), 120), new Amount(new Resource(ColonyModelFixtures.Cloth), 8) })),
-                Medicine = Known(EquatableArray.From(new[] { new Amount(new Resource("MedicineHerbal"), 13) })),
+                Nutrition = 10_000.0,
+                Materials = EquatableArray.From(new[] { new Amount(new Resource("Steel"), 120), new Amount(new Resource(ColonyModelFixtures.Cloth), 8) }),
+                Medicine = EquatableArray.From(new[] { new Amount(new Resource("MedicineHerbal"), 13) }),
             },
         };
     }
@@ -66,7 +72,7 @@ public sealed class ProjectGraphTests
 
     internal static ColonyTrajectory Run(ColonyModelInput input, ProjectGraph graph)
     {
-        var cycles = input.Pawns.Value.Select(p => PawnCycle.Year(input, p).ToArray()).ToArray();
+        var cycles = input.Pawns.Select(p => PawnCycle.Year(input, p).ToArray()).ToArray();
         return ColonyModel.Run(input, cycles, new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), Projects = graph });
     }
 
@@ -85,7 +91,7 @@ public sealed class ProjectGraphTests
             Products = EquatableArray.From(new[] { new Amount(new Resource("Apparel_Cape"), 1) }),
             WorkAmount = 10_000.0,
         };
-        input = input with { Recipes = Known(EquatableArray.From(new[] { recipe })) };
+        input = input with { Recipes = EquatableArray.From(new[] { recipe }) };
 
         Assert.Same(recipe, GoalPaths.RecipeFor(input, "Apparel_Cape", new Resource(ColonyModelFixtures.Cloth)));
         Assert.Null(GoalPaths.RecipeFor(input, "Apparel_Cape", new Resource("Steel")));
@@ -161,7 +167,6 @@ public sealed class ProjectGraphTests
         var trajectory = Run(input, Chain(input));
 
         Assert.Contains("project_unstaffed:research:Devilstrand", trajectory.Findings);
-        Assert.Contains("research_speed_unknown:Anna", trajectory.Findings);
         foreach (var id in new[] { "research:Devilstrand", "sow:zone1", "grow:zone1", "harvest:zone1", "craft:Make_Apparel_Duster" })
         {
             Assert.Contains($"project_incomplete:{id}", trajectory.Findings);
@@ -178,30 +183,29 @@ public sealed class ProjectGraphTests
         var input = Colony();
         input = input with
         {
-            Pawns = Known(EquatableArray.From(new[] { Pawn("Anna", 1, null), Pawn("Bo", 1, null) })),
-            Research = Known(input.Research.Value with { Benches = Known(benches) }),
+            Pawns = EquatableArray.From(new[] { Pawn("Anna", 1, null), Pawn("Bo", 1, null) }),
+            Research = input.Research with { Benches = benches },
         };
         var trajectory = Run(input, ProjectGraph.ResearchChain(input, Gate));
 
         Assert.Equal(600 / (researchers * WorkTicksPerDay * 0.00825), At(trajectory, "research:Devilstrand").Day, 6);
-        Assert.DoesNotContain("research_bench_count_unread", trajectory.Findings);
     }
 
     [Fact]
-    public void AnUnreadBenchCountLeavesTheResearchersUnlimitedAndSaysSo()
+    public void AColonyWithNoResearchBenchHasNoResearcherAndSaysSo()
     {
         var input = Colony();
-        input = input with { Research = Known(input.Research.Value with { Benches = default }) };
+        input = input with { Research = input.Research with { Benches = 0 } };
         var trajectory = Run(input, ProjectGraph.ResearchChain(input, Gate));
 
-        Assert.Contains("research_bench_count_unread", trajectory.Findings);
+        Assert.Contains("project_unstaffed:research:Devilstrand", trajectory.Findings);
     }
 
     [Fact]
     public void PoorSoilThatCannotFinishBeforeTheColdNeverMatures()
     {
         // Mean fertility 0.5 with sensitivity 0.7 is 0.5 x 0.7 + 0.3 = 0.65 of the full rate; the same crop on full soil matures.
-        var crop = Colony().Crops.Value.Single();
+        var crop = Colony().Crops.Single();
         Assert.Equal(0.65, CropGrowthModel.FertilityFactor(crop, 0.5).Value, 9);
         Assert.Equal(FullGrowth * 0.65, CropGrowthModel.DailyGrowth(crop, 0.5, 20).Value, 9);
 
@@ -216,7 +220,7 @@ public sealed class ProjectGraphTests
     public void SowingTakesTheHoursOfEveryPawnAbleToSow()
     {
         var input = Colony();
-        input = input with { Pawns = Known(EquatableArray.From(new[] { Pawn("Anna", 1, 1), Pawn("Bo", null, 1) })) };
+        input = input with { Pawns = EquatableArray.From(new[] { Pawn("Anna", 1, 1), Pawn("Bo", null, 1) }) };
         var trajectory = Run(input, Chain(input, craft: false));
 
         var research = 600 / (WorkTicksPerDay * 0.00825);
@@ -236,7 +240,7 @@ public sealed class ProjectGraphTests
     [InlineData(70, 0)]
     public void TheTemperatureFactorFollowsTheGamesRampOnTheCropsBand(double temperature, double factor)
     {
-        var crop = ColonyModelFixtures.Devilstrand().Crops.Value.Single();
+        var crop = ColonyModelFixtures.Devilstrand().Crops.Single();
 
         Assert.Equal(factor, CropGrowthModel.TemperatureFactor(crop, temperature).Value, 9);
     }
@@ -245,8 +249,8 @@ public sealed class ProjectGraphTests
     public void AnUnreadGrowthFactMakesTheCropGrowthUnknownNotFree()
     {
         var input = Colony();
-        var crop = input.Crops.Value.Single() with { MaxGrowthTemperature = default };
-        input = input with { Crops = Known(EquatableArray.From(new[] { crop })) };
+        var crop = input.Crops.Single() with { MaxGrowthTemperature = default };
+        input = input with { Crops = EquatableArray.From(new[] { crop }) };
 
         var trajectory = Run(input, Chain(input, craft: false));
 
