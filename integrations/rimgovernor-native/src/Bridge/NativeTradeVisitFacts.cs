@@ -109,7 +109,7 @@ internal static class NativeTradeVisitFacts
 
     // StorytellerComp.IncidentChanceFinal without IncidentChanceFactor_PopulationIntent (the comp's minIncChancePopulationIntentFactor
     // is the catalog's): BaseChanceThisGame, IncidentChanceFactor_CurrentPopulation, ChanceFactorNow and the recent weighting.
-    private static double Weight(Map map, IncidentDef def)
+    internal static double Weight(Map map, IncidentDef def)
     {
         var chance = def.Worker.BaseChanceThisGame;
         if (def.chanceFactorByPopulationCurve != null) chance *= def.chanceFactorByPopulationCurve.Evaluate(PawnsFinder.AllMapsCaravansAndTravellingTransporters_Alive_Colonists.Count());

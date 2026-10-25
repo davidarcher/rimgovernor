@@ -35,7 +35,7 @@ public sealed class DiseaseTableTests
     }
 
     [Fact]
-    public void ARandomMainWeightOnDiseaseHumanIsUnmodelled()
+    public void ARandomMainWeightOnDiseaseHumanIsADrawComp()
     {
         var main = new StorytellerCompProperties_RandomMain
         {
@@ -43,7 +43,8 @@ public sealed class DiseaseTableTests
         };
         var table = Catalog(new StorytellerDef { defName = "Modded", comps = [main] }).DiseaseTable();
 
-        Assert.Equal([nameof(StorytellerCompProperties_RandomMain)], table.Storytellers["Modded"].Unmodelled);
+        Assert.Empty(table.Storytellers["Modded"].Unmodelled);
+        Assert.Equal([P.DiseaseDrawRule.RandomMain], table.Storytellers["Modded"].Draws.Select(d => d.Rule));
     }
 
     [Fact]

@@ -6,9 +6,10 @@ namespace RimGovernor.Brain.Bridge;
 
 // The disease tables of the harm model's illness forecast (#3824 of #3650), read by P.IllnessSchedule and P.IllnessForecast:
 //   - each StorytellerDef's StorytellerCompProperties_Disease comps of the DiseaseHuman category that run on the home map (their
-//     minDaysPassed), matched by exact class as the threat decoder does (Catalog/Storyteller.cs). A home-map comp that can send
+//     minDaysPassed), matched by exact class as the threat decoder does (Catalog/Storyteller.cs). A home-map comp that draws
 //     DiseaseHuman otherwise (an OnOffCycle, a RandomMain weight, a CategoryMTB, CategoryIndividualMTBByBiome or SingleMTB of the
-//     category, or a comp class the decoder does not know) is named unmodelled and sends no incidents (#3859);
+//     category, #3860) is decoded as a draw comp; a comp class the decoder does not know is named unmodelled and sends no
+//     incidents (#3859);
 //   - each BiomeDef's diseaseMtbDays and BiomeDef.CommonalityOfDisease's table: the biome's diseases records, then the
 //     incidents' diseaseBiomeRecords naming the biome (the first record of an incident wins, as the game's Dictionary.Add would
 //     refuse a second). The game's lazy cache is never filled: the records are read directly;
@@ -37,13 +38,17 @@ public sealed partial class DefinitionCatalog
             Storytellers = Rows<StorytellerDef>().ToDictionary(row => row.Key, row => StorytellerDiseases(row.Value), StringComparer.Ordinal),
             Biomes = Rows<BiomeDef>().ToDictionary(row => row.Key, row => DiseaseBiome(row.Value, incidents), StringComparer.Ordinal),
             Incidents = incidents.ToDictionary(d => d.defName, d => DiseaseIncident(d, body), StringComparer.Ordinal),
+            PopulationChanceByIntent = CurvePoints(StorytellerComp.IncreasesPopChanceByPopIntentCurve),
         };
     }
 
-    private static P.StorytellerDiseases StorytellerDiseases(StorytellerDef def)
+    private P.StorytellerDiseases StorytellerDiseases(StorytellerDef def)
     {
         const string human = nameof(IncidentCategoryDefOf.DiseaseHuman);
+        const string big = nameof(IncidentCategoryDefOf.ThreatBig);
         List<double> comps = [];
+        List<P.DiseaseDrawComp> draws = [];
+        List<P.DiseaseBiomeComp> biomes = [];
         SortedSet<string> unmodelled = new(StringComparer.Ordinal);
         foreach (var (comp, kind) in HomeMapComps(def))
         {
@@ -57,37 +62,53 @@ public sealed partial class DefinitionCatalog
 
                     break;
                 case StorytellerCompProperties_OnOffCycle cycle when kind == nameof(StorytellerCompProperties_OnOffCycle):
-                    if (cycle.IncidentCategory?.defName == human)
+                    // Before forceRaidEnemyBeforeDaysPassed an on-off cycle sends raids, not the category's incidents.
+                    var start = Math.Max(Decimal32(cycle.minDaysPassed), Decimal32(cycle.forceRaidEnemyBeforeDaysPassed));
+                    if (cycle.incident is null ? cycle.IncidentCategory?.defName == human : cycle.incident.category?.defName == human)
                     {
-                        unmodelled.Add(kind);
+                        draws.Add(new P.DiseaseDrawComp(P.DiseaseDrawRule.OnOffCycle, start) { Cycle = CycleComp(cycle), Incident = cycle.incident?.defName ?? "" });
                     }
 
                     break;
                 case StorytellerCompProperties_RandomMain random when kind == nameof(StorytellerCompProperties_RandomMain):
-                    if (random.categoryWeights.Seq().Any(e => e.category?.defName == human && e.weight > 0))
+                    var entries = random.categoryWeights.Seq().Where(e => e.category is not null && e.weight > 0).ToList();
+                    if (entries.Any(e => e.category.defName == human))
                     {
-                        unmodelled.Add(kind);
+                        draws.Add(new P.DiseaseDrawComp(P.DiseaseDrawRule.RandomMain, Decimal32(random.minDaysPassed))
+                        {
+                            MtbDays = Decimal32(random.mtbDays),
+                            CategoryWeight = entries.Where(e => e.category.defName == human).Sum(e => Decimal32(e.weight)),
+                            OtherWeight = entries.Where(e => e.category.defName != human && e.category.defName != big).Sum(e => Decimal32(e.weight)),
+                            ThreatBigWeight = entries.Where(e => e.category.defName == big).Sum(e => Decimal32(e.weight)),
+                            MaxThreatBigIntervalDays = Decimal32(random.maxThreatBigIntervalDays),
+                            MinPopulationIntentFactor = Decimal32(random.minIncChancePopulationIntentFactor),
+                        });
                     }
 
                     break;
                 case StorytellerCompProperties_CategoryMTB mtb when kind == nameof(StorytellerCompProperties_CategoryMTB):
                     if (mtb.category?.defName == human)
                     {
-                        unmodelled.Add(kind);
+                        draws.Add(new P.DiseaseDrawComp(P.DiseaseDrawRule.CategoryMtb, Decimal32(mtb.minDaysPassed))
+                        {
+                            MtbDays = Decimal32(mtb.mtbDays),
+                            MtbFactorByDaysPassed = CurvePoints(mtb.mtbDaysFactorByDaysPassedCurve),
+                            MinPopulationIntentFactor = Decimal32(mtb.minIncChancePopulationIntentFactor),
+                        });
                     }
 
                     break;
                 case StorytellerCompProperties_CategoryIndividualMTBByBiome biome when kind == nameof(StorytellerCompProperties_CategoryIndividualMTBByBiome):
                     if (biome.category?.defName == human)
                     {
-                        unmodelled.Add(kind);
+                        biomes.Add(new P.DiseaseBiomeComp(Decimal32(biome.minDaysPassed), DiseaseBiomeIncidents(biome.category)));
                     }
 
                     break;
                 case StorytellerCompProperties_SingleMTB single when kind == nameof(StorytellerCompProperties_SingleMTB):
                     if (single.incident?.category?.defName == human)
                     {
-                        unmodelled.Add(kind);
+                        draws.Add(new P.DiseaseDrawComp(P.DiseaseDrawRule.SingleMtb, Decimal32(single.minDaysPassed)) { Incident = single.incident.defName, MtbDays = Decimal32(single.mtbDays) });
                     }
 
                     break;
@@ -104,7 +125,29 @@ public sealed partial class DefinitionCatalog
             }
         }
 
-        return new P.StorytellerDiseases { MinDaysPassed = comps, Unmodelled = [.. unmodelled] };
+        return new P.StorytellerDiseases { MinDaysPassed = comps, Draws = draws, BiomeComps = biomes, Unmodelled = [.. unmodelled] };
+    }
+
+    // A CategoryIndividualMTBByBiome comp's DiseaseHuman incidents of the table (#3860), per biome: the first mtbDaysByBiome row of
+    // the biome (the game's List.Find), with its MTB.
+    private Dictionary<string, IReadOnlyList<(string Incident, double MtbDays)>> DiseaseBiomeIncidents(IncidentCategoryDef category)
+    {
+        var byBiome = new Dictionary<string, List<(string, double)>>(StringComparer.Ordinal);
+        foreach (var incident in Rows<IncidentDef>().Values.Where(d => d.category == category && d.diseaseIncident is not null && d.mtbDaysByBiome is not null)
+            .OrderBy(d => d.defName, StringComparer.Ordinal))
+        {
+            foreach (var row in incident.mtbDaysByBiome.Where(r => r?.biome is not null).GroupBy(r => r.biome.defName, StringComparer.Ordinal).Select(g => g.First()))
+            {
+                if (!byBiome.TryGetValue(row.biome.defName, out var list))
+                {
+                    byBiome[row.biome.defName] = list = [];
+                }
+
+                list.Add((incident.defName, Decimal32(row.mtbDays)));
+            }
+        }
+
+        return byBiome.ToDictionary(e => e.Key, e => (IReadOnlyList<(string Incident, double MtbDays)>)e.Value, StringComparer.Ordinal);
     }
 
     private static P.DiseaseBiome DiseaseBiome(BiomeDef biome, IReadOnlyList<IncidentDef> incidents)
@@ -143,6 +186,14 @@ public sealed partial class DefinitionCatalog
             MaxVictims = def.diseaseMaxVictims,
             EarliestDay = def.earliestDay,
             MinPopulation = def.minPopulation,
+            ChangesPopulation = def.populationEffect != IncidentPopulationEffect.None,
+            IntentOffset = def.populationEffect switch
+            {
+                IncidentPopulationEffect.IncreaseHard => IncreaseHardIntentOffset,
+                IncidentPopulationEffect.IncreaseMedium => IncreaseMediumIntentOffset,
+                IncidentPopulationEffect.IncreaseEasy => IncreaseEasyIntentOffset,
+                _ => 0,
+            },
             AllowedBiomes = [.. def.allowedBiomes.Seq().Where(b => b is not null).Select(b => b.defName)],
             DisallowedBiomes = [.. def.disallowedBiomes.Seq().Where(b => b is not null).Select(b => b.defName)],
             OnHomeMap = def.targetTags.Seq().Any(t => t?.defName == home),

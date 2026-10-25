@@ -9,13 +9,70 @@ namespace RimGovernor.Brain.Policy;
 // native read (DiseaseFacts). This mirrors StorytellerComp_Disease.MakeIntervalIncidents, StorytellerComp.UsableIncidentsInCategory
 // with IncidentWorker.CanFireNow, and IncidentWorker_DiseaseHuman.ActualVictims (kept constants: "Mirrored game literals: illness").
 
+/// <summary>How a comp other than StorytellerComp_Disease draws a DiseaseHuman incident (#3860), as its class does.</summary>
+public enum DiseaseDrawRule
+{
+    /// <summary>StorytellerComp_OnOffCycle by category: UsableIncidentsInCategory by IncidentChanceFinal weight.</summary>
+    OnOffCycle,
+
+    /// <summary>StorytellerComp_RandomMain: a category by weight (ThreatBig forced past maxThreatBigIntervalDays), then TrySelectRandomIncident.</summary>
+    RandomMain,
+
+    /// <summary>StorytellerComp_CategoryMTB: its category, TrySelectRandomIncident.</summary>
+    CategoryMtb,
+
+    /// <summary>StorytellerComp_SingleMTB: its one incident.</summary>
+    SingleMtb,
+}
+
 /// <summary>
-/// One storyteller's DiseaseHuman comps: each comp's minDaysPassed. Unmodelled names a comp that may send DiseaseHuman the decoder
+/// A storyteller comp other than StorytellerComp_Disease that draws DiseaseHuman incidents (#3860), from <see cref="MinDaysPassed"/>
+/// days after settling (an on-off cycle sends raids before forceRaidEnemyBeforeDaysPassed, which the decoder folds into it). Its
+/// rate: <see cref="Cycle"/>'s incidents a day for an OnOffCycle, 1 ÷ <see cref="MtbDays"/> (over <see cref="MtbFactorByDaysPassed"/>)
+/// otherwise. A RandomMain comp draws DiseaseHuman at <see cref="CategoryWeight"/> among <see cref="OtherWeight"/> (its other
+/// categories bar ThreatBig, counted always drawable) and <see cref="ThreatBigWeight"/> (forced after
+/// <see cref="MaxThreatBigIntervalDays"/>); a SingleMTB comp fires <see cref="Incident"/>. <see cref="MinPopulationIntentFactor"/> is
+/// IncidentChanceFactor_PopulationIntent's floor.
+/// </summary>
+public sealed record DiseaseDrawComp(DiseaseDrawRule Rule, double MinDaysPassed)
+{
+    public string Incident { get; init; } = "";
+
+    public ThreatCycleComp? Cycle { get; init; }
+
+    public double MtbDays { get; init; }
+
+    public IReadOnlyList<(double Days, double Factor)> MtbFactorByDaysPassed { get; init; } = [];
+
+    public double CategoryWeight { get; init; }
+
+    public double OtherWeight { get; init; }
+
+    public double ThreatBigWeight { get; init; }
+
+    public double MaxThreatBigIntervalDays { get; init; }
+
+    public double MinPopulationIntentFactor { get; init; }
+}
+
+/// <summary>
+/// A StorytellerCompProperties_CategoryIndividualMTBByBiome of DiseaseHuman (#3860): from <see cref="MinDaysPassed"/>, each
+/// DiseaseHuman incident with an mtbDaysByBiome row of the colony's biome fires every MtbDays (<see cref="ByBiome"/>).
+/// </summary>
+public sealed record DiseaseBiomeComp(double MinDaysPassed, IReadOnlyDictionary<string, IReadOnlyList<(string Incident, double MtbDays)>> ByBiome);
+
+/// <summary>
+/// One storyteller's DiseaseHuman comps: each StorytellerComp_Disease comp's minDaysPassed, the other comps that draw DiseaseHuman
+/// incidents (<see cref="Draws"/>, <see cref="BiomeComps"/>, #3860). Unmodelled names a comp that may send DiseaseHuman the decoder
 /// does not model; it is a named finding of the schedule and sends no incidents (#3859).
 /// </summary>
 public sealed record StorytellerDiseases
 {
     public IReadOnlyList<double> MinDaysPassed { get; init; } = [];
+
+    public IReadOnlyList<DiseaseDrawComp> Draws { get; init; } = [];
+
+    public IReadOnlyList<DiseaseBiomeComp> BiomeComps { get; init; } = [];
 
     public IReadOnlyList<string> Unmodelled { get; init; } = [];
 }
@@ -121,6 +178,11 @@ public sealed record DiseaseIncidentRules
 
     public int MinPopulation { get; init; }
 
+    /// <summary>The incident's populationEffect is not None, and the offset IncidentChanceFactor_PopulationIntent adds to the intent for it (#3860).</summary>
+    public bool ChangesPopulation { get; init; }
+
+    public double IntentOffset { get; init; }
+
     public IReadOnlyList<string> AllowedBiomes { get; init; } = [];
 
     public IReadOnlyList<string> DisallowedBiomes { get; init; } = [];
@@ -138,17 +200,40 @@ public sealed record DiseaseTable
     public IReadOnlyDictionary<string, DiseaseBiome> Biomes { get; init; } = new Dictionary<string, DiseaseBiome>();
 
     public IReadOnlyDictionary<string, DiseaseIncidentRules> Incidents { get; init; } = new Dictionary<string, DiseaseIncidentRules>();
+
+    /// <summary>StorytellerComp.IncreasesPopChanceByPopIntentCurve (#3860): the chance a category draw takes a population-increasing incident, by population intent.</summary>
+    public IReadOnlyList<(double Intent, double Chance)> PopulationChanceByIntent { get; init; } = [];
 }
 
 /// <summary>
-/// One disease the storyteller can send now: its share of the incidents (its commonality over the usable incidents'), the chance
-/// a potential victim is among the victims drawn (<see cref="IllnessSchedule.VictimChance"/>), and its course.
+/// One disease the storyteller can send now: the incidents a day of it, as each comp's rate for it from the day the comp starts
+/// (<see cref="Rates"/>: start day relative to now, per day), the chance a potential victim is among the victims drawn
+/// (<see cref="IllnessSchedule.VictimChance"/>), and its course.
 /// </summary>
-public sealed record IllnessIncident(string Incident, double Share, double VictimChance, DiseaseCourse Course);
+public sealed record IllnessIncident(string Incident, IReadOnlyList<(double StartDay, double PerDay)> Rates, double VictimChance, DiseaseCourse Course)
+{
+    /// <summary>The incidents of this disease a day over <paramref name="days"/> from now: each comp's rate for the share of the days it runs.</summary>
+    public double PerDay(double days)
+    {
+        if (!(days > 0))
+        {
+            return 0;
+        }
+
+        var rate = 0.0;
+        foreach (var (start, perDay) in Rates)
+        {
+            rate += perDay * Math.Clamp(days - Math.Max(0, start), 0, days) / days;
+        }
+
+        return rate;
+    }
+}
 
 /// <summary>
-/// The colony's disease incidents: each DiseaseHuman comp's rate (1 ÷ (biome MTB × the difficulty's interval factor) a day) from
-/// the day it starts (its minDaysPassed less the days since settling), and the usable incidents. Unassessed (with
+/// The colony's disease incidents: each DiseaseHuman comp's rate for each usable incident (StorytellerComp_Disease at 1 ÷ (biome MTB
+/// × the difficulty's interval factor) a day, drawing by the biome's commonality; the other comps by their own draw, #3860) from
+/// the day it starts (its minDaysPassed less the days since settling). Unassessed (with
 /// <see cref="Findings"/> naming why) when a fact it rests on is unread (<see cref="Unread"/>) or the table does not model the
 /// colony's storyteller, biome, incident or course. An assessed schedule's Findings name the storyteller comps it does not model
 /// (<c>disease_comp_unmodelled:&lt;comps&gt;</c>), which send no incidents.
@@ -161,32 +246,24 @@ public sealed record IllnessSchedule
     /// a rate input), which the harm term raises as a required fact (#3835); otherwise the table does not model the colony.</summary>
     public bool Unread { get; init; }
 
-    public IReadOnlyList<(double StartDay, double PerDay)> Comps { get; init; } = [];
-
     public IReadOnlyList<IllnessIncident> Incidents { get; init; } = [];
 
     public IReadOnlyList<string> Findings { get; init; } = [];
 
-    /// <summary>The incidents a day over <paramref name="days"/> from now: each comp's rate for the share of the days it runs.</summary>
-    public double IncidentsPerDay(double days)
+    /// <summary>The incidents a day over <paramref name="days"/> from now: the sum of every usable disease's rate.</summary>
+    public double IncidentsPerDay(double days) => Incidents.Sum(i => i.PerDay(days));
+
+    /// <summary>The share of the incidents over <paramref name="days"/> that are <paramref name="incident"/>.</summary>
+    public double Share(IllnessIncident incident, double days)
     {
-        if (!(days > 0) || Incidents.Count == 0)
-        {
-            return 0;
-        }
-
-        var rate = 0.0;
-        foreach (var (start, perDay) in Comps)
-        {
-            rate += perDay * Math.Clamp(days - Math.Max(0, start), 0, days) / days;
-        }
-
-        return rate;
+        var total = IncidentsPerDay(days);
+        return total > 0 ? incident.PerDay(days) / total : 0;
     }
 
     /// <summary>The schedule the table and the colony's disease facts give; see the type summary.</summary>
-    public static IllnessSchedule Of(DiseaseTable table, DiseaseFacts facts)
+    public static IllnessSchedule Of(DiseaseTable table, ThreatFacts threat)
     {
+        var facts = threat?.Disease;
         if (facts is null)
         {
             throw new RequiredFactException("disease observation");
@@ -212,9 +289,7 @@ public sealed record IllnessSchedule
         // StorytellerComp_Disease yields nothing with random diseases off or at the difficulty's cutoff; Storyteller.MakeIncidentsForInterval
         // runs a comp only once the days since settling pass its minDaysPassed.
         var mtb = biome.MtbDays * facts.IntervalFactor;
-        var comps = !facts.RandomDiseases || facts.IntervalFactor >= DiseaseIntervalFactorCutoff || !(mtb > 0)
-            ? []
-            : teller.MinDaysPassed.Select(min => (min - facts.DaysSinceSettle, 1 / mtb)).ToArray();
+        var diseaseOn = facts.RandomDiseases && facts.IntervalFactor < DiseaseIntervalFactorCutoff && mtb > 0;
 
         var rows = new Dictionary<string, DiseaseIncidentRead>(StringComparer.Ordinal);
         foreach (var read in facts.Incidents)
@@ -227,8 +302,10 @@ public sealed record IllnessSchedule
             rows[read.Incident] = read;
         }
 
-        var usable = new List<(DiseaseIncidentRules Rules, double Weight, int Potential)>();
+        // IncidentWorker.CanFireNow and CanFireNowSub: the home map, earliestDay, the biome lists, minPopulation, the game-state
+        // gates the native read reports, and a potential victim; TryRandomElementByWeight never picks a weight of 0.
         var settled = Math.Floor(facts.DaysSinceSettle);
+        var open = new List<(DiseaseIncidentRules Rules, DiseaseIncidentRead Read)>();
         foreach (var rules in table.Incidents.Values.OrderBy(r => r.Incident, StringComparer.Ordinal))
         {
             if (!rows.TryGetValue(rules.Incident, out var read))
@@ -236,12 +313,77 @@ public sealed record IllnessSchedule
                 return Unassessed("disease_victims_unobserved:" + rules.Incident) with { Unread = true };
             }
 
-            // IncidentWorker.CanFireNow and CanFireNowSub: the home map, earliestDay, the biome lists, minPopulation, the game-state
-            // gates the native read reports, and a potential victim; TryRandomElementByWeight never picks a weight of 0.
-            var weight = biome.Commonality.GetValueOrDefault(rules.Incident);
             if (!rules.OnHomeMap || settled < rules.EarliestDay || rules.AllowedBiomes.Count > 0 && !rules.AllowedBiomes.Contains(facts.Biome)
                 || rules.DisallowedBiomes.Contains(facts.Biome) || rules.MinPopulation > 0 && facts.FreeColonists < rules.MinPopulation
-                || read.Blocked.Count > 0 || read.Potential <= 0 || !(weight > 0))
+                || read.Blocked.Count > 0 || read.Potential <= 0)
+            {
+                continue;
+            }
+
+            open.Add((rules, read));
+        }
+
+        var rates = new Dictionary<string, List<(double StartDay, double PerDay)>>(StringComparer.Ordinal);
+        void Send(string incident, double minDaysPassed, double perDay)
+        {
+            if (!(perDay > 0))
+            {
+                return;
+            }
+
+            if (!rates.TryGetValue(incident, out var list))
+            {
+                rates[incident] = list = [];
+            }
+
+            list.Add((minDaysPassed - facts.DaysSinceSettle, perDay));
+        }
+
+        // StorytellerComp_Disease: an event at 1 / mtb a day, the incident drawn by the biome's commonality.
+        if (diseaseOn)
+        {
+            var weighted = open.Select(o => (o.Rules.Incident, Weight: biome.Commonality.GetValueOrDefault(o.Rules.Incident))).Where(o => o.Weight > 0).ToList();
+            var all = weighted.Sum(o => o.Weight);
+            foreach (var min in teller.MinDaysPassed)
+            {
+                foreach (var (incident, weight) in weighted)
+                {
+                    Send(incident, min, 1 / mtb * weight / all);
+                }
+            }
+        }
+
+        var now = new CycleNow(facts.DaysSinceSettle, threat!.RaidPoints, threat.ProgressScore, threat.NoTreeConnection);
+        foreach (var comp in teller.Draws)
+        {
+            DrawComp(comp, table, open, facts, now, threat.Trade.PopulationIntent, Send);
+        }
+
+        foreach (var comp in teller.BiomeComps)
+        {
+            // StorytellerComp_CategoryIndividualMTBByBiome: each incident of the category with a row of the biome at 1 / its MTB a day,
+            // when its worker can fire.
+            if (comp.ByBiome.TryGetValue(facts.Biome, out var individual))
+            {
+                foreach (var (incident, days) in individual)
+                {
+                    if (!(days > 0))
+                    {
+                        return Unassessed("disease_comp_invalid:CategoryIndividualMTBByBiome");
+                    }
+
+                    if (open.Any(o => o.Rules.Incident == incident))
+                    {
+                        Send(incident, comp.MinDaysPassed, 1 / days);
+                    }
+                }
+            }
+        }
+
+        var usable = new List<IllnessIncident>();
+        foreach (var (rules, read) in open)
+        {
+            if (!rates.TryGetValue(rules.Incident, out var perDay))
             {
                 continue;
             }
@@ -256,18 +398,74 @@ public sealed record IllnessSchedule
                 return Unassessed("disease_course_unknown:" + rules.Incident);
             }
 
-            usable.Add((rules, weight, read.Potential));
+            usable.Add(new IllnessIncident(rules.Incident, perDay,
+                VictimChance(facts.Candidates, read.Potential, rules.FractionMin, rules.FractionMax, rules.MaxVictims), rules.Course));
         }
 
-        var total = usable.Sum(u => u.Weight);
-        return new IllnessSchedule
+        return new IllnessSchedule { Assessed = true, Findings = unmodelled, Incidents = usable };
+    }
+
+    // A comp other than StorytellerComp_Disease: its rate and the chance each of its events is each open incident (#3860).
+    private static void DrawComp(DiseaseDrawComp comp, DiseaseTable table, List<(DiseaseIncidentRules Rules, DiseaseIncidentRead Read)> open,
+        DiseaseFacts facts, CycleNow now, double populationIntent, Action<string, double, double> send)
+    {
+        // IncidentChanceFinal: the read weight (without the population-intent factor) times that factor.
+        var usable = open.Select(o => (o.Rules.Incident, o.Rules.ChangesPopulation,
+                Weight: Math.Max(0, o.Read.Weight * TradeArrivalRules.IntentFactor(o.Rules.ChangesPopulation, o.Rules.IntentOffset, populationIntent, comp.MinPopulationIntentFactor))))
+            .Where(u => u.Weight > 0).ToList();
+        switch (comp.Rule)
         {
-            Assessed = true,
-            Findings = unmodelled,
-            Comps = comps,
-            Incidents = [.. usable.Select(u => new IllnessIncident(u.Rules.Incident, u.Weight / total,
-                VictimChance(facts.Candidates, u.Potential, u.Rules.FractionMin, u.Rules.FractionMax, u.Rules.MaxVictims), u.Rules.Course))],
-        };
+            case DiseaseDrawRule.SingleMtb:
+                if (open.Any(o => o.Rules.Incident == comp.Incident))
+                {
+                    send(comp.Incident, comp.MinDaysPassed, 1 / comp.MtbDays);
+                }
+
+                return;
+            case DiseaseDrawRule.OnOffCycle:
+                var cycle = comp.Cycle ?? throw new DomainException("disease cycle comp without a cycle");
+                if (comp.Incident.Length > 0)
+                {
+                    // A cycle of one incident fires it.
+                    if (open.Any(o => o.Rules.Incident == comp.Incident))
+                    {
+                        send(comp.Incident, comp.MinDaysPassed, ThreatSchedule.CyclePerDay(cycle, now));
+                    }
+
+                    return;
+                }
+
+                var total = usable.Sum(u => u.Weight);
+                foreach (var u in usable)
+                {
+                    send(u.Incident, comp.MinDaysPassed, ThreatSchedule.CyclePerDay(cycle, now) * u.Weight / total);
+                }
+
+                return;
+            case DiseaseDrawRule.CategoryMtb:
+                var factor = ThreatSchedule.Curve(comp.MtbFactorByDaysPassed, facts.DaysSinceSettle);
+                foreach (var (incident, chance) in TradeArrivalRules.SelectRandomIncident([.. usable], populationIntent, table.PopulationChanceByIntent))
+                {
+                    send(incident, comp.MinDaysPassed, chance / (comp.MtbDays * factor));
+                }
+
+                return;
+            case DiseaseDrawRule.RandomMain:
+                if (usable.Count == 0)
+                {
+                    return;
+                }
+
+                // The other categories count as always drawable; ThreatBig is forced after maxThreatBigIntervalDays (TradeArrivalRules).
+                var others = comp.OtherWeight + comp.CategoryWeight;
+                var notThreatBig = 1 - TradeArrivalRules.ThreatBigFraction(comp.ThreatBigWeight / (comp.ThreatBigWeight + others), 1 / comp.MtbDays, comp.MaxThreatBigIntervalDays);
+                foreach (var (incident, chance) in TradeArrivalRules.SelectRandomIncident([.. usable], populationIntent, table.PopulationChanceByIntent))
+                {
+                    send(incident, comp.MinDaysPassed, notThreatBig * comp.CategoryWeight / others * chance / comp.MtbDays);
+                }
+
+                return;
+        }
     }
 
     // Difficulty.DiseaseIntervalFactorCutoff.

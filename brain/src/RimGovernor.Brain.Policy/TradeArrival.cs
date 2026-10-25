@@ -491,7 +491,7 @@ public static class TradeArrivalRules
     /// <summary>
     /// The trade sources (#3869, #3909) of <paramref name="storyteller"/>'s trader comps for the colony now. Per comp the events a
     /// day (a FactionInteraction comp's incidents a day × the ally fraction, none below its min wealth or min danger; an OnOffCycle
-    /// comp's cycle rate at the days since settling and <paramref name="threatPoints"/>; an MTB comp's 1 ÷ mtbDays over its
+    /// comp's cycle rate at the days since settling and <paramref name="now"/>; an MTB comp's 1 ÷ mtbDays over its
     /// days-passed factor), from the days its start still lies ahead; each event is the comp's incident or one drawn from its
     /// categories as <see cref="IncidentChances"/> gives. None for an incident blocked now, an orbital trader without a powered comms
     /// console and trade beacon, travelers, or a colony without a negotiator. Each visit is of a kind drawn as the incident draws it
@@ -502,7 +502,7 @@ public static class TradeArrivalRules
     /// carry, or a kind the catalog does not know, leaves the trade unread (the returned Unread).
     /// </summary>
     public static (IReadOnlyList<TradeSource> Sources, IReadOnlyList<string> Findings, string Unread) Sources(TradeScheduleTable schedule, StorytellerTrade storyteller,
-        TraderStockTable stock, TradeVisitFacts facts, double threatPoints, double wealth, long silver, long orbitalSilver)
+        TraderStockTable stock, TradeVisitFacts facts, CycleNow now, double wealth, long silver, long orbitalSilver)
     {
         var findings = new SortedSet<string>(StringComparer.Ordinal) { SilverIncomeUnmodelled };
         if (storyteller.Unmodelled.Count > 0)
@@ -532,7 +532,7 @@ public static class TradeArrivalRules
                 return ([], [], unread);
             }
 
-            var perDay = VisitsPerDay(comp, facts, threatPoints, wealth);
+            var perDay = VisitsPerDay(comp, facts, now, wealth);
             var from = Math.Max(0, comp.MinDaysPassed - facts.DaysSinceSettle);
             foreach (var (name, chance) in chances)
             {
@@ -640,7 +640,7 @@ public static class TradeArrivalRules
                     return ([], "trade_incident_unread:" + name);
                 }
 
-                var weight = Math.Max(0, read.Weight * IntentFactor(incident, facts.PopulationIntent, draw.MinPopulationIntentFactor));
+                var weight = Math.Max(0, read.Weight * IntentFactor(incident.ChangesPopulation, incident.IntentOffset, facts.PopulationIntent, draw.MinPopulationIntentFactor));
                 if (read.Blocked.Count == 0 && incident.EarliestDay <= Math.Max(facts.DaysSinceSettle, comp.MinDaysPassed) && weight > 0)
                 {
                     list.Add((name, incident, weight));
@@ -666,7 +666,7 @@ public static class TradeArrivalRules
                 var notThreatBig = 1 - ThreatBigFraction(threatBig / (threatBig + others), comp.IncidentsPerDay, draw.MaxThreatBigIntervalDays);
                 foreach (var category in drawable.Where(c => c.Trader && c.Weight > 0))
                 {
-                    chances.AddRange(SelectRandomIncident(usable[category.Category], facts.PopulationIntent, schedule.PopulationChanceByIntent)
+                    chances.AddRange(SelectRandomIncident([.. usable[category.Category].Select(i => (i.Incident, i.Def.ChangesPopulation, i.Weight))], facts.PopulationIntent, schedule.PopulationChanceByIntent)
                         .Select(i => (i.Incident, notThreatBig * category.Weight / others * i.Chance)));
                 }
 
@@ -676,7 +676,7 @@ public static class TradeArrivalRules
             case TradeDrawRule.CategoryMtb:
                 foreach (var category in draw.Categories.Where(c => c.Trader))
                 {
-                    chances.AddRange(SelectRandomIncident(usable[category.Category], facts.PopulationIntent, schedule.PopulationChanceByIntent));
+                    chances.AddRange(SelectRandomIncident([.. usable[category.Category].Select(i => (i.Incident, i.Def.ChangesPopulation, i.Weight))], facts.PopulationIntent, schedule.PopulationChanceByIntent));
                 }
 
                 break;
@@ -712,7 +712,7 @@ public static class TradeArrivalRules
     /// the population intent, one that changes the population by weight, else one that does not, either falling back to all of them
     /// when its own weight is 0; nothing when all weigh 0.
     /// </summary>
-    internal static IEnumerable<(string Incident, double Chance)> SelectRandomIncident(IReadOnlyList<(string Incident, TradeIncident Def, double Weight)> usable,
+    internal static IEnumerable<(string Incident, double Chance)> SelectRandomIncident(IReadOnlyList<(string Incident, bool ChangesPopulation, double Weight)> usable,
         double populationIntent, IReadOnlyList<(double X, double Y)> chanceByIntent)
     {
         var all = usable.Sum(i => i.Weight);
@@ -722,11 +722,10 @@ public static class TradeArrivalRules
         }
 
         var increase = Math.Clamp(ThreatSchedule.Curve(chanceByIntent, populationIntent), 0, 1);
-        var changing = usable.Where(i => i.Def.ChangesPopulation).Sum(i => i.Weight);
+        var changing = usable.Where(i => i.ChangesPopulation).Sum(i => i.Weight);
         var steady = all - changing;
-        foreach (var (incident, def, weight) in usable)
+        foreach (var (incident, changes, weight) in usable)
         {
-            var changes = def.ChangesPopulation;
             var whenIncrease = changing > 0 ? (changes ? weight / changing : 0) : weight / all;
             var whenNot = steady > 0 ? (changes ? 0 : weight / steady) : weight / all;
             yield return (incident, (increase * whenIncrease) + ((1 - increase) * whenNot));
@@ -735,8 +734,8 @@ public static class TradeArrivalRules
 
     // StorytellerComp.IncidentChanceFactor_PopulationIntent: 1 for no population effect, else max(intent + the effect's offset, the
     // comp's floor).
-    private static double IntentFactor(TradeIncident incident, double intent, double floor) =>
-        incident.ChangesPopulation ? Math.Max(intent + incident.IntentOffset, floor) : 1;
+    internal static double IntentFactor(bool changesPopulation, double intentOffset, double intent, double floor) =>
+        changesPopulation ? Math.Max(intent + intentOffset, floor) : 1;
 
     // The kind a visit of the incident is of: a source (a candidate faction) uniformly, then a kind by weight; a visitor group's
     // trader only with TraderChance, and none of a faction whose Peaceful groups may be children (named).
@@ -823,12 +822,12 @@ public static class TradeArrivalRules
     // StorytellerComp_FactionInteraction: no visits below minWealth or minDanger or without an ally fraction; IncidentCycleUtility's
     // count is RoundRandom(base) over a year, then RoundRandom(hits × fraction): unbiased, so the rates multiply. OnOffCycle:
     // ThreatSchedule's cycle rate. MTB: Rand.MTBEventOccurs at 1 ÷ (mtbDays × the days-passed factor) a day.
-    private static double VisitsPerDay(TradeVisitComp comp, TradeVisitFacts facts, double threatPoints, double wealth)
+    private static double VisitsPerDay(TradeVisitComp comp, TradeVisitFacts facts, CycleNow now, double wealth)
     {
         switch (comp.Rate)
         {
             case TradeCompRate.OnOffCycle:
-                return comp.Cycle is { } cycle ? ThreatSchedule.CyclePerDay(cycle, facts.DaysSinceSettle, threatPoints) : throw new DomainException("trade cycle comp without a cycle");
+                return comp.Cycle is { } cycle ? ThreatSchedule.CyclePerDay(cycle, now) : throw new DomainException("trade cycle comp without a cycle");
             case TradeCompRate.Mtb:
                 var factor = ThreatSchedule.Curve(comp.MtbFactorByDaysPassed, facts.DaysSinceSettle);
                 return factor > 0 ? comp.IncidentsPerDay / factor : throw new DomainException("trade mtb comp factor " + factor);

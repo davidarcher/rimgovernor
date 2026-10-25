@@ -657,7 +657,7 @@ public sealed class ForecastValueTests
         {
             Table = new() { Known = true, Hediff = "Flu", InitialSeverity = 0.2, Lethality = new Lethality.Lethal(1), Immunizable = new(0.25, 0.2, -0.5), Stages = [Stage(0, Half("Consciousness"))] },
         };
-        var illness = new IllnessSchedule { Assessed = true, Comps = [(0, 0.1)], Incidents = [new IllnessIncident("Disease_Flu", 1, 1, course)] };
+        var illness = new IllnessSchedule { Assessed = true, Incidents = [new IllnessIncident("Disease_Flu", [(0, 0.1)], 1, course)] };
         var pawn = HarmPawn() with { Disease = NeedsFixtures.Disease with { Contracts = [new("Disease_Flu", 1)] } };
         ForecastValueResult Value(IllnessSchedule schedule)
         {
@@ -666,7 +666,7 @@ public sealed class ForecastValueTests
         }
 
         // A storyteller the disease table does not model: no illness term, named (#3835).
-        var without = Value(IllnessSchedule.Of(new DiseaseTable(), IllnessForecastTests.Facts()));
+        var without = Value(IllnessForecastTests.Schedule(new DiseaseTable(), IllnessForecastTests.Facts()));
         var with = Value(illness);
 
         Assert.Null(without.HarmDetail!.Illness);

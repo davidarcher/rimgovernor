@@ -156,7 +156,7 @@ public static class IllnessForecast
                 return new HarmDistribution { Findings = [.. findings] };
             }
 
-            var sick = incident.Share * incident.VictimChance * Math.Clamp(contract, 0, 1);
+            var sick = schedule.Share(incident, days) * incident.VictimChance * Math.Clamp(contract, 0, 1);
             if (!(sick > 0))
             {
                 continue;

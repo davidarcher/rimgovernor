@@ -228,7 +228,10 @@ namespace RimGovernor.Native
                 WealthTotal = Finite(wealth.WealthTotal),
                 RaidPoints = Finite(StorytellerUtility.DefaultThreatPointsNow(map)),
                 HostileFactions = [.. HostileRaidFactions()], Raids = [.. NativeDefenseObservationTools.RaidTracks(map)],
-                Storyteller = Find.Storyteller.def.defName, DaysPassed = Finite(GenDate.DaysPassedFloat),
+                Storyteller = Find.Storyteller.def.defName, DaysPassed = Finite(GenDate.DaysPassedSinceSettleFloat),
+                ProgressScore = Finite(NativeStorytellerFacts.ProgressScore(map)), NoTreeConnection = NativeStorytellerFacts.NoTreeConnection(),
+                ThreatScale = Finite(Find.Storyteller.difficulty.threatScale), Biome = Find.WorldGrid[map.Tile].PrimaryBiome.defName,
+                Generator = [.. NativeStorytellerFacts.GeneratorIncidents(map)],
                 Disease = NativeDiseaseFacts.Read(map),
                 Trade = NativeTradeVisitFacts.Read(map),
             };

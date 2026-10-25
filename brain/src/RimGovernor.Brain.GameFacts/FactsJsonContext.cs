@@ -925,6 +925,7 @@ namespace RimGovernor.Brain.GameFacts;
 [JsonSerializable(typeof(EquatableArray<RimGovernor.Brain.GameFacts.Observations.UpkeepPerson>), TypeInfoPropertyName = "EquatableArrayObservationsUpkeepPerson")]
 [JsonSerializable(typeof(EquatableArray<RimGovernor.Brain.GameFacts.Observations.ColonyAnimal>), TypeInfoPropertyName = "EquatableArrayObservationsColonyAnimal")]
 [JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.ThreatFacts), TypeInfoPropertyName = "ObservationsThreatFacts")]
+[JsonSerializable(typeof(EquatableArray<RimGovernor.Brain.GameFacts.Observations.ThreatIncidentRead>), TypeInfoPropertyName = "EquatableArrayObservationsThreatIncidentRead")]
 [JsonSerializable(typeof(EquatableArray<RimGovernor.Brain.GameFacts.Observations.RaidTrack>), TypeInfoPropertyName = "EquatableArrayObservationsRaidTrack")]
 [JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.ThreatSection), TypeInfoPropertyName = "ObservationsThreatSection")]
 [JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.HaulSafety), TypeInfoPropertyName = "ObservationsHaulSafety")]

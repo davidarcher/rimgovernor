@@ -49,8 +49,8 @@ public sealed class HospitalCreditTests
     // The illness forecast's flu (IllnessForecastTests): it kills half its victims at 1x immunity, none at 1.25x.
     private static IllnessSchedule Flu(double perDay) => new()
     {
-        Assessed = true, Comps = [(0, perDay)],
-        Incidents = perDay > 0 ? [new IllnessIncident("Disease_Flu", 1, 1, new DiseaseCourse
+        Assessed = true,
+        Incidents = perDay > 0 ? [new IllnessIncident("Disease_Flu", [(0, perDay)], 1, new DiseaseCourse
         {
             Table = new() { Known = true, Hediff = "Flu", InitialSeverity = 0.2, Lethality = new Lethality.Lethal(1), Immunizable = new ImmunizableProps(0.25, 0.2, -0.5), Stages = [new PenaltyStage(0, 0, [])] },
             Tendable = true, Tend = new TendCourse(0, 0.5, 0.75, -1),
@@ -223,7 +223,7 @@ public sealed class HospitalCreditTests
             PerDayMin = 0.2, PerDayMax = 0.2, MaxSeverity = 1, DestroysOrgan = true,
             Parts = [new() { Part = "Lung", Tag = "BreathingSource", Capacity = "Breathing", Lethal = true, Recipes = new Dictionary<string, double> { ["InstallNaturalLung"] = 1 } }],
         };
-        var schedule = new IllnessSchedule { Assessed = true, Comps = [(0, 1 / 30.0)], Incidents = [new IllnessIncident(decay, 1, 1, course)] };
+        var schedule = new IllnessSchedule { Assessed = true, Incidents = [new IllnessIncident(decay, [(0, 1 / 30.0)], 1, course)] };
         NeedsForecastPawn Decaying(bool stocked) => Patient() with
         {
             Disease = new PawnDiseaseFacts

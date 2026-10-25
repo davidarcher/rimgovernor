@@ -17,7 +17,7 @@ internal static class NativeDiseaseFacts
         var difficulty = Find.Storyteller.difficulty;
         var candidates = Candidates(map).ToList();
         var incidents = DiseaseIncidents().Select(def => new RimGovernor.Brain.GameFacts.Observations.DiseaseIncidentRead(def.defName, candidates.Count(p => PotentialVictim(def, p)))
-            { Blocked = [.. Blocked(map, def, difficulty)] });
+            { Blocked = [.. Blocked(map, def, difficulty)], Weight = NativeTradeVisitFacts.Weight(map, def) });
         return new RimGovernor.Brain.GameFacts.Observations.DiseaseFacts {
             Storyteller = Find.Storyteller.def.defName, Biome = Find.WorldGrid[map.Tile].PrimaryBiome.defName,
             RandomDiseases = DebugSettings.enableRandomDiseases, IntervalFactor = difficulty.diseaseIntervalFactor,

@@ -58,7 +58,7 @@ public sealed class MedicineValueTests
 
     private static HarmInputs Sick(double perDay) => ForecastValueTests.RaidDay() with
     {
-        Illness = new() { Assessed = true, Comps = [(0, perDay)], Incidents = [new IllnessIncident("Disease_Flu", 1, 1, Flu)] },
+        Illness = new() { Assessed = true, Incidents = [new IllnessIncident("Disease_Flu", [(0, perDay)], 1, Flu)] },
     };
 
     internal static ColonyModelPolicy Policy(double tends = 0) => new() { MedicineTendsPerDay = tends };

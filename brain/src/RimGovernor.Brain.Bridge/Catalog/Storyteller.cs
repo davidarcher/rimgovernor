@@ -10,16 +10,18 @@ namespace RimGovernor.Brain.Bridge;
 // and caravans). A comp is matched by its exact props class, so a mod's subclass is a class the decoder does not know. The
 // threat decoder models:
 //   - StorytellerCompProperties_OnOffCycle whose IncidentCategory is ThreatBig (incident.category, else category): a cycle, its
-//     accept fraction by days passed and by threat points;
+//     accept fraction by days passed, threat points and progress score, and its tree-connector days (#3860);
+//   - StorytellerCompProperties_ThreatsGenerator (#3860): its cycle, the allowed threats (RaidEnemy, MechCluster) and the difficulty's
+//     threatScale (the count curve is mirrored in P.ThreatSchedule);
+//   - StorytellerCompProperties_CategoryIndividualMTBByBiome of ThreatBig (#3860): each such incident's mtbDaysByBiome rows;
 //   - StorytellerCompProperties_RandomMain: an MTB comp with the ThreatBig share of its categoryWeights;
 //   - StorytellerCompProperties_CategoryMTB of ThreatBig: an MTB comp with its mtbDaysFactorByDaysPassedCurve;
 //   - StorytellerCompProperties_SingleMTB of a ThreatBig incident that targets the home map: an MTB comp;
 //   - StorytellerCompProperties_FactionInteraction: nothing (faction visits, traders, ally help), unmodelled of a ThreatBig incident.
 // A class listed as sending no scheduled major threat (quests, diseases, ...) adds nothing. The trader decoder (#3869, #3909) reads
 // the same comps for trader visits (TradeSchedule). Every other home-map
-// comp is named unmodelled and adds no threats: a comp class the decoder does not know, a ThreatBig OnOffCycle that scales its
-// accept fraction by the progress score or swaps its days without a tree-connection meme, a ThreatsGenerator, and a
-// CategoryIndividualMTBByBiome of ThreatBig. 1.7 has no StorytellerCompProperties_ThreatCycle.
+// comp is named unmodelled and adds no threats: a comp class the decoder does not know, and a ThreatsGenerator with its own
+// threat points. 1.7 has no StorytellerCompProperties_ThreatCycle.
 
 public sealed partial class DefinitionCatalog
 {
@@ -41,40 +43,47 @@ public sealed partial class DefinitionCatalog
         Storytellers = Rows<StorytellerDef>().ToDictionary(row => row.Key, row => StorytellerThreats(row.Value), StringComparer.Ordinal),
     };
 
-    private static P.StorytellerThreats StorytellerThreats(StorytellerDef def)
+    private P.StorytellerThreats StorytellerThreats(StorytellerDef def)
     {
         const string big = nameof(IncidentCategoryDefOf.ThreatBig);
         List<P.ThreatCycleComp> cycles = [];
         List<P.ThreatMtbComp> mtbs = [];
+        List<P.ThreatGeneratorComp> generators = [];
+        List<P.ThreatBiomeComp> biomes = [];
         SortedSet<string> unmodelled = new(StringComparer.Ordinal);
         foreach (var (comp, kind) in HomeMapComps(def))
         {
             switch (comp)
             {
                 case StorytellerCompProperties_OnOffCycle cycle when kind == nameof(StorytellerCompProperties_OnOffCycle):
-                    if (cycle.IncidentCategory?.defName != big)
+                    if (cycle.IncidentCategory?.defName == big)
                     {
+                        cycles.Add(CycleComp(cycle));
+                    }
+
+                    break;
+                case StorytellerCompProperties_ThreatsGenerator generator when kind == nameof(StorytellerCompProperties_ThreatsGenerator):
+                    var parms = generator.parms;
+                    if (parms is null || parms.threatPoints.HasValue || parms.minThreatPoints.HasValue || parms.currentThreatPointsFactor != 1 || parms.faction is not null)
+                    {
+                        // The incident's points or faction are not the colony's default raid points the native read gates on.
+                        unmodelled.Add(kind);
                         break;
                     }
 
-                    if (cycle.acceptPercentFactorPerProgressScoreCurve is not null)
+                    List<string> allowed = [];
+                    if ((parms.allowedThreats & AllowedThreatsGeneratorThreats.Raids) != 0)
                     {
-                        unmodelled.Add(kind + "." + nameof(cycle.acceptPercentFactorPerProgressScoreCurve));
-                        break;
+                        allowed.Add(nameof(IncidentDefOf.RaidEnemy));
                     }
 
-                    if (cycle.onDaysNoTreeConnectors != 0 || cycle.offDaysNoTreeConnectors != 0)
+                    if ((parms.allowedThreats & AllowedThreatsGeneratorThreats.MechClusters) != 0)
                     {
-                        unmodelled.Add(kind + "." + nameof(cycle.onDaysNoTreeConnectors));
-                        break;
+                        allowed.Add(nameof(IncidentDefOf.MechCluster));
                     }
 
-                    cycles.Add(new P.ThreatCycleComp(
-                        Decimal32(cycle.minDaysPassed), Decimal32(cycle.onDays), Decimal32(cycle.offDays),
-                        Decimal32(cycle.numIncidentsRange.min), Decimal32(cycle.numIncidentsRange.max), CurvePoints(cycle.acceptFractionByDaysPassedCurve))
-                    {
-                        AcceptByThreatPoints = CurvePoints(cycle.acceptPercentFactorPerThreatPointsCurve),
-                    });
+                    generators.Add(new P.ThreatGeneratorComp(Decimal32(generator.minDaysPassed), Decimal32(parms.onDays), Decimal32(parms.offDays),
+                        Decimal32(parms.numIncidentsRange.min), Decimal32(parms.numIncidentsRange.max), allowed, nameof(IncidentDefOf.RaidEnemy)));
                     break;
                 case StorytellerCompProperties_RandomMain random when kind == nameof(StorytellerCompProperties_RandomMain):
                     var weights = random.categoryWeights.Seq().Where(e => e.category is not null).ToList();
@@ -108,7 +117,7 @@ public sealed partial class DefinitionCatalog
                 case StorytellerCompProperties_CategoryIndividualMTBByBiome biome when kind == nameof(StorytellerCompProperties_CategoryIndividualMTBByBiome):
                     if (biome.category?.defName == big)
                     {
-                        unmodelled.Add(kind);
+                        biomes.Add(new P.ThreatBiomeComp(Decimal32(biome.minDaysPassed), BiomeIncidents(biome.category)));
                     }
 
                     break;
@@ -122,7 +131,45 @@ public sealed partial class DefinitionCatalog
             }
         }
 
-        return new P.StorytellerThreats { Cycles = cycles, Mtbs = mtbs, Unmodelled = [.. unmodelled] };
+        return new P.StorytellerThreats { Cycles = cycles, Mtbs = mtbs, Generators = generators, Biomes = biomes, Unmodelled = [.. unmodelled] };
+    }
+
+    // An OnOffCycle comp's cycle with its accept curves (days passed, threat points, progress score) and tree-connector days.
+    private static P.ThreatCycleComp CycleComp(StorytellerCompProperties_OnOffCycle cycle) => new(
+        Decimal32(cycle.minDaysPassed), Decimal32(cycle.onDays), Decimal32(cycle.offDays),
+        Decimal32(cycle.numIncidentsRange.min), Decimal32(cycle.numIncidentsRange.max), CurvePoints(cycle.acceptFractionByDaysPassedCurve))
+    {
+        AcceptByThreatPoints = CurvePoints(cycle.acceptPercentFactorPerThreatPointsCurve),
+        AcceptByProgressScore = CurvePoints(cycle.acceptPercentFactorPerProgressScoreCurve),
+        OnDaysNoTreeConnectors = Decimal32(cycle.onDaysNoTreeConnectors),
+        OffDaysNoTreeConnectors = Decimal32(cycle.offDaysNoTreeConnectors),
+    };
+
+    // A CategoryIndividualMTBByBiome comp's incidents of the category (#3860): per biome, each incident that targets the player's home
+    // map and has an mtbDaysByBiome row of it (the game takes the first row of the biome), with its MTB.
+    private Dictionary<string, IReadOnlyList<P.ThreatBiomeIncident>> BiomeIncidents(IncidentCategoryDef category)
+    {
+        const string home = nameof(IncidentTargetTagDefOf.Map_PlayerHome);
+        var byBiome = new Dictionary<string, List<P.ThreatBiomeIncident>>(StringComparer.Ordinal);
+        foreach (var incident in Rows<IncidentDef>().Values.Where(d => d.category == category && d.mtbDaysByBiome is not null).OrderBy(d => d.defName, StringComparer.Ordinal))
+        {
+            if (!incident.targetTags.Seq().Any(t => t?.defName == home))
+            {
+                continue;
+            }
+
+            foreach (var row in incident.mtbDaysByBiome.Where(r => r?.biome is not null).GroupBy(r => r.biome.defName, StringComparer.Ordinal).Select(g => g.First()))
+            {
+                if (!byBiome.TryGetValue(row.biome.defName, out var list))
+                {
+                    byBiome[row.biome.defName] = list = [];
+                }
+
+                list.Add(new P.ThreatBiomeIncident(incident.defName, Decimal32(row.mtbDays), typeof(IncidentWorker_Raid).IsAssignableFrom(incident.workerClass)));
+            }
+        }
+
+        return byBiome.ToDictionary(e => e.Key, e => (IReadOnlyList<P.ThreatBiomeIncident>)e.Value, StringComparer.Ordinal);
     }
 
     // The trader decoder (#3869): which comp classes send no trader visit. A comp class outside it and the trader decode below is
@@ -200,8 +247,7 @@ public sealed partial class DefinitionCatalog
     //   - StorytellerCompProperties_SingleMTB of a modelled incident: 1 ÷ mtbDays;
     // a comp of one incident also from its earliestDay. A modelled incident's worker class is exactly IncidentWorker_TraderCaravanArrival,
     // _OrbitalTraderArrival, _VisitorGroup, _CaravanArrivalTributeCollector or _TravelerGroup. Named unmodelled: a comp of a
-    // trader-like incident of another class (a subclass), a comp drawing a trader category the draw does not model, an OnOffCycle
-    // trader comp with a progress-score curve or tree-connector days, and a comp class the decoder does not know.
+    // trader-like incident of another class (a subclass), a comp drawing a trader category the draw does not model, and a comp class the decoder does not know.
     private static P.StorytellerTrade StorytellerTrade(StorytellerDef def, Dictionary<string, P.TradeIncident> incidents, Dictionary<string, bool> traderCategories)
     {
         List<P.TradeVisitComp> comps = [];
@@ -250,20 +296,7 @@ public sealed partial class DefinitionCatalog
                         break;
                     }
 
-                    if (cycle.acceptPercentFactorPerProgressScoreCurve is not null || cycle.onDaysNoTreeConnectors != 0 || cycle.offDaysNoTreeConnectors != 0)
-                    {
-                        unmodelled.Add(kind + ":" + (cycle.incident?.defName ?? cycle.IncidentCategory!.defName));
-                        break;
-                    }
-
-                    comps.Add(cycled with
-                    {
-                        Cycle = new P.ThreatCycleComp(Decimal32(cycle.minDaysPassed), Decimal32(cycle.onDays), Decimal32(cycle.offDays),
-                            Decimal32(cycle.numIncidentsRange.min), Decimal32(cycle.numIncidentsRange.max), CurvePoints(cycle.acceptFractionByDaysPassedCurve))
-                        {
-                            AcceptByThreatPoints = CurvePoints(cycle.acceptPercentFactorPerThreatPointsCurve),
-                        },
-                    });
+                    comps.Add(cycled with { Cycle = CycleComp(cycle) });
                     break;
                 case StorytellerCompProperties_RandomMain random when kind == nameof(StorytellerCompProperties_RandomMain):
                     const string big = nameof(IncidentCategoryDefOf.ThreatBig);

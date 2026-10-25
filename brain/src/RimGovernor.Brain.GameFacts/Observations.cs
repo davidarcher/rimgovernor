@@ -5825,8 +5825,30 @@ public sealed record ThreatFacts
     /// <summary>Find.Storyteller.def.defName: the storyteller whose comps schedule the threats (#3539).</summary>
     public required string Storyteller { get; init; }
 
-    /// <summary>GenDate.DaysPassedFloat.</summary>
+    /// <summary>GenDate.DaysPassedSinceSettleFloat, the day count storyteller comps read.</summary>
     public required double DaysPassed { get; init; }
+
+    /// <summary>
+    /// StorytellerUtility.GetProgressScore(map): the free colonists (not quest lodgers) plus the storyteller's wealth × 0.0001, which
+    /// an OnOffCycle comp's acceptPercentFactorPerProgressScoreCurve reads (#3860).
+    /// </summary>
+    public required double ProgressScore { get; init; }
+
+    /// <summary>
+    /// Whether an OnOffCycle comp runs its onDaysNoTreeConnectors / offDaysNoTreeConnectors: the player faction tracks ideoligions
+    /// (Faction.OfPlayer.ideos) and none of them has the TreeConnection meme (StorytellerComp_OnOffCycle, #3860).
+    /// </summary>
+    public required bool NoTreeConnection { get; init; }
+
+    /// <summary>Difficulty.threatScale: ThreatsGenerator scales its incident counts by it (#3860).</summary>
+    public required double ThreatScale { get; init; }
+
+    /// <summary>The map's primary biome by def name: a CategoryIndividualMTBByBiome comp reads each incident's mtbDaysByBiome row of it (#3860).</summary>
+    public required string Biome { get; init; }
+
+    /// <summary>The incidents a home-map ThreatsGenerator can draw, RaidEnemy and MechCluster (#3860); each is read for forced incident parms.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<ThreatIncidentRead>))]
+    public required EquatableArray<ThreatIncidentRead> Generator { get; init; }
 
     /// <summary>
     /// The def names of the world's factions that are hostile to the player and have a Combat pawn group maker: the factions a
@@ -5848,6 +5870,14 @@ public sealed record ThreatFacts
     /// <summary>What the storyteller's trader visits read of the colony now (#3869); every threat census reads it.</summary>
     public required TradeVisitFacts Trade { get; init; }
 }
+
+/// <summary>
+/// One incident a ThreatsGenerator draws (#3860). ThreatsGenerator.MakeThreat takes the incidents whose worker CanFireNow for its
+/// forced parms (IncidentWorker.CanFireNow skips every gate but CanFireNowSub, and an active void awakening) and picks one by
+/// <see cref="Weight"/> (IncidentWorker.BaseChanceThisGame). <see cref="CanFire"/> mirrors CanFireNowSub at the map's raid points: for
+/// RaidEnemy a faction that can be a group source (FactionCanBeGroupSource), for MechCluster Royalty and a mechanoid faction.
+/// </summary>
+public sealed record ThreatIncidentRead(string Incident, double Weight, bool CanFire);
 
 /// <summary>
 /// The colony facts a trader visit reads (#3869), read without changing game state: StorytellerUtility.AllyIncidentFraction for
@@ -5953,7 +5983,10 @@ public sealed record TraderKindWeight(string Kind, double Weight)
 /// The colony facts StorytellerComp_Disease and IncidentWorker_DiseaseHuman read (#3824). Read-only: the storyteller and the
 /// map's biome by def name, DebugSettings.enableRandomDiseases, the difficulty's diseaseIntervalFactor,
 /// GenDate.DaysPassedSinceSettleFloat, the incident's victim candidates (the map's free colonists and prisoners outside a
-/// biosculpter pod) and the free colonists the minPopulation gate counts, and one row per DiseaseHuman incident.
+/// biosculpter pod) and the free colonists the minPopulation gate counts, and one row per DiseaseHuman incident. The other comps
+/// that draw a DiseaseHuman incident (#3860) read the raid points, progress score and tree-connection state of an OnOffCycle and the
+/// StorytellerUtilityPopulation.PopulationIntent of a category draw (retained on <see cref="ThreatFacts"/> and
+/// <see cref="TradeVisitFacts"/>).
 /// </summary>
 public sealed record DiseaseFacts
 {
@@ -5979,12 +6012,16 @@ public sealed record DiseaseFacts
 /// One DiseaseHuman incident on the map now: Potential is the count of its potential victims (IncidentWorker_Disease.PotentialVictims:
 /// not in cryptosleep, not a dryad, its development stage, a free affected part, flesh); Blocked names the game-state gates of
 /// IncidentWorker.CanFireNow that hold now (<c>scenario</c>: a ScenPart_DisableIncident, <c>difficulty</c>: disabledWhen,
-/// <c>planet_layer</c>: the layer lists).
+/// <c>planet_layer</c>: the layer lists). Weight is StorytellerComp.IncidentChanceFinal's factors but the population-intent one
+/// (BaseChanceThisGame × chanceFactorByPopulationCurve × ChanceFactorNow × the recent-incident factors), by which a comp other than
+/// StorytellerComp_Disease draws the incident (#3860); StorytellerComp_Disease draws by the biome's commonality instead.
 /// </summary>
 public sealed record DiseaseIncidentRead(string Incident, int Potential)
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Blocked { get; init; }
+
+    public double Weight { get; init; }
 }
 
 /// <summary>The threat section of the colony census. A threat read that fails fails the census.</summary>

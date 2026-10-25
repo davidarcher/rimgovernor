@@ -574,7 +574,7 @@ incident is usable when no gate blocks it, its earliestDay has come by the comp'
 (with the `IncreasesPopChanceByPopIntentCurve` chance one that changes the population, else one that does not, each falling back
 to all), an `OnOffCycle` by weight. Each comp starts at max(minDaysPassed, a single incident's earliestDay) − the days since
 settling. A comp of a trader-like worker of another class, or drawing a trader category that holds one, an incident with a
-threat-points range or an Anomaly-chance split, an `OnOffCycle` with a progress-score curve or tree-connector days, and a comp
+threat-points range or an Anomaly-chance split, and a comp
 class the decoder does not know, is named `stock_arrival_trade_comp_unmodelled:<comps>`. A visit's kind is drawn as the incident draws it: a source faction uniformly
 (`FactionCanBeGroupSource`), then a kind by `TraderKindCommonality` (a visitor group: its visitorTraderKinds by
 `CalculatedCommonality`, with `TraderChance` 0.75; a faction whose Peaceful group makers hold a child kind supplies nothing,
@@ -700,9 +700,12 @@ costs each pawn.
   for: not missing, no added part on it or an ancestor, the hediff not already on it); and per `DestroyOrgan` part def each install
   recipe the autopilot could queue (`AvailableNow`, an install-part worker, `AvailableOnNow`) as an `OrganReplacementRead`: its part and
   medicine on the map, eligible doctors, the best-bed and ideal success chances, the violation and lethal flags, and the surgery
-  outcome model #3804 reads for a queued bill (#3830)). The colony decode carries `ThreatFacts.Disease` to `ReviewFacts.Disease`.
+  outcome model #3804 reads for a queued bill (#3830)). The review reads `ThreatFacts.Disease` directly from its canonical census.
 - `ReviewFacts.DiseaseTable` (`DiseaseTable`, `Catalog/Disease.cs`): per storyteller its home-map `StorytellerCompProperties_Disease`
-  comps of `DiseaseHuman` (their `minDaysPassed`; any other comp that can send the category is unmodelled), per biome its
+  comps of `DiseaseHuman` (their `minDaysPassed`), the other home-map comps that draw the category (#3860: an `OnOffCycle` with its
+  accept curves and tree-connector days, a `RandomMain` weight with the weights of its other categories and `ThreatBig`, a `CategoryMTB`, a
+  `SingleMTB` of a `DiseaseHuman` incident, a `CategoryIndividualMTBByBiome` with each incident's `mtbDaysByBiome` row; an unknown comp
+  class is unmodelled), per biome its
   `diseaseMtbDays` and commonalities (its own records, then the incidents' `diseaseBiomeRecords`), and per incident its victim rules,
   gates and its hediff's course (`DiseaseCourse`: the penalty table, severity clamp, `SeverityPerDay` range, not-immune random factor,
   `TendDuration` timing and cure, `DestroyOrgan`, and per Human body part of its defs a `DiseasePart`: threatened by `onlyLifeThreateningTo`,
@@ -710,14 +713,19 @@ costs each pawn.
   otherwise none, named `disease_part_capacity_unmodelled:<hediff>:<part>` when the part is destroyed or loses efficiency), whether
   that capacity is `lethalFlesh` and its `minForCapable`, and the install recipes for it by tier). A hediff comp, stage
   death MTB, hediff giver or reversing severity the course does not model makes it unmodelled.
-- `IllnessSchedule.Of(table, facts)`: each comp's rate 1 ÷ (biome MTB × interval factor) a day from its `minDaysPassed` (none with
-  random diseases off or the factor at the 100 cutoff); the usable incidents (home map, `earliestDay` on whole days since settling,
-  biome lists, `minPopulation`, not `Blocked`, a potential victim, commonality > 0), each with its share of the commonality and
-  `VictimChance` (the drawn count uniform on `RoundToInt` of candidates × the fraction range, clamped to [1, `diseaseMaxVictims`],
-  over the potential victims). Unassessed with `disease_facts_unobserved`, `disease_storyteller_unknown:<def>`,
+- `IllnessSchedule.Of(table, facts)`: each `StorytellerComp_Disease` comp's rate 1 ÷ (biome MTB × interval factor) a day from its
+  `minDaysPassed` (none with random diseases off or the factor at the 100 cutoff), drawing among the open incidents (home map,
+  `earliestDay` on whole days since settling, biome lists, `minPopulation`, not `Blocked`, a potential victim) by the biome's
+  commonality (> 0); and each other draw comp (#3860) at its own rate (an on-off cycle's count at the colony's `ProgressScore`,
+  `NoTreeConnection` and threat points retained on the canonical threat row; 1 ÷ `mtbDays` over its days-passed factor) drawing by the native `Weight` (`IncidentChanceFinal`
+  but the population-intent factor, which the brain applies from the incident's `populationEffect`, the comp's floor and
+  `PopulationIntent`), `TrySelectRandomIncident` for `RandomMain` and `CategoryMTB` (a `RandomMain` also by its category weights and
+  the forced `ThreatBig`). Each incident carries its rate per comp (`IllnessIncident.Rates`; its share of the incidents over a
+  horizon is `IllnessSchedule.Share`) and `VictimChance` (the drawn count uniform on `RoundToInt` of candidates × the fraction range,
+  clamped to [1, `diseaseMaxVictims`], over the potential victims). The draw is gated at today's facts (not at the comp's start day). Unassessed with `disease_facts_unobserved`, `disease_storyteller_unknown:<def>`,
   `disease_biome_unknown:<def>`, `disease_rate_invalid`, `disease_incident_unknown:<def>`,
   `disease_victims_unobserved:<def>`, `disease_course_unmodelled:<hediff>:<what>` or `disease_course_unknown:<def>`. A storyteller
-  comp the decoder does not model (a mod's comp class, or a vanilla comp that draws `DiseaseHuman` other than by the disease comp)
+  comp the decoder does not model (a mod's comp class)
   sends no incidents and is named on the assessed schedule, `disease_comp_unmodelled:<comps>` (#3859); the harm term carries it.
 - `IllnessForecast.Of(schedule, pawn, …)`: a `HarmDistribution` of one incident for the pawn, each disease weighted by share ×
   victim chance × contract chance and the rest a point at 0. Immunity gains at the pawn's `ImmunityGainSpeed` read without its bed
@@ -822,18 +830,26 @@ The harm term's creepjoiner part (D12): what a colonist creepjoiner's hidden dow
 
 The harm model's first step ([harm model](../architecture/forecast-value.md#harm-model)) reads the storyteller the game is running.
 
-- `ThreatFacts.Storyteller` (`Find.Storyteller.def.defName`), `DaysPassed` (`GenDate.DaysPassedFloat`) are read beside `RaidPoints` and decoded onto `ReviewFacts.Storyteller` and `DaysPassed`; the section is required, and a threat read the native cannot complete fails the census. Raid points stay the observed `RaidPoints`
+- `ThreatFacts.Storyteller` (`Find.Storyteller.def.defName`), `DaysPassed` (`GenDate.DaysPassedSinceSettleFloat`) are read beside `RaidPoints`, and
+  `ProgressScore` (`StorytellerUtility.GetProgressScore`), `NoTreeConnection` (the player faction has ideoligions and none has the
+  `TreeConnection` meme), `ThreatScale` (the difficulty's), `Biome` and `Generator` (a `ThreatIncidentRead` of `RaidEnemy` and, with
+  Royalty, `MechCluster` (otherwise an explicitly ineligible row): its `BaseChanceThisGame` weight and whether its worker would fire for the forced parms at the map's raid
+  points, #3860); the review retains the section in its canonical `Census.Threat.Observed` row; the section is required, and a threat read the native cannot complete fails the census. Raid points stay the observed `RaidPoints`
   (adaptation and difficulty are inside it); the schedule does not model their growth.
 - `ReviewFacts.ThreatTable` (`ThreatScheduleTable`): per `StorytellerDef`, its home-map threat comps decoded by comp class in
-  `Catalog/Storyteller.cs` (#3859): on-off cycles of `ThreatBig` with their accept curves by days passed and threat points, and MTB
-  comps (random mains with their `ThreatBig` weight share, `ThreatBig` category MTBs with their days-passed factor, single MTBs of a
-  `ThreatBig` incident), and the comps it does not model. Empty without a catalog.
-- `ThreatSchedule.Of(table, storyteller, daysPassed, threatPoints)`: `MajorThreatsPerDay`, the sum of the modelled comps' expected
-  incidents a day at that day (a threat-points curve at the observed `RaidPoints`), and `RaidFraction` (1 before day 20, 0.5 after).
-  A comp it does not model (a mod's comp class, an on-off cycle scaled by progress score or swapping its days without a
-  tree-connection meme, a home-map `ThreatsGenerator` or `ThreatBig` `CategoryIndividualMTBByBiome`) adds no threats and is named,
-  `threat_comp_unmodelled:<comps>`, on the assessed schedule; the harm term carries the finding. The schedule is not `Assessed`, with
-  a finding (`storyteller_unobserved`, `days_passed_unobserved`, `storyteller_unknown:<def>`, `raid_points_unobserved`,
+  `Catalog/Storyteller.cs` (#3859, #3860): on-off cycles of `ThreatBig` with their accept curves by days passed, threat points and
+  progress score and their tree-connector days, MTB comps (random mains with their `ThreatBig` weight share, `ThreatBig` category MTBs
+  with their days-passed factor, single MTBs of a `ThreatBig` incident), home-map `ThreatsGenerator`s (cycle, allowed threats), `ThreatBig`
+  `CategoryIndividualMTBByBiome`s (each incident's `mtbDaysByBiome` rows), and the comps it does not model. Empty without a catalog.
+- `ThreatSchedule.Of(table, threat)`: `MajorThreatsPerDay`, the sum of the modelled comps' expected
+  incidents a day at that day (a threat-points curve at the observed `RaidPoints`, a progress-score curve at `ProgressScore`, a
+  generator drawn by weight among the incidents that can fire, scaled by the difficulty's `ThreatScale`, a biome comp at the colony's
+  biome), and `RaidFraction` (1 before day 20 for cycles, 0.5 after; a generator's by its `RaidEnemy` weight; a biome comp's by the
+  incident's worker). A comp it does not model (a mod's comp class, a `ThreatsGenerator` with its own threat points) adds no threats and
+  is named, `threat_comp_unmodelled:<comps>`, on the assessed schedule; so is a biome incident whose worker's `CanFireNow` gates are not
+  read (`threat_biome_can_fire_unread:<incidents>`); the harm term carries the finding. A generator incident the read lacks is a
+  `RequiredFactException`. The schedule is not `Assessed`, with
+  a finding (`threat_unobserved`, `days_passed_invalid`, `storyteller_unknown:<def>`,
   `threat_comp_invalid:<shape>`), when a fact it reads is unread; the hospital credit then throws `RequiredFactException`. Non-raid
   threats are not modelled. The mirrored literals are in [kept constants](kept-constants.md#mirrored-game-literals-threat-schedule-3539).
 

@@ -44,7 +44,7 @@ public sealed class IllnessForecastTests
 
     private static IllnessSchedule Schedule(DiseaseCourse course, string incident = "Disease_Flu", double perDay = 1 / 30.0) => new()
     {
-        Assessed = true, Comps = [(0, perDay)], Incidents = [new IllnessIncident(incident, 1, 1, course)],
+        Assessed = true, Incidents = [new IllnessIncident(incident, [(0, perDay)], 1, course)],
     };
 
     private static HarmDistribution Of(DiseaseCourse course, string incident, ForecastSupportConsequences? support, double gain = 1) =>
@@ -61,6 +61,9 @@ public sealed class IllnessForecastTests
 
         return count;
     }
+
+    internal static IllnessSchedule Schedule(DiseaseTable table, DiseaseFacts facts) =>
+        IllnessSchedule.Of(table, facts is null ? null! : ColonyFactsCoreTests.QuietThreat with { Disease = facts });
 
     [Fact]
     public void AKnownCourseGivesTheExpectedDeathChancePatientDaysAndTends()
@@ -281,7 +284,7 @@ public sealed class IllnessForecastTests
     [Fact]
     public void TheContractChanceAndTheVictimChanceScaleTheSickShare()
     {
-        var schedule = Schedule(Flu()) with { Incidents = [new IllnessIncident("Disease_Flu", 1, 0.5, Flu())] };
+        var schedule = Schedule(Flu()) with { Incidents = [new IllnessIncident("Disease_Flu", [(0, 1 / 30.0)], 0.5, Flu())] };
 
         var d = IllnessForecast.Of(schedule, Pawn(1, new DiseaseContract("Disease_Flu", 0.5)), Tables, HarmConsequences.CareOf(Care()), 1, new ForecastValuePolicy(), Horizon, new StockArrival());
         var missing = IllnessForecast.Of(schedule, Pawn(1), Tables, HarmConsequences.CareOf(Care()), 1, new ForecastValuePolicy(), Horizon, new StockArrival());
@@ -306,15 +309,15 @@ public sealed class IllnessForecastTests
     {
         var table = DiseaseTableTests.Table();
 
-        var schedule = IllnessSchedule.Of(table, Facts());
+        var schedule = Schedule(table, Facts());
 
         Assert.True(schedule.Assessed);
         Assert.Empty(schedule.Findings);
         // Cassandra's comp starts on day 9, four days from now: over 30 days it runs 26.
         Assert.Equal(1 / 60.0 * 26 / 30, schedule.IncidentsPerDay(30), 12);
-        Assert.Equal(1 / 120.0, IllnessSchedule.Of(table, Facts(20) with { IntervalFactor = 2 }).IncidentsPerDay(30), 12);
-        Assert.Equal(0, IllnessSchedule.Of(table, Facts() with { IntervalFactor = 100 }).IncidentsPerDay(30));
-        Assert.Equal(0, IllnessSchedule.Of(table, Facts() with { RandomDiseases = false }).IncidentsPerDay(30));
+        Assert.Equal(1 / 120.0, Schedule(table, Facts(20) with { IntervalFactor = 2 }).IncidentsPerDay(30), 12);
+        Assert.Equal(0, Schedule(table, Facts() with { IntervalFactor = 100 }).IncidentsPerDay(30));
+        Assert.Equal(0, Schedule(table, Facts() with { RandomDiseases = false }).IncidentsPerDay(30));
     }
 
     [Fact]
@@ -322,16 +325,16 @@ public sealed class IllnessForecastTests
     {
         var table = DiseaseTableTests.Table();
 
-        var all = IllnessSchedule.Of(table, Facts());
-        var blocked = IllnessSchedule.Of(table, Facts(5, new DiseaseIncidentRead("Disease_Flu", 3) { Blocked = ["scenario"] },
+        var all = Schedule(table, Facts());
+        var blocked = Schedule(table, Facts(5, new DiseaseIncidentRead("Disease_Flu", 3) { Blocked = ["scenario"] },
             new DiseaseIncidentRead("Disease_GutWorms", 3), new DiseaseIncidentRead("Disease_OrganDecay", 3)));
 
         // Organ decay has no commonality in the biome; flu 100, gut worms 30.
         Assert.Equal(["Disease_Flu", "Disease_GutWorms"], all.Incidents.Select(i => i.Incident));
-        Assert.Equal(100 / 130.0, all.Incidents[0].Share, 12);
-        Assert.Equal(30 / 130.0, all.Incidents[1].Share, 12);
+        Assert.Equal(100 / 130.0, all.Share(all.Incidents[0], 30), 12);
+        Assert.Equal(30 / 130.0, all.Share(all.Incidents[1], 30), 12);
         Assert.Equal(["Disease_GutWorms"], blocked.Incidents.Select(i => i.Incident));
-        Assert.Equal(1, blocked.Incidents[0].Share);
+        Assert.Equal(1, blocked.Share(blocked.Incidents[0], 30));
     }
 
     [Fact]
@@ -351,12 +354,12 @@ public sealed class IllnessForecastTests
     {
         var table = DiseaseTableTests.Table();
 
-        Assert.Throws<RequiredFactException>(() => IllnessSchedule.Of(table, null!));
-        Assert.Equal(["disease_storyteller_unknown:Ghost"], IllnessSchedule.Of(table, Facts() with { Storyteller = "Ghost" }).Findings);
-        Assert.Equal(["disease_biome_unknown:Moon"], IllnessSchedule.Of(table, Facts() with { Biome = "Moon" }).Findings);
+        Assert.Throws<RequiredFactException>(() => Schedule(table, null!));
+        Assert.Equal(["disease_storyteller_unknown:Ghost"], Schedule(table, Facts() with { Storyteller = "Ghost" }).Findings);
+        Assert.Equal(["disease_biome_unknown:Moon"], Schedule(table, Facts() with { Biome = "Moon" }).Findings);
         Assert.Equal(["disease_victims_unobserved:Disease_OrganDecay"],
-            IllnessSchedule.Of(table, Facts(5, new DiseaseIncidentRead("Disease_Flu", 3), new DiseaseIncidentRead("Disease_GutWorms", 3))).Findings);
-        Assert.False(IllnessSchedule.Of(new DiseaseTable(), Facts()).Assessed);
+            Schedule(table, Facts(5, new DiseaseIncidentRead("Disease_Flu", 3), new DiseaseIncidentRead("Disease_GutWorms", 3))).Findings);
+        Assert.False(Schedule(new DiseaseTable(), Facts()).Assessed);
     }
 
     // ----- the production way: the catalog's tables and the wire facts as native fills them, through the census threat section
