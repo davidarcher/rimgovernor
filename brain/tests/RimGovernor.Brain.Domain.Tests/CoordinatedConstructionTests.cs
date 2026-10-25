@@ -75,16 +75,30 @@ public sealed class CoordinatedConstructionTests
         } };
     }
 
+    private static ForecastCoupledCandidates ServingStorageRoom(ForecastCoupledCandidates generated, string item, double work)
+    {
+        var root = Assert.Single(generated.Alternatives, c => c.ExclusiveOutcome == "construction/" + item);
+        // Isolate assignment plumbing from storage mechanics: this room serves only after its blocking removal finishes.
+        return generated with { Context = generated.Context with
+        {
+            PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Storage },
+            RoomCredits = new Dictionary<PlannedRole, RoomCredit> { [PlannedRole.Storage] = (_, _, _, _, _) => [new("kept-stock", "", 1)] },
+            RoomItems = [new(item, [1], root.ActivityCompletions)],
+            OwedWork = new Dictionary<string, double> { [item] = work },
+            InvestmentHorizonDays = 10,
+        } };
+    }
+
     /// <summary>
     /// #3557, #3612: a removal designation the room reconcile stood (a Deconstruct over an interior ruin, an Uninstall over a
     /// piece it packs) gets no worker under voluntary control. The construction read reports it as a clearing op of its kind;
-    /// the family binds it as the pawn's Work task of that kind on the building, one unit of development when it comes down,
+    /// the family binds it as the pawn's Work task of that kind on the building. Completing it serves its planned room,
     /// and the selection orders it. A row whose finish is unknown binds nothing.
     /// </summary>
     [Theory]
     [InlineData(PlannedClearingKind.Deconstruct, "Deconstruct", "Door")]
     [InlineData(PlannedClearingKind.Uninstall, "Uninstall", "Bed")]
-    public void AStandingRemovalDesignationIsRemovalWorkTheSelectionOrders(PlannedClearingKind kind, string job, string definition)
+    public void AStandingRemovalDesignationServingAPricedRoomIsWorkTheSelectionOrders(PlannedClearingKind kind, string job, string definition)
     {
         var building = "Thing_" + definition + "1";
         var row = new Row(building, definition, new(30, 30), "producer", definition, building, new(30, 30), 0, 0, job,
@@ -99,9 +113,13 @@ public sealed class CoordinatedConstructionTests
 
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
             facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
-        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
+        // A standing designation alone earns nothing. Its room earns its service credit only after the removal.
+        Assert.DoesNotContain(root.Id, ForecastCoupledSelection.CompareActivityOutcomes(request, generated).Selection.Selected);
+        generated = ServingStorageRoom(generated, building, 50);
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated);
         Assert.Contains(root.Id, selected.Selection.Selected);
-        Assert.True(selected.SelectedVector.Development > selected.BaselineVector.Development, string.Join(";", selected.Selection.Findings));
+        Assert.Equal(1, Assert.Single(selected.Selected.ServedRooms).Room);
+        Assert.Contains(selected.SelectedVector.Value.Ledger.InvestmentContributions, r => r.Key == "storage/1/kept-stock" && r.Value < 0);
         var batch = ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "construction", 100)!;
         var task = Assert.Single(batch.Tasks);
         Assert.Equal((binding.Id, "producer", PawnActivityKind.Work, building, job), (task.Id, task.Pawn, task.Step.Kind, task.Step.Target, task.Step.Job));
@@ -125,6 +143,7 @@ public sealed class CoordinatedConstructionTests
             default, default, 180d) { SiteApproachTicks = 10d };
         var facts = RemovalFacts(ConstructionFixtures.Clearing(wall, PlannedClearingKind.Deconstruct) with { Options = [row], Cells = EquatableArray.From(cells) });
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
+        generated = ServingStorageRoom(generated, wall, 180);
         var binding = Assert.Single(generated.Context.Bindings.Values, b => b.Job == "Deconstruct");
         Assert.Equal((PawnActivityKind.Work, wall, "Deconstruct", "Wall", 0), (binding.Kind, binding.Target, binding.WorkGiver, binding.SiteDefinition, binding.Count));
         Assert.Equal(cells, binding.RoofCells);
@@ -133,7 +152,7 @@ public sealed class CoordinatedConstructionTests
 
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
             facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
-        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated);
         Assert.Contains(root.Id, selected.Selection.Selected);
         var batch = ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "construction", 100)!;
         var task = Assert.Single(batch.Tasks);
@@ -160,6 +179,7 @@ public sealed class CoordinatedConstructionTests
             { Options = [row, row with { Pawn = "helper", FinishTicks = 200d }], Targets = EquatableArray.From(targets) };
         var facts = RemovalFacts(Wave(trees));
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
+        generated = ServingStorageRoom(generated, trees[0], 150);
         var binding = Assert.Single(generated.Context.Bindings.Values, b => b.Job == "CutPlant" && b.Pawn == "producer");
         Assert.Equal((PawnActivityKind.Work, trees[0], "PlantsCut", 3, "Plant_TreeOak"), (binding.Kind, binding.Target, binding.WorkGiver, binding.Count, binding.SiteDefinition));
         Assert.Equal(trees, binding.Targets);
@@ -169,7 +189,7 @@ public sealed class CoordinatedConstructionTests
 
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
             facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
-        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated);
         Assert.Contains(root.Id, selected.Selection.Selected);
         var batch = ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "construction", 100)!;
         var task = Assert.Single(batch.Tasks);
@@ -197,6 +217,7 @@ public sealed class CoordinatedConstructionTests
             { Options = [row, row with { Pawn = "helper", FinishTicks = 200d }], Cells = EquatableArray.From(members) };
         var facts = RemovalFacts(Wave(cells));
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
+        generated = ServingStorageRoom(generated, id, 120);
         var binding = Assert.Single(generated.Context.Bindings.Values, b => b.Job == "RemoveFloor" && b.Pawn == "producer");
         Assert.Equal((PawnActivityKind.Work, id, "ConstructRemoveFloors", 4, "WoodPlankFloor"), (binding.Kind, binding.Target, binding.WorkGiver, binding.Count, binding.SiteDefinition));
         Assert.Equal(cells, binding.Cells);
@@ -206,7 +227,7 @@ public sealed class CoordinatedConstructionTests
 
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
             facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
-        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated);
         Assert.Contains(root.Id, selected.Selection.Selected);
         var batch = ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "construction", 100)!;
         var task = Assert.Single(batch.Tasks);
@@ -236,9 +257,10 @@ public sealed class CoordinatedConstructionTests
             default, default, 150d) { SiteApproachTicks = 10d };
         var facts = RemovalFacts(ConstructionFixtures.Clearing(trees[0], PlannedClearingKind.Cut) with { Options = [row], Targets = EquatableArray.From(trees) });
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
+        generated = ServingStorageRoom(generated, trees[0], 150);
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
             facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
-        var batch = ForecastCoupledSelection.StartCoupledActivity(ForecastCoupledSelection.CompareActivityOutcomes(request, generated), generated, 1, "construction", 100)!;
+        var batch = ForecastCoupledSelection.StartCoupledActivity(ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated), generated, 1, "construction", 100)!;
         var task = Assert.Single(batch.Tasks);
         ActivityTaskRead Read(PawnActivities current, string state, params ActivityTaskBinding[] bindings) => ConstructionFixtures.NoTasks() with
         {
@@ -281,6 +303,7 @@ public sealed class CoordinatedConstructionTests
         PlannedSiteClearing Removal(params ConstructionActivityOption[] rows) => ConstructionFixtures.Clearing(item, PlannedClearingKind.Haul) with { Options = EquatableArray.From(rows) };
         var facts = RemovalFacts(Removal(row, row with { Pawn = "helper", DeliveryTicks = 30d }));
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
+        generated = ServingStorageRoom(generated, item, 20);
         var binding = Assert.Single(generated.Context.Bindings.Values, b => b.Kind == PawnActivityKind.Deliver && b.Pawn == "producer");
         Assert.Equal((item, 75, "Steel", 75, ""), (binding.Target, binding.Count, binding.Resource, binding.Capacity, binding.SupportDemand));
         Assert.Equal(store, Assert.IsType<RimGovernor.Brain.Policy.Methods.CellActivityTaskCandidate>(binding).Destination);
@@ -290,7 +313,7 @@ public sealed class CoordinatedConstructionTests
 
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
             facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
-        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated);
         Assert.Contains(root.Id, selected.Selection.Selected);
         var batch = ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "construction", 100)!;
         var task = Assert.Single(batch.Tasks);
@@ -317,11 +340,12 @@ public sealed class CoordinatedConstructionTests
             10d, 50d, 0d) { SiteApproachTicks = 10d, AvailableInput = 100d };
         var facts = RemovalFacts(ConstructionFixtures.Clearing(item, PlannedClearingKind.Haul) with { Options = [row] });
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
+        generated = ServingStorageRoom(generated, item, 50);
         var binding = Assert.Single(generated.Context.Bindings.Values, b => b.Kind == PawnActivityKind.Deliver);
         Assert.Equal((item, 100, 75), (binding.Target, binding.Count, binding.Capacity));
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
             facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
-        var batch = ForecastCoupledSelection.StartCoupledActivity(ForecastCoupledSelection.CompareActivityOutcomes(request, generated), generated, 1, "construction", 100)!;
+        var batch = ForecastCoupledSelection.StartCoupledActivity(ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated), generated, 1, "construction", 100)!;
         var task = Assert.Single(batch.Tasks);
         Assert.Equal(100, task.Step.Count);
         var first = Assert.Single(Assert.Single(batch.Orders, o => !o.Release).Steps);

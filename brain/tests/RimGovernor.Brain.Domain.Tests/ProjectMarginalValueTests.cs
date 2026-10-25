@@ -195,7 +195,7 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
 
         ForecastConsequenceVector Vector(ForecastValueResult ledger, double foodExcess) => new(
             EquatableArray.From(Enumerable.Repeat<ForecastTerm>(new ForecastTerm.Assessed(0d), 5).ToArray()), EquatableArray.From(Enumerable.Repeat<ForecastTerm>(new ForecastTerm.Assessed(0d), 6).ToArray()),
-            new ForecastTerm.Assessed(0d), new ForecastTerm.Assessed(0d), 0, 0, [])
+            new ForecastTerm.Assessed(0d), new ForecastTerm.Assessed(0d), 0, [])
         { Value = new(ledger, new()) { UrgentZero = new(true, foodExcess) } };
 
         var research = Ledger(Hour);

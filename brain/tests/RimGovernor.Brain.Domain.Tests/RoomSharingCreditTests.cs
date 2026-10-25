@@ -31,7 +31,7 @@ public sealed class RoomSharingCreditTests
         {
             evaluated.Add(candidate.Layout.Embedding);
             var shared = candidate.Layout.Clustering.Groups.Any(g => LayoutRegroupRules.HoldsNode(g, beds) && LayoutRegroupRules.HoldsNode(g, bench));
-            var vector = new ForecastConsequenceVector([], [new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0)], new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0), 0, 0, [])
+            var vector = new ForecastConsequenceVector([], [new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0)], new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0), 0, [])
             {
                 Value = new(new(new LedgerTerm.Priced(shared ? -1000 : 0), []), new()) { Death = new(shared, shared ? 1 : 0) },
             };
@@ -136,7 +136,7 @@ public sealed class RoomSharingCreditTests
                 var shell = shared ? 0 : savedShell;
                 ledger = ledger with { Investment = ledger.Investment + shell,
                     InvestmentContributions = EquatableArray.From(ledger.InvestmentContributions.Append(new("", "", "material/WoodLog", 1, shell))) };
-                var vector = new ForecastConsequenceVector([], [new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0)], new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0), 0, 0, [])
+                var vector = new ForecastConsequenceVector([], [new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0)], new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0), 0, [])
                 { Value = new(ledger, context.Value) };
                 return (RegroupValuation)new RegroupValuation.Priced(candidate.Id, vector,
                     shared ? disturbed > 0 ? ["lab/1/pawn", "sleep_disturbed", "barracks/1/pawn", "barracks/1/second"] : ["lab/1/pawn"] : []);

@@ -179,6 +179,6 @@ while storage has room. That is intended; it should be watched in a playtest, no
   run on real whole-plan demand.
 
 Planned rooms also expose candidate Method alternatives per room (stuff, shell/floor/stations scope), `PlannedRoomAlternatives`; see
-[Planned room alternatives](colony-forecast.md#planned-room-alternatives). The shared comparator takes them as requested development, and the
+[Planned room alternatives](colony-forecast.md#planned-room-alternatives). The shared comparator values their room service, and the
 room reconcile places an unstarted room only as the latest comparison selected
 ([portfolio selection](portfolio-selection.md#planned-rooms)).

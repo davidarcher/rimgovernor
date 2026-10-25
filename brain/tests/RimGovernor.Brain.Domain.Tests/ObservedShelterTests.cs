@@ -90,7 +90,6 @@ public sealed class ObservedShelterTests
         // baseline's development and the roof is not built.
         Assert.DoesNotContain(result.Rejected, r => r.Reason.StartsWith("construction_without_supported_service_relief", StringComparison.Ordinal));
         Assert.Contains(result.Rejected, r => r.Consequences is not null);
-        Assert.All(result.Rejected.Where(r => r.Consequences is not null), r => Assert.Equal(result.BaselineVector.Development, r.Consequences!.Development));
         Assert.DoesNotContain(result.Selected.Plan.Allocations, a => a.Activity.StartsWith("roof/observed/room-7/1/1", StringComparison.Ordinal));
 
         // An observed room no planned room matches keeps the relief gate: no exposure relieved, no roof work.

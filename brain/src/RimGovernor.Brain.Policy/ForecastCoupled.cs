@@ -28,15 +28,7 @@ public sealed record ForecastMaterialLot(string Lot, string Location, Resource R
 /// activities have no action template until placement (#3278); a Deconstruct clearing, bound to its standing building, is
 /// startable work and is left out (#3557).
 /// </summary>
-public sealed record ForecastPlannedSite(string Site, int Room, string Stuff, EquatableArray<string> Activities, EquatableArray<string> Finishes)
-{
-    /// <summary>The Need of a planned site root's outcome, which marks the root as one: the selection exempts its closure
-    /// from the thermal-relief gate (#3651). The units are counted from the evaluated outcome (ForecastCoupledOutcome.RequestedDevelopment).</summary>
-    public const string DevelopmentNeed = "requested-development";
-
-    /// <summary>Planned room <paramref name="room"/>'s per-cell native roof as one completed unit (#3334).</summary>
-    public static string RoofUnit(int room) => FormattableString.Invariant($"planned/room{room}/roof");
-}
+public sealed record ForecastPlannedSite(string Site, int Room, string Stuff, EquatableArray<string> Activities, EquatableArray<string> Finishes);
 
 /// <summary>
 /// What one schedule completes of a planned room: the planned sites (ids) whose finish completes inside the horizon,
@@ -71,7 +63,7 @@ public sealed record ForecastCoupledContext
     /// <summary>What the review's incumbents hold from a fresh order now (#3889): the forecast dispatches an outcome as the review
     /// does before reading whom it orders at tick 0.</summary>
     public ForecastIncumbentHold IncumbentHold { get; init; } = ForecastIncumbentHold.Nothing;
-    /// <summary>Each planned room's role, from the layout plan (#3651); a room without a row counts as development.</summary>
+    /// <summary>Each planned room's role, from the layout plan (#3651); every room with a role is valued by its credit.</summary>
     public IReadOnlyDictionary<int, PlannedRole> PlannedRoomRoles { get; init; } = new Dictionary<int, PlannedRole>();
     /// <summary>Derived functions of the stations assigned to each room, sharing its one native role and stats.</summary>
     public IReadOnlyDictionary<int, EquatableArray<PlannedRole>> PlannedRoomFunctions { get; init; } = new Dictionary<int, EquatableArray<PlannedRole>>();
@@ -249,16 +241,14 @@ public sealed record ForecastCoupledOutcome(ForecastActivityPlan Plan, bool Feas
     public EquatableArray<ForecastShelterOutcome> Shelters { get; init; }
     public EquatableArray<ForecastMaintenanceConsequence> Maintenance { get; init; }
     public EquatableArray<ForecastThermalExposure> ThermalExposure { get; init; }
-    public EquatableArray<string> CompletedDevelopmentSites { get; init; }
+    public EquatableArray<string> CompletedConstructionSites { get; init; }
     /// <summary>Per planned room with a site completed inside the horizon: its completed sites and complete alternatives.</summary>
     public EquatableArray<ForecastPlannedRoomOutcome> PlannedRooms { get; init; }
     /// <summary>The planned rooms the schedule serves (PlannedRoomCredits.ServiceDays, #3796): inside the horizon once it
     /// finishes their owed work, past it at their projected service day.</summary>
     public EquatableArray<ForecastRoomService> ServedRooms { get; init; }
-    /// <summary>The planned development units completed inside the horizon (#3334): each planned site once, and a planned
-    /// room's per-cell roof as its <see cref="ForecastPlannedSite.RoofUnit"/>. One unit each of requested development, except a
-    /// planned room's unit (PlannedRoomCredits.PlannedUnits, #3828), which the ranking does not count: a room wins on the ledger only.</summary>
-    public EquatableArray<string> RequestedDevelopment { get; init; }
+    /// <summary>The planned rooms whose every native roof cell completes inside the horizon. Physical completion evidence for the construction relief gate.</summary>
+    public EquatableArray<int> CompletedRoofRooms { get; init; }
     /// <summary>Assessed stationary-location exposure avoided relative to the same occupancy without proposed room changes.
     /// Unobserved transit/idle receive no benefit. Unassessed when the need services' exposure was not assessed in full.</summary>
     public ForecastTerm StationaryThermalRelief { get; init; } = new ForecastTerm.Unassessed("thermal_relief_not_evaluated");

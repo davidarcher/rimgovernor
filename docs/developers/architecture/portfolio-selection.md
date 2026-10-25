@@ -36,7 +36,7 @@ The comparison horizon is one game day. The order (see
    rewards a portfolio. A difference within `TieResolution` is a tie. Mood enters through the expected
    [break risk](../contracts/forecast-contracts.md#coupled-mood-break-risk) and wellbeing, never as raw threshold ticks.
 3. **Terms with no conversion yet**, in this order: urgent first-care time, thermal relief, pending care batches,
-   tend quality and room factors, maintenance missing XP, joy threshold exposure, requested development,
+   tend quality and room factors, maintenance missing XP, joy threshold exposure,
    unsupplied demand and first-care time.
 4. **True ties** retain the feasible incumbent, then prefer less total participant labor among new plans.
 
@@ -53,45 +53,26 @@ occupancy (pawn, location and interval). Adding an otherwise unneeded activity
 cannot earn counterfactual shelter value. Unknown idle or transit exposure is
 never credited; different occupancy intervals remain incomparable by this metric.
 No injury probability is invented: harm stays unassessed (`harm_capability_unassessed`) until the harm model.
-Clothing delivery is development,
-not wearing or thermal protection. Completed construction effects count each
-physical site once, including when a larger prerequisite bundle supplies it.
-A standing Deconstruct or Uninstall designation worked, a Haul designation's stack
-delivered, or a standing Cut wave of CutPlant designations cut or FloorOut wave of
-RemoveFloor designations removed as one set step, is one unit of development
-(`removal/{op}` relief, #3557, #3612, #3613, #3614, #3615), like a laid floor.
-A planned site finished inside the horizon is recorded as one requested-development
-unit (`RequestedDevelopment`), whichever root built it: its own site root, a room
-alternative or a shelter. A planned room's per-cell native roof cells are together
-that room's one roof unit, earned when every cell completes. No planned room's
-unit counts as development, priced or not (#3828, `PlannedRoomCredits.PlannedUnits`:
-each site of a room and each room's roof unit). A room wins a portfolio only on the
-ledger: by its credit when priced (below), by the relief or mood its closure gives
-otherwise. An unpriced ring that only ties the baseline on the ledger is not
-selected. An unplaced shelf candidate is no room's, so it still counts. A priced room
-also takes the `flooring/` and `removal/` relief of the floors and removals on its
-interior or ring cells out of the count (a shared wall's leaves when either room is
-priced), since its credit already counts them. Its sites are still emitted and exempt.
+Clothing is valued through its wearer's thoughts, armor and the garment's material cost. Planned rooms win on
+their capability-day service credits, thermal relief and mood consequences. Floors and removals contribute to
+the service day of the rooms that owe them; completing an otherwise unvalued job earns no score.
+`PlannedRooms` records the physical sites and complete alternatives; `CompletedRoofRooms` records a planned
+room only after every native roof cell completes. These are placement and relief-gate evidence, never counts
+in the ranking. An unpriced ring that only ties the baseline is not selected.
 
 *Planned-room credit seam (#3796, epic #3650 P2/P3).* A role is priced exactly when
-`ForecastCoupledContext.RoomCredits` (`PlannedRoomCredits.Shipped`: `Bedroom` and
-`Barracks`, both `ForecastHousing.BedroomCredit`; `Lab`, `ForecastLaboratory.LaboratoryCredit`; `Throne` and
-`Suite`, both `ForecastHousing.RoyalRoomCredit`; `Kitchen` and `Butchery`, `KitchenCredits`, #3802; `Storage`,
-`MealCloset`, `Reserve` and `Yard`, all `ForecastStorage.StorageCredit`, #3798; `Morgue` and `Tomb`,
-`ForecastCorpses.MorgueCredit` and `TombCredit`, #3806; `Worship`, `ForecastWorship.WorshipCredit`, #3808; `Pen`,
-`ForecastPens.PenCredit`, #3812; `DeathrestChamber`, `ForecastDeathrest.ChamberCredit`, #3810; `Hospital`,
-`ForecastHospital.HospitalCredit`, #3804; `ContainmentCell`, `ForecastContainment.CellCredit`, #3811; `IsolationRoom`,
-`ForecastIsolation.IsolationCredit`, #3844; `SparringRing`,
-`ForecastSparring.RingCredit`, #3813; `TrainingRange`, `ForecastTrainingRange.RangeCredit`, #3846) holds a credit for it:
+`ForecastCoupledContext.RoomCredits` (`PlannedRoomCredits.Shipped` in production) holds a credit for it.
+Every nonempty role the layout plans has its own credit or serves a credited room as a connector;
+the enum-driven role coverage test checks ringed and ringless roles together. Credits use the same seam:
 
-- `delegate IReadOnlyList<RoomGain>? RoomCredit(ForecastRoomService room, outcome, context, horizonTicks)`
+- `delegate IReadOnlyList<RoomGain> RoomCredit(ForecastRoomService room, outcome, commitments, context, horizonTicks)`
   returns the room's gains per served day (`RoomGain(Subject, Pawn, PerDay)`, with a `Once` gain the room earns when it
-  serves, #3804); null is unassessed (older credits; a new credit throws a `RequiredFactException` instead, #3835).
+  serves, #3804). A required unread fact throws `RequiredFactException`; no credit returns an unassessed value.
 - `PlannedRoomCredits.Unmodelled` (`RoomFindings`, the same arguments) names a role's findings with each served room of
   it: what the credit leaves out (the hospital's, #3804), or a part it could not price (`ContainmentCell`'s, #3811).
-- `context.Priced(room)` is the derived priced test, `PlannedRoomCredits.PricedRelief(context)`
-  the relief needs a priced room takes out of the development count. Material charges,
-  Selection's placed-ring roots and the ColonyReview's wall swaps read the same derived set.
+- `context.Priced(room)` is the derived priced test. Material charges, selection's placed-ring roots and
+  ColonyReview's wall swaps read the same derived set. Airlocks and circulation corridors are priced through
+  the credited rooms they serve; their owed work delays each served room's service day.
 - `PlannedRoomCredits.ServiceDays(context, finishedAt, horizon)` gives each room its service day:
   the day its one reconcile owes nothing (sites, placed ring pieces, floors and removals on its
   cells, all one job). Inside the schedule it is the last item's finish; left owing, it is the
@@ -105,10 +86,8 @@ priced), since its credit already counts them. Its sites are still emitted and e
   of the rooms they reach or seal (`Context.Connectors`, `PlannedRoomCredits.ConnectorsOf`: an
   attached airlock its parent, a corridor each non-connector room a layout door joins it to). A
   connector's owed work joins each served room's, so it delays that room's service day, and a
-  connector of a priced room is priced with it (`context.Priced`): its floors' and removals' relief
-  leaves the count and its deliveries are charged. A corridor serving several rooms counts for each,
-  as a shared wall does; one serving no priced room keeps that relief in the count like any
-  unpriced room.
+  connector of a priced room is priced with it (`context.Priced`), and its deliveries are charged. A corridor
+  serving several rooms delays each, as a shared wall does. A connector serving no priced room earns no credit.
 - `PlannedRoomCredits.Credit` books each gain as one Investment row `{role}/{room}/{subject}`
   of `PerDay × RingClosure.CreditDays(InvestmentHorizonDays, serviceDay)` units. A room no free
   builder or no option can finish is never served and credited nothing; a credit never returns
@@ -347,8 +326,7 @@ read as never assessed, it would be placed whole in the default stuff.
 The selected sites are the planned sites the selected plan starts inside the
 horizon (#3744): any of a site's activities (`ForecastPlannedSite.Activities`
 and `Finishes`) allocated, whichever roots carried them (`PlannedSelectionOf`).
-They are read from the plan, not the development count, so a room's sites are
-placed though they count no development (#3651, #3828). A shelter root therefore selects its room's wall,
+They are read from the completed plan's physical sites. A shelter root therefore selects its room's wall,
 door, roof and heater; a room alternative selects its scope's sites; and the
 equivalent root sets that share one schedule give one record, whichever the
 search reached first. A site the plan does not start is not selected: it is
@@ -416,8 +394,7 @@ after a restart unstarted rooms are held until the first comparison, and
 started rooms are open until their first reconcile ([persistence](../contracts/persistence-contracts.md)). The forecast side is
 [planned room activities](colony-forecast.md#planned-room-activities).
 
-A room's closure and roof are valued through their consequences, not only as
-requested development (#3339,
+A room's closure and roof are valued through their consequences (#3339,
 [roof and room consequences](colony-forecast.md#roof-and-room-consequences)): the
 owner's bed thought from the room's predicted role and stage, the outdoors need,
 undergreview coordinator and weather thoughts, food deterioration under the roof, and the

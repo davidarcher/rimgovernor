@@ -190,8 +190,7 @@ Two outcomes are compared on the terms both assess, and the per-term differences
 (`ForecastValueResult.LossAgainst`); a term one side cannot assess never counts for or against it, and its finding is
 still reported. A difference within `TieResolution` capability-days is a tie. A tie goes to the terms that have no
 mechanical conversion yet, in this order: first-care time of urgent care, thermal relief, pending care batches, tend
-quality and room factors (same care services only), maintenance missing XP, joy threshold exposure, requested
-development, unsupplied demand and first-care time; then the incumbent, then less labor. Every decision
+quality and room factors (same care services only), maintenance missing XP, joy threshold exposure, unsupplied demand and first-care time; then the incumbent, then less labor. Every decision
 reports each term's contribution in capability-days, the floors it passed, and which constants it used (the nested
 `value` attributes of `coupled_selection`).
 
@@ -201,8 +200,7 @@ The player's goals ([player goals](player-goals.md)) enter the currency as a led
 for the progress a schedule makes inside the horizon (#3503). A goal is worth `GoalImportanceValue[Low, Normal, High]`
 capability-days when it is completed, times `GoalDeadlineDecay` per day past its deadline (never under
 `GoalDeadlineFloor`); a schedule earns the fraction of that worth it progresses. Research is paid per point of the goal
-project's remaining cost, a worn-garment goal per colonist a selected outfit change dresses in the garment (#3816), and a
-garment delivery is not a unit of requested development. Other goal kinds have no forecast route and earn
+project's remaining cost, a worn-garment goal per colonist a selected outfit change dresses in the garment (#3816), with no separate reward for garment delivery. Other goal kinds have no forecast route and earn
 nothing yet. A goal tier 2 models (#3505) is paid instead per unit of progress at its marginal value there, not by its flat
 share ([goal terminals](#tier-2-event-driven-colony-model)). Every decision lists each goal
 and its contribution (`goal_contributions`). The player's risk profile and pace choose rows of two tables

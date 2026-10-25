@@ -1,10 +1,10 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>Inspectable consequences of one outcome. The ranking reads <see cref="Value"/> (floors, then the capability-days ledger)
-/// and then only the terms with no mechanical conversion yet: care and room factors, maintenance, joy exposure, development,
+/// and then only the terms with no mechanical conversion yet: care and room factors, maintenance, joy exposure,
 /// supply and first care. The other fields explain the outcome.</summary>
 public sealed record ForecastConsequenceVector(EquatableArray<ForecastTerm> Urgent, EquatableArray<ForecastTerm> Needs,
-    ForecastTerm MoodExposure, ForecastTerm MoodDepth, double Development, double Labor,
+    ForecastTerm MoodExposure, ForecastTerm MoodDepth, double Labor,
     EquatableArray<string> Unknown)
 {
     /// <summary>The ledger, floors and constants this outcome was ranked by (#3522); empty when assembled without a context.</summary>
@@ -399,7 +399,8 @@ public sealed partial record ForecastCoupledSelection
             && c.StockChanges.Count == 0 && c.MaterialClaims.Count == 0 && c.EquipmentClaims.Count == 0
             && c.UnsupportedEffects.Count == 0 && c.MoodMemories.Count == 0
             && c.SituationalChanges.Count == 0 && c.ComfortShifts.Count == 0 && c.OutfitChanges.Count == 0;
-        static bool PlannedSiteRoot(ForecastCommitment c) => c.Outcome?.Need == ForecastPlannedSite.DevelopmentNeed && GraphOnly(c with { Outcome = null });
+        var plannedSiteIds = candidates.Context.PlannedSites.Select(s => s.Site).ToHashSet(StringComparer.Ordinal);
+        bool PlannedSiteRoot(ForecastCommitment c) => plannedSiteIds.Contains(c.ExclusiveOutcome) && GraphOnly(c);
         var unplaced = candidates.Context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
         // A placed shell (#3537): the placed ring sites of a priced planned room close it as its planned ring sites do, so their
         // construction roots are the room's as a planned site root is, by ExclusiveOutcome.
@@ -653,7 +654,7 @@ public sealed partial record ForecastCoupledSelection
                 // site, #3537, or alternative, #3823; a root with its own relief) is exempt, and so is a planned room's roof cell
                 // when the schedule finishes that room's roof.
                 var roofed = candidates.Context.Shelters.Where(r => r.PlannedRoom != 0 && r.RoofCells.Count != 0
-                        && outcome.RequestedDevelopment.Contains(ForecastPlannedSite.RoofUnit(r.PlannedRoom)))
+                        && outcome.CompletedRoofRooms.Contains(r.PlannedRoom))
                     .SelectMany(r => r.RoofCells.SelectMany(cell => cell)).ToHashSet(StringComparer.Ordinal);
                 var unsupported = false;
                 foreach (var a in outcome.Plan.Allocations)
@@ -926,8 +927,8 @@ public sealed partial record ForecastCoupledSelection
         public ulong[] Create(ReadOnlySpan<ulong> alternate) => alternate.ToArray();
     }
 
-    public static ForecastConsequenceVector CoupledConsequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments)
-        => CoupledConsequences(outcome, commitments, null, 0, null);
+    public static ForecastConsequenceVector CoupledConsequences(ForecastCoupledOutcome outcome)
+        => ConsequenceTerms(outcome);
 
     private enum Term { ZeroTicks, ThresholdDepthTicks, ThresholdExposureTicks, ZeroAtHorizon }
 
@@ -962,13 +963,12 @@ public sealed partial record ForecastCoupledSelection
     /// <summary>The complete vector, priced by the ledger against <paramref name="reference"/> when a <paramref name="context"/> is given (#3522).</summary>
     internal static ForecastConsequenceVector CoupledConsequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments,
         ForecastCoupledContext? context, double horizonTicks, ForecastCoupledOutcome? reference)
-        => context is null ? ConsequenceTerms(outcome, commitments, null)
+        => context is null ? ConsequenceTerms(outcome)
         : StagedConsequences.Of(outcome, commitments, context, horizonTicks, reference!, ForecastValue.ReferenceHarm(reference!, context, horizonTicks)).Vector;
 
-    /// <summary>The terms of the vector read from the outcome alone (urgency, needs, mood, development, labor, support, maintenance,
+    /// <summary>The terms of the vector read from the outcome alone (urgency, needs, mood, labor, support, maintenance,
     /// unknowns), with an empty <see cref="ForecastConsequenceVector.Value"/>: what a staged comparison has before the ledger (#3723).</summary>
-    private static ForecastConsequenceVector ConsequenceTerms(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments,
-        ForecastCoupledContext? context)
+    private static ForecastConsequenceVector ConsequenceTerms(ForecastCoupledOutcome outcome)
     {
         var rows = outcome.Needs as Dictionary<string, ForecastNeedsResult> ?? new Dictionary<string, ForecastNeedsResult>(outcome.Needs, StringComparer.Ordinal);
         var unknown = new List<string>();
@@ -990,24 +990,6 @@ public sealed partial record ForecastCoupledSelection
             Metric(rows, unknown, "joy", Term.ThresholdExposureTicks, true), Metric(rows, unknown, "joy", Term.ThresholdExposureTicks),
             Metric(rows, unknown, "food", Term.ZeroAtHorizon), Metric(rows, unknown, "rest", Term.ZeroAtHorizon)
         };
-        // Requested relief (a floor, a removal) is development. A garment is not: the ledger prices it by the thoughts and armor it
-        // changes (#3816), and neither is the floor or removal a priced room owes, which its credit counts (#3796). Planned
-        // development counts what the schedule completes, whichever root built it, each physical site once (#3334), but no
-        // planned room's site or roof, priced or not: a room wins a portfolio on the ledger only (#3828).
-        var pricedRelief = context is null ? null : PlannedRoomCredits.PricedRelief(context);
-        Dictionary<string, double>? relief = null;
-        foreach (var c in commitments)
-        {
-            if (c.Outcome?.Requirements is not { } requirements) continue;
-            foreach (var r in requirements.Relief)
-                if (pricedRelief?.Contains(r.Need) != true) (relief ??= new(StringComparer.Ordinal))[r.Need] = relief.GetValueOrDefault(r.Need) + r.Fraction;
-        }
-        double delivered = 0;
-        if (relief is not null) foreach (var fraction in relief.Values) delivered += Math.Min(1, fraction);
-        var plannedUnits = context is null ? null : PlannedRoomCredits.PlannedUnits(context);
-        var units = 0;
-        foreach (var unit in outcome.RequestedDevelopment) if (plannedUnits?.Contains(unit) != true) units++;
-        var development = delivered + units;
         var moodKnown = rows.Count > 0; var breakKnown = true;
         double exposure = 0, pressure = 0, breaks = 0;
         foreach (var needs in rows.Values)
@@ -1029,7 +1011,7 @@ public sealed partial record ForecastCoupledSelection
         return new(EquatableArray.Wrap(urgent), EquatableArray.Wrap(needsVector),
             moodKnown ? new ForecastTerm.Assessed(exposure) : new ForecastTerm.Unassessed("unassessed_mood"),
             moodKnown ? new ForecastTerm.Assessed(pressure) : new ForecastTerm.Unassessed("unassessed_mood"),
-            development, outcome.Plan.LaborCost, EquatableArray.Wrap(unknownRows))
+            outcome.Plan.LaborCost, EquatableArray.Wrap(unknownRows))
         {
             BreakRisk = breakKnown ? new ForecastTerm.Assessed(breaks) : new ForecastTerm.Unassessed("mental_break_probability_unassessed"), ThermalOccupancy = outcome.ThermalOccupancy, Support = outcome.Support, Maintenance = outcome.Maintenance,
         };
@@ -1051,7 +1033,7 @@ public sealed partial record ForecastCoupledSelection
         internal static StagedConsequences Of(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments, ForecastCoupledContext context,
             double horizonTicks, ForecastCoupledOutcome reference, HarmDetail? referenceHarm)
         {
-            var terms = ConsequenceTerms(outcome, commitments, context);
+            var terms = ConsequenceTerms(outcome);
             return new(terms, ForecastValue.Stage(outcome, terms.Urgent[0], context, horizonTicks, reference, referenceHarm, commitments));
         }
 
@@ -1152,8 +1134,6 @@ public sealed partial record ForecastCoupledSelection
             if (x.Needs[index] is not ForecastTerm.Assessed(var xJoy) || y.Needs[index] is not ForecastTerm.Assessed(var yJoy)) continue;
             var rank = xJoy.CompareTo(yJoy); if (rank != 0) return rank;
         }
-        stage = "development";
-        var development = y.Development.CompareTo(x.Development); if (development != 0) return development;
         stage = "unsupplied_demand";
         var supply = x.Support.UnsuppliedDemand.CompareTo(y.Support.UnsuppliedDemand); if (supply != 0) return supply;
         stage = "first_care";

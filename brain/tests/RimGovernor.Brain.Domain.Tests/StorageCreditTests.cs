@@ -141,6 +141,5 @@ public sealed class StorageCreditTests
     {
         // PlannedRoomCreditTests' count: eight units unpriced, two once the room's role has a credit, now the shipped one.
         Assert.True(Context(SteelAndCloth).Priced(1));
-        Assert.Equal(2, PlannedRoomCreditTests.Development(Context(SteelAndCloth)));
     }
 }

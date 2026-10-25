@@ -132,7 +132,7 @@ public sealed class ForecastPortfolioChoiceTests
             var result = CoupledForecastKit.Forecast(request, subset);
             foreach (var outcome in result.Proposed.Coupled!.Alternatives.Where(p => p.Feasible))
             {
-                var vector = ForecastCoupledSelection.CoupledConsequences(outcome, subset);
+                var vector = ForecastCoupledSelection.CoupledConsequences(outcome);
                 Assert.All(vector.Urgent, value => Assert.True(value.Assessed()));
                 var value = ForecastValue.Explain(outcome, vector.Urgent[0], generated.Context, horizon, selected.Baseline);
                 if (best is null || value.UrgentZero.Excess < best.UrgentZero.Excess

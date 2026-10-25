@@ -21,7 +21,7 @@ public sealed class ForecastLiveEvidenceTests
         var needs = new ForecastNeedsResult([new("food", new ForecastTerm.Assessed(.4), new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected")), new("rest", new ForecastTerm.Assessed(.5), new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"))],
             new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new(new("pawn", "place", new ForecastCapacityWindows.Unread(), 0), []), []) { Mood = new ForecastMoodResult.Projected([], 0, 0, 0, .6, 0, new ForecastMoodBreaks.Unassessed(), []) };
         var outcome = new ForecastCoupledOutcome(plan, true, new Dictionary<string, ForecastNeedsResult> { ["pawn"] = needs }, []);
-        var vector = ForecastCoupledSelection.CoupledConsequences(outcome, []);
+        var vector = ForecastCoupledSelection.CoupledConsequences(outcome);
         return new(new(["task"], plan, [], 0, false), outcome, outcome, vector, vector, [], 100, false);
     }
     private static PawnActivities Batch => new(1, [new("pawn", "assignment", "method", 0, 1, false,

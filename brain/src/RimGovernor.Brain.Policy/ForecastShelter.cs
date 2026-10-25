@@ -25,9 +25,8 @@ public sealed record ForecastShelterPlan(ForecastShelterId Room, EquatableArray<
     /// the planned room a standing observed room's interior matches; 0 for none.</summary>
     public int PlannedRoom { get; init; }
     /// <summary>The per-cell roof work of the planned room (<see cref="PlannedRoom"/>), each cell's realizations (a subset of
-    /// AlternativePrerequisites). Together the cells are the room's one roof development unit (#3334): a planned room's
-    /// designated roof is finished even where the room already holds its heat, since thermal relief misses the open cells'
-    /// heat loss and margin. A planned room still raised by placed construction is not requested development.</summary>
+    /// AlternativePrerequisites). Every cell must complete before the outcome certifies this room's roof, including an
+    /// observed room that realizes a planned room. This evidence exempts its roof work from the thermal-relief gate.</summary>
     public EquatableArray<EquatableArray<string>> RoofCells { get; init; }
 }
 /// <summary>A shelter's heat balance inputs: estimated from its read cells, ring and the map's outdoors, or unestimated

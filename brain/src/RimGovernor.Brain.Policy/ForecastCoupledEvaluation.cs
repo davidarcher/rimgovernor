@@ -35,7 +35,7 @@ public static partial class ForecastCoupled
     internal sealed record PawnFacts(NeedsForecastPawn Pawn, ForecastCapacityInput Input, ForecastNeedTask[] NeedTasks,
         ForecastOccupancy? Journal);
 
-    private sealed record PlannedOutcome(ForecastPlannedRoomOutcome[] Rooms, string[] Development, string[] Sites, string[] Unassessed);
+    private sealed record PlannedOutcome(ForecastPlannedRoomOutcome[] Rooms, int[] RoofRooms, string[] Sites, string[] Unassessed);
 
     private sealed record ReliefOutcome(ForecastTerm Relief, string? Unassessed);
 
@@ -43,7 +43,7 @@ public static partial class ForecastCoupled
     /// raise a shelter or develop a planned room, the support consequences when no schedule changes them, and the per-pawn
     /// scratch of one evaluation.</summary>
     private sealed record ContextIndex(PawnFacts[] Pawns, Dictionary<string, int> Index, HashSet<string> Nonproductive,
-        HashSet<string> ShelterTasks, HashSet<string> DevelopmentTasks, ForecastSupportConsequences? Support,
+        HashSet<string> ShelterTasks, HashSet<string> ConstructionTasks, ForecastSupportConsequences? Support,
         List<(NeedMemory Thought, double Start)>[] Granted, List<(string Thought, double OffsetDelta, double Start)>[] Situational,
         List<(double MinDelta, double MaxDelta, double Start)>[] Comfort,
         List<ForecastActivityAllocation>[] Allocations, List<ForecastActivityAllocation>[] Use, Cached<ForecastThermalExposure>[] Exposure,
@@ -56,7 +56,7 @@ public static partial class ForecastCoupled
     /// the completed allocations a result reads, the need services) are interned to ids, so each timeline, shelter
     /// projection, support, maintenance and relief result is computed once per distinct input and found again by an
     /// integer key. Each memo is keyed by exactly the completed rows its result reads (the shelter prerequisites, the
-    /// development tasks by pawn, the support services), so schedules that differ elsewhere share it.
+    /// construction tasks by pawn, the support services), so schedules that differ elsewhere share it.
     /// </summary>
     internal sealed partial class CoupledSearchCache
     {
@@ -178,21 +178,21 @@ public static partial class ForecastCoupled
                 byName[pawn.Pawn] = p;
             }
             var shelterTasks = new HashSet<string>(StringComparer.Ordinal);
-            var developmentTasks = new HashSet<string>(StringComparer.Ordinal);
+            var constructionTasks = new HashSet<string>(StringComparer.Ordinal);
             foreach (var room in context.Shelters)
             {
                 shelterTasks.UnionWith(room.Prerequisites);
                 foreach (var group in room.AlternativePrerequisites) shelterTasks.UnionWith(group);
-                foreach (var cell in room.RoofCells) developmentTasks.UnionWith(cell);
+                foreach (var cell in room.RoofCells) constructionTasks.UnionWith(cell);
             }
-            foreach (var site in context.PlannedSites) developmentTasks.UnionWith(site.Finishes);
+            foreach (var site in context.PlannedSites) constructionTasks.UnionWith(site.Finishes);
             foreach (var ((activity, _), binding) in context.Bindings)
-                if (binding is { Kind: PawnActivityKind.Work } && binding.Job is "FinishFrame" or "BuildRoof") developmentTasks.Add(activity);
+                if (binding is { Kind: PawnActivityKind.Work } && binding.Job is "FinishFrame" or "BuildRoof") constructionTasks.Add(activity);
             // Without demands or deliveries, the support consequences are the context's own, whatever completes.
             var support = context.Support.Demands.Count == 0 && context.Support.Deliveries.Count == 0
                 ? ForecastSupport.ForecastSupportConsequencesOf(context, new([], 0, 0), new Dictionary<string, bool>(), horizon) : null;
             static T[] Lists<T>(int count) where T : new() { var lists = new T[count]; for (var i = 0; i < count; i++) lists[i] = new(); return lists; }
-            index = new(pawns, byName, new HashSet<string>(context.NonproductiveOccupancy, StringComparer.Ordinal), shelterTasks, developmentTasks, support,
+            index = new(pawns, byName, new HashSet<string>(context.NonproductiveOccupancy, StringComparer.Ordinal), shelterTasks, constructionTasks, support,
                 Lists<List<(NeedMemory, double)>>(pawns.Length), Lists<List<(string, double, double)>>(pawns.Length), Lists<List<(double, double, double)>>(pawns.Length),
                 Lists<List<ForecastActivityAllocation>>(pawns.Length), Lists<List<ForecastActivityAllocation>>(pawns.Length),
                 new Cached<ForecastThermalExposure>[pawns.Length], context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal));
@@ -230,7 +230,7 @@ public static partial class ForecastCoupled
         private readonly Dictionary<int, EquatableArray<ForecastShelterOutcome>> sheltersByPrerequisites = [];
         private readonly Dictionary<int, ForecastSupportConsequences> supportByServices = [];
         private readonly Dictionary<int, EquatableArray<ForecastMaintenanceConsequence>> maintenanceByCompleted = [];
-        private readonly Dictionary<int, PlannedOutcome> plannedByDevelopment = [];
+        private readonly Dictionary<int, PlannedOutcome> plannedByConstruction = [];
         private readonly Dictionary<int, string> occupancyByUse = [];
         private readonly Dictionary<(int Use, int Shelters), ReliefOutcome> reliefByUse = [];
         private readonly Dictionary<(int Pawn, int Allocations, int Shelters, int Comfort), Cached<ForecastThermalExposure>> exposures = [];
@@ -266,7 +266,7 @@ public static partial class ForecastCoupled
         private readonly List<SupportDelivery> deliveries = [];
         private readonly List<Methods.ActivityTaskCandidate> billRows = [];
         private readonly List<ForecastActivityAllocation> completedRows = [], shelterRows = [], serviceRows = [], useRows = [], productive = [];
-        private readonly List<(string Activity, string Pawn)> developmentRows = [];
+        private readonly List<(string Activity, string Pawn)> constructionRows = [];
         private readonly List<ForecastNeedChoice> choices = [];
         private readonly List<ForecastOccupancy> protectedTime = [];
         private readonly List<ForecastThermalExposure> exposureRows = [];
@@ -764,15 +764,15 @@ public static partial class ForecastCoupled
                     (outfitTicks ??= []).Add(new(commitment.Id, at));
             }
             // The completed rows each later result reads, interned: shelters read their prerequisites, planned rooms and
-            // development the development tasks by pawn, support its services; the need services are the use rows.
-            completedRows.Clear(); shelterRows.Clear(); serviceRows.Clear(); useRows.Clear(); developmentRows.Clear();
+            // construction the construction tasks by pawn, support its services; the need services are the use rows.
+            completedRows.Clear(); shelterRows.Clear(); serviceRows.Clear(); useRows.Clear(); constructionRows.Clear();
             foreach (var a in canonical)
             {
                 if (completed.GetValueOrDefault(a.Activity))
                 {
                     completedRows.Add(a);
                     if (pawns.ShelterTasks.Contains(a.Activity)) shelterRows.Add(a);
-                    if (pawns.DevelopmentTasks.Contains(a.Activity)) developmentRows.Add((a.Activity, a.Pawn));
+                    if (pawns.ConstructionTasks.Contains(a.Activity)) constructionRows.Add((a.Activity, a.Pawn));
                     if (context.Bindings.TryGetValue((a.Activity, a.Pawn), out var b) && Serves(b)) serviceRows.Add(a);
                 }
                 var use = needTasksByTask.Contains(a.Activity);
@@ -944,9 +944,9 @@ public static partial class ForecastCoupled
             if (relief.Unassessed is { } unassessedRelief) Finding(unassessedRelief, "thermal");
             if (!maintenanceByCompleted.TryGetValue(completedId, out var maintenance))
                 maintenanceByCompleted.Add(completedId, maintenance = ForecastMaintenancePolicy.ForecastMaintenance(context.MaintenanceRequirements, context.PracticeTasks, plan, completed, horizon));
-            var developmentId = pairKeys.Id(developmentRows);
-            if (!plannedByDevelopment.TryGetValue(developmentId, out var planned))
-                plannedByDevelopment.Add(developmentId, planned = PlannedOf(plan));
+            var constructionId = pairKeys.Id(constructionRows);
+            if (!plannedByConstruction.TryGetValue(constructionId, out var planned))
+                plannedByConstruction.Add(constructionId, planned = PlannedOf(plan));
             // A room with a service day (#3796) is assessed by it.
             foreach (var room in planned.Unassessed)
                 if (!service.Any(r => "planned/room" + r.Room == room)) Finding("planned_room_effect_unassessed", room);
@@ -968,18 +968,15 @@ public static partial class ForecastCoupled
                 ThermalOccupancy = thermalOccupancy,
                 StationaryThermalRelief = relief.Relief,
                 PlannedRooms = EquatableArray.Wrap(planned.Rooms),
-                RequestedDevelopment = EquatableArray.Wrap(planned.Development),
-                CompletedDevelopmentSites = EquatableArray.Wrap(planned.Sites),
+                CompletedRoofRooms = EquatableArray.Wrap(planned.RoofRooms),
+                CompletedConstructionSites = EquatableArray.Wrap(planned.Sites),
                 ServedRooms = service,
             };
             return outcome with { Terminal = new(request, commitments, new Dictionary<Resource, double>(inventoryWalk.Terminal), new Dictionary<string, double>(finishedAt, StringComparer.Ordinal), holds, new Dictionary<Resource, double>(inventoryWalk.Drawn))
                 { Lots = TerminalLots(), FoodUnread = request.Facts.FoodUnread, TreatmentHistory = treatmentHistory } };
         }
 
-        /// <summary>A planned site counts once it finishes inside the horizon; a room only when a whole alternative does (#3276).
-        /// Requested development records each completed planned site once, whichever root built it, and a planned room's
-        /// per-cell native roof as that room's one roof unit once every cell completes (#3334); the ranking counts no
-        /// planned room's unit (#3828).</summary>
+        /// <summary>Completed planned sites, room alternatives and fully completed native roofs in this schedule.</summary>
         private PlannedOutcome PlannedOf(ForecastActivityPlan plan)
         {
             var builtSites = context.PlannedSites.Where(s => s.Finishes.Any(f => completed.GetValueOrDefault(f)))
@@ -988,16 +985,15 @@ public static partial class ForecastCoupled
                 .Select(g => new ForecastPlannedRoomOutcome(g.Key, EquatableArray.From(g.Select(s => s.Site).Order(StringComparer.Ordinal)),
                     EquatableArray.From(context.PlannedRooms.Where(a => a.Room == g.Key && a.Sites.All(builtSites.Contains)).Select(a => a.Id))))
                 .ToArray();
-            var development = new SortedSet<string>(builtSites, StringComparer.Ordinal);
-            foreach (var shelter in context.Shelters.Where(s => s.PlannedRoom != 0 && s.RoofCells.Count != 0))
-                if (shelter.RoofCells.All(cell => cell.Any(f => completed.GetValueOrDefault(f))))
-                    development.Add(ForecastPlannedSite.RoofUnit(shelter.PlannedRoom));
+            var roofRooms = context.Shelters.Where(s => s.PlannedRoom != 0 && s.RoofCells.Count != 0
+                && s.RoofCells.All(cell => cell.Any(f => completed.GetValueOrDefault(f))))
+                .Select(s => s.PlannedRoom).Distinct().Order().ToArray();
             var sites = plan.Allocations.Where(a => completed.GetValueOrDefault(a.Activity))
                 .Select(a => context.Bindings.GetValueOrDefault((a.Activity, a.Pawn)))
                 .Where(b => b is { Kind: PawnActivityKind.Work } && b.Job is "FinishFrame" or "BuildRoof")
                 .Select(b => b!.Job == "BuildRoof" ? "roof/" + b.Location.X + "/" + b.Location.Z : "site/" + b.Target)
                 .Distinct().Order(StringComparer.Ordinal).ToArray();
-            return new(plannedRooms, [.. development], sites,
+            return new(plannedRooms, roofRooms, sites,
                 plannedRooms.Where(r => r.Complete.Count == 0).Select(r => "planned/room" + r.Room).ToArray());
         }
 

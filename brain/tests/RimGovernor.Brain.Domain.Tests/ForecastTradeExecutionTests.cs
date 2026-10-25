@@ -168,7 +168,7 @@ public sealed class ForecastTradeExecutionTests
         var selected = compared.Selection;
         var work = Assert.Single(ForecastTradeExecution.Ready(selected, candidates.Context));
         Assert.Null(ForecastCoupledSelection.StartCoupledActivity(new(selected, outcome, outcome,
-            ForecastCoupledSelection.CoupledConsequences(outcome, []), ForecastCoupledSelection.CoupledConsequences(outcome, []), [], GameTime.TicksPerDay, false),
+            ForecastCoupledSelection.CoupledConsequences(outcome), ForecastCoupledSelection.CoupledConsequences(outcome), [], GameTime.TicksPerDay, false),
             candidates, 1, "method", 100));
         var world = new GenerationSnapshot(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
         using var journal = RimGovernor.Brain.Store.Store.Open(Path.Combine(Path.GetTempPath(), "rg-selected-trade-" + Guid.NewGuid().ToString("N") + ".db"), ct);

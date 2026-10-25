@@ -68,7 +68,7 @@ public sealed class GoalValueTests
         var wellbeing = new ForecastValuePolicy().WellbeingWeight * 4;
         ForecastConsequenceVector Vector(ForecastValueResult goals, double wellbeingLoss) => new(
             EquatableArray.From(Enumerable.Repeat<ForecastTerm>(new ForecastTerm.Assessed(0d), 5).ToArray()), EquatableArray.From(Enumerable.Repeat<ForecastTerm>(new ForecastTerm.Assessed(0d), 6).ToArray()),
-            new ForecastTerm.Assessed(0d), new ForecastTerm.Assessed(0d), 0, 0, [])
+            new ForecastTerm.Assessed(0d), new ForecastTerm.Assessed(0d), 0, [])
         { Value = new(goals with { Wellbeing = new LedgerTerm.Priced(wellbeingLoss) }, new()) };
 
         var high = Vector(Ledger(Context(Importance.High), Hour), 0);
@@ -119,7 +119,7 @@ public sealed class GoalValueTests
     public void AGoalsWearerIsPaidWhenACommitmentDressesThemAndTheDeliveryIsNoDevelopmentUnit()
     {
         // #3816: the worn-count goal pays the wearer's share when a selected commitment's outfit change dresses that pawn in the
-        // garment, a crafted overlay or a swap into a stored one alike; the delivery adds nothing to the development count.
+        // garment, a crafted overlay or a swap into a stored one alike; delivery alone earns no goal progress.
         var duster = new GearOption { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("duster", "Duster", "Cloth", GearSource.Worn) with { Condition = 0, Quality = new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded(RimGovernor.Brain.GameFacts.Defs.QualityCategory.Awful) }), Slot = GearSlot.Outer };
         var crafted = new ForecastCommitment("clothing", [])
         {
@@ -131,7 +131,6 @@ public sealed class GoalValueTests
         var context = Context(Importance.Normal) with { GoalValues = [new("goals/worn-count/2", Importance.Normal, new GoalDeadline.Open()) { Wearers = [new("pawn", "Duster", "", .5)] }] };
         var outcome = Outcome(0);
 
-        Assert.Equal(0, ForecastCoupledSelection.CoupledConsequences(outcome, [crafted]).Development);
         Assert.Equal(-1, ForecastValue.Of(outcome, context, GameTime.TicksPerDay, Outcome(0), [crafted]).Goals, 9);
         Assert.Equal(-1, ForecastValue.Of(outcome, context, GameTime.TicksPerDay, Outcome(0), [swap]).Goals, 9);
         // Once per wearer, and only the wearer the goal names; a goal on another stuff is not met by cloth.

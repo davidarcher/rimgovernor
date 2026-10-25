@@ -264,11 +264,4 @@ public sealed class ApparelCreditTests
         var context = Context(Pawn(Warm, Tattered), Shirt(0.15)) with { InvestmentHorizonDays = 0 };
         Assert.DoesNotContain(Value(context, Shirt(1)).InvestmentContributions, r => r.Key.StartsWith("apparel/", StringComparison.Ordinal));
     }
-
-    [Fact]
-    public void TheDeliveryAddsNothingToTheDevelopmentCount()
-    {
-        var consequences = ForecastCoupledSelection.CoupledConsequences(Delivering(0, 0.05), [Craft(Shirt(1))]);
-        Assert.Equal(0, consequences.Development);
-    }
 }

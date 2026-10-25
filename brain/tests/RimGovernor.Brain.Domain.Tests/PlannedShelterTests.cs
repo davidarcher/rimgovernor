@@ -185,9 +185,7 @@ public sealed class PlannedShelterTests
     }
 
     /// <summary>
-    /// #3828 (option A): an unpriced room's ring tied the baseline on the ledger and then won on its sites as development, so
-    /// the first rounds opened unpriced rings. No planned room's unit is development now: the unpriced ring alone ties the
-    /// baseline on development too and is not selected. The same ring as a barracks whose sleeper's thought it lifts
+    /// An unpriced ring that ties the baseline is not selected. The same ring as a barracks whose sleeper's thought it lifts
     /// (slept_outside -4 to slept_in_barracks -2) is credited on the ledger and selected.
     /// </summary>
     [Fact]
@@ -198,9 +196,6 @@ public sealed class PlannedShelterTests
         Assert.False(facts.CoupledAlternatives!.Context.Priced(1));
         var unpriced = Select(facts);
         Assert.False(Room1(unpriced), Why(facts, unpriced));
-        Assert.Equal(unpriced.BaselineVector.Development, unpriced.SelectedVector.Development);
-        Assert.All(unpriced.Rejected.Where(e => e.Consequences is not null && e.Commitments.Any(id => id.StartsWith("planned/room1/", StringComparison.Ordinal))),
-            e => Assert.Equal(unpriced.BaselineVector.Development, e.Consequences!.Development));
 
         var outdoors = new NeedCell(false, false, false, true, true);
         var sleeper = SleepFixtures.Sleeping(facts.ForecastObserved.Needs!.Pawns[0], SleepFixtures.InBed("bed", outside: true) with { Temperature = 20 }) with
@@ -224,7 +219,6 @@ public sealed class PlannedShelterTests
         var result = Select(barracks);
         Assert.True(Room1(result), Why(barracks, result));
         Assert.Contains(result.SelectedVector.Value.Ledger.InvestmentContributions, c => c.Key.StartsWith("barracks/1/", StringComparison.Ordinal) && c.Value < 0);
-        Assert.Equal(result.BaselineVector.Development, result.SelectedVector.Development);
     }
 
     [Fact]
@@ -273,9 +267,9 @@ public sealed class PlannedShelterTests
         Assert.DoesNotContain("portfolio_search_truncated", result.Selection.Findings);
         Assert.True(result.Selected.StationaryThermalRelief is ForecastTerm.Assessed { Value: > 0 }, Why(facts, result)
             + " | SEL " + string.Join(",", result.Selection.Selected) + " | " + string.Join(",", result.Selected.Plan.Allocations.Select(a => a.Activity + "@" + a.Start + "-" + a.End)));
-        // Its four completed sites are the planned room's, which count no development (#3828): the relief selects it.
-        Assert.Equal(4, result.Selected.RequestedDevelopment.Count);
-        Assert.Equal(0, result.SelectedVector.Development);
+        // The physical sites and complete native roof remain observable; the thermal relief selects the shelter.
+        Assert.Equal(4, result.Selected.PlannedRooms.SelectMany(r => r.CompletedSites).Count());
+        Assert.Contains("planned/room1/roof", result.Selected.PlannedRooms.SelectMany(r => r.CompletedSites));
         var shelter = Assert.Single(result.Selected.Shelters);
         Assert.True(shelter.Scheduled().CompleteAt < Horizon, Why(facts, result));
         // Shell, roof and heater are the one builder's work in the same schedule as the pawn's rest.
@@ -504,14 +498,14 @@ public sealed class PlannedShelterTests
         foreach (var site in new[] { "planned/room1/wall/WoodLog", "planned/room1/door/WoodLog" })
             Assert.Contains(candidates.Context.PlannedSites.Single(s => s.Site == site).Finishes, roof.Prerequisites.Contains);
 
-        // The whole-portfolio selection picks the complete shelter over the shell alone (#3334): the per-cell roof is the
-        // room's one roof unit, so the shelter's wall, door and roof outrank the shell's two sites.
+        // The whole portfolio finishes the native roof and records the room only after all roof cells finish.
         var result = Select(facts);
         Assert.DoesNotContain("portfolio_search_truncated", result.Selection.Findings);
         Assert.True(result.Selected.StationaryThermalRelief is ForecastTerm.Assessed { Value: > 0 }, Why(facts, result)
             + " | SEL " + string.Join(",", result.Selection.Selected));
-        Assert.Equal(["planned/room1/door/WoodLog", "planned/room1/roof", "planned/room1/wall/WoodLog"], result.Selected.RequestedDevelopment);
+        Assert.Equal(["planned/room1/door/WoodLog", "planned/room1/wall/WoodLog"], result.Selected.PlannedRooms.SelectMany(r => r.CompletedSites).Order(StringComparer.Ordinal));
         Assert.True(Assert.Single(result.Selected.Shelters).Scheduled().CompleteAt < Horizon, Why(facts, result));
         Assert.Contains(result.Selected.Plan.Allocations, a => a.Activity == roof.Id);
+        Assert.Equal([1], result.Selected.CompletedRoofRooms);
     }
 }

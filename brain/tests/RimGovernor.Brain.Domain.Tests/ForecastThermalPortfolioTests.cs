@@ -65,8 +65,8 @@ public sealed class ForecastThermalPortfolioTests
         Assert.True(result.Selected.Feasible);
         Assert.True(result.Selected.StationaryThermalRelief.Number() > 0);
         Assert.Contains(result.Selected.Plan.Allocations, a => facts.CoupledAlternatives!.Context.NeedTasks.Any(n => n.Task == a.Activity && n.Kind == "rest"));
-        Assert.Contains(result.Selected.CompletedDevelopmentSites, id => id.StartsWith("site/", StringComparison.Ordinal));
-        Assert.Contains(result.Selected.CompletedDevelopmentSites, id => id.StartsWith("roof/", StringComparison.Ordinal));
+        Assert.Contains(result.Selected.CompletedConstructionSites, id => id.StartsWith("site/", StringComparison.Ordinal));
+        Assert.Contains(result.Selected.CompletedConstructionSites, id => id.StartsWith("roof/", StringComparison.Ordinal));
         // Idle and travel ticks take the last located temperature, else outdoors (#3673): none is left unassessed.
         Assert.Equal(0, result.Selected.ThermalExposure.Single().UnknownTicks);
         // Without the bed the pawn's rest reaches zero; the bed (with the shelter's relief on top) does not.
@@ -79,10 +79,10 @@ public sealed class ForecastThermalPortfolioTests
     {
         var warm = Select(Review(20));
         Assert.Equal(new ForecastTerm.Assessed(0d), warm.Selected.StationaryThermalRelief);
-        Assert.Empty(warm.Selected.CompletedDevelopmentSites);
+        Assert.Empty(warm.Selected.CompletedConstructionSites);
         var outside = Select(Review(-10, occupiedInside: false));
         Assert.Equal(new ForecastTerm.Assessed(0d), outside.Selected.StationaryThermalRelief);
-        Assert.Empty(outside.Selected.CompletedDevelopmentSites);
+        Assert.Empty(outside.Selected.CompletedConstructionSites);
         var noDemand = Select(Review(20, demand: false, restDemand: false));
         Assert.Empty(noDemand.Selection.Selected);
         Assert.Empty(noDemand.Selected.Plan.Allocations);

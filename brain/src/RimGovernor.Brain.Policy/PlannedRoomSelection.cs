@@ -40,8 +40,8 @@ public static partial class PlannedRules
     /// candidates or no selection). The selected sites are the planned sites the selected portfolio's plan starts inside
     /// the horizon (#3744): any of a site's activities (ForecastPlannedSite.Activities and Finishes) allocated, whichever
     /// selected roots carried them: a site root, a room alternative or a shelter. A ring that outlasts the horizon is
-    /// placed from the sites it starts, valued by its projected closure. They are read from the plan, not the development
-    /// count, so a site of a priced room is placed though it counts no development. Root ids play no part (#3342), so
+    /// placed from the sites it starts, valued by its projected closure. Physical site evidence drives placement.
+    /// Root ids play no part (#3342), so
     /// equivalent root sets that share one schedule give one record, and a site the plan does not start is not selected
     /// (it is placed once its room has started). The sites are joined to the round's planned-site facts for their
     /// operation, def, stuff and anchors; one the facts no longer name is left out.

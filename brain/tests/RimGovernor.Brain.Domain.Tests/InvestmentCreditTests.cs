@@ -38,7 +38,7 @@ public sealed class InvestmentCreditTests
 
     private static ForecastConsequenceVector Vector(ForecastValueResult ledger) => new(
         EquatableArray.From(Enumerable.Repeat<ForecastTerm>(new ForecastTerm.Assessed(0d), 5).ToArray()), EquatableArray.From(Enumerable.Repeat<ForecastTerm>(new ForecastTerm.Assessed(0d), 6).ToArray()),
-        new ForecastTerm.Assessed(0d), new ForecastTerm.Assessed(0d), 0, 0, [])
+        new ForecastTerm.Assessed(0d), new ForecastTerm.Assessed(0d), 0, [])
     { Value = new(ledger, new()) { UrgentZero = new(true, 0) } };
 
     [Fact]

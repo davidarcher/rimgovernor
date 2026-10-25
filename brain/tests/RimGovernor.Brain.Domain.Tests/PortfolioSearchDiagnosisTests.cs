@@ -160,7 +160,7 @@ public sealed class PortfolioSearchDiagnosisTests
         Assert.Equal(1018, mixed.Alternatives.Count);
         Assert.All(mixed.Alternatives, a => Assert.True(a.Feasible));
         Assert.Contains(diner.Alternatives, a => a.Feasible);
-        Assert.Contains(pinned.Alternatives.Select(a => ForecastCoupledSelection.CoupledConsequences(a, s.ReferenceRoots)),
+        Assert.Contains(pinned.Alternatives.Select(a => ForecastCoupledSelection.CoupledConsequences(a)),
             v => v.Labor == 841 && v.Urgent.All(x => x is ForecastTerm.Assessed { Value: 0d }));
     }
 
@@ -322,7 +322,7 @@ public sealed class PortfolioSearchDiagnosisTests
         Feasible = scenario.Alternatives.Count(a => a.Feasible),
         Reasons = scenario.Alternatives.SelectMany(a => a.Findings.Select(f => f.Reason)).GroupBy(x => x).OrderBy(g => g.Key, StringComparer.Ordinal)
             .Select(g => g.Key + "=" + g.Count()).ToArray(),
-        Best = scenario.Alternatives.Where(a => a.Feasible).Select(a => ForecastCoupledSelection.CoupledConsequences(a, roots))
+        Best = scenario.Alternatives.Where(a => a.Feasible).Select(a => ForecastCoupledSelection.CoupledConsequences(a))
             .Select(v => new { Urgent = v.Urgent.Select(x => x is ForecastTerm.Assessed(var value) ? value : -1).ToArray(), Needs = v.Needs.Select(x => x is ForecastTerm.Assessed(var value) ? value : -1).ToArray(), v.Labor })
             .OrderBy(v => v.Urgent[0]).ThenBy(v => v.Urgent[1]).ThenBy(v => v.Urgent[2]).ThenBy(v => v.Urgent[3]).ThenBy(v => v.Needs[4]).Take(1).ToArray()
     };

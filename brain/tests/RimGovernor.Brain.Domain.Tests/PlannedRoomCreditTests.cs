@@ -17,8 +17,6 @@ public sealed class PlannedRoomCreditTests
     private const double Horizon = 10;
     private const string Wall = "planned/room1/wall/WoodLog", Shelf = "planned/room1/shelf", Roof = "planned/room1/roof";
     private const string Delivery = "planned/room1/wall/WoodLog/delivery";
-    /// <summary>An unplaced shelf candidate's unit (room 0): no planned room's, so it counts as development (#3828).</summary>
-    private const string ZoneShelf = "planned/shelf/zone-1/4/4";
 
     /// <summary>The test-only storage credit: one capability-day a served day, booked to no pawn.</summary>
     private static readonly IReadOnlyDictionary<PlannedRole, RoomCredit> StorageCredit = new Dictionary<PlannedRole, RoomCredit>
@@ -56,25 +54,11 @@ public sealed class PlannedRoomCreditTests
         return new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>(), [])
         {
             ServedRooms = service,
-            RequestedDevelopment = [Wall, Shelf, Roof, ZoneShelf],
         };
     }
 
     private static ForecastInvestmentContribution[] Credits(ForecastCoupledContext context, ForecastCoupledOutcome outcome) =>
         [.. ForecastValue.Of(outcome, context, Day).InvestmentContributions.Where(r => r.Key.StartsWith("storage/", StringComparison.Ordinal))];
-
-    private static readonly string[] ReliefNeeds = ["flooring/floor-1", "removal/rubble-1", "removal/shared-1", "flooring/elsewhere"];
-
-    /// <summary>A floor's and two removals' relief, as the placed-site and removal roots request it, and a floor of no planned room.</summary>
-    private static ForecastCommitment[] Relief() =>
-        [.. ReliefNeeds.Select(need => new ForecastCommitment(need, [])
-        {
-            Outcome = new(need, "construction-method", need)
-            { Requirements = new([new(need, ProductionNeedPriority.Maintenance, 1.0)], 0, 0) },
-        })];
-
-    internal static double Development(ForecastCoupledContext context) =>
-        ForecastCoupledSelection.CoupledConsequences(Outcome(context), Relief(), context, Day, Outcome(context)).Development;
 
     [Fact]
     public void AStorageRoomClosingAtDayTwoWithADayOfShelvesIsCreditedFromDayThree()
@@ -90,22 +74,10 @@ public sealed class PlannedRoomCreditTests
     }
 
     [Fact]
-    public void NoPlannedRoomsSitesOrRoofCountAsDevelopmentAndAPricedRoomsFloorAndRemovalsLeaveIt()
-    {
-        // #3828: room 1's three units count in neither, the shelf of no room in both. Unpriced: the four reliefs count too.
-        // Priced: only the floor elsewhere, the shared wall's removal leaving with the priced room.
-        Assert.Equal(5, Development(Context(new Dictionary<PlannedRole, RoomCredit>())));
-        Assert.Equal(2, Development(Context(StorageCredit)));
-        Assert.Contains("removal/shared-1", PlannedRoomCredits.PricedRelief(Context(StorageCredit)));
-        Assert.Equal([Roof, Shelf, Wall], PlannedRoomCredits.PlannedUnits(Context(StorageCredit)).Order(StringComparer.Ordinal));
-    }
-
-    [Fact]
-    public void ARoleWithNoCreditKeepsItsReliefAsDevelopmentAndIsChargedNoMaterial()
+    public void ARoleWithNoCreditIsChargedNoMaterial()
     {
         var unpriced = Context(new Dictionary<PlannedRole, RoomCredit>());
         Assert.False(unpriced.Priced(1));
-        Assert.Empty(PlannedRoomCredits.PricedRelief(unpriced));
         Assert.Empty(ForecastValue.ChargedMaterials(unpriced));
         Assert.Empty(Credits(unpriced, Outcome(unpriced)));
         var priced = Context(StorageCredit);
@@ -157,20 +129,8 @@ public sealed class PlannedRoomCreditTests
         };
     }
 
-    private static double ConnectedDevelopment(ForecastCoupledContext context)
-    {
-        var outcome = new ForecastCoupledOutcome(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>(), [])
-        { RequestedDevelopment = [BedWall, CorridorWall] };
-        ForecastCommitment[] relief = [new("flooring/connector-floor", [])
-        {
-            Outcome = new("flooring/connector-floor", "construction-method", "flooring/connector-floor")
-            { Requirements = new([new("flooring/connector-floor", ProductionNeedPriority.Maintenance, 1.0)], 0, 0) },
-        }];
-        return ForecastCoupledSelection.CoupledConsequences(outcome, relief, context, Day, outcome).Development;
-    }
-
     [Fact]
-    public void ABedroomReachedThroughACorridorServesAfterTheCorridorsWorkAndTakesItsUnitsOutOfDevelopment()
+    public void ABedroomReachedThroughACorridorServesAfterTheCorridorsWork()
     {
         var context = Connected(PlannedRole.Circulation, BedroomCredit);
         // The ring's two days, then the corridor's wall and floor: a day and a half later.
@@ -178,19 +138,15 @@ public sealed class PlannedRoomCreditTests
         Assert.Equal(new ForecastRoomService(1, "WoodLog", 3.5 * Day), Assert.Single(served, s => s.Room == 1));
         Assert.Equal(2 * Day, Assert.Single(PlannedRoomCredits.ServiceDays(context with { Connectors = new Dictionary<int, EquatableArray<int>>() },
             new Dictionary<string, double>(), Day)).ServedAt);
-        // Both rooms' sites and the corridor's floor leave the count with the priced bedroom; the corridor earns no credit.
+        // A connector is priced through the room it serves.
         Assert.True(context.Priced(2));
-        Assert.Equal(0, ConnectedDevelopment(context));
-        Assert.Contains(CorridorWall, PlannedRoomCredits.PlannedUnits(context));
-        Assert.Contains("flooring/connector-floor", PlannedRoomCredits.PricedRelief(context));
-        // A corridor serving no priced room keeps its floor's relief as development; no room's walls count (#3828).
+        // A corridor serving no priced room cannot claim a credit.
         var unpriced = Connected(PlannedRole.Circulation, new Dictionary<PlannedRole, RoomCredit>());
         Assert.False(unpriced.Priced(2));
-        Assert.Equal(1, ConnectedDevelopment(unpriced));
     }
 
     [Fact]
-    public void AnAirlockSealingABedroomServesItAfterTheAirlocksWorkAndLeavesDevelopmentWithIt()
+    public void AnAirlockSealingABedroomServesItAfterTheAirlocksWork()
     {
         var context = Connected(PlannedRole.Airlock, BedroomCredit);
         var served = PlannedRoomCredits.ServiceDays(context, new Dictionary<string, double>(), Day);
@@ -199,8 +155,6 @@ public sealed class PlannedRoomCreditTests
         var finished = new Dictionary<string, double> { [BedWall + "/finish"] = 300, ["site-9-finish"] = 700 };
         Assert.Equal(700, Assert.Single(PlannedRoomCredits.ServiceDays(context, finished, Day), s => s.Room == 1).ServedAt);
         Assert.True(context.Priced(2));
-        Assert.Contains("flooring/connector-floor", PlannedRoomCredits.PricedRelief(context));
-        Assert.Equal(1, ConnectedDevelopment(context)); // the corridor wall of no room left
     }
 
     [Fact]
@@ -219,6 +173,58 @@ public sealed class PlannedRoomCreditTests
         Assert.Equal([1, 4], connectors[2]);
         Assert.Equal([1], connectors[3]);
         Assert.Empty(PlannedRoomCredits.ConnectorsOf([], []));
+    }
+
+    /// <summary>#3818: enum-driven coverage includes ringed and ringless layout roles; connectors must serve a credited room.</summary>
+    [Fact]
+    public void EveryRoleTheLayoutPlansHasACreditOrServesACreditedRoom()
+    {
+        var roles = Enum.GetValues<PlannedRole>().Where(r => r != PlannedRole.None).ToArray();
+        var rooms = roles.Select((role, i) => new PlannedRoom
+        {
+            Id = i + 1, Role = role,
+            Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = 10 * i, Z = 5, Width = 3, Height = 3 }),
+            Parent = role == PlannedRole.Airlock ? Array.IndexOf(roles, PlannedRole.Bedroom) + 1 : 0,
+        }).ToArray();
+        var plan = new LayoutPlan { Rooms = rooms };
+        var ringed = PlannedRules.PlannedBuiltRooms(plan).Select(r => r.Id).ToHashSet();
+        Assert.NotEmpty(ringed);
+        Assert.Contains(rooms, r => !ringed.Contains(r.Id) && !r.Attached());
+        var bedroom = Assert.Single(rooms, r => r.Role == PlannedRole.Bedroom).Id;
+        var corridor = Assert.Single(rooms, r => r.Role == PlannedRole.Circulation).Id;
+        var connectors = PlannedRoomCredits.ConnectorsOf(plan.Rooms, [new(corridor, bedroom, new(0, 0))]);
+        var context = Context(PlannedRoomCredits.Shipped) with
+        {
+            PlannedRoomRoles = rooms.ToDictionary(r => r.Id, r => r.Role), Connectors = connectors,
+        };
+        foreach (var room in rooms)
+        {
+            Assert.True(context.Priced(room.Id), "Unpriced layout role: " + room.Role);
+            if (connectors.TryGetValue(room.Id, out var served))
+            {
+                Assert.False(PlannedRoomCredits.Shipped.ContainsKey(room.Role));
+                Assert.NotEmpty(served);
+                Assert.All(served, id => Assert.True(PlannedRoomCredits.Shipped.ContainsKey(context.PlannedRoomRoles[id])));
+                Assert.False((context with { Connectors = new Dictionary<int, EquatableArray<int>>() }).Priced(room.Id));
+            }
+            else Assert.True(PlannedRoomCredits.Shipped.ContainsKey(room.Role), "No credit for " + room.Role);
+        }
+    }
+
+    [Theory]
+    [InlineData(PlannedRole.Airlock, 2.5)]
+    [InlineData(PlannedRole.Circulation, 3.5)]
+    public void AConnectorsWorkDelaysTheServedRoomsActualLedgerCredit(PlannedRole role, double serviceDay)
+    {
+        var context = Connected(role, BedroomCredit);
+        var outcome = Outcome(context);
+        var row = Assert.Single(ForecastValue.Of(outcome, context, Day).InvestmentContributions);
+        Assert.Equal("bedroom/1/rest", row.Key);
+        Assert.Equal(-(Horizon - serviceDay), row.Value, 9);
+        var detached = context with { Connectors = new Dictionary<int, EquatableArray<int>>() };
+        var without = Assert.Single(ForecastValue.Of(Outcome(detached), detached, Day).InvestmentContributions);
+        Assert.Equal(-(Horizon - 2), without.Value, 9);
+        Assert.True(row.Value > without.Value);
     }
 
     private const string BarracksWall = "planned/room1/wall/WoodLog", Beds = "planned/room1/build/Bed/43/48", Stove = "planned/room1/build/FueledStove/44/46";
@@ -692,7 +698,7 @@ public sealed class PlannedRoomCreditTests
         {
             var plan = new ForecastActivityPlan(rows, rows.Max(a => a.End), 0);
             var outcome = new ForecastCoupledOutcome(plan, true, new Dictionary<string, ForecastNeedsResult>(), []);
-            var vector = ForecastCoupledSelection.CoupledConsequences(outcome, []);
+            var vector = ForecastCoupledSelection.CoupledConsequences(outcome);
             var selection = new ForecastCoupledSelection(new(selected, plan, [], 0, false), outcome, outcome, vector, vector, [], 100, false);
             var execution = ForecastCoupledExecution.ReviewCoupledExecution(selection, EquatableArray.From(incumbents), 100, bound.Activities.Activities);
             Assert.Empty(execution.Releases);
@@ -774,7 +780,9 @@ public sealed class PlannedRoomCreditTests
     }
 
     /// <summary>One planned room per shipped role numbered from <paramref name="first"/>, each predicted as native predicts every priced room.</summary>
-    private static (int Room, PlannedRole Role)[] ShippedRooms(int first = 1) => PlannedRoomCredits.Shipped.Keys.Select((role, i) => (Room: i + first, Role: role)).ToArray();
+    private static (int Room, PlannedRole Role)[] ShippedRooms(int first = 1) => Enum.GetValues<PlannedRole>()
+        .Where(role => role is not (PlannedRole.None or PlannedRole.Airlock or PlannedRole.Circulation))
+        .Select((role, i) => (Room: i + first, Role: role)).ToArray();
 
     /// <summary><paramref name="review"/> with <see cref="ShippedRooms"/> planned after its own planned rooms, the way Read and
     /// Work read them.</summary>

@@ -74,7 +74,7 @@ public static class ForecastServiceInvestments
                 food.Sum(p => ((ForecastTerm.Assessed)baseline.Needs[p].Needs.Single(n => n.Kind == "food").ThresholdExposureTicks).Value
                     - ((ForecastTerm.Assessed)selected.Needs[p].Needs.Single(n => n.Kind == "food").ThresholdExposureTicks).Value),
                 "fresh_food_trajectory_has_no_shortfall_or_chain_is_no_longer_feasible"));
-        if (selected.CompletedDevelopmentSites.Count != 0 && selected.StationaryThermalRelief is ForecastTerm.Assessed { Value: > 0 } relief)
+        if (selected.CompletedConstructionSites.Count != 0 && selected.StationaryThermalRelief is ForecastTerm.Assessed { Value: > 0 } relief)
             result.Add(new(ServiceTarget.ForNeed(ShelterFamily.Temperature, "", "owner_observed_recovery"),
                 EquatableArray.From(selected.ThermalExposure.Where(t => t.AssessedTicks > 0).Select(t => t.Pawn).Distinct().Order(StringComparer.Ordinal)),
                 Dependencies(selected.Plan.Allocations.Where(a => context.Bindings.TryGetValue((a.Activity, a.Pawn), out var b)

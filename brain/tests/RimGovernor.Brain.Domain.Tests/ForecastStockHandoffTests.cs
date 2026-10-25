@@ -138,7 +138,7 @@ public sealed class ForecastStockHandoffTests
         request = request with { Coupled = request.Coupled! with { ModelBasis = null } };
         var outcome = Evaluate(request);
         Assert.Null(ForecastHandoffPolicy.Project(outcome));
-        var vector = ForecastCoupledSelection.CoupledConsequences(outcome, []);
+        var vector = ForecastCoupledSelection.CoupledConsequences(outcome);
         var selection = new ForecastCoupledSelection(new([], outcome.Plan, [], 0, false), outcome, outcome, vector, vector, [], 60000, false);
         var predictions = new List<ForecastPrediction>(); var observations = new List<ForecastObservation>();
         var pending = new ForecastEvidencePending(predictions.Add, observations.Add);

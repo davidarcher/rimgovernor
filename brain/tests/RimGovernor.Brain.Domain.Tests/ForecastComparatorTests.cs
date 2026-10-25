@@ -10,7 +10,7 @@ public sealed class ForecastComparatorTests
     private static readonly double Tie = new ForecastValuePolicy().TieResolution;
 
     private static ForecastConsequenceVector Vector(double? hunger = 0, double zeroExcess = 0, double breakExcess = 0, double? wellbeing = 0,
-        double? breaks = 0, double development = 0, double labor = 0, bool breakAssessed = true, double deathExcess = 0)
+        double? breaks = 0, double labor = 0, bool breakAssessed = true, double deathExcess = 0)
     {
         static LedgerTerm Of(double? value) => value is { } v ? new LedgerTerm.Priced(v) : new LedgerTerm.Unassessed();
         var ledger = new ForecastValueResult(new LedgerTerm.Unassessed(), [])
@@ -23,7 +23,7 @@ public sealed class ForecastComparatorTests
             UrgentZero = new(true, zeroExcess), BreakRisk = new(breakAssessed, breakExcess), Death = new(deathExcess > 0, deathExcess),
         };
         return new(EquatableArray.From(Enumerable.Repeat<ForecastTerm>(new ForecastTerm.Assessed(0d), 5).ToArray()), EquatableArray.From(Enumerable.Repeat<ForecastTerm>(new ForecastTerm.Assessed(0d), 6).ToArray()),
-            new ForecastTerm.Assessed(0d), new ForecastTerm.Assessed(0d), development, labor, []) { Value = value };
+            new ForecastTerm.Assessed(0d), new ForecastTerm.Assessed(0d), labor, []) { Value = value };
     }
 
     [Fact]
@@ -104,12 +104,10 @@ public sealed class ForecastComparatorTests
     }
 
     [Fact]
-    public void WithinTheTieARequestedDevelopmentUnitDecidesAndLaborIsLeftToTheCaller()
+    public void WithinTheLedgerTieLaborIsLeftToTheCaller()
     {
-        Assert.True(ForecastCoupledSelection.CompareConsequences(Vector(development: 2, hunger: .5), Vector(development: 1, hunger: .5 + Tie / 2)) < 0);
-        // Equal on every ranked term, including development: zero, so the caller keeps the incumbent and then prefers less labor.
+        Assert.Equal(0, ForecastCoupledSelection.CompareConsequences(Vector(hunger: .5), Vector(hunger: .5 + Tie / 2)));
         Assert.Equal(0, ForecastCoupledSelection.CompareConsequences(Vector(labor: 10), Vector(labor: 50)));
-        // A development unit never outweighs capability-days beyond the tie.
-        Assert.True(ForecastCoupledSelection.CompareConsequences(Vector(development: 0, hunger: 0), Vector(development: 9, hunger: 1)) < 0);
+        Assert.True(ForecastCoupledSelection.CompareConsequences(Vector(hunger: 0), Vector(hunger: 1)) < 0);
     }
 }

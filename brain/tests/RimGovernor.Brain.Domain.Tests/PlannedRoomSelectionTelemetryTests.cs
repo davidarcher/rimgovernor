@@ -43,6 +43,8 @@ public sealed class PlannedRoomSelectionTelemetryTests
         var attrs = ColonyReview.PlannedRoomSelectionAttrs(large, candidates, 2500);
         var compact = RowJson.Encode(RowValues.Normalize(attrs))!;
         Assert.True(compact.Length <= TelemetryEmitter.PayloadCapBytes, $"the companion is {compact.Length} bytes");
+        Assert.DoesNotContain("\"development\"", System.Text.Encoding.UTF8.GetString(full));
+        Assert.DoesNotContain("\"development\"", System.Text.Encoding.UTF8.GetString(compact));
 
         // Through the production emitter and back: the full row is capped, the companion is whole.
         var directory = Path.Combine(Path.GetTempPath(), "planned-room-selection-" + Guid.NewGuid().ToString("N"));

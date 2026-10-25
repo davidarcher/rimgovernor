@@ -22,8 +22,8 @@ internal sealed record PlannedRoomCandidatesResult(
 /// <summary>
 /// Planned rooms as construction activities (#3276). Each planned site of a valued alternative is its own comparison
 /// root, named by the site id and shared by the room's alternatives: its delivery, its clearing prerequisites and its
-/// finish, in the placed-site shape (ConstructionMethodCandidates). A completed site is one unit of requested development
-/// whichever root builds it, unless its room's role is priced (#3651). An alternative root requires every site of its
+/// finish, in the placed-site shape (ConstructionMethodCandidates). Completed sites are physical evidence;
+/// their room's service supplies its value. An alternative root requires every site of its
 /// alternative and is not exempt from the thermal-relief gate. Nothing binds
 /// until placement (#3278), except a Deconstruct clearing: its building stands now, so it binds as the pawn's Deconstruct work on it (#3557).
 /// </summary>
@@ -275,9 +275,6 @@ internal static class PlannedRoomCandidates
                 roots.Add(new(site.Site, [])
                 {
                     ActivityCompletions = [site.Finish], ExclusiveOutcome = site.Site,
-                    // Its Need marks it a planned site root, whose closure the selection exempts from the thermal-relief
-                    // gate (#3651); the unit itself is counted from the evaluated outcome, whichever root completes the site (#3334).
-                    Outcome = new(site.Site, ForecastPlannedSite.DevelopmentNeed, site.Finish),
                 });
             foreach (var alternative in schedulable ? valued : [])
                 roots.Add(new(alternative.Id, [])

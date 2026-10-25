@@ -228,8 +228,8 @@ internal static class ConstructionMethodCandidates
         // stack a haul-out record, no designation, #3625), CutPlant over a
         // wave of plants or RemoveFloor over a wave of wrong-floor cells, and under voluntary control only an order works it.
         // Each building is the pawn's Work task of the op's kind on it, each stack the pawn's Deliver of it to the row's
-        // storage cell, and each Cut or RemoveFloor wave one Work set step over its members, one unit of requested development
-        // when it is gone (its relief, like a floor's, also exempts it from the thermal gate). A kind with no job binds nothing.
+        // storage cell, and each Cut or RemoveFloor wave one Work set step over its members. Its requested relief, like a
+        // floor's, exempts it from the thermal gate; its room's service day prices the work. A kind with no job binds nothing.
         var removals = read.Removals.Where(op => (op.Kind == PlannedClearingKind.Haul || RemovalJob(op.Kind) != null) && Bindable(op) && !resources.Claims.Targets.Contains(op.Id))
             .Select(op => (op.Id, op.Kind, op.Targets, op.Cells, Rows: op.Options.Where(o => !resources.Claims.Pawns.Contains(o.Pawn) && (op.Kind != PlannedClearingKind.Haul || Carriable(o)))
                 .SelectMany(o => Work(op.Kind, o) is { } work ? new[] { (Row: o, Work: work) } : [])

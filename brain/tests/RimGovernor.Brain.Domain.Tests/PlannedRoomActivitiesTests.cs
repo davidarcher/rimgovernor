@@ -130,14 +130,14 @@ public sealed class PlannedRoomActivitiesTests
     }
 
     /// <summary>The test-only workshop credit: one capability-day a served day, booked to no pawn.</summary>
-    private static readonly IReadOnlyDictionary<PlannedRole, RoomCredit> WorkshopCredit = new Dictionary<PlannedRole, RoomCredit>
+    private static readonly Dictionary<PlannedRole, RoomCredit> WorkshopCredit = new()
     {
         [PlannedRole.Workshop] = (_, _, _, _, _) => [new("bench", "", 1)],
     };
 
     /// <summary>
     /// Room 1 as a workshop priced by <see cref="WorkshopCredit"/>, one builder and tier 2's horizon 10 days. No planned room's
-    /// sites count as development (#3828), so a room the schedule builds is selected only on its credit: the cases that read
+    /// sites earn a count-based reward, so a room the schedule builds is selected only on its credit: the cases that read
     /// what a selected room's activities and orders are price it this way.
     /// </summary>
     private static ReviewFacts Credited(ReviewFacts facts) => facts with { CoupledAlternatives = facts.CoupledAlternatives! with
@@ -161,7 +161,7 @@ public sealed class PlannedRoomActivitiesTests
 
     /// <summary>Whether the selected plan builds the planned site: its own root, or a room alternative naming it (#3823), whichever completes it.</summary>
     private static bool PlannedSelected(ForecastCoupledSelection result, string site) =>
-        result.Selection.Selected.Any(id => id.StartsWith("planned/", StringComparison.Ordinal)) && result.Selected.RequestedDevelopment.Contains(site);
+        result.Selection.Selected.Any(id => id.StartsWith("planned/", StringComparison.Ordinal)) && result.Selected.PlannedRooms.Any(r => r.CompletedSites.Contains(site));
 
     [Fact]
     public void AnIdleBuilderBuildsTheRoomAndTheRoomCompletesInTheHorizon()
@@ -624,7 +624,7 @@ public sealed class PlannedRoomActivitiesTests
         var candidates = facts.CoupledAlternatives!;
         var root = Assert.Single(candidates.Alternatives, c => c.Id.StartsWith("planned/room1/WoodLog/Shell/composition/", StringComparison.Ordinal));
         var result = Select(facts);
-        Assert.Equal(["planned/room1/door/WoodLog", "planned/room1/wall/WoodLog"], result.Selected.RequestedDevelopment);
+        Assert.Equal(["planned/room1/door/WoodLog", "planned/room1/wall/WoodLog"], result.Selected.PlannedRooms.SelectMany(r => r.CompletedSites).Order(StringComparer.Ordinal));
         PlannedSelection Record(params string[] roots) =>
             PlannedRules.PlannedSelectionOf(candidates, result with { Selection = result.Selection with { Selected = roots } }, facts.PlannedSites)!;
         var record = Record(root.Id);
@@ -645,7 +645,7 @@ public sealed class PlannedRoomActivitiesTests
     {
         // #3557: the room's shell outscored every startable alternative, so the selection was planned sites only; nothing
         // bound before placement, no order went out and the builder stood on standby beside an open blueprint it could work.
-        // The floor blueprint and the shell do not both fit the builder's horizon; equal development, so the cheaper shell wins.
+        // The floor blueprint and shell do not both fit the builder's horizon; the cheaper shell serves first.
         var facts = Review([Ring(OpKind.WallIn, "WoodLog", 100), Ring(OpKind.DoorIn, "WoodLog", 40)]);
         var floor = new Row("blueprint/floor", FlooringRules.DefaultFlooringPolicy().Floors[0], new(2, 2), Pawn,
             "WoodLog", "stack-WoodLog", StackCell("WoodLog"), 1, 1, "FinishFrames", 0d, 10d, 200d)
@@ -658,6 +658,20 @@ public sealed class PlannedRoomActivitiesTests
         };
         facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         facts = Credited(facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() });
+        var floorFinishes = EquatableArray.From(facts.CoupledAlternatives!.Alternatives
+            .Where(c => c.ExclusiveOutcome == "construction/" + floor.Site).SelectMany(c => c.ActivityCompletions).Distinct(StringComparer.Ordinal));
+        Assert.NotEmpty(floorFinishes);
+        facts = facts with { CoupledAlternatives = facts.CoupledAlternatives with { Context = facts.CoupledAlternatives.Context with
+        {
+            PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Workshop, [2] = PlannedRole.Storage },
+            RoomCredits = new Dictionary<PlannedRole, RoomCredit>
+            {
+                [PlannedRole.Workshop] = WorkshopCredit[PlannedRole.Workshop],
+                [PlannedRole.Storage] = (_, _, _, _, _) => [new("kept-stock", "", .1)],
+            },
+            RoomItems = [new(floor.Site, [2], floorFinishes)],
+            OwedWork = new Dictionary<string, double> { [floor.Site] = Assert.IsType<double>(floor.FinishTicks) },
+        } } };
         var candidates = facts.CoupledAlternatives!;
         var result = Select(facts);
         var why = Why(facts, result) + " selected=" + string.Join(",", result.Selection.Selected);
@@ -704,7 +718,7 @@ public sealed class PlannedRoomActivitiesTests
     /// <summary>
     /// The wall alone fits the horizon; the door does not. With a builder the priced room's service day is projected past the
     /// horizon, which assesses its whole-room effect (#3796), and its credit selects the wall. With no builder nothing projects
-    /// it: the room is never served and earns nothing (#3835), and with no development (#3828) the wall is not selected.
+    /// it: the room is never served and earns nothing (#3835), and the wall earns no credit and is not selected.
     /// </summary>
     [Fact]
     public void ARoomLeftPartialInTheHorizonIsProjectedOrNamedUnassessed()
@@ -738,7 +752,7 @@ public sealed class PlannedRoomActivitiesTests
         var candidates = facts.CoupledAlternatives!;
         var door = candidates.Context.PlannedSites.Single(s => s.Site == "planned/room1/door/WoodLog");
         Assert.DoesNotContain(result.Selected.Plan.Allocations, a => door.Activities.Concat(door.Finishes).Contains(a.Activity));
-        Assert.DoesNotContain(door.Site, result.Selected.RequestedDevelopment);
+        Assert.DoesNotContain(door.Site, result.Selected.PlannedRooms.SelectMany(r => r.CompletedSites));
         var root = Assert.Single(candidates.Alternatives, c => c.Id.StartsWith("planned/room1/WoodLog/Shell/composition/", StringComparison.Ordinal));
         var record = PlannedRules.PlannedSelectionOf(candidates, result with { Selection = result.Selection with { Selected = [root.Id] } }, facts.PlannedSites)!;
         var (gate, sites) = PlannedRules.PlannedRoomGateOf(record, new PlannedRoom { Id = 1 }, started: false);
@@ -799,17 +813,14 @@ public sealed class PlannedRoomActivitiesTests
     }
 
     /// <summary>
-    /// #3651: a room whose role carries a priced value leaves the development tiebreak. Its completed sites add nothing to
-    /// the count, yet the selection still exempts its site roots from the thermal-relief gate and the record still places
-    /// its sites when they are selected. #3655: a bedroom is priced in production. #3828: an unpriced room's sites count
-    /// nothing either, so with no credit the room ties the baseline and is not selected.
+    /// A room's real credit selects its sites; site roots remain exempt from the thermal-relief gate and feed placement.
+    /// Without a credit the same room ties the baseline and is not selected.
     /// </summary>
     [Fact]
-    public void APlannedRoomsSitesCountNoDevelopmentYetAPricedRoomsAreEmittedAndNotRefused()
+    public void APricedRoomsSitesAreEmittedAndNotRefused()
     {
         var facts = Review([Ring(OpKind.WallIn, "WoodLog", 200), Ring(OpKind.DoorIn, "WoodLog", 60)]);
         var unpriced = Select(facts);
-        Assert.Equal(0, unpriced.SelectedVector.Development);
         Assert.DoesNotContain(unpriced.Selection.Selected, id => id.StartsWith("planned/", StringComparison.Ordinal));
         var counted = Select(Credited(facts));
         var bedroom = facts with { PlannedSites = facts.PlannedSites! with { Roles = [(1, PlannedRole.Bedroom)] } };
@@ -822,7 +833,6 @@ public sealed class PlannedRoomActivitiesTests
         var planned = result.Rejected.Where(e => e.Commitments.Count > 0 && e.Commitments.All(id => roomSites.Any(s => id.StartsWith(s + "/composition/", StringComparison.Ordinal)))).ToArray();
         Assert.NotEmpty(planned);
         Assert.DoesNotContain(planned, e => e.Reason.StartsWith("construction_without_supported_service_relief", StringComparison.Ordinal));
-        Assert.All(planned, e => Assert.Equal(0, e.Consequences!.Development));
 
         // The credited room's selected roots (its site roots or its alternative root, whichever the search kept).
         var roots = counted.Selection.Selected.Where(id => id.StartsWith("planned/room1/", StringComparison.Ordinal)).ToArray();
@@ -836,8 +846,7 @@ public sealed class PlannedRoomActivitiesTests
 
     /// <summary>
     /// #3815: generated the production way, from the round's planned rooms and the layout's doors, a corridor (room 1) that
-    /// a planned bedroom (room 2) opens on is that bedroom's connector, priced with it: its floors and removals leave the development
-    /// count. With no layout read (a fresh colony) there are no connectors and nothing is required.
+    /// a planned bedroom (room 2) opens on is that bedroom's connector, priced with it: its floors and removals delay the bedroom's service day. With no layout read (a fresh colony) there are no connectors and nothing is required.
     /// </summary>
     [Fact]
     public void ACorridorABedroomOpensOnIsPricedWithTheBedroom()
@@ -1053,7 +1062,7 @@ public sealed class PlannedRoomActivitiesTests
     }
 
     /// <summary>
-    /// #3651: emission reads the selected portfolio, not the development count. A portfolio with no root of the room
+    /// #3651: emission reads the selected portfolio's completed physical sites. A portfolio with no root of the room
     /// completes none of its sites, so the record emits none and the assessed room is held, as before.
     /// </summary>
     [Fact]
@@ -1130,7 +1139,7 @@ public sealed class PlannedRoomActivitiesTests
     /// #3744 acceptance (a): one builder, bedroom ring A (room 1) started with two days of ring work left, which no
     /// schedule of the day finishes, and a workshop ring B (room 2, an unpriced role) a third of a day long. A's closure is
     /// projected past the horizon at its remaining work over the builder; opening B would push it later by B's work, which
-    /// A's credit pays, so B is not opened. #3828: B's sites count no development, so unprojected (A's ring carrying no
+    /// A's credit pays, so B is not opened. #3828: B's sites earn no independent reward, so unprojected (A's ring carrying no
     /// credit for B to delay) and with A closed (its ring owes nothing) B, with no credit of its own, stays closed too.
     /// </summary>
     [Fact]
@@ -1150,7 +1159,6 @@ public sealed class PlannedRoomActivitiesTests
         var closed = Rings([b], roles, bedroom, builders: 1, open: [1]);
         var held = Select(closed, Day);
         Assert.False(PlannedSelected(held, b.Id), Why(closed, held));
-        Assert.Equal(held.BaselineVector.Development, held.SelectedVector.Development);
     }
 
     /// <summary>
@@ -1213,7 +1221,7 @@ public sealed class PlannedRoomActivitiesTests
 
     /// <summary>
     /// #3828 (option A): the first rounds opened three unpriced rings together over the barracks, each tying on the ledger
-    /// and winning on its sites as development. No planned room's unit is development now. One builder, a new bedroom
+    /// and winning on an arbitrary site count. Sites earn no independent reward. One builder, a new bedroom
     /// (room 1) whose short ring its occupant's credit pays, and three rings with no planned role (rooms 2 to 4) the day could
     /// also build: the bedroom is selected and none of the three rings. Alone, the three rings do not beat the baseline.
     /// </summary>
@@ -1231,11 +1239,9 @@ public sealed class PlannedRoomActivitiesTests
         Assert.True(PlannedSelected(result, ring[0].Id), Why(facts, result));
         Assert.Contains(BedroomCredits(result), c => c.Key == "bedroom/1/" + Pawn && c.Value < 0);
         Assert.All(rings, s => Assert.False(PlannedSelected(result, s.Id), Why(facts, result)));
-        Assert.Equal(result.BaselineVector.Development, result.SelectedVector.Development);
 
         var unpriced = Rings(rings, roles, bedroom, builders: 1, open: []);
         var alone = Select(unpriced, Day);
         Assert.DoesNotContain(alone.Selection.Selected, id => id.StartsWith("planned/", StringComparison.Ordinal));
-        Assert.Equal(alone.BaselineVector.Development, alone.SelectedVector.Development);
     }
 }

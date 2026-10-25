@@ -526,8 +526,8 @@ stack as the pawn's Deliver of it (Count the stack, Destination the row's storag
 cell, as a support delivery binds), each Cut wave as one Work/CutPlant set step
 over its `Targets` and each FloorOut wave as one Work/RemoveFloor cell set step
 over its `Cells` (Count the cells), exclusive outcome `construction/{op}`, with a
-`removal/{op}` relief so taking it down, away, out or up is one unit of development
-and its work is exempt from the thermal-relief gate like a floor's. The order's
+`removal/{op}` relief, which identifies the requested work and exempts it from the thermal-relief gate
+like a floor's. Its contribution to a planned room is priced through that room's service day. The order's
 claim is the op (the thing, the wave's lowest plant or the floor wave's
 `removefloor/{x}/{z}/x{n}` id); an op whose thing or pawn another Method claims,
 whose finish (a Haul's delivery) is unknown, or a Cut, Mine or RemoveFloor op naming
@@ -709,14 +709,11 @@ temperature safety is enabled (the placed-site gate; `planned_sites_unknown` whe
    - The roof is worked at its own location, its first interior cell.
    - The planned-site routes of the free pawns join the generated routes, a `FromStart` row as the pawn's start.
 4. Roots. Each site is its own comparison root, named by its site id and shared by every alternative that
-   contains it. A site root's outcome Need (`ForecastPlannedSite.DevelopmentNeed`) marks it a planned site
-   root, whose closure the thermal-relief gate exempts; it carries no relief. The evaluated outcome records the
-   completed units (`RequestedDevelopment`): each planned site whose finish completes is one unit, whichever
-   root built it, and a planned shelter's per-cell native roof cells together are the room's one
-   `ForecastPlannedSite.RoofUnit` (`planned/room{id}/roof`). No planned room's unit counts as development, priced
-   or not (#3828, `PlannedRoomCredits.PlannedUnits`): a room wins a portfolio only on the ledger, by the credit of
-   a role (`Context.PlannedRoomRoles`, from `PlannedSiteFacts.Roles`) in `Context.RoomCredits` (#3796), or by the
-   relief and mood its closure gives. Each alternative is also a root,
+   contains it. Membership in `Context.PlannedSites` identifies its site root by `ExclusiveOutcome`, which stays
+   stable through composition; the thermal-relief gate exempts its closure. `PlannedRooms` records completed
+   sites and alternatives, and `CompletedRoofRooms` records the planned room ids whose every native roof cell
+   completes. Physical completion earns no count-based score: a room wins on its role's credit in
+   `Context.RoomCredits`, or on the relief and mood its closure gives. Each alternative is also a root,
    `planned/room{id}[/{stuff}]/{scope}`, which requires all its sites' finishes and is not exempt;
    alternatives of a room exclude each other. Ring site roots of different stuffs, and the other stuffs'
    alternatives, are excluded from each other (`Outcome.Excludes`). Planned roots get no after-production
@@ -740,7 +737,7 @@ allocations (`CoordinatedActivityBinding.Start`): a planned site has no action t
 bound `Deconstruct` clearings, which start as orders (#3557). A selection whose
 only work is planned is compared again without the planned roots for the review's orders (#3557); one that then
 starts no order records `coupled_selection` with target `planned_unplaced`. The room
-reconcile then places exactly the sites the selected plan completes (`PlannedRooms`, not the development count) of an unstarted
+reconcile then places exactly the sites the selected plan completes (`PlannedRooms`) of an unstarted
 assessed room, in their stuff, and holds an assessed room with none completed ([portfolio selection](portfolio-selection.md#planned-rooms)).
 
 ## Review inputs and pawn windows
@@ -1187,7 +1184,7 @@ reason; this does not introduce telemetry or persistence ownership.
 The historical family helper APIs retain the comparator's explicit
 `LowestLaborPerUnit` objective for their isolated tests. Normal production no
 longer calls those APIs: its [coupled objective](portfolio-selection.md) compares
-physical need trajectories, mood and requested development before participant
+physical need trajectories, mood before participant
 labor. The worker does not rerank cooking versus delivery after harvest.
 
 The historical isolated family adapter enumerates at most sixteen eligible alternatives, matching the

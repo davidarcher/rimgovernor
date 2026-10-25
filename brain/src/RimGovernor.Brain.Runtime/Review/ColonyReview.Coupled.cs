@@ -243,7 +243,7 @@ public sealed partial class ColonyReview
         }
         static Dictionary<string, object?> ValueOf(ForecastConsequenceVector vector) => new()
         {
-            ["total"] = Number(vector.Value.Ledger.Total), ["investment"] = vector.Value.Ledger.Investment, ["development"] = vector.Development,
+            ["total"] = Number(vector.Value.Ledger.Total), ["investment"] = vector.Value.Ledger.Investment,
         };
         var rootRooms = RootRooms(candidates);
         int[] RoomsOf(string id) => rootRooms.GetValueOrDefault(id) ?? [];
@@ -279,7 +279,7 @@ public sealed partial class ColonyReview
             rejected.Add(new()
             {
                 ["ids"] = row.Commitments.ToArray(), ["reason"] = row.Reason,
-                ["total"] = row.Consequences is { } v ? Number(v.Value.Ledger.Total) : null, ["development"] = row.Consequences?.Development,
+                ["total"] = row.Consequences is { } v ? Number(v.Value.Ledger.Total) : null,
             });
         }
         return new()
@@ -380,7 +380,7 @@ public sealed partial class ColonyReview
         ["support_surgery_room_factor"] = vector.Support.SurgeryRoomFactor,
         ["maintenance"] = vector.Maintenance.Select(m => new Dictionary<string, object?>
         { ["requirement"] = m.Requirement, ["missing_xp"] = m.MissingXp is ForecastMaintenanceGap.Projected(var xp) ? xp : null, ["unknown"] = m.Findings.ToArray() }).ToArray(),
-        ["development"] = vector.Development, ["labor"] = vector.Labor, ["unknown"] = vector.Unknown.ToArray(),
+        ["labor"] = vector.Labor, ["unknown"] = vector.Unknown.ToArray(),
         ["value"] = ValueAttrs(vector.Value)
     };
 }

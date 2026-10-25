@@ -37,10 +37,8 @@ public delegate IEnumerable<string> RoomFindings(ForecastRoomService room, Forec
 
 /// <summary>
 /// The per-role planned-room credit seam (#3796, epic #3650): a role is priced when it has a credit
-/// (<see cref="ForecastCoupledContext.RoomCredits"/>, <see cref="Shipped"/> by default). No planned room's units count as
-/// development (#3828), so a room is selected only on the ledger. A priced room's floors and removals leave the development
-/// count, its planned deliveries are charged their material, its placed ring sites are its own roots and a
-/// standing one is offered wall swaps. Each served room is credited perDay × <see cref="RingClosure.CreditDays"/> of its
+/// (<see cref="ForecastCoupledContext.RoomCredits"/>, <see cref="Shipped"/> by default). A room is selected on the ledger;
+/// its planned deliveries are charged their material, its placed ring sites are its own roots and a standing one is offered wall swaps. Each served room is credited perDay × <see cref="RingClosure.CreditDays"/> of its
 /// service day, in the Investment term under <see cref="Key"/>.
 /// </summary>
 public static partial class PlannedRoomCredits
@@ -224,23 +222,10 @@ public static partial class PlannedRoomCredits
     private static IEnumerable<ForecastCoupledContext> StageContexts(ForecastCoupledContext context) =>
         context.Closures.Where(c => c.Prediction.Filth is { Exposure: > 0 }).Select(c => DirtyContext(context, c)).Prepend(context);
 
-    /// <summary>
-    /// The development units of the planned rooms, priced or not, which the count skips (#3828): each planned site of a room
-    /// and each room's <see cref="ForecastPlannedSite.RoofUnit"/>. An unplaced shelf candidate (room 0) is no room's. Cached per context.
-    /// </summary>
-    internal static IReadOnlySet<string> PlannedUnits(ForecastCoupledContext context) => Cache.GetValue(context, OwedOf).PlannedUnits;
-
-    /// <summary>
-    /// The flooring and removal relief of each placed site or removal a priced room owns (<see cref="Priced"/>, a priced room's
-    /// connectors included, #3815), which the development count skips: the room's credit counts it (#3651, #3796). Cached per context.
-    /// </summary>
-    internal static IReadOnlySet<string> PricedRelief(ForecastCoupledContext context) => Cache.GetValue(context, OwedOf).PricedRelief;
-
     /// <summary>One way a room is built: its ring stuff and every item (planned site, placed ring site, room item) it then owes.</summary>
     private sealed record Way(string Stuff, string[] Items);
 
-    private sealed record Owed(IReadOnlyList<(int Room, Way[] Ways)> Rooms, IReadOnlyDictionary<string, EquatableArray<string>[]> Finishes,
-        IReadOnlySet<string> PlannedUnits, IReadOnlySet<string> PricedRelief);
+    private sealed record Owed(IReadOnlyList<(int Room, Way[] Ways)> Rooms, IReadOnlyDictionary<string, EquatableArray<string>[]> Finishes);
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledContext, Owed> Cache = new();
 
@@ -287,15 +272,7 @@ public static partial class PlannedRoomCredits
         foreach (var room in sites.Select(g => g.Key).Concat(closures.Select(g => g.Key)).Concat(items.Select(g => g.Key))
             .Concat(context.Connectors.Values.SelectMany(s => s)).Concat(context.RoomPrerequisites.Keys).Distinct().Order())
             if (WaysOf(room) is { Length: > 0 } ways) rooms.Add((room, ways));
-        var planned = new HashSet<string>(context.PlannedSites.Where(s => s.Room > 0).Select(s => s.Site), StringComparer.Ordinal);
-        foreach (var shelter in context.Shelters.Where(s => s.PlannedRoom != 0)) planned.Add(ForecastPlannedSite.RoofUnit(shelter.PlannedRoom));
-        var pricedRelief = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var item in context.RoomItems.Where(i => i.Rooms.Any(context.Priced)))
-        {
-            pricedRelief.Add(Methods.Generation.ConstructionMethodCandidates.FlooringRelief + "/" + item.Item);
-            pricedRelief.Add(Methods.Generation.ConstructionMethodCandidates.RemovalRelief + "/" + item.Item);
-        }
-        return new(rooms, finishes.ToDictionary(p => p.Key, p => p.Value.ToArray(), StringComparer.Ordinal), planned, pricedRelief);
+        return new(rooms, finishes.ToDictionary(p => p.Key, p => p.Value.ToArray(), StringComparer.Ordinal));
     }
 
     /// <summary>
