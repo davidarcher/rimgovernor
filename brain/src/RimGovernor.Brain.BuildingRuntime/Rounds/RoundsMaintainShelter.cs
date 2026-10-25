@@ -53,10 +53,7 @@ public sealed partial class SafeAreaMemory
 
     public Fact<bool> Review(string newWorld, ColonyProjection projection)
     {
-        if (!projection.Rooms.TryGetValue(out var rooms))
-        {
-            return Unknown<bool>();
-        }
+        var rooms = projection.Rooms;
 
         IReadOnlyList<Cell> killbox = [], hospital = [], isolation = [];
         if (projection.LayoutPlan is { } plan)

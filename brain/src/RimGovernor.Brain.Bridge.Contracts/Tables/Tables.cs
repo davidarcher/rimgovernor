@@ -144,6 +144,11 @@ public readonly record struct Things(Table<Thing> Table)
 /// </param>
 public sealed record Tables(Buildings Buildings, Pawns Pawns, Things Things, EquatableArray<string> FinishedResearch)
 {
+    /// <summary>The same-frame room census and its visible cell footprints.</summary>
+    public RoomsSnapshot? Rooms { get; init; }
+
+    public IReadOnlyDictionary<string, IReadOnlyList<RimGovernor.Brain.Domain.Cell>> RoomCells { get; init; } = new Dictionary<string, IReadOnlyList<RimGovernor.Brain.Domain.Cell>>();
+
     /// <summary>
     /// The head (def, label, position) of the row <paramref name="reference"/> points at in any of the tables, null
     /// when none holds it: the one place a reference reaches its def, label and position.

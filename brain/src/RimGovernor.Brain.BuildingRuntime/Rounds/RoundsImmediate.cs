@@ -138,7 +138,7 @@ public sealed partial class Rounder
             throw new ControlException("immediate review authority changed");
         }
 
-        Census.Retain(reading, true);
+        Census.Retain(reading);
         reading.Sections.File(Store, new FactScope { Load = expected.Load.Value, Map = expected.Map.Value, Generation = native.Value });
         var result = p.Journal.ReviewRounds(new RoundsRequest
         {

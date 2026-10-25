@@ -100,7 +100,7 @@ public sealed class WorkChairTests
         var (count, method, selection) = resolved.Selection(facts);
         Assert.True(selection.IsZero, selection.ToString());
         Assert.Equal((1L, new MethodId("work-chair-DiningChair-12-11")), (count, method));
-        Assert.Equal(Known(true), RoomsRounds.WorkChairsOwed(facts));
+        Assert.True(RoomsRounds.WorkChairsOwed(facts));
     }
 
     [Fact]
@@ -110,14 +110,14 @@ public sealed class WorkChairTests
         var (resolved, reason) = Planner().SelectWorkChair(facts);
         Assert.Null(resolved);
         Assert.Equal(Verdict.BuildingReasonNoDeficit, reason);
-        Assert.Equal(Known(false), RoomsRounds.WorkChairsOwed(facts));
+        Assert.False(RoomsRounds.WorkChairsOwed(facts));
     }
 
     [Fact]
     public void AnUnreadCensusOwesNoKnownChair()
     {
         var facts = Projection(Workshop(Chosen), null);
-        Assert.False(RoomsRounds.WorkChairsOwed(facts).IsKnown);
+        Assert.Throws<RequiredFactException>(() => RoomsRounds.WorkChairsOwed(facts));
         Assert.Null(Planner().SelectWorkChair(facts).Planner);
     }
 }

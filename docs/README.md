@@ -40,6 +40,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Host the brain inside the mod (lifecycle, scheduler thread, watchdog, fault isolation) | [Brain host](developers/architecture/brain-host.md) |
 | Check native arena lifetime and repeated hunting outcomes | [Real engine](../integrations/rimgovernor-realcombat/README.md#arena-lifetime-and-repeatability) |
 | Request bounded hypothetical encounter estimates and interpret qualification | [Encounter prediction](developers/contracts/encounter-prediction.md) |
+| Read the total room census and royalty housing requirements | [Room observations](developers/contracts/spatial-contracts.md#total-room-observations) |
 | Trace a hunt from the native read through the roster comparison, the drafted formation and its release | [Hunt comparison](developers/contracts/forecast-contracts.md#coherent-coupled-observation-frame), [lone hunts and the hunt gate](developers/contracts/controller-contracts.md), [on-demand hunting evidence](developers/testing/acceptance-guide.md#tiers) |
 | Reach the mod over local HTTP (endpoint file, host/origin checks, `/native/<tool>`, player routes) | [HTTP channel](developers/architecture/http-channel.md) |
 

@@ -84,10 +84,9 @@ public sealed partial class Rounder
                 }
             }
 
-            if (p.LayoutPlan is { } layout
-                && p.Rooms.TryGetValue(out var rooms))
+            if (p.LayoutPlan is { } layout)
             {
-                needs = SleepingRules.BedResearchRequest(needs, layout, rooms, p.Facts.Sleeping, RoundsSleepingUpkeepPlanner.BedroomTargets(p));
+                needs = SleepingRules.BedResearchRequest(needs, layout, p.Rooms, p.Facts.Sleeping, RoundsSleepingUpkeepPlanner.BedroomTargets(p));
             }
 
             return needs;

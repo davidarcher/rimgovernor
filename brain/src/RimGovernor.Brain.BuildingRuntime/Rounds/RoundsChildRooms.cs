@@ -115,10 +115,10 @@ partial class RoundsSleepingUpkeepPlanner
     {
         var plan = facts.LayoutPlan;
         var pk = plan is not null;
-        var rk = facts.Rooms.TryGetValue(out var rooms);
+        var rooms = facts.Rooms;
         var census = facts.Facts.CurrentConstruction;
         var (ground, gk) = RoundsBuildingPlanner.ColonyGround(facts);
-        if (!pk || !rk || census is null || !gk)
+        if (!pk || census is null || !gk)
         {
             return new ChildRoomStep();
         }

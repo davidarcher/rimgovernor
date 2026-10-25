@@ -62,9 +62,9 @@ public static partial class SleepingRules
     /// The bedrooms a successor replaces that a pawn still owns a bed in: they stay in the plan until the pawn
     /// has moved. With the room census unknown every replaced bedroom counts, so none leaves unseen.
     /// </summary>
-    public static HashSet<int> SleptBedrooms(LayoutPlan plan, Fact<RoomObservation> rooms, SleepingObservation sleeping)
+    public static HashSet<int> SleptBedrooms(LayoutPlan plan, RoomObservation rooms, SleepingObservation sleeping)
     {
-        var rk = rooms.TryGetValue(out var census);
+        var census = rooms;
         var owned = new HashSet<string>(StringComparer.Ordinal);
         foreach (var b in sleeping.Beds)
         {
@@ -81,8 +81,7 @@ public static partial class SleepingRules
             {
                 continue;
             }
-            var slept = !rk;
-            if (rk)
+            var slept = false;
             {
                 var (room, ok) = PlannedRoom.CensusRoomIn(r, census!);
                 if (ok)

@@ -18,7 +18,7 @@ public sealed class RoomRoleGoalTests
     private static GoalsFacts Facts(GoalRecord goal, params RoomState[] rooms) => new()
     {
         Goals = [goal],
-        Rooms = Known(RoomFixtures.Census(rooms)),
+        Rooms = RoomFixtures.Census(rooms),
         Rounds = new RoundsFacts { Sleeping = new SleepingObservation { Beds = [] } },
     };
 
@@ -71,7 +71,7 @@ public sealed class RoomRoleGoalTests
         // A met room goal keeps asking, or the plan would end the role and retire the room.
         Assert.Equal([RoomRole.Classroom], GoalRules.DemandOf(built).Build.Rooms.Items);
 
-        Assert.Equal("rooms", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, open with { Rooms = default })).Fact);
+        Assert.Equal("rooms", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, open with { Rooms = null! })).Fact);
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public sealed class RoomRoleGoalTests
         var status = GoalRules.Evaluate(goal, facts);
         Assert.Equal((GoalState.Pursuing, MedicalRules.MedicalCareNeed, 1.0), (status.State, status.Owner, ((GoalDeficit.Measured)status.Deficit).Amount));
 
-        var two = facts with { Rounds = facts.Rounds with { Sleeping = new SleepingObservation { Beds = [Bed("b1", true), Bed("b2", true)] } }, Rooms = Known(RoomFixtures.Census(Standing(RoomRole.Hospital, "b1", "b2"))) };
+        var two = facts with { Rounds = facts.Rounds with { Sleeping = new SleepingObservation { Beds = [Bed("b1", true), Bed("b2", true)] } }, Rooms = RoomFixtures.Census(Standing(RoomRole.Hospital, "b1", "b2")) };
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, two).State);
     }
 
@@ -125,7 +125,7 @@ public sealed class RoomRoleGoalTests
     {
         Patients = Known<EquatableArray<CarePawn>>([]),
         Sleeping = new SleepingObservation { Beds = [.. beds] },
-        Rooms = Known(RoomFixtures.Census(Standing(RoomRole.Hospital, [.. beds.Select(b => b.Id)]))),
+        Rooms = RoomFixtures.Census(Standing(RoomRole.Hospital, [.. beds.Select(b => b.Id)])),
         Furniture = new RoomFurniture { Beds = [new FurnitureBed { Def = "Bed", Slots = 1 }] },
         Definitions = [new BenchDefinition { Name = "Bed", Available = Known(true) }],
         MinBeds = floor,
@@ -157,18 +157,18 @@ public sealed class RoomRoleGoalTests
     [Fact]
     public void AShortWardKeepsTheCareNeedUnmetWhileNobodyIsSick()
     {
-        var rooms = Known(RoomFixtures.Census(Standing(RoomRole.Hospital, "b1")));
+        var rooms = RoomFixtures.Census(Standing(RoomRole.Hospital, "b1"));
         var sleeping = new SleepingObservation { Beds = [Bed("b1", true)] };
-        Assert.Equal(Known(true), HospitalRules.BedsShort(2, rooms, sleeping, false));
-        Assert.Equal(Known(false), HospitalRules.BedsShort(1, rooms, sleeping, false));
-        Assert.Equal(Known(false), HospitalRules.BedsShort(0, default, new SleepingObservation(), false));
+        Assert.True(HospitalRules.BedsShort(2, rooms, sleeping, false));
+        Assert.False(HospitalRules.BedsShort(1, rooms, sleeping, false));
+        Assert.False(HospitalRules.BedsShort(0, RoomObservation.NoRooms, new SleepingObservation(), false));
 
         var recovered = new MedicalFacts { CareRecovered = Known(true) };
         Assert.Equal(Satisfaction.Met, MedicalRules.MedicalCareNeedOf(recovered).Satisfaction);
-        Assert.Equal(Satisfaction.Unmet, MedicalRules.MedicalCareNeedOf(recovered with { HospitalShort = Known(true) }).Satisfaction);
-        Assert.Equal(Satisfaction.Met, MedicalRules.MedicalCareNeedOf(recovered with { HospitalShort = Known(false) }).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, MedicalRules.MedicalCareNeedOf(recovered with { HospitalShort = true }).Satisfaction);
+        Assert.Equal(Satisfaction.Met, MedicalRules.MedicalCareNeedOf(recovered with { HospitalShort = false }).Satisfaction);
         // An unread care census stays unknown whatever the ward.
-        Assert.Equal("care census", Assert.Throws<RequiredFactException>(() => MedicalRules.MedicalCareNeedOf(new MedicalFacts { HospitalShort = Known(false) })).Fact);
+        Assert.Equal("care census", Assert.Throws<RequiredFactException>(() => MedicalRules.MedicalCareNeedOf(new MedicalFacts { HospitalShort = false })).Fact);
     }
 
     [Fact]

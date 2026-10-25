@@ -141,7 +141,7 @@ public sealed class FoodRounds
         }
         var journal = _reviewer.Player.Journal;
         var claims = journal.ConstructionClaims(scope.World, expected.Tick, ct);
-        var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, claims, ct).ConfigureAwait(false);
+        var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, ct).ConfigureAwait(false);
         var refused = _blight ? BlightRefused(journal, scope.World, ct) : [];
         var elapsed = _reviewer.Clock.Now() - started;
         if (elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)

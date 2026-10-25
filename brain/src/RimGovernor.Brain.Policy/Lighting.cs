@@ -120,15 +120,8 @@ public sealed record LightingReview
     /// </summary>
     public IReadOnlyList<int> Planned { get; init; } = [];
 
-    /// <summary>Folds the plan's lighting deficit into the review: a listed room keeps the project open beside the dark benches. An unknown fact adds none.</summary>
-    public LightingReview WithPlanned(Fact<EquatableArray<int>> rooms)
-    {
-        if (rooms.TryGetValue(out var ids))
-        {
-            return this with { Planned = ids, Active = Active || ids.Count > 0 };
-        }
-        return this;
-    }
+    /// <summary>Folds the plan's lighting deficit into the review: a listed room keeps the project open beside the dark benches.</summary>
+    public LightingReview WithPlanned(EquatableArray<int> rooms) => this with { Planned = rooms, Active = Active || rooms.Count > 0 };
 }
 
 public enum LightingMethod
@@ -191,8 +184,8 @@ public sealed record LightingFacts
     /// <summary>Maps lamp definition names to their planning availability as read with the census; a lamp absent here is unknown.</summary>
     public IReadOnlyDictionary<string, Fact<bool>> Available { get; init; } = new Dictionary<string, Fact<bool>>();
 
-    /// <summary>Whether any power network currently has an active source; unknown defers powered lamps.</summary>
-    public Fact<bool> PoweredSource { get; init; }
+    /// <summary>Whether any power network currently has an active source.</summary>
+    public bool PoweredSource { get; init; }
 
     /// <summary>The fixture the tier style names (PlannedLighting): chosen ahead of the policy's lamps when it is known available, empty when the tier styles none.</summary>
     public string Styled { get; init; } = "";
@@ -297,7 +290,7 @@ public static class LightingRules
             // The plan's own lamps for the bench's room come first, while the colony has power for them; the
             // improvised lamp beside the cell stays as the fallback when none of them can stand yet.
             List<PlannedLamp> planned = [];
-            if (facts.PoweredSource.TryGetValue(out var source) && source)
+            if (facts.PoweredSource)
             {
                 planned = UnbuiltPlannedLamps(facts.Plan.PlannedLampsAt(target.Cell), v.Lamps);
             }
@@ -332,7 +325,7 @@ public static class LightingRules
         }
         // No dark bench to build for: a built, powered room the plan lights with lamps still missing gets them,
         // the first such room in id order.
-        if (facts.PoweredSource.TryGetValue(out var sourceNow) && sourceNow)
+        if (facts.PoweredSource)
         {
             foreach (var id in review.Planned)
             {
@@ -425,12 +418,7 @@ public static class LightingRules
             }
             if (lamp.Powered)
             {
-                if (!facts.PoweredSource.TryGetValue(out var source))
-                {
-                    deferred = FirstLightingReason(deferred, LightingMethod.Unknown);
-                    continue;
-                }
-                if (!source)
+                if (!facts.PoweredSource)
                 {
                     continue;
                 }
@@ -504,16 +492,15 @@ public static class LightingRules
     /// no active source lists nothing (the lamps are electric); an unknown plan, room census, lamp census or source
     /// is unknown.
     /// </summary>
-    public static Fact<EquatableArray<int>> PlanLitRooms(LayoutPlan? plan, Fact<RoomObservation> rooms, LightingObservation? lamps, Fact<bool> powered)
+    public static EquatableArray<int> PlanLitRooms(LayoutPlan? plan, RoomObservation rooms, LightingObservation? lamps, bool powered)
     {
-        if (plan is not { } p || !rooms.TryGetValue(out var r) || lamps is not { } l || !powered.TryGetValue(out var source))
-        {
-            return Unknown<EquatableArray<int>>();
-        }
+        var p = plan ?? throw new RequiredFactException("layout plan");
+        var l = lamps ?? throw new RequiredFactException("lighting census");
+        var r = rooms;
         var found = new List<int>();
-        if (!source)
+        if (!powered)
         {
-            return Known(EquatableArray.From(found));
+            return EquatableArray.From(found);
         }
         foreach (var room in p.Rooms)
         {
@@ -528,7 +515,7 @@ public static class LightingRules
                 found.Add(room.Id);
             }
         }
-        return Known(EquatableArray.From(found));
+        return EquatableArray.From(found);
     }
 
     internal static int Abs32(int v) => v < 0 ? -v : v;

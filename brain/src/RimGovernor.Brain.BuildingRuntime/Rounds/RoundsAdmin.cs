@@ -90,7 +90,7 @@ public sealed partial class AdminRounds
             throw new ControlException("admin read: the scope is another world or older than the review");
         }
         var reading = _needs.Burial
-            ? await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, RoundsBurialFacts.BurialDefinitions, ct).ConfigureAwait(false)
+            ? await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, RoundsBurialFacts.BurialDefinitions, ct).ConfigureAwait(false)
             : await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, ct).ConfigureAwait(false);
         var facts = new AdminFacts();
         if (_needs.CreepJoiners)

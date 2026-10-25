@@ -19,6 +19,7 @@ public sealed class ProductionAdmissionTests
         new ProgressView { Action = new ActionId(id), Stage = Stage.Pending });
     private static RoundsFacts Facts => new()
     {
+        Upkeep = new() { Rooms = RoomObservation.NoRooms, Routes = new() },
         Comfort = ComfortTests.NoComfortObservation,
         BasicComfort = ComfortTests.NoComfortObservation,
         Tick = new Tick(100),

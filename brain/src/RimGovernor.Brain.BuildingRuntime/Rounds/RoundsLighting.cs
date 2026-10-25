@@ -18,7 +18,7 @@ public sealed partial class RoundsBuildingPlanner
         return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = RoomsFamily.Lighting.FilingKey, Need = RoomsFamily.Lighting, Definition = "TorchLamp" };
     }
 
-    internal static Fact<EquatableArray<int>> PlanLitRooms(ColonyProjection facts) =>
+    internal static EquatableArray<int> PlanLitRooms(ColonyProjection facts) =>
         LightingRules.PlanLitRooms(facts.LayoutPlan, facts.Rooms, facts.Facts.Upkeep.Lighting, RoundsTierStyle.PoweredSource(facts));
 
     internal IReadOnlyList<string> LightingDefinitions()
@@ -51,10 +51,7 @@ public sealed partial class RoundsBuildingPlanner
             return (null, BuildingReasonNoDeficit);
         }
 
-        if (!facts.Rooms.TryGetValue(out var rooms))
-        {
-            return (null, FieldUnavailable("rooms"));
-        }
+        var rooms = facts.Rooms;
 
         var lighting = new LightingFacts
         {

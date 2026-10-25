@@ -17,7 +17,7 @@ public sealed class ObservedShelterTests
         var cells = Enumerable.Range(0, 4).SelectMany(x => Enumerable.Range(0, 5).Select(z => new Cell(x, z)));
         return facts with
         {
-            Upkeep = facts.Upkeep with { Rooms = Known(RoomFixtures.Census(Physical)) },
+            Upkeep = facts.Upkeep with { Rooms = RoomFixtures.Census(Physical) },
             PlannedShelters = [new() { Id = 7, Region = RegionRules.RectRegion(new(20, 20, 2, 3)) }],
             ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with
             {
@@ -133,7 +133,7 @@ public sealed class ObservedShelterTests
     public void MissingObservedGeometryOrHeatSourceRemainsExplicit()
     {
         var facts = Facts();
-        var missing = facts with { Upkeep = facts.Upkeep with { Rooms = Known(RoomFixtures.Census(Physical with { Cells = [] })) } };
+        var missing = facts with { Upkeep = facts.Upkeep with { Rooms = RoomFixtures.Census(Physical with { Cells = [] }) } };
         var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(missing, 300));
         Assert.Contains("unknown_observed_shelter_geometry:room-7", generated.Findings);
         Assert.DoesNotContain(generated.Context.Shelters, r => r.Room.Source == ForecastShelterSource.Observed);
@@ -151,7 +151,7 @@ public sealed class ObservedShelterTests
         var facts = Facts();
         var rooms = Enumerable.Range(0, 5).Select(i => (Physical.Room with { Id = "room-" + i },
             Interior.Select(c => new Cell(c.X + i * 10, c.Z)))).Reverse();
-        facts = facts with { PlannedShelters = [], Upkeep = facts.Upkeep with { Rooms = Known(RoomFixtures.Census([.. rooms])) } };
+        facts = facts with { PlannedShelters = [], Upkeep = facts.Upkeep with { Rooms = RoomFixtures.Census([.. rooms]) } };
         var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300));
         Assert.True(generated.Truncated);
         Assert.Contains("shelter_geometry_truncated", generated.Findings);

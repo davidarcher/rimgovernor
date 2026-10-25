@@ -15,7 +15,7 @@ public static partial class TombRules
     /// Lists the native room IDs of the standing planned tombs, morgues and meal closets that measure warmer than
     /// TombMaxC, sorted. Known empty while coolers are unavailable; unknown while a fact it reads is.
     /// </summary>
-    public static Fact<EquatableArray<string>> WarmCoolingRooms(Fact<bool> coolers, LayoutPlan? plan, Fact<RoomObservation> rooms)
+    public static Fact<EquatableArray<string>> WarmCoolingRooms(Fact<bool> coolers, LayoutPlan? plan, RoomObservation rooms)
     {
         var ak = coolers.TryGetValue(out var available);
         if (ak && !available)
@@ -24,8 +24,8 @@ public static partial class TombRules
         }
         var p = plan;
         var pk = p is not null;
-        var rk = rooms.TryGetValue(out var r);
-        if (!ak || !pk || !rk)
+        var r = rooms;
+        if (!ak || !pk)
         {
             return Unknown<EquatableArray<string>>();
         }

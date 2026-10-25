@@ -531,9 +531,7 @@ internal sealed partial class RoundsStockpilePlanner
         // The medicine store reads the medical beds, so the census carries them. The planned rooms are shelled from
         // the same reading, so the census carries the wall and door definitions.
         string[] definitions = [ContainmentCellRules.ShellWallDefinition, ContainmentCellRules.ShellDoorDefinition, HerdPenRules.PenFenceDefinition, HerdPenRules.PenGateDefinition, StorageRules.ShelfDefinition];
-        var read = _reviewer.RoomsEnabled()
-            ? await _reviewer.ObserveRoomsAsync((Observation.IRoundsSource)_reviewer.Native, expected, claims, definitions, call).ConfigureAwait(false)
-            : await _reviewer.ObserveOwnedAsync((Observation.IRoundsSource)_reviewer.Native, expected, claims, definitions, call).ConfigureAwait(false);
+        var read = await _reviewer.ObserveOwnedAsync((Observation.IRoundsSource)_reviewer.Native, expected, claims, definitions, call).ConfigureAwait(false);
         var projection = read.Projection;
         var (request, missing) = await _reviewer.StockpileRequestAsync(state.Snapshot, projection, call).ConfigureAwait(false);
         if (missing != "")

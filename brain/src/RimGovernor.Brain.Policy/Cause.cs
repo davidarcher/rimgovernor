@@ -99,7 +99,6 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
     public static readonly Cause UnreadDefinitions = new("definitions");
     public static readonly Cause UnreadNativeRead = new("native_source");
     public static readonly Cause UnreadMedicine = new("medicine");
-    public static readonly Cause UnreadArtNeed = new("art_need");
     public static readonly Cause UnreadGearRecover = new("gear_recovery");
     public static readonly Cause UnreadGearDemand = new("gear_demand");
     public static readonly Cause UnreadWeapons = new("weapon_demand");
@@ -135,7 +134,7 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
         ExcavationUnsupported, ExcavationGeometryChanged, UnsafeRoute, RoofSupportRisk, StorageMissing,
         UrgentCompetingWork,
         UnreadReview, UnreadBenchDef, UnreadRecipes,
-        UnreadDefinitions, UnreadNativeRead, UnreadMedicine, UnreadArtNeed,
+        UnreadDefinitions, UnreadNativeRead, UnreadMedicine,
         UnreadGearRecover, UnreadGearDemand, UnreadWeapons,
         UnreadShells, UnreadFoodFacts, UnreadFoodPlan, UnreadFoodStorage,
         UnreadMechs, UnreadWort, UnreadSilverGap,
@@ -276,7 +275,6 @@ public static class CauseRules
         [Cause.UnreadDefinitions] = UnreadWording("the game's definitions"),
         [Cause.UnreadNativeRead] = UnreadWording("something the game could not serve"),
         [Cause.UnreadMedicine] = UnreadWording("the medicine catalog"),
-        [Cause.UnreadArtNeed] = UnreadWording("whether art is wanted"),
         [Cause.UnreadGearRecover] = UnreadWording("whether colonists have recovered"),
         [Cause.UnreadGearDemand] = UnreadWording("the gear census"),
         [Cause.UnreadWeapons] = UnreadWording("the weapon demand"),

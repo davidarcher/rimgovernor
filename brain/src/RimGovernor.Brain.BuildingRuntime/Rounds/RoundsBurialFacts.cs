@@ -81,8 +81,8 @@ internal static class RoundsBurialFacts
         }
         var plan = facts.LayoutPlan;
         var pk = plan is not null;
-        var rk = facts.Rooms.TryGetValue(out var rooms);
-        if (!ak || !pk || !rk)
+        var rooms = facts.Rooms;
+        if (!ak || !pk)
         {
             return (new PlannedRoom(), Unknown<bool>());
         }

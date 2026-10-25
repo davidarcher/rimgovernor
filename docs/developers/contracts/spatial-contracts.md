@@ -951,3 +951,22 @@ the place the census sites it with nothing pinned plus the deconstruct work of t
 tier's standing buildings. The downtime, the days the old tier no longer covers the lane,
 is not priced, so a move's price is a lower bound and a move taken says so in its reason.
 Journaled as `layout_plan` rows with target `defense_tier_block`.
+
+## Total room observations
+
+Every native frame reads the complete indoor room census after rebuilding dirty
+regions. A missing census, incomplete footprint, invalid membership or failed
+room stat read fails the observation. Room cells come from the same frame's
+visible cell grid; fully fogged rooms legitimately have no visible cells.
+
+ColonyProjection.Rooms is required. Routine and standalone colony reads project
+the census and its cell map through the shared frame tables, so room policy never
+uses an absent census as an empty map. Room consumers (shelter, upkeep, goals,
+hospital and mech siting) read that same total observation. Party-spot, work-chair
+and sculpture-room demand are measured booleans; a missing plan, construction
+census or profile required to measure demand raises RequiredFactException.
+
+The title-claim gate returns a claim, insufficient favor, an unmet bedroom, or an
+unmet throne room. An empty ladder has no claimable title. Missing bedroom
+furniture or throne impressiveness raises RequiredFactException rather than
+producing an unspecified hold.

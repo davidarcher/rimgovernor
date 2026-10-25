@@ -70,7 +70,7 @@ public sealed class CoupledThermalTests
         };
         var room = new ForecastShelterGeometry(new(ForecastShelterSource.Planned, "1"), interior, new Policy.Rectangle(1, 1, 3, 3), new(0, 2), false);
 
-        var result = CoupledShelterCandidates.Generate([room], default, read, [], new Dictionary<(string, string), ActivityTaskCandidate>(), [], [], 0, 1000);
+        var result = CoupledShelterCandidates.Generate([room], RoomObservation.NoRooms, read, [], new Dictionary<(string, string), ActivityTaskCandidate>(), [], [], 0, 1000);
 
         Assert.Equal(interior.Count, result.Options.Count(o => o.Activity.StartsWith("roof/", StringComparison.Ordinal)));
         Assert.All(result.Options, o => Assert.Equal("near", o.Pawn));

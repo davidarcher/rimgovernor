@@ -108,7 +108,7 @@ namespace HomeBridge.BridgeTools
             var stats = new List<Obs.RoomStat>();
             foreach (var definition in new[] { RoomStatDefOf.Cleanliness, RoomStatDefOf.Wealth, RoomStatDefOf.Space, RoomStatDefOf.Beauty, RoomStatDefOf.Impressiveness })
             {
-                if (definition == null) continue;
+                if (definition == null) throw new InvalidOperationException("Required room stat definition is unavailable.");
                 stats.Add(new Obs.RoomStat { DefName = Name(definition.defName), Value = Finite(room.GetStat(definition)) });
             }
             // Doors in the boundary: the door cell, the cell across it

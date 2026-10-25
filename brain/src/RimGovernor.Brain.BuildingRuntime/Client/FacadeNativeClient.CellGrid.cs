@@ -182,7 +182,7 @@ public sealed partial class FacadeNativeClient
         var result = new Dictionary<string, IReadOnlyList<Cell>>(StringComparer.Ordinal);
         if (rooms is null || grid is null)
         {
-            return result;
+            throw BridgeContractException.Contract("room census without its cell grid");
         }
         var byKey = grid.CellsByRoom(rooms.Rooms.Select(room => room.GridRoom).ToHashSet());
         foreach (var room in rooms.Rooms)

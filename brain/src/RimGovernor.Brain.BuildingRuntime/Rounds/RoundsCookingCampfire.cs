@@ -76,9 +76,9 @@ partial class RoundsBuildingPlanner
     internal static (CurrentBuilding Building, bool Retire) CampfireRetirement(ColonyProjection facts, IReadOnlyList<ConstructionClaim> claims)
     {
         var benches = facts.CookingBenches;
-        var rk = facts.Rooms.TryGetValue(out var rooms);
+        var rooms = facts.Rooms;
         var census = facts.Facts.CurrentConstruction;
-        if (!rk || census is null)
+        if (census is null)
         {
             return (default!, false);
         }
@@ -166,7 +166,7 @@ partial class RoundsBuildingPlanner
     internal static Fact<bool> CampfireRetireOwed(ColonyProjection facts)
     {
         var claims = facts.Facts.ConstructionClaims;
-        if (!facts.Rooms.IsKnown || facts.Facts.CurrentConstruction is null)
+        if (facts.Facts.CurrentConstruction is null)
         {
             return Unknown<bool>();
         }

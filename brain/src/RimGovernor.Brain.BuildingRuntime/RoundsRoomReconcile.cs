@@ -138,7 +138,7 @@ partial class RoundsBuildingPlanner
             Plan = plan,
             Room = room,
             Ground = plan.GroundWithRock(buildings, NaturalRock(facts)),
-            Rooms = HomeUpkeepReader.ColonyRooms(facts),
+            Rooms = facts.Rooms,
             Cells = cells,
             VentAvailable = vent && ventAvailable,
             Unroofed = unroofed,

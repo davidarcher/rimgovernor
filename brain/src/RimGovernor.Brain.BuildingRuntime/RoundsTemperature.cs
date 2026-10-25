@@ -38,10 +38,7 @@ public sealed partial class RoundsBuildingPlanner
     internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectTemperature(Observation.ColonyProjection facts)
     {
         // An unread room census, bed census or sleeper census is the planner's unavailable verdict, named by its field.
-        if (!facts.Rooms.TryGetValue(out var rooms))
-        {
-            return (null, FieldUnavailable("rooms"));
-        }
+        var rooms = facts.Rooms;
         var cooling = TemperatureCooling(facts);
         var proposal = TemperatureMethodRules.SelectTemperatureMethod(rooms, rooms.EligibleBeds, cooling, Reviewer.Policy);
         switch (proposal.Method)

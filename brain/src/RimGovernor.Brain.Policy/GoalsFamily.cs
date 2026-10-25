@@ -204,7 +204,7 @@ public sealed record GoalsFacts
     public ReformFocus ReformGoal { get; init; } = ReformFocus.Idle;
 
     /// <summary>The room census a room goal is judged by.</summary>
-    public Fact<RoomObservation> Rooms { get; init; }
+    public RoomObservation Rooms { get => field ?? throw new RequiredFactException("rooms"); init; }
 
     /// <summary>The review's facts: the prisoner, custody and quest censuses the named-prisoner and named-quest goals are judged by.</summary>
     public RoundsFacts Rounds { get; init; } = new();
@@ -594,10 +594,7 @@ public static partial class GoalRules
         }
         var staged = StagedRole(role);
         var owner = role == RoomRole.Hospital ? MedicalRules.MedicalCareNeed : staged ? ShelterFamily.Sleeping : default;
-        if (!f.Rooms.TryGetValue(out var rooms))
-        {
-            throw new RequiredFactException("rooms");
-        }
+        var rooms = f.Rooms;
         double deficit;
         if (role == RoomRole.Hospital)
         {

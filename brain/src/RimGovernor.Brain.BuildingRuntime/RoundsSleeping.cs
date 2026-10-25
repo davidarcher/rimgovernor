@@ -283,7 +283,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             // Cooking and butcher placements read rooms too when the source can serve them, so kitchen/butcher
             // separation protects each other's rooms; without a census nothing is protected.
-            var full = await r.Reviewer.ObserveRoomsAsync((Observation.IRoundsSource)r.Native, expected, [.. observed], call).ConfigureAwait(false);
+            var full = await r.Reviewer.ObserveOwnedAsync((Observation.IRoundsSource)r.Native, expected, [.. observed], call).ConfigureAwait(false);
             reading = full.Reading;
         }
         else if (r.Concern == PowerFamily.Basic.FilingKey || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortWorkChair)

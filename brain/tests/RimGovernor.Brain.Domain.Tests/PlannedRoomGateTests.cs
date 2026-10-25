@@ -187,7 +187,7 @@ public sealed class PlannedRoomGateTests
             Identity = new() { Tick = new(100) },
             Bounds = new(50, 50),
             LayoutPlan = Plan,
-            Rooms = Known(RoomObservation.NoRooms),
+            Rooms = RoomObservation.NoRooms,
             Definitions =
             [
                 new PlanningDefinition { Name = ContainmentCellRules.ShellWallDefinition, Available = Known(true) },

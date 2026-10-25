@@ -126,8 +126,8 @@ public sealed partial record ForecastCoupledCandidates
             urgent.Count == 0 ? Methods.Generation.ConstructionMethodCandidates.SiteBound : int.MaxValue);
         var shelterRooms = (shelterEnabled ? facts.PlannedShelters : [])
             .Where(r => urgent.Count == 0 || PlannedRules.RectCells(PlannedRoom.RoomWalls(r)).Any(c => urgent.Any(u => u.Cell == c)));
-        var physicalRooms = urgent.Count != 0 && facts.Upkeep.Rooms.TryGetValue(out var observedRooms)
-            ? Known(observedRooms with { Rooms = [] }) : facts.Upkeep.Rooms;
+        var physicalRooms = urgent.Count != 0
+            ? facts.Upkeep.Rooms with { Rooms = [] } : facts.Upkeep.Rooms;
         var shelter = Methods.Generation.CoupledShelterCandidates.Generate(shelterRooms.OrderBy(r => r.Id).Select(r =>
             new ForecastShelterGeometry(new(ForecastShelterSource.Planned, r.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)), EquatableArray.From(r.Region.Cells()), r.Region.Bounds(), r.Door, r.Outdoor)),
             physicalRooms, read.Thermal, construction.Operations, construction.Bindings, plannedSites, planned.Sites, deadline, horizon);

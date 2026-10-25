@@ -15,7 +15,7 @@ public sealed record UpkeepObservation
     public EquatableArray<RepairStructure> Structures { get; init; }
 
     /// <summary>The measured room census of the same read.</summary>
-    public Fact<RoomObservation> Rooms { get; init; }
+    public RoomObservation Rooms { get => field ?? throw new RequiredFactException("rooms"); init; }
 
     /// <summary>The measured work-cell illumination census the rooms/lighting Need reviews.</summary>
     public LightingObservation? Lighting { get; init; }

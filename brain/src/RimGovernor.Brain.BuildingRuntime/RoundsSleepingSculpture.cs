@@ -4,18 +4,18 @@ namespace RimGovernor.Brain.BuildingRuntime;
 partial class RoundsSleepingUpkeepPlanner
 {
     /// <summary>The rooms/art Need's room input: a bedroom below target, weakest in beauty, with a free cell.</summary>
-    internal static Fact<bool> SculptureRoomsOwedOf(Observation.ColonyProjection facts)
+    internal static bool SculptureRoomsOwedOf(Observation.ColonyProjection facts)
     {
-        var rk = facts.Rooms.TryGetValue(out var rooms);
+        var rooms = facts.Rooms;
         var census = facts.Facts.CurrentConstruction;
         var obs = facts.Facts.Sleeping;
         var traits = SleepingTraits(facts);
-        if (!rk || census is null || traits is null)
+        if (census is null || traits is null)
         {
-            return Unknown<bool>();
+            throw new RequiredFactException(census is null ? "construction census" : "colonist profiles");
         }
         facts.TechTier.TryGetValue(out var tier);
-        return Known(ArtRules.SculptureRoomsOwed(obs!, UpgradeTargetsOf(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells)));
+        return ArtRules.SculptureRoomsOwed(obs!, UpgradeTargetsOf(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells));
     }
 
     /// <summary>The policy view of packed sculpture stock.</summary>
@@ -38,10 +38,10 @@ partial class RoundsSleepingUpkeepPlanner
     internal static async Task<HashSet<string>?> SaleSculpturesOfAsync(FacadeNativeClient native, C.Identity identity, Observation.ColonyProjection facts, CancellationToken ct)
     {
         var obs = facts.Facts.Sleeping;
-        var rk = facts.Rooms.TryGetValue(out var rooms);
+        var rooms = facts.Rooms;
         var census = facts.Facts.CurrentConstruction;
         var traits = SleepingTraits(facts);
-        if (!rk || census is null || traits is null)
+        if (census is null || traits is null)
         {
             return null;
         }
@@ -83,10 +83,10 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         var none = (new RoundsBuildingResult(), false);
         var facts = reading.Projection;
         var obs = facts.Facts.Sleeping;
-        var rk = facts.Rooms.TryGetValue(out var rooms);
+        var rooms = facts.Rooms;
         var census = facts.Facts.CurrentConstruction;
         var traits = SleepingTraits(facts);
-        if (!rk || census is null || traits is null)
+        if (census is null || traits is null)
         {
             return none;
         }
@@ -136,7 +136,7 @@ public sealed partial class RoundsTradePlanner
         }
         var expected = await StepScope.StepScopeAsync(Reviewer.Native, call).ConfigureAwait(false);
         var claims = Reviewer.Player.Journal.ConstructionClaims(snapshot, expected.Tick, call);
-        var read = await Reviewer.ObserveRoomsAsync(Reviewer.Native, expected, claims, call).ConfigureAwait(false);
+        var read = await Reviewer.ObserveOwnedAsync(Reviewer.Native, expected, claims, call).ConfigureAwait(false);
         return await RoundsSleepingUpkeepPlanner.SaleSculpturesOfAsync(native, identity, read.Projection, call).ConfigureAwait(false);
     }
 }

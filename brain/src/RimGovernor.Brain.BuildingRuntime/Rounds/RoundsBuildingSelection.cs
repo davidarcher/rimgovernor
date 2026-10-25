@@ -209,9 +209,10 @@ public sealed partial class RoundsBuildingPlanner
 
 partial class RoundsBuildingPlanner
 {
-    internal static bool ButchersAllColocated(IReadOnlyList<CookingBench> benches, Fact<RoomObservation> rooms)
+    internal static bool ButchersAllColocated(IReadOnlyList<CookingBench> benches, RoomObservation rooms)
     {
-        if (!KitchenSeparationRules.KitchenSeparation(rooms).TryGetValue(out var shared) || benches.Count == 0)
+        var shared = KitchenSeparationRules.KitchenSeparation(rooms);
+        if (benches.Count == 0)
         {
             return false;
         }
@@ -287,7 +288,7 @@ partial class RoundsBuildingPlanner
         return facts.Facts.ButcherTableAffordable.TryGetValue(out var affordable) && affordable && ComfortBuilderAvailable(facts, "TableButcher");
     }
 
-    internal static bool ButcherBenchApart(IReadOnlyList<CookingBench> benches, Fact<RoomObservation> rooms) =>
+    internal static bool ButcherBenchApart(IReadOnlyList<CookingBench> benches, RoomObservation rooms) =>
         benches.Count > 0 && !ButchersAllColocated(benches, rooms);
 
     internal static bool ButcherRoomWanted(ColonyProjection facts, IReadOnlyList<CookingBench> benches) =>

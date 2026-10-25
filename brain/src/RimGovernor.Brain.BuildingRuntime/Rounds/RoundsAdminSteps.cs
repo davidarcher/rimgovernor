@@ -133,7 +133,7 @@ public sealed partial class AdminRounds
         {
             throw new ControlException("burial: the scope is another world or older than the review");
         }
-        var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, RoundsBurialFacts.BurialDefinitions, call).ConfigureAwait(false);
+        var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, RoundsBurialFacts.BurialDefinitions, call).ConfigureAwait(false);
         var step = RoundsBurialFacts.TombStep(reading.Projection);
         var stock = new PackedStock(_reviewer.Native, Boundary.Identity(state.Snapshot));
         switch (step.Kind)

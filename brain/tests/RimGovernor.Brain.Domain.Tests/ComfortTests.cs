@@ -60,10 +60,8 @@ public sealed class ComfortTests
         Assert.Empty(hosted.Census.Recreation);
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void OwnedAndDetailedReadsBothFilterHostedFacilities(bool detailedRooms)
+    [Fact]
+    public void EveryRoutineReadIncludesRoomsAndFiltersHostedFacilities()
     {
         PawnId pawn = new("pawn");
         var basic = NoComfortObservation with { Census = NoComfort with
@@ -75,19 +73,19 @@ public sealed class ComfortTests
         var projection = ColonyFactsCoreTests.Projection() with { Facts = new() { Comfort = basic, BasicComfort = basic } };
         var frame = new RoundsFrame { Rooms = new() { Context = ColonyFactsCoreTests.Snapshot().Context!, Rooms = [] } };
 
-        var read = RoundsReads.WithFrameRooms(projection, frame, new DiningFurniture(), detailedRooms);
+        var read = RoundsReads.WithFrameRooms(projection, frame, new DiningFurniture());
 
         Assert.Same(basic, read.Facts.RequireBasicComfort());
         Assert.Empty(read.Facts.RequireComfort().Census.Dining);
         Assert.Empty(read.Facts.RequireComfort().Census.Recreation);
-        Assert.Equal(detailedRooms, read.Rooms.IsKnown);
+        Assert.Equal(frame.Rooms!.Rooms, read.Rooms.Rooms);
     }
 
     [Fact]
     public void MissingFrameRoomsCannotCertifyHostedComfort()
     {
         var projection = ColonyFactsCoreTests.Projection() with { Facts = new() { Comfort = NoComfortObservation, BasicComfort = NoComfortObservation } };
-        Assert.Throws<ObservationContractException>(() => RoundsReads.WithFrameRooms(projection, new RoundsFrame(), new DiningFurniture(), false));
+        Assert.Throws<ObservationContractException>(() => RoundsReads.WithFrameRooms(projection, new RoundsFrame(), new DiningFurniture()));
     }
     [Theory]
     [InlineData("comfort")]

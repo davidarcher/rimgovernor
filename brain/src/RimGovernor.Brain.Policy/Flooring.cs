@@ -564,7 +564,7 @@ public static class FlooringRules
     /// stays unmet until the floor is actually laid, but the planner never orders it twice. An unread census
     /// measures nothing. Throws <see cref="DomainException"/>.
     /// </summary>
-    public static FlooringReview ReviewFlooring(FlooringObservation? fact, Fact<RoomObservation> rooms, FlooringPolicy p)
+    public static FlooringReview ReviewFlooring(FlooringObservation? fact, RoomObservation rooms, FlooringPolicy p)
     {
         DomainException.Require(p.IsValid, "invalid flooring policy");
         if (fact is not { } v)
@@ -573,7 +573,7 @@ public static class FlooringRules
         }
         v.Validate();
         var census = new Dictionary<string, RoomState>(StringComparer.Ordinal);
-        if (rooms.TryGetValue(out var rc))
+        var rc = rooms;
         {
             foreach (var room in rc.Rooms)
             {

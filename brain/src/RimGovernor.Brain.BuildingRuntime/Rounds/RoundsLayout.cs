@@ -123,7 +123,7 @@ public sealed partial class LayoutRounds
         }
         if (_needs.ClimateEnvelope || _needs.Routes)
         {
-            var rooms = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, [ClimateRules.ClimateDefs().VentDef], ct).ConfigureAwait(false);
+            var rooms = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, [ClimateRules.ClimateDefs().VentDef], ct).ConfigureAwait(false);
             if (_needs.ClimateEnvelope)
             {
                 var (owed, known) = EnvelopeWork(rooms.Projection);

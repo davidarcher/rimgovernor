@@ -3,6 +3,13 @@ namespace RimGovernor.Brain.Observation;
 
 public static class ColonyDecodeReads
 {
+    /// <summary>The total same-frame room census; absence is a broken native observation.</summary>
+    internal static RoomObservation RoomsOf(Tables tables, DefinitionCatalog catalog)
+    {
+        var rooms = tables.Rooms ?? throw new BridgeContractException("missing total rooms census");
+        return new RoomObservation { Rooms = rooms.Rooms, Cells = tables.RoomCells, Dining = catalog.DiningFurniture(), Shapes = catalog.PieceShapes(), EligibleBeds = [] };
+    }
+
     /// <summary>Whether <paramref name="buildings"/> holds the building every row refers to.</summary>
     internal static bool Resolved<TRow>(Buildings buildings, IEnumerable<TRow> rows, Func<TRow, C.Ref?> reference)
     {
@@ -130,6 +137,7 @@ public static class ColonyDecodeReads
         var combinedFoodSupply = FoodSupplyReads.DecodeFoodSupply(v.Forecast.CombinedFoodSupply, tables.Things, catalog);
         var r = new ColonyProjection
         {
+            Rooms = RoomsOf(tables, RequireCatalog(catalog)),
             CookingBenches = cookingBenches,
             ButcheringBenches = butcheringBenches,
             ProductionBenches = ColonyProductionReads.ColonyProductionBenches(v, buildings, tables.Pawns, catalog),
@@ -450,7 +458,9 @@ public static class ColonyDecodeReads
             throw new BridgeContractException("controlled environment building has no head");
         r = r with { Environment = ColonyEnvironment(environment, v.OutdoorTemperatureC, buildings, catalog) };
         // Facts.Gear needs the catalog: ObserveColony fills it.
-        return r with { Facts = f };
+        var observedRooms = r.Rooms with { EligibleBeds = [.. f.Sleeping.Beds.Where(b => b.Humanlike && !b.Medical && !b.Prisoners).Select(b => b.Id)] };
+        f = f with { Upkeep = f.Upkeep with { Rooms = observedRooms }, Sleeping = f.Sleeping with { Rooms = SleepingUpkeepReads.UpkeepRooms(tables.Rooms!, f.Sleeping.Beds) } };
+        return r with { Facts = f, Rooms = observedRooms };
     }
 
     internal static DefinitionCatalog RequireCatalog(DefinitionCatalog? catalog) =>

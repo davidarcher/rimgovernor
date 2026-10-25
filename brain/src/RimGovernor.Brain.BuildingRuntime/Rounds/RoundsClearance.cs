@@ -56,7 +56,7 @@ public sealed partial class HomeUpkeepReader
         }
         // Clearance reads the room census: retired walls wait while they still bound a standing room (#3681).
         var colony = _clearance
-            ? (await _reviewer.ObserveRoomsAsync(_native, expected, call).ConfigureAwait(false)).Reading
+            ? (await _reviewer.ObserveOwnedAsync(_native, expected, call).ConfigureAwait(false)).Reading
             : await _reviewer.ObserveColonyAsync(_native, expected, null, call).ConfigureAwait(false);
         var facts = new HomeUpkeepFacts();
         if (_repairs)
@@ -130,7 +130,8 @@ partial class HomeUpkeepReader
             return (new GroundStep(), false);
         }
         var (ground, known) = RoundsBuildingPlanner.ColonyGround(colony);
-        if (!known || !colony.Rooms.TryGetValue(out var rooms))
+        var rooms = colony.Rooms;
+        if (!known)
         {
             return (new GroundStep(), false);
         }
@@ -145,7 +146,8 @@ partial class HomeUpkeepReader
             return [];
         }
         var (ground, known) = RoundsBuildingPlanner.ColonyGround(colony);
-        if (!known || !colony.Rooms.TryGetValue(out var rooms))
+        var rooms = colony.Rooms;
+        if (!known)
         {
             return [];
         }
@@ -215,11 +217,6 @@ partial class HomeUpkeepReader
         return output;
     }
 
-    internal static RoomObservation ColonyRooms(ColonyProjection colony)
-    {
-        colony.Rooms.TryGetValue(out var rooms);
-        return rooms!;
-    }
 
     internal static (string Prefix, IReadOnlyList<DomainAction> Actions) GroundStepMethod(PlanId id, GroundStep step)
     {

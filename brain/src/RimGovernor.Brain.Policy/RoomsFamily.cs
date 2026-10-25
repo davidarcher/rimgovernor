@@ -9,17 +9,17 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record RoomsFacts
 {
-    /// <summary>The work-cell lighting review with the plan's unlit rooms folded in; unknown while the lighting census or the sky is unread.</summary>
-    public Fact<LightingReview> Lighting { get; init; }
+    /// <summary>The work-cell lighting review with the plan's unlit rooms folded in; missing lighting inputs raise RequiredFactException.</summary>
+    public LightingReview Lighting { get => field ?? throw new RequiredFactException("lighting census"); init; }
 
-    /// <summary>The room terrain review; unknown while the terrain census is unread.</summary>
-    public Fact<FlooringReview> Flooring { get; init; }
+    /// <summary>The room terrain review; missing terrain inputs raise RequiredFactException.</summary>
+    public FlooringReview Flooring { get => field ?? throw new RequiredFactException("flooring census"); init; }
 
     /// <summary>The colonists' work profiles: who can sculpt and who is inspired to.</summary>
     public Fact<EquatableArray<PawnProfile>> Profiles { get; init; }
 
     /// <summary>A bedroom below target, weakest in beauty, has a free cell for a sculpture.</summary>
-    public Fact<bool> SculptureRoomsOwed { get; init; }
+    public bool SculptureRoomsOwed { get; init; }
 
     /// <summary>The unfiltered comfort census: every indoor seat and recreation source, whatever room hosts it.</summary>
     public ComfortObservation? BasicComfort { get; init; }
@@ -28,10 +28,10 @@ public sealed record RoomsFacts
     public ComfortReview? Hosting { get; init; }
 
     /// <summary>The PartySpot is missing, duplicated or outranked by a better shared room, and the one-shot is not spent.</summary>
-    public Fact<bool> PartySpotOwed { get; init; }
+    public bool PartySpotOwed { get; init; }
 
     /// <summary>A standing bench of a planned room has the work chair the plan chose for it missing from its interaction cell (WorkChairRules.OwedSeats).</summary>
-    public Fact<bool> WorkChairsOwed { get; init; }
+    public bool WorkChairsOwed { get; init; }
 
     /// <summary>The party the mood census owes now (an organizer named), or none.</summary>
     public Fact<GatheringPlan> Gathering { get; init; }
@@ -131,11 +131,11 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
 
     /// <summary>A plain threshold over the lighting review: unmet while a work cell is dark or a planned lamp unbuilt; an unread census raises <see cref="RequiredFactException"/>.</summary>
     public static Need LightingNeed(RoomsFacts f) =>
-        FoodRules.WholeNeed(Lighting, NeedTier.Development, f.Lighting.TryGetValue(out var review) ? !review.Active : throw new RequiredFactException("lighting census"));
+        FoodRules.WholeNeed(Lighting, NeedTier.Development, !f.Lighting.Active);
 
     /// <summary>A plain threshold over the flooring review: unmet while any room or cell is owed its floor; an unread census raises <see cref="RequiredFactException"/>.</summary>
     public static Need FlooringNeed(RoomsFacts f) =>
-        FoodRules.WholeNeed(Flooring, NeedTier.Development, f.Flooring.TryGetValue(out var review) ? !review.Active : throw new RequiredFactException("flooring census"));
+        FoodRules.WholeNeed(Flooring, NeedTier.Development, !f.Flooring.Active);
 
     /// <summary>
     /// Unmet while an artist is inspired, or while a bedroom is owed a sculpture and a colonist can sculpt; met while
@@ -145,23 +145,23 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
     public static Need ArtNeed(RoomsFacts f)
     {
         var pk = f.Profiles.TryGetValue(out var profiles);
-        var ok = f.SculptureRoomsOwed.TryGetValue(out var owed);
+        var owed = f.SculptureRoomsOwed;
         bool met;
         if (pk && ArtRules.InspiredArtists(profiles!).Count > 0)
         {
             met = false;
         }
-        else if (ok && !owed)
+        else if (!owed)
         {
             met = true;
         }
-        else if (ok && pk)
+        else if (pk)
         {
             met = ArtRules.Artists(profiles!).Count == 0;
         }
         else
         {
-            throw new RequiredFactException(ok ? "colonist profiles" : "sculpture rooms owed");
+            throw new RequiredFactException("colonist profiles");
         }
         return FoodRules.WholeNeed(Art, NeedTier.Development, met);
     }
@@ -196,11 +196,11 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
 
     /// <summary>After hosting: unmet while the PartySpot step is owed; unread rooms, qualities or census raise <see cref="RequiredFactException"/>.</summary>
     public static Need PartySpotNeed(RoomsFacts f) =>
-        FoodRules.WholeNeed(PartySpot, NeedTier.Development, !Owed(f.PartySpotOwed, "party spot")) with { Preconditions = [Hosting] };
+        FoodRules.WholeNeed(PartySpot, NeedTier.Development, !f.PartySpotOwed) with { Preconditions = [Hosting] };
 
     /// <summary>After comfort: unmet while a standing bench's chosen work chair is missing; an unread census or plan raises <see cref="RequiredFactException"/>.</summary>
     public static Need WorkChairsNeed(RoomsFacts f) =>
-        FoodRules.WholeNeed(WorkChairs, NeedTier.Development, !Owed(f.WorkChairsOwed, "work chairs")) with { Preconditions = [Comfort] };
+        FoodRules.WholeNeed(WorkChairs, NeedTier.Development, !f.WorkChairsOwed) with { Preconditions = [Comfort] };
 
     /// <summary>
     /// Unmet while the mood census owes a party; an unread census raises <see cref="RequiredFactException"/>. The PartySpot Need is its precondition

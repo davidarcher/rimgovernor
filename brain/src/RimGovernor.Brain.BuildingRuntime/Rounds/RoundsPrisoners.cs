@@ -71,7 +71,7 @@ public sealed class PrisonersRounds
         {
             throw new ControlException("prisoners jail: the native boundary moved");
         }
-        var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, ["Wall", "Door"], call).ConfigureAwait(false);
+        var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, ["Wall", "Door"], call).ConfigureAwait(false);
         var step = JailStep(reading.Projection);
         switch (step.Kind)
         {

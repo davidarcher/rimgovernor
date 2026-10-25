@@ -10,10 +10,10 @@ partial class RoundsSleepingUpkeepPlanner
     internal static (Pol.RoomUpgrade Upgrade, bool Due) RoomUpgradeOf(Observation.ColonyProjection facts)
     {
         var obs = facts.Facts.Sleeping;
-        var rk = facts.Rooms.TryGetValue(out var rooms);
+        var rooms = facts.Rooms;
         var census = facts.Facts.CurrentConstruction;
         var traits = SleepingTraits(facts);
-        if (!rk || census is null || traits is null)
+        if (census is null || traits is null)
         {
             return (new Pol.RoomUpgrade(), false);
         }
@@ -31,10 +31,10 @@ partial class RoundsSleepingUpkeepPlanner
     internal static (Pol.BedReplacement Replacement, bool Due) BedReplacementOf(Observation.ColonyProjection facts)
     {
         var obs = facts.Facts.Sleeping;
-        var rk = facts.Rooms.TryGetValue(out var rooms);
+        var rooms = facts.Rooms;
         var census = facts.Facts.CurrentConstruction;
         var traits = SleepingTraits(facts);
-        if (!rk || census is null || traits is null)
+        if (census is null || traits is null)
         {
             return (new Pol.BedReplacement(), false);
         }
@@ -73,9 +73,9 @@ partial class RoundsSleepingUpkeepPlanner
     internal static (Pol.RoomUpgrade Upgrade, bool Due) TitleFurniture(Observation.ColonyProjection facts)
     {
         var obs = facts.Facts.Sleeping;
-        var rk = facts.Rooms.TryGetValue(out var rooms);
+        var rooms = facts.Rooms;
         var census = facts.Facts.CurrentConstruction;
-        if (!rk || census is null)
+        if (census is null)
         {
             return (new Pol.RoomUpgrade(), false);
         }
@@ -86,10 +86,10 @@ partial class RoundsSleepingUpkeepPlanner
     internal static (Pol.RoomUpgrade Upgrade, bool Due) CompanionBed(Observation.ColonyProjection facts)
     {
         var obs = facts.Facts.Sleeping;
-        var rk = facts.Rooms.TryGetValue(out var rooms);
+        var rooms = facts.Rooms;
         var census = facts.Facts.CurrentConstruction;
         var animals = facts.Facts.AnimalUpkeep.Animals;
-        if (!rk || census is null)
+        if (census is null)
         {
             return (new Pol.RoomUpgrade(), false);
         }
@@ -111,10 +111,10 @@ partial class RoundsSleepingUpkeepPlanner
     internal static (Pol.RoomUpgrade Upgrade, bool Due) BeautyUpgrade(Observation.ColonyProjection facts)
     {
         var obs = facts.Facts.Sleeping;
-        var rk = facts.Rooms.TryGetValue(out var rooms);
+        var rooms = facts.Rooms;
         var census = facts.Facts.CurrentConstruction;
         var traits = SleepingTraits(facts);
-        if (!rk || census is null || traits is null)
+        if (census is null || traits is null)
         {
             return (new Pol.RoomUpgrade(), false);
         }
@@ -168,9 +168,9 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     internal async Task<RoundsBuildingResult> FurnishBedroomAsync(PackedStock stock, ControlState state, Sto.Rounds review, Sto.NeedOwner goal, Observation.RoundsReading reading, Pol.RoomUpgrade u, CancellationToken call, CancellationToken epoch)
     {
         var facts = reading.Projection;
-        var rk = facts.Rooms.TryGetValue(out var rooms);
+        var rooms = facts.Rooms;
         var census = facts.Facts.CurrentConstruction;
-        if (!rk || census is null || facts.LayoutPlan is not { } plan)
+        if (census is null || facts.LayoutPlan is not { } plan)
         {
             return new RoundsBuildingResult { Verdict = FieldUnavailable("room_census") };
         }

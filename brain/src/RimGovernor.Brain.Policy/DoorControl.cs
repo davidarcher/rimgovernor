@@ -21,12 +21,9 @@ public static class DoorControlRules
     /// use another safe internal link. Physical barriers, custody, perishables and fire separation prevail.
     /// Combat owns its doors while its Incident is active.
     /// </summary>
-    public static IReadOnlyList<DoorChange> DoorChanges(Fact<RoomObservation> fact, RoutesObservation traffic, RoundsPolicy p)
+    public static IReadOnlyList<DoorChange> DoorChanges(RoomObservation fact, RoutesObservation traffic, RoundsPolicy p)
     {
-        if (!fact.TryGetValue(out var observed))
-        {
-            return [];
-        }
+        var observed = fact;
         var travelled = new HashSet<Cell>();
         foreach (var row in traffic.Traffic)
         {

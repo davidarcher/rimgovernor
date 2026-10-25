@@ -32,7 +32,7 @@ public sealed class RetiredWallsTests
 
     private static RoomObservation Rooms() => RoomFixtures.Census((RoomFixtures.State("hut"), PlannedRules.RectCells(new Rectangle(Hut.X + 1, Hut.Z + 1, 3, 3))));
 
-    private static ColonyProjection Colony(Fact<RoomObservation> rooms) => ColonyFactsCoreTests.Projection() with
+    private static ColonyProjection Colony(RoomObservation rooms) => ColonyFactsCoreTests.Projection() with
     {
         LayoutPlan = Plan,
         Rooms = rooms,
@@ -44,7 +44,7 @@ public sealed class RetiredWallsTests
     {
         var walls = Walls();
 
-        var (step, ok) = HomeUpkeepReader.PlannedGroundStep(Colony(Known(Rooms())), walls, [], null!);
+        var (step, ok) = HomeUpkeepReader.PlannedGroundStep(Colony(Rooms()), walls, [], null!);
 
         Assert.True(ok);
         Assert.Equal(GroundPhase.Walls, step.Phase);
@@ -59,7 +59,7 @@ public sealed class RetiredWallsTests
         // over the ring: its step is the walls step, with the roof of the whole hut ground (#3681).
         var door = new ClearanceTarget { EntityId = "Thing_Door12_10", DefName = "Door", Minimum = new Cell(12, 10), Maximum = new Cell(12, 10), Player = true, Deconstructible = true, Designated = true, RoofBlocker = "roof would collapse" };
 
-        var (step, ok) = HomeUpkeepReader.PlannedGroundStep(Colony(Known(RoomObservation.NoRooms)), [door], [], null!);
+        var (step, ok) = HomeUpkeepReader.PlannedGroundStep(Colony(RoomObservation.NoRooms), [door], [], null!);
 
         Assert.True(ok);
         Assert.Equal(GroundPhase.Walls, step.Phase);
@@ -69,14 +69,4 @@ public sealed class RetiredWallsTests
         Assert.Equal(25, pending.Roof.Count);
     }
 
-    [Fact]
-    public void AnUnreadRoomCensusIsNoStep()
-    {
-        var walls = Walls();
-
-        var (_, ok) = HomeUpkeepReader.PlannedGroundStep(Colony(Unknown<RoomObservation>()), walls, [], null!);
-
-        Assert.False(ok);
-        Assert.Empty(HomeUpkeepReader.PlannedGroundWork(Colony(Unknown<RoomObservation>()), walls, [], null!));
-    }
 }

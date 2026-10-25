@@ -20,7 +20,7 @@ public sealed record ArtOrderRequest
 
     public required ArtDemand Demand { get; init; }
 
-    public Fact<bool> RoomsOwed { get; init; }
+    public bool RoomsOwed { get; init; }
 }
 
 public static class ArtOrdersRules
@@ -35,21 +35,15 @@ public static class ArtOrdersRules
     {
         var artists = ArtRules.Artists(r.Profiles);
         var inspired = ArtRules.InspiredArtists(r.Profiles);
-        var owedKnown = r.RoomsOwed.TryGetValue(out var owed);
-        var sculpt = owedKnown && owed;
+        var sculpt = r.RoomsOwed;
         var open = sculpt || inspired.Count > 0;
-        if (!open && owedKnown)
+        if (!open)
         {
             return new Declared();
         }
 
         var output = new Declared();
         output.Orders.AddRange(StandingSculptures(r.Benches, artists));
-
-        if (!open)
-        {
-            output.Unread(Cause.UnreadArtNeed);
-        }
 
         var benches = ArtProductionBenches(r.Benches);
         var selected = new List<BillSelection>(ArtRules.SelectInspiredArtBills(benches, inspired, r.Items));

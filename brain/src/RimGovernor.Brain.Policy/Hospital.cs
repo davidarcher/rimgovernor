@@ -36,7 +36,7 @@ public sealed record HospitalRequest
 {
     public Fact<EquatableArray<CarePawn>> Patients { get; init; }
     public SleepingObservation Sleeping { get; init; } = new();
-    public Fact<RoomObservation> Rooms { get; init; }
+    public RoomObservation Rooms { get => field ?? throw new RequiredFactException("rooms"); init; }
     public IReadOnlyList<BenchDefinition> Definitions { get; init; } = [];
 
     /// <summary>Orders the beds the planner may stage (RoomFurniture).</summary>
@@ -123,17 +123,14 @@ public static class HospitalRules
     /// Whether the hosted medical beds fall below a Hospital goal's bed floor, the unmet half of the care Need when no
     /// patient is sick (#3496); a known false without a floor, unknown while the room census is unread.
     /// </summary>
-    public static Fact<bool> BedsShort(int floor, Fact<RoomObservation> rooms, SleepingObservation sleeping, bool surgical)
+    public static bool BedsShort(int floor, RoomObservation rooms, SleepingObservation sleeping, bool surgical)
     {
         if (floor <= 0)
         {
-            return Fact.Known(false);
+            return false;
         }
-        if (!rooms.TryGetValue(out var census))
-        {
-            return Fact.Unknown<bool>();
-        }
-        return Fact.Known(HostedMedicalBeds(census, sleeping, surgical) < floor);
+        var census = rooms;
+        return HostedMedicalBeds(census, sleeping, surgical) < floor;
     }
 
     /// <summary>
@@ -160,11 +157,7 @@ public static class HospitalRules
             return choice with { Method = HospitalMethod.Unavailable };
         }
         var sleeping = r.Sleeping;
-        var rk = r.Rooms.TryGetValue(out var rooms);
-        if (!rk)
-        {
-            return choice with { Method = HospitalMethod.Unknown };
-        }
+        var rooms = r.Rooms;
         var hosted = HostedBeds(rooms!);
         var medical = 0;
         var spare = new List<SleepingBed>();

@@ -13,9 +13,9 @@ partial class RoundsSleepingUpkeepPlanner
     {
         var plan = facts.LayoutPlan;
         var pk = plan is not null;
-        var rk = facts.Rooms.TryGetValue(out var rooms);
+        var rooms = facts.Rooms;
         var sleeping = facts.Facts.Sleeping;
-        if (!pk || !rk)
+        if (!pk)
         {
             return new Pol.BedroomStep();
         }
@@ -32,7 +32,8 @@ partial class RoundsSleepingUpkeepPlanner
         Observation.ColonyProjection facts, ISet<string> findings)
     {
         var sleeping = facts.Facts.Sleeping;
-        if (facts.LayoutPlan is not { } plan || !facts.Rooms.TryGetValue(out var rooms))
+        var rooms = facts.Rooms;
+        if (facts.LayoutPlan is not { } plan)
         {
             return (new Dictionary<int, EquatableArray<string>>(), new Dictionary<int, Pol.RoyalRoomNeed>());
         }
@@ -50,9 +51,9 @@ partial class RoundsSleepingUpkeepPlanner
     {
         var plan = facts.LayoutPlan;
         var pk = plan is not null;
-        var rk = facts.Rooms.TryGetValue(out var rooms);
+        var rooms = facts.Rooms;
         var sleeping = facts.Facts.Sleeping;
-        if (!pk || !rk)
+        if (!pk)
         {
             return new Pol.BedroomStep();
         }
@@ -78,10 +79,10 @@ partial class RoundsSleepingUpkeepPlanner
     /// </summary>
     internal static IReadOnlyList<Pol.SuiteWish>? SuiteWishesOf(Observation.ColonyProjection facts, Pol.LayoutPlan plan)
     {
-        var rk = facts.Rooms.TryGetValue(out var rooms);
+        var rooms = facts.Rooms;
         var sleeping = facts.Facts.Sleeping;
         var traits = SleepingTraits(facts);
-        if (!rk || traits is null)
+        if (traits is null)
         {
             return null;
         }
@@ -95,10 +96,10 @@ partial class RoundsSleepingUpkeepPlanner
     {
         var plan = facts.LayoutPlan;
         var pk = plan is not null;
-        var rk = facts.Rooms.TryGetValue(out var rooms);
+        var rooms = facts.Rooms;
         var sleeping = facts.Facts.Sleeping;
         var traits = SleepingTraits(facts);
-        if (!pk || !rk || traits is null)
+        if (!pk || traits is null)
         {
             return targets ?? new Dictionary<string, Pol.RoomTarget>();
         }
@@ -116,7 +117,7 @@ partial class RoundsSleepingUpkeepPlanner
         {
             return true;
         }
-        if (facts.LayoutPlan is null || !facts.Rooms.IsKnown)
+        if (facts.LayoutPlan is null)
         {
             return false;
         }
@@ -172,10 +173,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             return new RoundsBuildingResult { Verdict = BuildingReasonSleepingUnavailable };
         }
-        if (!facts.Rooms.TryGetValue(out var rooms))
-        {
-            return new RoundsBuildingResult { Verdict = FieldUnavailable("room_census") };
-        }
+        var rooms = facts.Rooms;
         if (facts.LayoutPlan is not { } plan)
         {
             return new RoundsBuildingResult { Verdict = FieldUnavailable("layout_plan") };

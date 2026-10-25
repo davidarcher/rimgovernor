@@ -20,8 +20,8 @@ internal static class RoundsTierStyle
         ResearchRules.ResearchGate([project], facts.Facts.Research) == "";
 
     /// <summary>Whether any observed power network generates.</summary>
-    internal static Fact<bool> PoweredSource(Observation.ColonyProjection facts) =>
-        Known(facts.PowerPlanning.Networks.Any(net => net.GenerationW > 0));
+    internal static bool PoweredSource(Observation.ColonyProjection facts) =>
+        facts.PowerPlanning.Networks.Any(net => net.GenerationW > 0);
 
     /// <summary>
     /// The wall stuff a pen's fence and a power room's walls are styled in: ranked by the Wall def's stats among the
@@ -63,7 +63,7 @@ internal static class RoundsTierStyle
     /// <summary>The fixture the lighting planner prefers for a work cell: the module lighting rule for a non-farm module, empty when the tier styles no lamp.</summary>
     internal static string LampStyle(Observation.ColonyProjection facts)
     {
-        PoweredSource(facts).TryGetValue(out var powered);
+        var powered = PoweredSource(facts);
         var (lamp, ok) = TierStyleRules.PlannedLighting(StyleTier(facts), false, StyleStock(facts), powered);
         return ok ? lamp.Definition : "";
     }

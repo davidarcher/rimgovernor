@@ -6,7 +6,7 @@ public sealed record MechChargerSiteFacts
     public Bounds Bounds { get; init; }
     public IReadOnlyList<SiteCell> Cells { get; init; } = [];
     public IReadOnlyDictionary<string, bool> FieldZones { get; init; } = new Dictionary<string, bool>();
-    public Fact<RoomObservation> Rooms { get; init; }
+    public RoomObservation Rooms { get => field ?? throw new RequiredFactException("rooms"); init; }
     public IReadOnlyList<Cell> Disposal { get; init; } = [];
 }
 
@@ -53,7 +53,7 @@ public static partial class MechRules
             }
             free[c.Cell] = c.Walkable && !c.Occupied() && !c.Zone && !c.Doorway;
         }
-        if (f.Rooms.TryGetValue(out var rooms))
+        var rooms = f.Rooms;
         {
             foreach (var room in rooms.Rooms)
             {

@@ -47,7 +47,7 @@ public sealed record MedicalFacts
     /// Need is unmet, and with no patient sick the census alone would leave it met, so a short ward keeps it unmet.
     /// Unknown without a goal read.
     /// </summary>
-    public Fact<bool> HospitalShort { get; init; }
+    public bool HospitalShort { get; init; }
 
     /// <summary>The medicine stock reaches the target bar (no hysteresis); unknown while the stock or the catalog is unread.</summary>
     public Fact<bool> ReservesCovered { get; init; }
@@ -187,7 +187,7 @@ public static partial class MedicalRules
     /// </summary>
     public static Need MedicalCareNeedOf(MedicalFacts f)
     {
-        var wardShort = f.HospitalShort.TryGetValue(out var ward) && ward;
+        var wardShort = f.HospitalShort;
         return FoodRules.WholeNeed(MedicalCareNeed, NeedTier.Wellbeing,
             !wardShort && (f.CareRecovered.TryGetValue(out var recovered) ? recovered : throw new RequiredFactException("care census")));
     }

@@ -32,11 +32,8 @@ public sealed partial class FacadeNativeClient
         {
             routine = routine with { Buildings = census with { Memo = _frameCensus } };
         }
-        var grid = view.Grid;
-        if (grid is not null && WireValidation.SameIdentity(view.Snapshot.Context?.Identity, identity))
-        {
-            routine = routine with { RoomCells = RoomCellsOf(routine.Rooms, grid) };
-        }
+        var cells = RoomCellsOf(routine.Rooms, view.Grid);
+        routine = routine with { RoomCells = cells, Tables = routine.Tables with { RoomCells = cells } };
         return routine;
     }
 
@@ -54,10 +51,10 @@ public sealed partial class FacadeNativeClient
         {
             Context = v.Context,
             Colony = v.ColonyFacts,
-            Rooms = v.Rooms,
+            Rooms = v.Rooms ?? throw BridgeContractException.Contract("frame without its rooms section"),
             Bills = v.Bills,
             Buildings = held.BuildMeta is null ? null : new BuildingCensus(held.BuildMeta.Context, held.Buildings),
-            Tables = new Tables(held.Buildings, pawns, held.Things, [.. research.Finished]),
+            Tables = new Tables(held.Buildings, pawns, held.Things, [.. research.Finished]) { Rooms = v.Rooms ?? throw BridgeContractException.Contract("routine frame without its rooms section") },
             Research = research,
         };
         if (prepared.Emergency is { } emergency)
@@ -164,7 +161,7 @@ public sealed partial class FacadeNativeClient
             CombatPawns = v.CombatPawns,
             CombatEvents = v.CombatEvents,
             CombatLinesOfFire = v.CombatLinesOfFire,
-            Rooms = v.Rooms,
+            Rooms = v.Rooms ?? throw BridgeContractException.Contract("frame without its rooms section"),
             CombatDoors = v.CombatDoors,
             CombatMortars = v.CombatMortars,
             WorldProgression = v.WorldProgression,

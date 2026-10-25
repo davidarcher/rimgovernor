@@ -533,7 +533,7 @@ public static partial class SleepingRules
     /// <summary>The review's bedroom deficit: true while a bedroom step is due; false while the layout plan or the room census is unread, which leave no step to take.</summary>
     public static bool BedroomsOwed(
         LayoutPlan? plan,
-        Fact<RoomObservation> rooms,
+        RoomObservation rooms,
         SleepingObservation sleeping,
         IReadOnlyDictionary<string, RoomTarget>? targets,
         IReadOnlyDictionary<PawnId, TraitEffects>? traits,
@@ -541,8 +541,8 @@ public static partial class SleepingRules
     {
         var p = plan;
         var pk = p is not null;
-        var rk = rooms.TryGetValue(out var r);
-        if (!pk || !rk)
+        var r = rooms;
+        if (!pk)
         {
             return false;
         }

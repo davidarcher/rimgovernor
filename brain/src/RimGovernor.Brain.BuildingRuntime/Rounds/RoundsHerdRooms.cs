@@ -94,10 +94,10 @@ internal static class RoundsHerdRooms
         var animals = facts.Facts.AnimalUpkeep.Animals;
         var plan = facts.LayoutPlan;
         var pk = plan is not null;
-        var rk = facts.Rooms.TryGetValue(out var rooms);
+        var rooms = facts.Rooms;
         var census = facts.Facts.CurrentConstruction;
         var sleeping = facts.Facts.Sleeping;
-        if (!pk || !rk || census is null)
+        if (!pk || census is null)
         {
             return (default!, false);
         }
@@ -122,10 +122,10 @@ internal static class RoundsHerdRooms
     {
         var plan = facts.LayoutPlan;
         var pk = plan is not null;
-        var rk = facts.Rooms.TryGetValue(out var rooms);
+        var rooms = facts.Rooms;
         var census = facts.Facts.CurrentConstruction;
         var sleeping = facts.Facts.Sleeping;
-        if (!pk || !rk || census is null)
+        if (!pk || census is null)
         {
             return false;
         }

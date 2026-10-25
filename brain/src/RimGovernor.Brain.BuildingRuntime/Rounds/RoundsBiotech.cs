@@ -65,7 +65,7 @@ public sealed partial class BiotechRounds
             throw new ControlException("biotech read: the scope is another world or older than the review");
         }
         var claims = journal.ConstructionClaims(scope.World, expected.Tick, ct);
-        var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, claims, ct).ConfigureAwait(false);
+        var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, ct).ConfigureAwait(false);
         var projection = reading.Projection;
         if (projection.Facts.Biotech is not PbObservations.BiotechSection.Active { Facts: var colony })
         {
@@ -140,7 +140,7 @@ public sealed partial class BiotechRounds
             throw new ControlException("biotech step: boundary moved");
         }
         var claims = journal.ConstructionClaims(work.State.Snapshot, expected.Tick, call);
-        return await reviewer.ObserveRoomsAsync(reviewer.Native, expected, claims, call).ConfigureAwait(false);
+        return await reviewer.ObserveOwnedAsync(reviewer.Native, expected, claims, call).ConfigureAwait(false);
     }
 
     /// <summary>

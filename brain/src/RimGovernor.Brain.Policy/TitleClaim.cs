@@ -10,10 +10,6 @@ public enum TitleClaimReason
     [WireName("")]
     None,
 
-    /// <summary>A fact the gate needs is unread; it holds rather than guess.</summary>
-    [WireName("unknown")]
-    Unknown,
-
     /// <summary>No colonist has the favor for the next rung.</summary>
     [WireName("favor_short")]
     NoFavor,
@@ -56,8 +52,6 @@ public sealed record TitleClaimFacts
     public required RoomObservation Rooms { get; init; }
 
     public IReadOnlyList<CurrentBuilding> Built { get; init; } = [];
-
-    public IReadOnlyDictionary<string, double> Impressiveness { get; init; } = new Dictionary<string, double>();
 }
 
 public static partial class TitleClaimRules
@@ -86,14 +80,14 @@ public static partial class TitleClaimRules
 
     /// <summary>
     /// Whether holder's solo bedroom meets rung's bedroom requirements (its impressiveness and furniture); a rung
-    /// that asks for none is met. Unknown when the holder's bedroom furniture is unread.
+    /// that asks for none is met. Missing furniture census rows raise RequiredFactException.
     /// </summary>
-    private static Fact<bool> BedroomMet(TitleClaimFacts f, PawnId holder, RoyalRung rung)
+    private static bool BedroomMet(TitleClaimFacts f, PawnId holder, RoyalRung rung)
     {
         var minImpressiveness = rung.BedroomMinImpressiveness;
         if (minImpressiveness <= 0 && rung.BedroomThings.Count == 0)
         {
-            return Known(true);
+            return true;
         }
         var furniture = new Dictionary<string, FurnitureRoom>(StringComparer.Ordinal);
         foreach (var r in f.BedroomPieces)
@@ -108,12 +102,12 @@ public static partial class TitleClaimRules
             }
             if (s.Impressiveness < minImpressiveness)
             {
-                return Known(false);
+                return false;
             }
             var ok = furniture.TryGetValue(s.Room, out var room);
             if (!ok && rung.BedroomThings.Count > 0)
             {
-                return Unknown<bool>();
+                throw new RequiredFactException("royal bedroom furniture");
             }
             foreach (var thing in rung.BedroomThings)
             {
@@ -134,52 +128,49 @@ public static partial class TitleClaimRules
                 }
                 if (have < thing.Count)
                 {
-                    return Known(false);
+                    return false;
                 }
             }
-            return Known(true);
+            return true;
         }
-        return Known(false);
+        return false;
     }
 
     /// <summary>
     /// Whether the throne room of need stands in the plan with a throne in it at the title's minimum
-    /// impressiveness; a rung that asks for no throne is met. Unknown when the room's impressiveness is unread.
+    /// impressiveness; a rung that asks for no throne is met. Missing room impressiveness raises RequiredFactException.
     /// </summary>
-    private static Fact<bool> ThroneMet(TitleClaimFacts f, RoyalRung rung)
+    private static bool ThroneMet(TitleClaimFacts f, RoyalRung rung)
     {
         var (need, asks) = ThroneRules.RungRequirement(rung);
         if (!asks)
         {
-            return Known(true);
+            return true;
         }
         var (room, ok) = f.Plan.ThroneRoomFor(need.MinArea);
         if (!ok)
         {
-            return Known(false);
+            return false;
         }
         // Census: impressiveness is read by the room's id.
         var (standing, censused) = PlannedRoom.CensusRoomIn(room, f.Rooms);
         var (_, stands) = ThroneRules.StandingThroneIn(room, need, f.Built);
         if (!censused || !stands)
         {
-            return Known(false);
+            return false;
         }
         if (need.MinImpressiveness <= 0)
         {
-            return Known(true);
+            return true;
         }
-        if (!f.Impressiveness.TryGetValue(standing!.Id, out var have))
-        {
-            return Unknown<bool>();
-        }
-        return Known(have >= need.MinImpressiveness);
+        var have = standing!.Stats.FirstOrDefault(stat => stat.DefName == nameof(RoomQuality.Impressiveness))?.Value
+            ?? throw new RequiredFactException("throne room impressiveness");
+        return have >= need.MinImpressiveness;
     }
 
     /// <summary>
     /// The gate's verdict for the colonist closest to the next title: the first holder, by ID, whose favor
-    /// reaches the next rung's FavorNeeded. With no such colonist the verdict is NoFavor (or Unknown when the
-    /// ladder is unread). A claimable colonist whose bedroom or the rung's throne room falls short is
+    /// reaches the next rung's FavorNeeded. With no such colonist the verdict is NoFavor (including an empty ladder). A claimable colonist whose bedroom or the rung's throne room falls short is
     /// held, so a title is never claimed ahead of the upkeep it brings.
     /// </summary>
     public static TitleClaim NextTitleClaim(TitleClaimFacts f)
@@ -187,7 +178,7 @@ public static partial class TitleClaimRules
         var ladder = f.Royalty.Ladder;
         if (ladder.Count == 0)
         {
-            return new TitleClaim { Reason = TitleClaimReason.Unknown };
+            return new TitleClaim { Reason = TitleClaimReason.NoFavor };
         }
         var holders = SortedHolders(f.Royalty.Holders);
         var verdict = new TitleClaim { Reason = TitleClaimReason.NoFavor };
@@ -200,25 +191,21 @@ public static partial class TitleClaimRules
                     continue;
                 }
                 var claim = new TitleClaim { Holder = id, Title = rung.Title };
-                var bk = BedroomMet(f, id, rung).TryGetValue(out var bedroom);
-                var tk = ThroneMet(f, rung).TryGetValue(out var throne);
-                if (bk && !bedroom)
+                var bedroom = BedroomMet(f, id, rung);
+                var throne = ThroneMet(f, rung);
+                if (!bedroom)
                 {
                     claim = claim with { Reason = TitleClaimReason.BedroomUnmet };
                 }
-                else if (tk && !throne)
+                else if (!throne)
                 {
                     claim = claim with { Reason = TitleClaimReason.ThroneUnmet };
-                }
-                else if (!bk || !tk)
-                {
-                    claim = claim with { Reason = TitleClaimReason.Unknown };
                 }
                 else
                 {
                     return claim with { Claim = true };
                 }
-                if (verdict.Reason is TitleClaimReason.NoFavor or TitleClaimReason.Unknown)
+                if (verdict.Reason is TitleClaimReason.NoFavor)
                 {
                     verdict = claim;
                 }

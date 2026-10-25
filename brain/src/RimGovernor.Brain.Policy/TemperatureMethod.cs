@@ -247,8 +247,8 @@ public static partial class TemperatureMethodRules
     /// Holds shelter/temperature unmet past the fixed thresholds: a heat campfire owes its refuel switch, or a
     /// sleeping room with no campfire or heater sits below its sleepers' comfort minimum.
     /// </summary>
-    public static bool TemperatureOwed(Fact<RoomObservation> rooms, SleepingObservation s, IReadOnlyList<HeatCampfire> heatCampfires) =>
-        rooms.TryGetValue(out var v) && TemperatureOwed(v, heatCampfires, [.. s.People, .. s.Slaves]);
+    public static bool TemperatureOwed(RoomObservation rooms, SleepingObservation s, IReadOnlyList<HeatCampfire> heatCampfires) =>
+        TemperatureOwed(rooms, heatCampfires, [.. s.People, .. s.Slaves]);
 
     private static bool TemperatureOwed(RoomObservation v, IReadOnlyList<HeatCampfire> heatCampfires, IReadOnlyList<SleepingPerson> sleepers)
     {
@@ -412,21 +412,11 @@ public static partial class TemperatureMethodRules
     /// Uses actual sleeping rooms, including beds whose safe reachability disappears during a temperature
     /// emergency. Missing room evidence cannot become a comfortable temperature or a reason to claim recovery.
     /// </summary>
-    public static SleepingTemperature TemperatureRange(Fact<RoomObservation> fact)
+    public static SleepingTemperature TemperatureRange(RoomObservation fact)
     {
         SleepingTemperature none = new SleepingTemperature.NoIndoorBed();
-        if (!fact.TryGetValue(out var v))
-        {
-            return none;
-        }
-        try
-        {
-            v.Validate();
-        }
-        catch (DomainException)
-        {
-            return none;
-        }
+        var v = fact;
+        v.Validate();
         var eligible = v.EligibleBeds;
         if (eligible.Count == 0)
         {

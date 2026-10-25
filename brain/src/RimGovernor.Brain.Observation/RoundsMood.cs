@@ -126,11 +126,11 @@ public static class RoundsMoodReads
         {
             output = output with { Ideology = new Held<Ideoligion> { Value = ideology, AsOf = tick, Complete = true, Source = "rimgovernor/snapshot_frame_ideology" } };
         }
-        if (projection.Rooms.TryGetValue(out var census) && rooms is not null)
+        if (rooms is not null)
         {
             output = output with
             {
-                Rooms = new Held<RoomObservation> { Value = census, AsOf = rooms.Context?.Tick ?? 0, Complete = true, Source = "rimgovernor/observations_list_rooms" },
+                Rooms = new Held<RoomObservation> { Value = projection.Rooms, AsOf = rooms.Context?.Tick ?? 0, Complete = true, Source = "rimgovernor/observations_list_rooms" },
             };
         }
         return output;

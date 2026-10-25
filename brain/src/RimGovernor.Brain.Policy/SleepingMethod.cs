@@ -29,7 +29,7 @@ public sealed record SleepingRequest
 
     public SleepingObservation Sleeping { get; init; } = new();
 
-    public Fact<RoomObservation> Rooms { get; init; }
+    public RoomObservation Rooms { get => field ?? throw new RequiredFactException("rooms"); init; }
 
     public EquatableArray<BenchDefinition> Definitions { get; init; }
 
@@ -249,7 +249,7 @@ public static partial class SleepingRules
             return choice with { Method = SleepingMethod.NoDemand };
         }
         var facility = RoomsRules.Facility(RoomRole.Bedroom);
-        var rooms = r.Rooms.TryGetValue(out var census) ? census : throw new RequiredFactException("rooms");
+        var rooms = r.Rooms;
         var cells = new List<Cell>();
         foreach (var room in rooms.Rooms)
         {

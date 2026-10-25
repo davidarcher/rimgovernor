@@ -78,7 +78,7 @@ public sealed class RoundsArtPlanner : IPurposeReporter
     internal static ArtDemand ArtDemand(ColonyProjection facts, IReadOnlyList<PawnProfile> profiles)
     {
         var stock = facts.Resources;
-        var rooms = facts.Rooms.TryGetValue(out var room) ? room : throw new RequiredFactException("rooms");
+        var rooms = facts.Rooms;
         var census = facts.Facts.CurrentConstruction ?? throw new RequiredFactException("construction census");
         var obs = facts.Facts.Sleeping;
         var traits = RoundsSleepingUpkeepPlanner.SleepingTraits(facts) ?? throw new RequiredFactException("sleeping traits");

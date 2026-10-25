@@ -81,7 +81,7 @@ public sealed class ShelterRounds
         {
             throw new ControlException("shelter read: the scope is another world or older than the review");
         }
-        var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, call).ConfigureAwait(false);
+        var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, call).ConfigureAwait(false);
         var projection = reading.Projection;
         var f = projection.Facts;
         // The bed-use review the store retains, with a due bedroom step holding sleeping unmet (as the review does).

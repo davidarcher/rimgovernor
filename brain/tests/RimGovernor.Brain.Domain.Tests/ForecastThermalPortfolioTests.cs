@@ -124,7 +124,7 @@ public sealed class ForecastThermalPortfolioTests
         };
         facts = facts with
         {
-            Upkeep = facts.Upkeep with { Rooms = Known(RoomFixtures.Census((RoomFixtures.State("room-1", beds: ["bed"]), interior))) },
+            Upkeep = facts.Upkeep with { Rooms = RoomFixtures.Census((RoomFixtures.State("room-1", beds: ["bed"]), interior)) },
             PlannedShelters = [],
             ForecastObserved = facts.ForecastObserved with
             {

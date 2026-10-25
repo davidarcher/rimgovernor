@@ -82,11 +82,11 @@ public sealed class ClimateStatesTests
     }
 
     [Fact]
-    public void TemperatureOwedIsFalseWhileTheRoomCensusIsUnread()
+    public void NoRoomsOweNoTemperatureWork()
     {
         var sleeping = new SleepingObservation();
-        Assert.False(TemperatureMethodRules.TemperatureOwed(default, sleeping, []));
-        Assert.False(TemperatureMethodRules.TemperatureOwed(Known(Rooms(21, true, "bed")), sleeping, []));
+        Assert.False(TemperatureMethodRules.TemperatureOwed(RoomObservation.NoRooms, sleeping, []));
+        Assert.False(TemperatureMethodRules.TemperatureOwed(Rooms(21, true, "bed"), sleeping, []));
     }
 
     [Fact]

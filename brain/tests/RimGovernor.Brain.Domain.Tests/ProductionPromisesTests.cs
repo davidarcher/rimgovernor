@@ -68,6 +68,7 @@ public sealed class ProductionPromisesTests
     private static RoundsFacts Facts(Fact<EquatableArray<ForecastCommitment>> promises) =>
         new()
         {
+            Upkeep = new() { Rooms = RoomObservation.NoRooms, Routes = new() },
             Comfort = ComfortTests.NoComfortObservation,
             BasicComfort = ComfortTests.NoComfortObservation,
             ProductionPromises = promises,

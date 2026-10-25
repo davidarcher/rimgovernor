@@ -13,12 +13,12 @@ internal static class CoupledShelterCandidates
     // Native rooms are current physical opportunities, not reservations of strategic layout intent.
     // Prefer observed heated rooms within the same finite bound; omitted rooms remain explicit.
     private static (ForecastShelterGeometry[] Rooms, EquatableArray<string> Findings, bool Truncated) SelectGeometry(
-        IEnumerable<ForecastShelterGeometry> planned, Fact<RoomObservation> physical, CoupledThermalRead? read)
+        IEnumerable<ForecastShelterGeometry> planned, RoomObservation physical, CoupledThermalRead? read)
     {
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var candidates = new List<ForecastShelterGeometry>();
-        if (!physical.TryGetValue(out var census)) findings.Add("unknown_observed_shelter_geometry");
-        else foreach (var room in census.Rooms
+        var census = physical;
+        foreach (var room in census.Rooms
             .OrderByDescending(r => read?.Sources.Any(s => census.Cells.TryGetValue(r.Id, out var held) && held.Contains(s.Cell)) == true)
             .ThenByDescending(r => r.Beds.Count > 0 || r.Pawns.Count > 0).ThenBy(r => r.Id, StringComparer.Ordinal))
         {
@@ -56,7 +56,7 @@ internal static class CoupledShelterCandidates
     /// planned heater (#3323) are its planned sites: planned is the round's planned-site facts and generated the sites PlannedRoomCandidates emitted,
     /// whose operations the composer shares; a shelter requires their finishes and never repeats them.
     /// </summary>
-    internal static CoupledShelterCandidatesResult Generate(IEnumerable<ForecastShelterGeometry> rooms, Fact<RoomObservation> physicalRooms, CoupledThermalRead? read,
+    internal static CoupledShelterCandidatesResult Generate(IEnumerable<ForecastShelterGeometry> rooms, RoomObservation physicalRooms, CoupledThermalRead? read,
         IEnumerable<ForecastCompositionOperation> constructionOperations,
         IReadOnlyDictionary<(string, string), ActivityTaskCandidate> constructionBindings,
         IReadOnlyList<PlannedBuildSite> planned, IReadOnlyList<PlannedSiteOperations> generated, long deadline, double horizon)

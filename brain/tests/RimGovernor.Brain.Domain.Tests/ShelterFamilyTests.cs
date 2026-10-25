@@ -18,7 +18,7 @@ public sealed class ShelterFamilyTests
         SleepingMin = 20.0,
         SleepingMax = 22.0,
         TemperatureOwed = false,
-        HeatDoorOwed = Known(false),
+        HeatDoorOwed = false,
         SafeAreaOwed = Known(false),
         ColdExit = 10,
         HotExit = 30,
@@ -66,7 +66,7 @@ public sealed class ShelterFamilyTests
         Assert.Equal(Satisfaction.Met, Of(Housed with { SleepingMin = 10.0 }, ShelterFamily.Temperature).Satisfaction);
         Assert.Equal(Satisfaction.Unmet, Of(Housed with { SleepingMax = 30.1 }, ShelterFamily.Temperature).Satisfaction);
         Assert.Equal(Satisfaction.Unmet, Of(Housed with { TemperatureOwed = true }, ShelterFamily.Temperature).Satisfaction);
-        Assert.Equal(Satisfaction.Unmet, Of(Housed with { HeatDoorOwed = Known(true) }, ShelterFamily.Temperature).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, Of(Housed with { HeatDoorOwed = true }, ShelterFamily.Temperature).Satisfaction);
     }
 
     [Fact]
@@ -87,13 +87,13 @@ public sealed class ShelterFamilyTests
     {
         var memory = new SafeAreaMemory();
         Assert.False(memory.Owed("w").IsKnown);
-        var reviewed = memory.Review("w", ColonyFactsCoreTests.Projection() with { Rooms = Known(RoomObservation.NoRooms) });
+        var reviewed = memory.Review("w", ColonyFactsCoreTests.Projection() with { Rooms = RoomObservation.NoRooms });
         Assert.True(reviewed.IsKnown);
         Assert.Equal(reviewed, memory.Owed("w"));
         Assert.False(memory.Owed("other").IsKnown);
         memory.Commit("w");
         Assert.Equal(Known(false), memory.Owed("w"));
-        Assert.False(memory.Review("w", ColonyFactsCoreTests.Projection()).IsKnown);
+        Assert.Equal(Known(false), memory.Review("w", ColonyFactsCoreTests.Projection()));
     }
 
     [Fact]

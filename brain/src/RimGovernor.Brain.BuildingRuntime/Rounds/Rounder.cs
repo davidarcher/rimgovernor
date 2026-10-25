@@ -416,11 +416,10 @@ public sealed partial class Rounder
         var claims = await p.Journal.ConstructionClaimsAsync(state.Snapshot, expected.Tick, ct).ConfigureAwait(false);
         // A colony with no layout plan reads what its first plan needs (#3652): the rooms census carries the dining furniture.
         var (_, haveLayout) = await LayoutPlanAsync(state.Snapshot, expected.Tick, ct).ConfigureAwait(false);
-        var roomsCensus = RoomsEnabled() || !haveLayout;
         stages.Lap("journal");
         LapInputs.Begin(state.Snapshot);
         using var window = ClockPlanning.StandaloneWindow(Native);
-        var reading = await ObserveRoundsAsync(Native, expected, roomsCensus, claims, readDefinitions, ct).ConfigureAwait(false);
+        var reading = await ObserveRoundsAsync(Native, expected, claims, readDefinitions, ct).ConfigureAwait(false);
         // Each lap through derive leaves its reading with LapInputs, so the row can name the laps whose inputs changed (#3564).
         void Lap(string name)
         {
@@ -556,7 +555,7 @@ public sealed partial class Rounder
             reading = reading.WithFacts(rf => rf with { AnimalUpkeep = rf.AnimalUpkeep with { Forecast = Known(foodPlan.Forecast) } });
         }
         reading = reading.WithColonySection(c => c with { Facts = c.Facts with { FoodPlan = reading.Projection.Facts.FoodPlan, FoodReserve = reading.Projection.Facts.FoodReserve } });
-        Census.Retain(reading, roomsCensus);
+        Census.Retain(reading);
         var filedScope = new FactScope(expected.Load.Value, expected.Map.Value, native.Value);
         reading.Sections.File(Store, filedScope);
         // A served native section may have gained a fresh derived food review.
@@ -766,7 +765,7 @@ public sealed partial class Rounder
         }
         fine.Lap("derive/model");
         // Acquisition uses the review's completed home staffing and defense facts.
-        Census.Retain(reading, roomsCensus);
+        Census.Retain(reading);
         Lap("derive");
         await PlanFoodAcquisitionAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
         stages.Lap("acquisition");

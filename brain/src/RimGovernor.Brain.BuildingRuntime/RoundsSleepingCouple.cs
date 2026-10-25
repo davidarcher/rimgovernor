@@ -40,9 +40,9 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         var none = (new RoundsBuildingResult(), false);
         var facts = reading.Projection;
         var obs = facts.Facts.Sleeping;
-        var rk = facts.Rooms.TryGetValue(out var rooms);
+        var rooms = facts.Rooms;
         var census = facts.Facts.CurrentConstruction;
-        if (!rk || census is null)
+        if (census is null)
         {
             return none;
         }
@@ -110,9 +110,9 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     {
         var none = (new RoundsBuildingResult(), false);
         var facts = reading.Projection;
-        var rk = facts.Rooms.TryGetValue(out var rooms);
+        var rooms = facts.Rooms;
         var census = facts.Facts.CurrentConstruction;
-        if (!rk || census is null)
+        if (census is null)
         {
             return none;
         }

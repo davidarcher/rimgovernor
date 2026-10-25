@@ -135,7 +135,7 @@ public sealed class RoomsRounds
             throw new ControlException("rooms read: the scope is another world or older than the review");
         }
         var claims = journal.ConstructionClaims(scope.World, expected.Tick, ct);
-        var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, claims, Definitions(), ct).ConfigureAwait(false);
+        var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, Definitions(), ct).ConfigureAwait(false);
         var spot = ComfortComposed ? journal.LoadNeed(RoomsFamily.PartySpot, scope.World, ct) : null;
         var elapsed = _reviewer.Clock.Now() - started;
         if (elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)
@@ -154,19 +154,11 @@ public sealed class RoomsRounds
     /// </summary>
     internal static RoomsFacts Facts(ColonyProjection projection, RoundsPolicy policy, ComfortHistory history, NeedOwner? spot, RoundsBuildingPlanner? flooring)
     {
-        var lighting = Unknown<LightingReview>();
-        var review = RoundsBuildingPlanner.LightingReviewOf(projection, policy.Lighting);
-        if (review.Known)
-        {
-            lighting = Known(review);
-        }
-        var floors = Unknown<FlooringReview>();
+        var lighting = RoundsBuildingPlanner.LightingReviewOf(projection, policy.Lighting);
+        if (!lighting.Known) throw new RequiredFactException("lighting census");
         var census = flooring is not null ? flooring.FlooringCensus(projection) : RoundsBuildingPlanner.TrafficFlooringFacts(projection, policy.Flooring);
         var floorReview = FlooringRules.ReviewFlooring(census, projection.Rooms, policy.Flooring);
-        if (floorReview.Known)
-        {
-            floors = Known(floorReview);
-        }
+        if (!floorReview.Known) throw new RequiredFactException("flooring census");
         var profiles = projection.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns }
             ? Known<EquatableArray<PawnProfile>>([.. PawnRules.Profiles(pawns)])
             : Unknown<EquatableArray<PawnProfile>>();
@@ -174,19 +166,17 @@ public sealed class RoomsRounds
         return new RoomsFacts
         {
             Lighting = lighting,
-            Flooring = floors,
+            Flooring = floorReview,
             Profiles = profiles,
             SculptureRoomsOwed = RoundsSleepingUpkeepPlanner.SculptureRoomsOwedOf(projection),
             BasicComfort = projection.Facts.BasicComfort,
             Hosting = hosting,
-            PartySpotOwed = spot is not null ? Rounder.PartySpotOwed(spot, projection) : Unknown<bool>(),
+            PartySpotOwed = Rounder.PartySpotOwed(spot, projection),
             WorkChairsOwed = WorkChairsOwed(projection),
         };
     }
 
     /// <summary>Whether a standing bench's chosen work chair is missing; unknown while the plan or the census is unread.</summary>
-    internal static Fact<bool> WorkChairsOwed(ColonyProjection projection) =>
-        projection.LayoutPlan is { } plan && projection.Facts.CurrentConstruction is { } census
-            ? Known(WorkChairRules.OwedSeats(plan, census, projection.Shapes).Count > 0)
-            : Unknown<bool>();
+    internal static bool WorkChairsOwed(ColonyProjection projection) =>
+        WorkChairRules.OwedSeats(projection.LayoutPlan ?? throw new RequiredFactException("layout plan"), projection.Facts.CurrentConstruction ?? throw new RequiredFactException("construction census"), projection.Shapes).Count > 0;
 }

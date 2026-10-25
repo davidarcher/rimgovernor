@@ -299,10 +299,6 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         {
             return Unknown<long>();
         }
-        if (!projection.Rooms.IsKnown)
-        {
-            return Unknown<long>();
-        }
         var (sale, error) = await SharedReads.Attempt(RoundsSleepingUpkeepPlanner.SaleSculpturesOfAsync(native, identity, projection, ct)).ConfigureAwait(false);
         return error is not null || sale is null ? Unknown<long>() : Known((long)sale.Count);
     }

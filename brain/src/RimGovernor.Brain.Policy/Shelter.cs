@@ -22,7 +22,7 @@ public sealed record ShelterFacts
     public bool TemperatureOwed { get; init; }
 
     /// <summary>A door held open to vent a hot room, or to close again, is owed.</summary>
-    public Fact<bool> HeatDoorOwed { get; init; }
+    public bool HeatDoorOwed { get; init; }
 
     /// <summary>The bot-owned allowed areas differ from the enclosed roofed rooms and the plan (SafeAreaCells).</summary>
     public Fact<bool> SafeAreaOwed { get; init; }
@@ -44,7 +44,7 @@ public sealed record ShelterFacts
             SleepingMin = f.SleepingTemperature is SleepingTemperature.Indoor indoor ? indoor.MinC : f.OutdoorTemperature,
             SleepingMax = f.SleepingTemperature is SleepingTemperature.Indoor room ? room.MaxC : f.OutdoorTemperature,
             TemperatureOwed = f.TemperatureOwed,
-            HeatDoorOwed = f.Upkeep.Rooms.IsKnown ? Known(DoorControlRules.DoorChanges(f.Upkeep.Rooms, f.Upkeep.Routes ?? throw new RequiredFactException("routes census"), p).Any(d => d.Heat)) : Unknown<bool>(),
+            HeatDoorOwed = DoorControlRules.DoorChanges(f.Upkeep.Rooms, f.Upkeep.Routes ?? throw new RequiredFactException("routes census"), p).Any(d => d.Heat),
             SafeAreaOwed = f.SafeAreaOwed,
         };
     }
@@ -118,7 +118,7 @@ public static partial class ShelterRules
     public static Need TemperatureNeedOf(ShelterFacts f)
     {
         var band = f.SleepingMin >= f.ColdExit && f.SleepingMax <= f.HotExit;
-        var met = !f.TemperatureOwed && !RoundsRules.Positive(f.HeatDoorOwed) && band;
+        var met = !f.TemperatureOwed && !f.HeatDoorOwed && band;
         return FoodRules.WholeNeed(ShelterFamily.Temperature, NeedTier.Wellbeing, met);
     }
 

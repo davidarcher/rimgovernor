@@ -77,8 +77,8 @@ partial class RoundsBuildingPlanner
     {
         var plan = facts.LayoutPlan;
         var pk = plan is not null;
-        var rk = facts.Rooms.TryGetValue(out var rooms);
-        return (plan!, rooms!, pk && rk);
+        var rooms = facts.Rooms;
+        return (plan!, rooms!, pk);
     }
 
     internal static (PlannedRoom Room, bool Owed) PlannedRoomOwed(ColonyProjection facts, PlannedRole module)

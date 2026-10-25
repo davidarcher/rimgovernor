@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class EssentialServicesTests
 {
-    private static RoundsFacts Facts() => new() { Tick = new(100), Colonists = 2L, Fuel = [] };
+    private static RoundsFacts Facts() => new() { Upkeep = new() { Rooms = RoomObservation.NoRooms, Routes = new() }, Tick = new(100), Colonists = 2L, Fuel = [] };
 
     /// <summary>Sleeping rooms inside the comfort band: the shelter/temperature Need is met (#3257).</summary>
     private static RoundsFacts Warm() => Facts() with { SleepingTemperature = new SleepingTemperature.Indoor(20.0, 22.0) };
@@ -19,7 +19,7 @@ public sealed class EssentialServicesTests
     [Fact]
     public void NormalInspectionExposesEveryServiceWithoutTreatingUnknownStressAsBaselineFailure()
     {
-        var normal = RoundsRules.InspectRounds(new(), new(), RoundsRules.DefaultRoundsPolicy());
+        var normal = RoundsRules.InspectRounds(new() { Upkeep = new() { Rooms = RoomObservation.NoRooms, Routes = new() } }, new(), RoundsRules.DefaultRoundsPolicy());
         Assert.NotNull(normal.EssentialServices);
         Assert.Equal(Enum.GetValues<EssentialService>(), normal.EssentialServices.Coverage.Select(c => c.Service).Distinct().Order().ToArray());
         var known = Review(Warm());
@@ -145,7 +145,7 @@ public sealed class EssentialServicesTests
     [Fact]
     public void LogisticsUsesObservedReachabilityAndAlternatePawns()
     {
-        var facts = Facts() with { Upkeep = new() { Routes = (new RoutesObservation { Pawns = ["a", "b"],
+        var facts = Facts() with { Upkeep = new() { Rooms = RoomObservation.NoRooms, Routes = (new RoutesObservation { Pawns = ["a", "b"],
             Facilities = [new() { Id = "medicine-store", Kind = RouteFacilityKind.Storage, Cell = new(4, 4), Travel = [new RouteTravel.Measured { Pawn = "a", Cost = 30, Cells = 12 }, new RouteTravel.Unreachable { Pawn = "b" }], Breaches = [] }] }) } };
         var review = Review(facts);
         Assert.Contains(review.Stress, s => s.Unavailable == "pawn/a" && s.Coverage == ServiceCoverage.Shortfall);

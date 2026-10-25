@@ -22,10 +22,7 @@ public static class RefrigerationReads
     /// </summary>
     public static async Task<RefrigerationObservation> RefrigerationFacts(IRefrigerationSource source, ColonyProjection projection, string cooler, CancellationToken cancellationToken)
     {
-        if (!projection.Rooms.TryGetValue(out var rooms))
-        {
-            throw new RequiredFactException("refrigeration rooms");
-        }
+        var rooms = projection.Rooms;
         var topology = projection.PowerPlanning;
         if (!projection.DefinitionAvailable(cooler).TryGetValue(out var available))
         {

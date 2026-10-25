@@ -28,7 +28,7 @@ partial class RoundsBuildingPlanner
         var sleeping = facts.Facts.Sleeping;
         return PartySpotRules.ReviewPartySpot(new PartySpotInput
         {
-            Rooms = facts.Rooms.TryGetValue(out var rooms) ? rooms : throw new RequiredFactException("rooms"),
+            Rooms = facts.Rooms,
             Qualities = sleeping.Rooms,
             Levels = facts.Impressiveness,
             Census = facts.Facts.CurrentConstruction,
@@ -42,10 +42,10 @@ partial class RoundsBuildingPlanner
 public sealed partial class Rounder
 {
     /// <summary>Whether a party spot must be placed or retired, read against the rooms/party-spot Need's unretired Methods.</summary>
-    internal static Fact<bool> PartySpotOwed(NeedOwner owner, ColonyProjection facts)
+    internal static bool PartySpotOwed(NeedOwner? owner, ColonyProjection facts)
     {
-        var spent = RoundsBuildingPlanner.PartySpotSpent(owner.Methods.Select(m => m.Method));
-        return Known(RoundsBuildingPlanner.PartySpotReview(facts, spent).Owed);
+        var spent = RoundsBuildingPlanner.PartySpotSpent(owner?.Methods.Select(m => m.Method) ?? []);
+        return RoundsBuildingPlanner.PartySpotReview(facts, spent).Owed;
     }
 }
 

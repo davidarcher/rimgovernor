@@ -501,7 +501,7 @@ internal static class StationFactsBuilder
         catch (DomainException)
         {
         }
-        if (projection.Rooms.TryGetValue(out var rooms))
+        var rooms = projection.Rooms;
         {
             f = f with { Dining = rooms.Dining };
         }

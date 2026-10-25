@@ -102,7 +102,7 @@ public sealed class MilitaryRounds
             using (Tel.Phase("military.observe"))
             {
                 reading = _training
-                    ? await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, TrainingDefinitions, call).ConfigureAwait(false)
+                    ? await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, TrainingDefinitions, call).ConfigureAwait(false)
                     : await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, call).ConfigureAwait(false);
             }
             var f = reading.Projection.Facts;
@@ -328,7 +328,7 @@ public sealed class MilitaryRounds
         {
             throw new ControlException("training work: the native boundary moved");
         }
-        var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, TrainingDefinitions, call).ConfigureAwait(false);
+        var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, TrainingDefinitions, call).ConfigureAwait(false);
         if (reading.Projection.LayoutPlan is not { } layout)
         {
             return FieldUnavailable("layout_plan");

@@ -47,7 +47,7 @@ internal sealed class FrameColony(IRoundsSource inner, RoundsFrame frame) : ICol
     public Task<O.ColonyFactsSnapshot> ReadColonyFactsAsync(C.Identity identity, bool planning, CancellationToken cancellationToken) =>
         Task.FromResult(frame.Colony ?? throw new BridgeUnavailableException("The frame holds no colony facts."));
 
-    public Task<Tables> FrameTablesAsync(C.Identity identity, CancellationToken cancellationToken) => Task.FromResult(frame.Tables);
+    public Task<Tables> FrameTablesAsync(C.Identity identity, CancellationToken cancellationToken) => Task.FromResult(frame.Tables with { Rooms = frame.Rooms ?? throw new BridgeContractException("missing total rooms census"), RoomCells = frame.RoomCells });
 
     public Task<O.ZonesSnapshot> ReadZoneSectionAsync(C.Identity identity, CancellationToken cancellationToken)
     {
@@ -74,18 +74,11 @@ internal sealed class FrameColony(IRoundsSource inner, RoundsFrame frame) : ICol
 public static class RoundsReads
 {
     public static Task<RoundsReading> ObserveRoundsOwned(IRoundsSource? source, IClock clock, Identity expected, TimeSpan maxAge, EquatableArray<ConstructionClaim> claims, IReadOnlyList<string> definitions, CancellationToken cancellationToken) =>
-        ObserveRounds(source, clock, expected, maxAge, claims, false, true, definitions, cancellationToken);
-
-    /// <summary>
-    /// Additionally exposes the frame's room census to temperature and other detailed room consumers.
-    /// Comfort takes each facility's hosting role from the required room table on every routine read.
-    /// </summary>
-    public static Task<RoundsReading> ObserveRoundsRooms(IRoundsSource? source, IClock clock, Identity expected, TimeSpan maxAge, EquatableArray<ConstructionClaim> claims, IReadOnlyList<string> definitions, CancellationToken cancellationToken) =>
-        ObserveRounds(source, clock, expected, maxAge, claims, true, true, definitions, cancellationToken);
+        ObserveRounds(source, clock, expected, maxAge, claims, true, definitions, cancellationToken);
 
     /// <summary>Decodes the same native frame and room observations without fetching the development planning window or its definition reads.</summary>
     public static Task<RoundsReading> ObserveRoundsProtection(IRoundsSource? source, IClock clock, Identity expected, TimeSpan maxAge, EquatableArray<ConstructionClaim> claims, CancellationToken cancellationToken) =>
-        ObserveRounds(source, clock, expected, maxAge, claims, true, false, [], cancellationToken);
+        ObserveRounds(source, clock, expected, maxAge, claims, false, [], cancellationToken);
 
     /// <summary>
     /// Decodes one frame. ObserveColony checks the frame's colony context against expected; every other section of
@@ -93,7 +86,7 @@ public static class RoundsReads
     /// </summary>
     private static async Task<RoundsReading> ObserveRounds(
         IRoundsSource? source, IClock clock, Identity expected, TimeSpan maxAge, EquatableArray<ConstructionClaim> claims,
-        bool rooms, bool planning, IReadOnlyList<string> definitions, CancellationToken cancellationToken)
+        bool planning, IReadOnlyList<string> definitions, CancellationToken cancellationToken)
     {
         if (source is null)
         {
@@ -254,8 +247,8 @@ public static class RoundsReads
                 Population = population with { Colony = population.Colony with { Ideoligion = p.Facts.Ideology } },
             },
         };
-        p = WithFrameRooms(p, frame, catalog.DiningFurniture(), rooms);
-        var roomCensus = rooms ? frame.Rooms : null;
+        p = WithFrameRooms(p, frame, catalog.DiningFurniture());
+        var roomCensus = frame.Rooms;
         // The reading is observed once the frame lands, under the age bound.
         var observedAt = clock.Now();
         if (observedAt - started > maxAge)
@@ -277,7 +270,7 @@ public static class RoundsReads
     }
 
     /// <summary>Joins every routine frame's required room table to comfort; detailed room consumers are opt-in.</summary>
-    internal static ColonyProjection WithFrameRooms(ColonyProjection p, RoundsFrame frame, DiningFurniture dining, bool rooms)
+    internal static ColonyProjection WithFrameRooms(ColonyProjection p, RoundsFrame frame, DiningFurniture dining)
     {
         // The frame's rooms census is the one room table: room quality reads it on every reading, the room census
         // sections only when asked.
@@ -292,15 +285,7 @@ public static class RoundsReads
             Shapes = p.Shapes,
         };
         p = p with { Facts = p.Facts with { Sleeping = bedded, Comfort = ComfortRules.HostedComfort(p.Facts.RequireBasicComfort(), comfortRooms) } };
-        if (rooms)
-        {
-            var temperature = Known(comfortRooms);
-            p = p with
-            {
-                Rooms = temperature,
-                Facts = p.Facts with { SleepingTemperature = TemperatureMethodRules.TemperatureRange(temperature) },
-            };
-        }
+        p = p with { Rooms = comfortRooms, Facts = p.Facts with { SleepingTemperature = TemperatureMethodRules.TemperatureRange(comfortRooms) } };
         return p;
     }
 

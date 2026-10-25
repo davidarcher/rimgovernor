@@ -90,7 +90,7 @@ public sealed class AnimalsReader
             throw new ControlException("animals read: the scope is another world or older than the review");
         }
         var claims = _reviewer.Player.Journal.ConstructionClaims(world, expected.Tick, call);
-        var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, claims, RoundsHerdRooms.HerdDefinitions, call).ConfigureAwait(false);
+        var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, RoundsHerdRooms.HerdDefinitions, call).ConfigureAwait(false);
         return (review, reading);
     }
 

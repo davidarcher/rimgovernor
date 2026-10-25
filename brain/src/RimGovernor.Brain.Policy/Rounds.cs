@@ -284,7 +284,7 @@ public sealed record RoundsFacts
     public bool TemperatureOwed { get; init; }
 
     /// <summary>A bedroom below target, weakest in beauty, has a free cell for a sculpture (SculptureRoomsOwed); the work ledger's art bills read it. Unknown unless the rooms/art Need is composed.</summary>
-    public Fact<bool> SculptureRoomsOwed { get; init; }
+    public bool SculptureRoomsOwed { get; init; }
 
     /// <summary>The Safe allowed area differs from the enclosed roofed rooms (SafeAreaCells); it keeps the shelter/safe-area Need unmet. Unknown unless that Need is composed.</summary>
     public Fact<bool> SafeAreaOwed { get; init; }
@@ -973,10 +973,7 @@ public static partial class RoundsRules
         {
             return Known(false);
         }
-        if (!KitchenSeparationRules.KitchenSeparation(f.Upkeep.Rooms).TryGetValue(out var shared))
-        {
-            return Known(true);
-        }
+        var shared = KitchenSeparationRules.KitchenSeparation(f.Upkeep.Rooms);
         var colocated = new HashSet<string>(StringComparer.Ordinal);
         foreach (var room in shared)
         {

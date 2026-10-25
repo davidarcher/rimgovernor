@@ -52,7 +52,7 @@ partial class RoundsSleepingUpkeepPlanner
 
     /// <summary>
     /// The bestowing-ceremony quests the title claim gate allows to accept now (NextTitleClaim, ClaimQuests);
-    /// none without Royalty or while the sleeping census, plan, rooms or construction census is unknown.
+    /// none without Royalty or before the layout plan and construction census are available.
     /// </summary>
     internal static IReadOnlyList<QuestId> TitleClaimQuests(Observation.ColonyProjection facts)
     {
@@ -63,17 +63,13 @@ partial class RoundsSleepingUpkeepPlanner
         var sleeping = facts.Facts.Sleeping;
         var plan = facts.LayoutPlan;
         var pk = plan is not null;
-        var rk = facts.Rooms.TryGetValue(out var rooms);
+        var rooms = facts.Rooms;
         var census = facts.Facts.CurrentConstruction;
-        if (!pk || !rk || census is null)
+        if (!pk || census is null)
         {
             return [];
         }
-        var impressiveness = new Dictionary<string, double>(StringComparer.Ordinal);
-        foreach (var room in sleeping.Rooms)
-        {
-            impressiveness[room.Id] = room.Quality.Impressiveness;
-        }
+
         var claim = TitleClaimRules.NextTitleClaim(new Pol.TitleClaimFacts
         {
             Royalty = royalty,
@@ -82,20 +78,19 @@ partial class RoundsSleepingUpkeepPlanner
             Plan = plan!,
             Rooms = rooms!,
             Built = census.Buildings,
-            Impressiveness = impressiveness,
         });
         return CeremonyRules.ClaimQuests(royalty!, claim);
     }
 
-    /// <summary>The projection's next throne step; none while the plan, the room census or the construction census is unknown.</summary>
+    /// <summary>The projection's next throne step; none before the layout plan or construction census is available.</summary>
     internal static Pol.ThroneStep ThroneStepOf(Observation.ColonyProjection facts)
     {
         var (need, owed) = ThroneNeed(facts);
         var plan = facts.LayoutPlan;
         var pk = plan is not null;
-        var rk = facts.Rooms.TryGetValue(out var rooms);
+        var rooms = facts.Rooms;
         var census = facts.Facts.CurrentConstruction;
-        if (!owed || !pk || !rk || census is null)
+        if (!owed || !pk || census is null)
         {
             return new Pol.ThroneStep();
         }
@@ -140,8 +135,8 @@ partial class RoundsSleepingUpkeepPlanner
         var (need, owed) = ThroneNeed(facts);
         var plan = facts.LayoutPlan;
         var pk = plan is not null;
-        var rk = facts.Rooms.TryGetValue(out var rooms);
-        if (!pk || !rk)
+        var rooms = facts.Rooms;
+        if (!pk)
         {
             return targets;
         }
@@ -168,10 +163,11 @@ partial class RoundsSleepingUpkeepPlanner
     internal static Pol.FlooringObservation WithThroneFloor(Observation.ColonyProjection facts, Pol.FlooringObservation v)
     {
         var (need, owed) = ThroneNeed(facts);
-        if (!owed || facts.LayoutPlan is not { } plan || !facts.Rooms.TryGetValue(out var rooms) || need.FloorTags.Count == 0)
+        if (!owed || facts.LayoutPlan is not { } plan || need.FloorTags.Count == 0)
         {
             return v;
         }
+        var rooms = facts.Rooms;
         var (room, ok) = plan.ThroneRoomFor(need.MinArea);
         if (!ok)
         {

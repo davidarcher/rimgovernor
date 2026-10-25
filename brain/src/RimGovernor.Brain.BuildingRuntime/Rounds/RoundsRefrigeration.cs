@@ -86,7 +86,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException(string.Create(CultureInfo.InvariantCulture, $"refrigeration step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick) observed tick={expected.Tick.Value} review tick={review.Tick.Value}"));
         }
-        var full = await Reviewer.ObserveRoomsAsync((IRoundsSource)Native, expected, RefrigerationDefinitions(), call).ConfigureAwait(false);
+        var full = await Reviewer.ObserveOwnedAsync((IRoundsSource)Native, expected, RefrigerationDefinitions(), call).ConfigureAwait(false);
         var reading = full.Reading;
         var facts = reading.Projection;
         PlannerSnapshot.RecordStepRead("building", Concern, state.Snapshot, facts);

@@ -51,18 +51,15 @@ public static class KitchenSeparationRules
     }
 
     /// <summary>Lists rooms where cooking and butchery share a room. Unknown when the room census is unknown.</summary>
-    public static Fact<EquatableArray<SeparationRoom>> KitchenSeparation(Fact<RoomObservation> rooms)
+    public static EquatableArray<SeparationRoom> KitchenSeparation(RoomObservation rooms)
     {
-        if (!rooms.TryGetValue(out var census))
-        {
-            return Unknown<EquatableArray<SeparationRoom>>();
-        }
+        var census = rooms;
         var result = census.Rooms
             .Where(room => RoomHolds(room, CookingDefinitions) && RoomHolds(room, ButcherDefinitions))
             .Select(room => new SeparationRoom(room.Id))
             .OrderBy(r => r.Id, StringComparer.Ordinal)
             .ToList();
-        return Known(EquatableArray.From(result));
+        return EquatableArray.From(result);
     }
 
     /// <summary>
@@ -73,12 +70,9 @@ public static class KitchenSeparationRules
     /// role, or any room holding a bed or sleeping spot, so the starter bedroom counts before native scores it)
     /// are protected for a butcher placement only: blood filth stays out of bedrooms.
     /// </summary>
-    public static IReadOnlyList<Cell> SeparationProtectedCells(Fact<RoomObservation> rooms, bool butcherPlacement)
+    public static IReadOnlyList<Cell> SeparationProtectedCells(RoomObservation rooms, bool butcherPlacement)
     {
-        if (!rooms.TryGetValue(out var census))
-        {
-            return [];
-        }
+        var census = rooms;
         var set = butcherPlacement ? CookingDefinitions : ButcherDefinitions;
         var cells = new List<Cell>();
         foreach (var room in census.Rooms)

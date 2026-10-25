@@ -278,7 +278,7 @@ public sealed partial record ColonyProjection
     /// <summary>Every built turret gun in the power census with its observed damage per second.</summary>
     public Fact<EquatableArray<DefenseTurretFacts>> DefenseTurrets { get; init; }
 
-    public Fact<RoomObservation> Rooms { get; init; }
+    public required RoomObservation Rooms { get; init; }
 
     public required Identity Identity { get; init; }
 
