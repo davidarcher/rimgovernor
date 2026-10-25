@@ -72,6 +72,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Understand useful cooking development and its limits | [Productive skill learning](developers/contracts/skill-learning.md#productive-cooking-in-normal-selection) |
 | Judge whether game mechanics can be extracted into cards (Gate 0 spike, #3218) and read the shipped cards | [Mechanic-card spike](developers/mechanic-card-spike.md), [mechanic cards](developers/contracts/mood-control.md#mechanic-cards) |
 | Select and execute comms, trader visits and settlement missions with cheapest-carried medicine purchases | [Controllable trade](developers/contracts/controllable-trade.md), [stock arrival per outcome](developers/contracts/forecast-contracts.md#stock-arrival-3868) |
+| Read conditional major-threat rates and native biome incident eligibility | [Threat schedule](developers/contracts/forecast-contracts.md#threat-schedule-3539) |
 | Preserve or reconsider issued work | [Method continuation](developers/contracts/method-continuation.md) |
 | Add or change a Family with Needs and claimed Methods | [Model](developers/architecture/control-loop.md#target-model-needs-families-and-claimed-methods), [family notes and map](developers/architecture/control-loop.md#migration) |
 | Trace observed harvest through cooking and meal delivery | [Live food Method](developers/contracts/pawn-activities.md#live-one-iteration-cooking) |

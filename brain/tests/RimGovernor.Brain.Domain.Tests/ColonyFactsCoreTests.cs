@@ -101,6 +101,7 @@ public sealed class ColonyFactsCoreTests
         ThreatScale = 1,
         Biome = "TemperateForest",
         Generator = [],
+        BiomeIncidents = [],
         HostileFactions = [],
         Raids = [],
         Disease = new() { Storyteller = "Cassandra", Biome = "TemperateForest", RandomDiseases = false, IntervalFactor = 1, DaysSinceSettle = 0, Candidates = 0, FreeColonists = 0, Incidents = [] },

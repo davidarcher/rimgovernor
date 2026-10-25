@@ -201,13 +201,41 @@ public sealed class ThreatScheduleTests
         var comp = new StorytellerCompProperties_CategoryIndividualMTBByBiome { category = ThreatBig, minDaysPassed = 10 };
         var table = Catalog(Teller("Biomed", comp), raid, other, caravan).ThreatSchedule();
 
-        var tundraRate = Of(table, "Biomed", 30.0, biome: "Tundra");
+        ThreatBiomeIncidentRead[] allowed = [new("BiomeRaid", true), new("BiomeCluster", true)];
+        var tundraRate = Of(table, "Biomed", 30.0, biome: "Tundra", biomeIncidents: allowed);
         Assert.Equal((1 / 20.0) + (1 / 40.0), tundraRate.MajorThreatsPerDay, 1e-9);
         Assert.Equal((1 / 20.0) / ((1 / 20.0) + (1 / 40.0)), tundraRate.RaidFraction, 1e-9);
-        Assert.Equal(["threat_biome_can_fire_unread:BiomeCluster,BiomeRaid"], tundraRate.Findings);
-        Assert.Equal(1 / 5.0, Of(table, "Biomed", 30.0, biome: "Desert").MajorThreatsPerDay, 1e-9);
+        Assert.Empty(tundraRate.Findings);
+        Assert.Equal(1 / 5.0, Of(table, "Biomed", 30.0, biome: "Desert", biomeIncidents: allowed).MajorThreatsPerDay, 1e-9);
         Assert.Equal(0, Of(table, "Biomed", 30.0, biome: "Jungle").MajorThreatsPerDay);
         Assert.Equal(0, Of(table, "Biomed", 5.0, biome: "Tundra").MajorThreatsPerDay);
+
+        // A fresh census owns the gate result. The normal harm-input wiring must see a blocked raid and a fireable cluster,
+        // then observe the reverse on the next read, without a second worker decision or a stale catalog gate.
+        var census = ColonyFactsCoreTests.Snapshot() with
+        {
+            Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with
+            {
+                Storyteller = "Biomed", DaysPassed = 30, Biome = "Tundra",
+                BiomeIncidents = [new("BiomeRaid", false), new("BiomeCluster", true)],
+            } },
+        };
+        var facts = new P.ReviewFacts { Census = census, ThreatTable = table };
+        var blockedRaid = P.HarmInputs.Of(facts).Schedule;
+        Assert.Equal(1 / 40.0, blockedRaid.MajorThreatsPerDay, 12);
+        Assert.Equal(0, blockedRaid.RaidFraction);
+        Assert.Empty(blockedRaid.Findings);
+        var fresh = census with { Threat = new() { Observed = census.Threat.Observed with
+        {
+            BiomeIncidents = [new("BiomeRaid", true), new("BiomeCluster", false)],
+        } } };
+        var blockedCluster = P.HarmInputs.Of(facts with { Census = fresh }).Schedule;
+        Assert.Equal(1 / 20.0, blockedCluster.MajorThreatsPerDay, 12);
+        Assert.Equal(1, blockedCluster.RaidFraction);
+        Assert.Empty(blockedCluster.Findings);
+        var unread = census with { Threat = new() { Observed = census.Threat.Observed with { BiomeIncidents = [] } } };
+        Assert.Equal("threat_biome_incident_unobserved:BiomeCluster", Assert.Throws<P.RequiredFactException>(() =>
+            P.HarmInputs.Of(facts with { Census = unread })).Fact);
     }
 
     [Fact]
@@ -227,11 +255,13 @@ public sealed class ThreatScheduleTests
 
     /// <summary>The schedule of <paramref name="storyteller"/> at <paramref name="days"/> and 500 threat points, with the colony facts the comps read.</summary>
     private static P.ThreatSchedule Of(P.ThreatScheduleTable table, string storyteller, double days, double points = 500.0, double progress = 0,
-        bool noTree = false, double scale = 1, string biome = "TemperateForest", ThreatIncidentRead[]? generator = null) =>
+        bool noTree = false, double scale = 1, string biome = "TemperateForest", ThreatIncidentRead[]? generator = null,
+        ThreatBiomeIncidentRead[]? biomeIncidents = null) =>
         P.ThreatSchedule.Of(table, ColonyFactsCoreTests.QuietThreat with
         {
             Storyteller = storyteller, DaysPassed = days, RaidPoints = points, ProgressScore = progress, NoTreeConnection = noTree, ThreatScale = scale,
             Biome = biome, Generator = [.. generator ?? []],
+            BiomeIncidents = [.. biomeIncidents ?? []],
         });
 
     private static P.ThreatScheduleTable Table() => Catalog(Cassandra(), Phoebe(), Randy()).ThreatSchedule();

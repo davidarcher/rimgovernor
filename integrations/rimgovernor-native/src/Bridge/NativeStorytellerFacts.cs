@@ -14,6 +14,26 @@ namespace RimGovernor.Native;
 /// </summary>
 internal static class NativeStorytellerFacts
 {
+    /// <summary>
+    /// CategoryIndividualMTBByBiome.GenerateParms delegates to DefaultParmsNow. Use the worker itself so base and worker-specific
+    /// gates have one owner, including custom workers. CanFireNow maintains its normal per-tick cache; detached parms and an
+    /// isolated random state keep observation from altering the generated incident or consuming the game's random stream.
+    /// </summary>
+    internal static IEnumerable<RimGovernor.Brain.GameFacts.Observations.ThreatBiomeIncidentRead> BiomeIncidents(Map map)
+    {
+        foreach (var incident in DefDatabase<IncidentDef>.AllDefsListForReading
+            .Where(d => d.category == IncidentCategoryDefOf.ThreatBig && d.mtbDaysByBiome != null
+                && d.targetTags != null && d.targetTags.Contains(IncidentTargetTagDefOf.Map_PlayerHome))
+            .OrderBy(d => d.defName, System.StringComparer.Ordinal))
+        {
+            bool canFire;
+            Rand.PushState();
+            try { canFire = incident.Worker.CanFireNow(StorytellerUtility.DefaultParmsNow(incident.category, map)); }
+            finally { Rand.PopState(); }
+            yield return new RimGovernor.Brain.GameFacts.Observations.ThreatBiomeIncidentRead(incident.defName, canFire);
+        }
+    }
+
     internal static double ProgressScore(Map map) => StorytellerUtility.GetProgressScore(map);
 
     /// <summary>StorytellerComp_OnOffCycle: the player faction tracks ideoligions and none of them has the TreeConnection meme.</summary>

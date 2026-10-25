@@ -57,7 +57,7 @@ public sealed record ThreatBiomeIncident(string Incident, double MtbDays, bool R
 
 /// <summary>
 /// A home-map StorytellerCompProperties_CategoryIndividualMTBByBiome of ThreatBig (#3860): from MinDaysPassed, each ThreatBig
-/// incident that targets the home map and has an mtbDaysByBiome row of the colony's biome fires at 1 ÷ its MTB a day
+/// incident that targets the home map and has an mtbDaysByBiome row of the colony's biome fires at 1 ÷ its MTB a day when its observed native worker gate allows it
 /// (<see cref="ByBiome"/>: the incidents of each biome that has a row).
 /// </summary>
 public sealed record ThreatBiomeComp(double MinDaysPassed, IReadOnlyDictionary<string, IReadOnlyList<ThreatBiomeIncident>> ByBiome);
@@ -209,8 +209,7 @@ public sealed record ThreatSchedule
             }
         }
 
-        // CategoryIndividualMTBByBiome fires an incident only when its worker CanFireNow; that gate is per worker class and unread.
-        var gated = new SortedSet<string>(StringComparer.Ordinal);
+        // CategoryIndividualMTBByBiome tests the native worker at its unforced default category parms after the MTB roll.
         foreach (var comp in threats.Biomes)
         {
             if (days < comp.MinDaysPassed || !comp.ByBiome.TryGetValue(threat.Biome, out var incidents))
@@ -225,9 +224,13 @@ public sealed record ThreatSchedule
                     return Unread("threat_comp_invalid:CategoryIndividualMTBByBiome");
                 }
 
-                perDay += 1 / incident.MtbDays;
-                raids += incident.Raid ? 1 / incident.MtbDays : 0;
-                gated.Add(incident.Incident);
+                var read = threat.BiomeIncidents.FirstOrDefault(r => r.Incident == incident.Incident)
+                    ?? throw new RequiredFactException("threat_biome_incident_unobserved:" + incident.Incident);
+                if (read.CanFire)
+                {
+                    perDay += 1 / incident.MtbDays;
+                    raids += incident.Raid ? 1 / incident.MtbDays : 0;
+                }
             }
         }
 
@@ -235,11 +238,6 @@ public sealed record ThreatSchedule
         if (threats.Unmodelled.Count > 0)
         {
             findings.Add("threat_comp_unmodelled:" + string.Join(",", threats.Unmodelled));
-        }
-
-        if (gated.Count > 0)
-        {
-            findings.Add("threat_biome_can_fire_unread:" + string.Join(",", gated));
         }
 
         return new ThreatSchedule

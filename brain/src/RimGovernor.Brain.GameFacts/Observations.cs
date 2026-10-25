@@ -5861,6 +5861,10 @@ public sealed record ThreatFacts
     [JsonConverter(typeof(EquatableArrayJsonConverter<ThreatIncidentRead>))]
     public required EquatableArray<ThreatIncidentRead> Generator { get; init; }
 
+    /// <summary>Every home-map ThreatBig incident with biome MTB rows, with its native CanFireNow result at this census's default, unforced category parms. A false result is a real block, not an unread worker.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<ThreatBiomeIncidentRead>))]
+    public required EquatableArray<ThreatBiomeIncidentRead> BiomeIncidents { get; init; }
+
     /// <summary>
     /// The def names of the world's factions that are hostile to the player and have a Combat pawn group maker: the factions a
     /// raid can come from (<c>AllFactionsVisible</c> where <c>HostileTo(Faction.OfPlayer)</c>). The raid composition decodes
@@ -5889,6 +5893,9 @@ public sealed record ThreatFacts
 /// RaidEnemy a faction that can be a group source (FactionCanBeGroupSource), for MechCluster Royalty and a mechanoid faction.
 /// </summary>
 public sealed record ThreatIncidentRead(string Incident, double Weight, bool CanFire);
+
+/// <summary>A biome incident's observed native legality. Future rates are conditional on this observed game state remaining unchanged.</summary>
+public sealed record ThreatBiomeIncidentRead(string Incident, bool CanFire);
 
 /// <summary>
 /// The colony facts a trader visit reads (#3869), read without changing game state: StorytellerUtility.AllyIncidentFraction for

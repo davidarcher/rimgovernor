@@ -17,6 +17,7 @@ public sealed class ThreatFactsTests
     {
         WealthItems = 1200, WealthBuildings = 3400, WealthPawns = 900, WealthTotal = 5500, RaidPoints = 310.5,
         Storyteller = "Randy", DaysPassed = 12.5, HostileFactions = ["Pirate"],
+        BiomeIncidents = [new("native-allowed", true), new("native-blocked", false)],
         Raids =
         [
             new RaidTrack
@@ -101,6 +102,7 @@ public sealed class ThreatFactsTests
     [InlineData("raids")]
     [InlineData("disease")]
     [InlineData("trade")]
+    [InlineData("biomeIncidents")]
     public void AThreatMissingAMemberDoesNotDecode(string member)
     {
         var facts = ColonyFactsCoreTests.Snapshot() with { Threat = new ThreatSection { Observed = Raided } };
