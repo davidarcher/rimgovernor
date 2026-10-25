@@ -66,7 +66,7 @@ public sealed partial record ForecastThermalExposure
                 // An untouched proposed room is still the observed physical location. Its absent
                 // future prerequisites must not erase known exposure from the no-investment baseline.
                 var untouched = false;
-                if (room is not null && projection is not null && Incomplete(projection))
+                if (room is not null && projection is ForecastShelterOutcome.Incomplete)
                 {
                     untouched = true;
                     foreach (var a in physical)
@@ -80,13 +80,14 @@ public sealed partial record ForecastThermalExposure
                 EquatableArray<ForecastTemperaturePoint> standing = room is null ? [] : ForecastShelterPolicy.Standing(room, horizon);
                 if (untouched && standing.Count > 0) Trajectory(spans, ref assessed, standing, from, end, min, max, shifts);
                 else if (room is null || untouched) Integrate(spans, ref assessed, from, end, cell.Temperature, cell.Temperature, min, max, shifts);
-                else if (projection is { TemperatureAtHorizon.IsKnown: true, CompleteAt.IsKnown: true })
+                else if (projection is ForecastShelterOutcome.Projected projected)
                 {
-                    if (from < projection.CompleteAt.Value && standing.Count > 0)
-                        Trajectory(spans, ref assessed, standing, from, Math.Min(end, projection.CompleteAt.Value), min, max, shifts);
-                    else if (from < projection.CompleteAt.Value && room!.Outdoors.TryGetValue(out var before))
-                        Integrate(spans, ref assessed, from, Math.Min(end, projection.CompleteAt.Value), before, before, min, max, shifts);
-                    Trajectory(spans, ref assessed, projection.Trajectory, from, end, min, max, shifts);
+                    // A projected room is estimated: before its shell completes it is as it stands, else open air at outdoors.
+                    if (from < projected.CompleteAt && standing.Count > 0)
+                        Trajectory(spans, ref assessed, standing, from, Math.Min(end, projected.CompleteAt), min, max, shifts);
+                    else if (from < projected.CompleteAt && room!.Thermal is ForecastShelterThermal.Estimated { Outdoors: var before })
+                        Integrate(spans, ref assessed, from, Math.Min(end, projected.CompleteAt), before, before, min, max, shifts);
+                    Trajectory(spans, ref assessed, projected.Trajectory, from, end, min, max, shifts);
                 }
             }
             // A tick at no located allocation (idle, transit, an unread cell) is at the last located temperature, else
@@ -145,11 +146,6 @@ public sealed partial record ForecastThermalExposure
         double At(double tick) => tick == from ? initial : tick == to ? final : initial + (final - initial) * (tick - from) / (to - from);
     }
 
-    private static bool Incomplete(ForecastShelterOutcome projection)
-    {
-        foreach (var finding in projection.Findings) if (finding == "incomplete_shelter_prerequisites") return true;
-        return false;
-    }
 
     private static double Area(double a, double b, double duration)
     {

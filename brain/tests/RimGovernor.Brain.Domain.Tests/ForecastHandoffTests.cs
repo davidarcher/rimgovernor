@@ -98,11 +98,11 @@ public sealed class ForecastHandoffTests
         var basis = request.Coupled!.ModelBasis!;
         request = request with { Coupled = request.Coupled with { ModelBasis = basis with { Input = basis.Input with
         { Pawns = [new() { Pawn = "pawn", Skills = [], ComfortableMin = 10d, ComfortableMax = 30d, Consciousness = 1, Moving = 1, Manipulation = 1, Sight = 1, Talking = 1, ResearchSpeed = 1, PlantWorkSpeed = 1, Hunts = false }] } },
-            Shelters = [new(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], ["research"], Known(0d), Known(5d), Known(.01),
+            Shelters = [new(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], ["research"], ShelterOutcomes.Estimated(0, 5, .01),
                 [new("heater", new(1, 1), false, .1, 20d, CoupledThermalTests.Powered(90000d))], [])] } };
         var commitment = new ForecastCommitment("warm", []) { ActivityCompletions = ["research"], ComfortShifts = [new("pawn", -5, 2)] };
         var outcome = Outcome() with { Findings = [new("thermal_relief_unassessed", "")],
-            ServedRooms = [new(1, "Wood", 50)], Shelters = [new(new(ForecastShelterSource.Planned, "1"), Known(50d), Known(20d), [], [])] };
+            ServedRooms = [new(1, "Wood", 50)], Shelters = [new ForecastShelterOutcome.Projected(new(ForecastShelterSource.Planned, "1"), 50, 20, [], [])] };
         var handoff = Handoff(request, new Dictionary<Resource, Fact<double>> { [Steel] = Known(20d), [Food] = Known(10d), [Medicine] = Known(3d) }, outcome,
             new Dictionary<string, ForecastCommitment> { [commitment.Id] = commitment });
         Assert.Empty(handoff.Gaps);
@@ -113,7 +113,7 @@ public sealed class ForecastHandoffTests
         Assert.Single(handoff.ServedRooms);
         Assert.Single(handoff.Shelters);
         var shelter = Assert.Single(handoff.ShelterPlans);
-        Assert.Equal(20, shelter.InitialTemperature.Value);
+        Assert.Equal(20, shelter.Estimated().InitialTemperature);
         Assert.Equal(30050, Assert.IsType<RimGovernor.Contracts.Wire.Observations.HeatSupply.Powered>(Assert.Single(shelter.Sources).Supply).Ticks);
         Assert.Empty(shelter.Prerequisites);
     }

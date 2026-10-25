@@ -39,7 +39,7 @@ public static class ForecastLiveEvidence
             var geometry = context.Shelters.FirstOrDefault(s => s.Room == shelter.Room);
             yield return Row(ForecastMetric.ShelterTemperature, shelter.Room.ToString(),
                 geometry is null ? "geometry_unavailable" : Geometry(geometry.Interior), "celsius",
-                Of(shelter.TemperatureAtHorizon, "temperature_prediction_unavailable"));
+                shelter is ForecastShelterOutcome.Projected projected ? new EvidenceValue.Valued(projected.TemperatureAtHorizon) : Unavailable("temperature_prediction_unavailable"));
         }
         foreach (var allocation in selection.Selected.Plan.Allocations)
         {

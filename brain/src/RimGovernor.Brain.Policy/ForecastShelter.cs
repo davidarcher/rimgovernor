@@ -15,8 +15,7 @@ internal sealed record ForecastShelterGeometry(ForecastShelterId Id, EquatableAr
 /// <summary>A shelter and every heat source inside it (#3679): each source pushes its own heat while the room is below its
 /// own target, its electric draw shares its network, and a fueled one's burn (#3673) is charged from the shell's completion.</summary>
 public sealed record ForecastShelterPlan(ForecastShelterId Room, EquatableArray<Cell> Interior,
-    EquatableArray<string> Prerequisites, Fact<double> InitialTemperature,
-    Fact<double> Outdoors, Fact<double> ExchangePerTick, EquatableArray<ThermalSource> Sources, EquatableArray<string> Findings)
+    EquatableArray<string> Prerequisites, ForecastShelterThermal Thermal, EquatableArray<ThermalSource> Sources, EquatableArray<string> Findings)
 {
     /// <summary>Each physical prerequisite needs one selected realization; distinct sites remain additive.</summary>
     public EquatableArray<EquatableArray<string>> AlternativePrerequisites { get; init; }
@@ -28,13 +27,36 @@ public sealed record ForecastShelterPlan(ForecastShelterId Room, EquatableArray<
     /// designated roof is finished even where the room already holds its heat, since thermal relief misses the open cells'
     /// heat loss and margin. A planned room still raised by placed construction is not requested development.</summary>
     public EquatableArray<EquatableArray<string>> RoofCells { get; init; }
-    /// <summary>The exchange of the room as it stands now, open roof cells at the game's no-roof rate (#3534): it holds the
-    /// room until its prerequisites finish. Unknown when the ring is open or unread; the room is then open air.</summary>
-    public Fact<double> StandingExchangePerTick { get; init; }
 }
-public sealed record ForecastShelterOutcome(ForecastShelterId Room, Fact<double> CompleteAt,
-    Fact<double> TemperatureAtHorizon, EquatableArray<ForecastTemperaturePoint> Trajectory,
-    EquatableArray<string> Findings);
+/// <summary>A shelter's heat balance inputs: estimated from its read cells, ring and the map's outdoors, or unestimated
+/// (its geometry or a source is unsupported, its cells or the shelter read are absent; the findings name why).</summary>
+public abstract record ForecastShelterThermal
+{
+    private protected ForecastShelterThermal() { }
+    /// <summary>The room's mean read temperature, the map's outdoors and the completed shell's exchange per cell per tick.</summary>
+    public sealed record Estimated(double InitialTemperature, double Outdoors, double ExchangePerTick, ForecastShelterStanding Standing)
+        : ForecastShelterThermal;
+    public sealed record Unestimated : ForecastShelterThermal;
+}
+/// <summary>The room as it stands now (#3534), which holds it until its prerequisites finish: enclosed behind a closed ring
+/// at its exchange (open roof cells at the game's no-roof rate), or open air.</summary>
+public abstract record ForecastShelterStanding
+{
+    private protected ForecastShelterStanding() { }
+    public sealed record Enclosed(double ExchangePerTick) : ForecastShelterStanding;
+    public sealed record Open : ForecastShelterStanding;
+}
+/// <summary>A shelter's projection in a schedule: incomplete (a prerequisite is not scheduled), unprojected (its shell completes
+/// at a tick but no temperature is projected; the findings name why, beyond the horizon among them), or projected.</summary>
+public abstract record ForecastShelterOutcome(ForecastShelterId Room, EquatableArray<string> Findings)
+{
+    public sealed record Incomplete(ForecastShelterId Room, EquatableArray<string> Findings) : ForecastShelterOutcome(Room, Findings);
+    public abstract record Scheduled(ForecastShelterId Room, double CompleteAt, EquatableArray<string> Findings) : ForecastShelterOutcome(Room, Findings);
+    public sealed record Unprojected(ForecastShelterId Room, double CompleteAt, EquatableArray<string> Findings)
+        : Scheduled(Room, CompleteAt, Findings);
+    public sealed record Projected(ForecastShelterId Room, double CompleteAt, double TemperatureAtHorizon,
+        EquatableArray<ForecastTemperaturePoint> Trajectory, EquatableArray<string> Findings) : Scheduled(Room, CompleteAt, Findings);
+}
 public sealed record ForecastTemperaturePoint(double Tick, double Temperature);
 
 public static class ForecastShelterPolicy
@@ -149,29 +171,25 @@ public static class ForecastShelterPolicy
         var findings = new SortedSet<string>(room.Findings, StringComparer.Ordinal)
         { "current_weather_and_power_constant", "closed_doors_thin_roof", "spatial_mean_exchange_estimate", "heater_full_efficiency_below_20C" };
         if (double.IsNaN(complete))
-            return new(room.Room, default, default, [], [.. findings, "incomplete_shelter_prerequisites"]);
-        if (complete > horizon) return new(room.Room, Known(complete), default, [], [.. findings, "shelter_beyond_horizon"]);
-        var known = room.InitialTemperature.IsKnown && room.Outdoors.IsKnown && room.ExchangePerTick.IsKnown
-            && room.Sources.Count != 0 && room.Interior.Count != 0;
-        if (!known)
-            return new(room.Room, Known(complete), default, [], [.. findings, "unknown_shelter_thermal_estimate"]);
+            return new ForecastShelterOutcome.Incomplete(room.Room, [.. findings, "incomplete_shelter_prerequisites"]);
+        if (complete > horizon) return new ForecastShelterOutcome.Unprojected(room.Room, complete, [.. findings, "shelter_beyond_horizon"]);
+        if (room.Thermal is not ForecastShelterThermal.Estimated { InitialTemperature: var temperature, Outdoors: var outside, ExchangePerTick: var loss }
+            || room.Sources.Count == 0 || room.Interior.Count == 0)
+            return new ForecastShelterOutcome.Unprojected(room.Room, complete, [.. findings, "unknown_shelter_thermal_estimate"]);
         // A source short of power, unconnected or burning unsteadily heats nothing the forecast can count on.
         if (room.Sources.Any(s => !HeatSupplies.Supplied(s.Supply, out _)))
-            return new(room.Room, Known(complete), default, [], [.. findings, "unsupplied_shelter_heat_source"]);
-        var outside = room.Outdoors.Value;
-        var temperature = room.InitialTemperature.Value;
-        var loss = room.ExchangePerTick.Value;
+            return new ForecastShelterOutcome.Unprojected(room.Room, complete, [.. findings, "unsupplied_shelter_heat_source"]);
         // Each source's heat per interior cell and its thermostat, at most the full-efficiency bound.
         var heats = room.Sources.Select(s => (Heat: s.HeatPerTick / room.Interior.Count, Target: Math.Min(20, s.TargetTemperature))).ToArray();
         if (!double.IsFinite(loss) || loss <= 0 || heats.Any(h => !double.IsFinite(h.Heat) || h.Heat < 0 || !double.IsFinite(h.Target))
             || temperature > 20 || outside > 20 || Math.Abs(outside - temperature) > 100)
-            return new(room.Room, Known(complete), default, [], [.. findings, "unsupported_shelter_temperature_regime"]);
+            return new ForecastShelterOutcome.Unprojected(room.Room, complete, [.. findings, "unsupported_shelter_temperature_regime"]);
         if (room.Sources.Any(s => HeatSupplies.Supplied(s.Supply, out var ticks) && ticks < horizon - complete))
-            return new(room.Room, Known(complete), default, [], [.. findings, "shelter_energy_runs_out"]);
+            return new ForecastShelterOutcome.Unprojected(room.Room, complete, [.. findings, "shelter_energy_runs_out"]);
         // Until the shell completes the room is as it stands, else open air at the observed current outdoor temperature.
         if (complete > 0) temperature = Standing(room, horizon) is { Count: > 0 } standing ? TemperatureAt(standing, complete) : outside;
         var points = Project(temperature, complete, horizon, outside, loss, heats);
-        return new(room.Room, Known(complete), Known(points[^1].Temperature), EquatableArray.From(points), EquatableArray.From(findings));
+        return new ForecastShelterOutcome.Projected(room.Room, complete, points[^1].Temperature, EquatableArray.From(points), EquatableArray.From(findings));
     }
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastShelterPlan,
@@ -179,15 +197,16 @@ public static class ForecastShelterPolicy
 
     /// <summary>
     /// The room as it stands from tick 0 to <paramref name="horizon"/> (#3534): its observed temperature relaxing to
-    /// outdoors at its <see cref="ForecastShelterPlan.StandingExchangePerTick"/>, heated by its complete sources. Empty when
-    /// the standing exchange is unknown, a complete source is not supplied over the horizon, or outside the heater's
+    /// outdoors at its <see cref="ForecastShelterStanding.Enclosed"/> exchange, heated by its complete sources. Empty when
+    /// the room is unestimated or open air, a complete source is not supplied over the horizon, or outside the heater's
     /// full-efficiency regime.
     /// </summary>
     internal static EquatableArray<ForecastTemperaturePoint> Standing(ForecastShelterPlan room, double horizon) =>
         Standings.GetValue(room, static _ => new()).GetOrAdd(horizon, h =>
         {
-            if (!room.InitialTemperature.TryGetValue(out var temperature) || !room.Outdoors.TryGetValue(out var outside)
-                || !room.StandingExchangePerTick.TryGetValue(out var loss) || !double.IsFinite(loss) || loss <= 0 || room.Interior.Count == 0
+            if (room.Thermal is not ForecastShelterThermal.Estimated { InitialTemperature: var temperature, Outdoors: var outside,
+                    Standing: ForecastShelterStanding.Enclosed { ExchangePerTick: var loss } }
+                || !double.IsFinite(loss) || loss <= 0 || room.Interior.Count == 0
                 || temperature > 20 || outside > 20 || Math.Abs(outside - temperature) > 100) return [];
             var heats = new List<(double Heat, double Target)>();
             foreach (var s in room.Sources)

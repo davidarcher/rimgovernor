@@ -146,10 +146,10 @@ public sealed class ForecastLiveEvidenceTests
     public void ShelterMatchingRequiresSameGeometryAndActualCompleteTemperatureCoverage()
     {
         var room = new ForecastShelterId(ForecastShelterSource.Observed, "room");
-        var geometry = new ForecastShelterPlan(room, [new(1, 1), new(1, 2)], [], Known(20d), default, default, [], []);
+        var geometry = new ForecastShelterPlan(room, [new(1, 1), new(1, 2)], [], new ForecastShelterThermal.Unestimated(), [], []);
         var context = Context(100) with { Shelters = [geometry] };
         var selected = Selection();
-        selected = selected with { Selected = selected.Selected with { Shelters = [new(room, Known(0d), Known(21d), [], [])] } };
+        selected = selected with { Selected = selected.Selected with { Shelters = [new ForecastShelterOutcome.Projected(room, 0, 21, [], [])] } };
         var prediction = ForecastLiveEvidence.Predictions("run", "load", "1", "review", 100, selected, context,
             ForecastAdmission.Admitted, [Batch], "method").Single(p => p.Key.Metric == ForecastMetric.ShelterTemperature);
         ThermalCell Cell(int z) => new(new(1, z), 23d, "roof", false, false, "", false, false, 0, false);

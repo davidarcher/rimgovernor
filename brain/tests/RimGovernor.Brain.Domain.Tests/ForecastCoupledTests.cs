@@ -219,22 +219,22 @@ public sealed class ForecastCoupledTests
         const double loss = .001, outdoors = -10;
         var heater = Heater(.025, 20) with { Supply = CoupledThermalTests.Powered(1e6) };
         var torch = new ThermalSource("torch", new(1, 1), true, .01, 10.0, new HeatSupply.Burning("WoodLog", .001));
-        var room = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], [], Known(outdoors), Known(outdoors), Known(loss), [heater, torch], []);
+        var room = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], [], ShelterOutcomes.Estimated(outdoors, outdoors, loss), [heater, torch], []);
         var result = ForecastShelterPolicy.ForecastShelter(room, new([], 0, 0), 20000);
         // Below 10 C both push: the room relaxes toward -10 + (.025 + .01) / .001 = 25 C.
         var summed = 25 + (outdoors - 25) * Math.Exp(-loss * 840);
         Assert.True(summed < 10);
-        Assert.Equal(summed, result.Trajectory.Single(p => p.Tick == 840).Temperature, 9);
+        Assert.Equal(summed, result.Projected().Trajectory.Single(p => p.Tick == 840).Temperature, 9);
         // Above it only the heater pushes, toward -10 + .025 / .001 = 15 C, under its own 20 C target.
-        Assert.Equal(15, result.TemperatureAtHorizon.Value, 6);
-        Assert.All(result.Trajectory, p => Assert.True(p.Temperature <= 15 + 1e-9));
+        Assert.Equal(15, result.Projected().TemperatureAtHorizon, 6);
+        Assert.All(result.Projected().Trajectory, p => Assert.True(p.Temperature <= 15 + 1e-9));
         // A source that is not supplied (an unsteady burn) is named, never priced as heat.
         Assert.Contains("unsupplied_shelter_heat_source", ForecastShelterPolicy.ForecastShelter(
             room with { Sources = [heater, torch with { Supply = new HeatSupply.UnsteadyBurn() }] }, new([], 0, 0), 20000).Findings);
         // A weak heater above a strong torch's target: the room holds at the torch's target.
         var held = ForecastShelterPolicy.ForecastShelter(room with { Sources = [heater with { HeatPerTick = .015 }, torch with { HeatPerTick = .02 }] },
             new([], 0, 0), 20000);
-        Assert.Equal(10, held.TemperatureAtHorizon.Value, 9);
+        Assert.Equal(10, held.Projected().TemperatureAtHorizon, 9);
     }
 
     [Theory]
@@ -242,33 +242,33 @@ public sealed class ForecastCoupledTests
     [InlineData(15, 18)]
     public void HeaterTargetNeverProvidesArtificialCooling(double initial, double outdoors)
     {
-        var room = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], [], Known(initial), Known(outdoors), Known(.001), [Heater(.35, 15.0)], []);
+        var room = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], [], ShelterOutcomes.Estimated(initial, outdoors, .001), [Heater(.35, 15.0)], []);
         var result = ForecastShelterPolicy.ForecastShelter(room, new([], 0, 0), 300);
-        Assert.True(result.TemperatureAtHorizon.Value >= Math.Min(initial, outdoors));
-        Assert.True(result.TemperatureAtHorizon.Value > 15);
+        Assert.True(result.Projected().TemperatureAtHorizon >= Math.Min(initial, outdoors));
+        Assert.True(result.Projected().TemperatureAtHorizon > 15);
     }
 
     [Fact]
     public void TwoHeatersCannotIndependentlySpendOneObservedNetworkSurplus()
     {
         var heater = Heater(.35, 20.0) with { Target = "heater1", Supply = new HeatSupply.Powered("net", 100.0, 150.0, 1000.0) };
-        var first = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], [], Known(-10.0), Known(-10.0), Known(.0001), [heater], []);
-        Assert.True(ForecastShelterPolicy.ForecastShelters([first], new([], 0, 0), 300).Single().TemperatureAtHorizon.IsKnown);
+        var first = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], [], ShelterOutcomes.Estimated(-10.0, -10.0, .0001), [heater], []);
+        Assert.True(ForecastShelterPolicy.ForecastShelters([first], new([], 0, 0), 300).Single().IsProjected());
         var result = ForecastShelterPolicy.ForecastShelters([first, first with { Room = new(ForecastShelterSource.Planned, "2"), Sources = [heater with { Target = "heater2" }] }], new([], 0, 0), 300);
-        Assert.All(result, r => Assert.False(r.TemperatureAtHorizon.IsKnown));
+        Assert.All(result, r => Assert.False(r.IsProjected()));
         Assert.All(result, r => Assert.Contains("shared_power_capacity_shortfall", r.Findings));
     }
 
     [Fact]
     public void ShelterProjectionsAreSharedOnlyAcrossSchedulesThatCompleteTheShellAtOneTick()
     {
-        var room = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], ["wall"], Known(-10.0), Known(-10.0), Known(.0001), [Heater(.35, 20.0)], []);
+        var room = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], ["wall"], ShelterOutcomes.Estimated(-10.0, -10.0, .0001), [Heater(.35, 20.0)], []);
         static ForecastActivityPlan Wall(double end) => new([new("wall", "pawn", 0, 0, 0, end, 0, 0, end, end, 0)], end, end);
         var early = ForecastShelterPolicy.ForecastShelters([room], Wall(60), 300).Single();
         var late = ForecastShelterPolicy.ForecastShelters([room], Wall(120), 300).Single();
         Assert.Equal(ForecastShelterPolicy.ForecastShelter(room, Wall(60), 300), early);
         Assert.Equal(ForecastShelterPolicy.ForecastShelter(room, Wall(120), 300), late);
-        Assert.Equal((Known(60.0), Known(120.0)), (early.CompleteAt, late.CompleteAt));
+        Assert.Equal((60.0, 120.0), (early.Scheduled().CompleteAt, late.Scheduled().CompleteAt));
         Assert.Same(early, ForecastShelterPolicy.ForecastShelters([room], Wall(60) with { LaborCost = 7 }, 300).Single());
         Assert.Contains("incomplete_shelter_prerequisites", ForecastShelterPolicy.ForecastShelters([room], new([], 0, 0), 300).Single().Findings);
     }
@@ -314,11 +314,11 @@ public sealed class ForecastCoupledTests
         Assert.Equal(10, shelter.ActivityCompletions.Count);
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1000.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var forecast = CoupledForecastKit.Forecast(request, [shelter]);
-        Assert.False(forecast.Baseline.Coupled!.Alternatives.Single().Shelters.Single().TemperatureAtHorizon.IsKnown);
+        Assert.False(forecast.Baseline.Coupled!.Alternatives.Single().Shelters.Single().IsProjected());
         var projected = forecast.Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true)).Shelters.Single();
-        Assert.True(projected.CompleteAt.Value >= 95);
-        Assert.Equal(-10, projected.Trajectory[0].Temperature);
-        Assert.True(projected.TemperatureAtHorizon.Value > 16);
+        Assert.True(projected.Scheduled().CompleteAt >= 95);
+        Assert.Equal(-10, projected.Projected().Trajectory[0].Temperature);
+        Assert.True(projected.Projected().TemperatureAtHorizon > 16);
     }
     [Fact]
     public void ExistingFoodBatchesPreserveEarlyMealSchedulesAndExactIterationOutputs()
@@ -358,7 +358,7 @@ public sealed class ForecastCoupledTests
     {
         var facts = Review();
         var context = facts.CoupledAlternatives!.Context;
-        var room = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], [], Known(-10.0), Known(-10.0), Known(.0001), [Heater(.35, 20.0)], []);
+        var room = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], [], ShelterOutcomes.Estimated(-10.0, -10.0, .0001), [Heater(.35, 20.0)], []);
         context = context with
         {
             Shelters = [room],

@@ -489,7 +489,7 @@ public static class ForecastHousing
     private static double PlannedSleepTemperature(int room, ForecastCoupledOutcome outcome, ForecastCoupledContext context)
     {
         if (context.Shelters.FirstOrDefault(s => s.PlannedRoom == room) is { } plan
-            && outcome.Shelters.FirstOrDefault(s => s.Room == plan.Room) is { } shelter && shelter.TemperatureAtHorizon.TryGetValue(out var held)) return held;
+            && outcome.Shelters.FirstOrDefault(s => s.Room == plan.Room) is ForecastShelterOutcome.Projected { TemperatureAtHorizon: var held }) return held;
         return context.Thermal?.Outdoors ?? throw new RequiredFactException("sleep temperature of planned room " + room.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 }

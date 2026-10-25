@@ -482,7 +482,7 @@ public static partial class ForecastValue
 
         if (index.Fueled.Count != 0)
             foreach (var shelter in outcome.Shelters)
-                if (index.Fueled.TryGetValue(shelter.Room, out var fueled) && shelter.CompleteAt.TryGetValue(out var complete))
+                if (index.Fueled.TryGetValue(shelter.Room, out var fueled) && shelter is ForecastShelterOutcome.Scheduled { CompleteAt: var complete })
                     foreach (var source in fueled) Material(source.Target, "", new(source.Burn.Fuel), source.Burn.FuelPerTick * (horizon - complete));
 
         foreach (var allocation in outcome.Plan.Allocations)

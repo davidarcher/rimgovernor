@@ -135,12 +135,18 @@ public static class ForecastHandoffPolicy
                 Medicine = medicineRows, ExternalHolds = holdRows, Projects = EquatableArray.From(nodes.Select(n => projects[n.Id])), Pawns = pawns };
             if (state.Gap(projected.Graph) is { } gap) gaps.Add(gap);
         }
-        var shelterPlans = EquatableArray.From(context.Shelters.Where(p => outcome.Shelters.Any(s => s.Room == p.Room && s.CompleteAt.IsKnown))
-            .Select(p => p with { InitialTemperature = outcome.Shelters.Single(s => s.Room == p.Room).TemperatureAtHorizon,
-                Prerequisites = [], AlternativePrerequisites = [], RoofCells = [], StandingExchangePerTick = p.ExchangePerTick,
-                Sources = EquatableArray.From(p.Sources.Select(s => s with { Complete = true,
-                    Supply = HeatSupplies.After(s.Supply,
-                        day * GameTime.TicksPerDay - outcome.Shelters.Single(o => o.Room == p.Room).CompleteAt.Value) })) }));
+        // A shelter whose shell completes carries on as a standing, closed room at its projected temperature; one with no
+        // projected temperature carries on unestimated.
+        var shelterPlans = EquatableArray.From(context.Shelters
+            .Select(p => (Plan: p, Outcome: outcome.Shelters.SingleOrDefault(s => s.Room == p.Room) as ForecastShelterOutcome.Scheduled))
+            .Where(p => p.Outcome is not null)
+            .Select(p => p.Plan with {
+                Thermal = (p.Plan.Thermal, p.Outcome) is (ForecastShelterThermal.Estimated estimated, ForecastShelterOutcome.Projected projected)
+                    ? estimated with { InitialTemperature = projected.TemperatureAtHorizon, Standing = new ForecastShelterStanding.Enclosed(estimated.ExchangePerTick) }
+                    : new ForecastShelterThermal.Unestimated(),
+                Prerequisites = [], AlternativePrerequisites = [], RoofCells = [],
+                Sources = EquatableArray.From(p.Plan.Sources.Select(s => s with { Complete = true,
+                    Supply = HeatSupplies.After(s.Supply, day * GameTime.TicksPerDay - p.Outcome!.CompleteAt) })) }));
         return new(day, start.EndDay, state, EquatableArray.From(needs), EquatableArray.From(dates), EquatableArray.From(gaps))
         { Graph = projected.Graph, ActiveEffects = active, Shelters = outcome.Shelters, ShelterPlans = shelterPlans, ServedRooms = outcome.ServedRooms };
     }

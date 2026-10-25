@@ -190,20 +190,20 @@ internal static class CoupledShelterCandidates
                 }
             var valid = notes.All(n => n == "roof_per_cell_labor_conservative_native_jobs_may_cover_neighbors");
             var cells = interior.Where(observed.ContainsKey).Select(c => observed[c]).ToArray();
-            var temperature = valid && cells.Length != 0 ? Known(cells.Average(c => c.Temperature)) : default;
-            Fact<double> exchange = default, standing = default;
-            if (valid && read is not null)
+            ForecastShelterThermal thermal = new ForecastShelterThermal.Unestimated();
+            if (valid && read is not null && cells.Length != 0)
             {
                 var walls = (ring.Count * read.WallExchangePerTick + ring.Where(observed.ContainsKey).Sum(c => observed[c].DoorExchangePerTick * .5)) / interior.Count;
-                exchange = Known(read.ThinRoofExchangePerTick + walls);
                 // The room as it stands (#3534) holds only behind a closed ring; its roof terms are RoomTempTracker's coverage
                 // terms, each open cell at the no-roof rate and the rest at the thin-roof rate.
                 var open = cells.Count(c => c.Roof == "none");
-                standing = ring.All(c => observed.TryGetValue(c, out var row) && row.Solid && !row.DoorHeldOpen)
-                    ? Known((read.ThinRoofExchangePerTick * (interior.Count - open) + read.NoRoofExchangePerTick * open) / interior.Count + walls) : default;
+                ForecastShelterStanding standing = ring.All(c => observed.TryGetValue(c, out var row) && row.Solid && !row.DoorHeldOpen)
+                    ? new ForecastShelterStanding.Enclosed((read.ThinRoofExchangePerTick * (interior.Count - open) + read.NoRoofExchangePerTick * open) / interior.Count + walls)
+                    : new ForecastShelterStanding.Open();
+                thermal = new ForecastShelterThermal.Estimated(cells.Average(c => c.Temperature), read.Outdoors, read.ThinRoofExchangePerTick + walls, standing);
             }
-            plans.Add(new(room.Id, interior, [], temperature, read is null ? default : Known(read.Outdoors), exchange, EquatableArray.From(sources), EquatableArray.From(notes.Distinct()))
-                { AlternativePrerequisites = EquatableArray.From(groups), PlannedRoom = developmentRoom, StandingExchangePerTick = standing,
+            plans.Add(new(room.Id, interior, [], thermal, EquatableArray.From(sources), EquatableArray.From(notes.Distinct()))
+                { AlternativePrerequisites = EquatableArray.From(groups), PlannedRoom = developmentRoom,
                     RoofCells = developmentRoom == 0 ? [] : EquatableArray.From(roofCells) });
             if (demands.Count != 0) roots.Add("shelter/" + room.Id, EquatableArray.From(demands));
         }

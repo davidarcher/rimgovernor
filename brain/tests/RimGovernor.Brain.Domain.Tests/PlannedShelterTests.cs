@@ -244,7 +244,7 @@ public sealed class PlannedShelterTests
         var result = Select(facts);
         Assert.True(result.Selected.StationaryThermalRelief.Value > 0, Why(facts, result));
         var shelter = Assert.Single(result.Selected.Shelters);
-        Assert.True(shelter.CompleteAt.Value < Horizon, Why(facts, result));
+        Assert.True(shelter.Scheduled().CompleteAt < Horizon, Why(facts, result));
         // The shell and roof are builder work in the same schedule as the pawn's rest.
         var finishes = candidates.Context.PlannedSites.Where(s => s.Site is "planned/room1/wall/WoodLog" or "planned/room1/door/WoodLog" or "planned/room1/roof")
             .SelectMany(s => s.Finishes).ToHashSet(StringComparer.Ordinal);
@@ -277,7 +277,7 @@ public sealed class PlannedShelterTests
         Assert.Equal(4, result.Selected.RequestedDevelopment.Count);
         Assert.Equal(0, result.SelectedVector.Development);
         var shelter = Assert.Single(result.Selected.Shelters);
-        Assert.True(shelter.CompleteAt.Value < Horizon, Why(facts, result));
+        Assert.True(shelter.Scheduled().CompleteAt < Horizon, Why(facts, result));
         // Shell, roof and heater are the one builder's work in the same schedule as the pawn's rest.
         var finishes = candidates.Context.PlannedSites.Where(s => s.Site is "planned/room1/wall/WoodLog" or "planned/room1/door/WoodLog"
             or "planned/room1/roof" or HeaterSite).SelectMany(s => s.Finishes).ToHashSet(StringComparer.Ordinal);
@@ -311,10 +311,10 @@ public sealed class PlannedShelterTests
 
         var result = Select(facts);
         var shelter = Assert.Single(result.Selected.Shelters);
-        Assert.True(shelter.TemperatureAtHorizon.IsKnown, Why(facts, result));
+        Assert.True(shelter.IsProjected(), Why(facts, result));
         Assert.True(result.Selected.StationaryThermalRelief is { IsKnown: true, Value: > 0 }, Why(facts, result));
         var row = Assert.Single(ForecastValue.Of(result.Selected, alternatives.Context, Horizon).InvestmentContributions, r => r.Key == "material/WoodLog");
-        var units = burn * (Horizon - shelter.CompleteAt.Value);
+        var units = burn * (Horizon - shelter.Scheduled().CompleteAt);
         Assert.Equal((CampfireSite, ""), (row.Activity, row.Pawn));
         Assert.Equal(units, row.Units, 12);
         Assert.Equal(units * perLog, row.Value, 12);
@@ -356,10 +356,10 @@ public sealed class PlannedShelterTests
 
         var result = Select(facts);
         var shelter = Assert.Single(result.Selected.Shelters);
-        Assert.True(shelter.TemperatureAtHorizon.IsKnown, Why(facts, result));
+        Assert.True(shelter.IsProjected(), Why(facts, result));
         var rows = ForecastValue.Of(result.Selected, alternatives.Context, Horizon).InvestmentContributions.Where(r => r.Key.StartsWith("material/", StringComparison.Ordinal)
             && r.Pawn.Length == 0).OrderBy(r => r.Activity, StringComparer.Ordinal).ToArray();
-        var remaining = Horizon - shelter.CompleteAt.Value;
+        var remaining = Horizon - shelter.Scheduled().CompleteAt;
         Assert.Equal([(CampfireSite, "material/WoodLog"), (lampSite, "material/Chemfuel")], rows.Select(r => (r.Activity, r.Key)));
         Assert.Equal(burn * remaining, rows[0].Units, 12);
         Assert.Equal(burn * remaining * .01, rows[0].Value, 12);
@@ -511,7 +511,7 @@ public sealed class PlannedShelterTests
         Assert.True(result.Selected.StationaryThermalRelief is { IsKnown: true, Value: > 0 }, Why(facts, result)
             + " | SEL " + string.Join(",", result.Selection.Selected));
         Assert.Equal(["planned/room1/door/WoodLog", "planned/room1/roof", "planned/room1/wall/WoodLog"], result.Selected.RequestedDevelopment);
-        Assert.True(Assert.Single(result.Selected.Shelters).CompleteAt.Value < Horizon, Why(facts, result));
+        Assert.True(Assert.Single(result.Selected.Shelters).Scheduled().CompleteAt < Horizon, Why(facts, result));
         Assert.Contains(result.Selected.Plan.Allocations, a => a.Activity == roof.Id);
     }
 }

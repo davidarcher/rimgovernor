@@ -16,7 +16,7 @@ public static class ForecastHandoffReader
         ["state_read"] = handoff.State is not null,
         ["graph_nodes"] = handoff.Graph.Nodes.Count,
         ["active_outfits"] = handoff.ActiveEffects.Sum(c => c.Effect.OutfitChanges.Count),
-        ["shelters"] = handoff.Shelters.Count(s => s.CompleteAt.IsKnown),
+        ["shelters"] = handoff.Shelters.Count(s => s is ForecastShelterOutcome.Scheduled),
         ["shelter_mechanics"] = handoff.ShelterPlans.Count,
         ["served_rooms"] = handoff.ServedRooms.Count,
         ["needs_known"] = handoff.Needs.Count(n => n.Level.IsKnown), ["needs"] = handoff.Needs.Count,

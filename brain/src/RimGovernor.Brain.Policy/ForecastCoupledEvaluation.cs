@@ -960,7 +960,7 @@ public static partial class ForecastCoupled
                         unchangedUse[p] = unchanged.Pawn + "/" + Math.Round(unchanged.AssessedTicks);
                     }
                     unassessed = "thermal_relief_unassessed:changed=" + string.Join(",", changedUse) + ";unchanged=" + string.Join(",", unchangedUse) + ";shelters="
-                        + string.Join(",", shelters.Select(s => (s.CompleteAt.IsKnown ? "c" : "-") + (s.TemperatureAtHorizon.IsKnown ? "t" : "-") + ":" + string.Join("|", s.Findings)));
+                        + string.Join(",", shelters.Select(s => (s is ForecastShelterOutcome.Scheduled ? "c" : "-") + (s is ForecastShelterOutcome.Projected ? "t" : "-") + ":" + string.Join("|", s.Findings)));
                 }
                 reliefByUse.Add(reliefKey, relief = new(reliefKnown ? Known(unchangedTicks - changedTicks) : default, unassessed));
             }

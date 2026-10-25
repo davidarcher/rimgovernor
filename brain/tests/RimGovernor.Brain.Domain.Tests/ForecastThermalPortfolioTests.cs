@@ -71,7 +71,7 @@ public sealed class ForecastThermalPortfolioTests
         Assert.Equal(0, result.Selected.ThermalExposure.Single().UnknownTicks);
         // Without the bed the pawn's rest reaches zero; the bed (with the shelter's relief on top) does not.
         Assert.True(result.SelectedVector.Value.UrgentZero.Excess < result.BaselineVector.Value.UrgentZero.Excess);
-        Assert.True(result.Selected.Shelters.Single().CompleteAt.Value < 200);
+        Assert.True(result.Selected.Shelters.Single().Scheduled().CompleteAt < 200);
     }
 
     [Fact]

@@ -43,7 +43,7 @@ public sealed class ObservedShelterTests
         var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(Facts(), 300));
         var observed = generated.Context.Shelters.Single(r => r.Room.Source == ForecastShelterSource.Observed);
         Assert.Equal("room-7", observed.Room.Value);
-        Assert.True(observed.InitialTemperature.IsKnown);
+        observed.Estimated();
         Assert.Equal(2, observed.AlternativePrerequisites.Count);
         Assert.Contains(generated.Alternatives, a => a.ExclusiveOutcome == "shelter/observed/room-7");
         Assert.Contains(generated.Context.Shelters, r => r.Room == new ForecastShelterId(ForecastShelterSource.Planned, "7"));
@@ -116,14 +116,15 @@ public sealed class ObservedShelterTests
             facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with { Thermal = thermal } } };
             return ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300)!.Context.Shelters.Single(r => r.Room.Source == ForecastShelterSource.Observed);
         }
+        static double Enclosed(ForecastShelterPlan room) => Assert.IsType<ForecastShelterStanding.Enclosed>(room.Estimated().Standing).ExchangePerTick;
         var leaky = Standing(true); var roofed = Standing(false);
         // RoomTempTracker's roof coverage terms: an open cell exchanges at 0.0007 a tick against 0.00005 under thin roof.
-        Assert.Equal(2d / 6 * (.0007 - .00005), leaky.StandingExchangePerTick.Value - roofed.StandingExchangePerTick.Value, 12);
+        Assert.Equal(2d / 6 * (.0007 - .00005), Enclosed(leaky) - Enclosed(roofed), 12);
         // The finished shelter is thin-roofed either way.
-        Assert.Equal(roofed.ExchangePerTick.Value, leaky.ExchangePerTick.Value, 12);
+        Assert.Equal(roofed.Estimated().ExchangePerTick, leaky.Estimated().ExchangePerTick, 12);
         var horizon = 2400d;
         foreach (var room in new[] { leaky, roofed })
-            Assert.Equal(-10 + 30 * Math.Exp(-room.StandingExchangePerTick.Value * horizon),
+            Assert.Equal(-10 + 30 * Math.Exp(-Enclosed(room) * horizon),
                 ForecastShelterPolicy.Standing(room, horizon)[^1].Temperature, 9);
         Assert.True(ForecastShelterPolicy.Standing(leaky, horizon)[^1].Temperature < ForecastShelterPolicy.Standing(roofed, horizon)[^1].Temperature - 1);
     }
@@ -140,7 +141,7 @@ public sealed class ObservedShelterTests
             { Thermal = facts.ForecastObserved.Coupled!.Thermal! with { Sources = [] } } } };
         generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300));
         var room = generated.Context.Shelters.Single(r => r.Room.Source == ForecastShelterSource.Observed);
-        Assert.False(room.InitialTemperature.IsKnown);
+        Assert.IsType<ForecastShelterThermal.Unestimated>(room.Thermal);
         Assert.Contains("unknown_heat_source", room.Findings);
     }
 
