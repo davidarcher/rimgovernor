@@ -21,7 +21,10 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
                     new(i.GetProperty("X").GetInt32(), i.GetProperty("Z").GetInt32()), i.Str("Provenance"))
                     { Observed = i.GetProperty("Observed").GetBoolean(),
                         Producers = EquatableArray.From(i.GetProperty("Producers").EnumerateArray().Select(p => p.GetString()!)) })),
-                Source = ReadCell(t.GetProperty("Source")),
+                // The old flat task used null to mean its Location, including stationary work.
+                Source = t.GetProperty("Source") is { ValueKind: JsonValueKind.Null }
+                    ? new(t.GetProperty("X").GetInt32(), t.GetProperty("Z").GetInt32())
+                    : ReadCell(t.GetProperty("Source")),
                 PriorSteps = EquatableArray.From(t.GetProperty("PriorSteps").EnumerateArray().Select(ReadStep)),
                 UseUntilTick = t.GetProperty("UseUntilTick").GetInt64() }))) };
         value.Validate(); return value;
@@ -44,7 +47,9 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
         if (step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Approach
             || step.Kind == PawnActivityKind.Work && step.Job is "BuildRoof" or "Sow")
             return step.At(ReadCell(e.GetProperty("Destination")));
-        if (e.TryGetProperty("Destination", out _)) throw new JsonException("A non-cell activity cannot carry a destination");
+        // Old flat steps wrote Destination: null for every non-cell kind.
+        if (e.TryGetProperty("Destination", out var destination) && destination.ValueKind != JsonValueKind.Null)
+            throw new JsonException("A non-cell activity cannot carry a destination");
         return step;
     }
     private static PawnActivityPractice? ReadPractice(JsonElement e) => e.ValueKind == JsonValueKind.Null ? null

@@ -11,7 +11,10 @@ Exact cell assignments use `CellActivityStep`, which carries a required canonica
 steps cannot carry a destination. The candidate form follows the same distinction,
 and binding, continuation, native execution and claim projection retain it. The
 journal derives the form from the existing kind and job and stores a destination
-only for cell steps. Native wire JSON preserves the concrete step type.
+only for cell steps. The journal codec also reads the former flat shape: a null
+destination denotes a non-cell step, and a null task source denotes its stored
+location. Exact destinations remain required on cell steps. Native wire JSON
+preserves the concrete step type and requires exact cells.
 
 Every selected task carries its exact source/approach location. It is the task's
 location for stationary work and ordinary delivery; construction Supply names the

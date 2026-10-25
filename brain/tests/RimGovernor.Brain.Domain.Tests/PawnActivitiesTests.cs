@@ -7,6 +7,73 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class PawnActivitiesTests
 {
     [Fact]
+    public void LegacyFlatJournalMapsNullCellsWithoutLosingExactBindings()
+    {
+        var source = new Cell(4, 5);
+        var site = new Cell(20, 21);
+        var work = new PawnActivityStep(PawnActivityKind.Work, "wall", "ConstructFinishFrames", "FinishFrame", 0, 500);
+        var supply = new PawnActivityStep(PawnActivityKind.Supply, "steel", "", "", 3, 500) { Container = "wall" };
+        var roof = new PawnActivityStep(PawnActivityKind.Work, "roof", "BuildRoofs", "BuildRoof", 0, 500).At(site);
+        var sow = new PawnActivityStep(PawnActivityKind.Work, "field", "GrowerSow", "Sow", 1, 500).At(site);
+        var prior = new PawnActivityStep(PawnActivityKind.Work, "wall", "RemoveRoofs", "RemoveRoof", 1, 500) { Cells = [site] };
+        var steps = Batch().Orders[0].Steps.Concat(new PawnActivityStep[]
+        {
+            work, supply, roof, sow,
+            new PawnActivityStep(PawnActivityKind.Approach, "", "", "", 0, 500).At(source),
+            new(PawnActivityKind.Sleep, "bed", "", "", 0, 500),
+            new(PawnActivityKind.Recreation, "chess", "", "", 0, 500)
+        }).ToArray();
+        var batch = new PawnActivities(1, [new("pawn", "assignment", "method", 0, 1, false, steps)])
+        {
+            Tasks = [
+                new("build", "pawn", [], work, site, 0) { PriorSteps = [prior] },
+                new("supply", "pawn", [], supply, site, 0) { Source = source },
+                new("deliver", "pawn", [], steps[2], source, 0) { Source = source }
+            ]
+        };
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream)) Codecs.Default.Write(writer, batch);
+        var legacy = System.Text.Json.Nodes.JsonNode.Parse(stream.ToArray())!;
+        void FlatStep(System.Text.Json.Nodes.JsonNode step)
+        {
+            if (!step.AsObject().ContainsKey("Destination")) step["Destination"] = null;
+        }
+        foreach (var step in legacy["Orders"]![0]!["Steps"]!.AsArray()) FlatStep(step!);
+        foreach (var task in legacy["Tasks"]!.AsArray())
+        {
+            FlatStep(task!["Step"]!);
+            foreach (var step in task["PriorSteps"]!.AsArray()) FlatStep(step!);
+        }
+        legacy["Tasks"]![0]!["Source"] = null;
+        using var doc = JsonDocument.Parse(legacy.ToJsonString());
+        var stored = Codecs.Default.Read<PawnActivities>(doc.RootElement);
+        Assert.True(PawnActivities.SameOrder(batch.Orders[0], stored.Orders[0]));
+        Assert.Equal(batch.Tasks.ToArray(), stored.Tasks.ToArray());
+        Assert.Equal(site, stored.Tasks[0].Source);
+        Assert.Equal(source, stored.Tasks[1].Source);
+        Assert.Equal(source, stored.Tasks[2].Source);
+        using var rewritten = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(rewritten)) Codecs.Default.Write(writer, stored);
+        using var current = JsonDocument.Parse(rewritten.ToArray());
+        Assert.False(current.RootElement.GetProperty("Orders")[0].GetProperty("Steps")[0].TryGetProperty("Destination", out _));
+        Assert.Equal(20, current.RootElement.GetProperty("Tasks")[0].GetProperty("Source").GetProperty("X").GetInt32());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void JournalRejectsMissingOrNullDestinationOnCellSteps(bool missing)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream)) Codecs.Default.Write(writer, Batch());
+        var json = System.Text.Json.Nodes.JsonNode.Parse(stream.ToArray())!;
+        var step = json["Orders"]![0]!["Steps"]![2]!.AsObject();
+        if (missing) step.Remove("Destination"); else step["Destination"] = null;
+        using var doc = JsonDocument.Parse(json.ToJsonString());
+        Assert.ThrowsAny<Exception>(() => Codecs.Default.Read<PawnActivities>(doc.RootElement));
+    }
+
+    [Fact]
     public void CellStepsAndExactSourcesSurviveJournalAndNativeWire()
     {
         var source = new Cell(4, 5);

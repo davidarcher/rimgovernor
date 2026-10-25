@@ -17,7 +17,9 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class StoreSchemaPinTests
 {
     private const int PinnedSchemaVersion = 60;
-    private const string PinnedShapeHash = "97F39271C472DFD0E90EEFAF976F94740B3D63F27523208F711C47FFFC60DD6E";
+    // #3856 only broadens activity reads to the legacy flat null cells; writes and required fields are unchanged.
+    // Keep the version so compatible journals load (LegacyFlatJournalMapsNullCellsWithoutLosingExactBindings).
+    private const string PinnedShapeHash = "53ECCB0E918A3D061604598FFC0659FDB6C32FA625F2C0718C6CB1656B133B0C";
 
     [Fact]
     public void CodecShapeIsPinnedToTheSchemaVersion()
