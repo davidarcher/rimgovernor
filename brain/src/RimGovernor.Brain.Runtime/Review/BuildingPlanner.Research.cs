@@ -253,7 +253,7 @@ public sealed partial class BuildingPlanner
         var bench = facts.Facts.Shapes.Furniture.BenchFor(RoomRole.Laboratory);
         if (AdvancedLab)
         {
-            var (owed, ok) = AdvancedLabOwed(facts);
+            var (owed, ok) = FacilityPlanningRules.AdvancedLabOwed(facts.Facts, facts.Window is { } window ? window.Value.Cells : null);
             if (!ok)
             {
                 return (null, BuildingReasonNoDeficit);
@@ -289,49 +289,5 @@ public sealed partial class BuildingPlanner
         return (resolved, default);
     }
 
-    internal static (string Definition, bool Owed) AdvancedLabOwed(ColonyReading facts)
-    {
-        var furniture = facts.Facts.Shapes.Furniture;
-        if (furniture.AdvancedLab == "")
-        {
-            return ("", false);
-        }
 
-        var standing = new HashSet<string>();
-        foreach (var c in facts.PlanningWindow.Cells)
-        {
-            var d = c.PlayerEdifice();
-            if (d != "")
-            {
-                standing.Add(d);
-            }
-        }
-
-        var next = furniture.AdvancedLab;
-        if (standing.Contains(next))
-        {
-            next = furniture.Analyzer.Def;
-        }
-
-        if (standing.Contains(next))
-        {
-            return ("", false);
-        }
-
-        foreach (var d in facts.Facts.Definitions)
-        {
-            if (d.Name == next)
-            {
-                var available = d.Available;
-                if (available)
-                {
-                    return (next, true);
-                }
-
-                return ("", false);
-            }
-        }
-
-        return ("", false);
-    }
 }

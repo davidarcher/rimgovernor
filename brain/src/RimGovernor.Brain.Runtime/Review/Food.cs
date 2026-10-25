@@ -175,7 +175,7 @@ public sealed class FoodReview
     internal static FoodFacts Facts(ColonyReading projection, PlannerSettings policy)
     {
         var budgeted = ColonyPlanningRules.ApplyFieldBudget(projection.Facts, policy.Seasonal(projection.Facts.Calendar, projection.Facts.DisasterConditions).FoodTargetDays);
-        return FoodFacts.From(budgeted, policy) with { CampfireRetireOwed = BuildingPlanner.CampfireRetireOwed(projection) };
+        return FoodFacts.From(budgeted, policy) with { CampfireRetireOwed = FacilityPlanningRules.CampfireRetireOwed(projection.Facts, nameof(RimWorld.ThingDefOf.Campfire)) };
     }
 }
 

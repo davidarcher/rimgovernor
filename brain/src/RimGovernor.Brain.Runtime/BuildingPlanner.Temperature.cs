@@ -100,7 +100,7 @@ partial class BuildingPlanner
             Cooler = cooler,
             Power = Pol.ClimatePower.Of(facts.Facts.EssentialInputs.Power),
             Cells = facts.PlanningWindow.Cells,
-            HeatCampfires = HeatCampfires(facts),
+            HeatCampfires = FacilityPlanningRules.HeatCampfires(facts.Facts, nameof(RimWorld.ThingDefOf.Campfire)),
             Sleepers = [.. sleeping.People, .. sleeping.Slaves],
             Heater = heater,
             HeaterGear = heaterGear,

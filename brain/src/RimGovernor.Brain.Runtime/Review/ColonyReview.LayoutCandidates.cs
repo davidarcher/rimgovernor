@@ -131,9 +131,9 @@ public sealed partial class ColonyReview
             projected = projected with { Facts = projected.Facts with
             {
                 TitleClaimQuests = [.. SleepingUpkeepPlanner.TitleClaimQuests(projected)],
-                BedroomsOwed = SleepingUpkeepPlanner.BedroomsOwedOf(projected), ButcherTableAffordable = BuildingPlanner.ButcherTableAffordable(projected),
+                BedroomsOwed = SleepingUpkeepPlanner.BedroomsOwedOf(projected), ButcherTableAffordable = FacilityPlanningRules.ButcherTableAffordable(projected.Facts),
                 WarmRooms = BurialFacts.WarmCoolingRooms(projected), MealClosetOwed = BurialFacts.MealClosetOwed(projected),
-                CampfireRetireOwed = BuildingPlanner.CampfireRetireOwed(projected), TemperatureOwed = BuildingPlanner.TemperatureOwed(projected),
+                CampfireRetireOwed = FacilityPlanningRules.CampfireRetireOwed(projected.Facts, nameof(RimWorld.ThingDefOf.Campfire)), TemperatureOwed = FacilityPlanningRules.TemperatureOwed(projected.Facts, nameof(RimWorld.ThingDefOf.Campfire)),
             } };
             if (Needs.Contains(ShelterFamily.SafeArea)) projected = projected with { Facts = projected.Facts with
                 { SafeAreaOwed = SafeArea.Review(StockpilePlanner.StockpileWorld(snapshot), projected) } };

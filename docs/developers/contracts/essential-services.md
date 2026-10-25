@@ -115,3 +115,15 @@ a truncated search reaches only the plans its first choices lead to, and trying 
 the first meals to whichever cook sorted first, a level-6 cook beside a level-15 one. A meal that waits on another
 colonist's cooking defers its eater by its planned start, not its immediate departure. Doctors are not
 trained by surgery on prisoners ([capability maintenance](capability-maintenance.md#no-practice-surgery-3344)).
+
+## Facility choice ownership
+
+`FacilityPlanningRules` owns the existing butcher spot/table ordering, cooking
+facility demand, campfire retirement and heat classification, construction-worker
+eligibility, powered recreation eligibility, advanced laboratory ordering and
+generator availability. It reads the existing `ReviewFacts` frame; Runtime maps
+its choice and prerequisite reasons to planner results and commits work. The
+food plan remains the one owner of cooking demand. Heat campfires are excluded
+from cooking retirement by the current construction claims. Required catalog and
+construction reads retain their failures; no replacement fact or strategy is
+introduced. Game identities supplied by Runtime use compiler-checked references.

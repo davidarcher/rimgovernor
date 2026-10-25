@@ -131,27 +131,7 @@ public sealed partial class BuildingPlanner
     {
         var v = facts.Facts.RequireBasicComfort();
         var review = BasicComfortRules.ReviewBasicComfort(v);
-        var method = BasicComfortRules.SelectBasicComfortMethod(v, review);
-
-        if (method == Pol.ComfortMethod.NoMethod && review.MissingVariety > 0)
-        {
-            method = RecreationRules.SelectRecreationVariety(v, m =>
-            {
-                if (m.PowerW > 0)
-                {
-                    var canSite = false;
-                    foreach (var c in facts.PlanningWindow.Cells)
-                    {
-                        canSite = canSite || (c.Roofed && c.Indoors && !c.Occupied() && PoweredRecreationCell(facts, c.Cell, m.PowerW));
-                    }
-                    if (!canSite)
-                    {
-                        return false;
-                    }
-                }
-                return ComfortBuilderAvailable(facts, m.Definition);
-            });
-        }
+        var method = FacilityPlanningRules.BasicComfortMethod(facts.Facts, facts.Window is { } window ? window.Value.Cells : null);
         if (method == Pol.ComfortMethod.NoMethod)
         {
             return (null, BuildingReasonNoDeficit);
@@ -196,95 +176,10 @@ partial class BuildingPlanner
 
     internal static Verdict ComfortBuilderGate(ColonyReading facts, string definition)
     {
-        var (def, found) = DefinitionRow(facts, definition);
-        if (!found)
-        {
-            return FieldUnavailable(definition + "_definition");
-        }
-        var availability = DefinitionAvailability(def!);
-        if (!availability.IsZero)
-        {
-            return availability;
-        }
-        var minimum = def!.ConstructionSkill;
-        if (minimum < 0)
-        {
-            return FieldUnavailable(definition + "_construction_skill");
-        }
-        var pawns = facts.Facts.ForecastObserved.WorkPawns.Pawns;
-        if (BuilderAvailable(pawns, (int)minimum))
-        {
-            return default;
-        }
-        var need = "construction_work_enabled";
-        if (minimum > 0)
-        {
-            need = string.Create(CultureInfo.InvariantCulture, $"construction_skill_{minimum}");
-        }
-        return Refuse(Cause.NoWorker, "builder_for_" + definition, need);
+        var gate = FacilityPlanningRules.BuilderGate(facts.Facts, definition);
+        return gate.Cause == Cause.None ? default : Refuse(gate.Cause, gate.Subject, gate.Detail);
     }
-
     internal static Verdict ComfortAccessWait(ComfortNeed dining) =>
         dining == Pol.ComfortNeed.Capacity ? WaitFor(Cause.FacilityAccess, "dining") : WaitFor(Cause.FacilityAccess, "recreation");
 
-    internal static bool BuilderAvailable(IReadOnlyList<WorkPawn> pawns, int minimum)
-    {
-        foreach (var pawn in pawns)
-        {
-            if (!pawn.Available || pawn.Work is not PawnWorkTable.Works { Rows: var settings })
-            {
-                continue;
-            }
-            if (minimum > 0)
-            {
-                var qualified = false;
-                foreach (var skill in pawn.Skills)
-                {
-                    if (skill.DefName == "Construction" && !skill.Disabled && skill.Level >= minimum)
-                    {
-                        qualified = true;
-                    }
-                }
-                if (!qualified)
-                {
-                    continue;
-                }
-            }
-            foreach (var setting in settings)
-            {
-                if (setting.Work == Pol.WorkType.Construction && !setting.Disabled && setting.Priority > 0)
-                {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    /// <summary>Whether a powered network within six cells of the cell has the spare generation for a recreation building of these watts.</summary>
-    internal static bool PoweredRecreationCell(ColonyReading facts, Cell cell, double watts)
-    {
-        var topology = facts.Facts.EssentialInputs.Power;
-        if (topology.Blackout)
-        {
-            return false;
-        }
-        foreach (var b in topology.Buildings)
-        {
-            var dx = cell.X - b.Cell.X;
-            var dz = cell.Z - b.Cell.Z;
-            if (b.OutputW <= 0 || !b.Connected || (dx * dx) + (dz * dz) > 36)
-            {
-                continue;
-            }
-            foreach (var n in topology.Networks)
-            {
-                if (n.Id == b.Network && n.GenerationW - n.ConsumptionW >= watts)
-                {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
 }

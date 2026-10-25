@@ -264,7 +264,7 @@ public sealed partial class BuildingPlanner
                 Benches = [.. Workshop.Benches],
                 Hosts = product.Hosts,
                 Definitions = definitions,
-                Power = GeneratorAvailable(available),
+                Power = FacilityPlanningRules.GeneratorAvailable(available),
                 BuilderSkill = WorkRules.BuilderSkill(facts.Facts.ForecastObserved.WorkPawns),
                 Further = Workshop.Further,
             };
@@ -307,24 +307,5 @@ case Pol.WorkshopMethod.Existing:
         resolved.Environment = Pol.PlacementEnvironment.Indoors;
         resolved.Stuff = ColonyPlanningRules.BuildStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), resolved.Definition);
         return (resolved, new Verdict());
-    }
-}
-
-partial class BuildingPlanner
-{
-    /// <summary>
-    /// Whether any generator definition the power family compiles is buildable now, so a powered bench can be
-    /// staged and connected; a generator row the census did not describe leaves it unknown.
-    /// </summary>
-    internal static bool GeneratorAvailable(IReadOnlyDictionary<string, bool> available)
-    {
-        var result = false;
-        foreach (var name in PowerRules.GeneratorDefinitions)
-        {
-            if (!available.TryGetValue(name, out var value))
-                throw new RequiredFactException("generator definition:" + name);
-            result |= value;
-        }
-        return result;
     }
 }

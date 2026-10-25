@@ -460,11 +460,11 @@ public sealed partial class ColonyReview
         Census.RememberLayout(reading.Reading.Identity, reading.Reading.Facts.LayoutPlan);
         reading = reading.WithFacts(rf => rf with { TitleClaimQuests = [.. SleepingUpkeepPlanner.TitleClaimQuests(reading.Reading)] });
         reading = reading.WithFacts(rf => rf with { BedroomsOwed = SleepingUpkeepPlanner.BedroomsOwedOf(reading.Reading) });
-        reading = reading.WithFacts(rf => rf with { ButcherTableAffordable = BuildingPlanner.ButcherTableAffordable(reading.Reading) });
+        reading = reading.WithFacts(rf => rf with { ButcherTableAffordable = FacilityPlanningRules.ButcherTableAffordable(reading.Reading.Facts) });
         reading = reading.WithFacts(rf => rf with { WarmRooms = BurialFacts.WarmCoolingRooms(reading.Reading) });
         reading = reading.WithFacts(rf => rf with { MealClosetOwed = BurialFacts.MealClosetOwed(reading.Reading) });
-        reading = reading.WithFacts(rf => rf with { CampfireRetireOwed = BuildingPlanner.CampfireRetireOwed(reading.Reading) });
-        reading = reading.WithFacts(rf => rf with { TemperatureOwed = BuildingPlanner.TemperatureOwed(reading.Reading) });
+        reading = reading.WithFacts(rf => rf with { CampfireRetireOwed = FacilityPlanningRules.CampfireRetireOwed(reading.Reading.Facts, nameof(RimWorld.ThingDefOf.Campfire)) });
+        reading = reading.WithFacts(rf => rf with { TemperatureOwed = FacilityPlanningRules.TemperatureOwed(reading.Reading.Facts, nameof(RimWorld.ThingDefOf.Campfire)) });
         Lap("d_owed");
         var targets = await ArmoryShells.ShellTargetsAsync(Native, p.Journal, state.Snapshot, reading.Reading, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { ShellTargets = EquatableArray.From(targets), ShellsShort = ArmoryShellsRules.ShellsShort(targets, ResourceStockRules.Count(reading.Reading.Snapshot.Resources)) });

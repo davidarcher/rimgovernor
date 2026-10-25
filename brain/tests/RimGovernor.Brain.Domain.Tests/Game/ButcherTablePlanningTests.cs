@@ -41,6 +41,6 @@ public sealed class ButcherTablePlanningTests
             Definitions = [definition], Census = colony.Snapshot with { Resources = [new() { DefName = wood.defName, Units = stock }] },
         } };
 
-        Assert.Equal(affordable, BuildingPlanner.ButcherTableAffordable(colony));
+        Assert.Equal(affordable, FacilityPlanningRules.ButcherTableAffordable(colony.Facts));
     }
 }

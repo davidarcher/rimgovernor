@@ -85,6 +85,6 @@ public sealed class FoodPlanningTotalTests
         Assert.Throws<RequiredFactException>(() => Rules.Reached(null, 3));
         Assert.True(Rules.Reached(new FoodRunway.NoEaters(), 3));
         Assert.False(Rules.Reached(new FoodRunway.Days(2), 3));
-        Assert.Throws<RequiredFactException>(() => BuildingPlanner.ButcherTableAffordable(ColonyFactsCoreTests.Reading()));
+        Assert.Throws<RequiredFactException>(() => FacilityPlanningRules.ButcherTableAffordable(ColonyFactsCoreTests.Reading().Facts));
     }
 }

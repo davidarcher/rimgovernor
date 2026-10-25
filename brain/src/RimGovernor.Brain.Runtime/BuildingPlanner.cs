@@ -327,7 +327,7 @@ public sealed partial class BuildingPlanner
         {
             // A cooking campfire a stove kitchen supersedes is deconstructed first.
             var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
-            var (campfire, owed) = CampfireRetirement(facts, claims);
+            var (campfire, owed) = FacilityPlanningRules.CampfireRetirement(facts.Facts, claims, nameof(RimWorld.ThingDefOf.Campfire));
             if (owed)
             {
                 var retired = await r.RetireCampfireAsync(state, review, goal, reading, campfire, call, epoch).ConfigureAwait(false);
@@ -418,7 +418,7 @@ public sealed partial class BuildingPlanner
         {
             case "butcher-spot-retire":
             {
-                if (StandingButcherSpot(facts) is { } spot)
+                if (FacilityPlanningRules.StandingButcherSpot(facts.Facts) is { } spot)
                 {
                     var spotBuilding = spot.Building;
                     return await r.RetireBuildingAsync(state, review, goal, reading, spot.Id, spotBuilding.Definition, spot.Cells[0], "butcher-spot-retire", "stand-in_butcher_spot", call, epoch).ConfigureAwait(false);
@@ -844,7 +844,7 @@ public sealed partial class BuildingPlanner
         }
         foreach (var c in facts.PlanningWindow.Cells)
         {
-            if (RecreationPowerW > 0 && !PoweredRecreationCell(facts, c.Cell, RecreationPowerW))
+            if (RecreationPowerW > 0 && !FacilityPlanningRules.PoweredRecreationCell(facts.Facts, c.Cell, RecreationPowerW))
             {
                 continue;
             }
@@ -881,7 +881,7 @@ public sealed partial class BuildingPlanner
             Limit = 64,
             StockpileZones = StockpileZones.StockpileZoneIds(facts)?.ToDictionary(id => id, _ => true) ?? new Dictionary<string, bool>(),
         };
-        if ((Concern == FoodRules.CookingNeed.FilingKey && Definition == "Campfire") || ButcherBenchDefinition(Definition))
+        if ((Concern == FoodRules.CookingNeed.FilingKey && Definition == "Campfire") || FacilityPlanningRules.ButcherBenchDefinition(Definition))
         {
             // The cooking campfire and the butcher table stand by the base, not the landing centroid.
             if (LayoutProtected.PlanCore(facts) is { } core)

@@ -47,20 +47,14 @@ public sealed partial class BuildingPlanner
             {
                 return (0, default, FieldUnavailable("butcher_table_definition"));
             }
-            var benches = facts.Facts.EssentialInputs.Benches.Where(b => b.Butcher).ToArray();
-            if (benches.Length == 0)
+            return FacilityPlanningRules.ButcherDemand(facts.Facts) switch
             {
-                return (1, new MethodId("butcher-spot"), default);
-            }
-            if (StandingButcherSpot(facts) is not null)
-            {
-                return (1, new MethodId("butcher-spot-retire"), default);
-            }
-            if (ButcherTableWanted(facts, benches))
-            {
-                return (1, new MethodId("butcher-table"), default);
-            }
-            return (0, default, BuildingReasonExistingFacility);
+                FacilityDemand.ButcherSpot => (1, new MethodId("butcher-spot"), default),
+                FacilityDemand.RetireButcherSpot => (1, new MethodId("butcher-spot-retire"), default),
+                FacilityDemand.ButcherTable => (1, new MethodId("butcher-table"), default),
+                FacilityDemand.Existing => (0, default, BuildingReasonExistingFacility),
+                var unexpected => throw new ControlException($"unexpected butcher demand: {unexpected}"),
+            };
         }
         if (c == ShelterFamily.Temperature.FilingKey)
         {
@@ -178,26 +172,14 @@ public sealed partial class BuildingPlanner
             {
                 return (Paste.Count, new MethodId("nutrient-paste"), default);
             }
-            if (facts.Facts.FoodPlan is not { } supportPlan || !ColonyReview.FoodPlanSupportOf(supportPlan, CandidateKind.Cook, "cooking-capacity"))
+            return FacilityPlanningRules.CookingDemand(facts.Facts, nameof(RimWorld.ThingDefOf.Campfire)) switch
             {
-                return (0, default, AwaitingFoodPlan("cooking-capacity"));
-            }
-            if (facts.Facts.Cooking)
-            {
-                return (0, default, BuildingReasonNoDeficit);
-            }
-            foreach (var bench in facts.Facts.EssentialInputs.Benches.Where(b => !b.Butcher).ToArray())
-            {
-                if (bench.Definition == "Campfire" || bench.Usable)
-                {
-                    return (0, default, BuildingReasonExistingFacility);
-                }
-            }
-            if (CampfireIntentStanding(facts.Facts.ConstructionClaims, facts.Facts.CurrentConstruction))
-            {
-                return (0, default, BuildingReasonExistingFacility);
-            }
-            return (1, new MethodId("campfire"), default);
+                FacilityDemand.AwaitingFoodPlan => (0, default, AwaitingFoodPlan("cooking-capacity")),
+                FacilityDemand.None => (0, default, BuildingReasonNoDeficit),
+                FacilityDemand.Existing => (0, default, BuildingReasonExistingFacility),
+                FacilityDemand.Campfire => (1, new MethodId("campfire"), default),
+                var unexpected => throw new ControlException($"unexpected cooking demand: {unexpected}"),
+            };
         }
         return (0, default, FieldUnavailable("concern_selection"));
     }
@@ -205,102 +187,4 @@ public sealed partial class BuildingPlanner
     internal bool ButcherFacility() => Concern == FoodRules.FoodSupplyNeed.FilingKey;
 
     internal bool WorkshopLadder() => Concern == EconomyFamily.Resource.FilingKey || GearLadder();
-}
-
-partial class BuildingPlanner
-{
-    /// <summary>Whether a campfire intent already stands: an unheated campfire in the census or an open campfire claim.</summary>
-    internal static bool CampfireIntentStanding(EquatableArray<ConstructionClaim> claims, CurrentConstruction? observed)
-    {
-        if (observed is not { } census)
-        {
-            throw new RequiredFactException("construction census");
-        }
-        var heat = HeatCampfireCells(claims);
-        foreach (var b in census.Buildings)
-        {
-            if (b.Building is { Definition: "Campfire" } && b.Cells.Count > 0 && !heat.Contains(b.Cells[0]))
-            {
-                return true;
-            }
-        }
-        foreach (var claim in claims)
-        {
-            if (claim.Building is { Definition: "Campfire" } campfire && ConstructionOwnershipRules.WorkOpen(campfire, observed) == BuildingWork.BuildingOpen)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /// <summary>Whether stock covers the butcher table's cheapest stocked stuff choice; unread without the definition.</summary>
-    internal static bool ButcherTableAffordable(ColonyReading facts)
-    {
-        var stock = ResourceStockRules.Count(facts.Snapshot.Resources);
-        foreach (var d in facts.Facts.Definitions)
-        {
-            if (d.Name != KitchenSeparationRules.ButcherTableDefinition)
-            {
-                continue;
-            }
-            if (!d.Available) return false;
-            StuffPrice price;
-            try
-            {
-                price = d.StuffChoice(StuffCriterion.CheapestStuff, stock);
-            }
-            catch (NoStuffInStockException) { return false; }
-            return price.Costs.All(a => stock.GetValueOrDefault(a.Resource) >= a.Count);
-        }
-        throw new RequiredFactException("butcher table build cost");
-    }
-
-    internal static bool ButcherTableWanted(ColonyReading facts, IReadOnlyList<ProductionBench> benches)
-    {
-        foreach (var b in benches)
-        {
-            if (b.Definition == "TableButcher")
-            {
-                return false;
-            }
-        }
-        return facts.Facts.ButcherTableAffordable && ComfortBuilderAvailable(facts, "TableButcher");
-    }
-
-    internal static bool ButcherRoomWanted(ColonyReading facts, IReadOnlyList<ProductionBench> benches) =>
-        benches.Count == 0 || ButcherTableWanted(facts, benches);
-
-    internal static CurrentBuilding? StandingButcherSpot(ColonyReading facts)
-    {
-        var benches = facts.Facts.EssentialInputs.Benches.Where(b => b.Butcher).ToArray();
-        var census = facts.Facts.CurrentConstruction;
-        var table = false;
-        foreach (var bench in benches)
-        {
-            table = table || bench.Definition == KitchenSeparationRules.ButcherTableDefinition;
-        }
-        if (!table)
-        {
-            return null;
-        }
-        foreach (var bench in benches)
-        {
-            if (bench.Definition != Rules.ButcherSpotDefinition)
-            {
-                continue;
-            }
-            foreach (var b in census.Buildings)
-            {
-                if (b.Id == bench.Id && b.Cells.Count > 0)
-                {
-                    return b;
-                }
-            }
-        }
-        return null;
-    }
-
-    internal static bool ButcherBenchDefinition(string definition) =>
-        definition == KitchenSeparationRules.ButcherTableDefinition || definition == Rules.ButcherSpotDefinition;
 }
