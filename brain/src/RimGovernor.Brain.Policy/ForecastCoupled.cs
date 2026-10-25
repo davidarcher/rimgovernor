@@ -156,6 +156,8 @@ public sealed record ForecastCoupledContext
     /// def is a sleeping bed (ReviewFacts.SleepingBeds), null for a bed def whose stuff has no row. A room without a row plans no bed.
     /// </summary>
     public IReadOnlyDictionary<int, IReadOnlyList<SleepingBedFacts?>> PlannedBeds { get; init; } = new Dictionary<int, IReadOnlyList<SleepingBedFacts?>>();
+    /// <summary>Prison bed anchors, standing first then planned in site order, using the existing sleeping census and planned sites.</summary>
+    public IReadOnlyDictionary<int, Cell[]> PrisonBeds { get; init; } = new Dictionary<int, Cell[]>();
     /// <summary>The canonical planned Build sites in nurseries, used to price play sources and decoration exposure.</summary>
     public EquatableArray<PlannedBuildSite> NurserySites { get; init; }
     /// <summary>The comfort need's NeedDef curve (ReviewFacts.ComfortCurve, #3840) the bedroom credit's comfort term runs; unknown by default.</summary>

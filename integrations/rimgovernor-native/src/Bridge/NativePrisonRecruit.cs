@@ -18,7 +18,8 @@ internal static class NativePrisonRecruit
 {
     internal static RimGovernor.Brain.GameFacts.Observations.PrisonRecruitRead Read(Map map, List<Pawn> people, Func<NativeRecreation.OutdoorClimate> climate)
     {
-        var wardens = people.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Warden)).OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
+        var wardens = people.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Warden) && p.health.capacities.CapableOf(PawnCapacityDefOf.Talking))
+            .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         var rapport = InteractionDefOf.BuildRapport.recipientThought ?? throw new InvalidOperationException("BuildRapport has no recipient thought.");
         // The credit models a plain social memory's fading and stacking (Thought_MemorySocial): another class is a broken read.
         if (rapport.thoughtClass != typeof(Thought_MemorySocial) || rapport.stages.NullOrEmpty())

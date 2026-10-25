@@ -30,7 +30,7 @@ namespace RimGovernor.Native;
 /// earlier read searched. A leg the game's region reachability already rules out is stored with no path unsearched
 /// (<see cref="Unreachable"/>): a search that fails walks every cell the origin reaches first.
 /// </summary>
-internal sealed class NativePathLegs
+internal sealed partial class NativePathLegs
 {
     /// <summary>
     /// The fewest requests pushed to the path finder per scheduling round. A round's paths are emitted together when

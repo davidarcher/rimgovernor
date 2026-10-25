@@ -17,6 +17,9 @@ namespace RimGovernor.Brain.GameFacts.Observations;
 public sealed record PlannedRoomPrediction(string Room, string Stuff, string Role, double Impressiveness, int Stage,
     int Cells, int OpenRoofCells, bool TouchesMapEdge)
 {
+    /// <summary>Native routes to its prison beds and back, under this shape. The construction route reader owns their computation.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<CoupledRoute>))]
+    public EquatableArray<CoupledRoute> Routes { get; init; }
     /// <summary>Seats adjoining eat surfaces and recreation definitions in the furnished hypothetical room.</summary>
     public PlannedRoomServices? Services { get; init; }
     /// <summary>Every planned or standing production/research bench in the shape, with native facility offsets.</summary>

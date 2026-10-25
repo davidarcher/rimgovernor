@@ -430,6 +430,12 @@ replacing the constants above for that colony. Normal and Balanced are the defau
 
 ## Tracked in follow-up issues
 
+`NativePathLegs.Projected.StaticCost` mirrors `PathGrid.CalculatedCostAt` (RimWorld 1.7) only for cells whose planned
+geometry replaces the live cell: native terrain/thing/weather costs take their maximum; a fire on the cell adds 1,000
+ticks, each adjacent fire adds 150. These method-body literals have no public constant. The native `PathGridJob` then
+applies the pawn-specific grid costs, and `PathFinderJob` searches it; no estimated cells-to-ticks constant prices a
+prison walk (#3964).
+
 | Constant | Where | Value | Issue |
 | --- | --- | --- | --- |
 | `HiveBoundaryCells` | `NativeObservationTools.cs` | 10 | #2652 (reads the game's constant) |

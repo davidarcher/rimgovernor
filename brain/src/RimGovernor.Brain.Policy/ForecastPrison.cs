@@ -91,7 +91,6 @@ public static class ForecastPrison
     /// <summary>The mechanics the credit leaves out, named with each served prison.</summary>
     public static readonly EquatableArray<string> NotModelled =
     [
-        "prison_warden_walk", // the warden's walks to the prisoner and between the chat toils are not charged (#3964)
         "prison_bedless_memory_renewal", // memories expire from now, though a prisoner renews some until the room beds it (#3966)
         "prison_cell_memories", // the memories the prisoner gains in the cell over the recruitment are not added (#3967)
         "prison_inspiration_shared", // a warden inspiration is counted for every prisoner it could recruit (#3968)
@@ -595,13 +594,13 @@ public static class ForecastPrison
             }, shortfall).Sum(s => s.TicksPerDay) / GameTime.TicksPerDay / read.MaxInteractionsPerDay;
         }
 
-        var lostPerJob = LostPerJob(warden.Pawn, ChatJobTicks);
         var queue = new Queue<(PrisonerRecruitRead Prisoner, double Value)>(valued.OrderByDescending(v => v.Value).ThenBy(v => v.Prisoner.Pawn, StringComparer.Ordinal));
         foreach (var room in served)
         {
             var roomStates = new SortedSet<string>(states, StringComparer.Ordinal);
             var prediction = PlannedRoomCredits.Prediction(context, room.Room, room.Stuff);
-            var beds = prediction is null ? 0 : (context.PlannedBeds.GetValueOrDefault(room.Room)?.Count ?? 0) + prediction.Prediction.Beds.Count;
+            var positions = context.PrisonBeds.GetValueOrDefault(room.Room) ?? [];
+            var beds = prediction is null ? 0 : positions.Length;
             if (beds == 0) roomStates.Add(NoBed);
             var units = RingClosure.CreditDays(days, room.ServedAt);
             var gains = new List<RoomGain>();
@@ -609,12 +608,19 @@ public static class ForecastPrison
             var role = beds == 1 ? "prison_cell" : "prison_barracks";
             for (var bed = 0; bed < beds && queue.Count > 0; bed++)
             {
-                var (prisoner, value) = queue.Dequeue();
+                var (prisoner, value) = queue.Peek();
+                // No path is no recruitment opportunity. Never credit a room on an invented zero walk.
+                var walk = WalkTicks(warden.Pawn, positions[bed], prediction!.Prediction, outcome, context);
+                if (walk is null) { roomStates.Add("prison_warden_unreachable:" + prisoner.Pawn); continue; }
                 var cell = CellOffset(prisoner, role, prediction!.Prediction.Stage);
                 converters.TryGetValue(prisoner.Pawn, out var converter);
+                var convertWalk = converter is null ? 0 : WalkTicks(converter.Warden, positions[bed], prediction.Prediction, outcome, context);
+                if (convertWalk is null) { roomStates.Add("prison_converter_unreachable:" + prisoner.Pawn); continue; }
+                queue.Dequeue();
                 var expected = Recruitment(read, warden, pawn.Mood?.Target, prisoner, cell, room.ServedAt, units, converter,
                     converter is null ? null : certaintyByPawn[prisoner.Pawn]);
-                var converting = converter is null ? 0 : LostPerJob(converter.Warden, ConvertJobTicks(read)) * expected.ConvertJobs;
+                var lostPerJob = LostPerJob(warden.Pawn, ChatJobTicks + walk.Value);
+                var converting = converter is null ? 0 : LostPerJob(converter.Warden, ConvertJobTicks(read) + convertWalk.Value) * expected.ConvertJobs;
                 gains.Add(new(prisoner.Pawn, "", value) { Once = -(value * expected.Days) - (lostPerJob * expected.Jobs) - converting });
             }
 
@@ -622,6 +628,51 @@ public static class ForecastPrison
         }
 
         return output;
+    }
+
+    /// <summary>Standing beds inside the prison, then the planned sleeping-bed sites, with a physical anchor counted once.</summary>
+    public static IReadOnlyDictionary<int, Cell[]> BedsOf(IEnumerable<PlannedRoom> rooms, IEnumerable<PlannedBuildSite> sites,
+        SleepingObservation sleeping, IReadOnlyList<SleepingBedFacts> definitions)
+    {
+        var defs = definitions.Select(b => b.Def).ToHashSet(StringComparer.Ordinal);
+        var planned = sites.Where(s => s.Op == OpKind.Build && defs.Contains(s.Definition)).OrderBy(s => s.Id, StringComparer.Ordinal).ToArray();
+        return rooms.Where(r => r.Role == PlannedRole.Prison).ToDictionary(r => r.Id, r =>
+        {
+            var inside = r.Region.Cells().ToHashSet();
+            return sleeping.Beds.Where(b => inside.Contains(b.Cell)).OrderBy(b => b.Id, StringComparer.Ordinal).Select(b => b.Cell)
+                .Concat(planned.Where(s => s.Room == r.Id).SelectMany(s => s.Positions)).Distinct().ToArray();
+        });
+    }
+
+    /// <summary>Both legs of every prison chat, in the existing projected-route read. Current pawn locations cover an outcome
+    /// that assigns no work; coupled route locations cover every native work origin the outcome can allocate.</summary>
+    public static EquatableArray<PlannedRouteProbe> RouteProbes(IEnumerable<PlannedRoomShape> shapes, IReadOnlyDictionary<int, Cell[]> beds,
+        IEnumerable<Cell> origins, PrisonRecruitRead? prison) => prison is null || !prison.Prisoners.Any(p => p.Recruitable && !p.PrisonBed) ? []
+        : EquatableArray.From(shapes.Where(s => int.TryParse(s.Room, out var room) && beds.ContainsKey(room))
+        .SelectMany(s => beds[int.Parse(s.Room, System.Globalization.CultureInfo.InvariantCulture)].SelectMany(b => origins.Distinct().SelectMany(o =>
+            new[] { new PlannedRouteProbe(o, b, []) { Projection = s }, new PlannedRouteProbe(o, b, []) { Projection = s, Return = true } }))));
+
+    // The selected work's locations weighted by the ticks spent there. With no selected work, use the observed location.
+    // This uses the same outcome and native route rows, without another work assignment or distance model.
+    private static double? WalkTicks(string warden, Cell bed, PlannedRoomPrediction prediction, ForecastCoupledOutcome outcome, ForecastCoupledContext context)
+    {
+        var rows = prediction.Routes.Where(r => r.Pawn == warden).ToArray();
+        var work = outcome.Plan.Allocations.Where(a => a.Pawn == warden && a.WorkTicks > 0)
+            .Select(a => (Task: context.Activities.Activities.First(t => t.Id == a.Activity), Ticks: a.WorkTicks)).ToArray();
+        var origins = work.Length == 0
+            ? new[] { (Location: Methods.Generation.ForecastLocations.Of(context.Needs.Pawns.First(p => p.Pawn == warden).Location), Weight: 1d) }
+            : work.Select(w => (Location: w.Task.Location, Weight: w.Ticks)).ToArray();
+        double ticks = 0;
+        foreach (var origin in origins)
+        {
+            var inbound = rows.FirstOrDefault(r => r.To == bed && Methods.Generation.ForecastLocations.Of(r.From) == origin.Location)
+                ?? throw new RequiredFactException("prison inbound route:" + warden + ":" + origin.Location);
+            var outbound = rows.FirstOrDefault(r => r.From == bed && Methods.Generation.ForecastLocations.Of(r.To) == origin.Location)
+                ?? throw new RequiredFactException("prison return route:" + warden + ":" + origin.Location);
+            if (inbound.Ticks is not RouteTicks.Reachable there || outbound.Ticks is not RouteTicks.Reachable back) return null;
+            ticks += origin.Weight * (there.Ticks + back.Ticks);
+        }
+        return ticks / origins.Sum(o => o.Weight);
     }
 
     // The room's prison thought offset for the prisoner (#3805): its stage row of role's thought; null without a mood need. A stage row missing throws.

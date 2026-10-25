@@ -142,7 +142,9 @@ internal static class NativeConstructionActivity
         if (thermal is not null) thermal = thermal with { Sources = EquatableArray.From(thermal.Sources.Select(s => s.HeatPerTick < 0 && !s.Complete
             ? s with { BuildEstimate = answers.Single(a => a.Site == s.Target) } : s)) };
         Lap("thermal");
-        var predictions = NativeRoomPrediction.Predict(map, request.RoomPredictions);
+        var projected = ProjectedRoutes(map, legs, roster, request.Routes, request.RoomPredictions);
+        var predictions = EquatableArray.From(NativeRoomPrediction.Predict(map, request.RoomPredictions).Select(p => p with
+            { Routes = EquatableArray.From(projected.Where(r => r.Projection == p.Room + "/" + p.Stuff)) }));
         Lap("predictions");
         return new() { Context = context,
             Options = EquatableArray.From(options), Planned = EquatableArray.From(answers), Routes = EquatableArray.From(routes),
@@ -158,7 +160,7 @@ internal static class NativeConstructionActivity
     {
         var rows = new List<RimGovernor.Brain.GameFacts.Observations.CoupledRoute>();
         var pawns = roster.Where(Free).ToArray();
-        foreach (var probe in probes)
+        foreach (var probe in probes.Where(p => p.Projection is null))
         {
             var to = new IntVec3(probe.To.X, 0, probe.To.Z);
             var reach = probe.Reach.Select(c => new IntVec3(c.X, 0, c.Z)).ToArray();
@@ -174,6 +176,33 @@ internal static class NativeConstructionActivity
                 var cost = legs.Cost(pawn, origin, target, PathEndMode.Touch);
                 rows.Add(new(pawn.GetUniqueLoadID(), new(origin.x, origin.z), probe.To, cost is { } ticks ? new RimGovernor.Brain.GameFacts.Observations.RouteTicks.Reachable(ticks) : RimGovernor.Brain.GameFacts.Observations.RouteTicks.None)
                     { FromStart = probe.FromStart });
+            }
+        }
+        return rows;
+    }
+
+    // The same route owner, projected on private native job inputs. Never enter the live-map leg cache with future geometry.
+    private static List<RimGovernor.Brain.GameFacts.Observations.CoupledRoute> ProjectedRoutes(Map map, NativePathLegs legs, Pawn[] roster,
+        EquatableArray<RimGovernor.Brain.GameOrders.Observations.PlannedRouteProbe> probes,
+        EquatableArray<RimGovernor.Brain.GameOrders.Observations.PlannedRoomShape> layout)
+    {
+        var rows = new List<RimGovernor.Brain.GameFacts.Observations.CoupledRoute>();
+        foreach (var group in probes.Where(p => p.Projection is not null).GroupBy(p => p.Projection!))
+        foreach (var pawn in roster.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Warden) && p.health.capacities.CapableOf(PawnCapacityDefOf.Talking)))
+        {
+            using var projection = legs.Project(pawn, group.Key, layout);
+            foreach (var pair in group.GroupBy(p => (p.From, p.To)))
+            {
+                var from = new IntVec3(pair.Key.From.X, 0, pair.Key.From.Z);
+                var to = new IntVec3(pair.Key.To.X, 0, pair.Key.To.Z);
+                var (there, back) = projection.RoundTrip(from, to);
+                foreach (var probe in pair)
+                {
+                    var ticks = probe.Return ? back : there;
+                    rows.Add(new(pawn.GetUniqueLoadID(), probe.Return ? probe.To : probe.From, probe.Return ? probe.From : probe.To,
+                        ticks is { } cost ? new RimGovernor.Brain.GameFacts.Observations.RouteTicks.Reachable(cost) : RimGovernor.Brain.GameFacts.Observations.RouteTicks.None)
+                    { FromStart = false, Projection = group.Key.Room + "/" + group.Key.Stuff });
+                }
             }
         }
         return rows;

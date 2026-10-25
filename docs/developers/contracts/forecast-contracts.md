@@ -445,6 +445,20 @@ unknown. What the game does not have is a case, never an unknown:
 - `ForecastCoupledContext.PrisonerPopulation` retains the canonical population census. The prison credit calls
   `PopulationRules.RecruitIntent` (the same recruit and convert rules as the autopilot) and reads certainty from
   the matching pawn's canonical `PawnIdeo.Member`; conversion reads do not duplicate that certainty.
+- Prison warden walks (#3964) use the existing construction route request. A `PlannedRouteProbe.Projection` names its
+  closed room shape; `Return` asks the leg from the interaction position reached by its inbound walk back to `From`.
+  The same native route reader returns these rows under the corresponding `PlannedRoomPrediction.Routes`, with the
+  room/stuff `CoupledRoute.Projection` key. Ordinary construction routes remain live-map rows. Current beds come from
+  the canonical sleeping census, planned beds from its sleeping definitions and planned sites. Every work location
+  offered by the shared forecast and every observed warden location is probed in both directions. The credit charges
+  work-time-weighted trips to both recruiters and converters; it never assigns another warden independently.
+  `NativePathLegs` runs the game's `PathGridJob` and `PathFinderJob` on private copies of the inputs affected by the
+  projected geometry. It retains native terrain, pawn movement, danger, allowed-area and current door/provider costs,
+  reprices new closed doors from their native door stats, and replaces wall connectivity and diagonal building guards.
+  Other projected rooms use their first ring-stuff shape; the served prison uses its selected stuff. No live geometry
+  changes and no projected path enters the live-map cache. Unresolved geometry fails the read explicitly.
+  `observations/prison-projected-routes` stages an intact wall ring and checks a projected door, both trip directions,
+  a farther work origin and the unchanged sealed-room alternative in a paused native read.
 - Conversion jobs add their three chitchat memories at the toil ticks to the same `ForecastPrison.Opinion` used for recruitment
   when its converter is its recruiting warden. They merge into the first held memory of that def and pawn without resetting
   age or adding a member; raw offsets accumulate above the displayed cap and decay one toward zero per day. A discarded

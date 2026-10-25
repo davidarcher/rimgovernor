@@ -58,7 +58,8 @@ public sealed class PrisonCreditTests
     /// review's), its tier-2 bases set, and room 1 a planned prison closing a decent (Impressiveness stage 3) cell of one bed,
     /// served from day 1, the colony holding <paramref name="prisoners"/>.
     /// </summary>
-    private static Review Of(Func<ForecastCoupledContext, PrisonerRecruitRead[]> prisoners, bool planned = true, bool warden = true, WardenRead? wardenRead = null, PrisonerCensus? census = null)
+    private static Review Of(Func<ForecastCoupledContext, PrisonerRecruitRead[]> prisoners, bool planned = true, bool warden = true, WardenRead? wardenRead = null, PrisonerCensus? census = null,
+        double walkThere = 0, double walkBack = 0, Cell? prisonBed = null)
     {
         var catalog = Game.WorkSpeedFactsTests.Catalog();
         var facts = ForecastCoupledTests.ConstructionReview(1, 100);
@@ -115,6 +116,16 @@ public sealed class PrisonCreditTests
         var population = census ?? PopulationFixtures.Census(context.Needs.Prison.Prisoners.Select(p => PopulationFixtures.Held(p.Pawn, p.Recruitable)));
         if (census is null) population = population with { Colony = population.Colony with { NamedPrisoners = [.. population.Prisoners.Select(p => p.Pawn)] } };
         context = context with { PrisonerPopulation = population };
+        var bed = prisonBed ?? new Cell(90, 90);
+        var origins = context.Activities.Activities.Select(t => t.Location).Concat(context.Needs.Pawns.Select(p => "cell/" + p.Location.X + "/" + p.Location.Z))
+            .Where(l => l.StartsWith("cell/", StringComparison.Ordinal)).Distinct().Select(l => l.Split('/'))
+            .Select(p => new Cell(int.Parse(p[1]), int.Parse(p[2]))).ToArray();
+        var walks = EquatableArray.From(origins.SelectMany(o => new[]
+        {
+            new CoupledRoute("pawn", o, bed, new RouteTicks.Reachable(walkThere)) { FromStart = false },
+            new CoupledRoute("pawn", bed, o, new RouteTicks.Reachable(walkBack)) { FromStart = false },
+        }));
+        context = context with { PrisonBeds = new Dictionary<int, Cell[]> { [1] = [bed] }, Closures = [.. context.Closures.Select(c => c with { Prediction = c.Prediction with { Routes = walks } })] };
         return new(context, selected.Selected with { ServedRooms = [Served] },
             [.. coupled.Alternatives.Concat(coupled.Incumbents).Where(c => chosen.Contains(c.Id))], selected.Horizon);
     }
@@ -148,7 +159,7 @@ public sealed class PrisonCreditTests
         var gain = Assert.Single(review.Gains());
         Assert.Equal(("prisoner", value), (gain.Subject, gain.PerDay));
         Assert.Equal(-(value * days) - (lost * 11), gain.Once, 9);
-        Assert.Contains("prison_warden_walk", review.Findings());
+        Assert.DoesNotContain("prison_warden_walk", review.Findings());
 
         // Through the #3796 seam: one investment row, the value over the served days less the recruitment's and the chats' work.
         var rows = new List<ForecastInvestmentContribution>();
@@ -156,6 +167,69 @@ public sealed class PrisonCreditTests
         var row = Assert.Single(rows);
         Assert.Equal(("prison/1/prisoner", Horizon - 1), (row.Key, row.Units));
         Assert.Equal(-((value * (Horizon - 1 - days)) - (lost * 11)), row.Value, 9);
+    }
+
+    [Fact]
+    public void AFartherPrisonChargesMoreWardenWorkPerChatThroughTheRoomCredit()
+    {
+        var near = Of(c => [Prisoner(c)], walkThere: 30, walkBack: 50, prisonBed: new(10, 10));
+        var far = Of(c => [Prisoner(c)], walkThere: 300, walkBack: 500, prisonBed: new(50, 50));
+        var a = Assert.Single(near.Gains());
+        var b = Assert.Single(far.Gains());
+        Assert.Equal(a.PerDay, b.PerDay, 9);
+        Assert.True(b.Once < a.Once);
+        Assert.Equal(11 * (LostPerJob(far, ForecastPrison.ChatJobTicks + 800) - LostPerJob(near, ForecastPrison.ChatJobTicks + 80)), a.Once - b.Once, 9);
+    }
+
+    [Fact]
+    public void APrisonWithNoReturnPathCreditsNoRecruitAndNamesTheUnreachableWalk()
+    {
+        var review = Of(c => [Prisoner(c)]);
+        var bed = review.Context.PrisonBeds[1][0];
+        var context = review.Context with { Closures = [.. review.Context.Closures.Select(c => c with
+        {
+            Prediction = c.Prediction with { Routes = [.. c.Prediction.Routes.Select(r => r.From == bed ? r with { Ticks = RouteTicks.None } : r)] },
+        })] };
+        review = review with { Context = context };
+        Assert.Empty(review.Gains());
+        Assert.Contains("prison_warden_unreachable:prisoner", review.Findings());
+    }
+
+    [Fact]
+    public void ConversionAndRecruitmentEachPayTheirOwnRoundTrip()
+    {
+        var plain = Of(c => [Prisoner(c) with { Mood = null, Conversion = Conversion() }], census: ForeignCensus());
+        var walked = Of(c => [Prisoner(c) with { Mood = null, Conversion = Conversion() }], census: ForeignCensus(), walkThere: 300, walkBack: 500);
+        var recruitDelta = LostPerJob(walked, ForecastPrison.ChatJobTicks + 800) - LostPerJob(plain);
+        var convertTicks = ForecastPrison.ConvertJobTicks(plain.Context.Needs.Prison);
+        var convertDelta = LostPerJob(walked, convertTicks + 800) - LostPerJob(plain, convertTicks);
+        Assert.Equal((8 * recruitDelta) + (2 * convertDelta), Assert.Single(plain.Gains()).Once - Assert.Single(walked.Gains()).Once, 9);
+    }
+
+    [Fact]
+    public void StandingAndPlannedPrisonBedsUseTheirCanonicalLocationsAndBothRouteDirections()
+    {
+        var current = new Cell(2, 2);
+        var planned = new Cell(4, 4);
+        var room = new PlannedRoom { Id = 1, Role = PlannedRole.Prison, Region = RegionRules.RectRegion(new Policy.Rectangle(1, 1, 5, 5)) };
+        var sleeping = new SleepingObservation { Beds = [new()
+        {
+            Native = SleepingNativeFixtures.Bed("standing", prisoners: true),
+            Building = SleepingNativeFixtures.Building("standing", cell: current), Humanlike = true,
+        }] };
+        var beds = ForecastPrison.BedsOf([room], [new("planned", 1, OpKind.Build, "Bed", "Steel", Rotation.North, [planned])], sleeping,
+            [new("Bed", "Steel", false, 1, 0.75)]);
+        Assert.Equal(new[] { current, planned }, beds[1]);
+        var shape = new PlannedRoomShape("1", "Steel", [current, planned], []);
+        var origin = new Cell(20, 20);
+        var read = NeedsFixtures.NoPrison with { Prisoners = [Bare(10)] };
+        var probes = ForecastPrison.RouteProbes([shape], beds, [origin], read);
+        Assert.Equal(4, probes.Count);
+        Assert.All(beds[1], b =>
+        {
+            Assert.Contains(probes, p => p.From == origin && p.To == b && !p.Return && ReferenceEquals(p.Projection, shape));
+            Assert.Contains(probes, p => p.From == origin && p.To == b && p.Return && ReferenceEquals(p.Projection, shape));
+        });
     }
 
     [Fact]

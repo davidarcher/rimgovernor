@@ -52,6 +52,10 @@ public sealed record PlannedRouteProbe(Cell From, Cell To,
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))] EquatableArray<Cell> Reach)
 {
     public bool FromStart { get; init; }
+    /// <summary>A prison walk under this closed room's projected pieces and furniture. Null reads the live map.</summary>
+    public PlannedRoomShape? Projection { get; init; }
+    /// <summary>Return from the interaction position reached by the inbound walk, to From.</summary>
+    public bool Return { get; init; }
 }
 
 /// <summary>

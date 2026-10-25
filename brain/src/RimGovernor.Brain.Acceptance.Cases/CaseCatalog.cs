@@ -28,6 +28,7 @@ public static class CaseCatalog
         registry.Register(ControlHaulOut.Case());
         registry.Register(RemovalDesignationRowsCase.Case());
         registry.Register(ConstructionRouteLegsCase.Case());
+        registry.Register(PrisonProjectedRoutesCase.Case());
         registry.Register(ProductionCoupledNeeds.Case());
         registry.Register(ForecastResidualCase.Case());
         registry.Register(NeedsTargetCapacity.Case());

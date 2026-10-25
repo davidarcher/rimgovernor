@@ -895,13 +895,17 @@ chosen roots, `JoinerMoodRules.ShortfallOf`, computed once per outcome by the sh
 Greedy, Jealous and Ascetic at the median over the colonists of the stage their owned bedroom gives, `JoinerMoodRules.RoomTraits`;
 pain, added body parts and Recluse at their stage now) and memories; its free hours the median over the colonists of its own need
 falls served as each is served. The row is that value a day with a `Once` of −value × the expected recruitment days, less the
-expected chat jobs × the warden work a job takes (its 2,100 toil ticks as the shortfall rows they would fill, as the classroom
-charges its teacher), less the converter's work for each conversion job (its 1,400 toil ticks). A non-positive value earns nothing
+expected chat jobs × the warden work a job takes (its 2,100 toil ticks plus its native round trip, as the shortfall rows they
+would fill, as the classroom charges its teacher), less the converter's work for each conversion job (its 1,400 toil ticks plus
+that converter's round trip). The origin is each location the outcome assigns the warden work, weighted by its work ticks; with
+no assigned work it is the pawn's observed location. Both legs use the room's projected walls, doors and furniture in the native
+path job, including the interaction position after Touch and its return to work. An unreachable recruiter or converter walk
+credits no recruit and names `prison_warden_unreachable:<pawn>` or `prison_converter_unreachable:<pawn>`; a missing route is a
+required-fact failure. Standing and planned bed anchors share the sleeping census and construction sites. A non-positive value earns nothing
 (`prison_joiner_costs_more`). Named states, each earning nothing: no prisoner (`prison_no_prisoner`), no recruitable prisoner
 without a bed (`prison_no_recruit`, with `prison_unrecruitable` for a loyal one), no warden (`prison_no_warden`), a prison closing
 no bed (`prison_no_bed`), a prisoner to convert that no warden can convert (`prison_no_converter`) and the review before the first
-layout plan (`prison_awaiting:layout_plan`). Named as not modelled: the
-warden's walks (`prison_warden_walk`, #3964), the other trait thoughts whose worker reads the situation
+layout plan (`prison_awaiting:layout_plan`). Named as not modelled: the other trait thoughts whose worker reads the situation
 (`joiner_situational_trait_thoughts`, #3965), memories a bedless prisoner renews until bedded (`prison_bedless_memory_renewal`,
 #3966), the memories the cell gives over the recruitment (`prison_cell_memories`, #3967) and one inspiration counted for every
 prisoner (`prison_inspiration_shared`, #3968).

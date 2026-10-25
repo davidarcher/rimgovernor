@@ -24,12 +24,18 @@ public sealed partial class ColonyReview
         var thermal = PlannedRules.PlannedThermalRequestOf(rooms, planned.Sites, [furniture.Heater, .. furniture.FueledHeaters], cooler, Policy.FoodStorage.FreezerTargetC);
         var predictions = PlannedRules.PlannedRoomPredictionRequestOf(rooms, planned.Sites,
             colony.Facts.CurrentConstruction.Sites);
+        var prisonBeds = ForecastPrison.BedsOf(rooms, planned.Sites, colony.Facts.Sleeping, colony.Facts.SleepingBeds);
+        var origins = (colony.Facts.ForecastObserved.Coupled?.Routes ?? []).SelectMany(r => new[] { r.From, r.To })
+            .Concat((colony.Facts.ForecastObserved.Needs?.Pawns ?? []).Select(p => p.Location))
+            .Concat(planned.Routes.SelectMany(r => new[] { r.From, r.To })).Concat(planned.Sites.SelectMany(s => s.Positions));
+        var prisonRoutes = ForecastPrison.RouteProbes(predictions, prisonBeds, origins,
+            colony.Facts.ForecastObserved.Needs?.Prison);
         if (thermal is null && predictions.Count == 0)
         {
             return (null, [], new Dictionary<int, EquatableArray<PlannedBuildSite>>());
         }
         var read = await source.ReadConstructionActivityAsync(new RimGovernor.Brain.GameOrders.Observations.ConstructionActivityRequest(Boundary.Identity(snapshot), [])
-            { Thermal = thermal, RoomPredictions = predictions }, ct).ConfigureAwait(false);
+            { Thermal = thermal, RoomPredictions = predictions, Routes = prisonRoutes }, ct).ConfigureAwait(false);
         if (thermal is null) return (null, read.RoomPredictions, new Dictionary<int, EquatableArray<PlannedBuildSite>>());
         var prepared = FreezerPrerequisites.Of(colony.Facts, read.Thermal ?? throw new RequiredFactException("planned shelter thermal"));
         var missing = prepared.Values.SelectMany(s => s).Where(s => s.Answer is null).DistinctBy(s => s.Id).ToArray();
