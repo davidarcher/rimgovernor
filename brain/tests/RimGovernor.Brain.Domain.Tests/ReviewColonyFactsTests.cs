@@ -27,7 +27,7 @@ public sealed class ReviewColonyFactsTests
         var census = new RoundsCensusStore();
         census.RememberColony(colony);
         var reading = new RoundsReading { Emergency = new(), Frame = new(), Reading = new ColonyReading { Projection = ColonyFactsCoreTests.Projection() with { Identity = At(100) } } };
-        census.Retain(reading, false, Unknown<EquatableArray<ConstructionClaim>>());
+        census.Retain(reading, false);
         return census;
     }
 

@@ -59,7 +59,6 @@ public sealed record AppliedStockpile(string Target, StorageTargetKind Kind, Sto
 
 public sealed partial class Store
 {
-    private const int MaxConstructionClaims = 256;
     private const int MaxStockpilePatchPlans = 1024;
 
     /// <summary>
@@ -259,9 +258,9 @@ public sealed partial class Store
     /// Every applied building intent of an autopilot goal claims what its key builds, through catalog retirement and
     /// manual play. Explicit goal cancellation revokes upkeep ownership; world changes and future receipts confer none.
     /// Only a plan holding a building action with an accepted receipt can carry an applied intent, so the link query
-    /// excludes the rest before the full plan load. Unknown when the claims outgrow their bound.
+    /// excludes the rest before the full plan load. Reads every matching claim in this world scope.
     /// </summary>
-    internal static Fact<EquatableArray<ConstructionClaim>> ConstructionClaimsIn(StoreTransaction tx, GenerationSnapshot current, Tick tick)
+    internal static EquatableArray<ConstructionClaim> ConstructionClaimsIn(StoreTransaction tx, GenerationSnapshot current, Tick tick)
     {
         // A Need-owned plan (#3263) claims what it builds, filed under the Need's key.
         var needs = tx.Query(
@@ -269,14 +268,10 @@ public sealed partial class Store
                 SELECT m.plan_id,m.need_id FROM need_methods m
                  WHERE m.colony=$colony AND m.load_token=$load AND m.map_id=$map
                  AND EXISTS(SELECT 1 FROM actions a JOIN transitions t ON t.action_id=a.id WHERE a.plan_id=m.plan_id AND a.kind='building' AND COALESCE(json_extract(a.body,'$.Payload.ConstructionTarget'),'')='' AND {ReceiptAccepted})
-                 ORDER BY m.plan_id LIMIT 257
+                 ORDER BY m.plan_id
                 """,
             [("$colony", current.Colony), ("$load", current.Load), ("$map", current.Map)],
             r => (Plan: new PlanId(r.GetString(0)), Need: new NeedId(r.GetString(1))));
-        if (needs.Count > MaxConstructionClaims)
-        {
-            return default;
-        }
         var result = new List<ConstructionClaim>();
         foreach (var link in needs)
         {
@@ -287,16 +282,12 @@ public sealed partial class Store
                     continue;
                 }
                 result.Add(new ConstructionClaim { Plan = link.Plan, Action = progress.View.Action, Concern = link.Need.FilingKey, Building = building });
-                if (result.Count > MaxConstructionClaims)
-                {
-                    return default;
-                }
             }
         }
-        return Fact.Known(EquatableArray.From(result));
+        return EquatableArray.From(result);
     }
 
-    public Fact<EquatableArray<ConstructionClaim>> ConstructionClaims(GenerationSnapshot current, Tick tick, CancellationToken cancellationToken)
+    public EquatableArray<ConstructionClaim> ConstructionClaims(GenerationSnapshot current, Tick tick, CancellationToken cancellationToken)
     {
         if (!current.IsValid || tick.Value < 0)
         {
@@ -305,7 +296,7 @@ public sealed partial class Store
         return Run(tx => ConstructionClaimsIn(tx, current, tick), cancellationToken);
     }
 
-    public Task<Fact<EquatableArray<ConstructionClaim>>> ConstructionClaimsAsync(GenerationSnapshot current, Tick tick, CancellationToken cancellationToken) =>
+    public Task<EquatableArray<ConstructionClaim>> ConstructionClaimsAsync(GenerationSnapshot current, Tick tick, CancellationToken cancellationToken) =>
         Task.Run(() => ConstructionClaims(current, tick, cancellationToken), cancellationToken);
 
     /// <summary>

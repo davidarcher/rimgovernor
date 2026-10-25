@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class Rounder
 {
     /// <summary>Cells a field must not cover: held reservations, pending monuments, housing shells and the firebreak ring.</summary>
-    internal IReadOnlyList<Cell> FieldProtected(ControlState state, Rounds review, ColonyProjection projection, Fact<EquatableArray<ConstructionClaim>> claims, CancellationToken call)
+    internal IReadOnlyList<Cell> FieldProtected(ControlState state, Rounds review, ColonyProjection projection, EquatableArray<ConstructionClaim> claims, CancellationToken call)
     {
         var p = Player;
         var held = p.Journal.BuildingReservations(state.Snapshot, call);
@@ -25,8 +25,7 @@ public sealed partial class Rounder
             }
         }
 
-        claims.TryGetValue(out var claimed);
-        protectedCells.AddRange(RoundsShellInteriors.ShellInteriors(shells, claimed));
+        protectedCells.AddRange(RoundsShellInteriors.ShellInteriors(shells, claims));
         protectedCells.AddRange(RoundsFieldPlanner.FirebreakRing(projection));
         return protectedCells;
     }

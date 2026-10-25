@@ -125,7 +125,7 @@ public sealed class ForecastWorkInputsTests
         return new()
         {
             Tick = new Tick(100), CurrentConstruction = CurrentConstruction.Empty with { Sites = EquatableArray.From(new[] { site }) },
-            ConstructionClaims = Known(EquatableArray.From(new[] { claim, claim })),
+            ConstructionClaims = EquatableArray.From(new[] { claim, claim }),
             ForecastObserved = new() { WorkPawns = new WorkPawnsRead.Read(EquatableArray.From(new[] { PawnFixtures.Worker("cook-builder") with { Schedule = Pawn().Schedule } })) },
             BillReservations = [],
             ProductionPromises = Known(default(EquatableArray<ForecastCommitment>)),

@@ -78,12 +78,12 @@ public sealed partial class FoodStoresRounds
         Fact<bool> closet = default;
         if (_cooler is null)
         {
-            reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), ct).ConfigureAwait(false);
+            reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, ct).ConfigureAwait(false);
         }
         else
         {
             // Refrigeration reads the room census: its warm stock stands in rooms and its cooling rooms are planned.
-            reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), _cooler.RefrigerationDefinitions(), ct).ConfigureAwait(false);
+            reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, _cooler.RefrigerationDefinitions(), ct).ConfigureAwait(false);
             warm = RoundsBurialFacts.WarmCoolingRooms(reading.Projection);
             closet = RoundsBurialFacts.MealClosetOwed(reading.Projection);
         }

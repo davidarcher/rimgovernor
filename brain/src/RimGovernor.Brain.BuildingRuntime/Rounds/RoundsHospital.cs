@@ -118,7 +118,7 @@ public sealed partial class RoundsHospitalPlanner
             throw new ControlException("step: boundary moved");
         }
 
-        var reading = await Reviewer.ObserveRoomsAsync((IRoundsSource)Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
+        var reading = await Reviewer.ObserveRoomsAsync((IRoundsSource)Native, expected, call).ConfigureAwait(false);
         var facts = reading.Projection;
         PlannerSnapshot.RecordStepRead("hospital", MedicalRules.MedicalCareNeed.FilingKey, state.Snapshot, facts);
         var choice = HospitalRules.SelectHospitalBed(HospitalRequestOf(facts));

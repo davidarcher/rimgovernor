@@ -133,19 +133,12 @@ public static class ConstructionOwnershipRules
     /// building, annotated with the journal claim whose building stands there. History never excludes
     /// player-built facilities. Throws <see cref="DomainException"/> on a malformed census.
     /// </summary>
-    public static Fact<EquatableArray<ConstructionClaim>> OwnedConstructions(Fact<EquatableArray<ConstructionClaim>> claims, CurrentConstruction? census)
+    public static EquatableArray<ConstructionClaim> OwnedConstructions(EquatableArray<ConstructionClaim> history, CurrentConstruction? census)
     {
         if (census is null)
         {
-            return Unknown<EquatableArray<ConstructionClaim>>();
+            throw new RequiredFactException("current_construction");
         }
-        claims.TryGetValue(out var history);
-        return Known(OwnedConstructions(history, census));
-    }
-
-    /// <summary>The same view for a caller holding the claims and the census whole.</summary>
-    public static EquatableArray<ConstructionClaim> OwnedConstructions(EquatableArray<ConstructionClaim> history, CurrentConstruction census)
-    {
         var byBuilding = new Dictionary<Building, ConstructionClaim>();
         foreach (var claim in history)
         {

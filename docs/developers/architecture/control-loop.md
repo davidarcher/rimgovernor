@@ -386,6 +386,13 @@ serialize. `ConstructionClaimsIn` reads Need-owned building plans too. The bench
 step reads the room census, so a destroyed bench is raised again under the same
 `laboratory-<def>` as the next attempt (decision 19).
 
+Construction claims are a total journal read of every applied building intent in the
+current colony, load and map, including retired plans. They are not capped at 256
+plans or buildings: that read limit was separate from admission and journal validation
+and could hide a larger colony's provenance. The read costs a scan of matching plan
+history and does not cross the native wire. Ordinary and immediate observations carry
+the actual claims into their facts before any construction planner consumes them.
+
 **Economy, resources (#3303).** MaintainResource is now the `economy/resource`
 Need (`ResourceNeedOf`), a Wellbeing Need of the same `economy` entry, composed
 by the resource-target or acquisition toggle. It is a plain threshold with no

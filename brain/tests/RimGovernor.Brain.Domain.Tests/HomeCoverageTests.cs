@@ -67,6 +67,6 @@ public sealed class HomeCoverageTests
         var extent = Assert.IsType<ExtentDerivation.Derived>(ColonyExtentRules.DeriveColonyExtent(request)).Extent;
         var region = Assert.Single(extent.Regions);
         Assert.Equal([new Cell(1, 1), new Cell(1, 2)], region.Cells.Select(c => c.Cell));
-        Assert.Equal(new ExtentDerivation.Incomplete("home coverage census"), ColonyExtentRules.DeriveColonyExtent(request.Bounds, request.Construction, Known(request.Claims), null));
+        Assert.Equal(new ExtentDerivation.Incomplete("home coverage census"), ColonyExtentRules.DeriveColonyExtent(request.Bounds, request.Construction, request.Claims, null));
     }
 }

@@ -73,7 +73,7 @@ internal sealed class FrameColony(IRoundsSource inner, RoundsFrame frame) : ICol
 
 public static class RoundsReads
 {
-    public static Task<RoundsReading> ObserveRoundsOwned(IRoundsSource? source, IClock clock, Identity expected, TimeSpan maxAge, Fact<EquatableArray<ConstructionClaim>> claims, IReadOnlyList<string> definitions, CancellationToken cancellationToken) =>
+    public static Task<RoundsReading> ObserveRoundsOwned(IRoundsSource? source, IClock clock, Identity expected, TimeSpan maxAge, EquatableArray<ConstructionClaim> claims, IReadOnlyList<string> definitions, CancellationToken cancellationToken) =>
         ObserveRounds(source, clock, expected, maxAge, claims, false, true, definitions, cancellationToken);
 
     /// <summary>
@@ -81,19 +81,19 @@ public static class RoundsReads
     /// each facility's hosting room role: without the census no comfort facility can be certified as hosted, so
     /// comfort becomes unknown.
     /// </summary>
-    public static Task<RoundsReading> ObserveRoundsRooms(IRoundsSource? source, IClock clock, Identity expected, TimeSpan maxAge, Fact<EquatableArray<ConstructionClaim>> claims, IReadOnlyList<string> definitions, CancellationToken cancellationToken) =>
+    public static Task<RoundsReading> ObserveRoundsRooms(IRoundsSource? source, IClock clock, Identity expected, TimeSpan maxAge, EquatableArray<ConstructionClaim> claims, IReadOnlyList<string> definitions, CancellationToken cancellationToken) =>
         ObserveRounds(source, clock, expected, maxAge, claims, true, true, definitions, cancellationToken);
 
     /// <summary>Decodes the same native frame and room observations without fetching the development planning window or its definition reads.</summary>
-    public static Task<RoundsReading> ObserveRoundsProtection(IRoundsSource? source, IClock clock, Identity expected, TimeSpan maxAge, CancellationToken cancellationToken) =>
-        ObserveRounds(source, clock, expected, maxAge, Unknown<EquatableArray<ConstructionClaim>>(), true, false, [], cancellationToken);
+    public static Task<RoundsReading> ObserveRoundsProtection(IRoundsSource? source, IClock clock, Identity expected, TimeSpan maxAge, EquatableArray<ConstructionClaim> claims, CancellationToken cancellationToken) =>
+        ObserveRounds(source, clock, expected, maxAge, claims, true, false, [], cancellationToken);
 
     /// <summary>
     /// Decodes one frame. ObserveColony checks the frame's colony context against expected; every other section of
     /// the frame shares that context and tick, so none is checked against another.
     /// </summary>
     private static async Task<RoundsReading> ObserveRounds(
-        IRoundsSource? source, IClock clock, Identity expected, TimeSpan maxAge, Fact<EquatableArray<ConstructionClaim>> claims,
+        IRoundsSource? source, IClock clock, Identity expected, TimeSpan maxAge, EquatableArray<ConstructionClaim> claims,
         bool rooms, bool planning, IReadOnlyList<string> definitions, CancellationToken cancellationToken)
     {
         if (source is null)
@@ -124,7 +124,7 @@ public static class RoundsReads
         p = p with { Definitions = FrameDefinitionFacts(frame, catalog).AppendDefinitions([.. p.Definitions], names) };
         p = p with
         {
-            Facts = p.Facts with { Items = catalog.ItemFacts() },
+            Facts = p.Facts with { Items = catalog.ItemFacts(), ConstructionClaims = claims },
         };
         var finished = new HashSet<string>(ResearchSection(frame).Finished, StringComparer.Ordinal);
         p = p with

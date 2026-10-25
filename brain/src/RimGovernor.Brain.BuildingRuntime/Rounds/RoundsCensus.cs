@@ -5,7 +5,6 @@ internal sealed partial class RoundsCensus
 {
     public RoundsReading Reading = null!;
     public bool Rooms;
-    public bool Claims;
     public HashSet<string> Definitions = new(StringComparer.Ordinal);
     public ulong Generation;
     /// <summary>The review frame's colony facts, by reference: planner reads inside the reuse window are served it.</summary>
@@ -148,9 +147,9 @@ internal sealed class RoundsCensusStore
         return projection;
     }
 
-    internal void Retain(RoundsReading reading, bool rooms, Fact<EquatableArray<ConstructionClaim>> claims)
+    internal void Retain(RoundsReading reading, bool rooms)
     {
-        var census = new RoundsCensus { Reading = reading, Rooms = rooms, Claims = claims.IsKnown };
+        var census = new RoundsCensus { Reading = reading, Rooms = rooms };
         foreach (var definition in reading.Projection.Definitions)
         {
             census.Definitions.Add(definition.Name);
@@ -194,7 +193,7 @@ internal sealed class RoundsCensusStore
         }
     }
 
-    internal bool Lookup(object? source, object? reviewerSource, Identity expected, bool rooms, Fact<EquatableArray<ConstructionClaim>> claims, IReadOnlyList<string>? definitions, out RoundsReading reading)
+    internal bool Lookup(object? source, object? reviewerSource, Identity expected, bool rooms, IReadOnlyList<string>? definitions, out RoundsReading reading)
     {
         reading = default!;
         if (!RoundsCensus.SameNativeSource(source, reviewerSource))
@@ -213,10 +212,6 @@ internal sealed class RoundsCensusStore
             return false;
         }
         if (rooms && !census.Rooms)
-        {
-            return false;
-        }
-        if (claims.IsKnown && !census.Claims)
         {
             return false;
         }
@@ -305,17 +300,32 @@ partial class RoundsCensus
 
 public sealed partial class Rounder
 {
-    internal async Task<RoundsReading> ObserveOwnedAsync(IRoundsSource source, Identity expected, Fact<EquatableArray<ConstructionClaim>> claims, CancellationToken ct) =>
+    private EquatableArray<ConstructionClaim> ReadConstructionClaims(Identity expected, CancellationToken ct) =>
+        Player.Journal.ConstructionClaims(Player.Session.State().Snapshot, expected.Tick, ct);
+
+    internal Task<RoundsReading> ObserveOwnedAsync(IRoundsSource source, Identity expected, CancellationToken ct) =>
+        ObserveOwnedAsync(source, expected, ReadConstructionClaims(expected, ct), [], ct);
+
+    internal Task<RoundsReading> ObserveOwnedAsync(IRoundsSource source, Identity expected, IReadOnlyList<string> definitions, CancellationToken ct) =>
+        ObserveOwnedAsync(source, expected, ReadConstructionClaims(expected, ct), definitions, ct);
+
+    internal Task<RoundsReading> ObserveRoomsAsync(IRoundsSource source, Identity expected, CancellationToken ct) =>
+        ObserveRoomsAsync(source, expected, ReadConstructionClaims(expected, ct), [], ct);
+
+    internal Task<RoundsReading> ObserveRoomsAsync(IRoundsSource source, Identity expected, IReadOnlyList<string> definitions, CancellationToken ct) =>
+        ObserveRoomsAsync(source, expected, ReadConstructionClaims(expected, ct), definitions, ct);
+
+    internal async Task<RoundsReading> ObserveOwnedAsync(IRoundsSource source, Identity expected, EquatableArray<ConstructionClaim> claims, CancellationToken ct) =>
         await ObserveOwnedAsync(source, expected, claims, [], ct).ConfigureAwait(false);
 
-    internal async Task<RoundsReading> ObserveOwnedAsync(IRoundsSource source, Identity expected, Fact<EquatableArray<ConstructionClaim>> claims, IReadOnlyList<string> definitions, CancellationToken ct)
+    internal async Task<RoundsReading> ObserveOwnedAsync(IRoundsSource source, Identity expected, EquatableArray<ConstructionClaim> claims, IReadOnlyList<string> definitions, CancellationToken ct)
     {
         if (ClockScheduler.ImmediateReview())
         {
-            return await RoundsReads.ObserveRoundsProtection(source, Clock, expected, MaxAge, ct).ConfigureAwait(false);
+            return await RoundsReads.ObserveRoundsProtection(source, Clock, expected, MaxAge, claims, ct).ConfigureAwait(false);
         }
         using var window = ClockPlanning.StandaloneWindow(source);
-        if (Census.Lookup(source, Native, expected, false, claims, definitions, out var cached))
+        if (Census.Lookup(source, Native, expected, false, definitions, out var cached))
         {
             return cached;
         }
@@ -329,7 +339,7 @@ public sealed partial class Rounder
     /// ColdFloor and HeatFloor are stamped (#3325), so the review's facts, the ledger's gear declarers, the census the
     /// planners share and a planner's fresh read all plan inside the same filter and floor.
     /// </summary>
-    internal async Task<RoundsReading> ObserveRoundsAsync(IRoundsSource source, Identity expected, bool rooms, Fact<EquatableArray<ConstructionClaim>> claims, IReadOnlyList<string> definitions, CancellationToken ct)
+    internal async Task<RoundsReading> ObserveRoundsAsync(IRoundsSource source, Identity expected, bool rooms, EquatableArray<ConstructionClaim> claims, IReadOnlyList<string> definitions, CancellationToken ct)
     {
         var reading = rooms
             ? await RoundsReads.ObserveRoundsRooms(source, Clock, expected, MaxAge, claims, definitions, ct).ConfigureAwait(false)
@@ -379,17 +389,17 @@ public sealed partial class Rounder
         return new MirroredBenches(this, native, scope, expected, fresh);
     }
 
-    internal async Task<RoundsReading> ObserveRoomsAsync(IRoundsSource source, Identity expected, Fact<EquatableArray<ConstructionClaim>> claims, CancellationToken ct) =>
+    internal async Task<RoundsReading> ObserveRoomsAsync(IRoundsSource source, Identity expected, EquatableArray<ConstructionClaim> claims, CancellationToken ct) =>
         await ObserveRoomsAsync(source, expected, claims, [], ct).ConfigureAwait(false);
 
-    internal async Task<RoundsReading> ObserveRoomsAsync(IRoundsSource source, Identity expected, Fact<EquatableArray<ConstructionClaim>> claims, IReadOnlyList<string> definitions, CancellationToken ct)
+    internal async Task<RoundsReading> ObserveRoomsAsync(IRoundsSource source, Identity expected, EquatableArray<ConstructionClaim> claims, IReadOnlyList<string> definitions, CancellationToken ct)
     {
         if (ClockScheduler.ImmediateReview())
         {
-            return await RoundsReads.ObserveRoundsProtection(source, Clock, expected, MaxAge, ct).ConfigureAwait(false);
+            return await RoundsReads.ObserveRoundsProtection(source, Clock, expected, MaxAge, claims, ct).ConfigureAwait(false);
         }
         using var window = ClockPlanning.StandaloneWindow(source);
-        if (Census.Lookup(source, Native, expected, true, claims, definitions, out var cached))
+        if (Census.Lookup(source, Native, expected, true, definitions, out var cached))
         {
             return cached;
         }
@@ -399,9 +409,10 @@ public sealed partial class Rounder
 
     internal async Task<ColonyReading> ObserveColonyAsync(IColonySource source, Identity expected, IReadOnlyList<string>? definitions, CancellationToken ct)
     {
+        var claims = ReadConstructionClaims(expected, ct);
         if (ClockScheduler.ImmediateReview())
         {
-            return (await RoundsReads.ObserveRoundsProtection(Native, Clock, expected, MaxAge, ct).ConfigureAwait(false)).Reading;
+            return (await RoundsReads.ObserveRoundsProtection(Native, Clock, expected, MaxAge, claims, ct).ConfigureAwait(false)).Reading;
         }
         using var window = ClockPlanning.StandaloneWindow(source);
         if (definitions is { Count: > 0 })
@@ -410,13 +421,13 @@ public sealed partial class Rounder
             {
                 throw new ObservationContractException("observation contract violated");
             }
-            return (await ObserveOwnedAsync(routine, expected, Unknown<EquatableArray<ConstructionClaim>>(), [.. definitions], ct).ConfigureAwait(false)).Reading;
+            return (await ObserveOwnedAsync(routine, expected, claims, [.. definitions], ct).ConfigureAwait(false)).Reading;
         }
-        if (Census.Lookup(source, Native, expected, false, Unknown<EquatableArray<ConstructionClaim>>(), null, out var cached))
+        if (Census.Lookup(source, Native, expected, false, null, out var cached))
         {
             return cached.Reading;
         }
         var reading = await ColonyReads.ObserveColony(source, Clock, expected, MaxAge, true, ct).ConfigureAwait(false);
-        return reading with { Projection = ServeAndReview(reading.Projection) };
+        return reading with { Projection = ServeAndReview(reading.Projection with { Facts = reading.Projection.Facts with { ConstructionClaims = claims } }) };
     }
 }

@@ -56,7 +56,7 @@ public sealed partial class HomeUpkeepReader
         }
         // Clearance reads the room census: retired walls wait while they still bound a standing room (#3681).
         var colony = _clearance
-            ? (await _reviewer.ObserveRoomsAsync(_native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false)).Reading
+            ? (await _reviewer.ObserveRoomsAsync(_native, expected, call).ConfigureAwait(false)).Reading
             : await _reviewer.ObserveColonyAsync(_native, expected, null, call).ConfigureAwait(false);
         var facts = new HomeUpkeepFacts();
         if (_repairs)

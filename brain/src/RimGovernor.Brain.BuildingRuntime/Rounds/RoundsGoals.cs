@@ -43,7 +43,7 @@ public sealed partial class GoalsRounds
         {
             throw new ControlException("goals read: the scope is another world or older than the review");
         }
-        var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), ct).ConfigureAwait(false);
+        var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, ct).ConfigureAwait(false);
         var goals = await journal.LoadGoalsAsync(Player.PlayerWorld(scope.World), ct).ConfigureAwait(false);
         var owners = new Dictionary<NeedId, OwnerProgress>();
         // A goal the family places itself is its own owner.

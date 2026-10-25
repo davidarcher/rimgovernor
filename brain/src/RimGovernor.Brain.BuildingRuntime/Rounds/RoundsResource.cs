@@ -375,7 +375,7 @@ public sealed partial class RoundsResourcePlanner
             throw new ControlException("miningReach: boundary moved");
         }
 
-        var reading = await reviewer.ObserveOwnedAsync(reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), ct).ConfigureAwait(false);
+        var reading = await reviewer.ObserveOwnedAsync(reviewer.Native, expected, ct).ConfigureAwait(false);
         var f = reading.Projection.Facts;
         f = f with { ConstructionClaims = reviewer.Player.Journal.ConstructionClaims(state.Snapshot, expected.Tick, ct) };
         var emergency = EmergencySnapshot.New(state.Snapshot, expected.Tick, reading.Emergency);

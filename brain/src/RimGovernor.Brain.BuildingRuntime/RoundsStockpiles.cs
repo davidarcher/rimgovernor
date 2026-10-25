@@ -414,7 +414,6 @@ public sealed partial class Rounder
             protectedCells.AddRange(h.Footprint);
         }
         var claims = Player.Journal.ConstructionClaims(snapshot, projection.Identity.Tick, ct);
-        claims.TryGetValue(out var rows);
         var unroofed = new HashSet<Cell>();
         foreach (var c in projection.Cells)
         {
@@ -423,7 +422,7 @@ public sealed partial class Rounder
                 unroofed.Add(c.Cell);
             }
         }
-        foreach (var cell in RoundsShellInteriors.ShellInteriors([], rows))
+        foreach (var cell in RoundsShellInteriors.ShellInteriors([], claims))
         {
             if (unroofed.Contains(cell))
             {

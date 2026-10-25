@@ -50,7 +50,7 @@ public sealed class RoyaltyRounds
         {
             throw new ControlException("royalty read: the scope is another world or older than the review");
         }
-        var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
+        var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, call).ConfigureAwait(false);
         var facts = new RoyaltyFamilyFacts
         {
             Royalty = read.Projection.Facts.Royalty,

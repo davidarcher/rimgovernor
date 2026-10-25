@@ -556,7 +556,7 @@ public sealed partial class Rounder
             reading = reading.WithFacts(rf => rf with { AnimalUpkeep = rf.AnimalUpkeep with { Forecast = Known(foodPlan.Forecast) } });
         }
         reading = reading.WithColonySection(c => c with { Facts = c.Facts with { FoodPlan = reading.Projection.Facts.FoodPlan, FoodReserve = reading.Projection.Facts.FoodReserve } });
-        Census.Retain(reading, roomsCensus, claims);
+        Census.Retain(reading, roomsCensus);
         var filedScope = new FactScope(expected.Load.Value, expected.Map.Value, native.Value);
         reading.Sections.File(Store, filedScope);
         // A served native section may have gained a fresh derived food review.
@@ -766,7 +766,7 @@ public sealed partial class Rounder
         }
         fine.Lap("derive/model");
         // Acquisition uses the review's completed home staffing and defense facts.
-        Census.Retain(reading, roomsCensus, claims);
+        Census.Retain(reading, roomsCensus);
         Lap("derive");
         await PlanFoodAcquisitionAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
         stages.Lap("acquisition");

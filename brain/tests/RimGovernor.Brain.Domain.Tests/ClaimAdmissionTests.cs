@@ -84,6 +84,34 @@ public sealed class ClaimAdmissionTests
     }
 
     [Fact]
+    public async Task ConstructionClaimsKeepEveryAppliedBuildingPastTheOld256Limit()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var colony = Open();
+        Assert.Empty(colony.Journal.ConstructionClaims(World, new(100), ct));
+        var actions = Enumerable.Range(0, 257).Select(i => DomainAction.NewBuildingAction(new($"spot-{i}"),
+            new("TestSpot", new(4 + i % 20, 4 + i / 20), Rotation.North, ""), ConstructionTier.Sustain)).ToArray();
+        var committed = colony.Work("many-spots", actions);
+        Assert.Equal(ClaimOutcome.Admitted, committed.Outcome);
+        var plan = Assert.Single(committed.Owner.Methods).Plan;
+        var scope = World with { Plan = plan, Revision = new(1) };
+        foreach (var action in actions)
+        {
+            _ = colony.Journal.Prepare(plan, action.Id, scope, new(100), ct);
+            var sent = colony.Journal.Dispatch(plan, action.Id, scope, new(100), ct);
+            _ = colony.Journal.RecordReceipt(plan, action.Id, sent.View.Attempt, Receipt.Accepted, ct);
+        }
+
+        var claims = colony.Journal.ConstructionClaims(World, new(100), ct);
+        Assert.Equal(257, claims.Count);
+        Assert.Equal(actions.Select(a => a.Id), claims.Select(c => c.Action));
+        Assert.All(claims, c => Assert.Equal(TestNeed.Id.FilingKey, c.Concern));
+        Assert.Equal(claims, await colony.Journal.ConstructionClaimsAsync(World, new(100), ct));
+        Assert.Empty(colony.Journal.ConstructionClaims(World, new(99), ct));
+        Assert.Empty(colony.Journal.ConstructionClaims(World with { Map = new(2) }, new(100), ct));
+    }
+
+    [Fact]
     public void SecondForageIsAdmittedOnOtherSourcesAndRefusedOnAnOpenOne()
     {
         using var colony = Open();

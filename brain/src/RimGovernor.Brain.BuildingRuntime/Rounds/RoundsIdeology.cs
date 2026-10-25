@@ -55,7 +55,7 @@ public sealed class IdeologyReader
         {
             throw new ControlException("ideology read: the scope is another world or older than the review");
         }
-        var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
+        var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, call).ConfigureAwait(false);
         var projection = read.Projection;
         var facts = new IdeologyFacts { Installed = IdeologyFamilyRules.Installed(projection.Facts) };
         if (!facts.Installed)

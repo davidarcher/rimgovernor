@@ -231,14 +231,13 @@ partial class RoundsBuildingPlanner
     }
 
     /// <summary>Whether a campfire intent already stands: an unheated campfire in the census or an open campfire claim.</summary>
-    internal static bool CampfireIntentStanding(Fact<EquatableArray<ConstructionClaim>> claims, CurrentConstruction? observed)
+    internal static bool CampfireIntentStanding(EquatableArray<ConstructionClaim> claims, CurrentConstruction? observed)
     {
         if (observed is not { } census)
         {
             return false;
         }
-        claims.TryGetValue(out var history);
-        var heat = HeatCampfireCells(history);
+        var heat = HeatCampfireCells(claims);
         foreach (var b in census.Buildings)
         {
             if (b.Building is { Definition: "Campfire" } && b.Cells.Count > 0 && !heat.Contains(b.Cells[0]))
@@ -246,7 +245,7 @@ partial class RoundsBuildingPlanner
                 return true;
             }
         }
-        foreach (var claim in history)
+        foreach (var claim in claims)
         {
             if (claim.Building is { Definition: "Campfire" } campfire && ConstructionOwnershipRules.WorkOpen(campfire, observed) == BuildingWork.BuildingOpen)
             {

@@ -283,12 +283,12 @@ public sealed partial class RoundsBuildingPlanner
         {
             // Cooking and butcher placements read rooms too when the source can serve them, so kitchen/butcher
             // separation protects each other's rooms; without a census nothing is protected.
-            var full = await r.Reviewer.ObserveRoomsAsync((Observation.IRoundsSource)r.Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), [.. observed], call).ConfigureAwait(false);
+            var full = await r.Reviewer.ObserveRoomsAsync((Observation.IRoundsSource)r.Native, expected, [.. observed], call).ConfigureAwait(false);
             reading = full.Reading;
         }
         else if (r.Concern == PowerFamily.Basic.FilingKey || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortWorkChair)
         {
-            var full = await r.Reviewer.ObserveOwnedAsync((Observation.IRoundsSource)r.Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), [.. observed], call).ConfigureAwait(false);
+            var full = await r.Reviewer.ObserveOwnedAsync((Observation.IRoundsSource)r.Native, expected, [.. observed], call).ConfigureAwait(false);
             reading = full.Reading;
         }
         else
@@ -328,16 +328,13 @@ public sealed partial class RoundsBuildingPlanner
         {
             // A cooking campfire a stove kitchen supersedes is deconstructed first.
             var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
-            if (claims.TryGetValue(out var known))
+            var (campfire, owed) = CampfireRetirement(facts, claims);
+            if (owed)
             {
-                var (campfire, owed) = CampfireRetirement(facts, known);
-                if (owed)
+                var retired = await r.RetireCampfireAsync(state, review, goal, reading, campfire, call, epoch).ConfigureAwait(false);
+                if (!retired.Verdict.Is(Pol.Cause.MethodUsed))
                 {
-                    var retired = await r.RetireCampfireAsync(state, review, goal, reading, campfire, call, epoch).ConfigureAwait(false);
-                    if (!retired.Verdict.Is(Pol.Cause.MethodUsed))
-                    {
-                        return retired;
-                    }
+                    return retired;
                 }
             }
             var (resolvedPaste, pasteReason) = r.SelectPaste(facts);

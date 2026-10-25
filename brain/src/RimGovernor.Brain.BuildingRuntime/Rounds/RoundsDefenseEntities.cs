@@ -15,7 +15,7 @@ public sealed partial class RoundsDefensePlanner
         {
             throw new ControlException("postFightEntities: census outside the world");
         }
-        var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
+        var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, call).ConfigureAwait(false);
         var verdicts = new Dictionary<Domain.PawnId, EntityVerdict>();
         foreach (var v in EntityCaptureRules.EntityVerdicts(read.Projection.Facts.Containment))
         {

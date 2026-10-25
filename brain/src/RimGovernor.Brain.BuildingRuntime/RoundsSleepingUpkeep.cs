@@ -73,7 +73,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             throw new ControlException("decide: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
         List<string> definitions = ["Wall", "Door", .. RoomQualityRules.RoomBeautyDefinitions(), .. Reviewer.RememberedThrones(), .. Reviewer.Census.RememberedWorship()];
-        var reading = await Reviewer.ObserveRoomsAsync((Observation.IRoundsSource)Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), [.. definitions], call).ConfigureAwait(false);
+        var reading = await Reviewer.ObserveRoomsAsync((Observation.IRoundsSource)Native, expected, [.. definitions], call).ConfigureAwait(false);
         var facts = reading.Projection;
         // The day-one floor's stand-in spots come before any bed change (#3659).
         if (await StandInSpotsAsync(state, review, goal, facts, call, epoch).ConfigureAwait(false) is { } standIn)

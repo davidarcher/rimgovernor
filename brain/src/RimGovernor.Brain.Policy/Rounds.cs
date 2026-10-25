@@ -214,7 +214,7 @@ public sealed record RoundsFacts
     /// <summary>The Home census (#3771); null only on a projection that no colony facts read built.</summary>
     public RimGovernor.Contracts.Wire.Observations.HomeCoverageFacts? HomeCoverage { get; init; }
 
-    public Fact<EquatableArray<ConstructionClaim>> ConstructionClaims { get; init; }
+    public EquatableArray<ConstructionClaim> ConstructionClaims { get; init; }
 
     /// <summary>The construction census (#3879); null only on a projection that no routine frame read built.</summary>
     public CurrentConstruction? CurrentConstruction { get; init; }

@@ -56,7 +56,7 @@ public static class HomeAreaRules
     public static HomeAreaPlan PlanHomeArea(
         Bounds bounds,
         CurrentConstruction? construction,
-        Fact<EquatableArray<ConstructionClaim>> claims,
+        EquatableArray<ConstructionClaim> claims,
         HomeCoverageFacts? home
     )
     {

@@ -119,16 +119,13 @@ partial class Rounder
                 built.Add(c);
             }
         }
-        if (projection.Facts.ConstructionClaims.TryGetValue(out var claims))
+        foreach (var c in projection.Facts.ConstructionClaims)
         {
-            foreach (var c in claims)
+            if (c.Building is { } claimed && ConstructionOwnershipRules.WorkOpen(claimed, projection.Facts.CurrentConstruction) != BuildingWork.BuildingGone)
             {
-                if (c.Building is { } claimed && ConstructionOwnershipRules.WorkOpen(claimed, projection.Facts.CurrentConstruction) != BuildingWork.BuildingGone)
+                foreach (var cell in Footprint(claimed))
                 {
-                    foreach (var cell in Footprint(claimed))
-                    {
-                        built.Add(cell);
-                    }
+                    built.Add(cell);
                 }
             }
         }

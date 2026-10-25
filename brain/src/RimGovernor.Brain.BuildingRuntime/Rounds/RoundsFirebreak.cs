@@ -325,15 +325,11 @@ partial class FirebreakPlan
             }
         }
         var f = projection.Facts;
-        if (!f.ConstructionClaims.TryGetValue(out var claims))
-        {
-            throw new RequiredFactException("construction claims");
-        }
         return new FirebreakFootprint
         {
             Bounds = projection.Bounds,
             Construction = f.CurrentConstruction ?? throw new RequiredFactException("construction census"),
-            Claims = claims,
+            Claims = f.ConstructionClaims,
             Home = f.HomeCoverage ?? throw new RequiredFactException("home coverage"),
             GrowingZones = EquatableArray.From(zones),
         };

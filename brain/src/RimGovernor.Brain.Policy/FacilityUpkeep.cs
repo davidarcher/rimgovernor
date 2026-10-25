@@ -27,12 +27,8 @@ public static class FacilityUpkeepRules
     /// owned construction (<c>current_construction</c>) or the structure census (<c>stone_structures</c>) is unread, and
     /// <see cref="DomainException"/> on an invalid read.
     /// </summary>
-    public static EquatableArray<string> ReviewStoneShell(Fact<EquatableArray<ConstructionClaim>> owned, EquatableArray<RepairStructure> structures)
+    public static EquatableArray<string> ReviewStoneShell(EquatableArray<ConstructionClaim> buildings, EquatableArray<RepairStructure> structures)
     {
-        if (!owned.TryGetValue(out var buildings))
-        {
-            throw new RequiredFactException("current_construction");
-        }
         var walls = new HashSet<string>(StringComparer.Ordinal);
         foreach (var b in buildings)
         {

@@ -129,7 +129,7 @@ partial class RoundsBuildingPlanner
 
     internal static List<HeatCampfire> HeatCampfires(ColonyProjection facts)
     {
-        facts.Facts.ConstructionClaims.TryGetValue(out var claims);
+        var claims = facts.Facts.ConstructionClaims;
         var benches = facts.CookingBenches;
         var census = facts.Facts.CurrentConstruction;
         var heat = HeatCampfireCells(claims);
@@ -165,7 +165,7 @@ partial class RoundsBuildingPlanner
 
     internal static Fact<bool> CampfireRetireOwed(ColonyProjection facts)
     {
-        facts.Facts.ConstructionClaims.TryGetValue(out var claims);
+        var claims = facts.Facts.ConstructionClaims;
         if (!facts.Rooms.IsKnown || facts.Facts.CurrentConstruction is null)
         {
             return Unknown<bool>();

@@ -12,7 +12,7 @@ public static class FirebreakRingRules
     public static EquatableArray<Cell> FirebreakRing(FirebreakFootprint f)
     {
         var bounds = f.Bounds;
-        var extent = ColonyExtentRules.DeriveColonyExtent(bounds, f.Construction, Known(f.Claims), f.Home);
+        var extent = ColonyExtentRules.DeriveColonyExtent(bounds, f.Construction, f.Claims, f.Home);
         if (extent is not ExtentDerivation.Derived { Extent: var value })
         {
             throw new RequiredFactException("colony extent");

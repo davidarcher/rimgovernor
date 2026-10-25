@@ -49,7 +49,7 @@ public sealed class PrisonersRounds
         {
             throw new ControlException("prisoners read: the scope is another world or older than the review");
         }
-        var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), ct).ConfigureAwait(false);
+        var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, ct).ConfigureAwait(false);
         return PrisonersFacts.From(reading.Projection.Facts);
     }
 
@@ -71,7 +71,7 @@ public sealed class PrisonersRounds
         {
             throw new ControlException("prisoners jail: the native boundary moved");
         }
-        var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), ["Wall", "Door"], call).ConfigureAwait(false);
+        var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, ["Wall", "Door"], call).ConfigureAwait(false);
         var step = JailStep(reading.Projection);
         switch (step.Kind)
         {

@@ -90,15 +90,15 @@ public static class ColonyExtentRules
 
     /// <summary>
     /// The review's extent from its Fact-typed members. An unread bounds, construction census or Home census is
-    /// Incomplete; unread claims leave the extent without provenance, which is all the claims carry.
+    /// Incomplete; claims always carry the complete applied construction provenance.
     /// </summary>
-    public static ExtentDerivation DeriveColonyExtent(Fact<Bounds> bounds, CurrentConstruction? construction, Fact<EquatableArray<ConstructionClaim>> claims, HomeCoverageFacts? home, int margin = 0)
+    public static ExtentDerivation DeriveColonyExtent(Fact<Bounds> bounds, CurrentConstruction? construction, EquatableArray<ConstructionClaim> claims, HomeCoverageFacts? home, int margin = 0)
     {
         return bounds.TryGetValue(out var read) ? DeriveColonyExtent(read, construction, claims, home, margin) : new ExtentDerivation.Incomplete("map bounds");
     }
 
     /// <summary>The same for a caller whose bounds are plain.</summary>
-    public static ExtentDerivation DeriveColonyExtent(Bounds bounds, CurrentConstruction? construction, Fact<EquatableArray<ConstructionClaim>> claims, HomeCoverageFacts? home, int margin = 0)
+    public static ExtentDerivation DeriveColonyExtent(Bounds bounds, CurrentConstruction? construction, EquatableArray<ConstructionClaim> claims, HomeCoverageFacts? home, int margin = 0)
     {
         if (construction is null)
         {
@@ -110,8 +110,7 @@ public static class ColonyExtentRules
             return new ExtentDerivation.Incomplete("home coverage census");
         }
 
-        claims.TryGetValue(out var history);
-        return DeriveColonyExtent(new ColonyExtentRequest { Bounds = bounds, Construction = construction, Claims = history, Home = home, Margin = margin });
+        return DeriveColonyExtent(new ColonyExtentRequest { Bounds = bounds, Construction = construction, Claims = claims, Home = home, Margin = margin });
     }
 
     /// <summary>

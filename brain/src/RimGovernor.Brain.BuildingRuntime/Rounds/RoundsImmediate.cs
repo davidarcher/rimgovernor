@@ -94,7 +94,8 @@ public sealed partial class Rounder
             throw new ControlException("immediate review: the observed world is not the session's");
         }
 
-        var reading = await RoundsReads.ObserveRoundsProtection(Native, Clock, expected, MaxAge, ctx).ConfigureAwait(false);
+        var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, ctx);
+        var reading = await RoundsReads.ObserveRoundsProtection(Native, Clock, expected, MaxAge, claims, ctx).ConfigureAwait(false);
         PublishFrame(reading.Frame);
         var f = reading.Projection.Facts;
         var layout = await p.Journal.LayoutPlanAsync(state.Snapshot, expected.Tick, ctx).ConfigureAwait(false);
@@ -137,7 +138,7 @@ public sealed partial class Rounder
             throw new ControlException("immediate review authority changed");
         }
 
-        Census.Retain(reading, true, Unknown<EquatableArray<ConstructionClaim>>());
+        Census.Retain(reading, true);
         reading.Sections.File(Store, new FactScope { Load = expected.Load.Value, Map = expected.Map.Value, Generation = native.Value });
         var result = p.Journal.ReviewRounds(new RoundsRequest
         {

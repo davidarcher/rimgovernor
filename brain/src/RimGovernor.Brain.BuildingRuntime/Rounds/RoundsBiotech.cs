@@ -446,7 +446,7 @@ partial class BiotechRounds
         return true;
     }
 
-    internal static bool DefinitionIntentStanding(IReadOnlyList<PlanningDefinition> defs, Fact<EquatableArray<ConstructionClaim>> claims, CurrentConstruction? observed)
+    internal static bool DefinitionIntentStanding(IReadOnlyList<PlanningDefinition> defs, EquatableArray<ConstructionClaim> claims, CurrentConstruction? observed)
     {
         if (observed is null)
         {
@@ -454,12 +454,7 @@ partial class BiotechRounds
         }
 
         var names = defs.Select(d => d.Name).ToHashSet();
-        if (!claims.TryGetValue(out var history))
-        {
-            return false;
-        }
-
-        foreach (var claim in history)
+        foreach (var claim in claims)
         {
             if (claim.Building is { } building && names.Contains(building.Definition) && ConstructionOwnershipRules.WorkOpen(building, observed) == BuildingWork.BuildingOpen)
             {

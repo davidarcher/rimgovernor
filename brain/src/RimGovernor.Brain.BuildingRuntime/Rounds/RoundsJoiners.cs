@@ -127,7 +127,7 @@ public sealed partial class JoinersRounds
             throw new ControlException("joiners read: the scope is another world or older than the review");
         }
         var started = reviewer.Clock.Now();
-        var reading = await reviewer.ObserveOwnedAsync(reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), ct).ConfigureAwait(false);
+        var reading = await reviewer.ObserveOwnedAsync(reviewer.Native, expected, ct).ConfigureAwait(false);
         lock (mu)
         {
             last = (world, reading, started);
