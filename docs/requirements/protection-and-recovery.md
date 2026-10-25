@@ -24,6 +24,11 @@ combat dispatch are connected; precautionary disarming and routine defensive
 equipping have explicit holds. Evidence P1–P2, P4–P5. Survival across raids is
 an execution-evidence limit.
 
+Forecast harm must distinguish unarmed people, people incapable of violence and
+people already downed, using the same native facts as recorded fights. These
+states require their own evidence; shelter intent does not establish immunity.
+The user-approved empirical estimates and their limits are recorded in P6.
+
 ## RG-PROTECT-002 — Verify restoration after disruption
 
 The governor should track affected services through an event and arrange repair,
@@ -101,3 +106,33 @@ and food-specific hunting prerequisites have separate supported paths.
 Ordinary repairs are held by HomeUpkeepFamily
 ([#4006](https://github.com/davidarcher/rimgovernor/issues/4006)); the explicit
 recovery tool and disaster-service route do not remove that limitation.
+
+### P6 — Civilian exposure and forecast evidence
+
+[HarmExposureStateTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/HarmExposureStateTests.cs)
+checks shared live/sweep roles and finite civilian fight, care and raid prices,
+including propagation of empirical and sparse-data findings.
+[EmpiricalExposureTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/EmpiricalExposureTests.cs)
+checks whole-raid correlation, consistent fixture weights, deterministic
+regeneration and actual zero-hit observations. Four pawns in one fight do not
+become four independent raids. Missing cells or fewer than 20 recorded raids refuse.
+
+The native calibration recorded 280 civilian fights across five raid-size bins;
+80 were additional checks after the first 200. The committed
+[evidence and raw rows](../../brain/src/RimGovernor.Brain.Acceptance/Sweep/calibration/exposure/README.md)
+retain both failed historical stability rounds, source revisions, game hash and
+sampling provenance. All 80 additional fights resolved; one original fight reached
+its unchanged tick limit and its bounded observations remain included.
+
+Following explicit user approval, all recorded rows now fit 22 qualified empirical
+cells, covering the three civilian states in every bin alongside existing combatant
+coverage. Every reading reports empirical estimation and unconfirmed stability,
+with sparse/zero-hit findings where applicable. Whole raids are resampled within
+fixtures with fixed mixture weights. The hit and down ranges are descriptive;
+they do not certify accuracy or supply a valid upper risk bound for unseen events.
+Observed zero hits is not immunity. A dead pawn alone has an exact no-future-hits reason.
+
+These checks and the final full gate at `d0fe7897d` provide executed native sample
+and policy evidence, not a guarantee of survival or accuracy on other layouts.
+The [combat exposure contract](../developers/contracts/forecast-contracts.md#combat-exposure-states)
+owns the forecast qualifications.

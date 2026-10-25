@@ -44,6 +44,11 @@ clothing production and mental-break response are supported. Gatherings and some
 residual apparel replacement are held (W7). Successful disease recovery and safe
 surgery remain outcome-evidence questions. Evidence W1–W7.
 
+Clothing and care facilities participate in the same comparison by the mood,
+protection, recovery and useful time they change, rather than a delivery or
+building count. Evidence W8 qualifies these forecasts; the remaining replacement
+hold in W7 is unchanged.
+
 ## Evidence and inspection coverage
 
 - **W1 — Urgent care path.** [MedicalReview](../../brain/src/RimGovernor.Brain.Runtime/Review/MedicalFamily.cs)
@@ -121,3 +126,21 @@ does not remove the planner hold or assert a lasting mood benefit.
 holds remaining apparel deficits after workshop work has no useful next step
 ([#4009](https://github.com/davidarcher/rimgovernor/issues/4009)). Clothing production
 is supported (W6), but the broad promise of recovered worn equipment is partial.
+
+### W8 — Clothing and care-facility value
+
+[ApparelCreditTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/ApparelCreditTests.cs)
+checks delivered clothing against nakedness, damage, taint, ideology and
+title/role-required apparel thoughts, including minimum quality and the crafter's
+quality distribution. Armor changes use the shared harm term; insulation remains
+in thermal value. An unwanted garment earns no automatic delivery-count credit.
+These are forecast choices, not evidence that every produced garment was worn.
+
+Hospital, dining, recreation and sleeping-room benefits use the same
+[room service-day comparison](habitat.md#rg-habitat-003--develop-rooms-for-the-benefit-they-provide).
+Nursery crib rest, play and baby mood also alter caretaker time and the people
+exposed to crying or giggles; [K6](colony-commitments.md#k6--care-learning-and-prison-room-consequences)
+states the approved approximation limits. Combat-related benefits retain the
+[empirical exposure qualifications](protection-and-recovery.md#p6--civilian-exposure-and-forecast-evidence).
+The final full gate at `d0fe7897d` passed these policy regressions; it supplies no
+new patient-survival, long-term wellbeing or end-to-end clothing acceptance claim.

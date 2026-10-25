@@ -123,3 +123,39 @@ quest completion and the benefits of completed ceremonies.
 Food and health obligations link to [food](food-security.md) and
 [care](colonist-wellbeing.md). See
 [T10](review-queue.md#t10--carry-one-commitment-through-to-its-outcome).
+
+### K6 — Care, learning and prison-room consequences
+
+The [room requirement](habitat.md#rg-habitat-003--develop-rooms-for-the-benefit-they-provide)
+also covers facilities used by children, babies, prisoners and DLC dependants.
+Their value must reflect eligible occupants and shared worker time, rather than
+the mere presence of a classroom, nursery, cell or requirement room.
+
+[ClassroomCreditTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/ClassroomCreditTests.cs)
+checks teaching costs and pupils' skill benefits, including native maturation,
+unlocked work and work speed within the existing investment horizon. It does not
+extend that horizon to give very young children an assumed later payoff.
+[PrisonCreditTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/PrisonCreditTests.cs)
+checks room mood, memories, conversion before recruitment, warden travel/chat
+costs and shared inspiration consumption. A prisoner the governor will not recruit
+earns no recruitment benefit. The approved joint calculation keeps at most 4,096
+states; discarded probability receives no recruitment benefit and the maximum
+remaining chat cost, with uncertainty reported. One inspiration cannot recruit
+several prisoners.
+
+[NurseryCreditTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/NurseryCreditTests.cs),
+[NurserySleepTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/NurserySleepTests.cs)
+and [NurseryGeometryTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/NurseryGeometryTests.cs)
+connect crib rest, play, baby mood, disturbed sleep and social consequences to
+the shared forecast. Hearing and interaction use activity locations and native
+eligibility, including eligible prisoners, guests and slaves without adding them
+to the worker census. Approved future-room sound and walking-play exposure bounds
+credit only guaranteed benefits. The opinion/mood/crying feedback uses an explicitly
+qualified expected-value approximation, without a certified small error bound.
+
+These policy regressions passed in the final full gate at `d0fe7897d`; this is not
+evidence of a completed native education or recruitment campaign. Existing observed
+prisoner death memories age normally. New deaths require the separate prisoner
+mortality model in [#4014](https://github.com/davidarcher/rimgovernor/issues/4014),
+explicitly excluded from epic #3650 by the user. Colonist casualty rates are not
+substituted for prisoner mortality. The other autonomous progression holds in K5 remain separate.

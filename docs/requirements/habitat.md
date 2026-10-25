@@ -42,6 +42,33 @@ maintenance are supported. Ordinary repairs and door-to-wall replacement are
 explicitly held (H5). Resilience across repeated losses needs further evidence.
 Evidence H3–H6.
 
+## RG-HABITAT-003 — Develop rooms for the benefit they provide
+
+The governor should compare room construction with other useful work by the
+consequences the finished room changes for this colony. A room should gain value
+from when its required work is complete, after accounting for materials, shared
+workers and other rooms already under construction. Completing an arbitrary
+number of buildings, floors or removals is not itself a benefit.
+
+A workshop should be useful because its stations improve needed production; a
+prison cell because its conditions improve a wanted prisoner's recruitment after
+any required conversion and warden work. A classroom should gain only the useful
+learning its pupils can realize within the existing investment horizon. A room
+with nobody eligible to use it can have a known zero benefit. An unread required
+fact must prevent that option from being priced, rather than inventing a gain.
+
+Floors and removals should contribute through the rooms they enable. Corridors
+and airlocks should contribute through the rooms they reach or seal. Sharing a
+room should weigh changed room benefits, disturbed sleep, walls and travel;
+membership in a fixed room-compatibility table should not decide it.
+
+**Intent:** Human-approved in [epic #3650](https://github.com/davidarcher/rimgovernor/issues/3650),
+including its service-day and forecast-limit decisions.
+**Implementation:** Supported in shared portfolio selection for every nonempty
+planned-room role, with connector value through served rooms. Clothing is priced
+by its own effects ([W8](colonist-wellbeing.md#w8--clothing-and-care-facility-value)).
+Evidence H7 proves the policy path; it does not establish sustained native colony performance.
+
 ## Evidence and inspection coverage
 
 - **H1 — Housing work.** [ShelterReview](../../brain/src/RimGovernor.Brain.Runtime/Review/ShelterFamily.cs)
@@ -115,3 +142,29 @@ connect to [protection](protection-and-recovery.md). The inspected cases cover
 specific layouts and climate conditions. Large-colony layout quality and repeated
 loss recovery require broader evidence. Reuse the existing room and temperature
 cases before adding tests; see [T7](review-queue.md#t7--finish-shelter-and-essential-care).
+
+### H7 — Useful room choice, completion and sharing
+
+[PlannedRoomCredits](../../brain/src/RimGovernor.Brain.Policy/PlannedRoomCredit.cs)
+connects each room's mechanics to shared investment value from its service day.
+[PlannedRoomCreditTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/PlannedRoomCreditTests.cs)
+checks every nonempty `PlannedRole`, ringed and ringless rooms, and the actual
+ledger effect of connector work. Detaching a connector removes its claim to the
+served room's value. [RoomSharingCreditTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/RoomSharingCreditTests.cs)
+checks sharing through changed value; the static compatibility table is removed.
+
+[CoordinatedConstructionTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/CoordinatedConstructionTests.cs),
+[PlannedRoomActivitiesTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/PlannedRoomActivitiesTests.cs)
+and [PlannedShelterTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/PlannedShelterTests.cs)
+cover selection, binding and orders for priced room prerequisites, floors,
+removals, supply and ongoing native construction. A bare removal without useful
+room value no longer wins a ledger tie. Physical roof/site completion remains
+available to its real consumers; development-count scoring and telemetry are deleted.
+
+The integrated full gate at `d0fe7897d` passed 3,877 domain tests and 29 workflow
+tests, with zero skipped, native builds and contract probes. These are executed
+policy and boundary checks, not a new native room-building acceptance result.
+The [portfolio contract](../developers/architecture/portfolio-selection.md) owns
+selection details; [forecast value](../developers/architecture/forecast-value.md)
+owns individual room effects. [K6](colony-commitments.md#k6--care-learning-and-prison-room-consequences)
+and [Q6](review-queue.md#q6--approved-forecast-limits-and-separate-work) describe important model limits.

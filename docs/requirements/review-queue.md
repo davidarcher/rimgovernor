@@ -4,7 +4,9 @@
 
 This queue separates confirmed implementation limits, conflicting descriptions,
 product decisions and evidence investments. All nine mapped capabilities have
-representative source/test traces. No gameplay pass is claimed from this work.
+representative source/test traces. The epic #3650 update reuses the bounded combat
+evidence described in [P6](protection-and-recovery.md#p6--civilian-exposure-and-forecast-evidence);
+it adds no native run or broad gameplay-pass claim.
 
 ## Q1 — Who chooses food work?
 
@@ -87,6 +89,36 @@ is a candidate for review. [#3433](https://github.com/davidarcher/rimgovernor/is
 already owns the product-interface redesign and requires design discussion.
 Resolve the audience, wording and outcome comparison there; do not silently
 treat the proposed in-game panel as already implemented.
+
+## Q6 — Approved forecast limits and separate work
+
+[Epic #3650](https://github.com/davidarcher/rimgovernor/issues/3650) is complete.
+Room selection now uses mechanical value from service completion, with no
+development-count tiebreak or fixed room-sharing compatibility table. These
+approved model boundaries remain visible; they are not unfinished room registration:
+
+- Classrooms project maturation and useful work within the existing investment
+  horizon. Very young children may have little benefit inside that horizon.
+- Nursery opinion/mood/crying feedback uses qualified expected values. Planned-room
+  acoustics and walking-play decoration use verified exposure bounds, which can
+  undervalue a room. No certified small feedback error bound is claimed.
+- Prison recruitment shares inspirations through a conservative 4,096-state joint
+  calculation. Future prisoner deaths remain separately scoped in
+  [#4014](https://github.com/davidarcher/rimgovernor/issues/4014); existing death
+  memories age, and colonist death rates do not stand in for prisoner mortality.
+- Native scheduled incident times cover the existing horizon. Space-map forecasts
+  condition on no intervening incidents on other maps, caravans or quests, so
+  trader availability can be overestimated.
+- Combat exposure uses all recorded native observations with fixed fixture weights
+  and whole-raid uncertainty. Failed historical checks are preserved. Empirical,
+  unconfirmed stability and sparse/zero-sample findings remain attached to prices;
+  finite prices and zero-hit samples do not certify safety or predictive accuracy.
+
+[H7](habitat.md#h7--useful-room-choice-completion-and-sharing),
+[K6](colony-commitments.md#k6--care-learning-and-prison-room-consequences),
+[S7](development-and-supply.md#s7--useful-future-supply-and-its-conditions) and P6
+own the implementation/evidence traces. The separate holds in Q3 and broader
+campaign/visual evidence investments below remain unchanged.
 
 ## Recommended evidence investments
 

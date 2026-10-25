@@ -6,7 +6,8 @@ Start with the [player guide](players/README.md).
 
 For recovered player outcomes and their implementation/evidence limits, see the
 [product requirements](requirements/README.md): colony outcomes, representative
-code and test evidence, and a prioritized review queue.
+code and test evidence, mechanical room-value requirements, qualified combat
+estimates, and a prioritized review queue.
 
 | Task | Guide |
 | --- | --- |

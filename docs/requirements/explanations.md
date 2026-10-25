@@ -44,6 +44,11 @@ not present a complete comparison of predicted and realized colony outcomes.
 That broader presentation is an inferred candidate requiring review (Q5).
 Evidence E2–E4.
 
+Room and clothing forecasts should explain the consequences they change, not
+an obsolete development-count score. Approximation and sparse-evidence findings
+must remain attached to predicted benefits or harm. Evidence E5 describes the
+implemented diagnostic boundary without claiming a redesigned player view.
+
 ## Evidence and inspection coverage
 
 - **E1 — Cause changes.** [PlannerReasonLog](../../brain/src/RimGovernor.Brain.Runtime/Planner/PlannerScheduler.PlannerReasons.cs)
@@ -91,3 +96,14 @@ repeated eating, and continuity R3 requires terminal native readback before
 continuation. Together they explain why the player view must keep “Expected”
 separate from progress. No current test here compares all displayed predictions
 with realized outcomes or measures a player's understanding.
+
+### E5 — Room value and qualified risk
+
+[PlannedRoomSelectionTelemetryTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/PlannedRoomSelectionTelemetryTests.cs)
+checks the selection telemetry after development-count scoring is removed.
+[HarmExposureStateTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/HarmExposureStateTests.cs)
+checks that the harm consumer retains empirical, stability and sparse-sample
+findings. A finite price must not hide those qualifications or imply that a
+sampled zero proves safety. The executed final full gate at `d0fe7897d` covers
+these assertions. It does not prove launcher wording, visual clarity or a complete
+forecast-versus-observed display; Q5 remains the presentation owner.

@@ -39,7 +39,7 @@ capacity for the journey and the remaining colony.
 **Intent:** Documented in [controllable trade](../developers/contracts/controllable-trade.md).
 **Implementation:** Supported for inspected deal selection, native exchange and
 mission reconciliation. End-to-end expedition success remains an evidence limit.
-Evidence S3, S5. Some forecast handoffs have separately tracked gaps (S6).
+Evidence S3, S5–S7. The wider zero-stock bootstrap remains separate (S6).
 
 ## Evidence and inspection coverage
 
@@ -106,3 +106,25 @@ workshops, clothing and shelter; prepared production cases do not establish it.
 Remaining proof limits are autonomous extraction through delivered stock,
 multi-stage production under competing demand and a completed trading expedition.
 See [T8](review-queue.md#t8--connect-resource-demand-to-delivery).
+
+### S7 — Useful future supply and its conditions
+
+The [stock-arrival contract](../developers/contracts/forecast-contracts.md#stock-arrival-3868)
+connects production, current visitors, expected trader visits and governor-started
+trade to shared demand. It preserves actual medicine kinds, prices, payment
+eligibility, provisions, cargo and stock timing. A requested caravan's later
+benefit belongs to the existing Investment term, capped at the investment horizon;
+the immediate one-day horizon is unchanged. The same supply projection informs
+medical work and useful facility value, avoiding separate promises of the same stock.
+
+Native regenerated incident times preserve storyteller spacing within the existing
+horizon. Future eligibility and successful entry or placement remain conditions.
+The [conditional local incident process](../developers/contracts/forecast-contracts.md#conditional-local-incident-process)
+accounts for local incidents sharing the storyteller clock. On space maps it
+explicitly conditions forecasts on no intervening incidents on other maps,
+caravans or quests; trade arrivals can therefore be overestimated.
+
+The final full gate at `d0fe7897d` passed the integrated stock/trade and facility
+policy checks. Those checks establish selection and forecast plumbing under their
+supplied facts, not that a future trader arrives or an expedition returns its cargo.
+The independently held paths and outcome-evidence limits in S5–S6 are not closed by these forecasts.

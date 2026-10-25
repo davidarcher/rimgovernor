@@ -9,17 +9,22 @@ changes and preserve intended behavior as the implementation evolves.
 The governor has full autonomy. Research goals are excluded by the user's
 direction. Detailed behavior inferred from code remains a candidate until reviewed.
 
-**Repository revision examined:** `402a78e62`, on 2026-10-24. Earlier food evidence
+**Repository revision examined:** the epic #3650 requirements update examined
+`d0fe7897d`, on 2026-10-25. It updates room selection, clothing/facility value,
+dependent occupants, supply timing, combat exposure and their diagnostic limits.
+The wider collection's recovery baseline remains `402a78e62` (2026-10-24); this
+focused update does not imply every unrelated path was re-audited. Earlier food evidence
 retains its provenance at `06db87fb4deb9df2626e1dfbc7059e0655379463`; the initial
-expansion examined `39c9a3bd29e8bbb38730d784e0d322f8405aa2d5`. This completion pass
-extended every mapped capability at `402a78e62`. The final documentation commit
-does not change runtime behavior.
+expansion examined `39c9a3bd29e8bbb38730d784e0d322f8405aa2d5`.
 
-Evidence here is source/test inspection and catalog registration. No game case
-was executed in this task. A search of this worktree's private `.rimgovernor`
-directory found no retained `result*.json` or `manifest.json` bundle to assess.
-Remote results were not collected. The docs-only repository gate supplies no
-gameplay evidence.
+Evidence includes source/test inspection, catalog registration and explicitly
+identified reused runs. The epic's final full gate passed 3,877 domain tests and
+29 workflow tests, with zero skipped. [P6](protection-and-recovery.md#p6--civilian-exposure-and-forecast-evidence)
+reuses the recorded 280-fight native civilian calibration, whose raw observations
+and failed stability rounds are retained in the repository. This documentation
+update runs no game cases. Other registered acceptance examples retain their
+original evidence limits; no remote results or sustained campaign outcome are
+claimed. The docs-only gate supplies no new gameplay evidence.
 
 ## Capability map
 
@@ -31,11 +36,11 @@ of that trace are exercised and whether the fixture bypasses autonomous choice.
 | --- | --- | --- | --- |
 | Start a colony and hand control over predictably | [Start and control](start-and-control.md), RG-CONTROL-001–002 | Launch/setup gating, generation, loading, failure display, authority, clock and speed | Native interrupt/resume and clean-machine execution; conflicting Stop guides |
 | Keep colonists fed and preserve food | [Food](food-security.md), RG-FOOD-001–008 | Supply timing, forage, cooking, continuation, sowing/harvest, hunting, fishing/milk facts, storage/cooling, diets, babies and herd feed | Assisted-feeding effects, autonomous loss recovery and seasonal sufficiency |
-| Provide habitable shelter and working facilities | [Habitat](habitat.md), RG-HABITAT-001–002 | First rooms, cold shelter, roof/temperature, fuel/power, Home area, growth/replan guards | Explicit ordinary-repair and wall-replacement holds; repeated growth/loss outcomes |
+| Provide habitable shelter and working facilities | [Habitat](habitat.md), RG-HABITAT-001–003 | First rooms, service-day value for every planned role, prerequisite/connector work, priced room sharing, temperature and upkeep | Explicit repair/replacement holds; repeated growth/loss outcomes and forecast approximations |
 | Keep people healthy and able to work | [Wellbeing](colonist-wellbeing.md), RG-HEALTH-001–002 | Urgent pairing/tend, condition history, surgery gates, rest/recreation, subdue, clothing | Treatment/recovery outcomes; gathering and residual apparel holds |
-| Supply useful work and trade affordably | [Supply](development-and-supply.md), RG-SUPPLY-001–002 | Deficits, source selection, extraction/drill depletion, production commitments, deal execution, mission cargo | Full delivered supply/expedition proof; tracked bootstrap and trade-selection work |
-| Protect people and restore disrupted services | [Protection](protection-and-recovery.md), RG-PROTECT-001–002 | Fire interruption, shelter restriction, combat batch/readback, post-fight work, service recovery | Survival and episode closure; equipping and precautionary-disarm holds |
-| Sustain people, animals and accepted work | [Commitments](colony-commitments.md), RG-COMMIT-001–003 | Capacity, quest objectives, custody operations, herd care, ideology and DLC progression | Remote fulfilment proof; explicit population/ritual/progression holds |
+| Supply useful work and trade affordably | [Supply](development-and-supply.md), RG-SUPPLY-001–002 | Deficits, extraction, shared stock arrivals, conditional native incident timing, selected trade, mission cargo | Full delivered supply/expedition proof; bootstrap and conditional arrival estimates |
+| Protect people and restore disrupted services | [Protection](protection-and-recovery.md), RG-PROTECT-001–002 | Fire/shelter response, combat batch/readback, civilian empirical exposure, service recovery | Unconfirmed exposure stability, survival/episode outcomes; equipping/disarm holds |
+| Sustain people, animals and accepted work | [Commitments](colony-commitments.md), RG-COMMIT-001–003 | Capacity, quests, custody/herds, classroom, nursery and prison-room effects, ideology/DLC | Bounded/approximate dependent forecasts, separate prisoner mortality; population/ritual/progression holds |
 | Resume safely after interruptions | [Continuity](continuity.md), RG-CONTINUITY-001–002 | Checkpoint, state blobs, native load/replay, world reconstruction, continuation, autosave and manual-save handshake | Arbitrary mid-write crash recovery; manual-save freshness decision |
 | Explain actions and blockers | [Explanations](explanations.md), RG-EXPLAIN-001–002 | Cause transitions, journal/API projection, launcher reader/render functions, forecast/observed distinction | Executed visual transition/readability evidence; broader outcome presentation decision |
 
@@ -63,14 +68,15 @@ are implementation gaps, with desired admission policy still to decide.
   explicit unsupported boundary.
 - **Uninvestigated mapped capabilities:** none. This is a representative recovery,
   not a line-by-line audit of every branch, DLC combination or map.
-- **Evidence not obtained:** current gameplay results, live visual interaction,
-  arbitrary crash/corruption experiments and sustained campaign results. These
+- **Evidence not obtained:** new gameplay results beyond the reused scoped combat
+  calibration, live visual interaction, arbitrary crash/corruption experiments and
+  sustained campaign results. These
   are proof limits, not findings that the behavior is broken. Their useful next
   checks are specified separately in the review queue.
 
 The [completion audit](completion-audit.md) checks the collection against the
-original task. Actual implementation fixes and new tests remain separate work;
-campaign work stays parked.
+original recovery task and this focused implementation sync. Campaign evidence
+remains separate; the calibration does not establish full colony performance.
 
 ## Reading evidence and status
 
