@@ -1,4 +1,4 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -18,7 +18,7 @@ public sealed class RoomRoleGoalTests
     {
         Goals = [goal],
         Rooms = RoomFixtures.Census(rooms),
-        Rounds = new RoundsFacts { Sleeping = new SleepingObservation { Beds = [] } },
+        ReviewState = new ReviewFacts { Sleeping = new SleepingObservation { Beds = [] } },
     };
 
     private static SleepingBed Bed(string id, bool medical) => new SleepingBed { Native = SleepingNativeFixtures.Bed(id: id, medical: medical), Building = SleepingNativeFixtures.Building(id: id, definition: new Resource("Bed")), Humanlike = true };
@@ -43,7 +43,7 @@ public sealed class RoomRoleGoalTests
         Assert.NotEmpty(need.Furniture.Items);
 
         // The need rides every read of the world.
-        Assert.Equal(demand.Build, GoalRules.Stamp(new RoundsFacts(), demand).GoalBuild);
+        Assert.Equal(demand.Build, GoalRules.Stamp(new ReviewFacts(), demand).GoalBuild);
     }
 
     [Fact]
@@ -112,11 +112,11 @@ public sealed class RoomRoleGoalTests
         Assert.Equal(1, GoalRules.DemandOf(Facts(Room(1, RoomRole.Hospital))).Build.HospitalBeds);
 
         var facts = Facts(goal, Standing(RoomRole.Hospital, "b1")) with { Owners = new Dictionary<NeedId, OwnerProgress> { [MedicalRules.MedicalCareNeed] = Working } };
-        facts = facts with { Rounds = facts.Rounds with { Sleeping = new SleepingObservation { Beds = [Bed("b1", true)] } } };
+        facts = facts with { ReviewState = facts.ReviewState with { Sleeping = new SleepingObservation { Beds = [Bed("b1", true)] } } };
         var status = GoalRules.Evaluate(goal, facts);
         Assert.Equal((GoalState.Pursuing, MedicalRules.MedicalCareNeed, 1.0), (status.State, status.Owner, ((GoalDeficit.Measured)status.Deficit).Amount));
 
-        var two = facts with { Rounds = facts.Rounds with { Sleeping = new SleepingObservation { Beds = [Bed("b1", true), Bed("b2", true)] } }, Rooms = RoomFixtures.Census(Standing(RoomRole.Hospital, "b1", "b2")) };
+        var two = facts with { ReviewState = facts.ReviewState with { Sleeping = new SleepingObservation { Beds = [Bed("b1", true), Bed("b2", true)] } }, Rooms = RoomFixtures.Census(Standing(RoomRole.Hospital, "b1", "b2")) };
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, two).State);
     }
 

@@ -23,7 +23,7 @@ public abstract record CropStand
 /// </summary>
 public sealed record CropGrowth
 {
-    public required RimGovernor.Contracts.Wire.Observations.ZoneState.Growing Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.ZoneState.Growing Observed { get; init; }
     public double Temperature => Observed.Temperature;
     public CropStand Stand
     {
@@ -64,7 +64,7 @@ public abstract record HarvestTiming
 public static class CalendarRules
 {
     /// <summary>Every native day count lies within one year; no absent climate becomes a default calendar.</summary>
-    public static bool Valid(this RimGovernor.Contracts.Wire.Observations.FoodClimate climate)
+    public static bool Valid(this RimGovernor.Brain.GameFacts.Observations.FoodClimate climate)
     {
         if (climate is null) return false;
         foreach (var days in new[] { climate.GrowingDays, climate.GrowingDaysRemaining, climate.GrowingDaysUntil, climate.NonGrowingDays })
@@ -100,7 +100,7 @@ public static class CalendarRules
     /// waits for the pause to lift; while they do not, the pause plus the first harvest cycle stands in for a
     /// shorter seasonal wait.
     /// </summary>
-    public static double HarvestGapDays(RimGovernor.Contracts.Wire.Observations.FoodClimate calendar, EquatableArray<DisasterCondition> conditions)
+    public static double HarvestGapDays(RimGovernor.Brain.GameFacts.Observations.FoodClimate calendar, EquatableArray<DisasterCondition> conditions)
     {
         var pause = CropRiskRules.CropPauseDays(conditions);
         var c = calendar;
@@ -129,7 +129,7 @@ public static class CalendarRules
     /// field are unchanged, a calendar with no harvest gap leaves the policy as
     /// configured, and the result still satisfies Validate.
     /// </summary>
-    public static RoundsPolicy Seasonal(this RoundsPolicy p, RimGovernor.Contracts.Wire.Observations.FoodClimate calendar, EquatableArray<DisasterCondition> conditions)
+    public static PlannerSettings Seasonal(this PlannerSettings p, RimGovernor.Brain.GameFacts.Observations.FoodClimate calendar, EquatableArray<DisasterCondition> conditions)
     {
         var gap = HarvestGapDays(calendar, conditions);
         if (gap <= 0 || p.FoodTargetDays <= 0)
@@ -157,7 +157,7 @@ public static class CalendarRules
     /// the non-growing stretch. It is capped at one year. Unsown fields are fallow; a field with no growing window ahead is dormant.
     /// Invalid required growth inputs raise.
     /// </summary>
-    public static HarvestTiming HarvestLeadDays(CropGrowth g, double growDays, RimGovernor.Contracts.Wire.Observations.FoodClimate calendar)
+    public static HarvestTiming HarvestLeadDays(CropGrowth g, double growDays, RimGovernor.Brain.GameFacts.Observations.FoodClimate calendar)
     {
         if (!calendar.Valid() || !double.IsFinite(growDays) || growDays <= 0) throw new RequiredFactException("crop harvest cycle");
         if (g.Stand is CropStand.Fallow) return new HarvestTiming.Fallow();

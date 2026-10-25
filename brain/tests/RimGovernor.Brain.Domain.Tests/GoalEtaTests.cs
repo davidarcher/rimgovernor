@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Host;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.PlayerApi;
@@ -24,7 +23,7 @@ public sealed class GoalEtaTests
     {
         Goals = goals,
         Stock = [],
-        Rounds = new RoundsFacts { Gear = ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new("Anna") }, LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Observed = GearFixtures.Loadout(""), Body = EmergencyFixtures.Placed("").Settings.Body with { ComfortableMinC = 0, ComfortableMaxC = 0 }, Threat = ColonyModelFixtures.NoThreat, Worn = [], Role = GearFixtures.Role }) }] } },
+        ReviewState = new ReviewFacts { Gear = ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new("Anna") }, LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Observed = GearFixtures.Loadout(""), Body = EmergencyFixtures.Placed("").Settings.Body with { ComfortableMinC = 0, ComfortableMaxC = 0 }, Threat = ColonyModelFixtures.NoThreat, Worn = [], Role = GearFixtures.Role }) }] } },
         StuffResearch = new Dictionary<string, IReadOnlyList<string>> { [ColonyModelFixtures.Cloth] = [ColonyModelFixtures.Project] },
     };
 

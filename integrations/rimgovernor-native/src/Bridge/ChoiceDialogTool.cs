@@ -3,9 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using HarmonyLib;
 using Verse;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The game opens a force-pausing Verse.Dialog_NodeTree by itself from a
     // handful of places (decompiled 1.6): IncidentWorker_CaravanDemand and
@@ -82,16 +81,16 @@ namespace HomeBridge.BridgeTools
         private static DiaOption Button(Dialog_MessageBox box, string text, System.Action? act) =>
             new DiaOption(text) { resolveTree = true, action = () => { act?.Invoke(); box.Close(); } };
 
-        internal static Obs.ChoiceDialog Snapshot(Window dialog)
+        internal static RimGovernor.Brain.GameFacts.Observations.ChoiceDialog Snapshot(Window dialog)
         {
-            var result = new Obs.ChoiceDialog { WindowId = dialog.ID,
+            var result = new RimGovernor.Brain.GameFacts.Observations.ChoiceDialog { WindowId = dialog.ID,
                 Interactive = Interactive(dialog) };
             var options = Options(dialog);
             for (var i = 0; i < options.Count; i++)
             {
                 var option = options[i];
                 var label = Text(Label(option));
-                var row = new Obs.ChoiceDialogOption { Index = i, Label = label, Selectable = Selectable(option), Resolves = option.resolveTree };
+                var row = new RimGovernor.Brain.GameFacts.Observations.ChoiceDialogOption { Index = i, Label = label, Selectable = Selectable(option), Resolves = option.resolveTree };
                 row = row with { Keys = [.. row.Keys, .. ChoiceDialogKeys.ForLabel(label.Trim())] };
                 result = result with { Options = [.. result.Options, row] };
             }
@@ -120,6 +119,6 @@ namespace HomeBridge.BridgeTools
             else AccessTools.Method(typeof(DiaOption), "Activate").Invoke(option, new object[0]);
         }
 
-        private static string Text(string? text) => ProtoBoundary.WireText((text ?? "").StripTags());
+        private static string Text(string? text) => GameThread.WireText((text ?? "").StripTags());
     }
 }

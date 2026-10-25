@@ -4,7 +4,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Telemetry;
 using Decision = RimGovernor.Brain.Telemetry.Decision;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -56,10 +55,10 @@ internal static class LayoutFirstRoomTemperate
         {
             planned ??= s.Telemetry(TelemetryKinds.LayoutPlan).FirstOrDefault(r => r.Sequence > floor
                 && Text(r.Fields(), Decision.VerdictKey) == "planned" && Text(r.Fields(), Decision.TargetKey) == "plan");
-            var built = await s.BuildingsAsync("spots", new Observations.ListBuildingsRequest
+            var built = await s.BuildingsAsync("spots", new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest
             {
                 DefNames = [SleepingRules.SleepingSpotDefinition],
-                Statuses = [Observations.BuildingStatus.Built],
+                Statuses = [RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Built],
             }, ct).ConfigureAwait(false);
             spots = built.Count;
             roofed = spots >= Colonists ? (await FirstRoomReads.RoofedRoomsAsync(s, "rooms", ct).ConfigureAwait(false)).Count : 0;
@@ -84,9 +83,9 @@ internal static class LayoutFirstRoomTemperate
 internal static class FirstRoomReads
 {
     /// <summary>The roofed proper indoor rooms of the native room census.</summary>
-    public static async Task<IReadOnlyList<Observations.RoomState>> RoofedRoomsAsync(TypedSession s, string label, CancellationToken cancellationToken)
+    public static async Task<IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.RoomState>> RoofedRoomsAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ListRooms, new Observations.ListRoomsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var reply = await s.CallAsync(label, NativeOps.ListRooms, new RimGovernor.Brain.GameOrders.Observations.ListRoomsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var rooms = reply.Rooms.Items
             .Where(r => r.ProperRoom == true && r.Outdoors != true && r.OpenRoofCount == 0)
             .ToList();
@@ -97,10 +96,10 @@ internal static class FirstRoomReads
     /// <summary>The colonists' hypothermia severities by pawn id, from the production pawn read's body stats.</summary>
     public static async Task<IReadOnlyDictionary<string, double>> HypothermiaAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ListPawns, new Observations.ListPawnsRequest
+        var reply = await s.CallAsync(label, NativeOps.ListPawns, new RimGovernor.Brain.GameOrders.Observations.ListPawnsRequest
         {
             Scope = s.Scope,
-            Filter = new() { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only },
+            Filter = new() { Colonist = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Only },
         }, cancellationToken).ConfigureAwait(false);
         var observed = reply;
         return observed.Pawns.ToDictionary(p => p.Pawn.Id, p => p.Settings.Body.Hypothermia, StringComparer.Ordinal);

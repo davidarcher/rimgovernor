@@ -1,10 +1,9 @@
-using D = RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
 using System.Globalization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
-using RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
+using RimGovernor.Brain.GameFacts.Common;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -13,8 +12,8 @@ public sealed class ForecastCoupledTests
 {
     private static bool Original(ForecastCommitment commitment, string id) => commitment.Id.StartsWith(id + "/composition/", StringComparison.Ordinal)
         && !commitment.Id.Contains("/after/", StringComparison.Ordinal);
-    private static readonly ObservationContext Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
-    private static RoundsFacts Review(double harvest = 25, double build = 250, double foodLevel = .2, double expiry = 1000)
+    private static readonly ObservationContext Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
+    private static ReviewFacts Review(double harvest = 25, double build = 250, double foodLevel = .2, double expiry = 1000)
     {
         var facts = WorkResourceTestFacts.Create("pawn");
         facts = facts with
@@ -50,7 +49,7 @@ public sealed class ForecastCoupledTests
         };
         return ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([])));
     }
-    private static CoupledForecastKit Evaluate(RoundsFacts facts, params ForecastCommitment[] selected)
+    private static CoupledForecastKit Evaluate(ReviewFacts facts, params ForecastCommitment[] selected)
     {
         var demand = new DerivedDemand { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) };
         return CoupledForecastKit.Forecast(ForecastCoupled.CoupledForecastRequestOf(new(100), 300.0 / GameTime.TicksPerDay,
@@ -151,12 +150,12 @@ public sealed class ForecastCoupledTests
         Assert.Contains(generated.Findings, f => f.StartsWith("construction_outcome_unbound:", StringComparison.Ordinal));
     }
 
-    internal static RoundsFacts ConstructionReview(int sites = 1, int stock = 100, int reserved = 0)
+    internal static ReviewFacts ConstructionReview(int sites = 1, int stock = 100, int reserved = 0)
     {
         var facts = Review(foodLevel: 1);
         facts = facts with
         {
-            Census = facts.Census with { Resources = [new O.Quantity { DefName = "Rice", Units = stock }] },
+            Census = facts.Census with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Rice", Units = stock }] },
             CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long> { [new("Rice")] = sites * 100 } },
             BillReservations = reserved == 0 ? []
                 : [BillWire.Reservation("other-bill", "other-cook", new Amount(new("Rice"), reserved))],
@@ -327,7 +326,7 @@ public sealed class ForecastCoupledTests
         var facts = Review();
         facts = facts with
         {
-            Census = facts.Census with { Resources = [new O.Quantity { DefName = "Rice", Units = 8 }] },
+            Census = facts.Census with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Rice", Units = 8 }] },
             ForecastObserved = facts.ForecastObserved with
             {
                 Coupled = facts.ForecastObserved.Coupled! with
@@ -515,7 +514,7 @@ public sealed class ForecastCoupledTests
             { RequiredCount = 10 };
             facts = facts with
             {
-                Census = facts.Census with { Resources = [new O.Quantity { DefName = "Rice", Units = rice }, new O.Quantity { DefName = "Cloth", Units = 10 }] },
+                Census = facts.Census with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Rice", Units = rice }, new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Cloth", Units = 10 }] },
                 Gear = ColonyModelFixtures.NoGear() with
                 {
                     Stored = [],
@@ -555,7 +554,7 @@ public sealed class ForecastCoupledTests
         facts = facts with
         {
 
-            Census = facts.Census with { WorkResources = roster.Census.WorkResources, Resources = [new O.Quantity { DefName = "Rice", Units = 4 }] },
+            Census = facts.Census with { WorkResources = roster.Census.WorkResources, Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Rice", Units = 4 }] },
             ForecastObserved = facts.ForecastObserved with
             {
                 WorkPawns = roster.ForecastObserved.WorkPawns,
@@ -662,7 +661,7 @@ public sealed class ForecastCoupledTests
         var facts = Review();
         facts = facts with
         {
-            Census = facts.Census with { Resources = [new O.Quantity { DefName = "Rice", Units = 10 }] },
+            Census = facts.Census with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Rice", Units = 10 }] },
             ForecastObserved = facts.ForecastObserved with
             {
                 Coupled = facts.ForecastObserved.Coupled! with

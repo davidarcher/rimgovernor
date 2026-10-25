@@ -1,10 +1,11 @@
 # Shared native protocol
 
 This package defines the brain/native boundary as plain C# `sealed record`s in
-`brain/src/RimGovernor.Brain.Contracts` (namespace `RimGovernor.Contracts.Wire`; one file per
+`brain/src/RimGovernor.Brain.GameFacts` for observed state and outcomes, and
+`brain/src/RimGovernor.Brain.GameOrders` for requests and intent (one file per
 family: `Authority.cs`, `Clock.cs`, `Common.cs`, `Defs.cs`, `Lifecycle.cs`, `Mirror.cs`,
 `Observations.cs`, `Operations.cs`, `Placement.cs`, `Presentation.cs`, `Receipts.cs`). The brain is an
-in-process library that calls the mod through `INativeFacade` without serialization; the records are
+in-process library that calls the mod through `IGameApi` without serialization; the records are
 serialized to JSON only on the loopback HTTP channel (`/native/<tool>`, see
 [http-channel](../../docs/developers/architecture/http-channel.md)) and in tests. Wire edits are made by
 editing the records: there is no code generation, no field numbering and no compatibility ledger. Game
@@ -27,7 +28,7 @@ Tend reachability is its own opt-in read, `TendDoctorsRequest` → `TendDoctorSn
 id: per requested pawn the doctor-side gates the native tend order enforces (pawn-control
 eligibility, drafter, spawned, WorkGiver_Tend's required capacities) plus `reach`, this pawn's
 `CanReach(ClosestTouch, Deadly)` over the other requested pawns. Reachability is pairwise, so it runs
-under the request's `reach_budget_ms` (the brain sends `FacadeNativeClient.PawnsTendReachBudgetMs`);
+under the request's `reach_budget_ms` (the brain sends `GameClient.PawnsTendReachBudgetMs`);
 a doctor reached after it is spent carries `reach_skipped`, which is unknown, not "reaches nobody".
 - [Validation](validation.md): shared presence, bounds and outcome requirements.
 - [Observations](observations.md), [operations/receipts](operations.md),
@@ -38,8 +39,8 @@ A compiling record is not evidence of native behavior.
 
 ## Wire and validation
 
-`WireJson` (`Json/WireJson.cs`) is the one JSON entry point: source-generated System.Text.Json
-(`WireJsonContext`), camelCase names, every member written (zeros and falses included), `required`
+`OrdersJson` (`Json/OrdersJson.cs`) is the one JSON entry point: source-generated System.Text.Json
+(`OrdersJsonContext`), camelCase names, every member written (zeros and falses included), `required`
 members enforced on read, enums as their wire-name strings (`WireEnumConverter`), unknown
 members disallowed, choices as type-discriminated objects (the `...Case` records under each
 `...Outcome`), and 64-bit counters as plain JSON numbers. Each native tool has one fixed request and

@@ -2,7 +2,6 @@ using System.Globalization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -104,7 +103,7 @@ internal static class BedBuiltForBedless
             def = "";
             if (owned != "" && owned != held)
             {
-                var built = await s.BuildingsAsync("owned-bed", new Observations.ListBuildingsRequest { Ids = [owned], Statuses = [Observations.BuildingStatus.Built] }, ct).ConfigureAwait(false);
+                var built = await s.BuildingsAsync("owned-bed", new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest { Ids = [owned], Statuses = [RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Built] }, ct).ConfigureAwait(false);
                 def = built.FirstOrDefault(b => b.Building.Id == owned)?.Building.DefName ?? "";
             }
             return (string.Create(CultureInfo.InvariantCulture, $"bed={owned}:{def}"), def == BedDefinition);

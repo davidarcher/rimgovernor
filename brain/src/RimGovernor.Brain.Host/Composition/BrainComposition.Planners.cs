@@ -1,5 +1,5 @@
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
 using RimGovernor.Brain.Policy;
@@ -20,24 +20,24 @@ public sealed partial class BrainComposition
         var sc = _options.Families;
         var log = new HostLog(context.Telemetry, "clock-scheduler");
 
-        // ClockSchedulerConfig is init-only, so the planners are built into locals and the config is made last.
-        RoundsBuildingPlanner? roomsComfort = null;
-        RoundsBuildingPlanner? foodButcher = null;
+        // PlannerSchedulerConfig is init-only, so the planners are built into locals and the config is made last.
+        BuildingPlanner? roomsComfort = null;
+        BuildingPlanner? foodButcher = null;
         var families = new List<FamilyRunner>();
-        RoundsBuildingPlanner? roomsHosting = null;
-        RoundsBuildingPlanner? roomsPartySpot = null;
-        RoundsBuildingPlanner? roomsWorkChairs = null;
-        RoundsDefensePlanner? cfgDefense = null;
-        RoundsFieldPlanner? cfgFields = null;
-        RoundsBuildingPlanner? roomsFlooring = null;
-        RoundsAcquisitionPlanner? foodAcquisition = null;
-        RoundsBuildingPlanner? roomsLighting = null;
-        RoundsResourcePlanner? cfgResource = null;
-        RoundsAcquisitionPlanner? cfgResourceAcquisition = null;
-        Rounder? cfgRounds = null;
+        BuildingPlanner? roomsHosting = null;
+        BuildingPlanner? roomsPartySpot = null;
+        BuildingPlanner? roomsWorkChairs = null;
+        DefensePlanner? cfgDefense = null;
+        FieldPlanner? cfgFields = null;
+        BuildingPlanner? roomsFlooring = null;
+        AcquisitionPlanner? foodAcquisition = null;
+        BuildingPlanner? roomsLighting = null;
+        ResourcePlanner? cfgResource = null;
+        AcquisitionPlanner? cfgResourceAcquisition = null;
+        ColonyReview? cfgReview = null;
         FactStore? cfgStore = null;
-        RoundsTradePlanner? cfgTrade = null;
-        RoundsBuildingPlanner? cfgWorkshop = null;
+        TradePlanner? cfgTrade = null;
+        BuildingPlanner? cfgWorkshop = null;
 
         // Acceptance fault injection: a failing or hanging planner. Off unless the environment names one.
         var faults = Faults.Parse(Environment.GetEnvironmentVariable(Faults.FaultsEnv) ?? "");
@@ -101,18 +101,18 @@ public sealed partial class BrainComposition
         }
 
         cfgStore = context.Sections;
-        var (thresholds, capabilities) = RoundsCapabilitiesFor(sc, _options.LayoutOverlay);
+        var (thresholds, capabilities) = CapabilitiesFor(sc, _options.LayoutOverlay);
         // The undraft sweep releases drafts no live plan needs.
         capabilities = capabilities with { Undraft = writer };
-        var reviewer = new Rounder(context.Player, client, SystemClock.Instance, thresholds, StepTimeout, capabilities);
-        cfgRounds = reviewer;
+        var reviewer = new ColonyReview(context.Player, client, SystemClock.Instance, thresholds, StepTimeout, capabilities);
+        cfgReview = reviewer;
         // Any toggle that declares production orders composes the admin family's work-ledger Need (#3304).
         var workLedger = bills || gear || armory || sc.Art || sc.PopulationJoiner || foodStorageUpkeep || refrigeration || medical || sc.Mechs || resourceTargets;
         var biotech = new BiotechNeeds { Mechs = sc.Mechs, MechCharger = mechCharger, GeneBank = geneBank, Pollution = pollution };
         if (medical)
         {
             // The surgery part bills are the ledger's, declare-only (#2604).
-            reviewer.AddOrderDeclarer(new RoundsCareBillDeclarer(reviewer, client, medical));
+            reviewer.AddOrderDeclarer(new CareBillDeclarer(reviewer, client, medical));
         }
         if (sc.Mechs)
         {
@@ -125,29 +125,29 @@ public sealed partial class BrainComposition
             reviewer.AddOrderDeclarer(new BabyFoodDeclarer());
             foreach (var purpose in new[] { ProductionRules.CookFood, ProductionRules.PreserveFood, ProductionRules.ButcherFood })
             {
-                reviewer.AddOrderDeclarer(new RoundsBillPlanner(reviewer, purpose));
+                reviewer.AddOrderDeclarer(new BillPlanner(reviewer, purpose));
             }
-            foodButcher = RoundsBuildingPlanner.NewRoundsButcherPlanner(reviewer, client);
+            foodButcher = BuildingPlanner.NewReviewButcherPlanner(reviewer, client);
         }
         if (sc.Art)
         {
             // The rooms/art Need's pinned sculpture bills are the ledger's, filed under the Need (#3255).
-            reviewer.AddOrderDeclarer(new RoundsArtPlanner(reviewer));
+            reviewer.AddOrderDeclarer(new ArtPlanner(reviewer));
             // The economy/trade Need's export batches are the ledger's too: the silver gap answered with sale goods (#3316).
-            reviewer.AddOrderDeclarer(new RoundsTradeExportPlanner(reviewer));
+            reviewer.AddOrderDeclarer(new TradeExportPlanner(reviewer));
         }
         if (fields)
         {
-            cfgFields = new RoundsFieldPlanner(reviewer, client);
+            cfgFields = new FieldPlanner(reviewer, client);
         }
         if (acquisition)
         {
-            foodAcquisition = new RoundsAcquisitionPlanner(reviewer, FoodRules.FoodSupplyNeed.FilingKey);
-            cfgResourceAcquisition = new RoundsAcquisitionPlanner(reviewer, EconomyFamily.Resource.FilingKey);
+            foodAcquisition = new AcquisitionPlanner(reviewer, FoodRules.FoodSupplyNeed.FilingKey);
+            cfgResourceAcquisition = new AcquisitionPlanner(reviewer, EconomyFamily.Resource.FilingKey);
         }
         if (defense)
         {
-            var defensePlanner = new RoundsDefensePlanner(reviewer, client, new SessionCombatHands(context.Session));
+            var defensePlanner = new DefensePlanner(reviewer, client, new SessionCombatHands(context.Session));
             // Test-only tactic override for calibration sweeps; invalid fails the start loudly, unset is inert.
             var tuning = CombatTuningRules.ParseCombatTuning(Environment.GetEnvironmentVariable(CombatTuningRules.CombatTuningEnv) ?? "");
             if (tuning is not null)
@@ -160,20 +160,20 @@ public sealed partial class BrainComposition
         {
             // The tend and rescue toggles compose the medical family's critical Needs' care orders, the medical toggle
             // their amputations with the reserves and surgery Needs, the hospital toggle the care Need (#3258).
-            families.Add(new MedicalRounds(reviewer, client, tend, rescue, medical, hospital).Runner());
+            families.Add(new MedicalReview(reviewer, client, tend, rescue, medical, hospital).Runner());
         }
         if (armory)
         {
-            reviewer.AddOrderDeclarer(new RoundsArmoryDeclarer(new RoundsArmoryPlanner(reviewer, client)));
+            reviewer.AddOrderDeclarer(new ArmoryDeclarer(new ArmoryPlanner(reviewer, client)));
         }
         if (gear)
         {
-            reviewer.AddOrderDeclarer(new RoundsGearDeclarer());
+            reviewer.AddOrderDeclarer(new GearDeclarer());
         }
         // The equip, acquisition, training and gear toggles compose the military family's defense, pests, training
         // and equipment Needs (#3259); the equipment Need walks the workshop ladder for replacement gear.
         // Restore-workers, the undraft sweep, is always composed (#3311).
-        families.Add(new MilitaryRounds(reviewer, equip, acquisition, training, gear, gear && workshop).Runner());
+        families.Add(new MilitaryReview(reviewer, equip, acquisition, training, gear, gear && workshop).Runner());
         if (repair || clearance)
         {
             // The repair and clearance toggles compose the home-upkeep family's two Needs (#3253).
@@ -182,7 +182,7 @@ public sealed partial class BrainComposition
         if (foodStorageUpkeep || refrigeration)
         {
             // The storage and refrigeration toggles compose the food-stores family's two Needs (#3251, #3280).
-            var foodStores = new FoodStoresRounds(reviewer, client, foodStorageUpkeep, refrigeration ? RoundsBuildingPlanner.NewRoundsRefrigerationPlanner(reviewer, client) : null);
+            var foodStores = new FoodStoresReview(reviewer, client, foodStorageUpkeep, refrigeration ? BuildingPlanner.NewReviewRefrigerationPlanner(reviewer, client) : null);
             if (foodStorageUpkeep)
             {
                 reviewer.AddOrderDeclarer(new FoodStoresDeclarer(foodStores));
@@ -191,7 +191,7 @@ public sealed partial class BrainComposition
             {
                 // The solar-flare cook-ahead bill answers the refrigeration Need, wired with its family rather than
                 // the cooking bills so a refrigeration-only service serves it.
-                reviewer.AddOrderDeclarer(new RoundsBillPlanner(reviewer, ProductionRules.CookAheadFood));
+                reviewer.AddOrderDeclarer(new BillPlanner(reviewer, ProductionRules.CookAheadFood));
             }
             families.Add(foodStores.Runner());
         }
@@ -201,8 +201,8 @@ public sealed partial class BrainComposition
             // forage, food fields and butcher bench; the cooking and bill toggles its cooking Need; the bill toggle
             // its baby feeding Need and the blight toggle its blight Need (#3254).
             var supply = acquisition || fields || bills;
-            families.Add(new FoodRounds(reviewer, supply, foodButcher, foodAcquisition, supply ? cfgFields : null,
-                cooking || bills ? RoundsBuildingPlanner.NewRoundsCookingPlanner(reviewer, client) : null, babyFeeding: bills, blight: blight).Runner());
+            families.Add(new FoodReview(reviewer, supply, foodButcher, foodAcquisition, supply ? cfgFields : null,
+                cooking || bills ? BuildingPlanner.NewReviewCookingPlanner(reviewer, client) : null, babyFeeding: bills, blight: blight).Runner());
         }
         if (husbandry || animalContainment)
         {
@@ -213,34 +213,34 @@ public sealed partial class BrainComposition
         if (recovery)
         {
             // The recovery toggle composes the disaster family's sheltering and services Needs (#3304).
-            families.Add(new DisasterRounds(reviewer).Runner());
+            families.Add(new DisasterReview(reviewer).Runner());
         }
         if (prisonerInteraction || populationCustody)
         {
             // The prisoner-interaction and population-custody toggles compose the prisoners family's two Needs (#3262).
-            families.Add(new PrisonersRounds(reviewer, prisonerInteraction, populationCustody).Runner());
+            families.Add(new PrisonersReview(reviewer, prisonerInteraction, populationCustody).Runner());
         }
         if (sc.PopulationJoiner)
         {
             // The population-joiner toggle composes the joiners family; its decree batches are declared to the ledger (#3302).
-            var joiners = new JoinersRounds(reviewer);
+            var joiners = new JoinersReview(reviewer);
             reviewer.AddOrderDeclarer(new JoinersDeclarer(joiners));
             families.Add(joiners.Runner());
         }
         if (populationCustody)
         {
             // The population-custody toggle also composes the anomaly family (#3302).
-            families.Add(new AnomalyRounds(reviewer, client).Runner());
+            families.Add(new AnomalyReview(reviewer, client).Runner());
         }
         if (sc.Permits || sc.Psylink)
         {
             // The permit and psylink toggles compose the royalty family's two Needs (#3261).
-            families.Add(new RoyaltyRounds(reviewer, sc.Permits, sc.Psylink ? client : null).Runner());
+            families.Add(new RoyaltyReview(reviewer, sc.Permits, sc.Psylink ? client : null).Runner());
         }
         if (biotech.Any)
         {
             // The mech, mech charger, gene bank and pollution toggles compose the biotech family (#3261).
-            families.Add(new BiotechRounds(reviewer, biotech).Runner());
+            families.Add(new BiotechReview(reviewer, biotech).Runner());
         }
         if (sc.IdeoRoles || sc.Rituals || sc.Ideoligion || sc.Goals)
         {
@@ -252,74 +252,74 @@ public sealed partial class BrainComposition
         {
             // The colony admin family (#3264, #3304): creep joiners, supply safety, burial, the work ledger, stockpiles
             // and work assignments.
-            families.Add(new AdminRounds(reviewer, admin, supplies ? client : null, stockpiles ? client : null).Runner());
+            families.Add(new AdminReview(reviewer, admin, supplies ? client : null, stockpiles ? client : null).Runner());
         }
         if (sleeping || shelter || temperature || sc.Sheltering)
         {
             // The housing, temperature and safe-area toggles compose the shelter family's Needs (#3257): sleeping with
             // the shelter or sleeping toggle (its stand-in spots are the day-one floor, #3659),
             // temperature and the safe area.
-            families.Add(new ShelterRounds(reviewer, sleeping || shelter || temperature ? client : null,
+            families.Add(new ShelterReview(reviewer, sleeping || shelter || temperature ? client : null,
                 sleeping || shelter, temperature, sc.Sheltering).Runner());
         }
         if (power)
         {
             // The power toggle composes the power family's basic Need (#3257).
-            families.Add(new PowerRounds(reviewer, client).Runner());
+            families.Add(new PowerReview(reviewer, client).Runner());
         }
         var layout = new LayoutNeeds { HomeCoverage = homeCoverage, Firebreak = sc.Firebreak, StoneShell = stoneShell, ClimateEnvelope = envelope, Defense = defensiveLayout, Routes = routes };
-        LayoutRounds? layoutRounds = null;
+        LayoutReview? layoutReview = null;
         if (layout.Any)
         {
             // The home-coverage, firebreak, stone-shell, envelope, defensive-layout and routes toggles compose the
             // layout family's Needs (#3256, #3314, #3265).
-            layoutRounds = new LayoutRounds(reviewer, layout, sc.Firebreak ? client : null, stoneShell ? client : null, defensiveLayout ? client : null);
-            families.Add(layoutRounds.Runner());
+            layoutReview = new LayoutReview(reviewer, layout, sc.Firebreak ? client : null, stoneShell ? client : null, defensiveLayout ? client : null);
+            families.Add(layoutReview.Runner());
         }
         if (dialog || sc.Mood)
         {
             // The people family (#3304): the dialog toggle composes its dialog Need, which answers the force-pausing
             // choice dialogs, and the mood toggle its per-pawn mood Needs.
-            families.Add(new PeopleRounds(reviewer, new PeopleNeeds { Dialog = dialog, Mood = sc.Mood }, dialog ? client : null,
+            families.Add(new PeopleReview(reviewer, new PeopleNeeds { Dialog = dialog, Mood = sc.Mood }, dialog ? client : null,
                 dialog ? new DialogAnswerPolicy(EquatableArray.From(DialogAnswerRules.DefaultDialogAnswerPrefer)) : null).Runner());
         }
         if (trade)
         {
-            cfgTrade = new RoundsTradePlanner(reviewer, client);
+            cfgTrade = new TradePlanner(reviewer, client);
         }
         if (resourceTargets)
         {
-            cfgResource = RoundsResourcePlanner.NewRoundsResourcePlanner(reviewer, client);
-            reviewer.AddOrderDeclarer(new RoundsResourceDeclarer(cfgResource));
+            cfgResource = ResourcePlanner.NewReviewResourcePlanner(reviewer, client);
+            reviewer.AddOrderDeclarer(new ResourceDeclarer(cfgResource));
         }
         if (sc.Goals)
         {
             // The goals toggle composes the goals family: status for the player's goals, whose demand the review injects (#3494).
-            families.Add(new GoalsRounds(reviewer, context.GoalStatuses).Runner());
+            families.Add(new GoalsReview(reviewer, context.GoalStatuses).Runner());
         }
         if (sleeping || cooking || shelter || comfort || workshop || hospital || power || temperature || lighting || flooring || routes)
         {
             if (lighting)
             {
-                roomsLighting = RoundsBuildingPlanner.NewRoundsLightingPlanner(reviewer, client);
+                roomsLighting = BuildingPlanner.NewReviewLightingPlanner(reviewer, client);
             }
             if (flooring)
             {
-                roomsFlooring = RoundsBuildingPlanner.NewRoundsFlooringPlanner(reviewer, client);
+                roomsFlooring = BuildingPlanner.NewReviewFlooringPlanner(reviewer, client);
             }
             if (comfort)
             {
-                roomsComfort = RoundsBuildingPlanner.NewRoundsBasicComfortPlanner(reviewer, client);
-                roomsHosting = RoundsBuildingPlanner.NewRoundsComfortPlanner(reviewer, client);
-                roomsPartySpot = RoundsBuildingPlanner.NewRoundsPartySpotPlanner(reviewer, client);
-                roomsWorkChairs = RoundsBuildingPlanner.NewRoundsWorkChairPlanner(reviewer, client);
+                roomsComfort = BuildingPlanner.NewReviewBasicComfortPlanner(reviewer, client);
+                roomsHosting = BuildingPlanner.NewReviewComfortPlanner(reviewer, client);
+                roomsPartySpot = BuildingPlanner.NewReviewPartySpotPlanner(reviewer, client);
+                roomsWorkChairs = BuildingPlanner.NewReviewWorkChairPlanner(reviewer, client);
             }
             if (workshop)
             {
-                cfgWorkshop = RoundsBuildingPlanner.NewRoundsWorkshopPlanner(reviewer, client);
+                cfgWorkshop = BuildingPlanner.NewReviewWorkshopPlanner(reviewer, client);
             }
         }
-        if (roomsFlooring is not null && layout.Firebreak && layoutRounds is { } layoutPave)
+        if (roomsFlooring is not null && layout.Firebreak && layoutReview is { } layoutPave)
         {
             // The rooms/flooring Need paves the settled ring cells the firebreak review found.
             roomsFlooring.SetFirebreakPave(() => layoutPave.Pave());
@@ -327,7 +327,7 @@ public sealed partial class BrainComposition
         if (roomsLighting is not null || roomsFlooring is not null || roomsComfort is not null || sc.Art || sc.Gathering)
         {
             // The lighting, flooring, art, comfort and gathering toggles compose the rooms family's Needs (#3255).
-            families.Add(new RoomsRounds(reviewer, roomsLighting, roomsFlooring, roomsComfort, roomsHosting, roomsPartySpot, roomsWorkChairs, sc.Art, sc.Gathering).Runner());
+            families.Add(new RoomsReview(reviewer, roomsLighting, roomsFlooring, roomsComfort, roomsHosting, roomsPartySpot, roomsWorkChairs, sc.Art, sc.Gathering).Runner());
         }
         if (research || resourceTargets || acquisition || sc.Art || trade)
         {
@@ -338,23 +338,23 @@ public sealed partial class BrainComposition
             var resourceSteps = resourceTargets || acquisition
                 ? new EconomyResourceSteps { Resource = cfgResource, Acquisition = cfgResourceAcquisition, Fields = cfgFields, Workshop = cfgWorkshop }
                 : null;
-            families.Add(new EconomyRounds(reviewer, client, research, resourceSteps, sc.Art, cfgTrade).Runner());
+            families.Add(new EconomyReview(reviewer, client, research, resourceSteps, sc.Art, cfgTrade).Runner());
         }
 
-        var config = new ClockSchedulerConfig
+        var config = new PlannerSchedulerConfig
         {
             // MaxAge bounds admission-read staleness; planner facts use FactsTick.
             MaxAge = StepTimeout,
             Worker = true,
             WorldReady = context.WorldReady,
-            RoundsMethods = context.Session.RoundsMethodsEnabled(),
+            ReviewMethods = context.Session.ReviewMethodsEnabled(),
             Faults = faults,
             Families = families,
             Defense = cfgDefense,
-            Rounds = cfgRounds,
+            ReviewState = cfgReview,
             Store = cfgStore,
         };
-        var scheduler = new ClockScheduler(context.Player, client, config, SystemClock.Instance);
+        var scheduler = new PlannerScheduler(context.Player, client, config, SystemClock.Instance);
         var clock = CreateClock(context, client, scheduler, new FacadeClockWriter(client.Facade));
         return new PlannerParts
         {
@@ -366,20 +366,20 @@ public sealed partial class BrainComposition
             OpenFrames = client.OpenFramesAsync,
             Clock = clock,
             TargetSpeed = TargetSpeed,
-            Rounds = new RoundsDiagnostics(context.Journal, true, context.Session.RoundsMethodsEnabled(), _options.Families.Active(), context.Sections),
+            ReviewState = new Diagnostics(context.Journal, true, context.Session.ReviewMethodsEnabled(), _options.Families.Active(), context.Sections),
         };
     }
 
     // The run driver's configuration: the base colony watch policy every Run carries, the call bound and the
     // autosave hold.
-    private ClockRunDriver CreateClock(PlannerContext context, FacadeNativeClient client, ClockScheduler scheduler, IClockWriter clockWriter)
+    private PlannerRunDriver CreateClock(PlannerContext context, GameClient client, PlannerScheduler scheduler, IClockWriter clockWriter)
     {
         var lease = TimeSpan.FromTicks(Math.Min(Math.Min(_options.NativeTimeout.Ticks, TimeSpan.FromSeconds(10).Ticks), TimeSpan.FromSeconds(7).Ticks));
         var config = new ClockRunConfig
         {
             TargetSpeed = RunTargetSpeed(),
             PlayerSpeed = TargetSpeed,
-            Policy = new PbClock.WatchPolicy
+            Policy = new RimGovernor.Brain.GameOrders.Clock.WatchPolicy
             {
                 SeriousSingleHitDamage = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSingleHitDamage,
                 SeriousSummaryHealthFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSummaryHealthFloor,
@@ -389,7 +389,7 @@ public sealed partial class BrainComposition
                 MeleeReachCells = RimGovernor.Brain.Policy.HazardThresholdsRules.MeleeReachCells,
                 InjurySeverityFloorTicks = RimGovernor.Brain.Policy.HazardThresholdsRules.InjurySeverityFloorTicks,
                 HungerHoldCategory = RimGovernor.Brain.Policy.HazardThresholdsRules.HungerHoldCategory,
-                Mode = PbClock.WatchMode.Colony,
+                Mode = RimGovernor.Brain.GameOrders.Clock.WatchMode.Colony,
                 HealthDropFraction = .1f,
                 MinHealthFraction = .5f,
                 HostileWithin = 20f,
@@ -400,15 +400,15 @@ public sealed partial class BrainComposition
             AutosaveEveryTicks = ClockRunConfig.DefaultAutosaveEveryTicks,
             CallTimeout = lease,
         };
-        return ClockRunDriver.Create(context.Player, context.Session, scheduler, client, clockWriter, config, SystemClock.Instance, context.Wake, CancellationToken.None);
+        return PlannerRunDriver.Create(context.Player, context.Session, scheduler, client, clockWriter, config, SystemClock.Instance, context.Wake, CancellationToken.None);
     }
 
     // The routine policy thresholds and the method capabilities a composed serve declares from
     // its enabled families. Every family whose planner acts only while the development ranking selected its goal
     // must declare that goal here, or the review ranks it method_unavailable and the planner never runs.
-    internal static (RoundsPolicy Thresholds, RoundsCapabilities Capabilities) RoundsCapabilitiesFor(BrainFamilies sc, bool layoutOverlay)
+    internal static (PlannerSettings Thresholds, Capabilities Capabilities) CapabilitiesFor(BrainFamilies sc, bool layoutOverlay)
     {
-        var thresholds = RoundsRules.DefaultRoundsPolicy();
+        var thresholds = Rules.DefaultPlannerSettings();
         // The migrated Needs whose facts the review reads: refrigeration's rooms, training's range and ring definitions,
         // food supply's plan, fields and butchery, cooking's kitchen and meal review, equipment's gear census, the
         // rooms family's room census, beauty definitions, floors and sculpture rooms, and psylink's royalty read and
@@ -518,6 +518,6 @@ public sealed partial class BrainComposition
             // The routes Need's room census and door definition (#3265).
             needs.Add(LayoutFamily.Routes);
         }
-        return (thresholds, new RoundsCapabilities { Needs = needs, LayoutOverlay = layoutOverlay, ClearanceCensus = sc.Clearance, JailShell = sc.PrisonerInteraction, Goals = sc.Goals });
+        return (thresholds, new Capabilities { Needs = needs, LayoutOverlay = layoutOverlay, ClearanceCensus = sc.Clearance, JailShell = sc.PrisonerInteraction, Goals = sc.Goals });
     }
 }

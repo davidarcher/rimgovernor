@@ -8,7 +8,7 @@ using RimWorld;
 using RimWorld.QuestGen;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     public sealed class QuestShuttleFixture
     {
@@ -37,7 +37,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/quest_shuttle_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable lab fixture: spawn named and count-based quest shuttles for native loading and launch.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Prepare(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;

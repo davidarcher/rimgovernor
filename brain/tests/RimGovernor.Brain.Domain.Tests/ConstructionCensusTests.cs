@@ -1,10 +1,8 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
-using C = RimGovernor.Contracts.Wire.Common;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -16,28 +14,28 @@ public sealed class ConstructionCensusTests
     [Fact]
     public void NativeConstructionProjectionRetainsOwedMaterialsGateAndMinimum()
     {
-        var row = new O.BuildingState
+        var row = new RimGovernor.Brain.GameFacts.Observations.BuildingState
         {
-            Roofed = false, RainVulnerable = false, FuelDefinitions = [], Turret = null, Conduit = O.ConduitKind.None,
-            Building = new O.EntityRef { Id = "frame", DefName = "Frame_Wall", Label = "wall (building)", Place = new O.EntityPlace.OnMap(0, new RimGovernor.Brain.Domain.Cell { X = 1, Z = 1 }) },
-            Rotation = RimGovernor.Contracts.Wire.Placement.Rotation.North,
+            Roofed = false, RainVulnerable = false, FuelDefinitions = [], Turret = null, Conduit = RimGovernor.Brain.GameFacts.Observations.ConduitKind.None,
+            Building = new RimGovernor.Brain.GameFacts.Observations.EntityRef { Id = "frame", DefName = "Frame_Wall", Label = "wall (building)", Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(0, new RimGovernor.Brain.Domain.Cell { X = 1, Z = 1 }) },
+            Rotation = RimGovernor.Brain.GameFacts.Placement.Rotation.North,
             Stuff = null,
             Faction = null,
-            Status = O.BuildingStatus.Frame,
-            HitPoints = new O.BuildingHitPoints.Untracked(),
-            Construction = new O.ConstructionState.Build
+            Status = RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Frame,
+            HitPoints = new RimGovernor.Brain.GameFacts.Observations.BuildingHitPoints.Untracked(),
+            Construction = new RimGovernor.Brain.GameFacts.Observations.ConstructionState.Build
             {
                 Definition = "TestBuilding",
-                Resources = [new O.MaterialDeficit { DefName = Material.Value, StillNeeded = 7 }],
+                Resources = [new RimGovernor.Brain.GameFacts.Observations.MaterialDeficit { DefName = Material.Value, StillNeeded = 7 }],
                 QualitySensitive = false,
                 NativeFinishingSkill = 0,
                 Minimum = null,
-                Gate = new O.ConstructionGate.Ungated(),
+                Gate = new RimGovernor.Brain.GameFacts.Observations.ConstructionGate.Ungated(),
             },
             Service = BuildingServiceWire.NoService,
-            Settings = new O.BuildingSettings { Forbidden = false, Control = new O.BuildingControl.None() },
+            Settings = new RimGovernor.Brain.GameFacts.Observations.BuildingSettings { Forbidden = false, Control = new RimGovernor.Brain.GameFacts.Observations.BuildingControl.None() },
             Burning = false,
-            Occupied = new O.Rectangle { Minimum = new RimGovernor.Brain.Domain.Cell { X = 1, Z = 1 }, Maximum = new RimGovernor.Brain.Domain.Cell { X = 1, Z = 1 } },
+            Occupied = new RimGovernor.Brain.GameFacts.Observations.Rectangle { Minimum = new RimGovernor.Brain.Domain.Cell { X = 1, Z = 1 }, Maximum = new RimGovernor.Brain.Domain.Cell { X = 1, Z = 1 } },
             Anomaly = null,
             Door = null,
         };
@@ -48,27 +46,27 @@ public sealed class ConstructionCensusTests
         Assert.Equal(7, observed.Deficit[Material]);
         Assert.False(observed.Sites[0].ResourcesComplete);
         Assert.Null(observed.Sites[0].Minimum);
-        Assert.IsType<O.ConstructionGate.Ungated>(observed.Sites[0].Gate);
+        Assert.IsType<RimGovernor.Brain.GameFacts.Observations.ConstructionGate.Ungated>(observed.Sites[0].Gate);
         var gated = row with
         {
-            Construction = ((O.ConstructionState.Build)row.Construction) with
+            Construction = ((RimGovernor.Brain.GameFacts.Observations.ConstructionState.Build)row.Construction) with
             {
-                Minimum = new O.FinishingMinimum { Skill = 6, EligibleFinishers = 2 },
-                Gate = new O.ConstructionGate.Tiered { Tier = ConstructionTier.Sustain },
+                Minimum = new RimGovernor.Brain.GameFacts.Observations.FinishingMinimum { Skill = 6, EligibleFinishers = 2 },
+                Gate = new RimGovernor.Brain.GameFacts.Observations.ConstructionGate.Tiered { Tier = ConstructionTier.Sustain },
             },
         };
         var gatedSite = ConstructionReads.ConstructionFromTables(new(Buildings.Of(gated), Pawns.Of(), Things.Of(), [])).Sites[0];
         Assert.Same(gated, gatedSite.Observed);
-        Assert.Same(((O.ConstructionState.Build)gated.Construction).Minimum, gatedSite.Minimum);
-        Assert.Equal(new O.FinishingMinimum { Skill = 6, EligibleFinishers = 2 }, gatedSite.Minimum);
-        Assert.Equal(ConstructionTier.Sustain, Assert.IsType<O.ConstructionGate.Tiered>(gatedSite.Gate).Tier);
+        Assert.Same(((RimGovernor.Brain.GameFacts.Observations.ConstructionState.Build)gated.Construction).Minimum, gatedSite.Minimum);
+        Assert.Equal(new RimGovernor.Brain.GameFacts.Observations.FinishingMinimum { Skill = 6, EligibleFinishers = 2 }, gatedSite.Minimum);
+        Assert.Equal(ConstructionTier.Sustain, Assert.IsType<RimGovernor.Brain.GameFacts.Observations.ConstructionGate.Tiered>(gatedSite.Gate).Tier);
         var missing = row with { Construction = null };
         Assert.Throws<ObservationContractException>(() => ConstructionReads.ConstructionFromTables(new(Buildings.Of(missing), Pawns.Of(), Things.Of(), [])));
 
         var tables = new Tables(Buildings.Of(row), Pawns.Of(), Things.Of(), []) { ConstructionMemo = new() };
         Assert.Equal(7, ConstructionReads.ConstructionFromTables(tables).Deficit[Material]);
-        var supplied = row with { Construction = ((O.ConstructionState.Build)row.Construction) with
-            { Resources = [new O.MaterialDeficit { DefName = Material.Value, StillNeeded = 0 }] } };
+        var supplied = row with { Construction = ((RimGovernor.Brain.GameFacts.Observations.ConstructionState.Build)row.Construction) with
+            { Resources = [new RimGovernor.Brain.GameFacts.Observations.MaterialDeficit { DefName = Material.Value, StillNeeded = 0 }] } };
         var updated = ConstructionReads.ConstructionFromTables(tables with { Buildings = Buildings.Of(supplied) });
         Assert.Empty(updated.Deficit);
         Assert.True(Assert.Single(updated.Sites).ResourcesComplete);

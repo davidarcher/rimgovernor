@@ -1,7 +1,8 @@
 using System.Globalization;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;

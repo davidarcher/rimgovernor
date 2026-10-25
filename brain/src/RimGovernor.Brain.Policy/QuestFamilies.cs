@@ -352,10 +352,10 @@ public abstract record QuestRoot
 public static class QuestRoots
 {
     /// <summary>
-    /// The classification of <paramref name="quest"/>'s root among the review's <see cref="RoundsFacts.QuestRoots"/>;
+    /// The classification of <paramref name="quest"/>'s root among the review's <see cref="ReviewFacts.QuestRoots"/>;
     /// every root of the census is classified, so a missing one raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static QuestRoot RootOf(this RoundsFacts f, QuestState quest)
+    public static QuestRoot RootOf(this ReviewFacts f, QuestState quest)
     {
         foreach (var root in f.QuestRoots)
         {

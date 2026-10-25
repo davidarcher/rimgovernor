@@ -1,5 +1,5 @@
 using RimGovernor.Brain.Acceptance;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Store.Codec;
@@ -41,14 +41,14 @@ public sealed class DefenseTierNodesTests
     [Fact]
     public void CombatFightsFromThePlansFiringAndLaneNodes()
     {
-        var layout = Assert.IsType<CombatLayout>(RoundsDefensePlanner.CombatLayoutOf(Staged()));
+        var layout = Assert.IsType<CombatLayout>(DefensePlanner.CombatLayoutOf(Staged()));
         Assert.Equal(Firing.Select(f => f.Cell), layout.Firing.ToArray());
         Assert.Equal(Firing.Select(f => f.Retreat), layout.Retreat.ToArray());
         Assert.Equal(new CombatChoke.Corridor(Lane[^1]), layout.Choke);
         Assert.Equal(Rotation.South, layout.Toward);
 
         // A plan without tier nodes gives combat no firing line and no choke.
-        var bare = Assert.IsType<CombatLayout>(RoundsDefensePlanner.CombatLayoutOf(LayoutPlan.OpeningPlan(Rotation.South)));
+        var bare = Assert.IsType<CombatLayout>(DefensePlanner.CombatLayoutOf(LayoutPlan.OpeningPlan(Rotation.South)));
         Assert.Empty(bare.Firing);
         Assert.IsType<CombatChoke.NoCorridor>(bare.Choke);
     }
@@ -64,13 +64,13 @@ public sealed class DefenseTierNodesTests
                 new DefenseTierRecord { Name = DefenseLayout.TierFiringLine, Built = true },
             ],
         };
-        var pins = RoundsDefenseLayoutPlanner.DefenseTierPins(record, Staged(), null);
+        var pins = DefenseLayoutPlanner.DefenseTierPins(record, Staged(), null);
         Assert.True(pins.Tiers.ContainsKey(DefenseLayout.TierFiringLine));
         Assert.Equal(Firing, pins.Firing.ToArray());
         Assert.Equal(Lane, pins.TrapLane.ToArray());
     }
 
-    private static readonly DefenseDefinitions Defs = RoundsDefenseLayoutPlanner.DefenseDefinitionNames;
+    private static readonly DefenseDefinitions Defs = DefenseLayoutPlanner.DefenseDefinitionNames;
 
     private static readonly Cell[] Walls = [new Cell(26, 30), new Cell(34, 30)];
 
@@ -141,7 +141,7 @@ public sealed class DefenseTierNodesTests
         // admitted; the turrets are unstarted.
         record.Tiers.Single(t => t.Name == DefenseLayout.TierFiringLine).Attempts = 1;
         var census = new DefenseCensus { Edifice = { [Walls[0]] = Defs.Wall } };
-        var pins = RoundsDefenseLayoutPlanner.DefenseTierPins(record, plan, census);
+        var pins = DefenseLayoutPlanner.DefenseTierPins(record, plan, census);
         var planned = plan.PlannedDefenseTiers();
 
         Assert.Equal(
@@ -159,7 +159,7 @@ public sealed class DefenseTierNodesTests
         var (resited, pinned) = DefenseTiersPolicy.ApplyPins(Proposed(shift: 3), pins);
         Assert.Equal(planned[DefenseLayout.TierFunnel].Buildings, resited.Tiers.Single(t => t.Name == DefenseLayout.TierFunnel).Buildings);
         Assert.Equal(3, pinned.Count);
-        RoundsDefenseLayoutPlanner.SiteUnstartedTiers(record, new DefenseTiers { Layout = resited }, pins);
+        DefenseLayoutPlanner.SiteUnstartedTiers(record, new DefenseTiers { Layout = resited }, pins);
         Assert.Equal(Walls, record.Tiers.Single(t => t.Name == DefenseLayout.TierFunnel).Buildings.Select(b => b.Cell));
         Assert.Equal(1, record.Tiers.Single(t => t.Name == DefenseLayout.TierFiringLine).Attempts);
         Assert.Equal(new Cell(MiniTurret.X + 3, MiniTurret.Z), record.Tiers.Single(t => t.Name == DefenseTurretsPolicy.TierTurrets).Buildings.Single().Cell);
@@ -173,12 +173,12 @@ public sealed class DefenseTierNodesTests
         var killbox = new DefenseKillbox { Toward = Rotation.South, Entry = Lane[0] };
         var planned = plan.PlannedDefenseTiers();
 
-        var layout = RoundsDefenseLayoutPlanner.DefenseRecordLayout(record, plan, killbox);
+        var layout = DefenseLayoutPlanner.DefenseRecordLayout(record, plan, killbox);
         foreach (var t in layout.Tiers)
         {
             Assert.Equal(planned[t.Name].Reserved, t.Reserved);
         }
-        var geometry = RoundsDefenseLayoutPlanner.DefenseRecordGeometry(record, plan, killbox);
+        var geometry = DefenseLayoutPlanner.DefenseRecordGeometry(record, plan, killbox);
         var expected = planned.Where(kv => kv.Key != DefenseTurretsPolicy.TierTurrets).SelectMany(kv => kv.Value.Reserved).ToHashSet();
         Assert.True(expected.SetEquals(geometry.Reserved));
         Assert.DoesNotContain(MiniTurret, geometry.Reserved);
@@ -188,12 +188,12 @@ public sealed class DefenseTierNodesTests
         var replacement = At(DefenseTurretsPolicy.TurretAutocannon, MiniTurret, "Steel");
         var size = new Bounds(2, 2);
         var standing = new[] { new StandingTurret(old, [.. DefenseTurretsPolicy.TurretFootprint(MiniTurret, new Bounds(1, 1))]) };
-        var replaced = RoundsDefenseLayoutPlanner.ApplyTurretReplacement(record, plan, old, replacement, standing, size);
+        var replaced = DefenseLayoutPlanner.ApplyTurretReplacement(record, plan, old, replacement, standing, size);
         var turrets = replaced.PlannedDefenseTiers()[DefenseTurretsPolicy.TierTurrets];
         Assert.Equal(replacement, turrets.Buildings.Single());
         Assert.Equal(DefenseTurretsPolicy.TurretFootprint(MiniTurret, size).ToHashSet(), turrets.Reserved.ToHashSet());
         Assert.Equal(replacement.Definition, record.Tiers.Single(t => t.Name == DefenseTurretsPolicy.TierTurrets).Buildings.Single().Definition);
-        var after = RoundsDefenseLayoutPlanner.DefenseRecordLayout(record, replaced, killbox);
+        var after = DefenseLayoutPlanner.DefenseRecordLayout(record, replaced, killbox);
         Assert.Equal(turrets.Reserved, after.Tiers.Single(t => t.Name == DefenseTurretsPolicy.TierTurrets).Reserved);
     }
 
@@ -215,9 +215,9 @@ public sealed class DefenseTierNodesTests
         var staged = Staged();
         var nodes = staged.Sites.Where(s => DefenseTiersPolicy.IsDefenseTierNode(s.Kind)).ToList();
         var sited = new DefenseTiers { Nodes = EquatableArray.From(nodes), Layout = new DefenseLayout { Firing = EquatableArray.From(Firing) } };
-        Assert.Equal(Firing, RoundsDefenseLayoutPlanner.DefenseTiersStored(plan, sited)!.DefenseTierGeometry().Firing.ToArray());
-        Assert.Null(RoundsDefenseLayoutPlanner.DefenseTiersStored(staged, sited));
-        Assert.Null(RoundsDefenseLayoutPlanner.DefenseTiersStored(plan, sited with { Refusal = "no corridor" }));
+        Assert.Equal(Firing, DefenseLayoutPlanner.DefenseTiersStored(plan, sited)!.DefenseTierGeometry().Firing.ToArray());
+        Assert.Null(DefenseLayoutPlanner.DefenseTiersStored(staged, sited));
+        Assert.Null(DefenseLayoutPlanner.DefenseTiersStored(plan, sited with { Refusal = "no corridor" }));
     }
 
     [Fact]
@@ -228,7 +228,7 @@ public sealed class DefenseTierNodesTests
         l.Firing.Add(new LabCell(52, 53));
         l.Retreat.Add(new LabCell(48, 45));
         l.Retreat.Add(new LabCell(52, 45));
-        var layout = Assert.IsType<CombatLayout>(RoundsDefensePlanner.CombatLayoutOf(CombatLabLayout.Plan(l)));
+        var layout = Assert.IsType<CombatLayout>(DefensePlanner.CombatLayoutOf(CombatLabLayout.Plan(l)));
         Assert.Equal(new[] { new Cell(48, 53), new Cell(52, 53) }, layout.Firing.ToArray());
         Assert.Equal(new[] { new Cell(48, 45), new Cell(52, 45) }, layout.Retreat.ToArray());
         Assert.Equal(new CombatChoke.Corridor(new Cell(50, 57)), layout.Choke);

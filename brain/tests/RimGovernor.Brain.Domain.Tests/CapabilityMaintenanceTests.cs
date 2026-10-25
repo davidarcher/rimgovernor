@@ -1,7 +1,7 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -36,9 +36,9 @@ public sealed class CapabilityMaintenanceTests
     public void NormalWorkSuppressesPracticeAndUnknownOrBranchDoesNotProveFailure()
     {
         var requirement = Assert.Single(CapabilityMaintenanceRules.AssignedCombatCapabilities(new IdeologyMode.Installed(Ideology("pawn"))));
-        O.Skill[] skills = [new() { DefName = "Shooting", Passion = O.Passion.None, Level = 1, Learning = Learning() }, new() { DefName = "Melee", Passion = O.Passion.None, Disabled = true }];
+        RimGovernor.Brain.GameFacts.Observations.Skill[] skills = [new() { DefName = "Shooting", Passion = RimGovernor.Brain.GameFacts.Observations.Passion.None, Level = 1, Learning = Learning() }, new() { DefName = "Melee", Passion = RimGovernor.Brain.GameFacts.Observations.Passion.None, Disabled = true }];
         var completed = new Dictionary<string, bool> { ["work"] = true };
-        ForecastMaintenanceConsequence Forecast(EquatableArray<O.Skill> observed, ForecastActivityPlan plan)
+        ForecastMaintenanceConsequence Forecast(EquatableArray<RimGovernor.Brain.GameFacts.Observations.Skill> observed, ForecastActivityPlan plan)
             => ForecastMaintenancePolicy.ForecastMaintenance([new(requirement, observed)], [], plan, completed, 200)[0];
         Assert.True(Assert.IsType<ForecastMaintenanceGap.Projected>(Forecast(EquatableArray.From(skills), new([], 0, 0)).MissingXp).Xp > 0);
         var projection = ForecastSkillTests.Projected(ForecastSkillPolicy.ForecastSkill(Learning(), [], 0));
@@ -57,7 +57,7 @@ public sealed class CapabilityMaintenanceTests
         var skill = melee ? "Melee" : "Shooting";
         var requirement = new RoleDef(1,[new([new(skill, 1)])]);
         var ideology = Ideology("pawn") with { Defs = new() { Roles = new Dictionary<string, RoleDef> { ["soldier"] = requirement } } };
-        var roster = ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Observed = p.Observed with { Biography = p.Observed.Biography with { Skills = [new() { Passion = O.Passion.None, DefName = skill, Level = 1, Learning = Learning() }] } } }).ToArray();
+        var roster = ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Observed = p.Observed with { Biography = p.Observed.Biography with { Skills = [new() { Passion = RimGovernor.Brain.GameFacts.Observations.Passion.None, DefName = skill, Level = 1, Learning = Learning() }] } } }).ToArray();
         var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, skill, "target/" + i, new(i + 1, 1),
             melee ? "RimGovernor_Spar" : "RimGovernor_TrainRange", melee ? "RimGovernor_Spar" : "RimGovernor_TrainShooting",
             0d, 100d, Learning()) { Company = [], CallbackIntervalTicks = 10d, RawXpPerCallback = 10d, PreparationTicks = 0, JoyGainPerTick = 0, Thoughts = [], Equipment = [], Findings = [] }).ToArray();
@@ -76,8 +76,8 @@ public sealed class CapabilityMaintenanceTests
         Assert.True(Assert.IsType<ForecastMaintenanceGap.Projected>(selected.Selected.Maintenance[0].MissingXp).Xp < Assert.IsType<ForecastMaintenanceGap.Projected>(selected.Baseline.Maintenance[0].MissingXp).Xp);
         var batch = Assert.IsType<PawnActivities>(ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "maintenance-test", 100));
         batch.Validate(); Assert.Equal(melee ? 2 : 1, batch.Tasks.Count);
-        var wire = RimGovernor.Contracts.Wire.WireJson.Deserialize<RimGovernor.Contracts.Wire.Operations.PawnActivitiesIntent>(
-            RimGovernor.Contracts.Wire.WireJson.Serialize(new RimGovernor.Contracts.Wire.Operations.PawnActivitiesIntent { Batch = batch }));
+        var wire = RimGovernor.Brain.GameOrders.OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.PawnActivitiesIntent>(
+            RimGovernor.Brain.GameOrders.OrdersJson.Serialize(new RimGovernor.Brain.GameOrders.Operations.PawnActivitiesIntent { Batch = batch }));
         Assert.Equal(batch.Tasks[0].Step.Practice, wire.Batch!.Tasks[0].Step.Practice);
         using var stream = new MemoryStream();
         using (var writer = new System.Text.Json.Utf8JsonWriter(stream))
@@ -93,7 +93,7 @@ public sealed class CapabilityMaintenanceTests
         var absent = ConstructionFixtures.NoTasks();
         Assert.Equal(ActivityNeed.Owed, ForecastServiceInvestments.ReviewServiceActivityNeed(batch, ActivityNeed.Owed, absent));
         var satisfied = facts with { ForecastObserved = facts.ForecastObserved with
-        { WorkPawns = new WorkPawnsRead(EquatableArray.From(roster.Select(p => p with { Observed = p.Observed with { Biography = p.Observed.Biography with { Skills = [new() { Passion = O.Passion.None, DefName = skill, Level = 1, Learning = Learning() with { Xp = 100d } }] } } }))) } };
+        { WorkPawns = new WorkPawnsRead(EquatableArray.From(roster.Select(p => p with { Observed = p.Observed with { Biography = p.Observed.Biography with { Skills = [new() { Passion = RimGovernor.Brain.GameFacts.Observations.Passion.None, DefName = skill, Level = 1, Learning = Learning() with { Xp = 100d } }] } } }))) } };
         var recovered = ForecastCoupledCandidates.GenerateCoupledActivities(satisfied, 300)!;
         Assert.Empty(ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = recovered.Context }, recovered).Selection.Selected);
     }

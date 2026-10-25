@@ -93,7 +93,7 @@ public static class HerdPurchaseRules
                 {
                     continue;
                 }
-                if (!((want.Male && pawn.Gender == RimGovernor.Contracts.Wire.Defs.Gender.Male) || (want.Female && pawn.Gender == RimGovernor.Contracts.Wire.Defs.Gender.Female)))
+                if (!((want.Male && pawn.Gender == RimGovernor.Brain.GameFacts.Defs.Gender.Male) || (want.Female && pawn.Gender == RimGovernor.Brain.GameFacts.Defs.Gender.Female)))
                 {
                     continue;
                 }

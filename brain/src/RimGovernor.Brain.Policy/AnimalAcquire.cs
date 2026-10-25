@@ -230,7 +230,7 @@ public static class AnimalAcquireRules
                 continue;
             }
 
-            if (!AnimalAcquisition.Yield(race, a.Gender == RimGovernor.Contracts.Wire.Defs.Gender.Female, years * GameTime.DaysPerYear * GameTime.TicksPerDay, out var y))
+            if (!AnimalAcquisition.Yield(race, a.Gender == RimGovernor.Brain.GameFacts.Defs.Gender.Female, years * GameTime.DaysPerYear * GameTime.TicksPerDay, out var y))
             {
                 continue;
             }
@@ -274,7 +274,7 @@ public static class AnimalAcquireRules
                     row is not TradeOffer.Pawn { Gender: var gender }
                     || !ok
                     || row.Count < 1
-                    || gender == RimGovernor.Contracts.Wire.Defs.Gender.None
+                    || gender == RimGovernor.Brain.GameFacts.Defs.Gender.None
                     || row.Def.Contains('/', StringComparison.Ordinal)
                     || !TradePolicyRules.Finite(row.Price)
                     || row.Price <= 0
@@ -285,7 +285,7 @@ public static class AnimalAcquireRules
                     continue;
                 }
 
-                if (!AnimalAcquisition.Yield(race, gender == RimGovernor.Contracts.Wire.Defs.Gender.Female, double.PositiveInfinity, out var y))
+                if (!AnimalAcquisition.Yield(race, gender == RimGovernor.Brain.GameFacts.Defs.Gender.Female, double.PositiveInfinity, out var y))
                 {
                     continue;
                 }

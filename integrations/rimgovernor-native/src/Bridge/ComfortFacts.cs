@@ -6,10 +6,9 @@ using DomainCell = RimGovernor.Brain.Domain.Cell;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Obs = RimGovernor.Contracts.Wire.Observations;
-using static HomeBridge.BridgeTools.NativePawnObservationTools;
+using static RimGovernor.Native.NativePawnObservationTools;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class ComfortFacts
     {
@@ -32,7 +31,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // The comfort census, read whole: a failed read throws and the upkeep section fails with it (#3771).
-        internal static Obs.ComfortFacts ReadProtocol(Map map)
+        internal static RimGovernor.Brain.GameFacts.Observations.ComfortFacts ReadProtocol(Map map)
         {
             var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed
                 && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))
@@ -58,36 +57,36 @@ namespace HomeBridge.BridgeTools
                 var adjacent = b.OccupiedRect().SelectMany(c => GenAdj.CardinalDirections.Select(d => c+d)).Distinct()
                     .Where(c => c.InBounds(map) && c.Standable(map) && c.GetEdifice(map) == null)
                     .OrderBy(c => c.z).ThenBy(c => c.x);
-                return new Obs.ComfortSurface(HostRoom(b), [.. adjacent.Select(c => new DomainCell(c.x, c.z))]);
+                return new RimGovernor.Brain.GameFacts.Observations.ComfortSurface(HostRoom(b), [.. adjacent.Select(c => new DomainCell(c.x, c.z))]);
             });
-            var dining = seats.Select(b => new Obs.DiningSeat(Id(b.GetUniqueLoadID()), HostRoom(b),
+            var dining = seats.Select(b => new RimGovernor.Brain.GameFacts.Observations.DiningSeat(Id(b.GetUniqueLoadID()), HostRoom(b),
                 Pawns(people.Where(p => Safe(p, b))),
                 Pawns(people.Where(p => p.CurJob?.def == JobDefOf.Ingest && b.OccupiedRect().Contains(p.Position)))));
             var recreation = play.Select(b => {
                 var watchCells = UsesWatchCells(b.def)
                     ? WatchBuildingUtility.CalculateWatchCells(b.def, b.Position, b.Rotation, map).ToList() : null;
-                Obs.ComfortHost host = Indoors(b) ? new Obs.ComfortHost.Indoors(HostRoom(b)) : new Obs.ComfortHost.Outdoors();
-                return new Obs.RecreationSource(Id(b.GetUniqueLoadID()), Id(b.def.building.joyKind.defName), host,
+                RimGovernor.Brain.GameFacts.Observations.ComfortHost host = Indoors(b) ? new RimGovernor.Brain.GameFacts.Observations.ComfortHost.Indoors(HostRoom(b)) : new RimGovernor.Brain.GameFacts.Observations.ComfortHost.Outdoors();
+                return new RimGovernor.Brain.GameFacts.Observations.RecreationSource(Id(b.GetUniqueLoadID()), Id(b.def.building.joyKind.defName), host,
                     Pawns(people.Where(p => !b.IsForbidden(p) && b.IsSociallyProper(p)
                         && p.CanReach(b, PathEndMode.Touch, Danger.None)
                         && (watchCells == null || watchCells.Any(c => WatchCellAccessible(p, c)))
                         && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null || p.playerSettings.AreaRestrictionInPawnCurrentMap[b.Position]))),
                     Pawns(people.Where(p => p.CurJob?.def.joyKind != null && p.CurJob.targetA.Thing == b)));
             });
-            return new Obs.ComfortFacts {
+            return new RimGovernor.Brain.GameFacts.Observations.ComfortFacts {
                 People = Pawns(people), Surfaces = [.. surfaces], Dining = [.. dining], Recreation = [.. recreation],
                 Joy = ReadJoy(people, play)
             };
         }
 
         // The whole joy boredom matrix.
-        private static Obs.RecreationCensus ReadJoy(List<Pawn> people, List<Building> play)
+        private static RimGovernor.Brain.GameFacts.Observations.RecreationCensus ReadJoy(List<Pawn> people, List<Building> play)
         {
             var kinds = play.Select(b => b.def.building.joyKind).Distinct()
                 .OrderBy(k => k.defName, StringComparer.Ordinal).ToList();
-            var pawns = people.Where(p => p.needs?.joy != null).Select(p => new Obs.JoyTolerance(
+            var pawns = people.Where(p => p.needs?.joy != null).Select(p => new RimGovernor.Brain.GameFacts.Observations.JoyTolerance(
                 new PawnId(Id(p.GetUniqueLoadID())), [.. kinds.Select(k => p.needs.joy.tolerances.BoredOf(k))]));
-            return new Obs.RecreationCensus([.. kinds.Select(k => Id(k.defName))], [.. pawns]);
+            return new RimGovernor.Brain.GameFacts.Observations.RecreationCensus([.. kinds.Select(k => Id(k.defName))], [.. pawns]);
         }
     }
 }

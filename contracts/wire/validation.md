@@ -1,6 +1,6 @@
 # Boundary validation rules
 
-System.Text.Json parsing (`WireJson`) is the first step. Deserialized records remain
+System.Text.Json parsing (`OrdersJson`) is the first step. Deserialized records remain
 transport values until the owning adapter applies these rules and its family contract
 document. These requirements are shared by the brain and the native mod; round-trip
 tests intentionally include shapes that are invalid game requests.
@@ -59,7 +59,7 @@ record types or by a successful serialization test.
 
 ## New colony scenario parts
 
-`ValidateNewColonySpec` (`brain/src/RimGovernor.Brain.Bridge.Contracts/Foundation/NewColonyValidation.cs`) bounds the parts on
+`ValidateNewColonySpec` (`brain/src/RimGovernor.Brain.GameAccess/Foundation/NewColonyValidation.cs`) bounds the parts on
 `NewColonySpec`: at most 64 entries per kind; `colonist_count` 1-10; starting-thing
 placement set (`scattered_roofed` is the roofed scattered placement; there is no separate roofed flag), `count` 1-100000; forced-trait
 `degree` -10..10; forced-hediff `severity` 0-1; `chance` and need `level` 0-1 and finite;

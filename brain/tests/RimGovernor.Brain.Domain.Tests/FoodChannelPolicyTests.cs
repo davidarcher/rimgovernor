@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -14,14 +13,14 @@ public sealed class FoodChannelPolicyTests
     [Fact]
     public void IndependentAnimalProductsShareOneAnimalsFeed()
     {
-        var milk = new O.GatherableAnimal
+        var milk = new RimGovernor.Brain.GameFacts.Observations.GatherableAnimal
         {
             PawnId = "animal", Race = "race", Fullness = 1, Resource = "milk", HandlerReachable = true,
-            Yield = new O.AnimalYield.Producing(3, 2, 1),
+            Yield = new RimGovernor.Brain.GameFacts.Observations.AnimalYield.Producing(3, 2, 1),
         };
-        var eggs = new O.EggLayerAnimal
+        var eggs = new RimGovernor.Brain.GameFacts.Observations.EggLayerAnimal
         {
-            PawnId = "animal", Race = "race", Yield = new O.AnimalYield.Producing(2, 1, 2),
+            PawnId = "animal", Race = "race", Yield = new RimGovernor.Brain.GameFacts.Observations.AnimalYield.Producing(2, 1, 2),
         };
         var gatherable = new AnimalProduct.Gatherable(milk) { Feed = new AnimalFeed.Plants(1) };
         var layer = new AnimalProduct.EggLayer(eggs) { Feed = new AnimalFeed.Plants(1) };
@@ -60,9 +59,9 @@ public sealed class FoodChannelPolicyTests
     [Fact]
     public void AFisherWithoutSpeedIsNoCrewAndTheSlowestWorkingFisherSetsTheBatch()
     {
-        Assert.IsType<FishingCrew.NoFisher>(FishingFactsRules.FishingCrewAt([new RimGovernor.Contracts.Wire.Observations.FisherFacts { FishingYield = 1, FishingSpeed = 0 }], 2, 0.05, 1000));
+        Assert.IsType<FishingCrew.NoFisher>(FishingFactsRules.FishingCrewAt([new RimGovernor.Brain.GameFacts.Observations.FisherFacts { FishingYield = 1, FishingSpeed = 0 }], 2, 0.05, 1000));
 
-        var crew = Assert.IsType<FishingCrew.Fishers>(FishingFactsRules.FishingCrewAt([new RimGovernor.Contracts.Wire.Observations.FisherFacts { FishingYield = 1, FishingSpeed = 0 }, new RimGovernor.Contracts.Wire.Observations.FisherFacts { FishingYield = 1.5, FishingSpeed = 2 }, new RimGovernor.Contracts.Wire.Observations.FisherFacts { FishingYield = 1, FishingSpeed = 1 }], 2, 0.05, 1000));
+        var crew = Assert.IsType<FishingCrew.Fishers>(FishingFactsRules.FishingCrewAt([new RimGovernor.Brain.GameFacts.Observations.FisherFacts { FishingYield = 1, FishingSpeed = 0 }, new RimGovernor.Brain.GameFacts.Observations.FisherFacts { FishingYield = 1.5, FishingSpeed = 2 }, new RimGovernor.Brain.GameFacts.Observations.FisherFacts { FishingYield = 1, FishingSpeed = 1 }], 2, 0.05, 1000));
 
         Assert.Equal((2.0, 1000.0), (crew.FishPerBatch, crew.WorkTicksPerBatch));
     }
@@ -70,7 +69,7 @@ public sealed class FoodChannelPolicyTests
     [Fact]
     public void UnresearchedFishingIsPendingOnlyWithAResearcher()
     {
-        var pending = new RimGovernor.Contracts.Wire.Observations.FishableWater { Regions = [], Fishers = [], BaseFishingDurationTicks = 1000, FishingResearched = false, ResearchBaseCost = 1000, ResearchProgress = 0, ResearchCostFactor = 1, ResearchPointsPerWorkTick = 0.01, ResearchDifficultySpeedFactor = 1, ResearcherSpeeds = [1] };
+        var pending = new RimGovernor.Brain.GameFacts.Observations.FishableWater { Regions = [], Fishers = [], BaseFishingDurationTicks = 1000, FishingResearched = false, ResearchBaseCost = 1000, ResearchProgress = 0, ResearchCostFactor = 1, ResearchPointsPerWorkTick = 0.01, ResearchDifficultySpeedFactor = 1, ResearcherSpeeds = [1] };
 
         Assert.IsType<FishingResearch.Researched>(FishingFactsRules.FishingResearchState(pending with { FishingResearched = true }));
         Assert.Equal(1000.0 / (0.01 * FishingFactsRules.FishingWorkTicksPerDay), Assert.IsType<FishingResearch.Pending>(FishingFactsRules.FishingResearchState(pending)).LeadDays, 9);
@@ -82,7 +81,7 @@ public sealed class FoodChannelPolicyTests
     [InlineData(7.5)]
     public void HarvestGapDoesNotJumpAtTheFrost(double stretch)
     {
-        var lastGrowing = new O.FoodClimate
+        var lastGrowing = new RimGovernor.Brain.GameFacts.Observations.FoodClimate
         {
             Season = "Fall", DayOfYear = 29, SowingNow = true,
             GrowingYear = EquatableArray.From(Enumerable.Range(0, CalendarRules.YearDays).Select(day => day == 0 || day > stretch)),

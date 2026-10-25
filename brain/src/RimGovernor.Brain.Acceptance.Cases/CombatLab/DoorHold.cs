@@ -1,5 +1,3 @@
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -75,8 +73,8 @@ internal static class CombatLabDoorHold
             "hold",
             cancellationToken,
             [
-                .. animals.Select(a => CombatLabKit.Order(a, new Operations.CombatOrderOrder.AnimalAreaCase(new Operations.CombatAnimalArea { Area = new Operations.CombatAnimalAreaArea.CellCase(outside) }))),
-                CombatLabKit.Order(null, new Operations.CombatOrderOrder.DoorCase(new Operations.CombatDoor { Cell = door, Mode = Operations.CombatDoorMode.Forbid })),
+                .. animals.Select(a => CombatLabKit.Order(a, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AnimalAreaCase(new RimGovernor.Brain.GameOrders.Operations.CombatAnimalArea { Area = new RimGovernor.Brain.GameOrders.Operations.CombatAnimalAreaArea.CellCase(outside) }))),
+                CombatLabKit.Order(null, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DoorCase(new RimGovernor.Brain.GameOrders.Operations.CombatDoor { Cell = door, Mode = RimGovernor.Brain.GameOrders.Operations.CombatDoorMode.Forbid })),
             ]).ConfigureAwait(false);
         foreach (var r in results)
         {
@@ -101,9 +99,9 @@ internal static class CombatLabDoorHold
 
             foreach (var a in animals)
             {
-                if (pawns.GetValueOrDefault(a) is not { } p || !Inside((p.Pawn.Place as RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap)?.Cell))
+                if (pawns.GetValueOrDefault(a) is not { } p || !Inside((p.Pawn.Place as RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap)?.Cell))
                 {
-                    throw new AcceptanceException($"tick +{tick - start}: husky {a} left the room through the forbidden door: {CombatLabKit.Show((pawns.GetValueOrDefault(a)?.Pawn.Place as RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap)?.Cell)}");
+                    throw new AcceptanceException($"tick +{tick - start}: husky {a} left the room through the forbidden door: {CombatLabKit.Show((pawns.GetValueOrDefault(a)?.Pawn.Place as RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap)?.Cell)}");
                 }
             }
 
@@ -111,11 +109,11 @@ internal static class CombatLabDoorHold
         }, cancellationToken).ConfigureAwait(false);
 
         // The control: with the door allowed the zoned huskies leave, so the hold was the door's.
-        CombatLabKit.Applied("allow", await CombatLabKit.OrderAsync(s, "allow", null, new Operations.CombatOrderOrder.DoorCase(new Operations.CombatDoor { Cell = door, Mode = Operations.CombatDoorMode.Allow }), cancellationToken).ConfigureAwait(false));
+        CombatLabKit.Applied("allow", await CombatLabKit.OrderAsync(s, "allow", null, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DoorCase(new RimGovernor.Brain.GameOrders.Operations.CombatDoor { Cell = door, Mode = RimGovernor.Brain.GameOrders.Operations.CombatDoorMode.Allow }), cancellationToken).ConfigureAwait(false));
         _ = await s.RunUntilAsync("leave", HoldTicks + CombatLabKit.ProbeTicks, async ct =>
         {
             var pawns = await CombatLabKit.PawnsAsync(s, "leave-pawns", animals, ct).ConfigureAwait(false);
-            var cells = animals.Select(a => (pawns.GetValueOrDefault(a)?.Pawn.Place as RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap)?.Cell).ToList();
+            var cells = animals.Select(a => (pawns.GetValueOrDefault(a)?.Pawn.Place as RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap)?.Cell).ToList();
             return (Wait.Signature(string.Join(",", cells.Select(CombatLabKit.Show))), cells.Any(c => c is not null && !Inside(c)));
         }, cancellationToken).ConfigureAwait(false);
     }

@@ -1,4 +1,4 @@
-using Trader = RimGovernor.Contracts.Wire.Observations.Trader;
+using Trader = RimGovernor.Brain.GameFacts.Observations.Trader;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -90,7 +90,7 @@ public static partial class TradePolicyRules
     /// and not one the organ harvest or part recovery would cut (judged row by row against the surgery planner's
     /// needs). Empty when nothing qualifies or the precepts do not plainly allow the sale.
     /// </summary>
-    public static IReadOnlySet<PawnId> SurplusPrisoners(this RoundsFacts f, bool silverShort)
+    public static IReadOnlySet<PawnId> SurplusPrisoners(this ReviewFacts f, bool silverShort)
     {
         var census = f.Population;
         if (FavorPrisonersHeld(f.Ideology))
@@ -158,7 +158,7 @@ public static partial class TradePolicyRules
     private static bool FavorPrisonerRow(TradeSelectionFacts facts, TradeSheetRowFact row) =>
         row.Pawn is { } pawn
         && facts.FavorPrisoners.Contains(new PawnId(pawn.Id))
-        && pawn.Guest is RimGovernor.Contracts.Wire.Observations.TradePawnGuest.Tracked { Status: RimGovernor.Contracts.Wire.Defs.GuestStatus.Prisoner, PrisonerSecure: true }
+        && pawn.Guest is RimGovernor.Brain.GameFacts.Observations.TradePawnGuest.Tracked { Status: RimGovernor.Brain.GameFacts.Defs.GuestStatus.Prisoner, PrisonerSecure: true }
         && !pawn.Downed
         && pawn.ExtraHomeFaction.Length == 0
         && pawn.ExtraHostFaction.Length == 0

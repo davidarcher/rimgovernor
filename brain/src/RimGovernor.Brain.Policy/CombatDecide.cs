@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
-using RimGovernor.Contracts.Wire.Clock;
+using RimGovernor.Brain.GameFacts.Clock;
+using RimGovernor.Brain.GameOrders.Clock;
 namespace RimGovernor.Brain.Policy;
 
 //
@@ -198,7 +199,7 @@ public abstract record OutdoorTemperature
 public sealed partial record CombatView
 {
     /// <summary>The quest site's exit when the fight's map is a loaded quest site; null on any other map.</summary>
-    public required RimGovernor.Contracts.Wire.Observations.ExtractionCrew? SiteExit { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.ExtractionCrew? SiteExit { get; init; }
 
     public Tick Tick { get; init; }
 

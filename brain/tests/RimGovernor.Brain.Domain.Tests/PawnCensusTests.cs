@@ -1,9 +1,8 @@
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -20,31 +19,31 @@ public sealed class PawnCensusTests
     [Fact]
     public void RoutineFrameDecoderRefusesAnAbsentPawnCensus()
     {
-        var frame = new O.BundleSnapshot { Context = ColonyFactsCoreTests.Snapshot().Context };
-        var error = Assert.Throws<BridgeContractException>(() => FacadeNativeClient.DecodeRoundsFrame(frame, null!, FramePrepared.Of(frame)));
+        var frame = new RimGovernor.Brain.GameFacts.Observations.BundleSnapshot { Context = ColonyFactsCoreTests.Snapshot().Context };
+        var error = Assert.Throws<BridgeContractException>(() => GameClient.DecodeReviewFrame(frame, null!, FramePrepared.Of(frame)));
         Assert.Contains("pawn census", error.Message, StringComparison.Ordinal);
     }
     [Fact]
     public void EmergencyDecoderRefusesAnUnresolvedColonist()
     {
-        Assert.Throws<BridgeContractException>(() => FacadeNativeClient.EmergencyDecode.DecodeEmergencyStatus(EmergencyFixtures.Status("missing"), Pawns.Of()));
+        Assert.Throws<BridgeContractException>(() => GameClient.EmergencyDecode.DecodeEmergencyStatus(EmergencyFixtures.Status("missing"), Pawns.Of()));
     }
 
     [Fact]
     public void EmptyColonistCensusIsACompletePawnSnapshot()
     {
         var status = EmergencyFixtures.Status();
-        var emergency = FacadeNativeClient.EmergencyDecode.DecodeEmergencyStatus(status, Pawns.Of());
-        var snapshot = new O.PawnSnapshot { Context = status.Context, Pawns = [] };
-        Assert.Empty(FacadeNativeClient.RoundsPawnRows(snapshot, Pawns.Of(), emergency).Pawns);
+        var emergency = GameClient.EmergencyDecode.DecodeEmergencyStatus(status, Pawns.Of());
+        var snapshot = new RimGovernor.Brain.GameFacts.Observations.PawnSnapshot { Context = status.Context, Pawns = [] };
+        Assert.Empty(GameClient.PawnRows(snapshot, Pawns.Of(), emergency).Pawns);
     }
 
     [Fact]
     public void AContradictoryMedicalRosterFailsRatherThanAppearingRecovered()
     {
         var source = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 1 };
-        var pawns = new O.PawnSnapshot { Context = source.Context, Pawns = [] };
-        Assert.Throws<ObservationContractException>(() => RoundsContainmentReads.RoundsMedical(source, new EmergencyFacts(), pawns, null!));
+        var pawns = new RimGovernor.Brain.GameFacts.Observations.PawnSnapshot { Context = source.Context, Pawns = [] };
+        Assert.Throws<ObservationContractException>(() => ContainmentReads.Medical(source, new EmergencyFacts(), pawns, null!));
     }
 
     [Theory]
@@ -72,17 +71,17 @@ public sealed class PawnCensusTests
         row = row with
         {
             Health = row.Health with { NeedsTend = needsTend },
-            Biotech = new O.PawnBiotechState.Active(new O.PawnBiotech
+            Biotech = new RimGovernor.Brain.GameFacts.Observations.PawnBiotechState.Active(new RimGovernor.Brain.GameFacts.Observations.PawnBiotech
             {
-                DevelopmentalStage = RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Adult,
+                DevelopmentalStage = RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Adult,
                 Genes = [], Mech = null, Deathrest = null,
                 Mechanitor = new() { UsedBandwidth = 0, TotalBandwidth = 6, UsedBandwidthFromGestation = 0, ControlGroups = 1, ControlledMechs = [] },
             }),
         };
-        row = row with { Settings = row.Settings with { Care = new O.PawnCare.Configured(RimGovernor.Contracts.Wire.Operations.MedicalCare.HerbalOrWorse, false, RimGovernor.Contracts.Wire.Operations.HostilityResponse.Flee) } };
+        row = row with { Settings = row.Settings with { Care = new RimGovernor.Brain.GameFacts.Observations.PawnCare.Configured(RimGovernor.Brain.GameFacts.Operations.MedicalCare.HerbalOrWorse, false, RimGovernor.Brain.GameFacts.Operations.HostilityResponse.Flee) } };
         var status = EmergencyFixtures.Status("pawn");
-        var table = new O.PawnSnapshot { Context = status.Context, Pawns = [row] };
-        var frame = new O.BundleSnapshot
+        var table = new RimGovernor.Brain.GameFacts.Observations.PawnSnapshot { Context = status.Context, Pawns = [row] };
+        var frame = new RimGovernor.Brain.GameFacts.Observations.BundleSnapshot
         {
             Context = status.Context,
             Pawns = table,
@@ -90,9 +89,9 @@ public sealed class PawnCensusTests
             Research = new() { Context = status.Context!, Slots = [], Projects = [], Finished = [] },
             Rooms = new() { Context = status.Context!, Rooms = [] },
             Zones = new() { Context = status.Context!, Zones = [] },
-            Ideology = new O.IdeologyFrame.NotInstalled(),
+            Ideology = new RimGovernor.Brain.GameFacts.Observations.IdeologyFrame.NotInstalled(),
         };
-        var routine = FacadeNativeClient.DecodeRoundsFrame(frame, catalog, FramePrepared.Of(frame));
+        var routine = GameClient.DecodeReviewFrame(frame, catalog, FramePrepared.Of(frame));
         var tables = routine.Tables;
         Assert.Same(table, tables.PawnCensus);
         Assert.Same(frame.Zones, tables.Zones);

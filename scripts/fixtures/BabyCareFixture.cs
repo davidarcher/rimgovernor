@@ -7,7 +7,7 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Private disposable acceptance only: a colony raises
     // its first child. test/baby_care_prepare stages one baby a day or two short
@@ -24,7 +24,7 @@ namespace HomeBridge.BridgeTools
         private static bool BabyEdible(ThingDef def) => def?.ingestible != null && def.ingestible.babiesCanIngest;
 
         [Tool("test/baby_care_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture (#1691): build a roofed kitchen with a fueled stove, seed the ingredients of its baby-edible recipe, finish the recipe's research and add one baby daysToChild days short of its first childhood stage, with no breastfeeder in the colony. Requires Biotech.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> Prepare(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Game days before the baby reaches the Child developmental stage (0.5..10).")] double daysToChild = 2)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -130,7 +130,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/baby_care_inspect", Description = "Read-only baby-care postcondition for the first-child fixture: the baby's developmental stage, age and food level, malnutrition, and the baby food bills and stock.")]
-        public async Task<object> Inspect(IRimBridgeContext ctx, CancellationToken cancellationToken, string babyId, string benchId)
+        public async Task<object> Inspect(INativeContext ctx, CancellationToken cancellationToken, string babyId, string benchId)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;

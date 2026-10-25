@@ -1,4 +1,4 @@
-using Sex = RimGovernor.Contracts.Wire.Defs.Gender;
+using Sex = RimGovernor.Brain.GameFacts.Defs.Gender;
 
 namespace RimGovernor.Brain.Policy;
 

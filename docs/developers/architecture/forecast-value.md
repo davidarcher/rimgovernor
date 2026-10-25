@@ -7,8 +7,8 @@ Tier-1 selection ranks on the safety floors, then on capability-days ([Comparato
 `ForecastValue.Of` (#3520, #3521) prices hunger, rest, food poisoning, thermal exposure, mood breaks and
 wellbeing per outcome; `ForecastValue.Explain` (#3522) adds the floors; `coupled_selection` reports both ([policy constants](../contracts/kept-constants.md#policy-constants-3469),
 [tables](../contracts/forecast-contracts.md#capacity-penalty-tables-and-per-pawn-capacities)); harm (#3546, [harm model](#harm-model)) is priced when the harm inputs are observed and the exposure table has a calibrated cell for the colony, else unknown with a specific finding (seven cells are calibrated today); investment is the tier-2 credit of research and sowing blocks and of the skill XP work applies, less the medicine it consumes ([Marginal value of progress](#tier-2-event-driven-colony-model)), 0 for any other outcome. The player's goals add a gain term ([Goal value](#goal-value), #3503).
-The tier-2 model's input (`ColonyModelInput`, assembled per review by `RoundsColonyModel.InputOf` from the review frame, #3523) exists and names
-each section the frame did not carry. The model runs once per review, before the comparison (`RoundsColonyModel.Review`): the engine, the project graph and the
+The tier-2 model's input (`ColonyModelInput`, assembled per review by `ReviewColonyModel.InputOf` from the review frame, #3523) exists and names
+each section the frame did not carry. The model runs once per review, before the comparison (`ReviewColonyModel.Review`): the engine, the project graph and the
 valuation are in `Policy/ColonyModel`, and the `colony_model` event reports each run.
 Sections other than the comparator, the harm model, the problems and the milestones describe the proposed design, not current behavior.
 Selection is also described in [portfolio selection](portfolio-selection.md). The design replaced the rule that
@@ -229,11 +229,11 @@ sacrifice and a Low one does not.
 
 A colonist's value (#3825, `PawnValueRules`) is in capability-days per day: the work it adds less its upkeep. It
 can be negative. The review computes it for every colonist once tier 2 has run and the colony has a layout plan
-(`RoundsFindings.PawnValues`, the
+(`Findings.PawnValues`, the
 `pawn_values` attr of `rounds_review`).
 
 **Work shortfall.** The work the tier-1 selection could not schedule is a shared model (`WorkShortfallRules`,
-`RoundsFindings.WorkShortfall`, the `work_shortfall` attr), per work type and speed stat, in ticks per day at speed 1.
+`Findings.WorkShortfall`, the `work_shortfall` attr), per work type and speed stat, in ticks per day at speed 1.
 Every candidate root belongs to one outcome, the roots sharing its `ExclusiveOutcome`. An outcome the selection serves
 with none of its roots is unserved. It costs its cheapest root's unallocated work activities: the root's completions
 and their prerequisites, each counted once over all outcomes. An activity's work type comes from its binding:
@@ -288,7 +288,7 @@ carrying capacity the read lacks. The value never falls back to nothing.
 **Awaiting the layout plan** (#3857). A colony with no layout plan yet is a real state: every colony's first reviews
 run before its first plan derives (`ColonyPlan.ReviewFirstPlanAsync` runs after the review), and a derive that waits
 on an unread fact or fails records none. Its food has no planned walks to haul over, so the review values no colonist:
-the shortfall stands, `RoundsFindings.PawnValues` is empty and `PawnValuesAwaitingPlan` names `layout_plan`
+the shortfall stands, `Findings.PawnValues` is empty and `PawnValuesAwaitingPlan` names `layout_plan`
 (`PawnValueRules.AwaitingLayoutPlan`, the subject a building verdict awaiting the plan names). On the `rounds_review`
 row `pawn_values` is null and `pawn_values_awaiting_plan` is `layout_plan`. No distance stands in for the plan.
 
@@ -541,7 +541,7 @@ credit in `RoomCredits`, #3796) consumes its material, and the Investment term c
 `investment_contributions` row each. Every other construction root, placed sites included, stays free until its role is priced
 (#3650): a cost with no credit would stop it. Refuel and support draws on the same stack are other activities and are not
 charged. The value per unit is the work to replace one unit (`ForecastValue.MaterialValueOf`), priced once per review before the
-comparison (`Rounder.MaterialValuesAsync`, one `ListResourceSources` read per charged material, held in
+comparison (`ColonyReview.MaterialValuesAsync`, one `ListResourceSources` read per charged material, held in
 `ForecastCoupledContext.MaterialValues`): the catalog's chop or mine work over its yield (`HaulModel`), plus one haul trip, the
 nearest reachable source's distance × `PathMoveCardinal` ticks, over its load of min(stack limit, max(1, yield)). One work tick
 is one capability-tick. A material with no source in reach (steel with no ore, components, blocks) or a failed read is priced at
@@ -608,7 +608,7 @@ curve, the rest fall, the room's temperature; #3840). A bedroom with no occupant
 deteriorating (`ForecastStorage.StorageCredit`), under `storage/<room>/<thing>` (`meal_closet/`, `yard/`); a reserve keeps no
 store and earns nothing.
 
-- *Stock*: `StoreRules.PlannedStoreStock` over the stockpile review's request (`RoundsFacts.PlannedStoreStock`,
+- *Stock*: `StoreRules.PlannedStoreStock` over the stockpile review's request (`ReviewFacts.PlannedStoreStock`,
   `ForecastCoupledContext.StoreStock`): the stranded loot rows whose accepting groups include a zone of the role of a store
   sited on the room's region (a shelf in one), and the room's interior cells, one stack each.
 - *Per stack*: native reads each stack's `LootItem.Deterioration` (MaxHitPoints, `FinalDeteriorationRate`, the
@@ -760,7 +760,7 @@ off, and a bound building's power or fuel (`CanIncreasePresence`). The staging f
 mental state once per `RoamMtbDays` on average (`ThinkNode_ChancePerDay_Roam`, `JobGiver_StartRoaming`, gated by
 `MentalStateWorker_Roaming.CanRoamNow`) and walks off the map; a pen encloses it. Each such roamer gains the pen its market value in
 capability-days (over `SilverGapRules.ValuePerWorkTick`, as a market good is priced) over its `RoamMtbDays` a day. A pen takes the
-roamers of its herd's race (`PlannedRoom.Herd`, carried as `RoundsFacts.PlannedPens`), a misc pen those whose race has no pen of
+roamers of its herd's race (`PlannedRoom.Herd`, carried as `ReviewFacts.PlannedPens`), a misc pen those whose race has no pen of
 its own, and of several pens of one herd the lowest id. An animal that does not roam, or a roamer already enclosed, earns nothing;
 an animal census native could not read raises `RequiredFactException("animal census")`. Not modelled: the game's five-day roaming
 grace at a new colony and the cooldown after a roam, handlers roping a roamer back before it exits, the animal's future products
@@ -1215,7 +1215,7 @@ Each milestone has a GitHub issue.
 2. [#3468](https://github.com/davidarcher/rimgovernor/issues/3468) Search stage 2, including exact mood segments.
 3. [#3469](https://github.com/davidarcher/rimgovernor/issues/3469) Capability-days and floors over today's one-day horizon (implemented; #3519 to #3522). This replaced the
    lexicographic ranking; the vector stays as explanation.
-4. [#3470](https://github.com/davidarcher/rimgovernor/issues/3470) Tier 2: pawn cycle, stocks and flows, project graph, crop growth by twelfth (implemented: `Policy/ColonyModel/` with `RoundsColonyModel.Review`, the research and sowing providers `ResearchMethodCandidates` and `SowingMethodCandidates`, the `colony_model` event; the devilstrand payoff chain is wired by [#3559](https://github.com/davidarcher/rimgovernor/issues/3559) (its apparel value waits on the calibrated exposure table, #3543) and proven in play by `production/devilstrand-investment` ([#3560](https://github.com/davidarcher/rimgovernor/issues/3560)); `production/devilstrand-investment-starving` proves that investment never outranks the urgent floor).
+4. [#3470](https://github.com/davidarcher/rimgovernor/issues/3470) Tier 2: pawn cycle, stocks and flows, project graph, crop growth by twelfth (implemented: `Policy/ColonyModel/` with `ReviewColonyModel.Review`, the research and sowing providers `ResearchMethodCandidates` and `SowingMethodCandidates`, the `colony_model` event; the devilstrand payoff chain is wired by [#3559](https://github.com/davidarcher/rimgovernor/issues/3559) (its apparel value waits on the calibrated exposure table, #3543) and proven in play by `production/devilstrand-investment` ([#3560](https://github.com/davidarcher/rimgovernor/issues/3560)); `production/devilstrand-investment-starving` proves that investment never outranks the urgent floor).
 5. [#3471](https://github.com/davidarcher/rimgovernor/issues/3471) Harm model v1: threat schedule, composition, armor response,
    consequences, with exposure calibrated from real-game sweeps (implemented, #3539 to #3547; seven exposure cells are calibrated, #3561 and #3880).
 6. [#3472](https://github.com/davidarcher/rimgovernor/issues/3472) Search stage 3: the outcome-evaluation budget (#3722, shipped), lazy evaluation, proven pruning and the tuned default.

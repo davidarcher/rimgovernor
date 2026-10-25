@@ -473,7 +473,7 @@ finds the two-meal plan earlier than the plain order did; each result is at leas
 
 These changes are intentional: the lever applies to every bounded search, so a budget too
 small to finish the single roots now also reaches a second contribution. The production
-caller (`Rounds`) uses the default budget only.
+caller (`ReviewState`) uses the default budget only.
 
 ### Measured cost
 
@@ -678,7 +678,7 @@ The default budget is unchanged and costs less on the four-worker fixture (1,018
 ms against 1,304 MB and 788 ms): screened evaluations are cheaper than 4,096-bound ones.
 Generation cost is unchanged (12.75 MB, about 8.8 ms). The 65,536 row allocates more
 because the extra budget is spent on full-bound evaluations around a better leader; those
-budgets are opt-in and not used by `Rounds`.
+budgets are opt-in and not used by `ReviewState`.
 
 ### Baseline diffs
 
@@ -926,7 +926,7 @@ evaluations added moved.
 The original fixture (8 roots) still exhausts its 255 subsets at 65,536 and above, where the
 sweep fits; at 8,192 and 16,384 it ends at the confirmed leader. The four-worker fixture
 (62 roots) has no budget that finishes its sweep, so every budget from 16,384 up ends at the
-same 12,902 expansions; the 65,536 and 262,144 rows (opt-in, not used by `Rounds`) stop
+same 12,902 expansions; the 65,536 and 262,144 rows (opt-in, not used by `ReviewState`) stop
 spending 0.2 to 0.8 GB on a sweep that changed nothing. At the one-day production horizon
 and the default budget: original 16,384 expansions, 34.8 MB, 93 ms before, 4,768, 13.0 MB,
 37 ms after; four-worker 16,384, 72.1 MB, 306 ms before, 4,098, 23.2 MB, 72 ms after.
@@ -981,7 +981,7 @@ collections are outside every timed sample. Retained bytes are descriptive,
 including runtime noise, not an allocation or memory-budget assertion.
 
 These measurements cover the incremental synchronous evidence path, not full
-Rounds review latency, native read costs, task polling, or asynchronous sink CPU.
+Colony review review latency, native read costs, task polling, or asynchronous sink CPU.
 A full review comparison and real native task/endpoint behavior are not established
 by these fixture measurements. No test threshold or forecast behavior changes follow
 from these samples.
@@ -1060,7 +1060,7 @@ and 14 diverged), 175 missing observations (later targets had not elapsed), and
 mood observations above are actual native mood, not an inferred thought total.
 No scalar error or accuracy threshold was manufactured for a pass.
 
-Candidate-only context from the existing `planner_step` rows: 27 Rounds steps,
+Candidate-only context from the existing `planner_step` rows: 27 Colony review steps,
 235–4,413 ms total duration, median 508 ms, mean 836 ms. Summed `stage_alloc_kb`
 ranged 56,933–3,458,016 KB per step (mean 731,701 KB); these are process-wide
 allocation deltas that include concurrent runtime work. They are not an

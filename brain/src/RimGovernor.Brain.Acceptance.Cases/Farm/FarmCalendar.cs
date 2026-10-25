@@ -1,7 +1,6 @@
 using System.Globalization;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -25,7 +24,7 @@ internal static class FarmCalendar
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        var facts = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var facts = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
 
         var climate = facts.FoodClimate;
         s.RecordWire("food_climate", climate);

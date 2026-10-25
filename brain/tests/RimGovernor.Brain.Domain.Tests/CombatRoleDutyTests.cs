@@ -1,10 +1,9 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store.Codec;
 using Xunit;
-using NearestColonist = RimGovernor.Contracts.Wire.Observations.NearestColonist;
-using O = RimGovernor.Contracts.Wire.Observations;
+using NearestColonist = RimGovernor.Brain.GameFacts.Observations.NearestColonist;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -150,12 +149,12 @@ public sealed class CombatRoleDutyTests
             NearestColonist = new NearestColonist.At(12.5),
         };
 
-        var facts = RoundsDefensePlanner.DefensiveThreatFacts(row, catalog);
+        var facts = DefensePlanner.DefensiveThreatFacts(row, catalog);
         Assert.NotNull(facts);
         Assert.Equal(
             (Raider, new Cell(7, 9), "LordToil_AssaultColony", (NearestColonist)new NearestColonist.At(12.5), false),
             (facts.Id, facts.Position, facts.LordToilClass, facts.NearestColonist, facts.Mech));
 
-        Assert.Null(RoundsDefensePlanner.DefensiveThreatFacts(row with { Pawn = row.Pawn with { Place = new O.EntityPlace.Unplaced() } }, catalog));
+        Assert.Null(DefensePlanner.DefensiveThreatFacts(row with { Pawn = row.Pawn with { Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.Unplaced() } }, catalog));
     }
 }

@@ -6,7 +6,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// Read-only food accounting; inventory belongs to its holder until hauled.
     internal static class FoodSupplyFacts
@@ -131,7 +131,7 @@ namespace HomeBridge.BridgeTools
                 nutrition = thing is Corpse ? 0 : thing.stackCount * (eaters.Count>0 ? eaters.Min(p => FoodUtility.NutritionForEater(p, thing)) : thing.def.GetStatValueAbstract(StatDefOf.Nutrition)),
                 eaters = eaters.Select(p => p.GetUniqueLoadID()).ToList() };
 
-        // Shared typed source for the protobuf projections.
+        // Shared typed source for the observation records.
         internal sealed class Snapshot {
             internal FoodLarderFacts.Snapshot larder = new FoodLarderFacts.Snapshot();
             public bool readable { get; set; }

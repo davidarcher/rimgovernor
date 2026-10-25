@@ -8,7 +8,7 @@ internal static class NativeMovementOperationsProbe
     private const BindingFlags Flags=BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Static|BindingFlags.Instance;
     private static Assembly bridge=null!;
     private static int checks;
-    private static Type Native(string name)=>bridge.GetType("HomeBridge.BridgeTools."+name,true)!;
+    private static Type Native(string name)=>bridge.GetType("RimGovernor.Native."+name,true)!;
     private static object Call(string type,string method,params object?[] args)=>Native(type).GetMethod(method,Flags)!.Invoke(null,args)!;
     private static object New(string type,params object?[] args)=>Activator.CreateInstance(Native(type),Flags,null,args,null)!;
     private static void Field(object obj,string name,object value)=>obj.GetType().GetField(name,Flags)!.SetValue(obj,value);

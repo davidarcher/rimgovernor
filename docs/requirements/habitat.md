@@ -44,7 +44,7 @@ Evidence H3–H6.
 
 ## Evidence and inspection coverage
 
-- **H1 — Housing work.** [ShelterRounds](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsShelterFamily.cs)
+- **H1 — Housing work.** [ShelterReview](../../brain/src/RimGovernor.Brain.Runtime/Review/ShelterFamily.cs)
   reads housing and room temperatures, then routes each ready need to sleeping,
   temperature or safe-area work. Building work is admitted under the need with
   its claims. [FirstBedroomCloses](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Layout/FirstBedroomCloses.cs)
@@ -65,7 +65,7 @@ Evidence H3–H6.
 
 ### H4 — Cold shelter and useful temperature
 
-ShelterRounds routes sleeping and temperature work through shared building work;
+ShelterReview routes sleeping and temperature work through shared building work;
 the room plan is reconciled against current buildings and roof cells.
 [layout/first-room-ice](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Layout/FirstRoomIce.cs)
 starts three colonists at a pinned cold temperature, injects an unbuilt plan and
@@ -99,7 +99,7 @@ restoration case does not prove either action.
 
 ### H6 — Growth and changed plans
 
-[ColonyLayoutReplan](../../brain/src/RimGovernor.Brain.BuildingRuntime/Colony/ColonyLayoutReplan.cs)
+[ColonyLayoutReplan](../../brain/src/RimGovernor.Brain.Runtime/Colony/ColonyReview.ColonyLayoutReplan.cs)
 builds revised room advice from population, growth and current observations, then
 adopts it only for the same loaded world and saved plan without a tick rewind.
 Rooms already under construction or in use constrain adoption.

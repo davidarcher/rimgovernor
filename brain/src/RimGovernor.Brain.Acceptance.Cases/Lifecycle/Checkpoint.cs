@@ -1,7 +1,5 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Bridge;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -38,7 +36,7 @@ internal static class LifecycleCheckpoint
         var happy = await s.CallAsync(
             "save-happy",
             NativeOps.SaveGame,
-            new Lifecycle.SaveRequest { Player = TypedLifecycle.Player(identity, happyId), SaveName = happyName, ExpectedTick = new Lifecycle.ExpectedSaveTick.AtCase(tick) },
+            new RimGovernor.Brain.GameOrders.Lifecycle.SaveRequest { Player = TypedLifecycle.Player(identity, happyId), SaveName = happyName, ExpectedTick = new RimGovernor.Brain.GameOrders.Lifecycle.ExpectedSaveTick.AtCase(tick) },
             cancellationToken).ConfigureAwait(false);
         var completed = happy.Outcome?.Completed ?? throw new AcceptanceException($"save-happy: expected a completed save, got {happy.Outcome}");
         s.RecordWire("save_happy", completed);
@@ -49,16 +47,16 @@ internal static class LifecycleCheckpoint
         }
 
         // A save while the clock runs is refused: the probe saves on the first poll that reads the game running.
-        Lifecycle.SaveReply? running = null;
+        RimGovernor.Brain.GameFacts.Lifecycle.SaveReply? running = null;
         _ = await s.RunUntilAsync(
             "save-running",
             600,
             async ct =>
             {
-                Lifecycle.LoadedTick? clock;
+                RimGovernor.Brain.GameFacts.Lifecycle.LoadedTick? clock;
                 try
                 {
-                    clock = await s.CallAsync("save-running-tick", NativeOps.ReadTick, new Lifecycle.TickRequest(), ct).ConfigureAwait(false);
+                    clock = await s.CallAsync("save-running-tick", NativeOps.ReadTick, new RimGovernor.Brain.GameOrders.Lifecycle.TickRequest(), ct).ConfigureAwait(false);
                 }
                 catch (BridgeUnavailableException)
                 {
@@ -73,12 +71,12 @@ internal static class LifecycleCheckpoint
                 running = await s.CallAsync(
                     "save-running",
                     NativeOps.SaveGame,
-                    new Lifecycle.SaveRequest { Player = TypedLifecycle.Player(identity, TypedLifecycle.Stamp("checkpoint-running")), SaveName = TypedLifecycle.Stamp("checkpoint-running"), ExpectedTick = new Lifecycle.ExpectedSaveTick.AnyCase() },
+                    new RimGovernor.Brain.GameOrders.Lifecycle.SaveRequest { Player = TypedLifecycle.Player(identity, TypedLifecycle.Stamp("checkpoint-running")), SaveName = TypedLifecycle.Stamp("checkpoint-running"), ExpectedTick = new RimGovernor.Brain.GameOrders.Lifecycle.ExpectedSaveTick.AnyCase() },
                     ct).ConfigureAwait(false);
                 return (string.Empty, true);
             },
             cancellationToken).ConfigureAwait(false);
-        TypedLifecycle.ExpectFailure("save-running", running?.Outcome?.Failure, Common.FailureCode.InvalidRequest, running?.Outcome);
+        TypedLifecycle.ExpectFailure("save-running", running?.Outcome?.Failure, RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, running?.Outcome);
 
         // Paused again, a deliberately wrong expected tick is uncertain, never completed.
         var (now, nowTick, nowPaused) = await TypedLifecycle.IdentityAsync(s, "identity-before-uncertain", cancellationToken).ConfigureAwait(false);
@@ -92,7 +90,7 @@ internal static class LifecycleCheckpoint
         var uncertainReply = await s.CallAsync(
             "save-uncertain",
             NativeOps.SaveGame,
-            new Lifecycle.SaveRequest { Player = TypedLifecycle.Player(now, uncertainId), SaveName = uncertainName, ExpectedTick = new Lifecycle.ExpectedSaveTick.AtCase(nowTick + 1000) },
+            new RimGovernor.Brain.GameOrders.Lifecycle.SaveRequest { Player = TypedLifecycle.Player(now, uncertainId), SaveName = uncertainName, ExpectedTick = new RimGovernor.Brain.GameOrders.Lifecycle.ExpectedSaveTick.AtCase(nowTick + 1000) },
             cancellationToken).ConfigureAwait(false);
         var uncertain = uncertainReply.Outcome?.Uncertain ?? throw new AcceptanceException($"save-uncertain: expected an uncertain outcome, got {uncertainReply.Outcome}");
         s.RecordWire("save_uncertain", uncertain);
@@ -104,14 +102,14 @@ internal static class LifecycleCheckpoint
         }
 
         // lifecycle_read_save replays the completed save by request id, so a caller who lost the reply recovers it.
-        var replay = await s.CallAsync("read-save-happy", NativeOps.PollSave, new Lifecycle.RequestStatus { RequestId = happyId }, cancellationToken).ConfigureAwait(false);
+        var replay = await s.CallAsync("read-save-happy", NativeOps.PollSave, new RimGovernor.Brain.GameFacts.Lifecycle.RequestStatus { RequestId = happyId }, cancellationToken).ConfigureAwait(false);
         var replayed = replay.Outcome?.Completed ?? throw new AcceptanceException($"read-save-happy: expected a completed save, got {replay.Outcome}");
         if (replayed.RequestId != happyId || replayed.SaveName != happyName || replayed.Context?.Identity != identity)
         {
             throw new AcceptanceException($"read-save-happy: the replay does not match the original save: {replayed}");
         }
 
-        var unknown = await s.CallAsync("read-save-unknown", NativeOps.PollSave, new Lifecycle.RequestStatus { RequestId = TypedLifecycle.Stamp("checkpoint-unknown") }, cancellationToken).ConfigureAwait(false);
-        TypedLifecycle.ExpectFailure("read-save-unknown", unknown.Outcome?.Failure, Common.FailureCode.NotFound, unknown.Outcome);
+        var unknown = await s.CallAsync("read-save-unknown", NativeOps.PollSave, new RimGovernor.Brain.GameFacts.Lifecycle.RequestStatus { RequestId = TypedLifecycle.Stamp("checkpoint-unknown") }, cancellationToken).ConfigureAwait(false);
+        TypedLifecycle.ExpectFailure("read-save-unknown", unknown.Outcome?.Failure, RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, unknown.Outcome);
     }
 }

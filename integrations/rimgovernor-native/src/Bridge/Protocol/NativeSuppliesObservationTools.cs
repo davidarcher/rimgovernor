@@ -2,52 +2,49 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Defs = RimGovernor.Contracts.Wire.Defs;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class NativeSuppliesObservationTools
     {
         // On the game thread: the typed core of the tool, shared with the in-process facade.
-        internal static Obs.SuppliesSnapshot HandleListSupplies(Obs.ListSuppliesRequest parsed)
+        internal static RimGovernor.Brain.GameFacts.Observations.SuppliesSnapshot HandleListSupplies(RimGovernor.Brain.GameOrders.Observations.ListSuppliesRequest parsed)
         {
             if (!Validate(parsed, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
-            if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
+            if (!GameThread.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
                 throw NativeFaults.Refused(error);
             var filter = parsed.Filter;
             var player = Faction.OfPlayerSilentFail;
             if (player == null || map.areaManager?.Home == null || map.zoneManager == null || map.reservationManager == null || map.fogGrid == null)
-                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.NativeComponentMissing, Detail = "Stock ownership/read trackers are unavailable." });
+                throw NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.NativeComponentMissing, Detail = "Stock ownership/read trackers are unavailable." });
             if (filter.Region != null && (!NativeCell(filter.Region.Minimum).InBounds(map) || !NativeCell(filter.Region.Maximum).InBounds(map)))
-                throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Region must be inside the current map."));
+                throw NativeFaults.Refused(GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Region must be inside the current map."));
             try
             {
                 var entries = new Census(map, player, filter).Read();
                 var groups = entries.GroupBy(e => Id(e.Thing.def.defName), StringComparer.Ordinal).OrderBy(g => g.Key, StringComparer.Ordinal);
-                var selected = groups.Where(g => filter.Ownership == Obs.StockOwnership.All || g.Any(e => e.Ours));
-                return new Obs.SuppliesSnapshot { Context = context, Stocks = [.. selected.Select(g => Project(g.ToList(), context))] };
+                var selected = groups.Where(g => filter.Ownership == RimGovernor.Brain.GameFacts.Observations.StockOwnership.All || g.Any(e => e.Ours));
+                return new RimGovernor.Brain.GameFacts.Observations.SuppliesSnapshot { Context = context, Stocks = [.. selected.Select(g => Project(g.ToList(), context))] };
             }
             catch (Exception readError)
             {
                 ModLog.Error("observe", "Supplies read failed: " + readError);
-                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Stock or holder facts could not be read completely." });
+                throw NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed, Detail = "Stock or holder facts could not be read completely." });
             }
         }
 
-        internal static bool Validate(Obs.ListSuppliesRequest request, out Common.Failure failure)
+        internal static bool Validate(RimGovernor.Brain.GameOrders.Observations.ListSuppliesRequest request, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, supported exact stock filters are required.");
+            failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Identity, supported exact stock filters are required.");
             if (request?.Filter == null || request.Scope?.ExpectedIdentity == null) return false;
             var filter = request.Filter;
-            if (filter.DefNames.Count > 256 || filter.DefNames.Any(d => !ProtoBoundary.IsIdentifier(d))
+            if (filter.DefNames.Count > 256 || filter.DefNames.Any(d => !GameThread.IsIdentifier(d))
                 || filter.DefNames.Distinct(StringComparer.Ordinal).Count() != filter.DefNames.Count) return false;
-            if (!Enum.IsDefined(typeof(Obs.StockCategory), filter.Category) || !Enum.IsDefined(typeof(Obs.StockOwnership), filter.Ownership)) return false;
+            if (!Enum.IsDefined(typeof(RimGovernor.Brain.GameFacts.Observations.StockCategory), filter.Category) || !Enum.IsDefined(typeof(RimGovernor.Brain.GameFacts.Observations.StockOwnership), filter.Ownership)) return false;
             if (filter.Region == null) return true;
             var min = filter.Region.Minimum;
             var max = filter.Region.Maximum;
@@ -74,17 +71,17 @@ namespace HomeBridge.BridgeTools
         {
             private readonly Map map;
             private readonly Faction player;
-            private readonly Obs.StockFilter filter;
+            private readonly RimGovernor.Brain.GameFacts.Observations.StockFilter filter;
             private readonly List<StockEntry> result = new List<StockEntry>();
             private readonly HashSet<Thing> things = new HashSet<Thing>();
             private readonly HashSet<IThingHolder> holders = new HashSet<IThingHolder>();
             private readonly HashSet<ThingOwner> owners = new HashSet<ThingOwner>();
-            internal Census(Map map, Faction player, Obs.StockFilter filter) { this.map = map; this.player = player; this.filter = filter; }
+            internal Census(Map map, Faction player, RimGovernor.Brain.GameFacts.Observations.StockFilter filter) { this.map = map; this.player = player; this.filter = filter; }
             internal List<StockEntry> Read()
             {
                 var all = map.listerThings.AllThings.ToList();
                 var category = filter.Category;
-                IEnumerable<Thing> spawned = category == Obs.StockCategory.All ? all : category == Obs.StockCategory.Buildings
+                IEnumerable<Thing> spawned = category == RimGovernor.Brain.GameFacts.Observations.StockCategory.All ? all : category == RimGovernor.Brain.GameFacts.Observations.StockCategory.Buildings
                     ? map.listerThings.ThingsInGroup(ThingRequestGroup.BuildingArtificial)
                     : map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver);
                 foreach (var thing in spawned) Add(thing, null, thing.Position);
@@ -164,15 +161,15 @@ namespace HomeBridge.BridgeTools
                 Player = value.Player, Other = value.Other, Dead = value.Dead };
         }
 
-        internal static bool MatchesCategory(ThingDef definition, Obs.StockCategory category, bool held) => category == Obs.StockCategory.All
-            || category == Obs.StockCategory.Buildings && !held && definition.category == ThingCategory.Building
-            || category == Obs.StockCategory.Food && definition.IsNutritionGivingIngestible
-            || category == Obs.StockCategory.Weapons && definition.IsWeapon || category == Obs.StockCategory.Haulable && definition.EverHaulable;
+        internal static bool MatchesCategory(ThingDef definition, RimGovernor.Brain.GameFacts.Observations.StockCategory category, bool held) => category == RimGovernor.Brain.GameFacts.Observations.StockCategory.All
+            || category == RimGovernor.Brain.GameFacts.Observations.StockCategory.Buildings && !held && definition.category == ThingCategory.Building
+            || category == RimGovernor.Brain.GameFacts.Observations.StockCategory.Food && definition.IsNutritionGivingIngestible
+            || category == RimGovernor.Brain.GameFacts.Observations.StockCategory.Weapons && definition.IsWeapon || category == RimGovernor.Brain.GameFacts.Observations.StockCategory.Haulable && definition.EverHaulable;
 
         internal static bool IsOurs(bool fogged, bool held, bool playerFaction, bool otherFaction, bool deadHolder)
             => !fogged && (held ? playerFaction && !deadHolder : !otherFaction);
 
-        internal static Obs.ResourceStock Project(List<StockEntry> entries, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Observations.ResourceStock Project(List<StockEntry> entries, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             long totalUnits = 0, spawned = 0, ours = 0, oursUnforbidden = 0, forbidden = 0, playerFaction = 0;
             foreach (var entry in entries)
@@ -188,7 +185,7 @@ namespace HomeBridge.BridgeTools
                     if (entry.PlayerFaction) playerFaction += units;
                 }
             }
-            return new Obs.ResourceStock
+            return new RimGovernor.Brain.GameFacts.Observations.ResourceStock
             {
                 DefName = Id(entries[0].Thing.def.defName),
                 Units = totalUnits,
@@ -199,7 +196,7 @@ namespace HomeBridge.BridgeTools
                 Forbidden = forbidden,
                 PlayerFaction = playerFaction,
                 Items = [.. entries.Select(entry => Item(entry, context))],
-                Holders = [.. entries.Where(entry => entry.Holder != null).Select(entry => new Obs.HeldStock
+                Holders = [.. entries.Where(entry => entry.Holder != null).Select(entry => new RimGovernor.Brain.GameFacts.Observations.HeldStock
                     { Holder = Id((entry.Holder ?? throw new System.InvalidOperationException("Required native value is unavailable: entry.Holder.")).GetUniqueLoadID()), HolderKind = NativeEnums.Holder((entry.HolderKind ?? throw new System.InvalidOperationException("Required native value is unavailable: entry.HolderKind."))), Units = entry.Thing.stackCount })],
                 WeaponItems = [.. entries.Where(entry => entry.Thing.def.IsWeapon)
                     .Select(entry => NativeGearFacts.Gear(entry.Thing))],
@@ -208,7 +205,7 @@ namespace HomeBridge.BridgeTools
 
         // Held/container/corpse items have no Allow snapshot; give them a stateless CAS token
         // over the same identity-bearing fields the row already exposes (holder + kind + position).
-        private static Obs.SnapshotRef HeldSnapshot(StockEntry entry, Common.ObservationContext context)
+        private static RimGovernor.Brain.GameFacts.Observations.SnapshotRef HeldSnapshot(StockEntry entry, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
             => NativeObservationSnapshot.Snapshot("held-item", context, entry.Thing.GetUniqueLoadID(), w =>
             {
                 w.Write(entry.Thing.def.defName); w.Write(entry.Thing.stackCount);
@@ -216,23 +213,23 @@ namespace HomeBridge.BridgeTools
                 w.Write(entry.Position.x); w.Write(entry.Position.z);
             });
 
-        private static Obs.StockItem Item(StockEntry entry, Common.ObservationContext context) => new Obs.StockItem
+        private static RimGovernor.Brain.GameFacts.Observations.StockItem Item(StockEntry entry, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => new RimGovernor.Brain.GameFacts.Observations.StockItem
         {
             Id = Id(entry.Thing.GetUniqueLoadID()),
             Cell = new RimGovernor.Brain.Domain.Cell(entry.Position.x, entry.Position.z),
             Snapshot = entry.Holder == null ? NativeSupplyAllow.Snapshot(entry.Thing, context) : HeldSnapshot(entry, context),
-            Packed = entry.Thing is MinifiedThing mini && mini.InnerThing != null ? new Obs.PackedBuilding
+            Packed = entry.Thing is MinifiedThing mini && mini.InnerThing != null ? new RimGovernor.Brain.GameFacts.Observations.PackedBuilding
             {
                 Id = Id(mini.InnerThing.GetUniqueLoadID()),
                 DefName = Id(mini.InnerThing.def.defName),
                 // Art stock: the trade selector keeps the best pieces.
-                Quality = mini.InnerThing.TryGetQuality(out var quality) ? new Obs.PackedQuality.Rated { Category = (Defs.QualityCategory)(int)quality } : new Obs.PackedQuality.Unrated(),
+                Quality = mini.InnerThing.TryGetQuality(out var quality) ? new RimGovernor.Brain.GameFacts.Observations.PackedQuality.Rated { Category = (RimGovernor.Brain.GameFacts.Defs.QualityCategory)(int)quality } : new RimGovernor.Brain.GameFacts.Observations.PackedQuality.Unrated(),
                 MarketValue = mini.MarketValue,
             } : null,
         };
 
         private static bool CellPresent(RimGovernor.Brain.Domain.Cell cell) => cell.X >= 0 && cell.Z >= 0;
         private static IntVec3 NativeCell(RimGovernor.Brain.Domain.Cell cell) => new IntVec3(cell.X, 0, cell.Z);
-        private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
+        private static string Id(string value) => GameThread.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
     }
 }

@@ -1,7 +1,5 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using Xunit;
-using C = RimGovernor.Contracts.Wire.Common;
-using L = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -12,10 +10,10 @@ public sealed class ObservationReadingTests
     [Fact]
     public async Task OneNativeReadRetainsItsContextPauseAndMeasuredInterval()
     {
-        var context = new C.ObservationContext
+        var context = new RimGovernor.Brain.GameFacts.Common.ObservationContext
         {
             Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 1 },
-            Tick = 42, NativeGeneration = new C.ObservedGeneration.UnclaimedCase(),
+            Tick = 42, NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(),
         };
         var source = new Source(new() { Context = context, Paused = true, ForcePaused = false });
         var observed = Started.AddMilliseconds(10);
@@ -38,10 +36,10 @@ public sealed class ObservationReadingTests
             Bridge.ObservationReads.Observe(source, new Clock(Started, Started), TestContext.Current.CancellationToken));
     }
 
-    private sealed class Source(L.LoadedTick reply) : IObservationSource
+    private sealed class Source(RimGovernor.Brain.GameFacts.Lifecycle.LoadedTick reply) : IObservationSource
     {
         public int Calls { get; private set; }
-        public Task<L.LoadedTick> TickAsync(CancellationToken cancellationToken)
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.LoadedTick> TickAsync(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             Calls++;

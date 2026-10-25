@@ -5,37 +5,34 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Defs = RimGovernor.Contracts.Wire.Defs;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class NativeColonyObservationTools
     {
         // On the game thread: the typed core of the tool, shared with the in-process facade.
-        internal static Obs.ColonyFactsSnapshot HandleReadColonyFacts(Obs.ColonyFactsRequest parsed)
+        internal static RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot HandleReadColonyFacts(RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest parsed)
         {
             if (!Validate(parsed, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
-            if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var invalid))
+            if (!GameThread.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var invalid))
                 throw NativeFaults.Refused(invalid);
             try { return Read(map, parsed, context); }
-            catch (Exception error) { ModLog.Error("observe", "Colony facts read failed: " + error); throw NativeFaults.Unavailable(Unavailable(Common.UnavailableReason.ReadFailed, PlacementPreviewOperation.Diagnostic("Native colony facts could not be read completely: " + error.GetType().Name + ": " + error.Message))); }
+            catch (Exception error) { ModLog.Error("observe", "Colony facts read failed: " + error); throw NativeFaults.Unavailable(Unavailable(RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed, PlacementPreviewOperation.Diagnostic("Native colony facts could not be read completely: " + error.GetType().Name + ": " + error.Message))); }
         }
 
-        internal static bool Validate(Obs.ColonyFactsRequest request, out Common.Failure failure)
+        internal static bool Validate(RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest request, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity required.");
+            failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Identity required.");
             return request?.Scope?.ExpectedIdentity != null;
         }
 
         // The colony facts as a frame section: a read that throws fails the frame.
-        internal static Obs.ColonyFactsSnapshot Read(Map map, Obs.ColonyFactsRequest request, Common.ObservationContext context, uint? routePathBudgetMs = null)
+        internal static RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot Read(Map map, RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest request, RimGovernor.Brain.GameFacts.Common.ObservationContext context, uint? routePathBudgetMs = null)
         {
             // Each span below names where the read's game-thread time went
             // in a slow snapshot capture line.
@@ -108,7 +105,7 @@ namespace HomeBridge.BridgeTools
             var upkeep = ReadUpkeep(map, things, routePathBudgetMs);
             Span("cf.upkeep");
             var threat = ReadThreat(map);
-            var development = new Obs.DevelopmentSection { Outcome = ReadPower(map) };
+            var development = new RimGovernor.Brain.GameFacts.Observations.DevelopmentSection { Outcome = ReadPower(map) };
             Span("cf.power");
             var foodChannels = NativeFoodChannels.Read(map, center, workers, humanFood);
             Span("cf.foodChannels");
@@ -119,21 +116,21 @@ namespace HomeBridge.BridgeTools
             var anomaly = NativeAnomalyColony.Read();
             Span("cf.deep");
             // No eligible indoor sleeping place is a named state, not a missing read.
-            Obs.SleepingTemperature sleeping = new Obs.SleepingTemperature.NoIndoorBed();
+            RimGovernor.Brain.GameFacts.Observations.SleepingTemperature sleeping = new RimGovernor.Brain.GameFacts.Observations.SleepingTemperature.NoIndoorBed();
             if (sleepingRooms.Count > 0 && sleepingRooms.All(room => room.ProperRoom && !room.IsDoorway
                 && !room.UsesOutdoorTemperature && !room.PsychologicallyOutdoors && !room.TouchesMapEdge && room.OpenRoofCount == 0))
             {
                 var temperatures = sleepingRooms.Select(room => Finite(room.Temperature)).ToList();
-                sleeping = new Obs.SleepingTemperature.Indoor(temperatures.Min(), temperatures.Max());
+                sleeping = new RimGovernor.Brain.GameFacts.Observations.SleepingTemperature.Indoor(temperatures.Min(), temperatures.Max());
             }
-            var resources = stock.Select(group => new Obs.Quantity { DefName = group.Key.defName, Units = group.Sum(t => (long)t.stackCount) }).ToList();
+            var resources = stock.Select(group => new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = group.Key.defName, Units = group.Sum(t => (long)t.stackCount) }).ToList();
             Span("cf.resources");
             var workResources = RimGovernor.Brain.Domain.EquatableArray.From(map.mapPawns.AllPawnsSpawned
                 .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).Select(p =>
                 {
                     var execution = NativePawnActivities.Read(p);
                     var carried = p.carryTracker?.CarriedThing;
-                    return new Obs.WorkResourcePawn(p.GetUniqueLoadID(), execution?.Assignment ?? "", execution?.Revision ?? 0,
+                    return new RimGovernor.Brain.GameFacts.Observations.WorkResourcePawn(p.GetUniqueLoadID(), execution?.Assignment ?? "", execution?.Revision ?? 0,
                         execution?.State ?? "", carried?.GetUniqueLoadID() ?? "", carried?.def.defName ?? "", carried?.stackCount ?? 0)
                         { LocalHour = GenLocalDate.HourFloat(map), Bill = p.CurJob?.bill?.GetUniqueLoadID() ?? "",
                             Target = p.CurJob?.targetA.Thing?.GetUniqueLoadID() ?? "",
@@ -152,12 +149,12 @@ namespace HomeBridge.BridgeTools
             Span("cf.recovery");
             var waste = HomeWasteTools.Project(map);
             Span("cf.waste");
-            Obs.FoodClimate foodClimate;
+            RimGovernor.Brain.GameFacts.Observations.FoodClimate foodClimate;
             {
                 var (season, dayOfYear) = GrowingCalendar.Calendar(map);
                 var year = GrowingCalendar.GrowingYear(map);
                 var remaining = GrowingCalendar.Until(year, 0, false);
-                foodClimate = new Obs.FoodClimate { GrowingYear = [.. year], GrowingDaysRemaining = remaining,
+                foodClimate = new RimGovernor.Brain.GameFacts.Observations.FoodClimate { GrowingYear = [.. year], GrowingDaysRemaining = remaining,
                 GrowingDaysUntil = GrowingCalendar.Until(year, 0, true), NonGrowingDays = remaining == year.Length ? 0 : GrowingCalendar.Until(year, remaining, true), Season = season, DayOfYear = dayOfYear,
                 SowingNow = !OutdoorsPermanentlyDark(map) && DefDatabase<ThingDef>.AllDefsListForReading.Any(d => d.plant != null && d.plant.Sowable && d.plant.harvestedThingDef?.IsNutritionGivingIngestible == true
                     && (d.plant.sowResearchPrerequisites == null || d.plant.sowResearchPrerequisites.All(r => r.IsFinished)) && PlantUtility.GrowthSeasonNow(map, d)),
@@ -170,15 +167,15 @@ namespace HomeBridge.BridgeTools
             Span("cf.gear");
             var environment = Environment(map);
             Span("cf.environment");
-            return new Obs.ColonyFactsSnapshot { Context = context, Gear = gear, ColonistCount = (uint)people.Count,
+            return new RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot { Context = context, Gear = gear, ColonistCount = (uint)people.Count,
                 ResourceThings = RimGovernor.Brain.Domain.EquatableArray.From(items.Select(t => t.GetUniqueLoadID()).OrderBy(id => id, StringComparer.Ordinal)),
                 WorkResources = workResources, Crops = [.. Crops(map)],
                 WorkerCount = (uint)workers.Count, MapSize = Size(map), Biome = map.Biome.defName,
-                PlayerTechLevel = (Defs.TechLevel)(int)player.def.techLevel,
+                PlayerTechLevel = (RimGovernor.Brain.GameFacts.Defs.TechLevel)(int)player.def.techLevel,
                 FermentingBarrels = (uint)things.OfType<Building_FermentingBarrel>().Count(b => b.Faction == player && !b.IsForbidden(player) && reachable(b)),
                 BedCapacity = checked((uint)beds.Sum(b => b.SleepingSlotsCount)), IndoorSleepingCapacity = checked((uint)indoorBeds.Sum(b => b.SleepingSlotsCount)),
                 FoodNutrition = Finite(nutrition), NutritionPerDay = Finite(demand), OutdoorTemperatureC = Finite(map.mapTemperature.OutdoorTemp),
-                FoodRunway = demand > 0 ? new Obs.FoodRunway.Days { Value = Finite(nutrition / demand) } : new Obs.FoodRunway.NoDemand(),
+                FoodRunway = demand > 0 ? new RimGovernor.Brain.GameFacts.Observations.FoodRunway.Days { Value = Finite(nutrition / demand) } : new RimGovernor.Brain.GameFacts.Observations.FoodRunway.NoDemand(),
                 SleepingTemperature = sleeping,
                 DeliveryLedger = NativeDeliveryLedger.Read(),
                 FoodSupply = foodSupply, Forecast = forecast, Upkeep = upkeep, Threat = threat, Development = development,
@@ -214,19 +211,19 @@ namespace HomeBridge.BridgeTools
         // the native remaining duration so the brain can plan for the length of a
         // fallout or volcanic winter. A permanent condition is untimed;
         // its class and label are the GameConditionDef row's.
-        internal static Obs.EnvironmentCondition EnvironmentCondition(GameCondition condition) =>
+        internal static RimGovernor.Brain.GameFacts.Observations.EnvironmentCondition EnvironmentCondition(GameCondition condition) =>
             new() { Id = condition.uniqueID.ToString(System.Globalization.CultureInfo.InvariantCulture), DefName = condition.def.defName,
-                Duration = condition.Permanent ? new Obs.ConditionDuration.Permanent() : new Obs.ConditionDuration.Timed { Ticks = Math.Max(0, condition.TicksLeft) } };
+                Duration = condition.Permanent ? new RimGovernor.Brain.GameFacts.Observations.ConditionDuration.Permanent() : new RimGovernor.Brain.GameFacts.Observations.ConditionDuration.Timed { Ticks = Math.Max(0, condition.TicksLeft) } };
 
         // Colony wealth and raid points: the WealthWatcher split (its
         // own lazy recount; never ForceRecount on a read path), the wealth
         // the storyteller scales by and the points a default threat incident
         // would draw for this map now, with the adaptation and difficulty
         // factors already inside that figure. A failure fails the census.
-        internal static Obs.ThreatSection ReadThreat(Map map)
+        internal static RimGovernor.Brain.GameFacts.Observations.ThreatSection ReadThreat(Map map)
         {
             var wealth = map.wealthWatcher;
-            var facts = new Obs.ThreatFacts {
+            var facts = new RimGovernor.Brain.GameFacts.Observations.ThreatFacts {
                 WealthItems = Finite(wealth.WealthItems), WealthBuildings = Finite(wealth.WealthBuildings), WealthPawns = Finite(wealth.WealthPawns),
                 WealthTotal = Finite(wealth.WealthTotal),
                 RaidPoints = Finite(StorytellerUtility.DefaultThreatPointsNow(map)),
@@ -235,7 +232,7 @@ namespace HomeBridge.BridgeTools
                 Disease = NativeDiseaseFacts.Read(map),
                 Trade = NativeTradeVisitFacts.Read(map),
             };
-            return new Obs.ThreatSection { Observed = facts };
+            return new RimGovernor.Brain.GameFacts.Observations.ThreatSection { Observed = facts };
         }
 
         // The def names of the factions a raid can come from: visible, undefeated, hostile to the player, and with a Combat pawn group maker.
@@ -244,7 +241,7 @@ namespace HomeBridge.BridgeTools
                 Def = f.def.defName, Player = f.IsPlayer, Defeated = f.defeated, Hostile = f.HostileTo(Faction.OfPlayer),
                 Combat = f.def.pawnGroupMakers != null && f.def.pawnGroupMakers.Any(maker => maker.kindDef == PawnGroupKindDefOf.Combat) });
 
-        private static Obs.UpkeepFacts ReadUpkeep(Map map, List<Thing> things, uint? routePathBudgetMs)
+        private static RimGovernor.Brain.GameFacts.Observations.UpkeepFacts ReadUpkeep(Map map, List<Thing> things, uint? routePathBudgetMs)
         {
             var began = System.Diagnostics.Stopwatch.GetTimestamp();
             var home = NativeUpkeepFacts.ReadHomeCoverage(map);
@@ -259,12 +256,12 @@ namespace HomeBridge.BridgeTools
             return NativeUpkeepFacts.Read(map, sets, home, comfort, lighting, routePathBudgetMs);
         }
 
-        private static Obs.DevelopmentFacts ReadPower(Map map)
+        private static RimGovernor.Brain.GameFacts.Observations.DevelopmentFacts ReadPower(Map map)
         {
             var nets = map.powerNetManager.AllNetsListForReading.OrderBy(n => n.GetHashCode()).ToList();
             var geysers = map.listerThings.ThingsOfDef(ThingDefOf.SteamGeyser).OfType<Building_SteamGeyser>().OrderBy(g => g.thingIDNumber).ToList();
-            var networks = new List<Obs.PowerNetwork>(nets.Count);
-            var geyserRows = new List<Obs.SteamGeyser>(geysers.Count);
+            var networks = new List<RimGovernor.Brain.GameFacts.Observations.PowerNetwork>(nets.Count);
+            var geyserRows = new List<RimGovernor.Brain.GameFacts.Observations.SteamGeyser>(geysers.Count);
             // Archived letters survive dismissal and saves. Use the game's own
             // translated label rather than matching English message prose.
             var shortLabel = "LetterLabelShortCircuit".Translate().CapitalizeFirst().ToString();
@@ -273,11 +270,11 @@ namespace HomeBridge.BridgeTools
                 .Where(l => l.Label.ToString() == shortLabel && l.lookTargets != null
                     && l.lookTargets.targets.Any(t => t.Map == map))
                 .Select(l => l.arrivalTick).ToList();
-            Obs.ObservedShortCircuit shortCircuit = incidents.Count > 0 ? new Obs.ObservedShortCircuit.Seen { Tick = incidents.Max() } : new Obs.ObservedShortCircuit.NoneSeen();
+            RimGovernor.Brain.GameFacts.Observations.ObservedShortCircuit shortCircuit = incidents.Count > 0 ? new RimGovernor.Brain.GameFacts.Observations.ObservedShortCircuit.Seen { Tick = incidents.Max() } : new RimGovernor.Brain.GameFacts.Observations.ObservedShortCircuit.NoneSeen();
             foreach (var net in nets) {
                 var generation = net.powerComps.Where(p => p.PowerOn && p.PowerOutput > 0).Sum(p => (double)p.PowerOutput);
                 var consumption = net.powerComps.Where(p => p.PowerOn && p.PowerOutput < 0).Sum(p => (double)-p.PowerOutput);
-                networks.Add(new Obs.PowerNetwork { Id = NetId(net),
+                networks.Add(new RimGovernor.Brain.GameFacts.Observations.PowerNetwork { Id = NetId(net),
                     GenerationW = Finite(generation), ConsumptionW = Finite(consumption),
                     StoredWD = Finite(net.CurrentStoredEnergy()) });
             }
@@ -286,17 +283,17 @@ namespace HomeBridge.BridgeTools
                 // harvester, blueprint, frame or other building stands on it.
                 var cells = geyser.OccupiedRect().Cells.ToList();
                 var occupied = geyser.harvester != null || cells.Any(c => c.GetThingList(map).Any(t => t != geyser && (t.def.category == ThingCategory.Building || t.def.IsBlueprint || t.def.IsFrame)));
-                geyserRows.Add(new Obs.SteamGeyser { Id = geyser.GetUniqueLoadID(), Cell = new RimGovernor.Brain.Domain.Cell(geyser.Position.x, geyser.Position.z), Occupied = occupied, Cells = [.. cells.Select(c => new RimGovernor.Brain.Domain.Cell(c.x, c.z))] });
+                geyserRows.Add(new RimGovernor.Brain.GameFacts.Observations.SteamGeyser { Id = geyser.GetUniqueLoadID(), Cell = new RimGovernor.Brain.Domain.Cell(geyser.Position.x, geyser.Position.z), Occupied = occupied, Cells = [.. cells.Select(c => new RimGovernor.Brain.Domain.Cell(c.x, c.z))] });
             }
-            return new Obs.DevelopmentFacts { ShortCircuit = shortCircuit, Networks = [.. networks], Geysers = [.. geyserRows] };
+            return new RimGovernor.Brain.GameFacts.Observations.DevelopmentFacts { ShortCircuit = shortCircuit, Networks = [.. networks], Geysers = [.. geyserRows] };
         }
 
         private static string NetId(PowerNet net) => NativeBuildingObservationTools.NetId(net);
 
-        private static List<Obs.ProductionBenchFacts> ReadProduction(Common.ObservationContext context, Map map,
+        private static List<RimGovernor.Brain.GameFacts.Observations.ProductionBenchFacts> ReadProduction(RimGovernor.Brain.GameFacts.Common.ObservationContext context, Map map,
             List<Thing> things, Func<Thing, bool> reachable, Func<ThingDef, bool> humanFood)
         {
-            var rows = new List<Obs.ProductionBenchFacts>();
+            var rows = new List<RimGovernor.Brain.GameFacts.Observations.ProductionBenchFacts>();
             var haulers = NativeResourceSourcesTool.Haulers(map);
             foreach (var bench in things.Where(t => t.Faction == Faction.OfPlayer && t is IBillGiver && reachable(t)).OrderBy(t => t.thingIDNumber))
             {
@@ -305,15 +302,15 @@ namespace HomeBridge.BridgeTools
                     : new List<RecipeDef>();
                 var butcherRecipes = bench.def.AllRecipes.Where(NativeRecipeRoles.ButcherFlesh).OrderBy(r => r.defName).ToList();
                 if (cookingRecipes.Count == 0 && butcherRecipes.Count == 0) continue;
-                var row = new Obs.ProductionBenchFacts
+                var row = new RimGovernor.Brain.GameFacts.Observations.ProductionBenchFacts
                 {
                     Bench = NativeBillsObservationTools.Stack(bench, context),
-                    Cooking = new Obs.CookingProduction.NotSupported(),
-                    Butchering = new Obs.ButcheringProduction.NotSupported(),
+                    Cooking = new RimGovernor.Brain.GameFacts.Observations.CookingProduction.NotSupported(),
+                    Butchering = new RimGovernor.Brain.GameFacts.Observations.ButcheringProduction.NotSupported(),
                 };
                 if (cookingRecipes.Count > 0)
                 {
-                    var cooking = new Obs.CookingProduction.Supported
+                    var cooking = new RimGovernor.Brain.GameFacts.Observations.CookingProduction.Supported
                     {
                         Usable = !bench.IsBurning()
                             && (bench.TryGetComp<CompPowerTrader>() == null || bench.TryGetComp<CompPowerTrader>().PowerOn)
@@ -323,13 +320,13 @@ namespace HomeBridge.BridgeTools
                     foreach (var recipe in cookingRecipes)
                     {
                         cooking = cooking with { Recipes = [.. cooking.Recipes, NativeProductionBills.RecipeRow(bench, recipe)] };
-                        var products = new List<Obs.FoodProduct>();
+                        var products = new List<RimGovernor.Brain.GameFacts.Observations.FoodProduct>();
                         foreach (var product in recipe.products)
                         {
                             var capacity = NativeResourceSourcesTool.Capacity(map, product.thingDef, haulers, out var stored);
-                            products.Add(new Obs.FoodProduct { DefName = product.thingDef.defName, Edible = humanFood(product.thingDef), Storable = capacity + stored });
+                            products.Add(new RimGovernor.Brain.GameFacts.Observations.FoodProduct { DefName = product.thingDef.defName, Edible = humanFood(product.thingDef), Storable = capacity + stored });
                         }
-                        cooking = cooking with { Production = [.. cooking.Production, new Obs.FoodProduction
+                        cooking = cooking with { Production = [.. cooking.Production, new RimGovernor.Brain.GameFacts.Observations.FoodProduction
                         {
                             Recipe = recipe.defName, Available = NativeProductionBills.Recipe(bench, recipe), Products = [.. products],
                         }] };
@@ -338,7 +335,7 @@ namespace HomeBridge.BridgeTools
                 }
                 if (butcherRecipes.Count > 0)
                 {
-                    var butchering = new Obs.ButcheringProduction.Supported
+                    var butchering = new RimGovernor.Brain.GameFacts.Observations.ButcheringProduction.Supported
                     {
                         Usable = NativeProductionBills.Usable(bench),
                         Recipes = [.. butcherRecipes.Select(recipe => NativeProductionBills.RecipeRow(bench, recipe))],
@@ -361,9 +358,9 @@ namespace HomeBridge.BridgeTools
         private static readonly Lazy<List<ThingDef>> CropDefs = new Lazy<List<ThingDef>>(() =>
             DefDatabase<ThingDef>.AllDefsListForReading.Where(d => Cataloged(d) && d.plant != null).OrderBy(d => d.defName, StringComparer.Ordinal).ToList());
 
-        internal static List<Obs.EdibleCrop> Crops(Map map)
+        internal static List<RimGovernor.Brain.GameFacts.Observations.EdibleCrop> Crops(Map map)
         {
-            var result = new List<Obs.EdibleCrop>();
+            var result = new List<RimGovernor.Brain.GameFacts.Observations.EdibleCrop>();
             var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
             var demand = people.Sum(p => p.needs?.food == null ? 0f : GameTime.PerDay(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true)));
             var animals = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal
@@ -379,7 +376,7 @@ namespace HomeBridge.BridgeTools
                 var nutritionDemand = Finite(demand + animals.Where(p => p.RaceProps.CanEverEat(product)
                     && p.foodRestriction?.GetCurrentRespectedRestriction(p)?.filter.Allows(product) != false)
                     .Sum(p => GameTime.PerDay(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true))));
-                result.Add(new Obs.EdibleCrop { DefName = def.defName, DietAllowed = dietAllowed, NutritionDemandPerDay = nutritionDemand });
+                result.Add(new RimGovernor.Brain.GameFacts.Observations.EdibleCrop { DefName = def.defName, DietAllowed = dietAllowed, NutritionDemandPerDay = nutritionDemand });
             }
             return result;
         }
@@ -390,20 +387,20 @@ namespace HomeBridge.BridgeTools
         // never plants where the game would not grow.
         // The native sun lamp class is internal; its def names the class and carries the growth radius as specialDisplayRadius.
         private static bool IsSunLamp(Building b) => b.def.thingClass?.Name == "Building_SunLamp" && b.def.specialDisplayRadius > 0f;
-        private static Obs.ControlledEnvironment Environment(Map map)
+        private static RimGovernor.Brain.GameFacts.Observations.ControlledEnvironment Environment(Map map)
         {
             string? NetId(CompPowerTrader? power) => power?.PowerNet == null ? null : power.PowerNet.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture);
             var rooms = new Dictionary<int, Room>();
             void Note(Room? room) { if (room != null && !room.PsychologicallyOutdoors && room.ProperRoom) rooms[room.ID] = room; }
-            var lights = new List<Obs.GrowLight>();
-            var growers = new List<Obs.PlantGrower>();
+            var lights = new List<RimGovernor.Brain.GameFacts.Observations.GrowLight>();
+            var growers = new List<RimGovernor.Brain.GameFacts.Observations.PlantGrower>();
             var buildings = map.listerBuildings.allBuildingsColonist.OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
             foreach (var building in buildings) {
                 var power = building.TryGetComp<CompPowerTrader>();
                 var room = building.GetRoom();
                 if (IsSunLamp(building)) { var lamp = building;
                     var schedule = lamp.TryGetComp<CompSchedule>();
-                    lights.Add(new Obs.GrowLight {
+                    lights.Add(new RimGovernor.Brain.GameFacts.Observations.GrowLight {
                         Id = lamp.GetUniqueLoadID(),
                         Room = room == null ? null : NativeRef.Room(room).Id,
                         GrowthCells = [.. GenRadial.RadialCellsAround(lamp.Position, lamp.def.specialDisplayRadius, true).Where(c => c.InBounds(map)).Select(c => new RimGovernor.Brain.Domain.Cell(c.x, c.z))],
@@ -411,20 +408,20 @@ namespace HomeBridge.BridgeTools
                         Network = NetId(power) });
                     Note(room);
                 } else if (building is Building_PlantGrower grower) {
-                    growers.Add(new Obs.PlantGrower { Id = grower.GetUniqueLoadID(), Fertility = grower.def.fertility >= 0 ? new Obs.GrowerFertility.Fixed(Finite(grower.def.fertility)) : new Obs.GrowerFertility.Ground(), SowTag = string.IsNullOrEmpty(grower.def.building.sowTag) ? null : grower.def.building.sowTag,
+                    growers.Add(new RimGovernor.Brain.GameFacts.Observations.PlantGrower { Id = grower.GetUniqueLoadID(), Fertility = grower.def.fertility >= 0 ? new RimGovernor.Brain.GameFacts.Observations.GrowerFertility.Fixed(Finite(grower.def.fertility)) : new RimGovernor.Brain.GameFacts.Observations.GrowerFertility.Ground(), SowTag = string.IsNullOrEmpty(grower.def.building.sowTag) ? null : grower.def.building.sowTag,
                         Crop = grower.GetPlantDefToGrow()?.defName, CanSow = grower.CanAcceptSowNow() });
                     Note(room);
                 }
             }
             foreach (var room in map.regionGrid.AllRooms) Note(room);
-            var grown = new List<Obs.GrowRoom>();
+            var grown = new List<RimGovernor.Brain.GameFacts.Observations.GrowRoom>();
             foreach (var room in rooms.Values.OrderBy(r => r.ID)) {
                 // A room whose every cell is fogged has no key in the cell grid and is not listed.
                 var held = room.Cells.Where(c => !c.Fogged(map)).ToList();
                 if (held.Count == 0) continue;
-                grown.Add(new Obs.GrowRoom { Id = NativeRef.Room(room).Id, GridRoom = held.Min(c => c.z * map.Size.x + c.x), TemperatureC = Finite(room.Temperature) });
+                grown.Add(new RimGovernor.Brain.GameFacts.Observations.GrowRoom { Id = NativeRef.Room(room).Id, GridRoom = held.Min(c => c.z * map.Size.x + c.x), TemperatureC = Finite(room.Temperature) });
             }
-            var networks = new List<Obs.PowerHeadroom>();
+            var networks = new List<RimGovernor.Brain.GameFacts.Observations.PowerHeadroom>();
             var nets = map.powerNetManager?.AllNetsListForReading ?? new List<PowerNet>();
             foreach (var net in nets.OrderBy(n => n.GetHashCode())) {
                 double generation = 0, solar = 0, wind = 0, consumption = 0;
@@ -440,45 +437,45 @@ namespace HomeBridge.BridgeTools
                 }
                 double capacity = 0;
                 foreach (var battery in net.batteryComps ?? new List<CompPowerBattery>()) if (battery?.Props != null) capacity += Finite(battery.Props.storedEnergyMax);
-                networks.Add(new Obs.PowerHeadroom { Id = net.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture), ActiveSource = net.HasActivePowerSource,
+                networks.Add(new RimGovernor.Brain.GameFacts.Observations.PowerHeadroom { Id = net.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture), ActiveSource = net.HasActivePowerSource,
                     GenerationW = generation, SolarW = solar, WindW = wind, ConsumptionW = consumption, CapacityWattDays = capacity });
             }
-            return new Obs.ControlledEnvironment { OutdoorTemperatureC = Finite(map.mapTemperature.OutdoorTemp), Lights = [.. lights], Growers = [.. growers], Rooms = [.. grown], Networks = [.. networks] };
+            return new RimGovernor.Brain.GameFacts.Observations.ControlledEnvironment { OutdoorTemperatureC = Finite(map.mapTemperature.OutdoorTemp), Lights = [.. lights], Growers = [.. growers], Rooms = [.. grown], Networks = [.. networks] };
         }
         private static RimGovernor.Brain.Domain.Cell Cell(IntVec3 c) => new RimGovernor.Brain.Domain.Cell { X = c.x, Z = c.z };
-        private static Obs.MapSize Size(Map map) => new Obs.MapSize { Width = (uint)map.Size.x, Height = (uint)map.Size.z };
+        private static RimGovernor.Brain.GameFacts.Observations.MapSize Size(Map map) => new RimGovernor.Brain.GameFacts.Observations.MapSize { Width = (uint)map.Size.x, Height = (uint)map.Size.z };
         private static double Finite(double v) => double.IsNaN(v) || double.IsInfinity(v) ? throw new InvalidOperationException("Nonfinite fact.") : v;
-        private static Obs.ForecastFacts Forecast(ForecastFacts.Snapshot source, Obs.NeedsForecastRead needs, Obs.CoupledForecastRead coupled)
+        private static RimGovernor.Brain.GameFacts.Observations.ForecastFacts Forecast(ForecastFacts.Snapshot source, RimGovernor.Brain.GameFacts.Observations.NeedsForecastRead needs, RimGovernor.Brain.GameFacts.Observations.CoupledForecastRead coupled)
         {
-            var patients = new List<Obs.PatientForecast>();
+            var patients = new List<RimGovernor.Brain.GameFacts.Observations.PatientForecast>();
             foreach (var patient in source.patients)
-                patients.Add(new Obs.PatientForecast { PawnId = patient.id, MoodTarget = Finite(patient.moodTarget) });
-            return new Obs.ForecastFacts { Needs = needs, Coupled = coupled, CombinedFoodSupply = Food(source.combinedFoodSupply), Patients = [.. patients] };
+                patients.Add(new RimGovernor.Brain.GameFacts.Observations.PatientForecast { PawnId = patient.id, MoodTarget = Finite(patient.moodTarget) });
+            return new RimGovernor.Brain.GameFacts.Observations.ForecastFacts { Needs = needs, Coupled = coupled, CombinedFoodSupply = Food(source.combinedFoodSupply), Patients = [.. patients] };
         }
-        private static Obs.FoodSupplyFacts Food(FoodSupplyFacts.Snapshot source)
+        private static RimGovernor.Brain.GameFacts.Observations.FoodSupplyFacts Food(FoodSupplyFacts.Snapshot source)
         {
-            var corpses = source.larder.Corpses.Select(corpse => new Obs.CorpseHandling {
+            var corpses = source.larder.Corpses.Select(corpse => new RimGovernor.Brain.GameFacts.Observations.CorpseHandling {
                 Id = corpse.ID, Cell = new RimGovernor.Brain.Domain.Cell(corpse.Cell.x, corpse.Cell.z),
                 Hauler = new RimGovernor.Brain.Domain.PawnId(corpse.Hauler ?? string.Empty), FrozenDestination = corpse.FrozenDestination,
             }).ToArray();
-            var consumers = source.consumers.Select(consumer => new Obs.FoodConsumer {
+            var consumers = source.consumers.Select(consumer => new RimGovernor.Brain.GameFacts.Observations.FoodConsumer {
                 Id = new RimGovernor.Brain.Domain.PawnId(consumer.id ?? throw new InvalidOperationException("Food consumer has no pawn identity.")),
                 NutritionPerDay = Finite(consumer.nutritionPerDay), HumanMeatAcceptable = consumer.humanMeatAcceptable,
             }).ToArray();
-            var stocks = new List<Obs.FoodStock>();
+            var stocks = new List<RimGovernor.Brain.GameFacts.Observations.FoodStock>();
             foreach (var stock in source.stocks) {
                 var thing = stock.thing ?? throw new InvalidOperationException("Food stock has no native thing.");
                 var eaters = stock.eaters ?? throw new InvalidOperationException("Food stock has no eater census.");
-                Obs.FoodForm form = thing is Corpse remains
-                    ? new Obs.FoodForm.Corpse(Finite(Math.Max(0, remains.InnerPawn.GetStatValue(StatDefOf.MeatAmount))), Finite(remains.InnerPawn.BodySize))
-                    : new Obs.FoodForm.Item();
-                Obs.FoodPlace place = new Obs.FoodPlace.Carried();
+                RimGovernor.Brain.GameFacts.Observations.FoodForm form = thing is Corpse remains
+                    ? new RimGovernor.Brain.GameFacts.Observations.FoodForm.Corpse(Finite(Math.Max(0, remains.InnerPawn.GetStatValue(StatDefOf.MeatAmount))), Finite(remains.InnerPawn.BodySize))
+                    : new RimGovernor.Brain.GameFacts.Observations.FoodForm.Item();
+                RimGovernor.Brain.GameFacts.Observations.FoodPlace place = new RimGovernor.Brain.GameFacts.Observations.FoodPlace.Carried();
                 if (thing.Spawned) {
                     var room = thing.Position.GetRoom(thing.Map);
-                    place = new Obs.FoodPlace.Stands(thing.Position.Roofed(thing.Map), room != null ? NativeRef.Room(room).Id : string.Empty);
+                    place = new RimGovernor.Brain.GameFacts.Observations.FoodPlace.Stands(thing.Position.Roofed(thing.Map), room != null ? NativeRef.Room(room).Id : string.Empty);
                 }
                 var rot = thing.TryGetComp<CompRottable>();
-                stocks.Add(new Obs.FoodStock {
+                stocks.Add(new RimGovernor.Brain.GameFacts.Observations.FoodStock {
                     Id = thing.GetUniqueLoadID(), DefName = thing.def.defName,
                     IsHumanMeat = HumanFoodFacts.ContainsHumanMeat(thing), RawMeat = thing.def.IsMeat,
                     IsHumanlike = thing is Corpse corpse && corpse.InnerPawn.RaceProps.Humanlike,
@@ -486,18 +483,18 @@ namespace HomeBridge.BridgeTools
                     RawClass = RimGovernor.Brain.Bridge.DefinitionCatalog.RawFoodClass(thing.def),
                     Holder = new RimGovernor.Brain.Domain.PawnId(stock.holder ?? string.Empty), Nutrition = Finite(stock.nutrition),
                     Eaters = eaters.Select(id => new RimGovernor.Brain.Domain.PawnId(id)).ToArray(),
-                    Rot = rot != null && rot.Active ? new Obs.FoodRot.Rots(Math.Max(0, rot.TicksUntilRotAtCurrentTemp)) : new Obs.FoodRot.Keeps(),
+                    Rot = rot != null && rot.Active ? new RimGovernor.Brain.GameFacts.Observations.FoodRot.Rots(Math.Max(0, rot.TicksUntilRotAtCurrentTemp)) : new RimGovernor.Brain.GameFacts.Observations.FoodRot.Keeps(),
                     Place = place, TemperatureC = Finite(thing.AmbientTemperature), Form = form,
                     Count = thing.stackCount, UnitMass = Finite(thing.GetStatValue(StatDefOf.Mass)), Forbidden = thing.IsForbidden(Faction.OfPlayer),
                 });
             }
-            return new Obs.FoodSupplyFacts {
+            return new RimGovernor.Brain.GameFacts.Observations.FoodSupplyFacts {
                 Consumers = [.. consumers], Stocks = [.. stocks],
-                Larder = new Obs.FoodLarderFacts {
+                Larder = new RimGovernor.Brain.GameFacts.Observations.FoodLarderFacts {
                     RawMeatNutrition = Finite(source.larder.RawMeatNutrition), CookDemandNutrition = Finite(source.larder.CookDemandNutrition), Corpses = [.. corpses],
                 },
             };
         }
-        private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
+        private static RimGovernor.Brain.GameFacts.Common.Unavailable Unavailable(RimGovernor.Brain.GameFacts.Common.UnavailableReason reason, string detail) => new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = reason, Detail = detail };
     }
 }

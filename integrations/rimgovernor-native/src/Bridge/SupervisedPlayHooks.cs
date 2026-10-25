@@ -7,7 +7,7 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// The direct game hooks behind the hazard bounds: a hook that
     /// sees a hazard arise requests a probe at the next tick boundary, and a
@@ -15,7 +15,7 @@ namespace HomeBridge.BridgeTools
     /// dirty. Neither does any work itself; the supervisor's tick path
     /// serves both. Installation failures are recorded, not thrown: the
     /// polled probe still holds the interval bound without them, and
-    /// Clock.Status reports each class as unhooked.
+    /// RimGovernor.Brain.GameFacts.Clock.Status reports each class as unhooked.
     internal static partial class Supervisor
     {
         private const string HazardHarmonyId = "homebridge.supervised-play.hazards";
@@ -102,13 +102,13 @@ namespace HomeBridge.BridgeTools
             {
                 var s = _state; var tm = Find.TickManager;
                 if (__instance != null && CombatMirror.Active && __instance.HostileTo(Faction.OfPlayer))
-                    CombatMirror.Record(RimGovernor.Contracts.Wire.Mirror.CombatLogKind.HostileArrived, RimGovernor.Contracts.Wire.Clock.CombatEvent.HostileArrived, __instance, null);
+                    CombatMirror.Record(RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.HostileArrived, RimGovernor.Brain.GameFacts.Clock.CombatEvent.HostileArrived, __instance, null);
                 if (s == null || !s.Active || tm == null || __instance == null) return;
                 lock (_spawnTicks) _spawnTicks[__instance.thingIDNumber] = tm.TicksGame;
                 if (__instance.HostileTo(Faction.OfPlayer))
                 {
                     RequestProbe("hostile");
-                    if (ReferenceEquals(__instance.Map, s.Map)) NoteCombatEvent(RimGovernor.Contracts.Wire.Clock.CombatEvent.HostileArrived, __instance, "hostile spawned");
+                    if (ReferenceEquals(__instance.Map, s.Map)) NoteCombatEvent(RimGovernor.Brain.GameFacts.Clock.CombatEvent.HostileArrived, __instance, "hostile spawned");
                 }
             }
             catch { }
@@ -123,10 +123,10 @@ namespace HomeBridge.BridgeTools
             {
                 var s = _state;
                 if (__instance != null && CombatMirror.Active)
-                    CombatMirror.Record(RimGovernor.Contracts.Wire.Mirror.CombatLogKind.HostileArrived, RimGovernor.Contracts.Wire.Clock.CombatEvent.PrisonBreak, __instance, null);
+                    CombatMirror.Record(RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.HostileArrived, RimGovernor.Brain.GameFacts.Clock.CombatEvent.PrisonBreak, __instance, null);
                 if (s == null || !s.Active || __instance == null) return;
                 RequestProbe("hostile");
-                if (ReferenceEquals(__instance.Map, s.Map)) NoteCombatEvent(RimGovernor.Contracts.Wire.Clock.CombatEvent.PrisonBreak, __instance, "prison break");
+                if (ReferenceEquals(__instance.Map, s.Map)) NoteCombatEvent(RimGovernor.Brain.GameFacts.Clock.CombatEvent.PrisonBreak, __instance, "prison break");
             }
             catch { }
         }
@@ -138,11 +138,11 @@ namespace HomeBridge.BridgeTools
             {
                 var pawn = ___pawn; var tm = Find.TickManager;
                 if (pawn != null && pawn.Spawned)
-                    CombatMirror.Record(RimGovernor.Contracts.Wire.Mirror.CombatLogKind.Downed, pawn.IsColonist ? RimGovernor.Contracts.Wire.Clock.CombatEvent.Downed : null, pawn, null);
+                    CombatMirror.Record(RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.Downed, pawn.IsColonist ? RimGovernor.Brain.GameFacts.Clock.CombatEvent.Downed : null, pawn, null);
                 if (pawn == null || tm == null || !pawn.IsColonist) return;
                 lock (_spawnTicks) _downedTicks[pawn.thingIDNumber] = tm.TicksGame;
                 RequestProbe("colonist_downed");
-                NoteCombatEvent(RimGovernor.Contracts.Wire.Clock.CombatEvent.Downed, pawn, "downed");
+                NoteCombatEvent(RimGovernor.Brain.GameFacts.Clock.CombatEvent.Downed, pawn, "downed");
             }
             catch { }
         }
@@ -153,11 +153,11 @@ namespace HomeBridge.BridgeTools
             {
                 var tm = Find.TickManager;
                 if (__instance != null)
-                    CombatMirror.Record(RimGovernor.Contracts.Wire.Mirror.CombatLogKind.Killed, __instance.IsColonist ? RimGovernor.Contracts.Wire.Clock.CombatEvent.Downed : null, __instance, null);
+                    CombatMirror.Record(RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.Killed, __instance.IsColonist ? RimGovernor.Brain.GameFacts.Clock.CombatEvent.Downed : null, __instance, null);
                 if (__instance == null || tm == null || !__instance.IsColonist) return;
                 lock (_spawnTicks) _downedTicks[__instance.thingIDNumber] = tm.TicksGame;
                 RequestProbe("colonist_downed");
-                NoteCombatEvent(RimGovernor.Contracts.Wire.Clock.CombatEvent.Downed, __instance, "killed");
+                NoteCombatEvent(RimGovernor.Brain.GameFacts.Clock.CombatEvent.Downed, __instance, "killed");
             }
             catch { }
         }

@@ -4,12 +4,8 @@ using System.Linq;
 using System.Text;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class NativeApparelPolicyOperations
     {
@@ -20,7 +16,7 @@ namespace HomeBridge.BridgeTools
             + "|" + p.filter.AllowedHitPointsPercents.max.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + "|" + p.filter.AllowedQualityLevels));
         internal static string Token(Pawn p) => NativeSnapshotVersions.Token("apparel", null, p.GetUniqueLoadID(), GearUpkeepTools.Identity(p) + "|" + CensusMemo.Of(("outfits", (object?)null), () => string.Join(";",
             Current.Game.outfitDatabase.AllOutfits.OrderBy(o => o.id).Select(o => o.GetUniqueLoadID() + ":" + Signature(o)))));
-        internal static Obs.ApparelPolicyState Read(Pawn p)
+        internal static RimGovernor.Brain.GameFacts.Observations.ApparelPolicyState Read(Pawn p)
         {
             var outfit = p.outfits?.CurrentApparelPolicy ?? throw new InvalidOperationException("Pawn " + p.GetUniqueLoadID() + " has no apparel policy to read.");
             var requirements = Requirements(p).ToList();
@@ -30,7 +26,7 @@ namespace HomeBridge.BridgeTools
             // those it can wear (the apparel rows and its wear inputs).
             var required = CensusMemo.Of(("apparelDefs", (object?)null), () => DefDatabase<ThingDef>.AllDefs.Where(d => d.IsApparel).OrderBy(d => d.defName).ToList())
                 .Where(d => precepts.Contains(d.defName) || requirements.Any(r => r.ApparelMeetsRequirement(d, false))).Select(d => d.defName);
-            return new Obs.ApparelPolicyState
+            return new RimGovernor.Brain.GameFacts.Observations.ApparelPolicyState
             {
                 Token = Token(p),
                 Name = outfit.label,
@@ -76,24 +72,24 @@ namespace HomeBridge.BridgeTools
         }
 
         // Resolves the intent's pawn and checks the filter; null when it applies.
-        internal static Common.Failure? Resolve(Operations.ApparelPolicyIntent? c, Common.ObservationContext context, out Pawn? p)
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(RimGovernor.Brain.GameOrders.Operations.ApparelPolicyIntent? c, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Pawn? p)
         {
             p = null;
-            if (c == null || c.PawnId is null || !ProtoBoundary.IsIdentifier(c.PawnId) || c.Name is null || string.IsNullOrWhiteSpace(c.Name) || (c.Name ?? "").Length > 80
+            if (c == null || c.PawnId is null || !GameThread.IsIdentifier(c.PawnId) || c.Name is null || string.IsNullOrWhiteSpace(c.Name) || (c.Name ?? "").Length > 80
                 || float.IsNaN(c.MinHitPoints) || float.IsNaN(c.MaxHitPoints)
                 || c.MinHitPoints < 0 || c.MaxHitPoints > 1 || c.MinHitPoints > c.MaxHitPoints
                 || c.MinQuality < 0 || c.MaxQuality > 6 || c.MinQuality > c.MaxQuality
                 || c.AllowedDefs.Count == 0 || c.AllowedDefs.Distinct().Count() != c.AllowedDefs.Count
                 || c.AllowedDefs.Any(d => DefDatabase<ThingDef>.GetNamedSilentFail(d)?.IsApparel != true))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An apparel policy needs a pawn, a name, apparel definitions and valid bounds.");
-            p = ProtoBoundary.LoadedMap(context)?.mapPawns.FreeColonistsSpawned.ById(c.PawnId);
-            if (p == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "The pawn is not a free colonist spawned on this map.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "An apparel policy needs a pawn, a name, apparel definitions and valid bounds.");
+            p = GameThread.LoadedMap(context)?.mapPawns.FreeColonistsSpawned.ById(c.PawnId);
+            if (p == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "The pawn is not a free colonist spawned on this map.");
             var unavailable = GearUpkeepTools.Available(p);
-            if (unavailable != null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The pawn cannot take an apparel policy: " + unavailable);
+            if (unavailable != null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The pawn cannot take an apparel policy: " + unavailable);
             return null;
         }
 
-        private static bool Matches(Pawn p, Operations.ApparelPolicyIntent c)
+        private static bool Matches(Pawn p, RimGovernor.Brain.GameOrders.Operations.ApparelPolicyIntent c)
         {
             var v = p.outfits?.CurrentApparelPolicy;
             return v != null && p.outfits != null && !PawnsFinder.AllMapsCaravansAndTravellingTransporters_Alive.Any(o => o != p && o.outfits?.CurrentApparelPolicy == v) && p.outfits.forcedHandler.ForcedApparel.Count == 0 && !p.apparel.AnyApparelLocked && v.label == (c.Name ?? "") && v.filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d).SequenceEqual(c.AllowedDefs.OrderBy(d => d))
@@ -104,7 +100,7 @@ namespace HomeBridge.BridgeTools
 
         // Writes the named filter and assignment unless they already match,
         // then reads them back.
-        internal static Receipts.EffectEvidence Apply(Operations.ApparelPolicyIntent c, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.ApparelPolicyIntent c, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(c, context, out var p);
             if (failure != null || p == null) throw new InvalidOperationException("Apparel policy prerequisites changed before apply: " + (failure?.Detail ?? ""));
@@ -122,15 +118,15 @@ namespace HomeBridge.BridgeTools
                 foreach (var pawn in PawnsFinder.AllMapsCaravansAndTravellingTransporters_Alive.Where(v => v.outfits?.CurrentApparelPolicy == outfit)) pawn.mindState?.Notify_OutfitChanged();
                 if (!Matches(p, c)) throw new InvalidOperationException("Apparel filter readback differs.");
             }
-            return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect() };
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.SettingsEffect() };
         }
     }
 
     internal sealed class ApparelPolicyActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) =>
+        public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) =>
             NativeApparelPolicyOperations.Resolve(action.Intent?.ApparelPolicy, context, out _);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) =>
+        public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) =>
             NativeApparelPolicyOperations.Apply(action.Intent?.ApparelPolicy ?? throw new InvalidOperationException("Action carries no apparel-policy intent."), context);
     }
 }

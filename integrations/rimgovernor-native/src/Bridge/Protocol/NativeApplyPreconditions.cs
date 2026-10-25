@@ -1,7 +1,6 @@
 using System;
-using Common = RimGovernor.Contracts.Wire.Common;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Apply-time preconditions for routine writes. Execute runs on the
     // main thread and applies its effect in the same call, so the rules a
@@ -22,31 +21,31 @@ namespace HomeBridge.BridgeTools
     {
         private readonly string kind;
         private string? refused;
-        private Common.FailureCode code = Common.FailureCode.InvalidRequest;
-        private Common.RefusalClass refusalClass = Common.RefusalClass.Unclassified;
+        private RimGovernor.Brain.GameFacts.Common.FailureCode code = RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest;
+        private RimGovernor.Brain.GameFacts.Common.RefusalClass refusalClass = RimGovernor.Brain.GameFacts.Common.RefusalClass.Unclassified;
 
         internal ApplyPreconditions(string kind) { this.kind = kind; }
 
         internal bool Holds => refused == null;
         internal string? Reason => refused;
 
-        internal ApplyPreconditions Require(Func<bool> rule, string reason) => Require(rule, reason, Common.FailureCode.InvalidRequest, ProtoBoundary.RefusalClassOf(Common.FailureCode.InvalidRequest));
+        internal ApplyPreconditions Require(Func<bool> rule, string reason) => Require(rule, reason, RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, GameThread.RefusalClassOf(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest));
 
         // Present is the rule for the exact target still being there; it
         // refuses NotFound so a caller that distinguishes a vanished target
         // from a target in the wrong state can.
-        internal ApplyPreconditions Present(Func<bool> rule, string reason) => Require(rule, reason, Common.FailureCode.NotFound, Common.RefusalClass.Transient);
+        internal ApplyPreconditions Present(Func<bool> rule, string reason) => Require(rule, reason, RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, RimGovernor.Brain.GameFacts.Common.RefusalClass.Transient);
 
         // Token is the closing CAS rule: the snapshot the controller read
         // must still be at the version its token names. It keeps the InvalidRequest
         // code the routine kinds always answered a stale token with.
-        internal ApplyPreconditions Token(Func<bool> rule, string reason) => Require(rule, reason, Common.FailureCode.InvalidRequest, Common.RefusalClass.Transient);
+        internal ApplyPreconditions Token(Func<bool> rule, string reason) => Require(rule, reason, RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, RimGovernor.Brain.GameFacts.Common.RefusalClass.Transient);
 
         // Token with sent false is the CAS rule for a request that carries no
         // token: the rule is skipped and the preconditions above stand alone.
         internal ApplyPreconditions Token(bool sent, Func<bool> rule, string reason) => sent ? Token(rule, reason) : this;
 
-        private ApplyPreconditions Require(Func<bool> rule, string reason, Common.FailureCode failureCode, Common.RefusalClass refusal)
+        private ApplyPreconditions Require(Func<bool> rule, string reason, RimGovernor.Brain.GameFacts.Common.FailureCode failureCode, RimGovernor.Brain.GameFacts.Common.RefusalClass refusal)
         {
             if (refused != null) return this;
             bool holds;
@@ -59,7 +58,7 @@ namespace HomeBridge.BridgeTools
         // Failure is the wire refusal: "<kind> refused: <reason>". The
         // reason strings are the contract (action-contracts.md); the
         // controller's OTLP log ring keeps them verbatim.
-        internal Common.Failure Failure() => ProtoBoundary.Fail(code, Detail(kind, refused ?? "precondition failed"), refusalClass);
+        internal RimGovernor.Brain.GameFacts.Common.Failure Failure() => GameThread.Fail(code, Detail(kind, refused ?? "precondition failed"), refusalClass);
 
         internal static string Detail(string kind, string reason) => kind + " refused: " + reason;
     }

@@ -9,7 +9,7 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // A disposable hunt: a ranger with a bow, one wild deer and a butcher table.
     // Only the initial state is staged; the shot, the haul and the butchering are
@@ -26,7 +26,7 @@ namespace HomeBridge.BridgeTools
         private static WorkTypeDef CookingWork => ExtraWorkTypeDefOf.Cooking;
 
         [Tool("test/ledger_hunt_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage a ranger with a bow, a wild deer designated for hunting and an empty butcher table, and start tallying deer corpses and butchered products.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Prepare(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -97,7 +97,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/ledger_hunt_butcher", Description = "UNSAFE FOR MODEL EXECUTION. Haul the hunted corpse out and back in twice (re-spawn it), then add a forever butcher bill for it; the corpse id stays the same.")]
-        public async Task<object> Butcher(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Butcher(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = tracked ?? throw new InvalidOperationException("Prepare the hunt first.");
@@ -119,7 +119,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/ledger_hunt_observe", Description = "Read the fixture's independent deer corpse and butchered product tallies; no mutations.")]
-        public async Task<object> Observe(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Observe(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => FixtureKit.Reply(new HuntTally { Tick = Find.TickManager.TicksGame, Kills = corpses.Count,
                 ButcherMeat = meatUnits, ButcherLeather = leatherUnits }), cancellationToken);

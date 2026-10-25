@@ -6,9 +6,8 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // What a guard judges: the designation's map cell, its thing (the
     // building, or the rock at a Mine cell), plus the wall-upgrade site.
@@ -90,16 +89,16 @@ namespace HomeBridge.BridgeTools
             && !(Find.Maps.FirstOrDefault(m => m.uniqueID == r.MapId) is Map map && RefIndex.Thing(map, r.ThingId) is { Spawned: true } t
                 && t.Position.x == r.X && t.Position.z == r.Z);
 
-        internal static string? Name(Operations.DesignationGuard guard)
+        internal static string? Name(RimGovernor.Brain.GameOrders.Operations.DesignationGuard guard)
         {
             switch (guard)
             {
-                case Operations.DesignationGuard.NoGuard: return null;
-                case Operations.DesignationGuard.Enclosure: return GuardNames.Enclosure;
-                case Operations.DesignationGuard.MineSafety: return GuardNames.MineSafety;
-                case Operations.DesignationGuard.WallUpgrade: return GuardNames.WallUpgrade;
-                case Operations.DesignationGuard.Acquisition: return GuardNames.Acquisition;
-                case Operations.DesignationGuard.Wastepack: return GuardNames.Wastepack;
+                case RimGovernor.Brain.GameOrders.Operations.DesignationGuard.NoGuard: return null;
+                case RimGovernor.Brain.GameOrders.Operations.DesignationGuard.Enclosure: return GuardNames.Enclosure;
+                case RimGovernor.Brain.GameOrders.Operations.DesignationGuard.MineSafety: return GuardNames.MineSafety;
+                case RimGovernor.Brain.GameOrders.Operations.DesignationGuard.WallUpgrade: return GuardNames.WallUpgrade;
+                case RimGovernor.Brain.GameOrders.Operations.DesignationGuard.Acquisition: return GuardNames.Acquisition;
+                case RimGovernor.Brain.GameOrders.Operations.DesignationGuard.Wastepack: return GuardNames.Wastepack;
                 default: throw new ArgumentOutOfRangeException(nameof(guard), guard, "Unknown designation guard.");
             }
         }

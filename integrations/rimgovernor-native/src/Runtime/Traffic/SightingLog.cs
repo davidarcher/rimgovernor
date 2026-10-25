@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Per colonist, where it stood at each of its own observer passes (#3806):
     // PawnObserver.ObserveSurroundingThings sees every corpse within 5 cells in

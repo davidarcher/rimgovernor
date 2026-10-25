@@ -4,13 +4,11 @@ using System.Xml.Linq;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Telemetry;
 using RimGovernor.Brain.Telemetry.Otlp;
-using RimGovernor.Contracts.Host;
-using RimGovernor.Contracts.Wire;
-using Clock = RimGovernor.Contracts.Wire.Clock;
-using Common = RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Brain.GameFacts.Host;
+using RimGovernor.Brain.GameOrders.Host;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -53,7 +51,7 @@ public sealed class TypedSession
     private static readonly TimeSpan NewColonyStall = TimeSpan.FromMinutes(3);
 
     // An owned body's identity before it starts or loads a colony.
-    private static readonly Common.Identity NoColony = new() { ColonyId = "", LoadToken = "", MapId = 0 };
+    private static readonly RimGovernor.Brain.GameFacts.Common.Identity NoColony = new() { ColonyId = "", LoadToken = "", MapId = 0 };
 
     // The harness every call goes to: the game an owned body launched (its open reuse case, else its session), else the
     // runner's.
@@ -62,10 +60,10 @@ public sealed class TypedSession
         : _launched.Live ?? throw new AcceptanceException($"case {_case.Name}: the launched game's session is released or retired");
 
     /// <summary>The loaded colony's identity.</summary>
-    public Common.Identity Identity { get; private set; }
+    public RimGovernor.Brain.GameFacts.Common.Identity Identity { get; private set; }
 
     /// <summary>A read scope pinned to <see cref="Identity"/>, for a request's <c>Scope</c>.</summary>
-    public Observations.ReadScope Scope { get; private set; }
+    public RimGovernor.Brain.GameFacts.Observations.ReadScope Scope { get; private set; }
 
     /// <summary>The typed reply of the case's <see cref="TypedCase.Stage"/>, null when it declared none.</summary>
     public Fx.StageReply? Staged { get; }
@@ -100,14 +98,14 @@ public sealed class TypedSession
         FixtureAsync(label, FixtureStage.Op, spec, cancellationToken);
 
     /// <summary>The <c>observations_list_buildings</c> rows <paramref name="request"/> selects; its Scope defaults to <see cref="Scope"/>.</summary>
-    public Task<IReadOnlyList<Observations.BuildingState>> BuildingsAsync(string label, Observations.ListBuildingsRequest request, CancellationToken cancellationToken)
+    public Task<IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.BuildingState>> BuildingsAsync(string label, RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         return H.BuildingsAsync(label, request.Scope is null ? request with { Scope = Scope } : request, cancellationToken);
     }
 
     /// <summary>Every zone row <c>observations_list_zones</c> answers.</summary>
-    public Task<IReadOnlyList<Observations.ZoneState>> ZonesAsync(string label, CancellationToken cancellationToken) =>
+    public Task<IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.ZoneState>> ZonesAsync(string label, CancellationToken cancellationToken) =>
         H.ZonesAsync(label, Scope, cancellationToken);
 
     /// <summary>Each growing zone with its crop, cells and planted cells (the zones read joined to the cells read).</summary>
@@ -147,32 +145,32 @@ public sealed class TypedSession
     /// holds itself, at most <paramref name="ticks"/> ticks from <see cref="TicksLeft"/>, beating while it runs; returns
     /// the held status. A wait that ends otherwise holds the clock before it throws.
     /// </summary>
-    public Task<Clock.Status> RunClockUntilHeldAsync(string label, int ticks, ClockRunPlan request, CancellationToken cancellationToken) =>
+    public Task<RimGovernor.Brain.GameFacts.Clock.Status> RunClockUntilHeldAsync(string label, int ticks, ClockRunPlan request, CancellationToken cancellationToken) =>
         RunClockUntilHeldAsync(label, ticks, request, static (_, _) => Task.FromResult(false), cancellationToken);
 
     /// <summary>
     /// <see cref="RunClockUntilHeldAsync(string, int, ClockRunPlan, CancellationToken)"/> that calls
     /// <paramref name="whileRunning"/> once per round the clock still runs, before the heartbeat: the hook that acts
     /// mid-run (an injection at a tick) and can end the wait without a hold by returning true. Returns the held status, or
-    /// the running status of the round that ended the wait (<see cref="Clock.ClockState.Running"/>); either way the clock
+    /// the running status of the round that ended the wait (<see cref="RimGovernor.Brain.GameFacts.Clock.ClockState.Running"/>); either way the clock
     /// is held when it returns.
     /// </summary>
-    public async Task<Clock.Status> RunClockUntilHeldAsync(string label, int ticks, ClockRunPlan request, ClockRound whileRunning, CancellationToken cancellationToken)
+    public async Task<RimGovernor.Brain.GameFacts.Clock.Status> RunClockUntilHeldAsync(string label, int ticks, ClockRunPlan request, PlannerRound whileRunning, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(whileRunning);
         Budget(label, ticks);
-        var current = await CallAsync(label + "-before", NativeOps.ReadClockStatus, new Clock.StatusRequest { Identity = Identity }, cancellationToken).ConfigureAwait(false);
-        var run = await CallAsync(label + "-run", NativeOps.RunClock, new Clock.RunRequest
+        var current = await CallAsync(label + "-before", NativeOps.ReadClockStatus, new RimGovernor.Brain.GameOrders.Clock.StatusRequest { Identity = Identity }, cancellationToken).ConfigureAwait(false);
+        var run = await CallAsync(label + "-run", NativeOps.RunClock, new RimGovernor.Brain.GameOrders.Clock.RunRequest
         {
             Identity = Identity, ExpectedGeneration = request.ExpectedGeneration,
             Speed = request.Speed, Policy = request.Policy,
             HoldAtTick = (ulong)(Math.Max(current.Context.Tick, 0) + ticks),
             PlannedHoldSerial = current.HoldSerial
         }, cancellationToken).ConfigureAwait(false);
-        var status = run is { State: Clock.ClockState.Running }
+        var status = run is { State: RimGovernor.Brain.GameFacts.Clock.ClockState.Running }
             ? run
-            : throw new AcceptanceException($"{label}: clock run left held: {WireJson.Serialize(run)}");
+            : throw new AcceptanceException($"{label}: clock run left held: {OrdersJson.Serialize(run)}");
         try
         {
             // Each round reads the status (the wait's tick), then beats while it still runs: the native ceiling drops to
@@ -182,17 +180,17 @@ public sealed class TypedSession
                 ticks,
                 async ct =>
                 {
-                    status = await CallAsync(label + "-status", NativeOps.ReadClockStatus, new Clock.StatusRequest { Identity = Identity }, ct).ConfigureAwait(false);
+                    status = await CallAsync(label + "-status", NativeOps.ReadClockStatus, new RimGovernor.Brain.GameOrders.Clock.StatusRequest { Identity = Identity }, ct).ConfigureAwait(false);
                     return (ulong)Math.Max(status.Context?.Tick ?? 0, 0);
                 },
                 async ct =>
                 {
-                    if (status.State == Clock.ClockState.Held || await whileRunning(status, ct).ConfigureAwait(false))
+                    if (status.State == RimGovernor.Brain.GameFacts.Clock.ClockState.Held || await whileRunning(status, ct).ConfigureAwait(false))
                     {
                         return (string.Empty, true);
                     }
 
-                    _ = await CallAsync(label + "-heartbeat", NativeOps.HeartbeatClock, new Clock.HeartbeatRequest { Identity = Identity }, ct).ConfigureAwait(false);
+                    _ = await CallAsync(label + "-heartbeat", NativeOps.HeartbeatClock, new RimGovernor.Brain.GameOrders.Clock.HeartbeatRequest { Identity = Identity }, ct).ConfigureAwait(false);
                     return (Wait.Signature(status.Context?.Tick, status.State), false);
                 },
                 ClockWait(TimeSpan.FromMilliseconds(250)),
@@ -202,13 +200,13 @@ public sealed class TypedSession
         }
         finally
         {
-            if (status.State != Clock.ClockState.Held)
+            if (status.State != RimGovernor.Brain.GameFacts.Clock.ClockState.Held)
             {
                 // Native keeps the first reason, so a hold that raced this one is not overwritten.
                 _ = await CallAsync(
                     label + "-hold",
                     NativeOps.HoldClock,
-                    new Clock.HoldRequest { Identity = Identity, Reason = Clock.HoldReason.Review, Detail = label + ": the wait ended before a hold" },
+                    new RimGovernor.Brain.GameOrders.Clock.HoldRequest { Identity = Identity, Reason = RimGovernor.Brain.GameFacts.Clock.HoldReason.Review, Detail = label + ": the wait ended before a hold" },
                     CancellationToken.None).ConfigureAwait(false);
             }
         }
@@ -219,10 +217,10 @@ public sealed class TypedSession
     /// <see cref="RunClockUntilHeldAsync"/> returns): the row whose <c>stop_at_ms</c> is its <c>HoldState.HeldCase.AtUnixMs</c>. The
     /// game is held, so the wait spends no ticks; it ends when the row reaches the log ring, under the hang guard.
     /// </summary>
-    public async Task<LogRow> HoldRowAsync(string label, Clock.Status held, CancellationToken cancellationToken)
+    public async Task<LogRow> HoldRowAsync(string label, RimGovernor.Brain.GameFacts.Clock.Status held, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(held);
-        var heldAt = (held.Hold as Clock.HoldState.HeldCase)?.AtUnixMs ?? throw new AcceptanceException($"{label}: the status is not held: {held}");
+        var heldAt = (held.Hold as RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase)?.AtUnixMs ?? throw new AcceptanceException($"{label}: the status is not held: {held}");
         var deadline = DateTime.UtcNow + HoldRowWait;
         using var pace = Wait.Pace(TimeSpan.FromMilliseconds(100));
         while (true)
@@ -255,14 +253,14 @@ public sealed class TypedSession
     public void Record(string key, JsonNode? value) => _s.Report[key] = value;
 
     /// <summary>Records the Contracts record <paramref name="value"/> in the report under <paramref name="key"/>.</summary>
-    public void RecordWire<T>(string key, T value) => _s.Report[key] = JsonNode.Parse(WireJson.Serialize(value));
+    public void RecordWire<T>(string key, T value) => _s.Report[key] = JsonNode.Parse(OrdersJson.Serialize(value));
 
     /// <summary>
     /// Records the Contracts records <paramref name="rows"/> as a JSON array under <paramref name="key"/>. The wire context
     /// registers element records, not the list or array types a case collects them in.
     /// </summary>
     public void RecordWireRows<T>(string key, IEnumerable<T> rows) =>
-        _s.Report[key] = new JsonArray([.. rows.Select(row => JsonNode.Parse(WireJson.Serialize(row)))]);
+        _s.Report[key] = new JsonArray([.. rows.Select(row => JsonNode.Parse(OrdersJson.Serialize(row)))]);
 
     /// <summary>Records the Fixtures.Contracts reply <paramref name="value"/> of a <c>test/*</c> op under <paramref name="key"/>.</summary>
     public void RecordFixture<T>(string key, T value) => _s.Report[key] = JsonNode.Parse(Fx.FixtureJson.Serialize(value));
@@ -334,10 +332,10 @@ public sealed class TypedSession
     /// progress records), null while none was persisted: what a served case's probe reads of the brain's own state.
     /// Spends no ticks.
     /// </summary>
-    public async Task<Store.Rounds?> ReviewAsync(CancellationToken cancellationToken)
+    public async Task<Store.ReviewState?> ReviewAsync(CancellationToken cancellationToken)
     {
         using var journal = await ServiceJournal.OpenWithRetryAsync(_s.Config, cancellationToken).ConfigureAwait(false);
-        return await ServiceJournal.TryRoundsAsync(journal, cancellationToken).ConfigureAwait(false);
+        return await ServiceJournal.TryReviewAsync(journal, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -371,8 +369,8 @@ public sealed class TypedSession
     public async Task ReloadAsync(string label, CancellationToken cancellationToken)
     {
         var name = label + "-" + Guid.NewGuid().ToString("N");
-        var player = new Lifecycle.PlayerLifecycleContext { Identity = Identity, PlayerDirection = 1, RequestId = name };
-        var saved = await CallAsync(label + "-save", NativeOps.SaveGame, new Lifecycle.SaveRequest { Player = player, SaveName = name, ExpectedTick = new Lifecycle.ExpectedSaveTick.AnyCase() }, cancellationToken).ConfigureAwait(false);
+        var player = new RimGovernor.Brain.GameFacts.Lifecycle.PlayerLifecycleContext { Identity = Identity, PlayerDirection = 1, RequestId = name };
+        var saved = await CallAsync(label + "-save", NativeOps.SaveGame, new RimGovernor.Brain.GameOrders.Lifecycle.SaveRequest { Player = player, SaveName = name, ExpectedTick = new RimGovernor.Brain.GameOrders.Lifecycle.ExpectedSaveTick.AnyCase() }, cancellationToken).ConfigureAwait(false);
         if (saved.Outcome?.Completed is null)
         {
             throw new AcceptanceException($"{label}: lifecycle_save did not complete: {saved.Outcome}");
@@ -382,12 +380,12 @@ public sealed class TypedSession
         var reply = await CallAsync(
             label + "-load",
             NativeOps.StartLoad,
-            new Lifecycle.LoadRequest
+            new RimGovernor.Brain.GameOrders.Lifecycle.LoadRequest
             {
                 RequestId = loadId,
                 TimeoutMs = 120_000,
                 SaveName = name,
-                Readiness = Lifecycle.Readiness.Map,
+                Readiness = RimGovernor.Brain.GameFacts.Lifecycle.Readiness.Map,
                 ExpectedPlayer = player with { RequestId = loadId },
             },
             cancellationToken).ConfigureAwait(false);
@@ -403,7 +401,7 @@ public sealed class TypedSession
             reply = await CallAsync(
                 string.Create(CultureInfo.InvariantCulture, $"{label}-load-{poll}"),
                 NativeOps.PollLoad,
-                new Lifecycle.RequestStatus { RequestId = loadId },
+                new RimGovernor.Brain.GameFacts.Lifecycle.RequestStatus { RequestId = loadId },
                 cancellationToken).ConfigureAwait(false);
         }
 
@@ -454,7 +452,7 @@ public sealed class TypedSession
     /// completed start must have reported SAVING. A completed start moves <see cref="Identity"/> and <see cref="Scope"/>
     /// to the new colony.
     /// </summary>
-    public async Task<NewColonyResult> NewColonyAsync(string label, Lifecycle.NewColonyRequest request, CancellationToken cancellationToken)
+    public async Task<NewColonyResult> NewColonyAsync(string label, RimGovernor.Brain.GameOrders.Lifecycle.NewColonyRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         var reply = await CallAsync(label + "-start", NativeOps.StartNewColony, request, cancellationToken).ConfigureAwait(false);
@@ -466,7 +464,7 @@ public sealed class TypedSession
     /// <see cref="Harness.StartNewColonyThroughBrainAsync"/>), for a spec that asks the brain to resolve a part before
     /// native creation (<c>governorIdeoligion</c>); the native poll follows it from its first reply.
     /// </summary>
-    public async Task<NewColonyResult> NewColonyThroughBrainAsync(string label, Lifecycle.NewColonyRequest request, CancellationToken cancellationToken)
+    public async Task<NewColonyResult> NewColonyThroughBrainAsync(string label, RimGovernor.Brain.GameOrders.Lifecycle.NewColonyRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         await H.StartNewColonyThroughBrainAsync(label + "-start", request, Wait.StallBudget(), cancellationToken).ConfigureAwait(false);
@@ -474,10 +472,10 @@ public sealed class TypedSession
     }
 
     // Polls a started request to its terminal outcome; a null start reply is polled at once.
-    private async Task<NewColonyResult> FollowNewColonyAsync(string label, Lifecycle.NewColonyRequest request, Lifecycle.NewColonyReply? started, CancellationToken cancellationToken)
+    private async Task<NewColonyResult> FollowNewColonyAsync(string label, RimGovernor.Brain.GameOrders.Lifecycle.NewColonyRequest request, RimGovernor.Brain.GameFacts.Lifecycle.NewColonyReply? started, CancellationToken cancellationToken)
     {
         var reply = started;
-        var phases = new List<Lifecycle.NewColonyPhase>();
+        var phases = new List<RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase>();
         var polls = 0;
         var stall = Wait.StallBudget();
         try
@@ -490,7 +488,7 @@ public sealed class TypedSession
                         reply = await CallAsync(
                             string.Create(CultureInfo.InvariantCulture, $"{label}-poll-{polls}"),
                             NativeOps.PollNewColony,
-                            new Lifecycle.RequestStatus { RequestId = request.RequestId },
+                            new RimGovernor.Brain.GameFacts.Lifecycle.RequestStatus { RequestId = request.RequestId },
                             ct).ConfigureAwait(false);
                     }
 
@@ -521,8 +519,8 @@ public sealed class TypedSession
 
         switch (reply?.Outcome)
         {
-            case Lifecycle.NewColonyReplyOutcome.CompletedCase { Value: var completed }:
-                if (!phases.Contains(Lifecycle.NewColonyPhase.Saving))
+            case RimGovernor.Brain.GameFacts.Lifecycle.NewColonyReplyOutcome.CompletedCase { Value: var completed }:
+                if (!phases.Contains(RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase.Saving))
                 {
                     throw new AcceptanceException($"{label}: completed without reporting SAVING (phases [{string.Join(' ', phases)}])");
                 }
@@ -530,7 +528,7 @@ public sealed class TypedSession
                 Identity = completed.Context?.Identity ?? throw new AcceptanceException($"{label}: the completed start names no identity: {completed}");
                 Scope = TypedReads.Scope(Identity);
                 return new NewColonyResult { Phases = phases, Completed = completed };
-            case Lifecycle.NewColonyReplyOutcome.FailureCase { Value: var failure }:
+            case RimGovernor.Brain.GameFacts.Lifecycle.NewColonyReplyOutcome.FailureCase { Value: var failure }:
                 return new NewColonyResult { Phases = phases, Failure = failure };
             default:
                 throw new AcceptanceException($"{label}: expected a completed or failed start, got {reply?.Outcome}");

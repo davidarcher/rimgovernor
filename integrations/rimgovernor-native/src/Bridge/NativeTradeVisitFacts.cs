@@ -2,9 +2,8 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 /// <summary>
 /// The colony facts of trader visits as a stock-arrival source (#3869, #3909), read without changing game state: never
@@ -18,7 +17,7 @@ internal static class NativeTradeVisitFacts
     // IncidentWorker_OrbitalTraderArrival.MaxShips (private const): CanFireNowSub fails at this many passing ships.
     private const int MaxShips = 5;
 
-    internal static Obs.TradeVisitFacts Read(Map map)
+    internal static RimGovernor.Brain.GameFacts.Observations.TradeVisitFacts Read(Map map)
     {
         var difficulty = Find.Storyteller.difficulty;
         var negotiators = map.mapPawns.FreeColonistsSpawned
@@ -29,8 +28,8 @@ internal static class NativeTradeVisitFacts
                 || d.workerClass == typeof(IncidentWorker_VisitorGroup) || d.workerClass == typeof(IncidentWorker_TravelerGroup)
                 || d.workerClass == typeof(IncidentWorker_CaravanArrivalTributeCollector))
             .OrderBy(d => d.defName, System.StringComparer.Ordinal);
-        return new Obs.TradeVisitFacts {
-            Danger = map.dangerWatcher.DangerRating switch { StoryDanger.High => Obs.StoryDangerLevel.High, StoryDanger.Low => Obs.StoryDangerLevel.Low, _ => Obs.StoryDangerLevel.None },
+        return new RimGovernor.Brain.GameFacts.Observations.TradeVisitFacts {
+            Danger = map.dangerWatcher.DangerRating switch { StoryDanger.High => RimGovernor.Brain.GameFacts.Observations.StoryDangerLevel.High, StoryDanger.Low => RimGovernor.Brain.GameFacts.Observations.StoryDangerLevel.Low, _ => RimGovernor.Brain.GameFacts.Observations.StoryDangerLevel.None },
             PopulationIntent = StorytellerUtilityPopulation.PopulationIntent,
             AllyFraction = StorytellerUtility.AllyIncidentFraction(fullAlliesOnly: false),
             FullAllyFraction = StorytellerUtility.AllyIncidentFraction(fullAlliesOnly: true),
@@ -46,18 +45,18 @@ internal static class NativeTradeVisitFacts
         };
     }
 
-    private static Obs.TraderIncidentRead Incident(Map map, IncidentDef def, Difficulty difficulty)
+    private static RimGovernor.Brain.GameFacts.Observations.TraderIncidentRead Incident(Map map, IncidentDef def, Difficulty difficulty)
     {
         var blocked = NativeDiseaseFacts.Blocked(map, def, difficulty).Concat(Gates(map, def)).ToList();
-        var sources = new List<Obs.TraderSourceRead>();
+        var sources = new List<RimGovernor.Brain.GameFacts.Observations.TraderSourceRead>();
         if (def.workerClass == typeof(IncidentWorker_OrbitalTraderArrival))
         {
             if (map.passingShipManager.passingShips.Count >= MaxShips) blocked.Add("ships_full");
             var kinds = DefDatabase<TraderKindDef>.AllDefsListForReading.Where(k => k.orbital)
-                .Select(k => new Obs.TraderKindWeight(k.defName, k.CalculatedCommonality) { Qualifies = Qualifies(map, k) }).Where(k => k.Weight > 0 && k.Qualifies > 0)
+                .Select(k => new RimGovernor.Brain.GameFacts.Observations.TraderKindWeight(k.defName, k.CalculatedCommonality) { Qualifies = Qualifies(map, k) }).Where(k => k.Weight > 0 && k.Qualifies > 0)
                 .OrderBy(k => k.Kind, System.StringComparer.Ordinal).ToList();
             // No kind that can spawn fails TryExecuteWorker, not CanFireNow: the incident still takes its share of a category draw.
-            sources.Add(new Obs.TraderSourceRead { Kinds = [.. kinds] });
+            sources.Add(new RimGovernor.Brain.GameFacts.Observations.TraderSourceRead { Kinds = [.. kinds] });
         }
         else
         {
@@ -74,23 +73,23 @@ internal static class NativeTradeVisitFacts
                 var empire = Faction.OfEmpire;
                 if (empire == null || !worker.FactionCanBeGroupSource(empire, parms)) blocked.Add("no_faction");
                 var kinds = DefDatabase<TraderKindDef>.AllDefsListForReading.Where(k => k.category == IncidentWorker_CaravanArrivalTributeCollector.TributeCollectorTraderKindCategory)
-                    .Select(k => new Obs.TraderKindWeight(k.defName, k.CalculatedCommonality)).Where(k => k.Weight > 0).OrderBy(k => k.Kind, System.StringComparer.Ordinal).ToList();
-                sources.Add(new Obs.TraderSourceRead { Kinds = [.. kinds] });
+                    .Select(k => new RimGovernor.Brain.GameFacts.Observations.TraderKindWeight(k.defName, k.CalculatedCommonality)).Where(k => k.Weight > 0).OrderBy(k => k.Kind, System.StringComparer.Ordinal).ToList();
+                sources.Add(new RimGovernor.Brain.GameFacts.Observations.TraderSourceRead { Kinds = [.. kinds] });
             }
             else if (def.workerClass == typeof(IncidentWorker_TraderCaravanArrival))
             {
-                sources.AddRange(factions.Select(f => new Obs.TraderSourceRead { Faction = f.def.defName, Kinds = [.. f.def.caravanTraderKinds
-                    .Select(k => new Obs.TraderKindWeight(k.defName, CaravanCommonality(k, map, f))).Where(k => k.Weight > 0)] }));
+                sources.AddRange(factions.Select(f => new RimGovernor.Brain.GameFacts.Observations.TraderSourceRead { Faction = f.def.defName, Kinds = [.. f.def.caravanTraderKinds
+                    .Select(k => new RimGovernor.Brain.GameFacts.Observations.TraderKindWeight(k.defName, CaravanCommonality(k, map, f))).Where(k => k.Weight > 0)] }));
             }
             else if (def.workerClass == typeof(IncidentWorker_VisitorGroup))
             {
                 // IncidentWorker_VisitorGroup.TryConvertOnePawnToSmallTrader: a visitorTraderKinds kind by CalculatedCommonality.
-                sources.AddRange(factions.Select(f => new Obs.TraderSourceRead { Faction = f.def.defName, Kinds = [.. (f.def.visitorTraderKinds ?? new List<TraderKindDef>())
-                    .Select(k => new Obs.TraderKindWeight(k.defName, k.CalculatedCommonality)).Where(k => k.Weight > 0)] }));
+                sources.AddRange(factions.Select(f => new RimGovernor.Brain.GameFacts.Observations.TraderSourceRead { Faction = f.def.defName, Kinds = [.. (f.def.visitorTraderKinds ?? new List<TraderKindDef>())
+                    .Select(k => new RimGovernor.Brain.GameFacts.Observations.TraderKindWeight(k.defName, k.CalculatedCommonality)).Where(k => k.Weight > 0)] }));
             }
         }
 
-        return new Obs.TraderIncidentRead(def.defName) { Blocked = [.. blocked.Distinct()], Weight = Weight(map, def), Sources = [.. sources] };
+        return new RimGovernor.Brain.GameFacts.Observations.TraderIncidentRead(def.defName) { Blocked = [.. blocked.Distinct()], Weight = Weight(map, def), Sources = [.. sources] };
     }
 
     // IncidentWorker.CanFireNow's other game-state gates: the target tags, the biome lists, minPopulation, minRefireDays,

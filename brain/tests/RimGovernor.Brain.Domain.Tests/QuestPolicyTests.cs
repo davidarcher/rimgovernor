@@ -1,8 +1,7 @@
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
-using Pb = RimGovernor.Contracts.Wire.Observations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -13,15 +12,15 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class QuestPolicyTests
 {
-    private static Pb.QuestState JoinerOffer(string quest, double threat = 100) => QuestStateTests.NoQuest with
+    private static RimGovernor.Brain.GameFacts.Observations.QuestState JoinerOffer(string quest, double threat = 100) => QuestStateTests.NoQuest with
     {
         Id = new(quest),
         ScriptDef = "ThreatReward_Raid_Joiner",
         Rewards = [QuestStateTests.NoReward, QuestStateTests.NoReward],
-        Threat = new Pb.QuestThreat.Points(threat),
+        Threat = new RimGovernor.Brain.GameFacts.Observations.QuestThreat.Points(threat),
     };
 
-    private static RoundsFacts Calm(params Pb.QuestState[] offers) => QuestStateTests.WithQuests(new RoundsFacts
+    private static ReviewFacts Calm(params RimGovernor.Brain.GameFacts.Observations.QuestState[] offers) => QuestStateTests.WithQuests(new ReviewFacts
     {
         Census = ColonyFactsCoreTests.Snapshot(),
         QuestCalm = QuestCalm.Settled,
@@ -30,7 +29,7 @@ public sealed class QuestPolicyTests
         FoodDays = new FoodRunway.Days(20.0),
     }, offers);
 
-    private static EquatableArray<Pb.QuestState> Offers(RoundsFacts f) => f.QuestOffers;
+    private static EquatableArray<RimGovernor.Brain.GameFacts.Observations.QuestState> Offers(ReviewFacts f) => f.QuestOffers;
 
     [Fact]
     public void AJoinerOfferIsAcceptedWithRoomAndLeftWithoutIt()
@@ -62,9 +61,9 @@ public sealed class QuestPolicyTests
         Assert.Equal(new PopulationCapacity.Assessed(true), PopulationRules.JoinerCapacity(owned.JoinerCapacity()));
     }
 
-    private static readonly Pb.QuestObjective Produce = QuestStateTests.Objective(Pb.QuestObjectiveKind.ProduceItem) with
+    private static readonly RimGovernor.Brain.GameFacts.Observations.QuestObjective Produce = QuestStateTests.Objective(RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.ProduceItem) with
     {
-        Goal = new Pb.QuestObjectiveGoal.Things("Gun_Revolver", null, 3, 1),
+        Goal = new RimGovernor.Brain.GameFacts.Observations.QuestObjectiveGoal.Things("Gun_Revolver", null, 3, 1),
         Active = true,
     };
 
@@ -87,7 +86,7 @@ public sealed class QuestPolicyTests
         var offer = QuestStateTests.NoQuest with
         {
             Id = new("decree"),
-            State = Receipts.QuestStatus.Ongoing,
+            State = RimGovernor.Brain.GameFacts.Receipts.QuestStatus.Ongoing,
             ScriptDef = "Decree_ProduceItem",
             Objectives = [Produce],
         };
@@ -96,8 +95,8 @@ public sealed class QuestPolicyTests
         Assert.Equal(new DecreeDue { Objective = Produce, Def = "Gun_Revolver", Stuff = "", Remaining = 2 }, due);
 
         // Inventory is never progress: only an active objective with native production outstanding is owed.
-        Assert.Null(QuestDecrees.DecreeObjective(offer with { State = Receipts.QuestStatus.NotYetAccepted }, f));
-        Assert.Null(QuestDecrees.DecreeObjective(offer with { Objectives = [Produce with { Goal = new Pb.QuestObjectiveGoal.Things("Gun_Revolver", null, 3, 3) }] }, f));
+        Assert.Null(QuestDecrees.DecreeObjective(offer with { State = RimGovernor.Brain.GameFacts.Receipts.QuestStatus.NotYetAccepted }, f));
+        Assert.Null(QuestDecrees.DecreeObjective(offer with { Objectives = [Produce with { Goal = new RimGovernor.Brain.GameFacts.Observations.QuestObjectiveGoal.Things("Gun_Revolver", null, 3, 3) }] }, f));
 
         EquatableArray<Amount> stock = [new(new("Steel"), 100), new(new("ComponentIndustrial"), 10)];
         var (bill, reason) = QuestDecrees.PlanDecreeProduction(due!, [Revolver()], stock);
@@ -111,15 +110,15 @@ public sealed class QuestPolicyTests
         Assert.Equal("complete", QuestDecrees.PlanDecreeProduction(due! with { Remaining = 0 }, [Revolver()], stock).Reason);
     }
 
-    private static RoundsFacts Hosting(Pb.QuestShuttleState shuttle) => QuestStateTests.WithQuests(
-        new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot() },
-        [QuestStateTests.NoQuest with { Id = new("hosting"), State = Receipts.QuestStatus.Ongoing, ScriptDef = "Hospitality_Animals", Shuttles = [shuttle] }],
+    private static ReviewFacts Hosting(RimGovernor.Brain.GameFacts.Observations.QuestShuttleState shuttle) => QuestStateTests.WithQuests(
+        new ReviewFacts { Census = ColonyFactsCoreTests.Snapshot() },
+        [QuestStateTests.NoQuest with { Id = new("hosting"), State = RimGovernor.Brain.GameFacts.Receipts.QuestStatus.Ongoing, ScriptDef = "Hospitality_Animals", Shuttles = [shuttle] }],
         QuestStateTests.Root("Hospitality_Animals", new QuestProfile { Family = QuestFamily.HospitalityAnimals }));
 
     [Fact]
     public void AHospitalityShuttleIsAutoloadedThenLaunchedOnceLoaded()
     {
-        var waiting = new Pb.QuestShuttleState
+        var waiting = new RimGovernor.Brain.GameFacts.Observations.QuestShuttleState
         {
             AutoloadAvailable = true,
             Autoload = false,
@@ -160,84 +159,84 @@ public sealed class QuestPolicyTests
         Assert.Empty(CeremonyRules.ClaimQuests(royalty, claim with { Claim = false }));
     }
 
-    private static readonly Pb.QuestSurveyScanner Scanner = new()
+    private static readonly RimGovernor.Brain.GameFacts.Observations.QuestSurveyScanner Scanner = new()
     {
         SiteId = "site-1",
         DurationTicks = 120_000,
-        Scanner = Pb.SurveyScannerCondition.Intact,
-        Hold = new Pb.SurveyHold.Running(new Tick(150_000)),
+        Scanner = RimGovernor.Brain.GameFacts.Observations.SurveyScannerCondition.Intact,
+        Hold = new RimGovernor.Brain.GameFacts.Observations.SurveyHold.Running(new Tick(150_000)),
         Complete = false,
     };
 
-    private static readonly Pb.QuestGravEngine Engine = new()
+    private static readonly RimGovernor.Brain.GameFacts.Observations.QuestGravEngine Engine = new()
     {
         EngineId = "Thing_GravEngine7",
         Inspected = false,
-        Place = new Pb.GravEnginePlace.Spawned(0, [new PawnId("b"), new PawnId("a")], []),
+        Place = new RimGovernor.Brain.GameFacts.Observations.GravEnginePlace.Spawned(0, [new PawnId("b"), new PawnId("a")], []),
     };
 
     [Fact]
     public void SurveyAndGravEngineRecordsRoundTripExactly()
     {
-        var scannerJson = WireJson.Serialize(Scanner);
+        var scannerJson = OrdersJson.Serialize(Scanner);
         Assert.Equal(
             """{"siteId":"site-1","durationTicks":120000,"scanner":"intact","hold":{"type":"running","endTick":150000},"complete":false}""",
             scannerJson);
-        Assert.Equal(Scanner, WireJson.Deserialize<Pb.QuestSurveyScanner>(scannerJson));
+        Assert.Equal(Scanner, OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.QuestSurveyScanner>(scannerJson));
 
-        var engineJson = WireJson.Serialize(Engine);
+        var engineJson = OrdersJson.Serialize(Engine);
         Assert.Equal(
             """{"engineId":"Thing_GravEngine7","inspected":false,"place":{"type":"spawned","mapId":0,"eligiblePawnIds":["b","a"],"inspectingPawnIds":[]}}""",
             engineJson);
-        Assert.Equal(Engine, WireJson.Deserialize<Pb.QuestGravEngine>(engineJson));
+        Assert.Equal(Engine, OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.QuestGravEngine>(engineJson));
     }
 
-    private static readonly RoundsFacts Surveying = new()
+    private static readonly ReviewFacts Surveying = new()
     {
         QuestObservedTick = new Tick(100_000),
     };
 
-    private static Pb.QuestState SurveyOffer(Pb.QuestSurveyScanner scanner) => QuestStateTests.NoQuest with
+    private static RimGovernor.Brain.GameFacts.Observations.QuestState SurveyOffer(RimGovernor.Brain.GameFacts.Observations.QuestSurveyScanner scanner) => QuestStateTests.NoQuest with
     {
         Id = new("survey"),
-        State = Receipts.QuestStatus.Ongoing,
-        Objectives = [QuestStateTests.Objective(Pb.QuestObjectiveKind.HoldSurveyScanner) with { SurveyScanner = scanner }],
+        State = RimGovernor.Brain.GameFacts.Receipts.QuestStatus.Ongoing,
+        Objectives = [QuestStateTests.Objective(RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.HoldSurveyScanner) with { SurveyScanner = scanner }],
     };
 
     [Fact]
     public void ASurveyHoldReturnsOnNativeCompletionOrALostScannerAndWaitsWhileStopped()
     {
-        var site = new Pb.WorldSite
+        var site = new RimGovernor.Brain.GameFacts.Observations.WorldSite
         {
             Id = "site-1",
-            State = Pb.WorldSiteState.Spawned,
-            Place = new Pb.SitePlace.OnTile(5, 0),
+            State = RimGovernor.Brain.GameFacts.Observations.WorldSiteState.Spawned,
+            Place = new RimGovernor.Brain.GameFacts.Observations.SitePlace.OnTile(5, 0),
             QuestIds = [new QuestId("survey")],
-            Route = new Pb.SiteRoute.NoCrew(),
-            Security = new Pb.SiteThreatBudget.Unbounded(),
+            Route = new RimGovernor.Brain.GameFacts.Observations.SiteRoute.NoCrew(),
+            Security = new RimGovernor.Brain.GameFacts.Observations.SiteThreatBudget.Unbounded(),
         };
-        SurveyPlan Work(Pb.QuestSurveyScanner scanner) =>
-            QuestSurvey.SurveyWork(SurveyOffer(scanner), site, Surveying, new FoodSupply { Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] } }, RoundsRules.DefaultRoundsPolicy());
+        SurveyPlan Work(RimGovernor.Brain.GameFacts.Observations.QuestSurveyScanner scanner) =>
+            QuestSurvey.SurveyWork(SurveyOffer(scanner), site, Surveying, new FoodSupply { Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] } }, Rules.DefaultPlannerSettings());
 
-        var lost = Work(Scanner with { Scanner = Pb.SurveyScannerCondition.Destroyed });
+        var lost = Work(Scanner with { Scanner = RimGovernor.Brain.GameFacts.Observations.SurveyScannerCondition.Destroyed });
         Assert.Equal((true, "scanner_destroyed"), (lost.Return, lost.Reason.Value));
-        Assert.True(Work(Scanner with { Hold = new Pb.SurveyHold.Stopped(), Complete = true }).Return);
-        Assert.Equal("survey_hold_stopped", Work(Scanner with { Hold = new Pb.SurveyHold.Stopped() }).Reason.Value);
+        Assert.True(Work(Scanner with { Hold = new RimGovernor.Brain.GameFacts.Observations.SurveyHold.Stopped(), Complete = true }).Return);
+        Assert.Equal("survey_hold_stopped", Work(Scanner with { Hold = new RimGovernor.Brain.GameFacts.Observations.SurveyHold.Stopped() }).Reason.Value);
         // A running hold reads on to the crew's supplies at the site.
         Assert.Equal("survey_supply_unknown", Work(Scanner).Reason.Value);
         // A second scanner naming the same site leaves the hold unread.
         var twice = SurveyOffer(Scanner) with { Objectives = [.. SurveyOffer(Scanner).Objectives, .. SurveyOffer(Scanner).Objectives] };
-        Assert.Equal("survey_unknown", QuestSurvey.SurveyWork(twice, site, Surveying, new FoodSupply { Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] } }, RoundsRules.DefaultRoundsPolicy()).Reason.Value);
+        Assert.Equal("survey_unknown", QuestSurvey.SurveyWork(twice, site, Surveying, new FoodSupply { Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] } }, Rules.DefaultPlannerSettings()).Reason.Value);
     }
 
-    private static RoundsFacts Inspecting(Pb.QuestGravEngine? engine) => QuestStateTests.WithQuests(
-        new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot() },
+    private static ReviewFacts Inspecting(RimGovernor.Brain.GameFacts.Observations.QuestGravEngine? engine) => QuestStateTests.WithQuests(
+        new ReviewFacts { Census = ColonyFactsCoreTests.Snapshot() },
         [
             QuestStateTests.NoQuest with
             {
                 Id = new("signal"),
-                State = Receipts.QuestStatus.Ongoing,
-                Objectives = [QuestStateTests.Objective(Pb.QuestObjectiveKind.InspectGravEngine) with { GravEngine = engine }],
+                State = RimGovernor.Brain.GameFacts.Receipts.QuestStatus.Ongoing,
+                Objectives = [QuestStateTests.Objective(RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.InspectGravEngine) with { GravEngine = engine }],
             },
         ]);
 
@@ -251,10 +250,10 @@ public sealed class QuestPolicyTests
 
         // No single engine, an unspawned engine or one already being inspected waits; another map is skipped with a reason.
         Assert.True(QuestGravInspection.SelectQuestGravInspection(Inspecting(null), home) is { Service: null, Waiting: true });
-        Assert.True(QuestGravInspection.SelectQuestGravInspection(Inspecting(Engine with { Place = new Pb.GravEnginePlace.Unspawned() }), home) is { Service: null, Waiting: true });
-        Assert.True(QuestGravInspection.SelectQuestGravInspection(Inspecting(Engine with { Place = new Pb.GravEnginePlace.Spawned(0, [new PawnId("a")], [new PawnId("a")]) }), home) is { Service: null, Waiting: true });
+        Assert.True(QuestGravInspection.SelectQuestGravInspection(Inspecting(Engine with { Place = new RimGovernor.Brain.GameFacts.Observations.GravEnginePlace.Unspawned() }), home) is { Service: null, Waiting: true });
+        Assert.True(QuestGravInspection.SelectQuestGravInspection(Inspecting(Engine with { Place = new RimGovernor.Brain.GameFacts.Observations.GravEnginePlace.Spawned(0, [new PawnId("a")], [new PawnId("a")]) }), home) is { Service: null, Waiting: true });
         Assert.Equal("off_map", QuestGravInspection.SelectQuestGravInspection(Inspecting(Engine), new MapId(3)).Reason.Value);
-        Assert.Equal("inspector_unavailable", QuestGravInspection.SelectQuestGravInspection(Inspecting(Engine with { Place = new Pb.GravEnginePlace.Spawned(0, [], []) }), home).Reason.Value);
+        Assert.Equal("inspector_unavailable", QuestGravInspection.SelectQuestGravInspection(Inspecting(Engine with { Place = new RimGovernor.Brain.GameFacts.Observations.GravEnginePlace.Spawned(0, [], []) }), home).Reason.Value);
 
         // An inspected engine is done.
         var done = Engine with { Inspected = true };

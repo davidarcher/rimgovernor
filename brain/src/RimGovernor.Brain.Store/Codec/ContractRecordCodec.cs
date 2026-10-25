@@ -1,5 +1,6 @@
 using System.Text.Json;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 
 namespace RimGovernor.Brain.Store.Codec;
 
@@ -7,10 +8,10 @@ namespace RimGovernor.Brain.Store.Codec;
 internal sealed class ContractRecordCodec<T> : ICodec<T>, IBoxedCodec where T : class
 {
     public void Encode(Utf8JsonWriter w, T value, Codecs codecs) =>
-        JsonSerializer.Serialize(w, value, WireJson.Info<T>());
+        JsonSerializer.Serialize(w, value, FactsJson.Info<T>());
 
     public T Decode(JsonElement e, Codecs codecs) =>
-        JsonSerializer.Deserialize(e, WireJson.Info<T>())
+        JsonSerializer.Deserialize(e, FactsJson.Info<T>())
         ?? throw new StoreCorruptException(typeof(T).Name + " record is null");
 
     public void EncodeBoxed(Utf8JsonWriter w, object value, Codecs codecs) =>

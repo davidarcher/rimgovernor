@@ -17,7 +17,7 @@ to `otlp/logs.jsonl` under `RIMGOVERNOR_OTLP_DIR` (default
 The acceptance runner sets the directory per case. Segments rotate beside the file; the reader picks them all up.
 
 Row kinds a phase report reads:
-- `clock_step`: one row per `ClockScheduler.Step` (round trips by tool, reason,
+- `clock_step`: one row per `PlannerScheduler.Step` (round trips by tool, reason,
   hold-to-step latency, budgets against use: `budget`,
   `critical_wave_ms`, `missed_cutoff`, `held_by`).
 - `clock_run`: one row per Run, Hold or refusal the brain made (verdict, reason, `coupled_orders`, `held_for`).
@@ -133,7 +133,7 @@ regression, not a slow row.
   the paused number. The native
   accounting (pause/run, `probe_ms`/`digest_ms`, the frame account,
   `max_probe_tick_gap`, `hazard_gaps`) is the difference between two
-  `rimgovernor/acceptance_read_clock_accounting` reads, one when the row
+  `acceptance_read_clock_accounting` reads, one when the row
   resumes and one when its wait ends (`ClockAccounting`).
 - `holds` counts native's `clock_hold` rows, `holds_per_6000_ticks`
   is the rate comparable across speeds and `hold_reasons` splits them by

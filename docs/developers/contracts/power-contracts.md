@@ -158,4 +158,4 @@ ordinary hauling refuel it until its stove is powered; the planner's refuel hold
 The generation shortfall on a draining reserve, storage for a solar-only network (one `Battery` sited
 indoors), a wind turbine on a clear catch zone and a geothermal generator on a free geyser ahead of
 every other generator are decided by the power planner over recorded reviews
-(`brain/src/RimGovernor.Brain.BuildingRuntime`).
+(`brain/src/RimGovernor.Brain.Runtime`).

@@ -16,7 +16,7 @@ public class RimGovernorHostMod : Mod
         catch (Exception ex)
         {
             // The waterfall is diagnostics: the bridge starts without it.
-            Log.Warning($"[RimBridge] The launch waterfall has no RimWorld stages: {ex.Message}");
+            Log.Warning($"[Native] The launch waterfall has no RimWorld stages: {ex.Message}");
         }
 
         try
@@ -25,19 +25,19 @@ public class RimGovernorHostMod : Mod
             {
                 using (LaunchPhases.Phase("main-thread.initialize"))
                 {
-                    RimBridgeMainThread.Initialize();
-                    RimGovernor.Host.Sdk.RimBridgeMainThreadAccess.Current = new RimBridgeMainThreadClient();
+                    NativeMainThread.Initialize();
+                    RimGovernor.Host.Sdk.NativeMainThreadAccess.Current = new NativeMainThreadClient();
                 }
                 using (LaunchPhases.Phase("harmony.startup-patches"))
-                    RimBridgePatches.Apply();
+                    NativePatches.Apply();
                 using (LaunchPhases.Phase("startup.on-mod-constructed"))
-                    RimBridgeStartup.OnModConstructed();
+                    NativeStartup.OnModConstructed();
             }
         }
         catch (Exception ex)
         {
-            Log.Error($"[RimBridge] STARTUP_INIT_FAILURE: {ex}");
-            Log.Error($"[RimBridge] Failed to initialize server: {ex}");
+            Log.Error($"[Native] STARTUP_INIT_FAILURE: {ex}");
+            Log.Error($"[Native] Failed to initialize server: {ex}");
         }
     }
 }

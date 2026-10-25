@@ -1,6 +1,6 @@
 using System.Text.Json;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.PlayerApi;
 using RimGovernor.Launcher;
 using Xunit;
@@ -77,13 +77,13 @@ public sealed class LauncherPresetTests
     public void AWireRequestWithAThemeDecodesOnTheGamesRoute()
     {
         // lifecycle/theme-colony posts the wire record's JSON to the same route.
-        var request = new RimGovernor.Contracts.Wire.Lifecycle.NewColonyRequest
+        var request = new RimGovernor.Brain.GameOrders.Lifecycle.NewColonyRequest
         {
             RequestId = "theme-create", TimeoutMs = 600_000,
             Spec = NewColony.WireSpec("theme-colony-accept", NewColonySpec.Default with { Theme = "naked-cannibals", FlatTile = true }, "seed"),
         };
 
-        var decoded = NewColonyJson.Decode(RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(request));
+        var decoded = NewColonyJson.Decode(RimGovernor.Brain.GameOrders.OrdersJson.SerializeToUtf8Bytes(request));
 
         Assert.Equal(request.Spec, decoded.Spec);
     }
@@ -92,7 +92,7 @@ public sealed class LauncherPresetTests
     public void AThemeWithAnExplicitIdeoligionIsRefused()
     {
         var spec = NewColony.WireSpec("RimGovernor-x", NewColonySpec.Default with { Theme = "naked-cannibals" }, "seed")
-            with { Ideoligion = new RimGovernor.Contracts.Wire.Common.IdeoligionDesign { Fluid = false, Memes = ["Nudism"] } };
+            with { Ideoligion = new RimGovernor.Brain.GameFacts.Common.IdeoligionDesign { Fluid = false, Memes = ["Nudism"] } };
 
         var refused = Assert.Throws<BridgeContractException>(() => NewColonyValidation.ValidateNewColonySpec(spec));
 

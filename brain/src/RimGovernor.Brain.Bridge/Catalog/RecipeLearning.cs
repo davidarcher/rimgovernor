@@ -1,5 +1,6 @@
 using RimGovernor.Brain.Domain;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using RimWorld;
 using Verse;
 

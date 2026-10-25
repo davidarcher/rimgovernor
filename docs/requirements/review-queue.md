@@ -13,7 +13,7 @@ describes vanilla priorities scheduling routine food work. The
 [pawn activity contract](../developers/contracts/pawn-activities.md#needs-forecast-support-matrix)
 describes explicit governor choices for supported eating and work.
 
-Both mechanisms are reachable. RoundsAcquisitionPlanner commits harvest
+Both mechanisms are reachable. AcquisitionPlanner commits harvest
 designations; NativeAcquire maps plant acquisition to HarvestPlant. Explicit
 coupled activities also install exact work/eating assignments. The registered
 `food/forage-unarmed` case serves acquisition and work, asserting designation and

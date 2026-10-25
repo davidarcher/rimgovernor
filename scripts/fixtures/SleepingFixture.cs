@@ -7,7 +7,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Disposable inputs only; production builds exclude this class.
     public sealed class SleepingFixture
@@ -16,7 +16,7 @@ namespace HomeBridge.BridgeTools
         // native 22-cell planning radius, so the controller's placement sees
         // its cells. Every colonist but the first two already owns a bed in it.
         [Tool("test/sleeping_setup", Description = "Prepare a disposable roofed warm room with a bed for every colonist but the first two, and construction wood. couple: those two become spouses willing to share a bed, beside one vacant double bed. connectedRooms: they sleep on spots, and two bed chambers joined by a corridor stand outside Home with auto-home off.")]
-        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken, bool connectedRooms = false, bool couple = false)
+        public async Task<object> Setup(INativeContext ctx, CancellationToken cancellationToken, bool connectedRooms = false, bool couple = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 try {

@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 
 namespace RimGovernor.Brain.Policy;
 

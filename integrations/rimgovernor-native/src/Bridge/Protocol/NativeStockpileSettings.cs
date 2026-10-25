@@ -4,16 +4,13 @@ using System.IO;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 using FilterBase = RimGovernor.Brain.Domain.FilterBase;
 using Quality = RimGovernor.Brain.Domain.Quality;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
-    /// The typed Operations.StockpileSettings body shared by the zone intent's create and
+    /// The typed RimGovernor.Brain.GameOrders.Operations.StockpileSettings body shared by the zone intent's create and
     /// PatchStockpile: validation, resolution of every selector against the
     /// def database, application to a live or scratch ThingFilter, exact
     /// live-versus-desired comparison and the ZoneState.filter projection.
@@ -61,30 +58,30 @@ namespace HomeBridge.BridgeTools
         };
         /// <summary>Structural validation without the def database: shapes,
         /// bounds and range coherence. Resolve does the database lookups.</summary>
-        internal static bool Valid(Operations.StockpileSettings? settings)
+        internal static bool Valid(RimGovernor.Brain.GameOrders.Operations.StockpileSettings? settings)
         {
             if (settings == null || settings.Priority is null || settings.Preset is null) return false;
-            if (settings.Priority is Operations.StockpilePriorityChange.Selected selectedPriority && !Enum.IsDefined(selectedPriority.Value)
-                || settings.Preset is Operations.StockpilePresetChange.Selected selectedPreset && !Enum.IsDefined(selectedPreset.Value)) return false;
+            if (settings.Priority is RimGovernor.Brain.GameOrders.Operations.StockpilePriorityChange.Selected selectedPriority && !Enum.IsDefined(selectedPriority.Value)
+                || settings.Preset is RimGovernor.Brain.GameOrders.Operations.StockpilePresetChange.Selected selectedPreset && !Enum.IsDefined(selectedPreset.Value)) return false;
             var filter = settings.Filter;
-            if (filter == null) return settings.Priority is Operations.StockpilePriorityChange.Selected || settings.Preset is Operations.StockpilePresetChange.Selected;
-            var selectors = filter.Allow.Concat(filter.Disallow).Concat(filter.Replace?.Selectors ?? Enumerable.Empty<Operations.FilterSelector>()).ToList();
+            if (filter == null) return settings.Priority is RimGovernor.Brain.GameOrders.Operations.StockpilePriorityChange.Selected || settings.Preset is RimGovernor.Brain.GameOrders.Operations.StockpilePresetChange.Selected;
+            var selectors = filter.Allow.Concat(filter.Disallow).Concat(filter.Replace?.Selectors ?? Enumerable.Empty<RimGovernor.Brain.GameOrders.Operations.FilterSelector>()).ToList();
             if (selectors.Any(s => !ValidSelector(s))) return false;
             if (filter.HitPoints is null || (filter.QualityMin is not null) != (filter.QualityMax is not null)) return false;
-            if (filter.HitPoints is Operations.HitPointRange.Selected range && (double.IsNaN(range.Minimum) || double.IsNaN(range.Maximum)
+            if (filter.HitPoints is RimGovernor.Brain.GameOrders.Operations.HitPointRange.Selected range && (double.IsNaN(range.Minimum) || double.IsNaN(range.Maximum)
                 || range.Minimum < 0 || range.Maximum > 1 || range.Minimum > range.Maximum)) return false;
             if (filter.QualityMin is not null && (ParseQuality((filter.QualityMin ?? "")) == null || ParseQuality((filter.QualityMax ?? "")) == null
                 || (ParseQuality((filter.QualityMin ?? "")) ?? throw new System.InvalidOperationException("Required native value is unavailable: ParseQuality((filter.QualityMin ?? \"\")).")) > (ParseQuality((filter.QualityMax ?? "")) ?? throw new System.InvalidOperationException("Required native value is unavailable: ParseQuality((filter.QualityMax ?? \"\")).")))) return false;
             return true;
         }
 
-        private static bool ValidSelector(Operations.FilterSelector selector)
+        private static bool ValidSelector(RimGovernor.Brain.GameOrders.Operations.FilterSelector selector)
         {
             switch (selector.Definition)
             {
-                case Operations.FilterSelectorDefinition.ThingDefCase: return ProtoBoundary.IsIdentifier(selector.Definition?.ThingDef);
-                case Operations.FilterSelectorDefinition.CategoryDefCase: return ProtoBoundary.IsIdentifier(selector.Definition?.CategoryDef);
-                case Operations.FilterSelectorDefinition.SpecialFilterDefCase: return ProtoBoundary.IsIdentifier(selector.Definition?.SpecialFilterDef);
+                case RimGovernor.Brain.GameOrders.Operations.FilterSelectorDefinition.ThingDefCase: return GameThread.IsIdentifier(selector.Definition?.ThingDef);
+                case RimGovernor.Brain.GameOrders.Operations.FilterSelectorDefinition.CategoryDefCase: return GameThread.IsIdentifier(selector.Definition?.CategoryDef);
+                case RimGovernor.Brain.GameOrders.Operations.FilterSelectorDefinition.SpecialFilterDefCase: return GameThread.IsIdentifier(selector.Definition?.SpecialFilterDef);
                 default: return false;
             }
         }
@@ -98,12 +95,12 @@ namespace HomeBridge.BridgeTools
         /// <summary>Resolves every selector exactly by defName. Special filters
         /// must be configurable ones (the storage tab's own checkboxes); a
         /// ThingDef must be storable in the given universe.</summary>
-        internal static Resolved? Resolve(Operations.StockpileSettings? settings, List<ThingDef> universe)
+        internal static Resolved? Resolve(RimGovernor.Brain.GameOrders.Operations.StockpileSettings? settings, List<ThingDef> universe)
         {
             if (settings is null || !Valid(settings)) return null;
             var result = new Resolved();
-            if (settings.Priority is Operations.StockpilePriorityChange.Selected { Value: var priority }) result.Priority = NativeZoneCreation.ToNativePriority(priority);
-            if (settings.Preset is Operations.StockpilePresetChange.Selected { Value: var preset }) result.Preset = PresetName(preset);
+            if (settings.Priority is RimGovernor.Brain.GameOrders.Operations.StockpilePriorityChange.Selected { Value: var priority }) result.Priority = NativeZoneCreation.ToNativePriority(priority);
+            if (settings.Preset is RimGovernor.Brain.GameOrders.Operations.StockpilePresetChange.Selected { Value: var preset }) result.Preset = PresetName(preset);
             var filter = settings.Filter;
             if (filter == null) return result;
             var storable = new HashSet<ThingDef>(universe);
@@ -113,26 +110,26 @@ namespace HomeBridge.BridgeTools
                 if (!ResolveAll(filter.Replace.Selectors, storable, result.Replace)) return null;
             }
             if (!ResolveAll(filter.Allow, storable, result.Allow) || !ResolveAll(filter.Disallow, storable, result.Disallow)) return null;
-            if (filter.HitPoints is Operations.HitPointRange.Selected range) result.HitPoints = new FloatRange((float)range.Minimum, (float)range.Maximum);
+            if (filter.HitPoints is RimGovernor.Brain.GameOrders.Operations.HitPointRange.Selected range) result.HitPoints = new FloatRange((float)range.Minimum, (float)range.Maximum);
             if (filter.QualityMin is not null) result.Quality = new QualityRange((ParseQuality((filter.QualityMin ?? "")) ?? throw new System.InvalidOperationException("Required native value is unavailable: ParseQuality((filter.QualityMin ?? \"\")).")), (ParseQuality((filter.QualityMax ?? "")) ?? throw new System.InvalidOperationException("Required native value is unavailable: ParseQuality((filter.QualityMax ?? \"\")).")));
             return result;
         }
 
-        private static bool ResolveAll(IEnumerable<Operations.FilterSelector> selectors, HashSet<ThingDef> storable, StockpileFilter.Resolved into)
+        private static bool ResolveAll(IEnumerable<RimGovernor.Brain.GameOrders.Operations.FilterSelector> selectors, HashSet<ThingDef> storable, StockpileFilter.Resolved into)
         {
             foreach (var selector in selectors)
             {
                 switch (selector.Definition)
                 {
-                    case Operations.FilterSelectorDefinition.ThingDefCase:
+                    case RimGovernor.Brain.GameOrders.Operations.FilterSelectorDefinition.ThingDefCase:
                         var def = DefDatabase<ThingDef>.GetNamedSilentFail(selector.Definition?.ThingDef);
                         if (def == null || !storable.Contains(def)) return false;
                         into.Defs.Add(def); break;
-                    case Operations.FilterSelectorDefinition.CategoryDefCase:
+                    case RimGovernor.Brain.GameOrders.Operations.FilterSelectorDefinition.CategoryDefCase:
                         var category = DefDatabase<ThingCategoryDef>.GetNamedSilentFail(selector.Definition?.CategoryDef);
                         if (category == null) return false;
                         into.Categories.Add(category); break;
-                    case Operations.FilterSelectorDefinition.SpecialFilterDefCase:
+                    case RimGovernor.Brain.GameOrders.Operations.FilterSelectorDefinition.SpecialFilterDefCase:
                         var special = DefDatabase<SpecialThingFilterDef>.GetNamedSilentFail(selector.Definition?.SpecialFilterDef);
                         if (special == null || !special.configurable) return false;
                         into.Specials.Add(special); break;
@@ -202,7 +199,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // The filter's allowed set, ranges and fresh/rotten flags; AllowRotten has no SpecialThingFilterDefOf member.
-        internal static Obs.StockpileFilter Project(ThingFilter filter) => new Obs.StockpileFilter
+        internal static RimGovernor.Brain.GameFacts.Observations.StockpileFilter Project(ThingFilter filter) => new RimGovernor.Brain.GameFacts.Observations.StockpileFilter
         {
             AllowedDefNames = [.. StockpileFilter.AllowedSet(filter).Select(d => d.defName).OrderBy(n => n, StringComparer.Ordinal)],
             HitPointsMin = filter.AllowedHitPointsPercents.min,

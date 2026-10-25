@@ -35,7 +35,7 @@ public sealed record WorkAdmissionEvidence
     /// <summary>The census when the review froze; null when no routine frame read it.</summary>
     public StandingConstruction? Standing { get; init; }
     public EquatableArray<WorkPawnAvailability> Pawns { get; init; }
-    public EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn> WorkResources { get; init; }
+    public EquatableArray<RimGovernor.Brain.GameFacts.Observations.WorkResourcePawn> WorkResources { get; init; }
     public EquatableArray<Amount> Stock { get; init; }
     public EquatableArray<IngredientReservation> Reservations { get; init; }
     public EquatableArray<ProductionRecipeInput> Recipes { get; init; }
@@ -60,7 +60,7 @@ public static partial class ProductionRules
     public static BatchPricing Priced(ProductionBatch batch, ProductionRecipeInput recipe) =>
         new BatchPricing.Priced(batch, recipe.Slots, recipe.UsesUnfinishedItem);
 
-    public static WorkAdmissionEvidence WorkAdmissionEvidenceOf(RoundsFacts facts,
+    public static WorkAdmissionEvidence WorkAdmissionEvidenceOf(ReviewFacts facts,
         ProductionBatchCensus batches)
     {
         var promises = WorkRules.CreditCarriedBillInputs(ProductionPromisesOf(batches, facts.WorkAdmission.Recipes, facts.WorkAdmission.Bills), facts.Census.WorkResources);

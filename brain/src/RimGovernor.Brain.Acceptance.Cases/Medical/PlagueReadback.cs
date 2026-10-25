@@ -1,6 +1,5 @@
 using System.Globalization;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -36,7 +35,7 @@ internal static class PlagueReadback
             throw new AcceptanceException($"plague-prepare: want two patients, got {ServedOps.Json(setup)}");
         }
 
-        var rows = await TypedPawns.ListAsync(s, "plague-readback", new Observations.PawnFilter { Ids = [.. setup.Patients] }, cancellationToken).ConfigureAwait(false);
+        var rows = await TypedPawns.ListAsync(s, "plague-readback", new RimGovernor.Brain.GameFacts.Observations.PawnFilter { Ids = [.. setup.Patients] }, cancellationToken).ConfigureAwait(false);
         var problems = new List<string>();
         for (var index = 0; index < 2; index++)
         {
@@ -62,13 +61,13 @@ internal static class PlagueReadback
                 }
             }
 
-            if (plague.Immunizable?.Gain is not Observations.ImmunityGain.PerDay { Value: >= .01 and <= 2 })
+            if (plague.Immunizable?.Gain is not RimGovernor.Brain.GameFacts.Observations.ImmunityGain.PerDay { Value: >= .01 and <= 2 })
             {
                 problems.Add(string.Create(CultureInfo.InvariantCulture, $"{id} immunity gain = {plague.Immunizable?.Gain}"));
             }
 
             var tended = index == 1;
-            if (tended ? plague.Tend is not Observations.HediffTend.Tended { Quality: var q } || Math.Abs(q - .75) > .0001 : plague.Tend is not Observations.HediffTend.Untended)
+            if (tended ? plague.Tend is not RimGovernor.Brain.GameFacts.Observations.HediffTend.Tended { Quality: var q } || Math.Abs(q - .75) > .0001 : plague.Tend is not RimGovernor.Brain.GameFacts.Observations.HediffTend.Untended)
             {
                 problems.Add(string.Create(CultureInfo.InvariantCulture, $"{id} tend = {plague.Tend}, want tended = {tended}"));
             }

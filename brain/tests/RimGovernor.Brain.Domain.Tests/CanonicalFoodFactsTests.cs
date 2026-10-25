@@ -1,9 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -28,7 +28,7 @@ public sealed class CanonicalFoodFactsTests
         var human = Meal("human", forbidden: true, human: true);
         var eater = Eater();
         var larder = Larder();
-        var census = new O.FoodSupplyFacts { Consumers = [eater], Stocks = [meal, reserve, barred, human], Larder = larder };
+        var census = new RimGovernor.Brain.GameFacts.Observations.FoodSupplyFacts { Consumers = [eater], Stocks = [meal, reserve, barred, human], Larder = larder };
         var view = FoodForecastRules.FromCensus(census);
 
         Assert.Same(eater, Assert.Single(view.Consumers));
@@ -50,9 +50,9 @@ public sealed class CanonicalFoodFactsTests
     public void NativeFoodFactsRoundTripAndOmittedPhysicalFactsFail()
     {
         var stock = Meal("meal");
-        var census = new O.FoodSupplyFacts { Consumers = [Eater()], Stocks = [stock], Larder = Larder() };
-        var json = WireJson.Serialize(census);
-        var actual = WireJson.Deserialize<O.FoodSupplyFacts>(json);
+        var census = new RimGovernor.Brain.GameFacts.Observations.FoodSupplyFacts { Consumers = [Eater()], Stocks = [stock], Larder = Larder() };
+        var json = OrdersJson.Serialize(census);
+        var actual = OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.FoodSupplyFacts>(json);
         Assert.Equal(stock.Id, Assert.Single(actual.Stocks).Id);
         Assert.IsType<FoodPlace.Stands>(actual.Stocks[0].Place);
         Assert.IsType<FoodRot.Keeps>(actual.Stocks[0].Rot);
@@ -60,6 +60,6 @@ public sealed class CanonicalFoodFactsTests
 
         var document = JsonNode.Parse(json)!.AsObject();
         Assert.True(document["stocks"]![0]!.AsObject().Remove("forbidden"));
-        Assert.Throws<JsonException>(() => WireJson.Deserialize<O.FoodSupplyFacts>(document.ToJsonString()));
+        Assert.Throws<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.FoodSupplyFacts>(document.ToJsonString()));
     }
 }

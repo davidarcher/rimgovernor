@@ -1,6 +1,4 @@
-using D = RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
@@ -16,9 +14,9 @@ public sealed class WornCountGoalTests
     private const string Duster = "Apparel_Duster";
     private static readonly Resource Devilstrand = new("DevilstrandCloth");
 
-    private static GearPawn Pawn(string id, GearRoleInput? role = null, bool canWear = true, bool wearing = false, bool blocked = false) => new() { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new(id), Blocked = blocked }, Policy = new ApparelPolicyState { Observed = PoliciesTests.EmptyOutfit, Role = role ?? GearFixtures.Role, Definitions = canWear ? [new() { Name = Duster, Adult = true, CoversBody = true }, new() { Name = "Apparel_Shirt", Adult = true, CoversBody = true }] : [new() { Name = "Apparel_Shirt", Adult = true, CoversBody = true }] }, LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Observed = GearFixtures.Loadout(""), Body = EmergencyFixtures.Placed("").Settings.Body with { ComfortableMinC = 0, ComfortableMaxC = 0 }, Threat = ColonyModelFixtures.NoThreat, Worn = wearing ? [new GearOption { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("", Duster, (Devilstrand).Value, GearSource.Worn) with { Quality = new O.ItemQuality.Graded(D.QualityCategory.Awful) }) }] : [], Role = GearFixtures.Role }) };
+    private static GearPawn Pawn(string id, GearRoleInput? role = null, bool canWear = true, bool wearing = false, bool blocked = false) => new() { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new(id), Blocked = blocked }, Policy = new ApparelPolicyState { Observed = PoliciesTests.EmptyOutfit, Role = role ?? GearFixtures.Role, Definitions = canWear ? [new() { Name = Duster, Adult = true, CoversBody = true }, new() { Name = "Apparel_Shirt", Adult = true, CoversBody = true }] : [new() { Name = "Apparel_Shirt", Adult = true, CoversBody = true }] }, LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Observed = GearFixtures.Loadout(""), Body = EmergencyFixtures.Placed("").Settings.Body with { ComfortableMinC = 0, ComfortableMaxC = 0 }, Threat = ColonyModelFixtures.NoThreat, Worn = wearing ? [new GearOption { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("", Duster, (Devilstrand).Value, GearSource.Worn) with { Quality = new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded(RimGovernor.Brain.GameFacts.Defs.QualityCategory.Awful) }) }] : [], Role = GearFixtures.Role }) };
 
-    private static RoundsFacts Facts(params GearPawn[] pawns) => new()
+    private static ReviewFacts Facts(params GearPawn[] pawns) => new()
     {
         Gear = ColonyModelFixtures.NoGear() with { Pawns = pawns },
         Census = ColonyFactsCoreTests.Snapshot() with { Resources = [] },
@@ -28,15 +26,15 @@ public sealed class WornCountGoalTests
 
     private static GoalRecord Goal(int count = 2) => new() { Id = 1, Kind = GoalKind.WornCount, Target = Duster, Qualifier = Devilstrand.Value, Count = count };
 
-    private static GoalsFacts GoalFacts(RoundsFacts rounds, params string[] finished) => new()
+    private static GoalsFacts GoalFacts(ReviewFacts rounds, params string[] finished) => new()
     {
         Goals = [Goal()],
-        Rounds = rounds,
+        ReviewState = rounds,
         Research = ResearchTestFacts.Read(finished: finished),
         StuffResearch = new Dictionary<string, IReadOnlyList<string>> { [Devilstrand.Value] = ["Devilstrand"] },
     };
 
-    private static IReadOnlyList<string> Required(RoundsFacts f) =>
+    private static IReadOnlyList<string> Required(ReviewFacts f) =>
         [.. f.Gear.Pawns.Select(p => string.Join(",", p.Policy!.Required.Items))];
 
     [Fact]
@@ -46,7 +44,7 @@ public sealed class WornCountGoalTests
             Pawn("p4"),
             Pawn("p1"),
             Pawn("p2", new GearRoleInput { Observed = GearFixtures.Loadout("") with { ApparelPolicy = PoliciesTests.EmptyOutfit }, Pawn = EmergencyFixtures.Placed("") with { Drafted = true } }),
-            Pawn("p3", new GearRoleInput { Observed = GearFixtures.Loadout("") with { ApparelPolicy = PoliciesTests.EmptyOutfit, DevelopmentalStage = (true) ? D.DevelopmentalStage.Child : D.DevelopmentalStage.Adult }, Pawn = PawnFixtures.Row("") }),
+            Pawn("p3", new GearRoleInput { Observed = GearFixtures.Loadout("") with { ApparelPolicy = PoliciesTests.EmptyOutfit, DevelopmentalStage = (true) ? RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Child : RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Adult }, Pawn = PawnFixtures.Row("") }),
             Pawn("p5", canWear: false),
             Pawn("p6"));
         var stamped = GoalRules.Stamp(rounds, GoalRules.DemandOf(GoalFacts(rounds)));
@@ -99,7 +97,7 @@ public sealed class WornCountGoalTests
     {
         var plant = new PlanningDefinition { Research = ["Devilstrand"] ,Harvest=new PlanningHarvest {HarvestedThingDef = Devilstrand.Value}};
         var other = new PlanningDefinition { Harvest=new PlanningHarvest {HarvestedThingDef = "RawRice"}};
-        var map = GoalsRounds.StuffResearch([plant, other]);
+        var map = GoalsReview.StuffResearch([plant, other]);
         Assert.Equal(["Devilstrand"], map[Devilstrand.Value]);
         Assert.False(map.ContainsKey("RawRice"));
     }
@@ -111,6 +109,6 @@ public sealed class WornCountGoalTests
         Assert.Equal((GoalState.Pursuing, EconomyFamily.Resource, 2.0), (pursuing.State, pursuing.Owner, ((GoalDeficit.Measured)pursuing.Deficit).Amount));
         var none = GoalRules.Evaluate(Goal(), GoalFacts(Facts(Pawn("p1", canWear: false))));
         Assert.Equal((GoalState.NoMethod, "no_wearer"), (none.State, none.Reason));
-        Assert.Equal("gear census", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(Goal(), GoalFacts(new RoundsFacts()))).Fact);
+        Assert.Equal("gear census", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(Goal(), GoalFacts(new ReviewFacts()))).Fact);
     }
 }

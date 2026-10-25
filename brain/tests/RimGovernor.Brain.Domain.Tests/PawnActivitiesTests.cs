@@ -1,7 +1,7 @@
 using System.Text.Json;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Store.Codec;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using Xunit;
 namespace RimGovernor.Brain.Domain.Tests;
 public sealed class PawnActivitiesTests
@@ -26,9 +26,9 @@ public sealed class PawnActivitiesTests
         Assert.Equal(source, Assert.Single(stored.Tasks).Source);
         Assert.Equal(site, Assert.IsType<CellActivityStep>(stored.Orders[0].Steps[0]).Destination);
         Assert.IsType<PawnActivityStep>(stored.Orders[0].Steps[1]);
-        var request = new RimGovernor.Contracts.Wire.Observations.ActivityTaskRequest(ConstructionFixtures.Context().Identity, stored);
-        var wire = RimGovernor.Contracts.Wire.WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ActivityTaskRequest>(
-            RimGovernor.Contracts.Wire.WireJson.Serialize(request));
+        var request = new RimGovernor.Brain.GameOrders.Observations.ActivityTaskRequest(ConstructionFixtures.Context().Identity, stored);
+        var wire = RimGovernor.Brain.GameOrders.OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Observations.ActivityTaskRequest>(
+            RimGovernor.Brain.GameOrders.OrdersJson.Serialize(request));
         Assert.Equal(source, Assert.Single(wire.Batch.Tasks).Source);
         Assert.Equal(delivery, Assert.IsType<CellActivityStep>(wire.Batch.Orders[0].Steps[0]));
         Assert.IsType<PawnActivityStep>(wire.Batch.Orders[0].Steps[1]);
@@ -47,11 +47,11 @@ public sealed class PawnActivitiesTests
         var step = new PawnActivityStep(PawnActivityKind.Deliver, "steel", "", "", 3, 500).At(new(20, 21));
         var task = new SelectedActivityTask("delivery", "pawn", [], step, new(4, 5), 0);
         var batch = new PawnActivities(1, [new("pawn", "assignment", "method", 0, 1, false, [step])]) { Tasks = [task] };
-        var request = new RimGovernor.Contracts.Wire.Observations.ActivityTaskRequest(ConstructionFixtures.Context().Identity, batch);
-        var json = System.Text.Json.Nodes.JsonNode.Parse(RimGovernor.Contracts.Wire.WireJson.Serialize(request))!;
+        var request = new RimGovernor.Brain.GameOrders.Observations.ActivityTaskRequest(ConstructionFixtures.Context().Identity, batch);
+        var json = System.Text.Json.Nodes.JsonNode.Parse(RimGovernor.Brain.GameOrders.OrdersJson.Serialize(request))!;
         var target = removeSource ? json["batch"]!["tasks"]![0]! : json["batch"]!["orders"]![0]!["steps"]![0]!;
         Assert.True(target.AsObject().Remove(removeSource ? "source" : "destination"));
-        Assert.Throws<JsonException>(() => RimGovernor.Contracts.Wire.WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ActivityTaskRequest>(json.ToJsonString()));
+        Assert.Throws<JsonException>(() => RimGovernor.Brain.GameOrders.OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Observations.ActivityTaskRequest>(json.ToJsonString()));
     }
 
     private static PawnActivities Batch() => new(1, [new("pawn", "assignment", "method", 0, 1, false,

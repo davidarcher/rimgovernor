@@ -1,7 +1,6 @@
 using System.Globalization;
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -54,8 +53,8 @@ internal static class FoodLedger
         // The ledger may count a delivery between the two tallies; it is never outside them.
         foreach (var (name, kind, def, low, high) in new[]
         {
-            ("fish", Observations.DeliveryKind.Fish, "", before.Catches, after.Catches),
-            ("rice", Observations.DeliveryKind.Crop, "RawRice", before.RiceYield, after.RiceYield),
+            ("fish", RimGovernor.Brain.GameFacts.Observations.DeliveryKind.Fish, "", before.Catches, after.Catches),
+            ("rice", RimGovernor.Brain.GameFacts.Observations.DeliveryKind.Crop, "RawRice", before.RiceYield, after.RiceYield),
         })
         {
             var units = Units(ledger, kind, def);
@@ -65,7 +64,7 @@ internal static class FoodLedger
             }
         }
 
-        if (Units(ledger, Observations.DeliveryKind.AnimalProduct, "Milk") <= 0)
+        if (Units(ledger, RimGovernor.Brain.GameFacts.Observations.DeliveryKind.AnimalProduct, "Milk") <= 0)
         {
             throw new AcceptanceException("no milk counted for a gathered cow");
         }
@@ -83,13 +82,13 @@ internal static class FoodLedger
         }
     }
 
-    private static long Units(Observations.DeliveryLedger ledger, Observations.DeliveryKind kind, string def) =>
+    private static long Units(RimGovernor.Brain.GameFacts.Observations.DeliveryLedger ledger, RimGovernor.Brain.GameFacts.Observations.DeliveryKind kind, string def) =>
         ledger.Counts.Where(r => r.Kind == kind && (def.Length == 0 || r.Def == def)).Sum(r => r.Units);
 
     /// <summary>The colony facts' delivery ledger.</summary>
-    internal static async Task<Observations.DeliveryLedger> ReadAsync(TypedSession s, string label, CancellationToken cancellationToken)
+    internal static async Task<RimGovernor.Brain.GameFacts.Observations.DeliveryLedger> ReadAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         return reply.DeliveryLedger;
     }
 }

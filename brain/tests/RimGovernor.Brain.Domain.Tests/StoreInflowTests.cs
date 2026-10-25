@@ -1,4 +1,3 @@
-using Obs = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
@@ -19,15 +18,15 @@ public sealed class StoreInflowTests
     private static StockpileZone Zone(string id, string role, Rectangle room) =>
         new() { Id = id, Role = role, Cells = PlannedRules.RectCells(room), Filter = new StockpileFilter(FilterBase.Nothing) };
 
-    private static StockpileRequest Request(Dictionary<string, EquatableArray<Obs.StorageOccupancySample>> groups) => new()
+    private static StockpileRequest Request(Dictionary<string, EquatableArray<RimGovernor.Brain.GameFacts.Observations.StorageOccupancySample>> groups) => new()
     {
         Zones = [Zone("Zone_yard", "yard", YardRoom), Zone("Zone_warehouse", "general", WarehouseRoom)],
         Shelves = [new StockpileShelf { Building = "Shelf_7", Zone = "Zone_warehouse" }],
-        Occupancy = new Obs.StorageOccupancySnapshot { CurrentHour = Now, Groups = [.. groups.Select(g => new Obs.StorageOccupancyGroup { Group = g.Key, Samples = g.Value })] },
+        Occupancy = new RimGovernor.Brain.GameFacts.Observations.StorageOccupancySnapshot { CurrentHour = Now, Groups = [.. groups.Select(g => new RimGovernor.Brain.GameFacts.Observations.StorageOccupancyGroup { Group = g.Key, Samples = g.Value })] },
     };
 
-    private static EquatableArray<Obs.StorageOccupancySample> Ring(int from, int to, Func<int, int> stacks) =>
-        EquatableArray.From(Enumerable.Range(from, to - from + 1).Select(h => new Obs.StorageOccupancySample { Hour = h, Stacks = stacks(h) }));
+    private static EquatableArray<RimGovernor.Brain.GameFacts.Observations.StorageOccupancySample> Ring(int from, int to, Func<int, int> stacks) =>
+        EquatableArray.From(Enumerable.Range(from, to - from + 1).Select(h => new RimGovernor.Brain.GameFacts.Observations.StorageOccupancySample { Hour = h, Stacks = stacks(h) }));
 
     private static double Rate(StorageInflow inflow)
     {

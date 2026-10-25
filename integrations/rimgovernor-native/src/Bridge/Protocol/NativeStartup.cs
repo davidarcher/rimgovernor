@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 using RimGovernor.Brain.Bridge;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// The Bridge's one startup. RimWorld runs no <c>[StaticConstructorOnStartup]</c> in an assembly the host loads by
@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools
         {
             try { Install(); }
             catch (Exception e) { Log.Error($"[RimGovernor] Native startup install failed: {e}"); }
-            if (NativeFacadeRegistry.Current == null) NativeFacadeRegistry.Publish(InProcessNativeFacade.Instance);
+            if (GameApiRegistry.Current == null) GameApiRegistry.Publish(GameApi.Instance);
             HttpChannelBootstrap.Start();
             BrainBootstrap.Start();
         }

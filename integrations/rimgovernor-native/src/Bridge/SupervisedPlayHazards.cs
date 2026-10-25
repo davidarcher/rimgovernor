@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// The hazard classes the supervisor's Probe covers and the detection
     /// bound each one declares: the most game ticks a hazard of that

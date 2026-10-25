@@ -1,11 +1,10 @@
 using System.Text.Json;
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store.Codec;
 using Xunit;
-using Op = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -74,9 +73,9 @@ public sealed class RetiredBlueprintsTests
         var action = RoundTrip(Assert.Single(actions));
         Assert.True(action.Deconstruction!.CancelsBlueprint);
         var intent = IntentActionRules.IntentAction("cancel", action).Intent!.Designate!;
-        Assert.Equal(Op.ThingDesignation.Cancel, intent.Designation);
+        Assert.Equal(RimGovernor.Brain.GameOrders.Operations.ThingDesignation.Cancel, intent.Designation);
         Assert.Equal("Blueprint_Build7", intent.Target!.Id);
-        Assert.Equal(Op.DesignationGuard.NoGuard, intent.Guard);
+        Assert.Equal(RimGovernor.Brain.GameOrders.Operations.DesignationGuard.NoGuard, intent.Guard);
         Assert.Contains("Blueprint_Build7", HomeUpkeepReader.PlannedGroundWork(colony, rows, [], null!));
     }
 
@@ -94,8 +93,8 @@ public sealed class RetiredBlueprintsTests
         var action = Assert.Single(HomeUpkeepReader.GroundActions(new PlanId("plan-1"), step));
         Assert.False(action.Deconstruction!.CancelsBlueprint);
         var intent = IntentActionRules.IntentAction("frame", action).Intent!.Designate!;
-        Assert.Equal(Op.ThingDesignation.Deconstruct, intent.Designation);
-        Assert.Equal(Op.DesignationGuard.Enclosure, intent.Guard);
+        Assert.Equal(RimGovernor.Brain.GameOrders.Operations.ThingDesignation.Deconstruct, intent.Designation);
+        Assert.Equal(RimGovernor.Brain.GameOrders.Operations.DesignationGuard.Enclosure, intent.Guard);
     }
 
     [Fact]

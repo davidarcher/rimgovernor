@@ -3,9 +3,8 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.HttpChannel;
-using Common = RimGovernor.Contracts.Wire.Common;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -20,7 +19,6 @@ public sealed class HttpNativeTransport : IAsyncDisposable
     /// <summary>The longest a call may be asked to wait.</summary>
     public static readonly TimeSpan MaxCallTimeout = TimeSpan.FromMinutes(10);
 
-    private const string ToolPrefix = "rimgovernor/";
     private const string RequestArgument = "request";
 
     private readonly string _endpointDirectory;
@@ -57,7 +55,7 @@ public sealed class HttpNativeTransport : IAsyncDisposable
     public Func<string?>? Gone { get; init; }
 
     /// <summary>
-    /// Runs <paramref name="tool"/> (a name such as <c>rimgovernor/observations_read_status</c>) with its JSON
+    /// Runs <paramref name="tool"/> (a name such as <c>observations_read_status</c>) with its JSON
     /// arguments. A native op is called with an object holding only the string member <c>request</c> (its JSON
     /// request record), and its reply's structured content is <c>{"payload": "&lt;JSON reply record&gt;"}</c>.
     /// </summary>
@@ -180,8 +178,8 @@ public sealed class HttpNativeTransport : IAsyncDisposable
     }
 
     /// <summary>
-    /// The tools the channel routes right now (<c>GET /api/tools</c>), in the names a caller uses: a route without a
-    /// namespace is a <c>rimgovernor/</c> tool, <c>test/lab_start</c> keeps its own. Null when the channel cannot say,
+    /// The operations the channel routes right now (<c>GET /api/tools</c>), with their exact registered names.
+    /// Null when the channel cannot say,
     /// so callers assume a tool is present.
     /// </summary>
     public async Task<IReadOnlyList<string>?> ToolNamesAsync(CancellationToken cancellationToken)
@@ -208,7 +206,7 @@ public sealed class HttpNativeTransport : IAsyncDisposable
                 return null;
             }
 
-            return [.. tools.Select(t => t ?? "").Where(t => t.Length > 0).Select(ToolName)];
+            return [.. tools.Select(t => t ?? "").Where(t => t.Length > 0)];
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -220,9 +218,6 @@ public sealed class HttpNativeTransport : IAsyncDisposable
         }
     }
 
-    /// <summary>The tool name of a route name (the inverse of <see cref="RoutePath"/>).</summary>
-    internal static string ToolName(string route) => route.Contains('/', StringComparison.Ordinal) ? route : ToolPrefix + route;
-
     public ValueTask DisposeAsync()
     {
         if (_ownsClient)
@@ -233,7 +228,7 @@ public sealed class HttpNativeTransport : IAsyncDisposable
         return ValueTask.CompletedTask;
     }
 
-    /// <summary>The route of a tool name: <c>rimgovernor/x</c> is <c>/native/x</c>, any other name keeps its path under <c>/native/</c>.</summary>
+    /// <summary>The registered operation's route under <c>/native/</c>.</summary>
     internal static string RoutePath(string tool)
     {
         if (tool.Length == 0)
@@ -241,7 +236,7 @@ public sealed class HttpNativeTransport : IAsyncDisposable
             throw new NativeTransportException("native transport failure: empty tool name");
         }
 
-        return NativeRoutes.Prefix + (tool.StartsWith(ToolPrefix, StringComparison.Ordinal) ? tool[ToolPrefix.Length..] : tool);
+        return NativeRoutes.Prefix + tool;
     }
 
     /// <summary>Turns one HTTP reply into the transport's result, or the failure it reports.</summary>
@@ -270,16 +265,16 @@ public sealed class HttpNativeTransport : IAsyncDisposable
         }
 
         var (code, detail) = ReadFailure(text);
-        if ((int)status == NativeRoutes.RefusedStatus && TryName<Common.FailureCode>(code, out var failureCode))
+        if ((int)status == NativeRoutes.RefusedStatus && TryName<RimGovernor.Brain.GameFacts.Common.FailureCode>(code, out var failureCode))
         {
-            throw NativeFaults.Refused(new Common.Failure { Code = failureCode, RefusalClass = Common.RefusalClass.Unclassified, Detail = detail });
+            throw NativeFaults.Refused(new RimGovernor.Brain.GameFacts.Common.Failure { Code = failureCode, RefusalClass = RimGovernor.Brain.GameFacts.Common.RefusalClass.Unclassified, Detail = detail });
         }
 
-        if ((int)status == NativeRoutes.UnavailableStatus && TryName<Common.UnavailableReason>(code, out var reason))
+        if ((int)status == NativeRoutes.UnavailableStatus && TryName<RimGovernor.Brain.GameFacts.Common.UnavailableReason>(code, out var reason))
         {
-            throw reason == Common.UnavailableReason.NotLoaded
+            throw reason == RimGovernor.Brain.GameFacts.Common.UnavailableReason.NotLoaded
                 ? new NotLoadedException(detail)
-                : new NativeUnavailableException(new Common.Unavailable { Reason = reason, Detail = detail }, RimGovernor.Brain.Bridge.Contracts.Result.Empty);
+                : new NativeUnavailableException(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = reason, Detail = detail }, RimGovernor.Brain.GameAccess.Result.Empty);
         }
 
         if (status is HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed)

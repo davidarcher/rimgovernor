@@ -25,7 +25,7 @@ public static partial class SilverGapRules
     }
 
     /// <summary>The colony silver stock (SilverStock over f.ObservedStock()).</summary>
-    public static long Silver(this RoundsFacts f) => SilverStock(f.Items, f.ObservedStock());
+    public static long Silver(this ReviewFacts f) => SilverStock(f.Items, f.ObservedStock());
 
     /// <summary>
     /// The rough silver the need's purchases cost at the game's market values (ItemFacts): the cheapest medicine
@@ -79,20 +79,20 @@ public static partial class SilverGapRules
     public static bool SilverShort(ItemFacts items, TradeNeed need, long silver, long colonists) =>
         SilverGap(items, need, silver, colonists) > 0;
     /// <summary>The review's purchase need as the silver decisions read it.</summary>
-    private static TradeNeed ReviewTradeNeedOf(RoundsFacts f, RoundsPolicy p, MedicalReserveReview medicine, DerivedDemand demand) =>
-        TradePolicyRules.ReviewTradeNeed(f.Items, medicine, f.ObservedStock(), demand.Needs, TradePolicyRules.RoundsTradeFloors(p, null), f.Census.Threat.Observed, demand.Retained, TradePolicyRules.RoundsTradeFood(f, p));
+    private static TradeNeed ReviewTradeNeedOf(ReviewFacts f, PlannerSettings p, MedicalReserveReview medicine, DerivedDemand demand) =>
+        TradePolicyRules.ReviewTradeNeed(f.Items, medicine, f.ObservedStock(), demand.Needs, TradePolicyRules.TradeFloors(p, null), f.Census.Threat.Observed, demand.Retained, TradePolicyRules.TradeFood(f, p));
 
-    internal static double ReviewSilverGap(RoundsFacts f, RoundsPolicy p, MedicalReserveReview medicine, DerivedDemand demand) =>
+    internal static double ReviewSilverGap(ReviewFacts f, PlannerSettings p, MedicalReserveReview medicine, DerivedDemand demand) =>
         SilverGap(f.Items, ReviewTradeNeedOf(f, p, medicine, demand), f.Silver(), f.Census.ColonistCount);
 
-    private static bool ReviewSilverShort(RoundsFacts f, RoundsPolicy p, MedicalReserveReview medicine, DerivedDemand demand) =>
+    private static bool ReviewSilverShort(ReviewFacts f, PlannerSettings p, MedicalReserveReview medicine, DerivedDemand demand) =>
         SilverShort(f.Items, ReviewTradeNeedOf(f, p, medicine, demand), f.Silver(), f.Census.ColonistCount);
 
     /// <summary>
     /// The seasonal policy and the medical reserve review a planner recomputes from its own read, with the
-    /// review's latch, as DetectRounds derives them. Throws DomainException as ReviewMedicalReserve does.
+    /// review's latch, as DetectReview derives them. Throws DomainException as ReviewMedicalReserve does.
     /// </summary>
-    private static (RoundsPolicy Policy, MedicalReserveReview Medicine) RoundsMedicineReview(RoundsFacts f, RoundsPolicy p, bool medicineActive)
+    private static (PlannerSettings Policy, MedicalReserveReview Medicine) MedicineReview(ReviewFacts f, PlannerSettings p, bool medicineActive)
     {
         p = p.Seasonal(f.Calendar, f.DisasterConditions);
         var facts = f.MedicalReserve with { Census = f.Census };
@@ -101,16 +101,16 @@ public static partial class SilverGapRules
     }
 
     /// <summary>The review's silver runway deficit recomputed by a planner from its own read.</summary>
-    public static bool RoundsSilverShort(RoundsFacts f, RoundsPolicy p, bool medicineActive)
+    public static bool SilverShort(ReviewFacts f, PlannerSettings p, bool medicineActive)
     {
-        var (policy, medicine) = RoundsMedicineReview(f, p, medicineActive);
-        return ReviewSilverShort(f, policy, medicine, ResourceRules.ResourceDemandOf(f, policy, new RoundsLatches()));
+        var (policy, medicine) = MedicineReview(f, p, medicineActive);
+        return ReviewSilverShort(f, policy, medicine, ResourceRules.ResourceDemandOf(f, policy, new Latches()));
     }
     /// <summary>The review's silver gap recomputed by a planner from its own read, with the review's derived resource demand beside it.</summary>
-    public static (double Gap, DerivedDemand Demand) RoundsSilverGap(RoundsFacts f, RoundsPolicy p, bool medicineActive)
+    public static (double Gap, DerivedDemand Demand) SilverGap(ReviewFacts f, PlannerSettings p, bool medicineActive)
     {
-        var (policy, medicine) = RoundsMedicineReview(f, p, medicineActive);
-        var demand = ResourceRules.ResourceDemandOf(f, policy, new RoundsLatches());
+        var (policy, medicine) = MedicineReview(f, p, medicineActive);
+        var demand = ResourceRules.ResourceDemandOf(f, policy, new Latches());
         return (ReviewSilverGap(f, policy, medicine, demand), demand);
     }
     /// <summary>The market value a work tick adds (StatWorker_MarketValue, 0.0036 silver per tick).</summary>

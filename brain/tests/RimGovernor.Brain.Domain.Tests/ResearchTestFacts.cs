@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
-using O = RimGovernor.Contracts.Wire.Observations;
-using TechLevel = RimGovernor.Contracts.Wire.Defs.TechLevel;
+using TechLevel = RimGovernor.Brain.GameFacts.Defs.TechLevel;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -17,12 +16,12 @@ internal static class ResearchTestFacts
         {
             TechLevel = levels?.GetValueOrDefault(name) ?? definitions?.GetValueOrDefault(name)?.TechLevel ?? TechLevel.Undefined,
         }, StringComparer.Ordinal);
-        var snapshot = new O.ResearchSnapshot
+        var snapshot = new RimGovernor.Brain.GameFacts.Observations.ResearchSnapshot
         {
             Context = ColonyFactsCoreTests.Snapshot().Context,
             Finished = [.. finished ?? []],
             Slots = [],
-            Projects = [.. names.Select(name => new O.ResearchProject
+            Projects = [.. names.Select(name => new RimGovernor.Brain.GameFacts.Observations.ResearchProject
             {
                 Project = new() { DefName = name }, Current = name == current,
                 Finished = (finished ?? []).Contains(name),

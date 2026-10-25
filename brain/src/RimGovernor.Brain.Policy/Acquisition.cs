@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy;
 
 
@@ -9,9 +8,9 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record AcquisitionSource
 {
-    public required O.AcquisitionFacts Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.AcquisitionFacts Observed { get; init; }
 
-    public required O.EntityRef Entity { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.EntityRef Entity { get; init; }
 
     public string Id => Observed.Source.Id;
 
@@ -21,15 +20,15 @@ public sealed record AcquisitionSource
 
     public string Definition => Entity.DefName;
 
-    public Cell Cell => Entity.Place is O.EntityPlace.OnMap at ? at.Cell : throw new RequiredFactException("acquisition source map cell");
+    public Cell Cell => Entity.Place is RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap at ? at.Cell : throw new RequiredFactException("acquisition source map cell");
 
     public bool Tree { get; init; }
 
-    public bool Food => Observed.Kind is O.AcquisitionKind.Plant plant ? plant.Food : !Pest;
+    public bool Food => Observed.Kind is RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Plant plant ? plant.Food : !Pest;
 
-    public bool Designated => Observed.Designation is O.AcquisitionDesignation.Designated;
+    public bool Designated => Observed.Designation is RimGovernor.Brain.GameFacts.Observations.AcquisitionDesignation.Designated;
 
-    public bool Hunt => Observed.Kind is O.AcquisitionKind.Hunt;
+    public bool Hunt => Observed.Kind is RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Hunt;
 
     public double Yield => Observed.Yield;
 
@@ -39,14 +38,14 @@ public sealed record AcquisitionSource
 
     public double WeaponRange { get; init; }
 
-    public uint HerdSize => Observed.Kind is O.AcquisitionKind.Hunt hunt ? hunt.HerdSize : 0;
+    public uint HerdSize => Observed.Kind is RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Hunt hunt ? hunt.HerdSize : 0;
 
     public bool MeleeOnly { get; init; }
 
-    public bool Downed => Observed.Kind is O.AcquisitionKind.Hunt { Downed: true };
+    public bool Downed => Observed.Kind is RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Hunt { Downed: true };
 
     /// <summary>Sleeping and Predator describe a hunt row for squad planning.</summary>
-    public bool Sleeping => Observed.Kind is O.AcquisitionKind.Hunt { Sleeping: true };
+    public bool Sleeping => Observed.Kind is RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Hunt { Sleeping: true };
 
     public bool Predator { get; init; }
 
@@ -57,7 +56,7 @@ public sealed record AcquisitionSource
     public bool Pest { get; init; }
 
     /// <summary>The tick native first saw the designation (reset on load); set only when Designated.</summary>
-    public Tick DesignatedTick => Observed.Designation is O.AcquisitionDesignation.Designated designated ? designated.Since : default;
+    public Tick DesignatedTick => Observed.Designation is RimGovernor.Brain.GameFacts.Observations.AcquisitionDesignation.Designated designated ? designated.Since : default;
 
     /// <summary>A pawn's reservation or a colonist's current job targets the source.</summary>
     public bool Taken => Observed.Taken;
@@ -67,13 +66,13 @@ public sealed record AcquisitionSource
     /// growing zone: the only zone plant chop acquisition may offer, and only at or above the chop gate
     /// (BelowChopGate). Wild trees ignore growth.
     /// </summary>
-    public double Growth => Observed.Kind is O.AcquisitionKind.Plant plant ? plant.Growth : 0;
+    public double Growth => Observed.Kind is RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Plant plant ? plant.Growth : 0;
 
-    public bool Plantation => Observed.Kind is O.AcquisitionKind.Plant { Plantation: true };
+    public bool Plantation => Observed.Kind is RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Plant { Plantation: true };
 
     /// <summary>
     /// Whether the row is a plantation tree still under the minimum growth fraction the chop selection requires
-    /// (RoundsPolicy.ChopMinGrowth). Wild trees and every other row are never below it.
+    /// (PlannerSettings.ChopMinGrowth). Wild trees and every other row are never below it.
     /// </summary>
     public bool BelowChopGate(double minGrowth) => Plantation && Tree && Growth < minGrowth;
 

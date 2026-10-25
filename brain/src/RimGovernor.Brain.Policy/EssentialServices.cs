@@ -10,7 +10,7 @@ public enum DevelopmentReviewState { Active, Satisfied, Obsolete, RetirementUnpr
 /// A reference to an existing owner predicate, not an independent stock target or skill floor. The owner is a
 /// NeedId under its <see cref="NeedId.FilingKey"/> (#3250).
 /// </summary>
-public sealed record ServiceTarget(ConcernId Owner, string Subject, string Predicate)
+public sealed record ServiceTarget(FilingKey Owner, string Subject, string Predicate)
 {
     /// <summary>The target of a Need's own predicate.</summary>
     public static ServiceTarget ForNeed(NeedId need, string subject = "", string predicate = "need_satisfied")
@@ -76,7 +76,7 @@ public static class EssentialServicesRules
 
     /// <summary>Full-review assessment only. A counterfactual evidence gap never erases baseline evidence.
     /// Proposals reference owner satisfaction predicates; they grant neither practice nor spending.</summary>
-    public static EssentialServiceReview ReviewEssentialServices(RoundsFacts facts, RoundsPolicy policy,
+    public static EssentialServiceReview ReviewEssentialServices(ReviewFacts facts, PlannerSettings policy,
         DerivedDemand demand, int scenarioBudget = 128, bool medicineActive = false)
     {
         if (scenarioBudget < 0) throw new DomainException("negative service scenario budget");
@@ -194,7 +194,7 @@ public static class EssentialServicesRules
         return new(facts.Tick, rows.ToImmutableArray(), stress.ToImmutableArray(), proposals, truncated);
     }
 
-    private static void AssessServiceCooking(RoundsFacts facts, DerivedDemand demand, List<ServiceAssessment> rows,
+    private static void AssessServiceCooking(ReviewFacts facts, DerivedDemand demand, List<ServiceAssessment> rows,
         Action<ServiceTarget, string, Func<(ServiceCoverage, EquatableArray<string>)>> scenario)
     {
         var target = ServiceTarget.ForNeed(FoodRules.CookingNeed, "recipe-capability", "recipe_eligibility_and_inputs");
@@ -248,7 +248,7 @@ public static class EssentialServicesRules
             .Order(StringComparer.Ordinal)) scenario(target, dependency, () => Assess(dependency));
     }
 
-    private static void AssessServiceMedical(RoundsFacts facts, List<ServiceAssessment> rows,
+    private static void AssessServiceMedical(ReviewFacts facts, List<ServiceAssessment> rows,
         Action<ServiceTarget, string, Func<(ServiceCoverage, EquatableArray<string>)>> scenario)
     {
         var patients = facts.MedicalPawns;
@@ -293,7 +293,7 @@ public static class EssentialServicesRules
         }
     }
 
-    private static void AssessServiceRoutes(RoundsFacts facts, List<ServiceAssessment> rows,
+    private static void AssessServiceRoutes(ReviewFacts facts, List<ServiceAssessment> rows,
         Action<ServiceTarget, string, Func<(ServiceCoverage, EquatableArray<string>)>> scenario)
     {
         var routes = facts.Upkeep.Routes;
@@ -315,7 +315,7 @@ public static class EssentialServicesRules
         }
     }
 
-    private static void AssessServicePower(RoundsFacts facts, List<ServiceAssessment> rows,
+    private static void AssessServicePower(ReviewFacts facts, List<ServiceAssessment> rows,
         Action<ServiceTarget, string, Func<(ServiceCoverage, EquatableArray<string>)>> scenario)
     {
         if (!facts.PowerRequired) return;

@@ -12,9 +12,8 @@ using RimGovernor.Brain.Bridge;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
-using Clock = RimGovernor.Contracts.Wire.Clock;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static partial class Supervisor
     {
@@ -109,11 +108,11 @@ namespace HomeBridge.BridgeTools
                 if (s.Boosted) OnUpdate();
                 if (!s.Active) return;
                 if (!ReferenceEquals(Current.Game, s.Session) || !ReferenceEquals(Find.CurrentMap, s.Map))
-                { Stop(s, Clock.HoldReason.SessionChanged, "Loaded game changed.", false); return; }
+                { Stop(s, RimGovernor.Brain.GameFacts.Clock.HoldReason.SessionChanged, "Loaded game changed.", false); return; }
                 var tm = Find.TickManager;
-                if (tm == null) { Stop(s, Clock.HoldReason.Unavailable, "Tick manager disappeared.", false); return; }
+                if (tm == null) { Stop(s, RimGovernor.Brain.GameFacts.Clock.HoldReason.Unavailable, "Tick manager disappeared.", false); return; }
                 if (tm.TicksGame < s.LastTick)
-                { Stop(s, Clock.HoldReason.SessionChanged, "Game clock rewound.", true); return; }
+                { Stop(s, RimGovernor.Brain.GameFacts.Clock.HoldReason.SessionChanged, "Game clock rewound.", true); return; }
                 s.LastTick = tm.TicksGame;
                 CaptureTypedContext(s);
                 if (StopInvalidTypedAuthority(s)) return;
@@ -123,7 +122,7 @@ namespace HomeBridge.BridgeTools
                 // tick boundary like a hazard (#3556). A tick already passed when
                 // the Run landed holds here, at the first tick of the segment.
                 if (tm.TicksGame >= s.HoldAtTick)
-                { Stop(s, Clock.HoldReason.Review, "Review due at tick " + s.HoldAtTick + ".", true); return; }
+                { Stop(s, RimGovernor.Brain.GameFacts.Clock.HoldReason.Review, "Review due at tick " + s.HoldAtTick + ".", true); return; }
                 // Preserve player and letter attribution if the final tick also
                 // changed the clock. The frame watcher handles those stops.
                 if (tm.CurTimeSpeed != s.RequestedSpeed) return;
@@ -178,10 +177,10 @@ namespace HomeBridge.BridgeTools
                 {
                     // A stale watcher belongs to the old session. Retire it,
                     // but never pause the newly loaded colony.
-                    if (!ReferenceEquals(Current.Game, s.Session) || !ReferenceEquals(Find.CurrentMap, s.Map)) { Stop(s, Clock.HoldReason.SessionChanged, "Loaded game changed.", false); return; }
+                    if (!ReferenceEquals(Current.Game, s.Session) || !ReferenceEquals(Find.CurrentMap, s.Map)) { Stop(s, RimGovernor.Brain.GameFacts.Clock.HoldReason.SessionChanged, "Loaded game changed.", false); return; }
                     var tm = Find.TickManager;
-                    if (tm == null) { Stop(s, Clock.HoldReason.Unavailable, "Tick manager disappeared.", false); return; }
-                    if (tm.TicksGame < s.LastTick) { Stop(s, Clock.HoldReason.SessionChanged, "Game clock rewound.", true); return; }
+                    if (tm == null) { Stop(s, RimGovernor.Brain.GameFacts.Clock.HoldReason.Unavailable, "Tick manager disappeared.", false); return; }
+                    if (tm.TicksGame < s.LastTick) { Stop(s, RimGovernor.Brain.GameFacts.Clock.HoldReason.SessionChanged, "Game clock rewound.", true); return; }
                     s.LastTick = tm.TicksGame;
                     CaptureTypedContext(s);
                     if (s.Pending is { } pending)
@@ -198,11 +197,11 @@ namespace HomeBridge.BridgeTools
                     if (tm.CurTimeSpeed == TimeSpeed.Paused) {
                         // The letter LetterStack.ReceiveLetter paused for, when the pause hook attributed one.
                         var letter = LetterPauseHook.Consume();
-                        Stop(s, letter == null ? new HoldCause(Clock.HoldReason.ExternalPause, ExternalPauseDetail())
-                            : new HoldCause(Clock.HoldReason.LetterPause, ExternalPauseDetail(), PauseLetterId: letter), false);
+                        Stop(s, letter == null ? new HoldCause(RimGovernor.Brain.GameFacts.Clock.HoldReason.ExternalPause, ExternalPauseDetail())
+                            : new HoldCause(RimGovernor.Brain.GameFacts.Clock.HoldReason.LetterPause, ExternalPauseDetail(), PauseLetterId: letter), false);
                         return;
                     }
-                    if (tm.CurTimeSpeed != s.RequestedSpeed) { Stop(s, Clock.HoldReason.ExternalSpeedChanged, "Speed changed outside the supervisor.", true); return; }
+                    if (tm.CurTimeSpeed != s.RequestedSpeed) { Stop(s, RimGovernor.Brain.GameFacts.Clock.HoldReason.ExternalSpeedChanged, "Speed changed outside the supervisor.", true); return; }
                     // An armed combat event is the stop, not the hazard probe's
                     // view of the same down: the down hook also requests a probe,
                     // and a Hyperfast tick runs this before TickBody's own
@@ -211,7 +210,7 @@ namespace HomeBridge.BridgeTools
                     if (!RunProbeIfDue(s, tm)) return;
                     RunDigestIfDue(s, tm);
                 }
-                catch (Exception ex) { Stop(s, Clock.HoldReason.WatcherError, ex.GetType().Name + ": " + ex.Message, true); }
+                catch (Exception ex) { Stop(s, RimGovernor.Brain.GameFacts.Clock.HoldReason.WatcherError, ex.GetType().Name + ": " + ex.Message, true); }
             }
         }
 
@@ -320,7 +319,7 @@ namespace HomeBridge.BridgeTools
                 // A choice dialog the game opened by itself is answered through
                 // Operations.AnswerDialog once the controller has read its
                 // options; it is named so the stop is actionable headless.
-                Stop(s, naming ? Clock.HoldReason.ColonyNaming : dialog != null ? Clock.HoldReason.DialogPause : Clock.HoldReason.GameForced,
+                Stop(s, naming ? RimGovernor.Brain.GameFacts.Clock.HoldReason.ColonyNaming : dialog != null ? RimGovernor.Brain.GameFacts.Clock.HoldReason.DialogPause : RimGovernor.Brain.GameFacts.Clock.HoldReason.GameForced,
                     naming ? "RimWorld requests initial faction and settlement names."
                         : dialog != null ? "Game is force-paused by " + dialog.GetType().FullName + " (" + (ChoiceDialogTools.Title(dialog) ?? "") + "); read the colony facts dialog section and answer it."
                         : ForcePauseDetail(), true);
@@ -340,7 +339,7 @@ namespace HomeBridge.BridgeTools
                     + ClockState() + "."));
             }
             if (now - s.ForcePauseSinceMs < ForcePauseGraceMs) return;
-            Stop(s, Clock.HoldReason.GameForced, ForcePauseDetail() + " It did not clear in "
+            Stop(s, RimGovernor.Brain.GameFacts.Clock.HoldReason.GameForced, ForcePauseDetail() + " It did not clear in "
                 + (ForcePauseGraceMs / 1000) + " s, which is far longer than an autosave, "
                 + "so this is no longer treated as transient.", true);
         }
@@ -355,7 +354,7 @@ namespace HomeBridge.BridgeTools
             var tm = Find.TickManager;
             if (tm == null || tm.CurTimeSpeed != s.RequestedSpeed)
             {
-                Stop(s, Clock.HoldReason.ExternalPause, "Clock changed during a force pause; explicit player resume required.", false);
+                Stop(s, RimGovernor.Brain.GameFacts.Clock.HoldReason.ExternalPause, "Clock changed during a force pause; explicit player resume required.", false);
                 return false;
             }
             Publish(new ForcePauseCleared(Origin(s), "The " + (longEvent ? "long event" : "transient force pause")
@@ -436,11 +435,11 @@ namespace HomeBridge.BridgeTools
             var research = ResearchDigest();
             var world = WorldDigest();
             var conditions = ConditionDigest(s.Map);
-            var families = new List<Clock.FactFamily>();
+            var families = new List<RimGovernor.Brain.GameFacts.Clock.FactFamily>();
             var reasons = new List<string>();
-            if (s.ResearchDigest != null && s.ResearchDigest != research) { families.Add(Clock.FactFamily.Research); families.Add(Clock.FactFamily.Definitions); reasons.Add("research " + research); }
-            if (s.WorldDigest != null && s.WorldDigest != world) { families.Add(Clock.FactFamily.World); reasons.Add("faction relations changed"); }
-            if (s.ConditionDigest != null && s.ConditionDigest != conditions) { families.Add(Clock.FactFamily.Colony); reasons.Add("game conditions " + (conditions == "" ? "cleared" : conditions)); }
+            if (s.ResearchDigest != null && s.ResearchDigest != research) { families.Add(RimGovernor.Brain.GameFacts.Clock.FactFamily.Research); families.Add(RimGovernor.Brain.GameFacts.Clock.FactFamily.Definitions); reasons.Add("research " + research); }
+            if (s.WorldDigest != null && s.WorldDigest != world) { families.Add(RimGovernor.Brain.GameFacts.Clock.FactFamily.World); reasons.Add("faction relations changed"); }
+            if (s.ConditionDigest != null && s.ConditionDigest != conditions) { families.Add(RimGovernor.Brain.GameFacts.Clock.FactFamily.Colony); reasons.Add("game conditions " + (conditions == "" ? "cleared" : conditions)); }
             s.ResearchDigest = research; s.WorldDigest = world; s.ConditionDigest = conditions;
             if (families.Count != 0) Invalidate(s, string.Join("; ", reasons), families);
             PublishZoneChanges(s);
@@ -449,11 +448,11 @@ namespace HomeBridge.BridgeTools
         /// Publishes one ObservationInvalidated: the stale families, narrowed
         /// to the changed rows' ids and the one rectangle the change touched
         /// when the caller can attribute it.
-        private static void Invalidate(State s, string reason, IReadOnlyList<Clock.FactFamily> families,
+        private static void Invalidate(State s, string reason, IReadOnlyList<RimGovernor.Brain.GameFacts.Clock.FactFamily> families,
             IReadOnlyList<string>? entityIds = null, CellRectangle? cells = null) =>
             Publish(new ObservationInvalidated(Origin(s), "Observed facts changed: " + reason + ".", families, reason,
                 entityIds ?? Array.Empty<string>(), cells));
-        private static readonly Clock.FactFamily[] ColonyFamily = { Clock.FactFamily.Colony };
+        private static readonly RimGovernor.Brain.GameFacts.Clock.FactFamily[] ColonyFamily = { RimGovernor.Brain.GameFacts.Clock.FactFamily.Colony };
         /// A growing zone turning ripe (any sown plant harvestable now) or
         /// fully harvested appends one colony row narrowed to those zones
         ///, so the grower review runs without waiting for a stop.
@@ -484,7 +483,7 @@ namespace HomeBridge.BridgeTools
                 if (growing == null) continue;
                 string id;
                 try { id = zone.GetUniqueLoadID(); } catch { continue; }
-                if (!ProtoBoundary.IsIdentifier(id)) continue;
+                if (!GameThread.IsIdentifier(id)) continue;
                 try
                 {
                     foreach (var cell in growing.Cells)
@@ -563,7 +562,7 @@ namespace HomeBridge.BridgeTools
                 if (!(zone is Zone_Stockpile)) continue;
                 string id;
                 try { id = zone.GetUniqueLoadID(); } catch { continue; }
-                if (!ProtoBoundary.IsIdentifier(id)) continue;
+                if (!GameThread.IsIdentifier(id)) continue;
                 var used = 0;
                 try { foreach (var cell in zone.Cells) if (!NativeZoneCreation.StorageEmpty(cell, map)) used++; } catch { continue; }
                 result[id] = used;
@@ -592,7 +591,7 @@ namespace HomeBridge.BridgeTools
                 if (zone == null) continue;
                 string id;
                 try { id = zone.GetUniqueLoadID(); } catch { continue; }
-                if (!ProtoBoundary.IsIdentifier(id)) continue;
+                if (!GameThread.IsIdentifier(id)) continue;
                 var digest = new ZoneDigest { MinX = int.MaxValue, MinZ = int.MaxValue, MaxX = int.MinValue, MaxZ = int.MinValue };
                 foreach (var cell in zone.Cells)
                 {
@@ -655,7 +654,7 @@ namespace HomeBridge.BridgeTools
         {
             // A lost colony outranks every hazard: the last colonist's death
             // is a colonist_downed hit too, but there is nobody left to review.
-            if (ColonyLostDetail(s.Map) is { } lost) return new HoldCause(Clock.HoldReason.ColonyLost, lost);
+            if (ColonyLostDetail(s.Map) is { } lost) return new HoldCause(RimGovernor.Brain.GameFacts.Clock.HoldReason.ColonyLost, lost);
             var newLetters = new List<EventLetter>();
             var names = new List<string>();
             var arrived = new List<long>();
@@ -702,7 +701,7 @@ namespace HomeBridge.BridgeTools
                 // The newest arrival is the hazard's occurrence: the
                 // older ones were already stopping play had they been seen.
                 var known = arrived.Where(t => t >= 0).ToList();
-                return new HoldCause(Clock.HoldReason.NotificationBatch, names.Count + " new notification(s): " + string.Join("; ", names),
+                return new HoldCause(RimGovernor.Brain.GameFacts.Clock.HoldReason.NotificationBatch, names.Count + " new notification(s): " + string.Join("; ", names),
                     new NotificationEvidence(newLetters), known.Count > 0 ? known.Max() : null);
             }
             // An alert never stops play; a new one is a message. The key set only
@@ -736,13 +735,13 @@ namespace HomeBridge.BridgeTools
                     && GameWatchReads.IsHostile(p, out why)
                     && !s.IgnoredHostiles.Contains(p.thingIDNumber)
                     && colonists.Any(c => Distance(p, c) <= s.HostileWithin))
-                    return PawnHit(Clock.HoldReason.Hostile, p, why, SpawnedTick(p));
+                    return PawnHit(RimGovernor.Brain.GameFacts.Clock.HoldReason.Hostile, p, why, SpawnedTick(p));
                 if (GameWatchReads.SafeIsColonist(p)
                     && (GameWatchReads.SafeDowned(p) || GameWatchReads.SafeDead(p))
                     && !s.IgnoredDowned.Contains(p.thingIDNumber)
                     && !SafeSurgicalRecovery(s, p)
                     && !(s.MedicalRest.Contains(p.thingIDNumber) && MedicalRestSafety.Eligible(p, (s.Policy ?? throw new System.InvalidOperationException("Required native value is unavailable: s.Policy.")).SeriousSummaryHealthFloor)))
-                    return PawnHit(Clock.HoldReason.ColonistDowned, p, GameWatchReads.SafeDead(p) ? "dead" : "downed", DownedTick(p));
+                    return PawnHit(RimGovernor.Brain.GameFacts.Clock.HoldReason.ColonistDowned, p, GameWatchReads.SafeDead(p) ? "dead" : "downed", DownedTick(p));
                 // A colony-mode run holds when an unacknowledged colonist's
                 // food reaches the brain's hunger category: the review that
                 // answers it runs under a held clock, not a running one that
@@ -753,11 +752,11 @@ namespace HomeBridge.BridgeTools
                     && !GameWatchReads.SafeDowned(p) && !GameWatchReads.SafeDead(p)
                     && !s.IgnoredHungry.Contains(p.thingIDNumber)
                     && SafeHunger(p) is { } hunger && hunger >= s.HungerHold)
-                    return PawnHit(Clock.HoldReason.ColonistNeed, p, hunger == HungerCategory.Starving ? "starving" : hunger == HungerCategory.UrgentlyHungry ? "urgently hungry" : "hungry");
+                    return PawnHit(RimGovernor.Brain.GameFacts.Clock.HoldReason.ColonistNeed, p, hunger == HungerCategory.Starving ? "starving" : hunger == HungerCategory.UrgentlyHungry ? "urgently hungry" : "hungry");
                 if (ThreateningPredatorHunt(p)
                     && !s.IgnoredHostiles.Contains(p.thingIDNumber)
                     && colonists.Any(c => Distance(p, c) <= 40))
-                    return PawnHit(Clock.HoldReason.PredatorHunt, p, "PredatorHunt targeting colony property or unreadable prey within 40 cells", JobStartTick(p));
+                    return PawnHit(RimGovernor.Brain.GameFacts.Clock.HoldReason.PredatorHunt, p, "PredatorHunt targeting colony property or unreadable prey within 40 cells", JobStartTick(p));
                 if (GameWatchReads.SafeIsColonist(p))
                 {
                     var after = InjurySnapshot.Capture(p);
@@ -780,13 +779,13 @@ namespace HomeBridge.BridgeTools
                     // instead: a colonist_health stop there is a hold that
                     // revokes authority mid-fight, the 2-3 s stop latency
                     // of #890.
-                    var fightOwned = s.Mode == "combat" && CombatArmed(RimGovernor.Contracts.Wire.Clock.CombatEvent.SeriousInjury);
+                    var fightOwned = s.Mode == "combat" && CombatArmed(RimGovernor.Brain.GameFacts.Clock.CombatEvent.SeriousInjury);
                     if (before != null
                         && s.Mode == "combat"
                         && !fightOwned
                         && HealthThresholdCrossed(s, before, after))
                     {
-                        return new HoldCause(Clock.HoldReason.ColonistHealth, GameWatchReads.SafeName(p) + " crossed a combat health threshold.",
+                        return new HoldCause(RimGovernor.Brain.GameFacts.Clock.HoldReason.ColonistHealth, GameWatchReads.SafeName(p) + " crossed a combat health threshold.",
                             new HealthEvidence(PawnOf(p), s.MinHealthFraction, s.HealthDropFraction),
                             after.NewestWoundAgeTicks != int.MaxValue ? tick - after.NewestWoundAgeTicks : null);
                     }
@@ -831,7 +830,7 @@ namespace HomeBridge.BridgeTools
                         if (((s.Mode == "colony" && newWound && severe) || threshold) && !suppressed)
                         {
                             RecordInjuryStop(p);
-                            return new HoldCause(Clock.HoldReason.ColonistInjury, InjuryDetail(s, p, before, after), new InjuryEvidence(injury), occurrence);
+                            return new HoldCause(RimGovernor.Brain.GameFacts.Clock.HoldReason.ColonistInjury, InjuryDetail(s, p, before, after), new InjuryEvidence(injury), occurrence);
                         }
                         Publish(new InjuryObserved(Origin(s), GameWatchReads.SafeName(p)
                             + (suppressed
@@ -943,7 +942,7 @@ namespace HomeBridge.BridgeTools
             int last;
             if (!force && s.MedicalWakes.TryGetValue(pawnId, out last) && tick - last < MedicalWakeIntervalTicks) return;
             s.MedicalWakes[pawnId] = tick;
-            Invalidate(s, reason, new[] { Clock.FactFamily.Pawns, Clock.FactFamily.Emergency });
+            Invalidate(s, reason, new[] { RimGovernor.Brain.GameFacts.Clock.FactFamily.Pawns, RimGovernor.Brain.GameFacts.Clock.FactFamily.Emergency });
         }
 
         private static void RecordInjuryStop(Pawn pawn)
@@ -980,7 +979,7 @@ namespace HomeBridge.BridgeTools
             } catch { return false; }
         }
 
-        private static HoldCause PawnHit(Clock.HoldReason reason, Pawn pawn, string why, int? occurrenceTick = null) =>
+        private static HoldCause PawnHit(RimGovernor.Brain.GameFacts.Clock.HoldReason reason, Pawn pawn, string why, int? occurrenceTick = null) =>
             // The tick the hazard arose where the game records one, for
             // the stop's detect_ticks; absent when it does not.
             new HoldCause(reason, GameWatchReads.SafeName(pawn) + " (" + why + ")", new PawnEvidence(PawnOf(pawn, why)),
@@ -1041,7 +1040,7 @@ namespace HomeBridge.BridgeTools
         private static int Distance(Pawn a, Pawn b) { return Math.Max(Math.Abs(a.Position.x - b.Position.x), Math.Abs(a.Position.z - b.Position.z)); }
         /// Enters a hold: pauses (when asked) and publishes one HoldEntered. The
         /// native clock then stays held until the brain sends Run.
-        private static void Stop(State? s, Clock.HoldReason reason, string detail, bool pause) =>
+        private static void Stop(State? s, RimGovernor.Brain.GameFacts.Clock.HoldReason reason, string detail, bool pause) =>
             Stop(s, new HoldCause(reason, detail), pause);
         private static void Stop(State? s, HoldCause cause, bool pause)
         {
@@ -1100,7 +1099,7 @@ namespace HomeBridge.BridgeTools
                 var stacked = GameWatchReads.Letters().FirstOrDefault(value => value.GetUniqueLoadID() == id);
                 letter = new EventLetter(id, stacked?.Label.ToString(), stacked?.def?.defName);
             }
-            var dialog = cause.Reason == Clock.HoldReason.DialogPause ? ChoiceDialogTools.Pending() : null;
+            var dialog = cause.Reason == RimGovernor.Brain.GameFacts.Clock.HoldReason.DialogPause ? ChoiceDialogTools.Pending() : null;
             return new PauseEvidence(Find.TickManager != null && Find.TickManager.Paused, TypedOf(s).StopPauseVerified, letter,
                 dialog != null ? ChoiceDialogTools.Title(dialog) : null);
         }
@@ -1150,7 +1149,7 @@ namespace HomeBridge.BridgeTools
         /// Why a hold is entered: its reason and detail, the hazard's evidence
         /// and the tick it arose when the probe has them, and the letter a
         /// letter pause names. A hold without evidence carries the pause itself.
-        private sealed record HoldCause(Clock.HoldReason Reason, string Detail, ColonyHoldEvidence? Evidence = null,
+        private sealed record HoldCause(RimGovernor.Brain.GameFacts.Clock.HoldReason Reason, string Detail, ColonyHoldEvidence? Evidence = null,
             long? OccurrenceTick = null, string? PauseLetterId = null);
 
         private sealed class InjurySnapshot
@@ -1190,15 +1189,15 @@ namespace HomeBridge.BridgeTools
         {
             public TypedEpoch? Typed;
             /// The brain-authored policy this epoch runs under; every hazard threshold reads from it.
-            public RimGovernor.Contracts.Wire.Clock.WatchPolicy? Policy => Typed?.Policy;
+            public RimGovernor.Brain.GameOrders.Clock.WatchPolicy? Policy => Typed?.Policy;
             public State(object session, Map map) { Session = session; Map = map; }
             public bool Active; public readonly object Session; public readonly Map Map;
             // The wire speed the Run asked for (ClockRunSpeed.cs): Ultrafast and Hyperfast share
             // TimeSpeed.Ultrafast, so the game speed the segment expects is derived from it.
-            public Clock.Speed Speed;
+            public RimGovernor.Brain.GameFacts.Clock.Speed Speed;
             public TimeSpeed RequestedSpeed => ClockRunSpeed.Native(Speed);
             // Hyperfast: the frame's many boosted ticks each run the full frame check (TickBody).
-            public bool Boosted => Speed == Clock.Speed.Hyperfast;
+            public bool Boosted => Speed == RimGovernor.Brain.GameFacts.Clock.Speed.Hyperfast;
             public string? Mode; public float HostileWithin; public float HealthDropFraction; public float MinHealthFraction;
             public long LastProbeMs; public int LastTick; public bool PausedAtStop;
             public int StartTick;
@@ -1220,7 +1219,7 @@ namespace HomeBridge.BridgeTools
             public long? StopAtMs;
             public int DetectedTick;
             public bool? PauseVerified; public bool PauseFailureReported;
-            public Clock.HoldReason? StopReason;
+            public RimGovernor.Brain.GameFacts.Clock.HoldReason? StopReason;
             // A hold whose pause has not taken yet; retried each frame.
             public HoldCause? Pending;
             // null until the epoch's first probe baselined them; see PublishFactChanges.

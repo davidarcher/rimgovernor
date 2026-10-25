@@ -3,7 +3,6 @@ using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -44,10 +43,10 @@ internal static class GoalsThemeReform
         Run = RunAsync,
     };
 
-    private static async Task<Observations.IdeologySnapshot?> ReadAsync(TypedSession s, string label, CancellationToken cancellationToken)
+    private static async Task<RimGovernor.Brain.GameFacts.Observations.IdeologySnapshot?> ReadAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ReadSnapshot, new Observations.SnapshotReadRequest { AfterNumber = 0 }, cancellationToken).ConfigureAwait(false);
-        return (reply.Outcome?.Read ?? throw new AcceptanceException($"{label}: snapshot read failed: {reply.Outcome}")).Frame?.Ideology is Observations.IdeologyFrame.Installed installed ? installed.Snapshot : null;
+        var reply = await s.CallAsync(label, NativeOps.ReadSnapshot, new RimGovernor.Brain.GameOrders.Observations.SnapshotReadRequest { AfterNumber = 0 }, cancellationToken).ConfigureAwait(false);
+        return (reply.Outcome?.Read ?? throw new AcceptanceException($"{label}: snapshot read failed: {reply.Outcome}")).Frame?.Ideology is RimGovernor.Brain.GameFacts.Observations.IdeologyFrame.Installed installed ? installed.Snapshot : null;
     }
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
@@ -80,11 +79,11 @@ internal static class GoalsThemeReform
             Themes = [new ThemeRecord { Id = themeId, Name = "Naked cannibals who worship monkeys", Preset = Preset, Members = [.. Enumerable.Range(1, targets.Count)] }],
         }, cancellationToken).ConfigureAwait(false);
 
-        Observations.IdeologySnapshot? reformed = null;
+        RimGovernor.Brain.GameFacts.Observations.IdeologySnapshot? reformed = null;
         _ = await s.ServeUntilAsync("theme-reform", s.TicksLeft, async ct =>
         {
             var ideology = await ReadAsync(s, "observe", ct).ConfigureAwait(false);
-            var fluid = ideology?.Development as Observations.IdeoDevelopment.Fluid;
+            var fluid = ideology?.Development as RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment.Fluid;
             var done = fluid is not null && fluid.ReformCount > prepared.Count;
             if (done)
             {

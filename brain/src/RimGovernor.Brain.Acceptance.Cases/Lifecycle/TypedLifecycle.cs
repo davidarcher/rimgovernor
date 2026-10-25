@@ -1,8 +1,6 @@
 using System.Globalization;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
+using RimGovernor.Brain.GameAccess;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -20,30 +18,30 @@ internal static class TypedLifecycle
     internal static string Stamp(string prefix) => string.Create(CultureInfo.InvariantCulture, $"{prefix}-{DateTime.UtcNow.Ticks}");
 
     /// <summary>The player context naming <paramref name="identity"/> for a lifecycle request.</summary>
-    internal static Lifecycle.PlayerLifecycleContext Player(Common.Identity identity, string requestId) =>
+    internal static RimGovernor.Brain.GameFacts.Lifecycle.PlayerLifecycleContext Player(RimGovernor.Brain.GameFacts.Common.Identity identity, string requestId) =>
         new() { Identity = identity, PlayerDirection = Direction, RequestId = requestId };
 
     /// <summary>The loaded game's identity, tick and pause state from <c>lifecycle_read_identity</c>.</summary>
-    internal static async Task<(Common.Identity Identity, long Tick, bool Paused)> IdentityAsync(TypedSession s, string label, CancellationToken cancellationToken)
+    internal static async Task<(RimGovernor.Brain.GameFacts.Common.Identity Identity, long Tick, bool Paused)> IdentityAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var loaded = await s.CallAsync(label, NativeOps.ReadIdentity, new Lifecycle.IdentityRequest(), cancellationToken).ConfigureAwait(false);
+        var loaded = await s.CallAsync(label, NativeOps.ReadIdentity, new RimGovernor.Brain.GameOrders.Lifecycle.IdentityRequest(), cancellationToken).ConfigureAwait(false);
         var context = loaded.Context ?? throw new AcceptanceException($"{label}: no loaded game");
         return (context.Identity, context.Tick, loaded.Paused == true);
     }
 
     /// <summary>A trusted checkpoint save of the paused game; anything but a completed save fails <paramref name="label"/>.</summary>
-    internal static async Task<Lifecycle.SaveCompleted> SaveAsync(TypedSession s, string label, Common.Identity identity, string saveName, CancellationToken cancellationToken)
+    internal static async Task<RimGovernor.Brain.GameFacts.Lifecycle.SaveCompleted> SaveAsync(TypedSession s, string label, RimGovernor.Brain.GameFacts.Common.Identity identity, string saveName, CancellationToken cancellationToken)
     {
-        var request = new Lifecycle.SaveRequest { Player = Player(identity, Stamp(label)), SaveName = saveName, ExpectedTick = new Lifecycle.ExpectedSaveTick.AnyCase() };
+        var request = new RimGovernor.Brain.GameOrders.Lifecycle.SaveRequest { Player = Player(identity, Stamp(label)), SaveName = saveName, ExpectedTick = new RimGovernor.Brain.GameOrders.Lifecycle.ExpectedSaveTick.AnyCase() };
         var reply = await s.CallAsync(label, NativeOps.SaveGame, request, cancellationToken).ConfigureAwait(false);
         return reply.Outcome?.Completed ?? throw new AcceptanceException($"{label}: expected a completed save, got {reply.Outcome}");
     }
 
     /// <summary>Starts a load of <paramref name="saveName"/> replacing <paramref name="identity"/>'s map and polls it to a completed outcome.</summary>
-    internal static async Task<Lifecycle.LoadCompleted> LoadAsync(TypedSession s, string label, Common.Identity identity, string saveName, Lifecycle.Readiness readiness, CancellationToken cancellationToken)
+    internal static async Task<RimGovernor.Brain.GameFacts.Lifecycle.LoadCompleted> LoadAsync(TypedSession s, string label, RimGovernor.Brain.GameFacts.Common.Identity identity, string saveName, RimGovernor.Brain.GameFacts.Lifecycle.Readiness readiness, CancellationToken cancellationToken)
     {
         var requestId = Stamp(label);
-        var request = new Lifecycle.LoadRequest
+        var request = new RimGovernor.Brain.GameOrders.Lifecycle.LoadRequest
         {
             RequestId = requestId,
             SaveName = saveName,
@@ -52,7 +50,7 @@ internal static class TypedLifecycle
             ExpectedPlayer = Player(identity, requestId),
         };
         var reply = await s.CallAsync(label + "-start", NativeOps.StartLoad, request, cancellationToken).ConfigureAwait(false);
-        Lifecycle.LoadCompleted? completed = null;
+        RimGovernor.Brain.GameFacts.Lifecycle.LoadCompleted? completed = null;
         var poll = 0;
         await UntilAsync(
             label,
@@ -60,7 +58,7 @@ internal static class TypedLifecycle
             {
                 if (poll++ > 0)
                 {
-                    reply = await s.CallAsync(label + "-poll", NativeOps.PollLoad, new Lifecycle.RequestStatus { RequestId = requestId }, ct).ConfigureAwait(false);
+                    reply = await s.CallAsync(label + "-poll", NativeOps.PollLoad, new RimGovernor.Brain.GameFacts.Lifecycle.RequestStatus { RequestId = requestId }, ct).ConfigureAwait(false);
                 }
 
                 if (reply.Outcome?.Completed is { } done)
@@ -94,7 +92,7 @@ internal static class TypedLifecycle
     }
 
     /// <summary>Asserts <paramref name="failure"/> is a refusal with code <paramref name="want"/>.</summary>
-    internal static void ExpectFailure(string label, Common.Failure? failure, Common.FailureCode want, object? reply)
+    internal static void ExpectFailure(string label, RimGovernor.Brain.GameFacts.Common.Failure? failure, RimGovernor.Brain.GameFacts.Common.FailureCode want, object? reply)
     {
         if (failure?.Code != want)
         {
@@ -103,7 +101,7 @@ internal static class TypedLifecycle
     }
 
     /// <summary>Asserts <paramref name="call"/> is refused (a thrown <see cref="NativeFailureException"/>) with code <paramref name="want"/>.</summary>
-    internal static async Task ExpectRefusedAsync<T>(string label, Func<Task<T>> call, Common.FailureCode want)
+    internal static async Task ExpectRefusedAsync<T>(string label, Func<Task<T>> call, RimGovernor.Brain.GameFacts.Common.FailureCode want)
     {
         T answered;
         try

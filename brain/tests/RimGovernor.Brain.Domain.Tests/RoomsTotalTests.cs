@@ -1,10 +1,11 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 using Rectangle = RimGovernor.Brain.Policy.Rectangle;
-using RoomStat = RimGovernor.Contracts.Wire.Observations.RoomStat;
+using RoomStat = RimGovernor.Brain.GameFacts.Observations.RoomStat;
 
 namespace RimGovernor.Brain.Domain.Tests;
 

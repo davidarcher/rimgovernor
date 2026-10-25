@@ -10,14 +10,14 @@ using Verse;
 using Verse.AI;
 using HarmonyLib;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Disposable initial state. Cases add their channel after this
     // reset; nothing here advances time or suppresses ordinary simulation.
     public sealed class FoodChannelFixture
     {
         [Tool("test/food_channels_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Strip food stocks (including held food), crops, growing zones, animals, corpses and food-producing buildings from a paused disposable map. Seed exactly stockUnits of foodDef. Channel cases add only the source they prove afterwards.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> Prepare(INativeContext ctx, CancellationToken cancellationToken,
             int stockUnits = 0, string foodDef = "MealSurvivalPack")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -66,7 +66,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/food_reserve_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Add a roofed walled food room with a fueled stove, a food stockpile, pemmican research, unforbidden pemmican (seedShare of a reserveDays target) and meat, and a 10000 raw rice runway and 1000 wood outside it to the empty-channel fixture; every colonist cooks. Nothing is forbidden and no bill is preinstalled.")]
-        public async Task<object> ReservePrepare(IRimBridgeContext ctx, CancellationToken cancellationToken, double reserveDays = 5, double seedShare = 0.9)
+        public async Task<object> ReservePrepare(INativeContext ctx, CancellationToken cancellationToken, double reserveDays = 5, double seedShare = 0.9)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -124,7 +124,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/food_reserve_probe", Description = "UNSAFE FOR MODEL EXECUTION when drain is true. Read pemmican stacks, food bills and colonist pemmican ingestion; optionally destroy every other food (free pemmican included), reset the ingestion counter and leave the colonists hungry.")]
-        public async Task<object> ReserveProbe(IRimBridgeContext ctx, CancellationToken cancellationToken, bool drain = false)
+        public async Task<object> ReserveProbe(INativeContext ctx, CancellationToken cancellationToken, bool drain = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap ?? throw new InvalidOperationException("Map required");
@@ -183,7 +183,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/food_starving_prepare", Description = "UNSAFE FOR MODEL EXECUTION. On the empty-channel fixture, make the colony a starving tribal one for the food/starving-tribal-recovery case (#2173; also starts counting meat eaten and wild kills with the killer's next job): destroy every colonist's weapons (worn and carried), delete every butcher bill, enable Hunting for every colonist who can, drop colonists to a hungry food level, and spawn animalCount wild animalKind at fixed offsets from the colonists' centre.")]
-        public async Task<object> StarvingPrepare(IRimBridgeContext ctx, CancellationToken cancellationToken, string animalKind = "Deer", int animalCount = 6, double foodLevel = 0.3)
+        public async Task<object> StarvingPrepare(INativeContext ctx, CancellationToken cancellationToken, string animalKind = "Deer", int animalCount = 6, double foodLevel = 0.3)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -235,7 +235,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/food_starving_observe", Description = "Read what gates a hunt on the starving-tribal fixture (#2141); no mutations. Per colonist: weapon, Hunting and Cooking work priorities, food level; per wild animal: position and designation; the butcher bills, pending hunt designations, wildlife counts and corpses.")]
-        public async Task<object> StarvingObserve(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> StarvingObserve(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap ?? throw new InvalidOperationException("Loaded map required.");

@@ -1,10 +1,11 @@
-using RimGovernor.Contracts.Host;
+using RimGovernor.Brain.GameFacts.Host;
+using RimGovernor.Brain.GameOrders.Host;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
-/// <c>rimgovernor/set_time_speed</c>'s arguments carry the speed name alone (#3605): the name decides the dev tick boost
+/// <c>set_time_speed</c>'s arguments carry the speed name alone (#3605): the name decides the dev tick boost
 /// (Ultrafast off, Hyperfast on), so no request sends <c>ultraSpeedBoost</c>.
 /// </summary>
 public sealed class HostToolsJsonTests
@@ -28,5 +29,21 @@ public sealed class HostToolsJsonTests
 
         Assert.Equal("Paused", (string?)json["speed"]);
         Assert.False(json.ContainsKey("ultraSpeedBoost"));
+    }
+
+    [Fact]
+    public void LoadArgumentsRetainTheRequestedReadinessAndModCompatibilityDecision()
+    {
+        var json = HostJson.Arguments(new LoadGameRequest
+        {
+            SaveName = "colony-a", Readiness = "playable", TimeoutMs = 12345, IgnoreModCompatibility = true,
+        });
+
+        Assert.Equal("colony-a", (string?)json["saveName"]);
+        Assert.Equal("playable", (string?)json["readiness"]);
+        Assert.Equal(12345L, (long?)json["timeoutMs"]);
+        Assert.True((bool?)json["ignoreModCompatibility"]);
+        Assert.Equal(4, json.Count);
+        Assert.Equal("stage-a", (string?)HostJson.Arguments(new SaveGameRequest { SaveName = "stage-a" })["saveName"]);
     }
 }

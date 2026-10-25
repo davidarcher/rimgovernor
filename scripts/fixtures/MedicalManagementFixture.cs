@@ -6,7 +6,7 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     public sealed class MedicalManagementFixture
     {
@@ -40,7 +40,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/medical_plague_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Add Plague to two disposable colonists, one untended and one tended, for native disease readback.")]
-        public async Task<object> Plague(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Plague(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 if (Find.CurrentMap == null || !Find.TickManager.Paused)
@@ -71,7 +71,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/medical_management_setup", Description = "Disposable surgery setup: doctors, a colonist missing a leg, supplies and an optional condition. Never performs treatment or surgery.")]
-        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> Setup(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Include two initial flu patients.", DefaultValue = true)] bool disease = true,
             [ToolParameter(Description = "Give the second colonist restore (nothing), cataract, infectedHand, or missingKidney, and raise a sterile surgery room; missingKidney also holds one unrecruitable non-player prisoner. missingKidneyIndustrial is missingKidney without the herbal stock (#1239). Empty adds nothing.", DefaultValue = "")] string condition = "")
         {

@@ -3,7 +3,7 @@ using RimWorld;
 using Verse;
 using Verse.AI.Group;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Native Dialog_FormCaravan calculation for NativeCaravanOperations'
     // FormCaravanIntent handler: the private CalculateAndRecacheTransferables

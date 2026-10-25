@@ -8,7 +8,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Disposable setup and read-back for the burnable / not-burnable special
     // filters (RimGovernorBurnable and RimGovernorNotBurnable, the
@@ -24,7 +24,7 @@ namespace HomeBridge.BridgeTools
         private const int ZoneWidth = 5, ZoneHeight = 3;
 
         [Tool("test/burnable_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture (#2181): on the blank lab, create a Low dump stockpile disallowing not-burnable beside a Normal stockpile disallowing burnable, stage rotted and fresh rottables, a rotted colonist corpse, a rotted stranger corpse, gear probes of one apparel def varied by hit points, quality and tainted, cheap and valuable weapons and a Steel stack on loose cells, and leave one colonist hauling while the rest wait.")]
-        public async Task<object> Stage(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Stage(INativeContext ctx, CancellationToken cancellationToken)
             => await ctx.MainThread.InvokeAsync<object>(() =>
             {
                 var map = Find.CurrentMap ?? throw new InvalidOperationException("A loaded lab map is required.");
@@ -147,7 +147,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
 
         [Tool("test/burnable_read", Description = "UNSAFE FOR MODEL EXECUTION. Disposable read (#2181): where each staged item (ids, comma separated) stands, which stockpile holds it, and what the burnable filters, MarketValue, hit points, quality and tainted flag say about it.")]
-        public async Task<object> Read(IRimBridgeContext ctx, CancellationToken cancellationToken, string ids)
+        public async Task<object> Read(INativeContext ctx, CancellationToken cancellationToken, string ids)
             => await ctx.MainThread.InvokeAsync<object>(() =>
             {
                 var map = Find.CurrentMap ?? throw new InvalidOperationException("A loaded lab map is required.");

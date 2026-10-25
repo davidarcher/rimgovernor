@@ -1,7 +1,5 @@
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -65,33 +63,33 @@ internal static class PawnPolicies
 
     private static string Pawn(TypedSession s, string name) => s.Staged?.Pawns[name].Id ?? throw new AcceptanceException($"the stage made no {name}");
 
-    private static async Task<Observations.ColonyFactsSnapshot> FactsAsync(TypedSession s, string label, CancellationToken cancellationToken)
+    private static async Task<RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot> FactsAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         return reply;
     }
 
-    private static async Task<Observations.Policies> PoliciesAsync(TypedSession s, string label, CancellationToken cancellationToken) =>
+    private static async Task<RimGovernor.Brain.GameFacts.Observations.Policies> PoliciesAsync(TypedSession s, string label, CancellationToken cancellationToken) =>
         (await FactsAsync(s, label, cancellationToken).ConfigureAwait(false)).Policies;
 
     /// <summary>Writes a policy's contents, then assigns it to each pawn.</summary>
-    private static async Task WriteAsync(TypedSession s, string key, Operations.ActionIntent policy, IEnumerable<(string Pawn, Operations.PawnSettingsIntentSetting Setting)> assignments, CancellationToken cancellationToken)
+    private static async Task WriteAsync(TypedSession s, string key, RimGovernor.Brain.GameOrders.Operations.ActionIntent policy, IEnumerable<(string Pawn, RimGovernor.Brain.GameOrders.Operations.PawnSettingsIntentSetting Setting)> assignments, CancellationToken cancellationToken)
     {
         _ = await TypedPawns.AppliedAsync(s, key + "-write", policy, cancellationToken).ConfigureAwait(false);
         foreach (var (pawn, setting) in assignments)
         {
-            _ = await TypedPawns.AppliedAsync(s, $"{key}-assign-{pawn}", new Operations.PawnSettingsIntent { PawnId = pawn, Setting = setting }, cancellationToken).ConfigureAwait(false);
+            _ = await TypedPawns.AppliedAsync(s, $"{key}-assign-{pawn}", new RimGovernor.Brain.GameOrders.Operations.PawnSettingsIntent { PawnId = pawn, Setting = setting }, cancellationToken).ConfigureAwait(false);
         }
     }
 
     /// <summary>The one policy labelled <paramref name="label"/>, which must be held by <paramref name="pawn"/>.</summary>
-    private static Observations.PolicyEntry Held(IEnumerable<Observations.PolicyEntry> policies, string label, string pawn)
+    private static RimGovernor.Brain.GameFacts.Observations.PolicyEntry Held(IEnumerable<RimGovernor.Brain.GameFacts.Observations.PolicyEntry> policies, string label, string pawn)
     {
         var policy = policies.SingleOrDefault(p => p.Label == label) ?? throw new AcceptanceException($"no single policy labelled \"{label}\"");
         return policy.Pawns.Any(p => p.Value == pawn) ? policy : throw new AcceptanceException($"policy \"{label}\" is held by [{string.Join(' ', policy.Pawns)}], not {pawn}");
     }
 
-    private static void Allows(Observations.PolicyEntry policy, params string[] defs)
+    private static void Allows(RimGovernor.Brain.GameFacts.Observations.PolicyEntry policy, params string[] defs)
     {
         if (!policy.AllowedDefs.Order(StringComparer.Ordinal).SequenceEqual(defs.Order(StringComparer.Ordinal)))
         {
@@ -104,10 +102,10 @@ internal static class PawnPolicies
         var colonist = Pawn(s, "colonist");
         var dog = Pawn(s, "dog");
         string[] meals = ["MealSimple", "MealFine"];
-        await WriteAsync(s, "meals", new Operations.FoodPolicyIntent { Name = "Meals only", AllowedDefs = [.. meals] },
-            [(colonist, new Operations.PawnSettingsIntentSetting.FoodPolicyCase("Meals only"))], cancellationToken).ConfigureAwait(false);
-        await WriteAsync(s, "kibble", new Operations.FoodPolicyIntent { Name = "Kibble only", AllowedDefs = ["Kibble"] },
-            [(dog, new Operations.PawnSettingsIntentSetting.FoodPolicyCase("Kibble only"))], cancellationToken).ConfigureAwait(false);
+        await WriteAsync(s, "meals", new RimGovernor.Brain.GameOrders.Operations.FoodPolicyIntent { Name = "Meals only", AllowedDefs = [.. meals] },
+            [(colonist, new RimGovernor.Brain.GameOrders.Operations.PawnSettingsIntentSetting.FoodPolicyCase("Meals only"))], cancellationToken).ConfigureAwait(false);
+        await WriteAsync(s, "kibble", new RimGovernor.Brain.GameOrders.Operations.FoodPolicyIntent { Name = "Kibble only", AllowedDefs = ["Kibble"] },
+            [(dog, new RimGovernor.Brain.GameOrders.Operations.PawnSettingsIntentSetting.FoodPolicyCase("Kibble only"))], cancellationToken).ConfigureAwait(false);
         var facts = await PoliciesAsync(s, "food-policies", cancellationToken).ConfigureAwait(false);
         s.RecordWire("food", facts.Food);
         Allows(Held(facts.Food, "Meals only", colonist), meals);
@@ -121,14 +119,14 @@ internal static class PawnPolicies
         // The planner owns the policy's contents: the Medical preference over a catalog of one medical drug.
         var items = new Policy.ItemFacts { Drugs = [new Policy.Drug(new Policy.Resource("Penoxycyline"), Medical: true)] };
         var written = new Domain.DrugPolicy(Label, Policy.DrugPolicyPlanRules.Entries(Policy.DrugPolicyPreference.Medical, items));
-        var intent = Bridge.Contracts.IntentActionRules.IntentAction("drugs", Domain.DomainAction.NewDrugPolicyAction(new Domain.ActionId("drugs"), written)).Intent
+        var intent = GameAccess.IntentActionRules.IntentAction("drugs", Domain.DomainAction.NewDrugPolicyAction(new Domain.ActionId("drugs"), written)).Intent
             ?? throw new AcceptanceException("the drug policy action built no intent");
         await WriteAsync(s, "drugs", intent,
-            [(colonist, new Operations.PawnSettingsIntentSetting.DrugPolicyCase(Label))], cancellationToken).ConfigureAwait(false);
+            [(colonist, new RimGovernor.Brain.GameOrders.Operations.PawnSettingsIntentSetting.DrugPolicyCase(Label))], cancellationToken).ConfigureAwait(false);
         var facts = await PoliciesAsync(s, "drug-policies", cancellationToken).ConfigureAwait(false);
         var policy = Held(facts.Drug, Label, colonist);
         s.RecordWire("drug", policy);
-        Operations.DrugPolicyEntry? Entry(string def) => policy.DrugEntries.FirstOrDefault(e => e.DrugDef == def);
+        RimGovernor.Brain.GameFacts.Operations.DrugPolicyEntry? Entry(string def) => policy.DrugEntries.FirstOrDefault(e => e.DrugDef == def);
         if (policy.DrugEntries.Count != 1 || Entry("Penoxycyline") is not { AllowScheduled: true, AllowedForJoy: false, AllowedForAddiction: false })
         {
             throw new AcceptanceException($"policy \"{Label}\" reads entries [{string.Join("; ", policy.DrugEntries)}]");
@@ -149,8 +147,8 @@ internal static class PawnPolicies
     {
         const string Label = "Textbooks only";
         var colonist = Pawn(s, "colonist");
-        await WriteAsync(s, "reading", new Operations.ReadingPolicyIntent { Name = Label, AllowedDefs = ["Textbook"] },
-            [(colonist, new Operations.PawnSettingsIntentSetting.ReadingPolicyCase(Label))], cancellationToken).ConfigureAwait(false);
+        await WriteAsync(s, "reading", new RimGovernor.Brain.GameOrders.Operations.ReadingPolicyIntent { Name = Label, AllowedDefs = ["Textbook"] },
+            [(colonist, new RimGovernor.Brain.GameOrders.Operations.PawnSettingsIntentSetting.ReadingPolicyCase(Label))], cancellationToken).ConfigureAwait(false);
         var facts = await PoliciesAsync(s, "reading-policies", cancellationToken).ConfigureAwait(false);
         s.RecordWire("reading", facts.Reading);
         Allows(Held(facts.Reading, Label, colonist), "Textbook");

@@ -1,9 +1,8 @@
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
 // Store inflow. Native samples the stacks each storage group holds at every hour's first tick into a saved ring
-// (Obs.StorageOccupancySnapshot); a store's net inflow is the slope of its groups' held stacks over a recent window.
+// (RimGovernor.Brain.GameFacts.Observations.StorageOccupancySnapshot); a store's net inflow is the slope of its groups' held stacks over a recent window.
 
 public static partial class StoreRules
 {
@@ -43,7 +42,7 @@ public static partial class StoreRules
     }
 
     /// <summary>One group's held-stack slope in stacks per day over the window; Accumulating under a day of samples.</summary>
-    internal static StorageInflow GroupInflow(Obs.StorageOccupancySnapshot occupancy, string group)
+    internal static StorageInflow GroupInflow(RimGovernor.Brain.GameFacts.Observations.StorageOccupancySnapshot occupancy, string group)
     {
         if (occupancy.Groups.FirstOrDefault(g => g.Group == group)?.Samples is not { } samples)
         {

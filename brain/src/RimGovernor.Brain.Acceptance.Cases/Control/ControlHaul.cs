@@ -2,8 +2,6 @@ using System.Globalization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -64,16 +62,16 @@ internal static class ControlHaul
         var site = staged.Site ?? throw new AcceptanceException("the haul stage found no site");
         var destination = new Cell(site.X + store.X, site.Z + store.Z);
         var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
-        _ = await TypedApply.AppliedAsync(s, "designate", new Operations.DesignateIntent { Location = new Operations.DesignationLocation.ByTarget(), Designation = Operations.ThingDesignation.Haul, Target = new() { Id = stack }, ReplaceWithWall = false, Withdraw = false, Guard = Operations.DesignationGuard.NoGuard }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "designate", new RimGovernor.Brain.GameOrders.Operations.DesignateIntent { Location = new RimGovernor.Brain.GameOrders.Operations.DesignationLocation.ByTarget(), Designation = RimGovernor.Brain.GameOrders.Operations.ThingDesignation.Haul, Target = new() { Id = stack }, ReplaceWithWall = false, Withdraw = false, Guard = RimGovernor.Brain.GameOrders.Operations.DesignationGuard.NoGuard }, cancellationToken).ConfigureAwait(false);
 
         var step = new PawnActivityStep(PawnActivityKind.Deliver, stack, "", "", Count, int.MaxValue).At(destination);
         var batch = new PawnActivities(generation, [new PawnActivityOrder(worker, TaskId, TaskId, 0, 1, false, [step]) { Task = TaskId }])
         {
             Tasks = [new SelectedActivityTask(TaskId, worker, [], step, new Cell(origin.X, origin.Z), 0)],
         };
-        _ = await TypedApply.AppliedAsync(s, "order", new Operations.PawnActivitiesIntent { Batch = batch }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "order", new RimGovernor.Brain.GameOrders.Operations.PawnActivitiesIntent { Batch = batch }, cancellationToken).ConfigureAwait(false);
 
-        Observations.StockItem? item = null;
+        RimGovernor.Brain.GameFacts.Observations.StockItem? item = null;
         _ = await s.RunUntilAsync(
             "haul",
             Budget,
@@ -92,10 +90,10 @@ internal static class ControlHaul
     }
 
     // The staged stack among the colony's steel, or null when it is gone (merged or destroyed).
-    private static async Task<Observations.StockItem?> StackAsync(TypedSession s, string stack, CancellationToken cancellationToken)
+    private static async Task<RimGovernor.Brain.GameFacts.Observations.StockItem?> StackAsync(TypedSession s, string stack, CancellationToken cancellationToken)
     {
         var supplies = await s.CallAsync("stock", NativeOps.ListSupplies,
-            new Observations.ListSuppliesRequest { Scope = s.Scope, Filter = new Observations.StockFilter { DefNames = [Def], Category = Observations.StockCategory.Haulable, Ownership = Observations.StockOwnership.All, IncludeHeld = true } },
+            new RimGovernor.Brain.GameOrders.Observations.ListSuppliesRequest { Scope = s.Scope, Filter = new RimGovernor.Brain.GameFacts.Observations.StockFilter { DefNames = [Def], Category = RimGovernor.Brain.GameFacts.Observations.StockCategory.Haulable, Ownership = RimGovernor.Brain.GameFacts.Observations.StockOwnership.All, IncludeHeld = true } },
             cancellationToken).ConfigureAwait(false);
         return supplies.Stocks.SelectMany(st => st.Items).FirstOrDefault(i => i.Id == stack);
     }

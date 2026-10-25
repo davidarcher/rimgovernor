@@ -2,9 +2,8 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 /// <summary>
 /// The part-loss facts of the harm model's raid forecast (#3847), read without changing game state: a loss is scored on a copy of
@@ -19,11 +18,11 @@ internal static class NativePartLossFacts
         PawnCapacityDefOf.Consciousness, PawnCapacityDefOf.Moving, PawnCapacityDefOf.Manipulation, PawnCapacityDefOf.Sight, PawnCapacityDefOf.Talking,
     ];
 
-    internal static Obs.PawnPartLossFacts? ReadPawn(Pawn pawn)
+    internal static RimGovernor.Brain.GameFacts.Observations.PawnPartLossFacts? ReadPawn(Pawn pawn)
     {
         if (pawn.health?.hediffSet is not { } set) return null;
         var body = pawn.RaceProps.body;
-        var rows = new List<Obs.BodyPartLossRead>();
+        var rows = new List<RimGovernor.Brain.GameFacts.Observations.BodyPartLossRead>();
         var index = new Dictionary<BodyPartRecord, int>();
         var replaceable = new List<BodyPartRecord>();
         foreach (var part in body.AllParts)
@@ -34,7 +33,7 @@ internal static class NativePartLossFacts
             var core = part == body.corePart;
             var kills = !core && Kills(pawn, set, lost, body);
             index[part] = rows.Count;
-            rows.Add(new Obs.BodyPartLossRead(part.def.defName, part.coverageAbs) {
+            rows.Add(new RimGovernor.Brain.GameFacts.Observations.BodyPartLossRead(part.def.defName, part.coverageAbs) {
                 Groups = [.. (part.groups ?? new List<BodyPartGroupDef>()).Select(g => g.defName).Distinct().OrderBy(g => g, System.StringComparer.Ordinal)],
                 Outside = part.depth == BodyPartDepth.Outside, Core = core,
                 Parent = part.parent != null && index.TryGetValue(part.parent, out var parent) ? parent : -1,
@@ -44,7 +43,7 @@ internal static class NativePartLossFacts
             if (!core && !kills && part.def.destroyableByDamage && replaceable.All(r => r.def != part.def)) replaceable.Add(part);
         }
 
-        return new Obs.PawnPartLossFacts {
+        return new RimGovernor.Brain.GameFacts.Observations.PawnPartLossFacts {
             InstantKillChance = pawn.IsColonist ? Find.Storyteller.difficulty.allowInstantKillChance : 1f,
             Parts = [.. rows],
             Replacements = [.. Replacements(pawn, replaceable)],
@@ -91,7 +90,7 @@ internal static class NativePartLossFacts
 
     // Per destroyable part def whose loss does not kill, its first part record taken as missing, each install recipe that would put it
     // back (the illness's gates, NativeDiseaseFacts.Replacements).
-    private static IEnumerable<Obs.OrganReplacementRead> Replacements(Pawn pawn, List<BodyPartRecord> parts)
+    private static IEnumerable<RimGovernor.Brain.GameFacts.Observations.OrganReplacementRead> Replacements(Pawn pawn, List<BodyPartRecord> parts)
     {
         var map = pawn.MapHeld;
         if (pawn.Dead || map == null) yield break;

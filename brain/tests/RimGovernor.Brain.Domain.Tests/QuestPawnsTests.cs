@@ -10,7 +10,7 @@ public sealed class QuestPawnsTests
     [Fact]
     public void PodsAboutToOpenMakeTheColonyBusy()
     {
-        var calm = QuestCapacity.QuestCalmColony(new RoundsFacts(), new EmergencyDecision(true, []), true);
+        var calm = QuestCapacity.QuestCalmColony(new ReviewFacts(), new EmergencyDecision(true, []), true);
 
         Assert.IsType<QuestCalm.Busy>(calm);
     }
@@ -18,7 +18,7 @@ public sealed class QuestPawnsTests
     [Fact]
     public void AnEmergencyThatIsNotClearLeavesTheColonyUnsettled()
     {
-        var calm = QuestCapacity.QuestCalmColony(new RoundsFacts(), new EmergencyDecision(false, []), false);
+        var calm = QuestCapacity.QuestCalmColony(new ReviewFacts(), new EmergencyDecision(false, []), false);
 
         Assert.IsType<QuestCalm.Unsettled>(calm);
     }
@@ -36,7 +36,7 @@ public sealed class QuestPawnsTests
     [Fact]
     public void AFreshReviewHasNoPawnCensusAndNoPlannedRoster()
     {
-        var f = new RoundsFacts();
+        var f = new ReviewFacts();
 
         Assert.IsType<QuestPawns.Unseen>(f.QuestPawns);
         Assert.IsType<QuestRoster.Unplanned>(f.QuestRoster);

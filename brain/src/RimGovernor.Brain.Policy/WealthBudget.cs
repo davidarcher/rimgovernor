@@ -12,7 +12,7 @@ public static partial class WealthBudgetRules
     /// may grow by that much, negative means shed it. Raid points are floored at 35. Missing, non-finite or
     /// negative inputs refuse the calculation.
     /// </summary>
-    public static double WealthBudget(double points, double capacity, RimGovernor.Contracts.Wire.Observations.ThreatFacts wealth)
+    public static double WealthBudget(double points, double capacity, RimGovernor.Brain.GameFacts.Observations.ThreatFacts wealth)
     {
         var strength = capacity;
         var w = wealth ?? throw new RequiredFactException("wealth");
@@ -25,5 +25,5 @@ public static partial class WealthBudgetRules
     }
 
     /// <summary>The headroom from f's raid points, defense capacity and wealth.</summary>
-    public static double WealthBudget(this RoundsFacts f) => WealthBudget(f.Census.Threat.Observed.RaidPoints, f.DefenseCapacity, f.Census.Threat.Observed);
+    public static double WealthBudget(this ReviewFacts f) => WealthBudget(f.Census.Threat.Observed.RaidPoints, f.DefenseCapacity, f.Census.Threat.Observed);
 }

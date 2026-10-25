@@ -1,7 +1,7 @@
 # Placement previews
 
 The shared native request and reply types are the Placement records
-(`brain/src/RimGovernor.Brain.Contracts/Placement.cs`), with semantic validation and collection
+(`brain/src/RimGovernor.Brain.GameFacts/Placement.cs`), with semantic validation and collection
 bounds in [placement coverage](wire/placement.md). The wire shape is described in
 [wire contracts](wire/README.md).
 

@@ -35,7 +35,7 @@ public static class EntityBioferriteRules
     public static BioferriteHarvest BioferriteHarvestOwed(ContainmentPlanning p, ResearchFacts? facts)
     {
         var issues = new List<string>();
-        var held = new List<(Domain.PawnId Pawn, RimGovernor.Contracts.Wire.Observations.HeldState Target)>();
+        var held = new List<(Domain.PawnId Pawn, RimGovernor.Brain.GameFacts.Observations.HeldState Target)>();
         foreach (var e in p.Entities)
         {
             if (!e.Dead && e.Target is { Held: true } target)
@@ -69,6 +69,6 @@ public static class EntityBioferriteRules
     }
 
     /// <summary>Whether the held entity's flag is to be set.</summary>
-    private static bool BioferriteEnable(RimGovernor.Contracts.Wire.Observations.HeldState t) =>
+    private static bool BioferriteEnable(RimGovernor.Brain.GameFacts.Observations.HeldState t) =>
         t.Mode != EntityContainmentModeKind.Release && !t.ExtractBioferrite && !t.HarvesterAttached && BioferriteYield(t.BioferritePerDay) >= 1;
 }

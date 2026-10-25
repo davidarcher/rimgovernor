@@ -2,7 +2,6 @@ using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
 using Cell = RimGovernor.Brain.Domain.Cell;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -38,7 +37,7 @@ internal static class ToolsDeepResources
     {
         var seed = await s.FixtureAsync("seed", Seed, "", cancellationToken).ConfigureAwait(false);
         var (ex, ez) = (seed.X, seed.Z);
-        var facts = await s.CallAsync("deep-resources", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var facts = await s.CallAsync("deep-resources", NativeOps.ReadColonyFacts, new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var f = facts.DeepResources;
         s.RecordWire("deep_resources", f);
 

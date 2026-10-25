@@ -46,7 +46,7 @@ public sealed partial class Store
     private static WorkResourceView WorkResourcesIn(StoreTransaction tx, GenerationSnapshot current, PlanId exclude = default,
         IReadOnlyList<ActivityOwnership>? observed = null)
     {
-        var review = LoadRounds(tx);
+        var review = LoadReview(tx);
         if (!review.Enabled || review.Snapshot != current || review.WorkEvidence is not { } evidence)
             return new(new(), new([], [], [], ["work_resource_review_unavailable"]), new MaterialAvailability.Blocked(MaterialBudgetBlock.AwaitingReview));
         if (!exclude.IsEmpty && LoadIn(tx, exclude).Spec.Actions.SingleOrDefault()?.PawnActivities is { } continuation)

@@ -1,11 +1,13 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
 using System.Text.Json;
 using RimGovernor.Brain.Store.Codec;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -16,7 +18,7 @@ public sealed class FoodCookingContinuationTests
     private static FoodActivityRead Read(params FoodActivityOption[] options) => new() { Options = EquatableArray.From(options) };
     private static ActivityTaskRead Done(PawnActivities batch, string state = "completed", params ActivityTaskBinding[] bindings) => ConstructionFixtures.NoTasks() with
     {
-        Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 200 }, Bindings = EquatableArray.From(bindings),
+        Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 200 }, Bindings = EquatableArray.From(bindings),
         Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
             new(o.Assignment, o.Method, o.Revision, 0, state, "", 200)))),
     };
@@ -43,7 +45,7 @@ public sealed class FoodCookingContinuationTests
             var intent = IntentActionRules.IntentAction("food-action", decoded).Intent!.PawnActivities!.Batch!;
             Assert.Equal(batch.Tasks, intent.Tasks);
             Assert.Equal(batch.Orders[0].Steps, intent.Orders[0].Steps);
-            var wire = WireJson.Deserialize<ActivityTaskRequest>(WireJson.Serialize(new ActivityTaskRequest(new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, batch)));
+            var wire = OrdersJson.Deserialize<ActivityTaskRequest>(OrdersJson.Serialize(new ActivityTaskRequest(new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, batch)));
             Assert.Equal(batch.Tasks, wire.Batch.Tasks);
         }
         var step = cooking.Orders[0].Steps[0];
@@ -92,7 +94,7 @@ public sealed class FoodCookingContinuationTests
         foreach (var binding in new ActivityTaskBinding[] { new ActivityTaskBinding.Bound(recipe.Id, step), new ActivityTaskBinding.Recipe(recipe.Id, step, 101d) })
             Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(intent, ActivityNeed.Owed, Done(intent, bindings: [binding]))!.Orders[0].Release);
         Assert.False(CoordinatedActivitiesRules.ContinueCoordinatedActivity(intent, ActivityNeed.Owed, Done(intent, bindings: [new ActivityTaskBinding.Recipe(recipe.Id, step, 100d)]))!.Orders[0].Release);
-        var wire = WireJson.Deserialize<ActivityTaskRequest>(WireJson.Serialize(new ActivityTaskRequest(new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, intent)));
+        var wire = OrdersJson.Deserialize<ActivityTaskRequest>(OrdersJson.Serialize(new ActivityTaskRequest(new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, intent)));
         Assert.Equal(intent.Tasks, wire.Batch.Tasks);
     }
 
@@ -116,18 +118,18 @@ public sealed class FoodCookingContinuationTests
     public void NativeEstimateCollectionsRoundTripWithoutInventingValues()
     {
         var read = Read(Raw(), Raw() with { ApproachTicks = 0 });
-        var decoded = WireJson.Deserialize<FoodActivityRead>(WireJson.Serialize(read));
+        var decoded = OrdersJson.Deserialize<FoodActivityRead>(OrdersJson.Serialize(read));
         Assert.Equal(read, decoded);
         var tasks = ConstructionFixtures.NoTasks() with { SatisfiedTasks = ["one"],
             Bindings = [new ActivityTaskBinding.Supply("deliver", new PawnActivityStep(PawnActivityKind.Deliver, "stack", "", "", 2, 500).At(new(3, 4)), 2)],
             Pawns = [new("pawn", null)] };
-        var restored = WireJson.Deserialize<ActivityTaskRead>(WireJson.Serialize(tasks));
+        var restored = OrdersJson.Deserialize<ActivityTaskRead>(OrdersJson.Serialize(tasks));
         Assert.Equal(tasks.SatisfiedTasks, restored.SatisfiedTasks);
         Assert.Equal(2, Assert.IsType<ActivityTaskBinding.Supply>(restored.Bindings[0]).RemainingCount);
         Assert.Equal("pawn", restored.Pawns[0].Pawn);
         var construction = ConstructionFixtures.NoConstruction() with { Findings = ["mixed_material_demand_unsupported"],
             Options = [new Row("site", "Wall", new(2, 2), "pawn", "WoodLog", "wood", new(1, 1), 5, 10, "FinishFrames", 2.0, 3.0, default)] };
-        var sites = WireJson.Deserialize<ConstructionActivityRead>(WireJson.Serialize(construction));
+        var sites = OrdersJson.Deserialize<ConstructionActivityRead>(OrdersJson.Serialize(construction));
         Assert.Equal(construction.Findings, sites.Findings);
         Assert.IsType<ConstructionFinish.CannotFinish>(sites.Options[0].Finish);
         Assert.Equal(new ConstructionDelivery.Carried(2, 3), sites.Options[0].Delivery);

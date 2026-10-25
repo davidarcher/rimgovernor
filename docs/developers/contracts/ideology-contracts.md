@@ -127,7 +127,7 @@ remain tests, including the recorded full catalog fixture.
 | --- | --- | --- |
 | Static defs: memes, precepts with their comps, role precepts, ritual patterns and behaviors | Rows of the definition catalog (`DefinitionCatalog.defs`: `MemeDef`, `PreceptDef`, `RitualPatternDef`, `RitualBehaviorDef`, `RitualObligationTargetFilterDef`, `ThoughtDef`), read once per load token | `bridge.DefinitionCatalog.IdeologyDefs()` (`policy.IdeologyDefs`) |
 | Per-pawn: ideoligion id, held role, certainty | Pawn row's `policy_inputs` (`ideo_id`, `ideo_role`, `ideo_certainty`) | `policy.PawnPolicyInputs` |
-| Colony: precepts and roles in force, ritual state, building precepts | `BundleSnapshot.ideology`, an omittable section with watermark `ideology` | `bridge.RoundsFrame.Ideology`, `policy.Facts.Ideology`, `facts.Ideology` |
+| Colony: precepts and roles in force, ritual state, building precepts | `BundleSnapshot.ideology`, an omittable section with watermark `ideology` | `bridge.ReviewFrame.Ideology`, `policy.Facts.Ideology`, `facts.Ideology` |
 
 Native names are from the game's reference assemblies (`PreceptDef`,
 `PreceptComp`, `MemeDef`, `RitualPatternDef`, `Ideo`, `Precept_Role`,
@@ -266,7 +266,7 @@ type, Hauling for a delivery or supply) or a nonzero row of an open
 admin/work-assignments priority write; a pawn with an order step whose work
 giver the catalog lacks is skipped too (`PawnCommitment.GiverMissing`), and a
 cut-off action census (`WorkCommitments.Truncated`) gives no work-disabling role
-to anyone. The rounds review admits its coupled selection before
+to anyone. The colony review admits its coupled selection before
 the planner wave, so the role read sees it; a priority write the same wave
 commits after the read is not seen (#3678).
 Weighing a role's mood against the lost work is not done yet (#3693). A pawn that holds a role is never moved. Each owed role is its own Method, `ideorole-<pawn>-<role>`, with the role as its

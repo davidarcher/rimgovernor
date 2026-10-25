@@ -39,7 +39,7 @@ runtime writes found from active mutable state. The saved identity assembly has
 no declared static fields. No headless source declares static fields; its writes
 to Unity state and Harmony registration are covered separately.
 
-All unqualified owning classes below are in `HomeBridge.BridgeTools`. Field groups
+All unqualified owning classes below are in `RimGovernor.Native`. Field groups
 share the stated lifetime and rules. “Process” means the loaded managed assembly's
 lifetime; none of these static fields is serialized. A documented guard or reset
 does not establish that every native interruption path reaches it.

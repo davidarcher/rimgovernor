@@ -1,12 +1,11 @@
 using RimGovernor.Brain.Domain;
-using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>A colonist on the current map as the departure planners read it: the native quest worker row and its defense points.</summary>
 public sealed record QuestDeparturePawn
 {
-    public required Pb.QuestWorker Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.QuestWorker Observed { get; init; }
 
     public PawnId Id => Observed.PawnId;
 
@@ -23,7 +22,7 @@ public sealed record QuestDeparturePawn
 
     public bool FactionLeader => Observed.FactionLeader;
 
-    public Pb.QuestNegotiation Negotiation => Observed.Negotiation;
+    public RimGovernor.Brain.GameFacts.Observations.QuestNegotiation Negotiation => Observed.Negotiation;
 }
 
 public sealed record QuestDepartureWork
@@ -43,13 +42,13 @@ public static class QuestDeparture
     /// Leaves every work type's last primary owner at home and prices a fighting squad against the colony's
     /// observed defense headroom.
     /// </summary>
-    public static (IReadOnlyList<PawnId> Squad, QuestSkipReason Reason) DepartureSquad(QuestState offer, RoundsFacts f) =>
+    public static (IReadOnlyList<PawnId> Squad, QuestSkipReason Reason) DepartureSquad(QuestState offer, ReviewFacts f) =>
         DepartureSquadOf(offer, f, false);
 
-    internal static (IReadOnlyList<PawnId> Squad, QuestSkipReason Reason) DepartureSquadOf(QuestState offer, RoundsFacts f, bool strongestFirst) =>
+    internal static (IReadOnlyList<PawnId> Squad, QuestSkipReason Reason) DepartureSquadOf(QuestState offer, ReviewFacts f, bool strongestFirst) =>
         DepartureSquadWithCrew(offer, f, strongestFirst, false);
 
-    internal static (IReadOnlyList<PawnId> Squad, QuestSkipReason Reason) DepartureSquadWithCrew(QuestState offer, RoundsFacts f, bool strongestFirst, bool allowNonfighters)
+    internal static (IReadOnlyList<PawnId> Squad, QuestSkipReason Reason) DepartureSquadWithCrew(QuestState offer, ReviewFacts f, bool strongestFirst, bool allowNonfighters)
     {
         if (f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile })
         {
@@ -63,11 +62,11 @@ public static class QuestDeparture
         long need = 0;
         foreach (var objective in offer.Objectives)
         {
-            if (objective.Kind != Pb.QuestObjectiveKind.LoadPawns)
+            if (objective.Kind != RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.LoadPawns)
             {
                 continue;
             }
-            if (objective.Goal is not Pb.QuestObjectiveGoal.Pawns { Count: var count })
+            if (objective.Goal is not RimGovernor.Brain.GameFacts.Observations.QuestObjectiveGoal.Pawns { Count: var count })
             {
                 need = 0;
                 break;
@@ -82,7 +81,7 @@ public static class QuestDeparture
     /// (<see cref="QuestFamily.BanditCamp"/>) departure takes, beside the pawns other open quests already hold. The
     /// <paramref name="self"/> quest's own departures are not counted as held; a need below 1 is an unread headcount.
     /// </summary>
-    internal static (IReadOnlyList<PawnId> Squad, QuestSkipReason Reason) DepartureSquadFor(QuestId self, QuestFamily family, long need, RoundsFacts f, bool strongestFirst, bool allowNonfighters)
+    internal static (IReadOnlyList<PawnId> Squad, QuestSkipReason Reason) DepartureSquadFor(QuestId self, QuestFamily family, long need, ReviewFacts f, bool strongestFirst, bool allowNonfighters)
     {
         IReadOnlyList<PawnId> none = [];
         var covk = f.WorkRoster is WorkRosterRead.Read;
@@ -262,9 +261,9 @@ public static class QuestDeparture
         return (none, "no_spare_pawn");
     }
 
-    public static QuestSkipReason DepartureAdmission(QuestState offer, RoundsFacts f) => DepartureSquad(offer, f).Reason;
+    public static QuestSkipReason DepartureAdmission(QuestState offer, ReviewFacts f) => DepartureSquad(offer, f).Reason;
 
-    public static bool DepartureDeficit(RoundsFacts f)
+    public static bool DepartureDeficit(ReviewFacts f)
     {
         foreach (var offer in f.QuestOffers)
         {
@@ -277,7 +276,7 @@ public static class QuestDeparture
         return false;
     }
 
-    public static QuestDepartureWork SelectQuestDeparture(RoundsFacts f)
+    public static QuestDepartureWork SelectQuestDeparture(ReviewFacts f)
     {
         foreach (var offer in f.QuestOffers.OrderBy(o => o.Id))
         {

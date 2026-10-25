@@ -17,18 +17,18 @@ in the kind's unit (projects, tiers, items, colonists or animals short; 1 for an
 |---|---|---|---|
 | `ResearchProject` | the project is in the finished list (Unknown when the census does not list it) | the project joins the research-wanted set while unfinished | `economy/research` |
 | `ResearchTier` | the tech tier reached is at least the named `TechTier`; a name that is only a `TechLevel` (Neolithic, Medieval, Ultra, ...) is met once no listed project at that level is unfinished | the first unlocking project of every tier above the one reached, unioned with the unfinished projects of the named tech level while the goal is unmet ([Research tier](#research-tier)) | `economy/research` |
-| `StockCount` | the economy stock of the thing is at least `Count` | `Count` is a floor in `RoundsFacts.ResourceNeeds` (max-merged with the other floors) | `economy/resource` |
+| `StockCount` | the economy stock of the thing is at least `Count` | `Count` is a floor in `ReviewFacts.ResourceNeeds` (max-merged with the other floors) | `economy/resource` |
 | `Colonists` | the colonist count is at least `Count` | the joiner capacity and lance population target is `max(100, Count)` | `joiners/offers` |
 | `Animals` | the colony holds at least `Count` of the race | the herd plan raises the race's band to `Count` and does not retire it | `animals/herd` |
 | `NamedPrisoner` | the pawn (`Target`) is an admitted colonist; `NoMethod` `not a prisoner` when it is neither held nor a colonist, `not_recruitable` when held but unrecruitable | the prisoner is recruited whatever its worth (`PrisonerColony.NamedPrisoners`; Convert first when its ideoligion differs, as for any recruit); custody and food rules stay, and it is not an organ-harvest candidate | `prisoners/recruit` |
-| `NamedQuest` | the quest (`Target`) is `EndedSuccess`; `NoMethod` `expired` once the offer lapses, `ended` after another end state, `unknown_quest` when the census does not list it | the quest step considers it before every other offer (`RoundsFacts.NamedQuests`) and accepts it when its admission checks pass; `Blocked` with the failing check (`home_capacity`, `no_spare_pawn`, `capacity_unknown`, ...) otherwise; native `CanAcceptQuest` stays the final check | `joiners/quests` (`joiners/offers` for a joiner quest) |
+| `NamedQuest` | the quest (`Target`) is `EndedSuccess`; `NoMethod` `expired` once the offer lapses, `ended` after another end state, `unknown_quest` when the census does not list it | the quest step considers it before every other offer (`ReviewFacts.NamedQuests`) and accepts it when its admission checks pass; `Blocked` with the failing check (`home_capacity`, `no_spare_pawn`, `capacity_unknown`, ...) otherwise; native `CanAcceptQuest` stays the final check | `joiners/quests` (`joiners/offers` for a joiner quest) |
 | `RoomRole` | a standing room has the role (`Target` the `RoomRole` wire name); a `Hospital` goal: the hosted medical beds reach `Count` (1 when it names none). `NoMethod` `no_pursuit` for a role no planner stages, `unknown_role`, `missing_dlc` or `no_required_buildings` for the worship room | see [Room goals](#room-goals) | `shelter/sleeping` (child rooms), `medical/care` (hospital) |
-| `BuiltCount` | `Count` finished buildings of the def (`Target`) stand (`RoundsFacts.BuiltBuildings`); `NoMethod` `no placer for <def>` when nothing places it | see [Built-count goals](#built-count-goals-3496) | `layout/defense` (turrets), the goal's own Need (trade beacon, geothermal generator) |
+| `BuiltCount` | `Count` finished buildings of the def (`Target`) stand (`ReviewFacts.BuiltBuildings`); `NoMethod` `no placer for <def>` when nothing places it | see [Built-count goals](#built-count-goals-3496) | `layout/defense` (turrets), the goal's own Need (trade beacon, geothermal generator) |
 | `Precept`, `Meme` | the ideoligion holds it | the ideoligion reform steps toward it, one meme change or precept swap per reform, gated by development points (#3500, [ideology contracts](ideology-contracts.md#creation-and-reform)); `NoMethod` `not fluid` on a non-fluid ideoligion, `unavailable` for a missing def, `missing_dlc` without Ideology; `Blocked` with the first missing prerequisite or `development points <points>/<cost>` | `ideology/reform` |
 | `VeneratedAnimal` | the ideoligion venerates the race | the ideoligion reform adds the animal, one per reform, gated by development points (#3517, [ideology contracts](ideology-contracts.md#creation-and-reform)); `Blocked` `venerated_animal_unavailable:<def>` for an animal the game never offers (insects, dryads) or past the limit; the other states as `Precept`, `Meme` | `ideology/reform` |
 | `Believers` | every free colonist (`Count` 0) or `Count` colonists share the ideoligion | moral-guide conversion of the free colonist with the lowest certainty, and conversion of recruitable prisoners whatever their worth (#3501, [conversion](ideology-contracts.md#conversion)) | `ideology/convert/<pawn>` |
-| `Skill` | the pawn's (`Target`) skill (`Qualifier`, aptitudes included) is at least `Count`, from the work pawn read; `NoMethod` `not_a_colonist`, `unknown_skill` or `incapable` (the skill is disabled) | the work planner gives the pawn priority 1 on every work type of the skill it is able for, beside the owners fitness picks (`RoundsFacts.GoalTraining`, `WorkDemand.Training`; the safety floors stay), and its reading policy allows textbooks | `admin/work-assignments` |
-| `Health` | the pawn (`Target`) carries the hediff the recipe (`Qualifier`) adds (`RecipeFacts.AddedHediffs`, from the catalog); `NoMethod` `unknown_recipe` (the recipe adds none), `not_a_colonist` or `unavailable` (the pawn's operations do not list it); `Blocked` `no_hospital_bed` | the surgery planner queues the recipe as the pawn's elective when its part is stocked, else wants the part for the part bill and trade paths (`RoundsFacts.GoalSurgeries`, `SurgeryContext.Goals`); a served operation still comes first | `medical/surgery` |
+| `Skill` | the pawn's (`Target`) skill (`Qualifier`, aptitudes included) is at least `Count`, from the work pawn read; `NoMethod` `not_a_colonist`, `unknown_skill` or `incapable` (the skill is disabled) | the work planner gives the pawn priority 1 on every work type of the skill it is able for, beside the owners fitness picks (`ReviewFacts.GoalTraining`, `WorkDemand.Training`; the safety floors stay), and its reading policy allows textbooks | `admin/work-assignments` |
+| `Health` | the pawn (`Target`) carries the hediff the recipe (`Qualifier`) adds (`RecipeFacts.AddedHediffs`, from the catalog); `NoMethod` `unknown_recipe` (the recipe adds none), `not_a_colonist` or `unavailable` (the pawn's operations do not list it); `Blocked` `no_hospital_bed` | the surgery planner queues the recipe as the pawn's elective when its part is stocked, else wants the part for the part bill and trade paths (`ReviewFacts.GoalSurgeries`, `SurgeryContext.Goals`); a served operation still comes first | `medical/surgery` |
 | every other kind | Unknown | none: `NoMethod` `no_pursuit` | none |
 
 A kind with no pursuit is accepted and reported, never refused. A goal's demand is replaced each review, so a
@@ -52,13 +52,13 @@ no method and an actionable or held block) or `NoMethod`. A goal whose facts are
 family's Method for an unmet goal is only `NeedMethod.Held`, with the subject `pursuing:<owner need>`,
 `blocked:<reason>`, `infeasible:<floor>` (below) or `no_method:<reason>`. The owner's state is read from its rounds progress row.
 
-An unmet goal also carries `EtaDay` (#3505), the day the tier-2 colony model completes it: derived each review into the Rounder's `GoalEta` memory, never stored, unknown for a goal tier 2 has no path for. The panel shows it on the Pursuing row.
+An unmet goal also carries `EtaDay` (#3505), the day the tier-2 colony model completes it: derived each review into the ColonyReview's `GoalEta` memory, never stored, unknown for a goal tier 2 has no path for. The panel shows it on the Pursuing row.
 
 ## Room goals
 
 A `RoomRole` goal (#3496) adds demand to the planner that owns the room; it places and builds nothing itself.
 `GoalRules.DemandOf` collects it into `GoalDemand.Build` (`GoalBuildDemand`), which `GoalRules.Stamp` carries on
-`RoundsFacts.GoalBuild` into every read of the world, so room demand lags the goal by one review. A room goal keeps
+`ReviewFacts.GoalBuild` into every read of the world, so room demand lags the goal by one review. A room goal keeps
 asking after the room stands: dropping the need would end the role in the plan and retire the room.
 
 - **Nursery, Classroom, DeathrestChamber.** `ChildRoomsRules.GoalRoomNeeds` adds the smallest `ChildRoomNeed`
@@ -72,7 +72,7 @@ asking after the room stands: dropping the need would end the role in the plan a
 - **Hospital.** `GoalBuildDemand.HospitalBeds` is the goal's `Count` (at least 1, the largest of several goals). It is the
   minimum bed count of `HospitalRules.SelectHospitalBed` (`HospitalRequest.MinBeds`: demand is `max(patients, floor)`)
   and the station graph's injured floor. The hospital step runs only while `medical/care` is unmet, so
-  `MedicalFacts.HospitalShort` (hosted medical beds below the floor, read in `RoundsMedicalFamily.ReadAsync`) keeps the
+  `MedicalFacts.HospitalShort` (hosted medical beds below the floor, read in `MedicalFamily.ReadAsync`) keeps the
   Need unmet while no patient is sick.
 
 ## Importance and deadline
@@ -81,7 +81,7 @@ asking after the room stands: dropping the need would end the role in the plan a
 `GoalRules.DeadlineOf`) are stored, shown, sort the panel and weight theme progress. They also value the goal in the
 forecast's capability-days currency (#3503), in the coupled selection only; a goal Need is still a Development Need and
 neither field reaches Need selection. `GoalRules.ValuesOf` turns each unmet goal that has a forecast route into a
-`ForecastGoalValue` on `RoundsFacts.GoalValues`, and the ledger's `Goals` term pays the goal's worth times the
+`ForecastGoalValue` on `ReviewFacts.GoalValues`, and the ledger's `Goals` term pays the goal's worth times the
 fraction of the goal an evaluated schedule progresses:
 
 - **Research** (`ResearchProject`, `ResearchTier`): the goal's worth is split over the unfinished projects it waits on and
@@ -118,9 +118,9 @@ Need is `economy/resource`, and the goal asks three existing channels for help; 
   the definitions the pawn can wear as an adult. The outfit policy then allows it whatever the role; wearing stays the
   outfit policy's job. Stamping is idempotent and runs on every read of the world, beside the preference stamping.
 - **Material.** The missing count (`Count` less the colonists already wearing it) becomes an `OpenBill` in
-  `RoundsFacts.WornBills`, priced from the garment's recipe slots through `GearRules.GearFilter` (the stuff alone in
+  `ReviewFacts.WornBills`, priced from the garment's recipe slots through `GearRules.GearFilter` (the stuff alone in
   its slot), and `ClothingRunway.Needs` merges it with the replacement demand. A garment
-  not in `RoundsFacts.Garments` (no available recipe, or no outfit allows it yet) prices nothing.
+  not in `ReviewFacts.Garments` (no available recipe, or no outfit allows it yet) prices nothing.
 - **Research.** While the goal is unmet, the stuff's research joins the research-wanted set. It is found through the
   plant definitions: the plant whose `HarvestedThingDef` is the stuff gives its `Research` (devilstrand cloth to the
   Devilstrand project), unfinished projects only. Sowing and tailoring then follow the field and clothing channels.
@@ -131,7 +131,7 @@ deficit is `Count` less the wearers.
 ## Built-count goals (#3496)
 
 A `BuiltCount` goal (`Target` the building def, `Count`) is met once `Count` finished buildings of the def stand
-(`RoundsFacts.BuiltBuildings`, counted from the building table). `GoalRules.PlacerOf` names who places a def; a def
+(`ReviewFacts.BuiltBuildings`, counted from the building table). `GoalRules.PlacerOf` names who places a def; a def
 nothing places is `NoMethod` with the reason `no placer for <def>` (it still reads Met when that many already stand).
 
 - **Turrets** (`Turret_MiniTurret`, `Turret_Autocannon`, `Turret_Sniper`). The goal's `Count` (the largest of several) is
@@ -142,7 +142,7 @@ nothing places is `NoMethod` with the reason `no placer for <def>` (it still rea
   builds the rung its armory tier allows, so a goal for another rung stays unmet. A met goal keeps its floor so the
   budget never plans standing turrets away. The mortar has no placer here.
 - **Trade beacon** (`OrbitalTradeBeacon`) and **geothermal generator** (`GeothermalGenerator`, a standalone owed
-  count). The goal's own Need (`goals/built-count/<id>`) has a work step (`GoalsRounds.WorkAsync`, scheduled on
+  count). The goal's own Need (`goals/built-count/<id>`) has a work step (`GoalsReview.WorkAsync`, scheduled on
   `ActionKind.Building`) modelled on the biotech charger and gene bank: one building Method per count standing
   (`built-<def>-<n>`) on a free site previewed natively (`FreeSitesRules.FreeSites` near the colony centre for the
   beacon; the nearest unoccupied steam geyser for the generator) and admitted by claims. The family proposes no held
@@ -153,4 +153,4 @@ nothing places is `NoMethod` with the reason `no placer for <def>` (it still rea
 ## Toggle
 
 The `goals` family (`RIMGOVERNOR_ROUTINE_FAMILIES`) composes the family and the review's demand injection
-(`RoundsCapabilities.Goals`). Off, goals persist and render but ask for nothing.
+(`Capabilities.Goals`). Off, goals persist and render but ask for nothing.

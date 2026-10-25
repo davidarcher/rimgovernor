@@ -3,7 +3,7 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // A saved, explicitly requested reserve bill. Only its stock accounting
     // differs: brewing, hauling and fermentation remain ordinary pawn work.

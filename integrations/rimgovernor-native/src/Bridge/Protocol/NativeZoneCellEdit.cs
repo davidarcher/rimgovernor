@@ -3,11 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// The zone intent's cells shape. It never takes a cell away from another
@@ -24,9 +21,9 @@ namespace HomeBridge.BridgeTools
         private const string Kind = "Zone cell edit";
         private static string At(IntVec3 c) => "(" + c.x + ", " + c.z + ")";
 
-        private static bool Valid([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] Operations.ZoneIntent? intent)
+        private static bool Valid([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] RimGovernor.Brain.GameOrders.Operations.ZoneIntent? intent)
         {
-            if (intent == null || NativeZoneIntent.Id(intent) == null || intent.Kind != Operations.ZoneType.Existing || (intent.AddCells == null) == (intent.RemoveCells == null)) return false;
+            if (intent == null || NativeZoneIntent.Id(intent) == null || intent.Kind != RimGovernor.Brain.GameOrders.Operations.ZoneType.Existing || (intent.AddCells == null) == (intent.RemoveCells == null)) return false;
             var cells = NativeZoneIntent.EditCells(intent)?.Selection?.ExplicitCells?.Cells;
             if (cells is not { } list || list.Count == 0) return false;
             if (!list.All(c => c.X is >= 0 && c.Z is >= 0)) return false;
@@ -46,20 +43,20 @@ namespace HomeBridge.BridgeTools
             catch { return false; }
         }
 
-        private static Zone? Resolve(Operations.ZoneIntent? intent, Map map) =>
+        private static Zone? Resolve(RimGovernor.Brain.GameOrders.Operations.ZoneIntent? intent, Map map) =>
             Valid(intent) ? RefIndex.Zone(map, (intent.Zone?.Id ?? "")) is Zone z && z.Cells.Count > 0 ? z : null : null;
 
-        private static IntVec3[] Requested(Operations.ZoneIntent intent) =>
+        private static IntVec3[] Requested(RimGovernor.Brain.GameOrders.Operations.ZoneIntent intent) =>
             NativeZoneIntent.EditCells(intent)?.Selection?.ExplicitCells?.Cells.Select(c => new IntVec3(c.X, 0, c.Z)).ToArray() ?? Array.Empty<IntVec3>();
 
-        private static bool Standing(Operations.ZoneIntent? intent, Zone? zone) =>
+        private static bool Standing(RimGovernor.Brain.GameOrders.Operations.ZoneIntent? intent, Zone? zone) =>
             intent != null && zone != null && (NativeZoneIntent.Adding(intent) ? Requested(intent).All(zone.Cells.Contains) : !Requested(intent).Any(zone.Cells.Contains));
 
         // The apply-time precondition list for expand/shrink
         // (action-contracts.md): the zone, its consistency, every requested
         // cell and the resulting shape, one rule at a time, so a refusal
         // names the cell that moved.
-        private static ApplyPreconditions Rules(Operations.ZoneIntent? intent, Zone? zone, Map map)
+        private static ApplyPreconditions Rules(RimGovernor.Brain.GameOrders.Operations.ZoneIntent? intent, Zone? zone, Map map)
         {
             var rules = new ApplyPreconditions(Kind)
                 .Require(() => Valid(intent), "an edit requires a zone id, add or remove cells, and distinct explicit cells")
@@ -89,19 +86,19 @@ namespace HomeBridge.BridgeTools
             return rules;
         }
 
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
+        public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
-            var map = ProtoBoundary.LoadedMap(context);
+            var map = GameThread.LoadedMap(context);
             var zone = Resolve(action.Intent?.Zone, map);
             if (Standing(action.Intent?.Zone, zone)) return null;
             var rules = Rules(action.Intent?.Zone, zone, map);
             return rules.Holds ? null : rules.Failure();
         }
 
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
+        public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var intent = action.Intent?.Zone ?? throw new InvalidOperationException("Zone intent is missing.");
-            var map = ProtoBoundary.LoadedMap(context);
+            var map = GameThread.LoadedMap(context);
             var zone = Resolve(intent, map);
             if (!Standing(intent, zone))
             {

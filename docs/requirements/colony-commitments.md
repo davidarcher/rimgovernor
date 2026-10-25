@@ -71,7 +71,7 @@ neuroformer use and monolith interaction have confirmed holds. Evidence K5.
   checks a real native quest acceptance and reward choice, refusals for invalid
   choices and replay behavior. It begins with a prepared offer and does not
   evaluate whether accepting it benefits the colony or completes its objectives.
-- **K3 — Animal path.** [AnimalsReader](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsAnimals.cs)
+- **K3 — Animal path.** [AnimalsReader](../../brain/src/RimGovernor.Brain.Runtime/Review/Animals.cs)
   reads herd and room facts and routes containment and ward work through the
   shared building planner. Registered Smoke
   [husbandry/dispatch](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Husbandry/HusbandryDispatch.cs)
@@ -84,7 +84,7 @@ neuroformer use and monolith interaction have confirmed holds. Evidence K5.
 [QuestPolicyTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/QuestPolicyTests.cs)
 checks joiner food/bed capacity, outgunned or unread offers, production-decree
 quantities and materials, and shuttle loading before launch.
-[RoundsJoiners](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsJoiners.cs)
+[Joiners](../../brain/src/RimGovernor.Brain.Runtime/Review/JoinersReview.Joiners.cs)
 routes accepted objectives through site, hack, expedition and hospitality work
 under their claims, retaining pending work. Native
 [quest/hack](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Quest/QuestHack.cs)

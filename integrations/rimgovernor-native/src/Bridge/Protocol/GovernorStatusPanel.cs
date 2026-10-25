@@ -6,7 +6,7 @@ using RimWorld.Planet;
 using UnityEngine;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// The in-game connection line: one label in the top-right corner,

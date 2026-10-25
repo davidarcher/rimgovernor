@@ -2,9 +2,9 @@ using System.Net;
 using System.Text;
 using RimGovernor.Brain.Acceptance;
 using RimGovernor.Brain.HttpChannel;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
-using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -31,7 +31,7 @@ public sealed class HarnessNewColonyRouteTests : IDisposable
         }
     }
 
-    private static Lifecycle.NewColonyRequest Request() => new()
+    private static RimGovernor.Brain.GameOrders.Lifecycle.NewColonyRequest Request() => new()
     {
         RequestId = "ideoligion-create",
         TimeoutMs = 600_000,
@@ -53,7 +53,7 @@ public sealed class HarnessNewColonyRouteTests : IDisposable
 
         Assert.Equal(3, sent.Count);
         Assert.All(sent, s => Assert.Equal((HttpMethod.Post, "/api/lifecycle/new"), (s.Method, s.Path)));
-        var body = WireJson.Deserialize<Lifecycle.NewColonyRequest>(sent[0].Body);
+        var body = OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Lifecycle.NewColonyRequest>(sent[0].Body);
         Assert.Equal(Request(), body);
         Assert.True(body.Spec!.GovernorIdeoligion);
     }

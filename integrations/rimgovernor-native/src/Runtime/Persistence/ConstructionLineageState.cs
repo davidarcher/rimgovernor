@@ -1,6 +1,6 @@
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// Empty stand-in for the removed construction lineage component,

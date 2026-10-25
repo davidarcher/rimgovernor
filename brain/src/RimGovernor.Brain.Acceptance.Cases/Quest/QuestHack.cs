@@ -1,5 +1,3 @@
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -31,9 +29,9 @@ internal static class QuestHack
         var terminal = prepared.TerminalId;
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 
-        Task<Operations.ActionResult> Apply(string key, string target, bool enabled) => TradeKit.ApplyAsync(s, key, new Operations.HackDesignationIntent
+        Task<RimGovernor.Brain.GameFacts.Operations.ActionResult> Apply(string key, string target, bool enabled) => TradeKit.ApplyAsync(s, key, new RimGovernor.Brain.GameOrders.Operations.HackDesignationIntent
         {
-            Target = new Common.Ref { Id = target },
+            Target = new RimGovernor.Brain.GameFacts.Common.Ref { Id = target },
             Enabled = enabled,
         }, cancellationToken);
 
@@ -55,7 +53,7 @@ internal static class QuestHack
         }
 
         var unhackable = await Apply("hack-unavailable", prepared.UnhackableItemId, true).ConfigureAwait(false);
-        if (TradeKit.RefusedCode(unhackable) != Common.FailureCode.Unavailable)
+        if (TradeKit.RefusedCode(unhackable) != RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable)
         {
             throw new AcceptanceException($"hack-unavailable: expected an UNAVAILABLE refusal, got {unhackable}");
         }

@@ -2,8 +2,6 @@ using System.Globalization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -67,14 +65,14 @@ internal static class ControlHaulOut
         var site = staged.Site ?? throw new AcceptanceException("the haul-out stage found no site");
         var destination = new Cell(site.X + store.X, site.Z + store.Z);
         var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
-        _ = await TypedApply.AppliedAsync(s, "designate", new Operations.DesignateIntent { Location = new Operations.DesignationLocation.ByTarget(), Designation = Operations.ThingDesignation.Haul, Target = new() { Id = stack }, ReplaceWithWall = false, Withdraw = false, Guard = Operations.DesignationGuard.NoGuard }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "designate", new RimGovernor.Brain.GameOrders.Operations.DesignateIntent { Location = new RimGovernor.Brain.GameOrders.Operations.DesignationLocation.ByTarget(), Designation = RimGovernor.Brain.GameOrders.Operations.ThingDesignation.Haul, Target = new() { Id = stack }, ReplaceWithWall = false, Withdraw = false, Guard = RimGovernor.Brain.GameOrders.Operations.DesignationGuard.NoGuard }, cancellationToken).ConfigureAwait(false);
 
         var op = await HaulOpAsync(s, stack, cancellationToken).ConfigureAwait(false)
             ?? throw new AcceptanceException($"designated: the read reports no Haul removal of the ordinary stack {stack}");
         var row = op.Options.FirstOrDefault(o => o.Pawn == worker)
             ?? throw new AcceptanceException($"designated: the Haul removal of {stack} has no row for the worker {worker}: {op}");
         s.Record("capacity", row.Capacity.ToString(CultureInfo.InvariantCulture));
-        if (row.Count != Count || row.Capacity <= 0 || row.Capacity >= Count || row.Location != destination || row.Delivery is not Observations.ConstructionDelivery.Carried)
+        if (row.Count != Count || row.Capacity <= 0 || row.Capacity >= Count || row.Location != destination || row.Delivery is not RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery.Carried)
         {
             throw new AcceptanceException($"designated: want the Haul row of {stack} at Count {Count}, Capacity under {Count} and a known delivery to {destination}, got {row}");
         }
@@ -85,13 +83,13 @@ internal static class ControlHaulOut
             .Select(p => new PawnActivityOrder(p, "hold", "hold", 0, 1, false, [hold])).ToArray();
         if (others.Length > 0)
         {
-            _ = await TypedApply.AppliedAsync(s, "hold", new Operations.PawnActivitiesIntent { Batch = new PawnActivities(generation, others) }, cancellationToken).ConfigureAwait(false);
+            _ = await TypedApply.AppliedAsync(s, "hold", new RimGovernor.Brain.GameOrders.Operations.PawnActivitiesIntent { Batch = new PawnActivities(generation, others) }, cancellationToken).ConfigureAwait(false);
         }
 
         var first = Math.Min(row.Capacity, Count);
         await DeliverAsync(s, generation, worker, stack, origin, destination, first, 0, 1, cancellationToken).ConfigureAwait(false);
         var left = false;
-        Observations.StockItem? at = null;
+        RimGovernor.Brain.GameFacts.Observations.StockItem? at = null;
         _ = await s.RunUntilAsync(
             "first-carry",
             Budget,
@@ -135,28 +133,28 @@ internal static class ControlHaulOut
         {
             Tasks = [new SelectedActivityTask(TaskId, worker, [], step, new Cell(origin.X, origin.Z), 0)],
         };
-        _ = await TypedApply.AppliedAsync(s, "order-" + revision.ToString(CultureInfo.InvariantCulture), new Operations.PawnActivitiesIntent { Batch = batch }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "order-" + revision.ToString(CultureInfo.InvariantCulture), new RimGovernor.Brain.GameOrders.Operations.PawnActivitiesIntent { Batch = batch }, cancellationToken).ConfigureAwait(false);
     }
 
     // The stack's Haul removal, or null when the read lists no op for it.
-    private static async Task<Observations.PlannedSiteClearing?> HaulOpAsync(TypedSession s, string stack, CancellationToken cancellationToken)
+    private static async Task<RimGovernor.Brain.GameFacts.Observations.PlannedSiteClearing?> HaulOpAsync(TypedSession s, string stack, CancellationToken cancellationToken)
     {
-        var read = await s.CallAsync("removals", NativeOps.ReadConstructionActivity, new Observations.ConstructionActivityRequest(s.Identity, default), cancellationToken).ConfigureAwait(false);
-        return read.Removals.FirstOrDefault(r => r.Id == stack && r.Kind == Observations.PlannedClearingKind.Haul);
+        var read = await s.CallAsync("removals", NativeOps.ReadConstructionActivity, new RimGovernor.Brain.GameOrders.Observations.ConstructionActivityRequest(s.Identity, default), cancellationToken).ConfigureAwait(false);
+        return read.Removals.FirstOrDefault(r => r.Id == stack && r.Kind == RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Haul);
     }
 
     // The staged stack among the colony's chemfuel, or null when it is gone (merged into the stored stack).
-    private static async Task<Observations.StockItem?> StackAsync(TypedSession s, string stack, CancellationToken cancellationToken)
+    private static async Task<RimGovernor.Brain.GameFacts.Observations.StockItem?> StackAsync(TypedSession s, string stack, CancellationToken cancellationToken)
         => (await StockAsync(s, cancellationToken).ConfigureAwait(false)).FirstOrDefault(i => i.Id == stack);
 
     // The colony's chemfuel on the stockpile cell, or null when none is there.
-    private static async Task<Observations.StockItem?> AtAsync(TypedSession s, Cell cell, CancellationToken cancellationToken)
+    private static async Task<RimGovernor.Brain.GameFacts.Observations.StockItem?> AtAsync(TypedSession s, Cell cell, CancellationToken cancellationToken)
         => (await StockAsync(s, cancellationToken).ConfigureAwait(false)).FirstOrDefault(i => i.Cell.X == cell.X && i.Cell.Z == cell.Z);
 
-    private static async Task<IEnumerable<Observations.StockItem>> StockAsync(TypedSession s, CancellationToken cancellationToken)
+    private static async Task<IEnumerable<RimGovernor.Brain.GameFacts.Observations.StockItem>> StockAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var supplies = await s.CallAsync("stock", NativeOps.ListSupplies,
-            new Observations.ListSuppliesRequest { Scope = s.Scope, Filter = new Observations.StockFilter { DefNames = [Def], Category = Observations.StockCategory.Haulable, Ownership = Observations.StockOwnership.All, IncludeHeld = true } },
+            new RimGovernor.Brain.GameOrders.Observations.ListSuppliesRequest { Scope = s.Scope, Filter = new RimGovernor.Brain.GameFacts.Observations.StockFilter { DefNames = [Def], Category = RimGovernor.Brain.GameFacts.Observations.StockCategory.Haulable, Ownership = RimGovernor.Brain.GameFacts.Observations.StockOwnership.All, IncludeHeld = true } },
             cancellationToken).ConfigureAwait(false);
         return supplies.Stocks.SelectMany(st => st.Items);
     }

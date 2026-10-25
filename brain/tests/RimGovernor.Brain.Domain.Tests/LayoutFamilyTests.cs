@@ -1,5 +1,5 @@
-using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.Runtime;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
@@ -126,7 +126,7 @@ public sealed class LayoutFamilyTests
         {
             HomeCoverage = Diff((1, 1)),
             Firebreak = ring,
-            FirebreakStep = LayoutRounds.FirebreakCandidate(ring, new Dictionary<Cell, CoverClearance>()),
+            FirebreakStep = LayoutReview.FirebreakCandidate(ring, new Dictionary<Cell, CoverClearance>()),
         });
         var run = colony.Run();
         Assert.All(run.Methods, m => Assert.Equal(LayoutFamily.HomeCoverage, m.Need));
@@ -143,7 +143,7 @@ public sealed class LayoutFamilyTests
     {
         var ct = TestContext.Current.CancellationToken;
         var none = new Dictionary<Cell, CoverClearance>();
-        LayoutFacts Order(FirebreakWork ring) => new() { Firebreak = ring, FirebreakStep = LayoutRounds.FirebreakCandidate(ring, none) };
+        LayoutFacts Order(FirebreakWork ring) => new() { Firebreak = ring, FirebreakStep = LayoutReview.FirebreakCandidate(ring, none) };
         using var colony = Open(new LayoutNeeds { Firebreak = true }, Order(Ring((10, 10), (10, 11))));
         var first = colony.Run();
         Assert.Equal(Outcome.Admitted, Colony.Report(first, LayoutFamily.Firebreak).Outcome);
@@ -162,7 +162,7 @@ public sealed class LayoutFamilyTests
         Assert.Equal(2, colony.Journal.LoadNeed(LayoutFamily.Firebreak, World, ct).Methods.Count);
 
         // Nothing owed builds no order.
-        Assert.Null(LayoutRounds.FirebreakCandidate(Ring(), none));
+        Assert.Null(LayoutReview.FirebreakCandidate(Ring(), none));
     }
 
     [Fact]
@@ -195,13 +195,13 @@ public sealed class LayoutFamilyTests
     public void TheRoutesNeedReadsTheCensusFreshWithNoLatch()
     {
         var composed = new LayoutNeeds { Routes = true };
-        RimGovernor.Contracts.Wire.Observations.RoutesFacts Census(bool reachable, string pending = "") => new()
+        RimGovernor.Brain.GameFacts.Observations.RoutesFacts Census(bool reachable, string pending = "") => new()
         {
             PawnIds = ["a"], Traffic = [], TrafficSamples = 0,
             Facilities = [new() { Id = "store", Kind = RouteFacilityKind.Storage, Cell = new(4, 4), Travel = [reachable ? new RouteTravel.Measured { Pawn = "a", Cost = 30, Cells = 12 } : new RouteTravel.Unreachable { Pawn = "a" }], Breaches = [] }],
         };
-        LayoutFacts Facts(RimGovernor.Contracts.Wire.Observations.RoutesFacts census) =>
-            new() { Routes = LayoutFamily.RoutesStandingOf(census, RoomTestFacts.NoRooms, RoundsRules.DefaultRoundsPolicy()) };
+        LayoutFacts Facts(RimGovernor.Brain.GameFacts.Observations.RoutesFacts census) =>
+            new() { Routes = LayoutFamily.RoutesStandingOf(census, RoomTestFacts.NoRooms, Rules.DefaultPlannerSettings()) };
 
         var unmet = Single(composed, Facts(Census(reachable: false)));
         Assert.Equal((LayoutFamily.Routes, NeedTier.Development, Satisfaction.Unmet, 1.0), (unmet.Id, unmet.Tier, unmet.Satisfaction, unmet.Deficit));
@@ -267,8 +267,8 @@ public sealed class LayoutFamilyTests
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-defense-tier-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         IntentActionRules.RegisterIntentKinds();
-        _ = journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true,
-            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn-0", "pawn-1") }, ct);
+        _ = journal.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("pawn-0", "pawn-1") }, ct);
         var barricade = new DefenseBuilding { Definition = "Barricade", Cell = new(1, 0), Rotation = Rotation.North, Stuff = "WoodLog" };
         var tier = new DefenseTierRecord { Name = DefenseLayout.TierFiringLine, Buildings = [barricade] };
         var record = new DefenseLayoutRecord { Tiers = [tier] };
@@ -277,7 +277,7 @@ public sealed class LayoutFamilyTests
         // Attempt 0 is refused permanently; attempt 1 is accepted and builds the tier.
         foreach (var refused in new[] { true, false })
         {
-            var method = RoundsDefenseLayoutPlanner.DefenseTierMethodId(tier);
+            var method = DefenseLayoutPlanner.DefenseTierMethodId(tier);
             used.Add(method);
             var plan = new PlanSpec(new(method.Value), new(1), [DomainAction.NewPawnActivitiesAction(new(method.Value + "-action"), new PawnActivities(1,
                 [new($"pawn-{used.Count - 1}", "assignment", method.Value, 0, 1, false, [new(PawnActivityKind.Hold, "", "", "", 0, 500)])]))]);
@@ -291,26 +291,26 @@ public sealed class LayoutFamilyTests
             tier.Attempts++;
             if (refused)
             {
-                Assert.False(RoundsDefenseLayoutPlanner.AdmitDefenseTier(journal, owner, tier, World, ct).Admitted);
+                Assert.False(DefenseLayoutPlanner.AdmitDefenseTier(journal, owner, tier, World, ct).Admitted);
             }
         }
 
         var census = new DefenseCensus { Edifice = { [barricade.Cell] = "Barricade" } };
-        Assert.True(RoundsDefenseLayoutPlanner.DefenseTierCensusUpdate(record, census));
+        Assert.True(DefenseLayoutPlanner.DefenseTierCensusUpdate(record, census));
         Assert.True(tier.Built);
         census.Edifice.Clear();
-        Assert.True(RoundsDefenseLayoutPlanner.DefenseTierCensusUpdate(record, census));
+        Assert.True(DefenseLayoutPlanner.DefenseTierCensusUpdate(record, census));
 
         Assert.Equal((false, 2), (tier.Built, tier.Attempts));
-        var reopened = RoundsDefenseLayoutPlanner.DefenseTierMethodId(tier);
+        var reopened = DefenseLayoutPlanner.DefenseTierMethodId(tier);
         Assert.Equal("defense-firing_line-2", reopened.Value);
         Assert.DoesNotContain(reopened, used);
-        Assert.True(RoundsDefenseLayoutPlanner.AdmitDefenseTier(journal, owner, tier, World, ct).Admitted);
+        Assert.True(DefenseLayoutPlanner.AdmitDefenseTier(journal, owner, tier, World, ct).Admitted);
     }
 
     /// <summary>
     /// The <c>family/defense_layout</c> blob round-trips unchanged through a save and a rebuild, and carries no
-    /// verification (#3008): Complete, VerifiedTick, VerifiedCombat and TurretsProbedTick live in the Rounder's memory,
+    /// verification (#3008): Complete, VerifiedTick, VerifiedCombat and TurretsProbedTick live in the ColonyReview's memory,
     /// and the tiers carry no Refused cells.
     /// </summary>
     [Fact]
@@ -417,9 +417,9 @@ public sealed class LayoutFamilyTests
     {
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-layout-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b", "c") }, ct);
+        journal.Review(new() { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("a", "b", "c") }, ct);
         Colony? colony = null;
-        var runner = new FamilyRunner<LayoutFacts>(new LayoutFamily(composed), (_, _) => Task.FromResult(colony!.Facts), LayoutRounds.Schedule,
+        var runner = new FamilyRunner<LayoutFacts>(new LayoutFamily(composed), (_, _) => Task.FromResult(colony!.Facts), LayoutReview.Schedule,
             (work, _, _) => Task.FromResult(Verdict.AwaitingPlan(work.Need.Id.Value, "no_method")));
         colony = new Colony { Journal = journal, Runner = runner, Facts = facts };
         return colony;

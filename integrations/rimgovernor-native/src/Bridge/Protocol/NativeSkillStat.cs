@@ -4,9 +4,8 @@ using System.Reflection;
 using RimGovernor.Brain.Domain;
 using RimWorld;
 using Verse;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 /// <summary>Qualified read-only counterfactual: a pawn's stat value at each stored skill level, with the native
 /// skill term replaced before native finalization. No pawn, skill, definition or stat cache is rewritten.
@@ -36,8 +35,8 @@ internal static class NativeSkillStat
     internal const string RangedProvenance = "NativeDefenseStats.PawnRangedDps x PawnRangedHitFactor; ShootingAccuracyPawn at each stored Shooting level -> StatWorker.FinalizeValue -> ShotReport.HitFactorFromShooter; observed weapon, distance and conditions held";
 
     /// <summary>The biography's curves for a pawn with skills, plus one finding per stat that does not qualify: the stat
-    /// curves, then the ranged damage the defense capacity counts (<see cref="Obs.SkillStatCurve.RangedDefenseDps"/>, #3846).</summary>
-    internal static Obs.PawnBiography Curves(Pawn pawn, Obs.PawnBiography row)
+    /// curves, then the ranged damage the defense capacity counts (<see cref="RimGovernor.Brain.GameFacts.Observations.SkillStatCurve.RangedDefenseDps"/>, #3846).</summary>
+    internal static RimGovernor.Brain.GameFacts.Observations.PawnBiography Curves(Pawn pawn, RimGovernor.Brain.GameFacts.Observations.PawnBiography row)
     {
         foreach (var (stat, skill) in Biography.Select(s => (s.Stat(), s.Skill())))
         {
@@ -45,16 +44,16 @@ internal static class NativeSkillStat
             var values = melee ? MeleeDpsLevels(pawn, out var finding) : Levels(pawn, stat, skill, out finding);
             row = Curve(row, stat.defName, skill, values, finding, melee ? MeleeProvenance : Provenance);
         }
-        return Curve(row, Obs.SkillStatCurve.RangedDefenseDps, SkillDefOf.Shooting, RangedDefenseDpsLevels(pawn, out var ranged), ranged, RangedProvenance);
+        return Curve(row, RimGovernor.Brain.GameFacts.Observations.SkillStatCurve.RangedDefenseDps, SkillDefOf.Shooting, RangedDefenseDpsLevels(pawn, out var ranged), ranged, RangedProvenance);
     }
 
-    private static Obs.PawnBiography Curve(Obs.PawnBiography row, string name, SkillDef skill, float[]? values, string finding, string provenance) =>
+    private static RimGovernor.Brain.GameFacts.Observations.PawnBiography Curve(RimGovernor.Brain.GameFacts.Observations.PawnBiography row, string name, SkillDef skill, float[]? values, string finding, string provenance) =>
         values == null
             ? row with { SkillStatFindings = [.. row.SkillStatFindings, name + ": " + finding] }
             : values.Any(v => float.IsNaN(v) || float.IsInfinity(v))
                 ? row with { SkillStatFindings = [.. row.SkillStatFindings, name + ": non-finite value"] }
-                : row with { SkillStatCurves = [.. row.SkillStatCurves, new Obs.SkillStatCurve(name, skill.defName,
-                    EquatableArray.From(values.Select((v, level) => new Obs.SkillStatLevel(level, v)).ToArray()), provenance)] };
+                : row with { SkillStatCurves = [.. row.SkillStatCurves, new RimGovernor.Brain.GameFacts.Observations.SkillStatCurve(name, skill.defName,
+                    EquatableArray.From(values.Select((v, level) => new RimGovernor.Brain.GameFacts.Observations.SkillStatLevel(level, v)).ToArray()), provenance)] };
 
     /// <summary>The pawn's defense-capacity ranged DPS at each stored Shooting level (see <see cref="RangedProvenance"/>): its
     /// primary's ranged DPS times the hit factor of the ShootingAccuracyPawn at the level. Zero at every level without a

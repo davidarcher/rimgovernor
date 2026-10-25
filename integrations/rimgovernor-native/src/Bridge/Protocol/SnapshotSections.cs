@@ -1,7 +1,5 @@
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static partial class SnapshotFrames
     {
@@ -21,9 +19,9 @@ namespace HomeBridge.BridgeTools
                 }
             }
 
-            internal Obs.BundleSnapshot Frame() => new Obs.BundleSnapshot
+            internal RimGovernor.Brain.GameFacts.Observations.BundleSnapshot Frame() => new RimGovernor.Brain.GameFacts.Observations.BundleSnapshot
             {
-                Failure = new Common.Failure { RefusalClass = RimGovernor.Contracts.Wire.Common.RefusalClass.Unclassified, Code = Common.FailureCode.NativeFailure, Detail = "snapshot section " + Message },
+                Failure = new RimGovernor.Brain.GameFacts.Common.Failure { RefusalClass = RimGovernor.Brain.GameFacts.Common.RefusalClass.Unclassified, Code = RimGovernor.Brain.GameFacts.Common.FailureCode.NativeFailure, Detail = "snapshot section " + Message },
             };
         }
     }

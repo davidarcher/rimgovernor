@@ -1,10 +1,9 @@
 using System.Diagnostics;
 using System.Globalization;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Contracts.Wire;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Wl = RimGovernor.Contracts.Wire.Lifecycle;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -327,14 +326,14 @@ public sealed class Game
     /// A start refused as unavailable while another long event finishes is asked again; any other refusal, or no
     /// completion within the ceiling, is an <see cref="AcceptanceException"/>.
     /// </summary>
-    public static async Task<Wl.MenuCompleted> ReturnToMenuAsync(Harness h, string label, CancellationToken cancellationToken)
+    public static async Task<RimGovernor.Brain.GameFacts.Lifecycle.MenuCompleted> ReturnToMenuAsync(Harness h, string label, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(h);
         var requestId = string.Create(CultureInfo.InvariantCulture, $"{label}-{DateTime.UtcNow.Ticks}");
         var started = false;
         var attempt = 0;
-        Wl.MenuReply? last = null;
-        Wl.MenuCompleted? completed = null;
+        RimGovernor.Brain.GameFacts.Lifecycle.MenuReply? last = null;
+        RimGovernor.Brain.GameFacts.Lifecycle.MenuCompleted? completed = null;
         try
         {
             await new Wait { Ceiling = MenuCeiling, Interval = MenuInterval }.WaitProgressAsync(
@@ -342,7 +341,7 @@ public sealed class Game
                 {
                     var step = string.Create(CultureInfo.InvariantCulture, $"{label}-{attempt++}");
                     var reply = started
-                        ? await h.CallAsync(step + "-read", NativeOps.PollMenu, new Wl.RequestStatus { RequestId = requestId }, ct).ConfigureAwait(false)
+                        ? await h.CallAsync(step + "-read", NativeOps.PollMenu, new RimGovernor.Brain.GameFacts.Lifecycle.RequestStatus { RequestId = requestId }, ct).ConfigureAwait(false)
                         : await h.CallAsync(step + "-menu", NativeOps.StartMenu, await MenuRequestAsync(h, step, requestId, ct).ConfigureAwait(false), ct).ConfigureAwait(false);
                     last = reply;
                     if (reply.Outcome?.Completed is { } done)
@@ -359,18 +358,18 @@ public sealed class Game
 
                     // A long event already queued (a load or save finishing) refuses the start as unavailable; it is
                     // asked again once that is done. Any other refusal is final.
-                    if (!started && reply.Outcome?.Failure?.Code == Common.FailureCode.Unavailable)
+                    if (!started && reply.Outcome?.Failure?.Code == RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable)
                     {
                         return (Wait.Signature("busy"), false);
                     }
 
-                    throw new AcceptanceException($"{NativeOps.StartMenu.Name} refused: {WireJson.Serialize(reply)}");
+                    throw new AcceptanceException($"{NativeOps.StartMenu.Name} refused: {OrdersJson.Serialize(reply)}");
                 },
                 cancellationToken).ConfigureAwait(false);
         }
         catch (WaitError e)
         {
-            throw new AcceptanceException($"{NativeOps.StartMenu.Name} did not reach the main menu; last reply {(last is null ? "none" : WireJson.Serialize(last))}: {e.Message}", e);
+            throw new AcceptanceException($"{NativeOps.StartMenu.Name} did not reach the main menu; last reply {(last is null ? "none" : OrdersJson.Serialize(last))}: {e.Message}", e);
         }
 
         return completed!;
@@ -380,21 +379,21 @@ public sealed class Game
     /// The production return-to-menu request (#3298): it names the loaded game, read from <c>lifecycle_read_identity</c>,
     /// since native refuses to end a live map the caller did not name; at the main menu there is nothing to name.
     /// </summary>
-    private static async Task<Wl.MenuRequest> MenuRequestAsync(Harness h, string label, string requestId, CancellationToken cancellationToken)
+    private static async Task<RimGovernor.Brain.GameOrders.Lifecycle.MenuRequest> MenuRequestAsync(Harness h, string label, string requestId, CancellationToken cancellationToken)
     {
-        Wl.LoadedIdentity loaded;
+        RimGovernor.Brain.GameFacts.Lifecycle.LoadedIdentity loaded;
         try
         {
-            loaded = await h.CallAsync(label + "-identity", NativeOps.ReadIdentity, new Wl.IdentityRequest(), cancellationToken).ConfigureAwait(false);
+            loaded = await h.CallAsync(label + "-identity", NativeOps.ReadIdentity, new RimGovernor.Brain.GameOrders.Lifecycle.IdentityRequest(), cancellationToken).ConfigureAwait(false);
         }
         catch (BridgeUnavailableException)
         {
-            return new Wl.MenuRequest { RequestId = requestId };
+            return new RimGovernor.Brain.GameOrders.Lifecycle.MenuRequest { RequestId = requestId };
         }
 
         return loaded.Context?.Identity is { } identity
-            ? new Wl.MenuRequest { RequestId = requestId, ExpectedPlayer = new() { Identity = identity, PlayerDirection = 1, RequestId = requestId } }
-            : new Wl.MenuRequest { RequestId = requestId };
+            ? new RimGovernor.Brain.GameOrders.Lifecycle.MenuRequest { RequestId = requestId, ExpectedPlayer = new() { Identity = identity, PlayerDirection = 1, RequestId = requestId } }
+            : new RimGovernor.Brain.GameOrders.Lifecycle.MenuRequest { RequestId = requestId };
     }
 
     /// <summary>

@@ -2,19 +2,15 @@ using System;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class NativeStockpilePatch
     {
         // StorageEligible is a spawned, loaded storage building the player
         // owns with storage settings.
         internal static bool StorageEligible(Thing thing) => thing is Building_Storage storage && !storage.Destroyed && storage.Spawned
-            && ProtoBoundary.IsLoaded(storage.Map) && storage.Faction != null && storage.Faction == Faction.OfPlayerSilentFail
+            && GameThread.IsLoaded(storage.Map) && storage.Faction != null && storage.Faction == Faction.OfPlayerSilentFail
             && storage.GetStoreSettings()?.filter != null;
 
         internal static IStoreSettingsParent? Resolve(Map map, string id)
@@ -44,10 +40,10 @@ namespace HomeBridge.BridgeTools
             internal NativeStockpileSettings.Resolved? Body;
         }
 
-        private static bool Valid(Operations.ZoneIntent? intent) =>
-            NativeZoneIntent.Id(intent) != null && (intent ?? throw new System.InvalidOperationException("Required native value is unavailable: intent.")).Kind == Operations.ZoneType.Existing && intent.AddCells == null && intent.RemoveCells == null && !intent.Delete && intent.Growing == null && intent.Fishing == null && intent.Label is null && NativeStockpileSettings.Valid(intent.Stockpile);
+        private static bool Valid(RimGovernor.Brain.GameOrders.Operations.ZoneIntent? intent) =>
+            NativeZoneIntent.Id(intent) != null && (intent ?? throw new System.InvalidOperationException("Required native value is unavailable: intent.")).Kind == RimGovernor.Brain.GameOrders.Operations.ZoneType.Existing && intent.AddCells == null && intent.RemoveCells == null && !intent.Delete && intent.Growing == null && intent.Fishing == null && intent.Label is null && NativeStockpileSettings.Valid(intent.Stockpile);
 
-        private static Target Resolve(Operations.ZoneIntent? intent, Map map)
+        private static Target Resolve(RimGovernor.Brain.GameOrders.Operations.ZoneIntent? intent, Map map)
         {
             var target = new Target();
             if (!Valid(intent)) return target;
@@ -61,23 +57,23 @@ namespace HomeBridge.BridgeTools
 
         // The apply-time precondition list for stockpile settings
         // (action-contracts.md), one rule at a time.
-        private static ApplyPreconditions Rules(Operations.ZoneIntent? intent, Target target) => new ApplyPreconditions(Kind)
+        private static ApplyPreconditions Rules(RimGovernor.Brain.GameOrders.Operations.ZoneIntent? intent, Target target) => new ApplyPreconditions(Kind)
             .Require(() => Valid(intent), "a patch requires a target id and a valid settings body")
             .Present(() => target.Parent != null, "the exact stockpile zone or storage building no longer exists on this map")
             .Require(() => target.Parent != null && (target.Parent.GetStoreSettings()?.filter != null), "the target has no storage settings")
             .Require(() => target.Body != null, "the settings body does not resolve against the target's storable definitions");
 
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
+        public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
-            var target = Resolve(action.Intent?.Zone, ProtoBoundary.LoadedMap(context));
+            var target = Resolve(action.Intent?.Zone, GameThread.LoadedMap(context));
             if (Standing(target)) return null;
             var rules = Rules(action.Intent?.Zone, target);
             return rules.Holds ? null : rules.Failure();
         }
 
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
+        public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
-            var map = ProtoBoundary.LoadedMap(context);
+            var map = GameThread.LoadedMap(context);
             var target = Resolve(action.Intent?.Zone, map);
             if (!Standing(target))
             {
@@ -90,7 +86,7 @@ namespace HomeBridge.BridgeTools
                 if (!Standing(target)) throw new InvalidOperationException("Native stockpile settings readback did not apply.");
             }
             if (target.Parent is Building_Storage)
-                return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect() };
+                return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.SettingsEffect() };
             return NativeZoneCreation.Evidence(action.Intent?.Zone?.Zone?.Id ?? "", target.Parent as Zone, map);
         }
     }

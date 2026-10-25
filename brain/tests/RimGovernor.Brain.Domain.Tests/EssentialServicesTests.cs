@@ -1,26 +1,25 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using SleepingTemperature = RimGovernor.Contracts.Wire.Observations.SleepingTemperature;
+using SleepingTemperature = RimGovernor.Brain.GameFacts.Observations.SleepingTemperature;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class EssentialServicesTests
 {
-    private static RoundsFacts Facts() => new() { Research = ResearchTestFacts.Read(), Gear = ColonyModelFixtures.NoGear(), CurrentConstruction = CurrentConstruction.Empty, MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } }, Tick = new(100), Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 2 }, Fuel = [] };
+    private static ReviewFacts Facts() => new() { Research = ResearchTestFacts.Read(), Gear = ColonyModelFixtures.NoGear(), CurrentConstruction = CurrentConstruction.Empty, MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } }, Tick = new(100), Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 2 }, Fuel = [] };
 
     /// <summary>Sleeping rooms inside the comfort band: the shelter/temperature Need is met (#3257).</summary>
-    private static RoundsFacts Warm() => Facts() with { Census = (Facts()).Census with { SleepingTemperature = new SleepingTemperature.Indoor(20.0, 22.0) } };
-    private static EssentialServiceReview Review(RoundsFacts facts, int budget = 128) =>
-        EssentialServicesRules.ReviewEssentialServices(facts, RoundsRules.DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick },
+    private static ReviewFacts Warm() => Facts() with { Census = (Facts()).Census with { SleepingTemperature = new SleepingTemperature.Indoor(20.0, 22.0) } };
+    private static EssentialServiceReview Review(ReviewFacts facts, int budget = 128) =>
+        EssentialServicesRules.ReviewEssentialServices(facts, Rules.DefaultPlannerSettings(), new() { Work = new() { Tick = facts.Tick },
             MaterialAvailability = new MaterialAvailability.Assessed(new Dictionary<Resource, MaterialUnits> { [new("grain")] = new MaterialUnits.Exact(20.0) }) }, budget);
 
     [Fact]
     public void NormalInspectionExposesEveryServiceWithoutTreatingUnknownStressAsBaselineFailure()
     {
         var census = ColonyFactsCoreTests.Snapshot();
-        var normal = RoundsRules.InspectRounds(new() { Census = census, Gear = ColonyModelFixtures.NoGear(), CurrentConstruction = CurrentConstruction.Empty, MedicalReserve = new() { Census = census, Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } } }, new(), RoundsRules.DefaultRoundsPolicy());
+        var normal = Rules.InspectReview(new() { Census = census, Gear = ColonyModelFixtures.NoGear(), CurrentConstruction = CurrentConstruction.Empty, MedicalReserve = new() { Census = census, Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } } }, new(), Rules.DefaultPlannerSettings());
         Assert.NotNull(normal.EssentialServices);
         Assert.Equal(Enum.GetValues<EssentialService>(), normal.EssentialServices.Coverage.Select(c => c.Service).Distinct().Order().ToArray());
         var known = Review(Warm());
@@ -53,7 +52,7 @@ public sealed class EssentialServicesTests
         Assert.True(limited.Truncated);
         Assert.Single(limited.Stress);
         Assert.Equal(limited, Review(Facts(), 1));
-        Assert.Throws<DomainException>(() => EssentialServicesRules.ReviewEssentialServices(Facts(), RoundsRules.DefaultRoundsPolicy(), new(), 1));
+        Assert.Throws<DomainException>(() => EssentialServicesRules.ReviewEssentialServices(Facts(), Rules.DefaultPlannerSettings(), new(), 1));
     }
 
     private static CarePawn Patient(params (string Id, double Chance)[] doctors) => CareFixtures.Patient("patient", operations: [
@@ -85,7 +84,7 @@ public sealed class EssentialServicesTests
         Assert.DoesNotContain(review.Coverage, c => c.Target.Predicate == "served_procedure_feasible");
     }
 
-    private static RoundsFacts Kitchen(bool secondChain = false) => Facts() with
+    private static ReviewFacts Kitchen(bool secondChain = false) => Facts() with
     {
         FoodPlan = new FoodPlan { Portfolio = [new() { Channel = CandidateRules.FoodCandidate(CandidateKind.Cook, "cooking-capacity", new YieldSupply.Steady(0), CandidateState.Closed, new CandidateLead.Days(0), new CandidateWork.PerDay(0)), Decision = FoodPlanDecision.Open }] },
         ForecastObserved = new() { WorkPawns = new WorkPawnsRead([
@@ -97,7 +96,7 @@ public sealed class EssentialServicesTests
         EssentialInputs = new() { Benches = EquatableArray.From<ProductionBench>([
             ProductionBenchFixtures.Cooking("stove", "ElectricStove", "stove-token", true) with { Recipes = secondChain ? [Recipe("advanced-meal", 6), Recipe("basic-meal", 0)] : [Recipe("advanced-meal", 6)] }]) },
     };
-    private static WorkPawn Cook(string id, int level) => PawnFixtures.Worker(id) with { Work = PawnFixtures.WorkTable(true, [new() { Observed = new O.WorkSetting { DefName = "Cooking", Priority = 1, Disabled = false }, Skill = "Cooking" }]), Observed = PawnFixtures.Row(id) with { Biography = PawnFixtures.Row(id).Biography with { Skills = [new() { Passion = O.Passion.None, DefName = "Cooking", Level = level }] } } };
+    private static WorkPawn Cook(string id, int level) => PawnFixtures.Worker(id) with { Work = PawnFixtures.WorkTable(true, [new() { Observed = new RimGovernor.Brain.GameFacts.Observations.WorkSetting { DefName = "Cooking", Priority = 1, Disabled = false }, Skill = "Cooking" }]), Observed = PawnFixtures.Row(id) with { Biography = PawnFixtures.Row(id).Biography with { Skills = [new() { Passion = RimGovernor.Brain.GameFacts.Observations.Passion.None, DefName = "Cooking", Level = level }] } } };
     private static ProductionRecipe Recipe(string id, int floor) => new() { Access = ProductionBenchFixtures.Recipe(id), Role = RecipeRole.OrdinaryMeal,
         Food = new RecipeFood.Food(0, 0, new RecipeCooking.FromRaw(1, [], floor)) };
 
@@ -143,7 +142,7 @@ public sealed class EssentialServicesTests
     [Fact]
     public void LogisticsUsesObservedReachabilityAndAlternatePawns()
     {
-        var facts = Facts() with { Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = (new RimGovernor.Contracts.Wire.Observations.RoutesFacts { PawnIds = ["a", "b"], Traffic = [], TrafficSamples = 0,
+        var facts = Facts() with { Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = (new RimGovernor.Brain.GameFacts.Observations.RoutesFacts { PawnIds = ["a", "b"], Traffic = [], TrafficSamples = 0,
             Facilities = [new() { Id = "medicine-store", Kind = RouteFacilityKind.Storage, Cell = new(4, 4), Travel = [new RouteTravel.Measured { Pawn = "a", Cost = 30, Cells = 12 }, new RouteTravel.Unreachable { Pawn = "b" }], Breaches = [] }] }) } };
         var review = Review(facts);
         Assert.Contains(review.Stress, s => s.Unavailable == "pawn/a" && s.Coverage == ServiceCoverage.Shortfall);
@@ -160,14 +159,14 @@ public sealed class EssentialServicesTests
             PowerBuildingFixtures.Trader("heater", "Heater", new(1, 1), 0, 0, false) with
             {
                 FuelDefinitions = ["fuel"],
-                Service = BuildingServiceWire.NoService with { Fuel = new RimGovernor.Contracts.Wire.Observations.BuildingFuel.Refuelable
+                Service = BuildingServiceWire.NoService with { Fuel = new RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable
                 {
                     Fuel = 0, TargetFuel = 10, OutOfFuel = true,
                     Burn = new() { PerDay = 1, UnitsPerItem = 1, UseDriven = false, InRain = false, WhenPowered = false, Flickable = false },
                 } },
             }] };
         // The materials row is the economy/resource Need's, unmet while a derived target is short of stock (#3303).
-        var review = EssentialServicesRules.ReviewEssentialServices(facts, RoundsRules.DefaultRoundsPolicy(), new()
+        var review = EssentialServicesRules.ReviewEssentialServices(facts, Rules.DefaultPlannerSettings(), new()
         {
             Work = new() { Tick = facts.Tick },
             MaterialAvailability = new MaterialAvailability.Assessed(new Dictionary<Resource, MaterialUnits> { [new("grain")] = new MaterialUnits.Exact(20.0) }),

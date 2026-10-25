@@ -1,0 +1,164 @@
+using RimGovernor.Brain.Policy;
+namespace RimGovernor.Brain.Runtime;
+
+public sealed partial class BuildingPlanner
+{
+    /// <summary>Digs the rock under a geothermal generator's fixed site; not handled when the footprint is already open.</summary>
+    internal async Task<(BuildingResult Result, bool Handled)> DigGeothermalAsync(ExcavationStep s, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken call, CancellationToken epoch)
+    {
+        if (Power is null || !Power.FixedSite())
+        {
+            return (new BuildingResult(), false);
+        }
+
+        check();
+        var building = new Building(Definition, Power.Center, Rotation.North, "");
+        var probe = s.State.Snapshot with { Plan = PlanIds.MintPlanId(), Revision = new PlanRevision(1) };
+        var action = DomainAction.NewBuildingAction(new ActionId($"{probe.Plan}-0"), building, ConstructionTierRules.PlannerTier(Concern, Phase));
+        var preview = await Native.PreviewBuildingAsync(action, probe, call).ConfigureAwait(false);
+        var footprint = preview.Preview.Footprint;
+        if (footprint.Count == 0)
+        {
+            return (new BuildingResult(), false);
+        }
+
+        var planned = new List<RoleCell>(footprint.Count);
+        foreach (var c in footprint)
+        {
+            if (protectedCells.Contains(c))
+            {
+                return (new BuildingResult { Verdict = BuildingReasonExistingWork }, true);
+            }
+
+            planned.Add(new RoleCell { Cell = c, Role = RockRole.NeedsFloor });
+        }
+
+        if (RockStepRules.RockStep(planned, s.Facts.PlanningWindow.Cells).Dig.Count == 0)
+        {
+            return (new BuildingResult(), false);
+        }
+
+        var (access, ok) = RockStepRules.RockAccess(footprint, s.Facts.PlanningWindow.Cells);
+        if (!ok)
+        {
+            return (new BuildingResult { Verdict = RockNotDug(Definition, "no_open_cell_beside_footprint") }, true);
+        }
+
+        var method = new MethodId($"plan-dig-geothermal-{Power.Center.X}-{Power.Center.Z}");
+        return await AdmitRockStepAsync(s, planned, access, method, [], check, call, epoch).ConfigureAwait(false);
+    }
+
+    /// <summary>Clears roofs and rock above a wind turbine or solar site; not handled when no planned site needs it.</summary>
+    internal async Task<(BuildingResult Result, bool Handled)> DigSkyAsync(ExcavationStep s, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken call, CancellationToken epoch)
+    {
+        if (Power is null || Power.Method != PowerMethod.Generate || (Definition != PowerRules.WindTurbineDefinition && Definition != LayoutUtilityRules.SolarDefinition))
+        {
+            return (new BuildingResult(), false);
+        }
+
+        var plan = s.Facts.Facts.LayoutPlan;
+
+        var planned = plan is not null;
+        var tier = TechTierRules.SelectTechTier(s.Facts.Tables.FinishedResearch.Select(project => new ResearchProjectId(project)).ToArray(), s.Facts.Snapshot.PlayerTechLevel);
+        if (!planned || tier < TechTier.Masonry)
+        {
+            return (new BuildingResult(), false);
+        }
+
+        var taken = protectedCells.ToHashSet();
+        var census = s.Facts.Facts.CurrentConstruction;
+        foreach (var b in census.Buildings)
+        {
+            foreach (var c in b.Cells)
+            {
+                taken.Add(c);
+            }
+        }
+
+        var roofs = await RoofRulesForAsync(s.State.Snapshot, [new RoleCell { Role = RockRole.NeedsSky }], call).ConfigureAwait(false);
+        PlannedPowerSite? pick = null;
+        List<RoleCell> pickCells = [];
+        foreach (var site in LayoutPlan.PlannedPowerSites(plan!, Definition))
+        {
+            var footprint = LayoutUtilityRules.RectangleCells(site.Area);
+            var cells = footprint.Select(c => new RoleCell { Cell = c, Role = RockRole.NeedsSky }).ToList();
+            var zone = LayoutPlan.TurbineCatchZone(plan!, site.Area);
+            foreach (var lane in zone)
+            {
+                cells.Add(new RoleCell { Cell = lane, Role = RockRole.NeedsSky });
+            }
+
+            var step = RockStepRules.RockStepRoofs(cells, s.Facts.PlanningWindow.Cells, roofs);
+            if (footprint.Any(taken.Contains))
+            {
+                if (step.Unroof.Count > 0)
+                {
+                    var stalled = RoofStalled(s, BuildingPlanner.SkyMethod(Definition, site.Area), call);
+                    if (stalled)
+                    {
+                        return (new BuildingResult { Verdict = RockNotDug(Definition, $"roof_standing_{step.Unroof.Count}_cells_after_stall") }, true);
+                    }
+                }
+
+                continue;
+            }
+
+            if (step.Dig.Count == 0 && step.Unroof.Count == 0 && step.Unfit.Count == 0)
+            {
+                return (new BuildingResult(), false);
+            }
+
+            if (pick is null && step.Unfit.Count == 0)
+            {
+                pick = site;
+                pickCells = cells;
+            }
+        }
+
+        if (pick is null)
+        {
+            return (new BuildingResult(), false);
+        }
+
+        check();
+        var rockCells = pickCells.Select(c => c.Cell).ToList();
+        var (access, ok) = RockStepRules.RockAccess(rockCells, s.Facts.PlanningWindow.Cells);
+        if (!ok)
+        {
+            return (new BuildingResult { Verdict = RockNotDug(Definition, "no_open_cell_beside_site") }, true);
+        }
+
+        return await AdmitRockStepAsync(s, pickCells, access, BuildingPlanner.SkyMethod(Definition, pick.Area), [], check, call, epoch).ConfigureAwait(false);
+    }
+
+    internal bool RoofStalled(ExcavationStep s, MethodId method, CancellationToken call)
+    {
+        var journal = Reviewer.Player.Journal;
+        if (journal.OwnerMethodPlan(s.Owner, method, call) is not { } prior)
+        {
+            return false;
+        }
+
+        var plan = journal.LoadPlan(prior, call);
+        foreach (var progress in plan.Progress)
+        {
+            if (progress.Action.RemoveRoof is null)
+            {
+                continue;
+            }
+
+            var v = progress.View;
+            if (v.Stage == Stage.Completed && s.Facts.Identity.Tick.Value - v.Tick.Value >= ExcavationStallTicks)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
+partial class BuildingPlanner
+{
+    internal static MethodId SkyMethod(string definition, Rectangle area) => new($"plan-dig-sky-{definition}-{area.X}-{area.Z}");
+}

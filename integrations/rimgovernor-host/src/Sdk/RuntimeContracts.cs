@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace RimGovernor.Host.Sdk;
 
-public interface IRimBridgeContext
+public interface INativeContext
 {
     string OperationId { get; }
 
@@ -18,10 +18,10 @@ public interface IRimBridgeContext
     /// </summary>
     IDictionary<string, object?> Arguments { get; }
 
-    IRimBridgeMainThread MainThread { get; }
+    INativeMainThread MainThread { get; }
 }
 
-public interface IRimBridgeMainThread
+public interface INativeMainThread
 {
     bool IsMainThread { get; }
 
@@ -31,9 +31,9 @@ public interface IRimBridgeMainThread
 }
 
 /// <summary>The host's tool registry as the mod's HTTP control channel calls it (host and fixture tools).</summary>
-public interface IRimBridgeToolInvoker
+public interface INativeToolInvoker
 {
-    /// <summary>The canonical tool names (<c>rimgovernor/set_time_speed</c>, <c>test/lab_start</c>) registered now.</summary>
+    /// <summary>The canonical tool names (<c>set_time_speed</c>, <c>test/lab_start</c>) registered now.</summary>
     IReadOnlyCollection<string> ToolNames { get; }
 
     /// <summary>
@@ -44,20 +44,20 @@ public interface IRimBridgeToolInvoker
 }
 
 /// <summary>
-/// Where the host publishes <see cref="IRimBridgeToolInvoker"/> (every registered tool by name, whatever arguments
+/// Where the host publishes <see cref="INativeToolInvoker"/> (every registered tool by name, whatever arguments
 /// it takes, run as a wire call runs it) for the mod's HTTP control channel. Null until the host's registry is built.
 /// </summary>
-public static class RimBridgeToolAccess
+public static class NativeToolAccess
 {
     private static readonly TaskCompletionSource<bool> PublishedSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private static IRimBridgeToolInvoker? _current;
+    private static INativeToolInvoker? _current;
 
-    public static IRimBridgeToolInvoker? Current => Volatile.Read(ref _current);
+    public static INativeToolInvoker? Current => Volatile.Read(ref _current);
 
     /// <summary>Completes once <see cref="Publish"/> has run and <see cref="Current"/> is set.</summary>
     public static Task Published => PublishedSource.Task;
 
-    public static void Publish(IRimBridgeToolInvoker invoker)
+    public static void Publish(INativeToolInvoker invoker)
     {
         Volatile.Write(ref _current, invoker ?? throw new ArgumentNullException(nameof(invoker)));
         PublishedSource.TrySetResult(true);
@@ -68,11 +68,11 @@ public static class RimBridgeToolAccess
 /// The host's game-thread access for in-process callers (the native facade, #3080). The host sets it in its mod
 /// constructor, before any companion assembly loads.
 /// </summary>
-public static class RimBridgeMainThreadAccess
+public static class NativeMainThreadAccess
 {
-    private static IRimBridgeMainThread? _current;
+    private static INativeMainThread? _current;
 
-    public static IRimBridgeMainThread? Current
+    public static INativeMainThread? Current
     {
         get => Volatile.Read(ref _current);
         set => Volatile.Write(ref _current, value);

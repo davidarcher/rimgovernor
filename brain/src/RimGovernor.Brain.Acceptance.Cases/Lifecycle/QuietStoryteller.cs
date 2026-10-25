@@ -1,10 +1,9 @@
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
-using Presentation = RimGovernor.Contracts.Wire.Presentation;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -51,7 +50,7 @@ internal static class LifecycleQuietStoryteller
                 var identity = completed.Context?.Identity ?? throw new AcceptanceException($"the completed start names no identity: {completed}");
                 var saveName = TypedLifecycle.Stamp("quietteller");
                 _ = await TypedLifecycle.SaveAsync(s, "save", identity, saveName, cancellationToken).ConfigureAwait(false);
-                _ = await TypedLifecycle.LoadAsync(s, "reload", identity, saveName, Lifecycle.Readiness.Map, cancellationToken).ConfigureAwait(false);
+                _ = await TypedLifecycle.LoadAsync(s, "reload", identity, saveName, RimGovernor.Brain.GameFacts.Lifecycle.Readiness.Map, cancellationToken).ConfigureAwait(false);
                 await InspectAsync(s, "reloaded", cancellationToken).ConfigureAwait(false);
 
                 // A day of ticks: any incident delivers a letter, and a pausing letter fails the wait with its cause.
@@ -65,10 +64,10 @@ internal static class LifecycleQuietStoryteller
                         var snapshot = await s.CallAsync(
                             "day-letters",
                             NativeOps.ReadNotifications,
-                            new Presentation.NotificationsRequest { Identity = loaded, IncludeLetters = true, IncludeMessages = false, IncludeAlerts = false, LetterLimit = 40, MessageLimit = 12, AlertLimit = 40 },
+                            new RimGovernor.Brain.GameOrders.Presentation.NotificationsRequest { Identity = loaded, IncludeLetters = true, IncludeMessages = false, IncludeAlerts = false, LetterLimit = 40, MessageLimit = 12, AlertLimit = 40 },
                             ct).ConfigureAwait(false);
                         var letters = snapshot.Letters?.Outcome?.Observed?.Items
-                            ?? throw new AcceptanceException($"day-letters: no letter section: {WireJson.Serialize(snapshot)}");
+                            ?? throw new AcceptanceException($"day-letters: no letter section: {OrdersJson.Serialize(snapshot)}");
                         if (letters.Count > 0)
                         {
                             throw new AcceptanceException(string.Create(

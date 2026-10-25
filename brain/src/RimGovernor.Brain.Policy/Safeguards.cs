@@ -11,7 +11,7 @@ public sealed record SafeguardContext
 /// <summary>The routine goal a proposal would serve: its need.</summary>
 public sealed record SafeguardProposal
 {
-    public ConcernId Need { get; init; }
+    public FilingKey Need { get; init; }
 }
 
 /// <summary>What a Safeguard is asked to admit: a whole-goal proposal or one action at dispatch. Exactly one is set.</summary>

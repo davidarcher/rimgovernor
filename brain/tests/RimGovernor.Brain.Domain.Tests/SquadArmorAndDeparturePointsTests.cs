@@ -1,9 +1,8 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -43,23 +42,23 @@ public sealed class SquadArmorAndDeparturePointsTests
         Assert.Equal(["b"], CombatBlockingRules.Brawlers(pool).Select(d => d.Id.Value));
     }
 
-    private static O.QuestWorker Worker(string id, bool canFight) => new()
+    private static RimGovernor.Brain.GameFacts.Observations.QuestWorker Worker(string id, bool canFight) => new()
     {
         PawnId = new(id),
         HealthyAdult = true,
         CanFight = canFight,
-        Rates = EquatableArray.From(Array.Empty<O.QuestWorkRate>()),
+        Rates = EquatableArray.From(Array.Empty<RimGovernor.Brain.GameFacts.Observations.QuestWorkRate>()),
         CarryCapacity = 35,
         CarriedMass = 0,
         FactionLeader = false,
-        Negotiation = new O.QuestNegotiation.Incapable(),
+        Negotiation = new RimGovernor.Brain.GameFacts.Observations.QuestNegotiation.Incapable(),
     };
 
-    private static RimGovernor.Contracts.Wire.Observations.WorldProgressionSnapshot Read(params O.QuestWorker[] workers) => new()
+    private static RimGovernor.Brain.GameFacts.Observations.WorldProgressionSnapshot Read(params RimGovernor.Brain.GameFacts.Observations.QuestWorker[] workers) => new()
     {
-        Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
+        Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
         Caravans = [], Assemblies = [], Quests = [], Sites = [],
-        Maps = [new O.WorldMap { Id = 0, Tile = 7, Home = true, Pawns = [], QuestWorkers = [.. workers] }],
+        Maps = [new RimGovernor.Brain.GameFacts.Observations.WorldMap { Id = 0, Tile = 7, Home = true, Pawns = [], QuestWorkers = [.. workers] }],
     };
 
     private static DefenderStrength Strength(string id, double melee, double ranged) => new()
@@ -93,8 +92,8 @@ public sealed class SquadArmorAndDeparturePointsTests
             CarryCapacity = 47,
             CarriedMass = 9,
             FactionLeader = true,
-            Negotiation = new O.QuestNegotiation.Able(1.3, 12),
-            Rates = [new O.QuestWorkRate { Stat = "PlantWorkSpeed", Rate = 1.7 }],
+            Negotiation = new RimGovernor.Brain.GameFacts.Observations.QuestNegotiation.Able(1.3, 12),
+            Rates = [new RimGovernor.Brain.GameFacts.Observations.QuestWorkRate { Stat = "PlantWorkSpeed", Rate = 1.7 }],
         };
 
         var census = Assert.IsType<QuestPawns.Seen>(QuestReads.FrameQuestPawns(Read(native), new MapId(0), new EmergencyFacts(), [], new WorkPawnsRead([])));

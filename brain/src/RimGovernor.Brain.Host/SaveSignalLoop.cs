@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Host;
 /// (native must not wait out its timeout). It re-arms after every return, a quiet timeout and a failed wait alike. Native's SaveGame prefix never cancels a save; it parks the vanilla save for about 3 s
 /// while the signal is held.
 /// </summary>
-internal sealed class SaveSignalLoop(INativeFacade facade, StateFlusher flusher, HostLog log)
+internal sealed class SaveSignalLoop(IGameApi facade, StateFlusher flusher, HostLog log)
 {
     /// <summary>How long a pre_save flush may run: native parks the vanilla save for about 3 s, so a flush past it only lands in the next save.</summary>
     internal static readonly TimeSpan FlushBudget = TimeSpan.FromSeconds(3);
@@ -63,7 +63,7 @@ internal sealed class SaveSignalLoop(INativeFacade facade, StateFlusher flusher,
 
     private async Task<string?> WaitAsync(CancellationToken ct)
     {
-        var reply = await facade.WaitSaveSignalAsync(new PbLifecycle.WaitSaveSignalRequest { TimeoutMs = (int)WaitWindow.TotalMilliseconds }, ct).ConfigureAwait(false);
+        var reply = await facade.WaitSaveSignalAsync(new RimGovernor.Brain.GameOrders.Lifecycle.WaitSaveSignalRequest { TimeoutMs = (int)WaitWindow.TotalMilliseconds }, ct).ConfigureAwait(false);
         return reply.Signal is { } signal ? signal.Token ?? string.Empty : null;
     }
 
@@ -90,7 +90,7 @@ internal sealed class SaveSignalLoop(INativeFacade facade, StateFlusher flusher,
         {
             try
             {
-                var reply = await facade.FlushDoneAsync(new PbLifecycle.FlushDoneRequest { Token = token }, ack.Token).ConfigureAwait(false);
+                var reply = await facade.FlushDoneAsync(new RimGovernor.Brain.GameOrders.Lifecycle.FlushDoneRequest { Token = token }, ack.Token).ConfigureAwait(false);
                 if (reply.Failure is { } failure)
                 {
                     ackError = FacadeReplies.Refused("FlushDone", failure).Message;

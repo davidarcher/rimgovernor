@@ -1,6 +1,4 @@
 using RimGovernor.Brain.Bridge;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -40,13 +38,13 @@ internal static class LifecycleLoad
         }
 
         // Save handshake: with no save running the held wait returns its timeout, and an unissued token is refused.
-        var wait = await s.CallAsync("save-signal-wait", NativeOps.WaitSaveSignal, new Lifecycle.WaitSaveSignalRequest { TimeoutMs = 200 }, cancellationToken).ConfigureAwait(false);
+        var wait = await s.CallAsync("save-signal-wait", NativeOps.WaitSaveSignal, new RimGovernor.Brain.GameOrders.Lifecycle.WaitSaveSignalRequest { TimeoutMs = 200 }, cancellationToken).ConfigureAwait(false);
         if (wait.Signal is not null)
         {
             throw new AcceptanceException("save-signal-wait: want a timeout, got a signal");
         }
 
-        var flush = await s.CallAsync("save-signal-stale", NativeOps.FlushDone, new Lifecycle.FlushDoneRequest { Token = "never-issued" }, cancellationToken).ConfigureAwait(false);
+        var flush = await s.CallAsync("save-signal-stale", NativeOps.FlushDone, new RimGovernor.Brain.GameOrders.Lifecycle.FlushDoneRequest { Token = "never-issued" }, cancellationToken).ConfigureAwait(false);
         if (flush.Failure is null)
         {
             throw new AcceptanceException("save-signal-stale: want a refusal, got an ack");
@@ -73,11 +71,11 @@ internal static class LifecycleLoad
         s.RecordWire("setup_save", saved);
 
         // A MAP-readiness load of that save: the same colony under a fresh load token, the blob intact.
-        var map = await TypedLifecycle.LoadAsync(s, "load-map", identity, saveName, Lifecycle.Readiness.Map, cancellationToken).ConfigureAwait(false);
+        var map = await TypedLifecycle.LoadAsync(s, "load-map", identity, saveName, RimGovernor.Brain.GameFacts.Lifecycle.Readiness.Map, cancellationToken).ConfigureAwait(false);
         s.RecordWire("load_map", map);
         var loaded = map.Loaded?.Context?.Identity ?? throw new AcceptanceException($"load-map: no loaded identity: {map}");
         if (loaded.ColonyId != identity.ColonyId || loaded.LoadToken.Length == 0 || loaded.LoadToken == identity.LoadToken
-            || map.SaveName != saveName || map.Readiness != Lifecycle.Readiness.Map)
+            || map.SaveName != saveName || map.Readiness != RimGovernor.Brain.GameFacts.Lifecycle.Readiness.Map)
         {
             throw new AcceptanceException($"load-map: want colony {identity.ColonyId} under a fresh load token at MAP readiness from {saveName}, got {map}");
         }
@@ -89,20 +87,20 @@ internal static class LifecycleLoad
         }
 
         // A VISUAL-readiness load completes only once the map has been drawn.
-        var visual = await TypedLifecycle.LoadAsync(s, "load-visual", loaded, saveName, Lifecycle.Readiness.Visual, cancellationToken).ConfigureAwait(false);
+        var visual = await TypedLifecycle.LoadAsync(s, "load-visual", loaded, saveName, RimGovernor.Brain.GameFacts.Lifecycle.Readiness.Visual, cancellationToken).ConfigureAwait(false);
         s.RecordWire("load_visual", visual);
-        if (visual.Readiness != Lifecycle.Readiness.Visual)
+        if (visual.Readiness != RimGovernor.Brain.GameFacts.Lifecycle.Readiness.Visual)
         {
             throw new AcceptanceException($"load-visual: want VISUAL readiness, got {visual}");
         }
 
-        var unknown = await s.CallAsync("read-load-unknown", NativeOps.PollLoad, new Lifecycle.RequestStatus { RequestId = TypedLifecycle.Stamp("load-unknown") }, cancellationToken).ConfigureAwait(false);
-        TypedLifecycle.ExpectFailure("read-load-unknown", unknown.Outcome?.Failure, Common.FailureCode.NotFound, unknown.Outcome);
+        var unknown = await s.CallAsync("read-load-unknown", NativeOps.PollLoad, new RimGovernor.Brain.GameFacts.Lifecycle.RequestStatus { RequestId = TypedLifecycle.Stamp("load-unknown") }, cancellationToken).ConfigureAwait(false);
+        TypedLifecycle.ExpectFailure("read-load-unknown", unknown.Outcome?.Failure, RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, unknown.Outcome);
     }
 
     private static async Task PutAsync(TypedSession s, string label, Dictionary<string, string> blobs, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.PutGovernorStateBatch, new Lifecycle.PutGovernorStateBatchRequest { Blobs = blobs }, cancellationToken).ConfigureAwait(false);
+        var reply = await s.CallAsync(label, NativeOps.PutGovernorStateBatch, new RimGovernor.Brain.GameOrders.Lifecycle.PutGovernorStateBatchRequest { Blobs = blobs }, cancellationToken).ConfigureAwait(false);
         if (reply.Loaded is null)
         {
             throw new AcceptanceException($"{label}: the put was not accepted");
@@ -111,7 +109,7 @@ internal static class LifecycleLoad
 
     private static async Task<IReadOnlyDictionary<string, string>> GovernorStateAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var loaded = await s.CallAsync(label, NativeOps.ReadGovernorState, new Lifecycle.GovernorStateRequest(), cancellationToken).ConfigureAwait(false);
+        var loaded = await s.CallAsync(label, NativeOps.ReadGovernorState, new RimGovernor.Brain.GameOrders.Lifecycle.GovernorStateRequest(), cancellationToken).ConfigureAwait(false);
         return loaded.Blobs;
     }
 }

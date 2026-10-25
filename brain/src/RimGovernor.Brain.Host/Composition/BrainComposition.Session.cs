@@ -1,5 +1,5 @@
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Store;
@@ -8,7 +8,7 @@ using RimGovernor.Brain.Telemetry;
 namespace RimGovernor.Brain.Host;
 
 /// <summary>
-/// Builds the parts of the brain that need a native client over <see cref="INativeFacade"/>; the host owns when they are built and torn down. Everything is built over the
+/// Builds the parts of the brain that need a native client over <see cref="IGameApi"/>; the host owns when they are built and torn down. Everything is built over the
 /// in-process native client. <see cref="ComposeSession"/> is the part of <c>openBuildingService</c> and
 /// <c>serveBuildingWithBridge</c> that builds the session's capabilities; <see cref="ComposePlanners"/> is
 /// <c>startServiceClock</c>.
@@ -25,10 +25,10 @@ public sealed partial class BrainComposition(BrainCompositionOptions options)
     public ClockTargetSpeed TargetSpeed { get; } = new(options.TargetSpeed);
 
     /// <summary>The speed every Run asks for: <see cref="TargetSpeed"/>, or Hyperfast pinned under <see cref="BrainCompositionOptions.ClockTestAcceleration"/> whatever the player's speed route says.</summary>
-    internal ClockTargetSpeed RunTargetSpeed() => _options.ClockTestAcceleration ? new ClockTargetSpeed(PbClock.Speed.Hyperfast) : TargetSpeed;
+    internal ClockTargetSpeed RunTargetSpeed() => _options.ClockTestAcceleration ? new ClockTargetSpeed(RimGovernor.Brain.GameFacts.Clock.Speed.Hyperfast) : TargetSpeed;
 
     // Set by ComposeSession (called once, before ComposePlanners) and read by ComposePlanners.
-    private FacadeNativeClient? _client;
+    private GameClient? _client;
     private FacadeActionsWriter? _writer;
 
     private static BrainCompositionOptions Validated(BrainCompositionOptions options)
@@ -39,11 +39,11 @@ public sealed partial class BrainComposition(BrainCompositionOptions options)
     }
 
     /// <summary>Called once, before the session exists.</summary>
-    public SessionParts ComposeSession(INativeFacade facade, TelemetryEmitter telemetry)
+    public SessionParts ComposeSession(IGameApi facade, TelemetryEmitter telemetry)
     {
         ArgumentNullException.ThrowIfNull(facade);
         ArgumentNullException.ThrowIfNull(telemetry);
-        var client = FacadeNativeClient.Create(facade, _options.CatalogFactory);
+        var client = GameClient.Create(facade, _options.CatalogFactory);
         client.StartingIdeoligion = _options.StartingIdeoligion;
         client.Telemetry = telemetry;
         // The writers go through the client's counting facade, so their native calls are tallied like its reads.
@@ -77,31 +77,31 @@ public sealed partial class BrainComposition(BrainCompositionOptions options)
     // Cancels the open trade session a per-world rebuild left without an owner. The world is the
     // one the rebuild runs for, which is the loaded one. Read and transport errors abort the rebuild; a native
     // refusal is logged. The callback is synchronous, as the store's orphan pass is.
-    private static void SweepOrphans(FacadeNativeClient client, IActionsWriter writer, HostLog log, IReadOnlyList<PlanState> plans, CancellationToken ct) =>
+    private static void SweepOrphans(GameClient client, IActionsWriter writer, HostLog log, IReadOnlyList<PlanState> plans, CancellationToken ct) =>
         SweepOrphansAsync(client, writer, log, plans, ct).GetAwaiter().GetResult();
 
-    private static async Task SweepOrphansAsync(FacadeNativeClient client, IActionsWriter writer, HostLog log, IReadOnlyList<PlanState> plans, CancellationToken ct)
+    private static async Task SweepOrphansAsync(GameClient client, IActionsWriter writer, HostLog log, IReadOnlyList<PlanState> plans, CancellationToken ct)
     {
         var context = await new FacadeWorldSource(client.Facade).ReadContextAsync(ct).ConfigureAwait(false);
         var identity = context.Identity ?? throw new InvalidOperationException("orphans: the loaded world has no identity");
-        RimGovernor.Contracts.Wire.Observations.TradeSession session;
+        RimGovernor.Brain.GameFacts.Observations.TradeSession session;
         try
         {
-            session = await ((FacadeNativeClient)client).ReadTradeSessionAsync(identity, ct).ConfigureAwait(false);
+            session = await ((GameClient)client).ReadTradeSessionAsync(identity, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
             throw new InvalidOperationException("orphans: trade session: " + e.Message, e);
         }
-        if (session.Engagement is not RimGovernor.Contracts.Wire.Observations.TradeEngagement.Engaged engaged)
+        if (session.Engagement is not RimGovernor.Brain.GameFacts.Observations.TradeEngagement.Engaged engaged)
         {
             return;
         }
-        var trader = RimGovernor.Brain.BuildingRuntime.TradeTarget.TraderOf(session);
+        var trader = RimGovernor.Brain.Runtime.TradeTarget.TraderOf(session);
         var end = Trade.NewTradeEnd(trader, engaged.Negotiator, TradeEndKind.Cancel, false);
         var action = DomainAction.NewTradeAction(new ActionId("orphan-trade-end"), end);
         var wire = IntentActionRules.IntentAction("orphan-trade-end", action);
-        PbOperations.ApplyReply reply;
+        RimGovernor.Brain.GameFacts.Operations.ApplyReply reply;
         try
         {
             reply = await writer.ApplyAsync(identity, [wire], ct).ConfigureAwait(false);
@@ -110,7 +110,7 @@ public sealed partial class BrainComposition(BrainCompositionOptions options)
         {
             throw new InvalidOperationException("orphans: cancel trade: " + e.Message, e);
         }
-        if (reply.Results.Count == 0 || reply.Results[0].Outcome is not PbOperations.ActionResultOutcome.AppliedCase)
+        if (reply.Results.Count == 0 || reply.Results[0].Outcome is not RimGovernor.Brain.GameFacts.Operations.ActionResultOutcome.AppliedCase)
         {
             log.Warn("orphan_trade_not_cancelled", "governor state: orphan trade not cancelled", ("trader", trader));
             return;

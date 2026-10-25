@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -47,7 +48,7 @@ public sealed record HarmInputs
     public CreepJoinerHarmInputs CreepJoiners { get; init; } = new();
 
     /// <summary>The inputs the review observed: the schedule at the storyteller and days passed, the composition of the observed raid points, the disease schedule of the observed disease facts, the containment census.</summary>
-    internal static HarmInputs Of(RoundsFacts facts)
+    internal static HarmInputs Of(ReviewFacts facts)
     {
         var points = facts.Census.Threat.Observed.RaidPoints;
         var raid = new RaidDefense(points, facts.DefenseCapacity);

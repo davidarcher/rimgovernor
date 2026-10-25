@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -72,9 +71,9 @@ internal static class PlannedSiteDeconstructCase
         var read = await s.CallAsync(
             "planned",
             NativeOps.ReadConstructionActivity,
-            new Observations.ConstructionActivityRequest(s.Identity, default)
+            new RimGovernor.Brain.GameOrders.Observations.ConstructionActivityRequest(s.Identity, default)
             {
-                Planned = [new Observations.PlannedConstructionSite(Site, "Wall", Stuff, Rotation.North, EquatableArray.From(ring))],
+                Planned = [new RimGovernor.Brain.GameOrders.Observations.PlannedConstructionSite(Site, "Wall", Stuff, Rotation.North, EquatableArray.From(ring))],
             },
             cancellationToken).ConfigureAwait(false);
         if (read.Planned.ToList() is not [var answer] || answer.Site != Site)
@@ -84,19 +83,19 @@ internal static class PlannedSiteDeconstructCase
 
         s.RecordWire("answer", answer);
         var problems = new List<string>();
-        if (answer.Verdict != Observations.PlannedSiteVerdict.Feasible)
+        if (answer.Verdict != RimGovernor.Brain.GameFacts.Observations.PlannedSiteVerdict.Feasible)
         {
             problems.Add($"verdict {answer.Verdict}, findings {string.Join(",", read.Findings)}");
         }
 
         var expected = Site + "/deconstruct/" + ruin;
-        if (answer.Clearing.Where(c => c.Kind == Observations.PlannedClearingKind.Deconstruct).ToList() is not [var op] || op.Id != expected)
+        if (answer.Clearing.Where(c => c.Kind == RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Deconstruct).ToList() is not [var op] || op.Id != expected)
         {
             problems.Add($"clearing: want one Deconstruct op {expected}, got [{string.Join(",", answer.Clearing.Select(c => c.Kind + ":" + c.Id))}]");
         }
         else
         {
-            if (!op.Options.Any(r => r.Input == ruin && r.Resource == Ruin(roofHolder) && r.WorkGiver.Length > 0 && r.Finish is Observations.ConstructionFinish.Finishes { Ticks: > 0 } && (!roofHolder || roof.Contains(r.Location))))
+            if (!op.Options.Any(r => r.Input == ruin && r.Resource == Ruin(roofHolder) && r.WorkGiver.Length > 0 && r.Finish is RimGovernor.Brain.GameFacts.Observations.ConstructionFinish.Finishes { Ticks: > 0 } && (!roofHolder || roof.Contains(r.Location))))
             {
                 problems.Add($"rows: want a pawn row naming {ruin} ({Ruin(roofHolder)}) with a known route and finish{(roofHolder ? " at a roof cell" : "")}, got [{string.Join(";", op.Options)}]");
             }

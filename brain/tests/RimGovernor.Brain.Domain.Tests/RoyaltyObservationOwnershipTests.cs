@@ -1,9 +1,8 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Policy;
 using Verse;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -12,13 +11,13 @@ public sealed class RoyaltyObservationOwnershipTests
     [Fact]
     public void KnownPsycastKeepsNativeCooldownAndCatalogDefinition()
     {
-        var observed = new O.PawnPsycast { DefName = "Stun", CooldownRemainingTicks = 120 };
+        var observed = new RimGovernor.Brain.GameFacts.Observations.PawnPsycast { DefName = "Stun", CooldownRemainingTicks = 120 };
         var definition = new Psycast { Def = "Stun", PsyfocusCost = .1, Entropy = 2, Target = PsycastTarget.Pawn, CooldownTicks = 200 };
         var pawn = PawnFixtures.Row("caster") with
         {
-            Royalty = new O.PawnRoyaltyState.Active(new O.PawnRoyalty { Holdings = [], Psycasts = [observed], Psylink = null }),
+            Royalty = new RimGovernor.Brain.GameFacts.Observations.PawnRoyaltyState.Active(new RimGovernor.Brain.GameFacts.Observations.PawnRoyalty { Holdings = [], Psycasts = [observed], Psylink = null }),
         };
-        var snapshot = new O.PawnSnapshot { Context = ColonyFactsCoreTests.Snapshot().Context, Pawns = [pawn] };
+        var snapshot = new RimGovernor.Brain.GameFacts.Observations.PawnSnapshot { Context = ColonyFactsCoreTests.Snapshot().Context, Pawns = [pawn] };
 
         var facts = RoyaltyFactsRules.PawnRoyaltyFacts(snapshot, _ => definition);
         var known = Assert.Single(facts.Psycasts[new PawnId("caster")]);
@@ -32,12 +31,12 @@ public sealed class RoyaltyObservationOwnershipTests
     [Fact]
     public void NeuroformerKeepsNativeStockAndDerivesTradeabilityFromItsDefinition()
     {
-        var stock = new O.NeuroformerStock { DefName = "PsychicAmplifier", Held = 3, Craftable = false };
+        var stock = new RimGovernor.Brain.GameFacts.Observations.NeuroformerStock { DefName = "PsychicAmplifier", Held = 3, Craftable = false };
         var catalog = new DefinitionCatalog(
             [new ThingDef { defName = "Silver" }, new TerrainDef { defName = "Soil" },
                 new ThingDef { defName = stock.DefName, tradeability = RimWorld.Tradeability.Sellable }],
             DefStatTable.Empty, new CatalogDerived("Silver", "Wort", 10));
-        var colony = new O.RoyaltyColonyFacts { Neuroformers = [stock], Ceremonies = [], Thrones = [] };
+        var colony = new RimGovernor.Brain.GameFacts.Observations.RoyaltyColonyFacts { Neuroformers = [stock], Ceremonies = [], Thrones = [] };
 
         var joined = catalog.WithNeuroformerDefs(colony)[stock.DefName];
 

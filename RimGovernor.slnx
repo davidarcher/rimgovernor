@@ -7,10 +7,11 @@
     <Project Path="brain/analyzers/RimGovernor.Brain.Analyzers/RimGovernor.Brain.Analyzers.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.Acceptance.Cases/RimGovernor.Brain.Acceptance.Cases.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.Acceptance/RimGovernor.Brain.Acceptance.csproj" />
-    <Project Path="brain/src/RimGovernor.Brain.Bridge.Contracts/RimGovernor.Brain.Bridge.Contracts.csproj" />
+    <Project Path="brain/src/RimGovernor.Brain.GameAccess/RimGovernor.Brain.GameAccess.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.Bridge/RimGovernor.Brain.Bridge.csproj" />
-    <Project Path="brain/src/RimGovernor.Brain.BuildingRuntime/RimGovernor.Brain.BuildingRuntime.csproj" />
-    <Project Path="brain/src/RimGovernor.Brain.Contracts/RimGovernor.Brain.Contracts.csproj" />
+    <Project Path="brain/src/RimGovernor.Brain.Runtime/RimGovernor.Brain.Runtime.csproj" />
+    <Project Path="brain/src/RimGovernor.Brain.GameFacts/RimGovernor.Brain.GameFacts.csproj" />
+    <Project Path="brain/src/RimGovernor.Brain.GameOrders/RimGovernor.Brain.GameOrders.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.Executor/RimGovernor.Brain.Executor.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.Host/RimGovernor.Brain.Host.csproj" />

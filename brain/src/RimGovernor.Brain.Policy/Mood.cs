@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -30,19 +29,19 @@ public abstract record MoodLevel
 /// </summary>
 public sealed record MoodPawn
 {
-    public required O.PawnState Pawn { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PawnState Pawn { get; init; }
     /// <summary>The actual same-frame target row; null exactly when the pawn has no mood need.</summary>
-    public required O.PatientForecast? Forecast { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PatientForecast? Forecast { get; init; }
     public bool HighExpectations => Pawn.Social.HighExpectations;
     public PawnId Id => new(Pawn.Pawn.Id);
-    public MoodLevel Mood => Pawn.Needs.Mood is O.NeedLevel.Has mood
+    public MoodLevel Mood => Pawn.Needs.Mood is RimGovernor.Brain.GameFacts.Observations.NeedLevel.Has mood
         ? Forecast is { } forecast && forecast.PawnId == Pawn.Pawn.Id
             ? new MoodLevel.Has(mood.Level, forecast.MoodTarget)
             : throw new RequiredFactException($"mood target of {Id.Value}")
         : Forecast is null ? new MoodLevel.Lacks()
             : throw new DomainException("mood target without a mood need");
     public double Threshold => Pawn.Needs.BreakThresholdMinor;
-    public NeedLevel Food => Pawn.Needs.Food is O.FoodNeed.Has food ? new NeedLevel.Has(food.Level) : new NeedLevel.Lacks();
+    public NeedLevel Food => Pawn.Needs.Food is RimGovernor.Brain.GameFacts.Observations.FoodNeed.Has food ? new NeedLevel.Has(food.Level) : new NeedLevel.Lacks();
     public NeedLevel Rest => Pawn.Needs.Rest;
     public NeedLevel Joy => Pawn.Needs.Joy;
     public bool Mental => Pawn.MentalState is not null;

@@ -9,7 +9,7 @@ using RimGovernor.Host.Sdk;
 using RimGovernor.Brain.Domain;
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // production/sow-block (#3528): the staged sower and empty growing zone bound by load id; one exact Sow step over a
     // cell count smaller than the zone installed straight into the native execution table.
@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools
         private static string sowZone = "";
 
         [Tool("test/pawn_sow_prepare", Description="UNSAFE FOR MODEL EXECUTION. Bind the staged sower and growing zone; stand every colonist still.")]
-        public async Task<object> PrepareSow(IRimBridgeContext ctx, CancellationToken ct,
+        public async Task<object> PrepareSow(INativeContext ctx, CancellationToken ct,
             [ToolParameter(Description="The sower's load id.")] string sower = "",
             [ToolParameter(Description="The growing zone's load id.")] string zone = "") => await ctx.MainThread.InvokeAsync<object>(() =>
         {
@@ -32,14 +32,14 @@ namespace HomeBridge.BridgeTools
         }, ct).ConfigureAwait(false);
 
         [Tool("test/pawn_sow_install", Description="UNSAFE FOR MODEL EXECUTION. Install one exact Sow step over the first observed sowable cells of the prepared zone.")]
-        public async Task<object> InstallSow(IRimBridgeContext ctx, CancellationToken ct,
+        public async Task<object> InstallSow(INativeContext ctx, CancellationToken ct,
             [ToolParameter(Description="The cells to sow.")] int count = 1) => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             var row = NativeSowingActivities.Read(worker!.Map).Workers.SingleOrDefault(w => w.Pawn == worker.GetUniqueLoadID() && w.Zone == sowZone)
                 ?? throw new InvalidOperationException("No native sowable cells observed for the prepared sower and zone.");
             if (row.Cells.Count <= count) throw new InvalidOperationException($"The zone offers {row.Cells.Count} cells; the case needs more than {count}.");
             var step = new PawnActivityStep(PawnActivityKind.Work, sowZone, row.WorkGiver, "Sow", count, deadline).At(row.Cells[0]);
-            var batch = new PawnActivities(((RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase)Context().NativeGeneration).Value,
+            var batch = new PawnActivities(((RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase)Context().NativeGeneration).Value,
                 new[] { new PawnActivityOrder(worker.GetUniqueLoadID(), "sow-block", "sow-method", 0, 1, false, new[] { step }) });
             var invalid = NativePawnActivities.Validate(batch, Context());
             if (invalid != null) throw new InvalidOperationException(invalid.Detail);
@@ -49,7 +49,7 @@ namespace HomeBridge.BridgeTools
         }, ct).ConfigureAwait(false);
 
         [Tool("test/pawn_sow_read", Description="UNSAFE FOR MODEL EXECUTION. Read the sower's execution and the plants of the prepared zone's crop actually standing in it.")]
-        public async Task<object> ReadSow(IRimBridgeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() =>
+        public async Task<object> ReadSow(INativeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             var grower = NativeSowingActivities.Grower(worker!.Map, sowZone)!;
             var crop = grower.GetPlantDefToGrow();

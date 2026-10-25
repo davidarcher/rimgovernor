@@ -1,9 +1,7 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Contracts.Wire;
-using Common = RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -60,23 +58,23 @@ internal static class RecoveryService
         var wallId = s.Staged!.Buildings[Wall].Ids.Single();
         var builderId = s.Staged.Pawns[Builder].Id;
 
-        async Task<Observations.BuildingHitPoints.Tracked> WallAsync(string label, CancellationToken ct)
+        async Task<RimGovernor.Brain.GameFacts.Observations.BuildingHitPoints.Tracked> WallAsync(string label, CancellationToken ct)
         {
-            var rows = await s.BuildingsAsync(label, new Observations.ListBuildingsRequest { Ids = [wallId], Statuses = [Observations.BuildingStatus.Built] }, ct).ConfigureAwait(false);
-            return rows is [{ HitPoints: Observations.BuildingHitPoints.Tracked hitPoints } row] && row.Building.Id == wallId
+            var rows = await s.BuildingsAsync(label, new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest { Ids = [wallId], Statuses = [RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Built] }, ct).ConfigureAwait(false);
+            return rows is [{ HitPoints: RimGovernor.Brain.GameFacts.Observations.BuildingHitPoints.Tracked hitPoints } row] && row.Building.Id == wallId
                 ? hitPoints
                 : throw new AcceptanceException($"{label}: want one built row with hit points for {wallId}, got {string.Join("; ", rows)}");
         }
 
-        async Task<Operations.ActionResult> RepairAsync(string key, string pawn)
+        async Task<RimGovernor.Brain.GameFacts.Operations.ActionResult> RepairAsync(string key, string pawn)
         {
             var reply = await s.CallAsync(
                 key,
                 NativeOps.Apply,
-                new Operations.ApplyRequest
+                new RimGovernor.Brain.GameOrders.Operations.ApplyRequest
                 {
                     Identity = s.Identity,
-                    Actions = [new Operations.Action { Key = key, Intent = new Operations.GiveJobIntent { Pawn = new Common.Ref { Id = pawn }, Job = "Repair", Targets = [new Common.Ref { Id = wallId }] } }], DeferSnapshot = false },
+                    Actions = [new RimGovernor.Brain.GameOrders.Operations.Action { Key = key, Intent = new RimGovernor.Brain.GameOrders.Operations.GiveJobIntent { Pawn = new RimGovernor.Brain.GameFacts.Common.Ref { Id = pawn }, Job = "Repair", Targets = [new RimGovernor.Brain.GameFacts.Common.Ref { Id = wallId }] } }], DeferSnapshot = false },
                 cancellationToken).ConfigureAwait(false);
             return reply.Results.ToList() is [{ } result]
                 ? result
@@ -106,7 +104,7 @@ internal static class RecoveryService
         }
 
         var replay = await RepairAsync("recovery-repair", builderId).ConfigureAwait(false);
-        if (WireJson.Serialize(replay) != WireJson.Serialize(repair))
+        if (OrdersJson.Serialize(replay) != OrdersJson.Serialize(repair))
         {
             throw new AcceptanceException($"recovery-repair: the resent key returned {replay}, not its first result");
         }

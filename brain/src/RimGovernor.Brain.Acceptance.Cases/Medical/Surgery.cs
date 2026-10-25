@@ -1,9 +1,5 @@
 using RimGovernor.Brain.Bridge;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -103,16 +99,16 @@ internal static class MedicalSurgery
         },
     });
 
-    private static async Task<Observations.PawnHealth> HealthAsync(TypedSession s, string label, string pawn, CancellationToken cancellationToken) =>
+    private static async Task<RimGovernor.Brain.GameFacts.Observations.PawnHealth> HealthAsync(TypedSession s, string label, string pawn, CancellationToken cancellationToken) =>
         (await TypedPawns.OneAsync(s, label, pawn, cancellationToken).ConfigureAwait(false)).Health
             ?? throw new AcceptanceException($"{label}: {pawn} read no health detail");
 
-    private static bool Missing(Observations.PawnHealth health, int part) => health.Surgery?.MissingParts.Any(m => m.Part.Index == part) == true;
+    private static bool Missing(RimGovernor.Brain.GameFacts.Observations.PawnHealth health, int part) => health.Surgery?.MissingParts.Any(m => m.Part.Index == part) == true;
 
-    private static Observations.SurgeryOperation? Operation(Observations.PawnHealth health, Func<Observations.SurgeryOperation, bool> match) =>
+    private static RimGovernor.Brain.GameFacts.Observations.SurgeryOperation? Operation(RimGovernor.Brain.GameFacts.Observations.PawnHealth health, Func<RimGovernor.Brain.GameFacts.Observations.SurgeryOperation, bool> match) =>
         health.Surgery?.Operations.FirstOrDefault(match);
 
-    private static string OperationList(Observations.PawnHealth health) =>
+    private static string OperationList(RimGovernor.Brain.GameFacts.Observations.PawnHealth health) =>
         string.Join("; ", health.Surgery?.Operations.Select(o => $"{o.Recipe}/{o.Kind}@{o.Part?.Index}") ?? []);
 
     private static string Condition(Fx.MedicalSetup setup) =>
@@ -132,23 +128,23 @@ internal static class MedicalSurgery
             throw new AcceptanceException($"the missing leg {setup.Part} is not reported");
         }
 
-        if (Operation(health, o => o.Part?.Index == setup.Part && o.Kind == Observations.SurgeryKind.Restore && o.Chance is Observations.SurgeryChance.Rated { Success: > 0 }) is null)
+        if (Operation(health, o => o.Part?.Index == setup.Part && o.Kind == RimGovernor.Brain.GameFacts.Observations.SurgeryKind.Restore && o.Chance is RimGovernor.Brain.GameFacts.Observations.SurgeryChance.Rated { Success: > 0 }) is null)
         {
             throw new AcceptanceException($"no restore operation with a positive success chance on part {setup.Part}: {OperationList(health)}");
         }
     }
 
-    private static Operations.ProductionBillIntent Bill(string patient, string recipe, int part) => new()
+    private static RimGovernor.Brain.GameOrders.Operations.ProductionBillIntent Bill(string patient, string recipe, int part) => new()
     {
-        Patient = new Common.Ref { Id = patient },
+        Patient = new RimGovernor.Brain.GameFacts.Common.Ref { Id = patient },
         RecipeDef = recipe,
-        PartIndex = new Operations.SurgeryTarget.Part(part), AcknowledgeViolation = false,
+        PartIndex = new RimGovernor.Brain.GameOrders.Operations.SurgeryTarget.Part(part), AcknowledgeViolation = false,
     };
 
-    private static async Task<string> QueuedAsync(TypedSession s, string key, Operations.ProductionBillIntent bill, CancellationToken cancellationToken)
+    private static async Task<string> QueuedAsync(TypedSession s, string key, RimGovernor.Brain.GameOrders.Operations.ProductionBillIntent bill, CancellationToken cancellationToken)
     {
         var effect = (await TypedPawns.AppliedAsync(s, key, bill, cancellationToken).ConfigureAwait(false))?.SurgeryBill;
-        return effect is { State: Receipts.SurgeryState.Queued, Bill.Id: { Length: > 0 } id } && effect.PawnId == bill.Patient?.Id && (effect.Target is Receipts.SurgeryTarget.WholeBodyCase ? bill.PartIndex is Operations.SurgeryTarget.WholeBody : effect.Target is Receipts.SurgeryTarget.PartCase part && bill.PartIndex is Operations.SurgeryTarget.Part selected && part.Index == selected.Index)
+        return effect is { State: RimGovernor.Brain.GameFacts.Receipts.SurgeryState.Queued, Bill.Id: { Length: > 0 } id } && effect.PawnId == bill.Patient?.Id && (effect.Target is RimGovernor.Brain.GameFacts.Receipts.SurgeryTarget.WholeBodyCase ? bill.PartIndex is RimGovernor.Brain.GameOrders.Operations.SurgeryTarget.WholeBody : effect.Target is RimGovernor.Brain.GameFacts.Receipts.SurgeryTarget.PartCase part && bill.PartIndex is RimGovernor.Brain.GameOrders.Operations.SurgeryTarget.Part selected && part.Index == selected.Index)
             ? id
             : throw new AcceptanceException($"{key}: want a QUEUED surgery bill on {bill.Patient?.Id} part {bill.PartIndex}, got {effect}");
     }
@@ -207,7 +203,7 @@ internal static class MedicalSurgery
             throw new AcceptanceException($"no Cataract read on part {setup.ConditionPart}");
         }
 
-        if (Operation(health, o => o.Recipe == "InstallBionicEye" && o.Kind == Observations.SurgeryKind.Install && o.Part?.Index == setup.ConditionPart) is null)
+        if (Operation(health, o => o.Recipe == "InstallBionicEye" && o.Kind == RimGovernor.Brain.GameFacts.Observations.SurgeryKind.Install && o.Part?.Index == setup.ConditionPart) is null)
         {
             throw new AcceptanceException($"no InstallBionicEye install operation on the cataract eye {setup.ConditionPart}: {OperationList(health)}");
         }
@@ -223,21 +219,21 @@ internal static class MedicalSurgery
             throw new AcceptanceException($"WoundInfection not read on its part {setup.ConditionPart}");
         }
 
-        if (Operation(health, o => o.Recipe == "RemoveBodyPart" && o.Kind == Observations.SurgeryKind.Amputate && o.Part?.Index == setup.ConditionPart) is null)
+        if (Operation(health, o => o.Recipe == "RemoveBodyPart" && o.Kind == RimGovernor.Brain.GameFacts.Observations.SurgeryKind.Amputate && o.Part?.Index == setup.ConditionPart) is null)
         {
             throw new AcceptanceException($"no RemoveBodyPart amputate operation on the infected hand {setup.ConditionPart}: {OperationList(health)}");
         }
     }
 
-    private static async Task<(Observations.PersonCustody.Prisoner Person, Observations.SurgeryOperation Harvest)> KidneyHarvestAsync(TypedSession s, string label, string prisoner, CancellationToken cancellationToken)
+    private static async Task<(RimGovernor.Brain.GameFacts.Observations.PersonCustody.Prisoner Person, RimGovernor.Brain.GameFacts.Observations.SurgeryOperation Harvest)> KidneyHarvestAsync(TypedSession s, string label, string prisoner, CancellationToken cancellationToken)
     {
-        var population = await s.CallAsync(label, NativeOps.ReadPopulation, new Observations.PopulationRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
-        var person = population.Persons.FirstOrDefault(p => p.Pawn.Value == prisoner)?.Custody as Observations.PersonCustody.Prisoner
+        var population = await s.CallAsync(label, NativeOps.ReadPopulation, new RimGovernor.Brain.GameOrders.Observations.PopulationRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var person = population.Persons.FirstOrDefault(p => p.Pawn.Value == prisoner)?.Custody as RimGovernor.Brain.GameFacts.Observations.PersonCustody.Prisoner
             ?? throw new AcceptanceException($"{label}: prisoner {prisoner} is not a colony prisoner in the population read");
         var health = await HealthAsync(s, label + "-health", prisoner, cancellationToken).ConfigureAwait(false);
         var surgery = health.Surgery ?? throw new AcceptanceException($"{label}: prisoner {prisoner} has no surgery facts");
         s.RecordWire("prisoner_surgery", surgery);
-        var harvest = surgery.Operations.FirstOrDefault(o => o.Kind == Observations.SurgeryKind.Harvest && o.Part?.DefName == "Kidney")
+        var harvest = surgery.Operations.FirstOrDefault(o => o.Kind == RimGovernor.Brain.GameFacts.Observations.SurgeryKind.Harvest && o.Part?.DefName == "Kidney")
             ?? throw new AcceptanceException($"{label}: prisoner {prisoner} has no kidney harvest operation");
         return (person, harvest);
     }
@@ -263,7 +259,7 @@ internal static class MedicalSurgery
         var prisoner = Prisoner(setup);
         var (_, harvest) = await KidneyHarvestAsync(s, "care-limit-population", prisoner, cancellationToken).ConfigureAwait(false);
         var pawn = await TypedPawns.OneAsync(s, "care-limit-pawn", prisoner, cancellationToken).ConfigureAwait(false);
-        if (pawn.Settings.Care is not Observations.PawnCare.Configured { MedicalCare: Operations.MedicalCare.HerbalOrWorse })
+        if (pawn.Settings.Care is not RimGovernor.Brain.GameFacts.Observations.PawnCare.Configured { MedicalCare: RimGovernor.Brain.GameFacts.Operations.MedicalCare.HerbalOrWorse })
         {
             throw new AcceptanceException($"prisoner {prisoner} medical care {pawn.Settings.Care}, want HerbalOrWorse");
         }

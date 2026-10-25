@@ -1,4 +1,4 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -12,12 +12,12 @@ public sealed class BuiltCountGoalTests
 {
     private static GoalRecord Built(int id, string thing, int count) => new() { Id = id, Kind = GoalKind.BuiltCount, Target = thing, Count = count };
 
-    private static RoundsFacts Standing(params (string Thing, long Count)[] built) => new()
+    private static ReviewFacts Standing(params (string Thing, long Count)[] built) => new()
     {
         BuiltBuildings = EquatableArray.From(built.Select(b => new Amount(new Resource(b.Thing), b.Count))),
     };
 
-    private static GoalsFacts Facts(GoalRecord goal, RoundsFacts rounds) => new() { Goals = [goal], Rounds = rounds };
+    private static GoalsFacts Facts(GoalRecord goal, ReviewFacts rounds) => new() { Goals = [goal], ReviewState = rounds };
 
     [Fact]
     public void ATurretGoalRaisesTheTurretBudgetByMaxAndRidesEveryRead()
@@ -25,7 +25,7 @@ public sealed class BuiltCountGoalTests
         var goals = new GoalsFacts { Goals = [Built(1, DefenseTurretsPolicy.TurretMini, 4), Built(2, DefenseTurretsPolicy.TurretAutocannon, 6), Built(3, DefenseTurretsPolicy.TurretMini, 2)] };
         var demand = GoalRules.DemandOf(goals);
         Assert.Equal(6, demand.Build.Turrets);
-        Assert.Equal(6, GoalRules.Stamp(new RoundsFacts(), demand).GoalBuild.Turrets);
+        Assert.Equal(6, GoalRules.Stamp(new ReviewFacts(), demand).GoalBuild.Turrets);
 
         EquatableArray<DefenseTurretFacts> none = [];
         // With no raid shortfall the budget is the floor; a larger budget from the raid stands.
@@ -59,13 +59,13 @@ public sealed class BuiltCountGoalTests
         var status = GoalRules.Evaluate(goal, Facts(goal, Standing(("Turret_Mortar", 1))));
         Assert.Equal((GoalState.NoMethod, "no placer for Turret_Mortar", 1.0), (status.State, status.Reason, ((GoalDeficit.Measured)status.Deficit).Amount));
         Assert.Equal(default, status.Owner);
-        Assert.Equal(0, GoalRules.DemandOf(Facts(goal, new RoundsFacts())).Build.Turrets);
+        Assert.Equal(0, GoalRules.DemandOf(Facts(goal, new ReviewFacts())).Build.Turrets);
 
         // A definition already standing is still Met.
-        Assert.Equal(GoalState.NoMethod, GoalRules.Evaluate(goal, Facts(goal, new RoundsFacts())).State);
+        Assert.Equal(GoalState.NoMethod, GoalRules.Evaluate(goal, Facts(goal, new ReviewFacts())).State);
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, Facts(goal, Standing(("Turret_Mortar", 2)))).State);
 
-        var held = new GoalsFamily().Propose([new Need { Id = GoalRules.NeedOf(goal), Tier = NeedTier.Development, Satisfaction = Satisfaction.Unmet }], Facts(goal, new RoundsFacts()));
+        var held = new GoalsFamily().Propose([new Need { Id = GoalRules.NeedOf(goal), Tier = NeedTier.Development, Satisfaction = Satisfaction.Unmet }], Facts(goal, new ReviewFacts()));
         Assert.Equal("no_method:no placer for Turret_Mortar", Assert.Single(held).Hold!.Subject);
     }
 
@@ -104,7 +104,7 @@ public sealed class BuiltCountGoalTests
     {
         PowerGeyser Geyser(string id, int x, int z, bool occupied = false) => new() { Id = id, Cell = new Cell(x + 1, z + 1), Occupied = occupied, Cells = [new Cell(x, z), new Cell(x + 1, z), new Cell(x, z + 1), new Cell(x + 1, z + 1)] };
         var geysers = new[] { Geyser("far", 80, 80), Geyser("taken", 21, 20, occupied: true), Geyser("near", 30, 30) };
-        var sites = GoalsRounds.GeyserSites(geysers, new Cell(20, 20), new Bounds(2, 2)).ToList();
+        var sites = GoalsReview.GeyserSites(geysers, new Cell(20, 20), new Bounds(2, 2)).ToList();
         Assert.Equal([new Rectangle(30, 30, 2, 2), new Rectangle(80, 80, 2, 2)], sites);
     }
 }

@@ -5,7 +5,7 @@ using HarmonyLib;
 using RimGovernor.Host.Sdk;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// The per-frame boundary: a prefix on TickManager.TickManagerUpdate, which Game.UpdatePlay calls
     /// once per Unity update for the loaded game before the world and map
@@ -28,7 +28,7 @@ namespace HomeBridge.BridgeTools
         public const string Owner = "rimgovernor.native.observation-frames";
         /// Patches the boundary; NativeStartup calls it once. A failure is
         /// logged and never thrown: a missing frame boundary must not take the
-        /// bridge down; the allowance then never defers (MainThreadAdmission.StaleMs).
+        /// bridge down; the allowance then never defers (GameThreadQueue.StaleMs).
         public static void Install()
         {
             try
@@ -54,7 +54,7 @@ namespace HomeBridge.BridgeTools
             try
             {
                 var ticks = Find.TickManager;
-                if (Current.Game != null) MainThreadAdmission.Frame(ticks != null && !ticks.Paused);
+                if (Current.Game != null) GameThreadQueue.Frame(ticks != null && !ticks.Paused);
                 GameThreadTrace.Mark("frame ticks");
             }
             catch (Exception)

@@ -1,15 +1,15 @@
-using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.Runtime;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.PlayerApi;
 
 namespace RimGovernor.Brain.Host;
 
 /// <summary>
 /// The brain's autosave, made while the clock run driver holds the clock for it (the cadence lives in
-/// <see cref="BuildingRuntime.ClockRunConfig.AutosaveEveryTicks"/>, not here, now that native skips vanilla autosave).
+/// <see cref="Runtime.ClockRunConfig.AutosaveEveryTicks"/>, not here, now that native skips vanilla autosave).
 /// The slot is runtime state, not persisted: a new process starts again at <c>Autosave-1</c>.
 /// </summary>
-internal sealed class Autosaver(Func<PbLifecycle.SaveRequest, CancellationToken, Task<PbLifecycle.SaveReply>> save, HostLog log)
+internal sealed class Autosaver(Func<RimGovernor.Brain.GameOrders.Lifecycle.SaveRequest, CancellationToken, Task<RimGovernor.Brain.GameFacts.Lifecycle.SaveReply>> save, HostLog log)
 {
     /// <summary>How many rotating <c>Autosave-N</c> files are kept.</summary>
     internal const int Slots = 5;
@@ -21,19 +21,19 @@ internal sealed class Autosaver(Func<PbLifecycle.SaveRequest, CancellationToken,
     /// Saves into the next slot. A failed or uncertain save is logged and leaves the slot, so the next autosave hold
     /// reuses it; only a completed save advances the rotation. The driver calls this only while the clock is held.
     /// </summary>
-    public async Task SaveAsync(PbCommon.Identity identity, long tick, CancellationToken cancellationToken)
+    public async Task SaveAsync(RimGovernor.Brain.GameFacts.Common.Identity identity, long tick, CancellationToken cancellationToken)
     {
         var name = $"Autosave-{(_slot % Slots) + 1}";
-        var request = new PbLifecycle.SaveRequest
+        var request = new RimGovernor.Brain.GameOrders.Lifecycle.SaveRequest
         {
-            Player = new PbLifecycle.PlayerLifecycleContext
+            Player = new RimGovernor.Brain.GameFacts.Lifecycle.PlayerLifecycleContext
             {
                 Identity = identity,
                 PlayerDirection = NewColonyBounds.LifecycleDirection,
                 RequestId = $"autosave-{(DateTimeOffset.UtcNow - DateTimeOffset.UnixEpoch).Ticks * 100}",
             },
             SaveName = name,
-            ExpectedTick = new PbLifecycle.ExpectedSaveTick.AnyCase(),
+            ExpectedTick = new RimGovernor.Brain.GameOrders.Lifecycle.ExpectedSaveTick.AnyCase(),
         };
         try
         {
@@ -56,23 +56,23 @@ internal sealed class Autosaver(Func<PbLifecycle.SaveRequest, CancellationToken,
 /// </summary>
 internal sealed class FlushedLifecycle(ILifecycleWriter inner, Func<CancellationToken, Task> flush) : ILifecycleWriter
 {
-    public async Task<PbLifecycle.SaveReply> SaveAsync(PbLifecycle.SaveRequest request, CancellationToken cancellationToken)
+    public async Task<RimGovernor.Brain.GameFacts.Lifecycle.SaveReply> SaveAsync(RimGovernor.Brain.GameOrders.Lifecycle.SaveRequest request, CancellationToken cancellationToken)
     {
         await flush(cancellationToken).ConfigureAwait(false);
         return await inner.SaveAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
-    public Task<PbLifecycle.SaveReply> ReadSaveAsync(string requestId, CancellationToken cancellationToken) => inner.ReadSaveAsync(requestId, cancellationToken);
+    public Task<RimGovernor.Brain.GameFacts.Lifecycle.SaveReply> ReadSaveAsync(string requestId, CancellationToken cancellationToken) => inner.ReadSaveAsync(requestId, cancellationToken);
 
-    public Task<PbLifecycle.LoadReply> LoadAsync(PbLifecycle.LoadRequest request, CancellationToken cancellationToken) => inner.LoadAsync(request, cancellationToken);
+    public Task<RimGovernor.Brain.GameFacts.Lifecycle.LoadReply> LoadAsync(RimGovernor.Brain.GameOrders.Lifecycle.LoadRequest request, CancellationToken cancellationToken) => inner.LoadAsync(request, cancellationToken);
 
-    public Task<PbLifecycle.LoadReply> ReadLoadAsync(string requestId, CancellationToken cancellationToken) => inner.ReadLoadAsync(requestId, cancellationToken);
+    public Task<RimGovernor.Brain.GameFacts.Lifecycle.LoadReply> ReadLoadAsync(string requestId, CancellationToken cancellationToken) => inner.ReadLoadAsync(requestId, cancellationToken);
 
-    public Task<PbLifecycle.NewColonyReply> NewColonyAsync(PbLifecycle.NewColonyRequest request, CancellationToken cancellationToken) => inner.NewColonyAsync(request, cancellationToken);
+    public Task<RimGovernor.Brain.GameFacts.Lifecycle.NewColonyReply> NewColonyAsync(RimGovernor.Brain.GameOrders.Lifecycle.NewColonyRequest request, CancellationToken cancellationToken) => inner.NewColonyAsync(request, cancellationToken);
 
-    public Task<PbLifecycle.NewColonyReply> ReadNewColonyAsync(string requestId, CancellationToken cancellationToken) => inner.ReadNewColonyAsync(requestId, cancellationToken);
+    public Task<RimGovernor.Brain.GameFacts.Lifecycle.NewColonyReply> ReadNewColonyAsync(string requestId, CancellationToken cancellationToken) => inner.ReadNewColonyAsync(requestId, cancellationToken);
 
-    public Task<PbLifecycle.MenuReply> MenuAsync(PbLifecycle.MenuRequest request, CancellationToken cancellationToken) => inner.MenuAsync(request, cancellationToken);
+    public Task<RimGovernor.Brain.GameFacts.Lifecycle.MenuReply> MenuAsync(RimGovernor.Brain.GameOrders.Lifecycle.MenuRequest request, CancellationToken cancellationToken) => inner.MenuAsync(request, cancellationToken);
 
-    public Task<PbLifecycle.MenuReply> ReadMenuAsync(string requestId, CancellationToken cancellationToken) => inner.ReadMenuAsync(requestId, cancellationToken);
+    public Task<RimGovernor.Brain.GameFacts.Lifecycle.MenuReply> ReadMenuAsync(string requestId, CancellationToken cancellationToken) => inner.ReadMenuAsync(requestId, cancellationToken);
 }

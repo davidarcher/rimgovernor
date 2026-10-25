@@ -1,8 +1,8 @@
 using System.Globalization;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using RimGovernor.Brain.Policy;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Mirror = RimGovernor.Contracts.Wire.Mirror;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -54,7 +54,7 @@ internal static class LabGridThings
         MapCellGrid grid;
         try
         {
-            grid = MapCellGrid.Of(WireJson.Deserialize<Mirror.CellGrid>(Convert.FromBase64String(reply.Grid)));
+            grid = MapCellGrid.Of(OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Mirror.CellGrid>(Convert.FromBase64String(reply.Grid)));
         }
         catch (Exception e) when (e is FormatException or System.Text.Json.JsonException)
         {

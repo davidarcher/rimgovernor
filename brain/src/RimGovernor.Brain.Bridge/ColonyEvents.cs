@@ -1,4 +1,3 @@
-using Clock = RimGovernor.Contracts.Wire.Clock;
 
 namespace RimGovernor.Brain.Bridge;
 
@@ -20,7 +19,7 @@ public abstract record ColonyEvent(ColonyEventOrigin Origin, string Detail);
 /// <param name="DetectedTick">The tick the hold was first raised at; the origin tick is the tick it took (a failed pause retries per frame).</param>
 /// <param name="OccurrenceTick">The tick the hazard arose, when the evidence carries one (a new wound's age).</param>
 /// <param name="StopAtUnixMs">Native's Unix ms when the hold took: the stamp Status reports as held-at.</param>
-public sealed record HoldEntered(ColonyEventOrigin Origin, string Detail, Clock.HoldReason Reason, ColonyHoldEvidence Evidence,
+public sealed record HoldEntered(ColonyEventOrigin Origin, string Detail, RimGovernor.Brain.GameFacts.Clock.HoldReason Reason, ColonyHoldEvidence Evidence,
     long DetectedTick, long? OccurrenceTick, long StopAtUnixMs, RunSegment Run) : ColonyEvent(Origin, Detail);
 
 /// <summary>
@@ -32,13 +31,13 @@ public sealed record RunSegment(long Ticks, long Ms, ulong Frames, ulong FramesO
 
 /// <summary>A Run took while held (the first Run of a loaded game included).</summary>
 /// <param name="From">The reason the clock was held before this Run.</param>
-public sealed record Resumed(ColonyEventOrigin Origin, string Detail, Clock.Speed Speed, Clock.HoldReason From) : ColonyEvent(Origin, Detail);
+public sealed record Resumed(ColonyEventOrigin Origin, string Detail, RimGovernor.Brain.GameFacts.Clock.Speed Speed, RimGovernor.Brain.GameFacts.Clock.HoldReason From) : ColonyEvent(Origin, Detail);
 
 /// <summary>
 /// The player asked for a speed in game. Only a wake: the request itself is on Status
 /// (PlayerSpeedRequest.RequestedCase), so a lost event costs latency, not the request.
 /// </summary>
-public sealed record SpeedRequested(ColonyEventOrigin Origin, string Detail, Clock.Speed Speed) : ColonyEvent(Origin, Detail);
+public sealed record SpeedRequested(ColonyEventOrigin Origin, string Detail, RimGovernor.Brain.GameFacts.Clock.Speed Speed) : ColonyEvent(Origin, Detail);
 
 /// <summary>The native authority generation moved; observed whether the clock runs or is held.</summary>
 /// <param name="Reason">The NativeControlRevocationReason name, or "acquired".</param>
@@ -66,7 +65,7 @@ public sealed record HostilesCleared(ColonyEventOrigin Origin, string Detail) : 
 /// it narrows the discard: <paramref name="EntityIds"/> (at most InvalidationEntitiesMax) name the changed rows and
 /// <paramref name="Cells"/> is the one rectangle the change touched. Without either the whole family is stale.
 /// </summary>
-public sealed record ObservationInvalidated(ColonyEventOrigin Origin, string Detail, IReadOnlyList<Clock.FactFamily> Families, string Reason,
+public sealed record ObservationInvalidated(ColonyEventOrigin Origin, string Detail, IReadOnlyList<RimGovernor.Brain.GameFacts.Clock.FactFamily> Families, string Reason,
     IReadOnlyList<string> EntityIds, CellRectangle? Cells) : ColonyEvent(Origin, Detail);
 
 /// <summary>A long event or a windowless force pause began; native waits it out without holding.</summary>
@@ -76,7 +75,7 @@ public sealed record ForcePauseWaiting(ColonyEventOrigin Origin, string Detail) 
 public sealed record ForcePauseCleared(ColonyEventOrigin Origin, string Detail) : ColonyEvent(Origin, Detail);
 
 /// <summary>A pending hold's pause did not take; the hold stays armed and native retries each frame.</summary>
-public sealed record PauseFailed(ColonyEventOrigin Origin, string Detail, Clock.HoldReason Pending) : ColonyEvent(Origin, Detail);
+public sealed record PauseFailed(ColonyEventOrigin Origin, string Detail, RimGovernor.Brain.GameFacts.Clock.HoldReason Pending) : ColonyEvent(Origin, Detail);
 
 /// <summary>What a hold carries beyond its reason.</summary>
 public abstract record ColonyHoldEvidence;
@@ -100,7 +99,7 @@ public sealed record HealthEvidence(EventPawn Pawn, float MinHealthFraction, flo
 public sealed record PauseEvidence(bool ActualPaused, bool PauseVerified, EventLetter? Letter, string? DialogTitle) : ColonyHoldEvidence;
 
 /// <summary>An armed combat event: the event, the thing it happened to or was raised by, and a diagnostic.</summary>
-public sealed record CombatEvidence(Clock.CombatEvent Event, string? ThingId, string Reason) : ColonyHoldEvidence;
+public sealed record CombatEvidence(RimGovernor.Brain.GameFacts.Clock.CombatEvent Event, string? ThingId, string Reason) : ColonyHoldEvidence;
 
 /// <summary>The hold belongs to a game that is no longer loaded, so nothing beyond its reason and detail was observed.</summary>
 public sealed record UnobservedEvidence : ColonyHoldEvidence;

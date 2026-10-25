@@ -1,9 +1,5 @@
 using System.Globalization;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Placement = RimGovernor.Contracts.Wire.Placement;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -59,14 +55,14 @@ internal static class ClearancePackReinstall
         var bed = s.Staged.Buildings["bed"].Ids.Single();
         var to = new RimGovernor.Brain.Domain.Cell { X = site.X + To.X, Z = site.Z + To.Z };
 
-        async Task<Observations.BuildingState?> ReadAsync(string label)
+        async Task<RimGovernor.Brain.GameFacts.Observations.BuildingState?> ReadAsync(string label)
         {
-            var rows = await s.BuildingsAsync(label, new Observations.ListBuildingsRequest { Ids = [bed], Statuses = [Observations.BuildingStatus.Built] }, cancellationToken).ConfigureAwait(false);
+            var rows = await s.BuildingsAsync(label, new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest { Ids = [bed], Statuses = [RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Built] }, cancellationToken).ConfigureAwait(false);
             return rows.FirstOrDefault(r => r.Building.Id == bed);
         }
 
         var start = await ReadAsync("bed-start").ConfigureAwait(false);
-        if (start is not { HitPoints: Observations.BuildingHitPoints.Tracked { Current: HitPoints, Maximum: > HitPoints } })
+        if (start is not { HitPoints: RimGovernor.Brain.GameFacts.Observations.BuildingHitPoints.Tracked { Current: HitPoints, Maximum: > HitPoints } })
         {
             throw new AcceptanceException($"bed-start: want the staged bed at {HitPoints} hit points below its maximum, got {start}");
         }
@@ -76,21 +72,21 @@ internal static class ClearancePackReinstall
         // Vanilla repairs a damaged player building only on Home cells (WorkGiver_Repair), and a spawned building marks
         // Home around itself while auto-expand is on (AutoHomeAreaMaker), so the staged walls and the reinstalled bed
         // would put it in reach of the crew's Repair job (#3694). Off and cleared, only the round trip touches its hit points.
-        _ = await TypedApply.AppliedAsync(s, "auto-home-off", new Operations.AutoHomeAreaIntent { Enabled = false }, cancellationToken).ConfigureAwait(false);
-        _ = await TypedApply.AppliedAsync(s, "home-clear", new Operations.AreaIntent
+        _ = await TypedApply.AppliedAsync(s, "auto-home-off", new RimGovernor.Brain.GameOrders.Operations.AutoHomeAreaIntent { Enabled = false }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "home-clear", new RimGovernor.Brain.GameOrders.Operations.AreaIntent
         {
-            Operation = Operations.AreaOperation.ClearCells,
+            Operation = RimGovernor.Brain.GameOrders.Operations.AreaOperation.ClearCells,
             Home = true,
-            Rects = [new Operations.AreaRect { MinX = site.X, MinZ = site.Z, MaxX = site.X + site.Width - 1, MaxZ = site.Z + site.Height - 1 }], PollutionClear = false }, cancellationToken).ConfigureAwait(false);
-        _ = await TypedApply.AppliedAsync(s, "uninstall", new Operations.RelocateIntent { ThingId = bed, Mode = new Operations.RelocationMode.Uninstall() }, cancellationToken).ConfigureAwait(false);
+            Rects = [new RimGovernor.Brain.GameOrders.Operations.AreaRect { MinX = site.X, MinZ = site.Z, MaxX = site.X + site.Width - 1, MaxZ = site.Z + site.Height - 1 }], PollutionClear = false }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "uninstall", new RimGovernor.Brain.GameOrders.Operations.RelocateIntent { ThingId = bed, Mode = new RimGovernor.Brain.GameOrders.Operations.RelocationMode.Uninstall() }, cancellationToken).ConfigureAwait(false);
         _ = await s.RunUntilAsync("packed", 3000, async ct =>
         {
             var row = await ReadAsync("packed-probe").ConfigureAwait(false);
             return (Wait.Signature(row is null), row is null);
         }, cancellationToken).ConfigureAwait(false);
 
-        _ = await TypedApply.AppliedAsync(s, "install", new Operations.RelocateIntent { ThingId = bed, Mode = new Operations.RelocationMode.Move(Placement.Rotation.North, to) }, cancellationToken).ConfigureAwait(false);
-        Observations.BuildingState? end = null;
+        _ = await TypedApply.AppliedAsync(s, "install", new RimGovernor.Brain.GameOrders.Operations.RelocateIntent { ThingId = bed, Mode = new RimGovernor.Brain.GameOrders.Operations.RelocationMode.Move(RimGovernor.Brain.GameFacts.Placement.Rotation.North, to) }, cancellationToken).ConfigureAwait(false);
+        RimGovernor.Brain.GameFacts.Observations.BuildingState? end = null;
         _ = await s.RunUntilAsync("installed", s.TicksLeft, async ct =>
         {
             end = await ReadAsync("installed-probe").ConfigureAwait(false);

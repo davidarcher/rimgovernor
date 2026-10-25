@@ -48,7 +48,7 @@ public abstract record ProductFood
     /// </summary>
     public abstract string Definition { get; }
 
-    public sealed record NotFood(RimGovernor.Contracts.Wire.Observations.FoodProduct Observed) : ProductFood
+    public sealed record NotFood(RimGovernor.Brain.GameFacts.Observations.FoodProduct Observed) : ProductFood
     {
         public override string Definition => Observed.DefName;
     }
@@ -65,7 +65,7 @@ public abstract record ProductFood
     /// (Biotech); Storable the count protected, reachable storage accepting it can hold: stored stock plus empty
     /// stack slots.
     /// </summary>
-    public sealed record Food(RimGovernor.Contracts.Wire.Observations.FoodProduct Observed, FoodKind Kind, double Nutrition, bool Perishable, bool BabyEdible) : ProductFood
+    public sealed record Food(RimGovernor.Brain.GameFacts.Observations.FoodProduct Observed, FoodKind Kind, double Nutrition, bool Perishable, bool BabyEdible) : ProductFood
     {
         public override string Definition => Observed.DefName;
         public bool Edible => Observed.Edible;
@@ -105,7 +105,7 @@ public sealed record ProductionRecipe
 /// </summary>
 public sealed record ExistingProductionBill
 {
-    public required RimGovernor.Contracts.Wire.Observations.BillState Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.BillState Observed { get; init; }
     /// <summary>The recipe's catalog classification.</summary>
     public RecipeRole Role { get; init; }
     /// <summary>This view is being reviewed for butcher work.</summary>
@@ -134,8 +134,8 @@ public abstract record ProductionUse
 {
     private protected ProductionUse() { }
     public sealed record Ordinary : ProductionUse;
-    public sealed record Cooking(RimGovernor.Contracts.Wire.Observations.CookingProduction.Supported Capability) : ProductionUse;
-    public sealed record Butchering(RimGovernor.Contracts.Wire.Observations.ButcheringProduction.Supported Capability) : ProductionUse;
+    public sealed record Cooking(RimGovernor.Brain.GameFacts.Observations.CookingProduction.Supported Capability) : ProductionUse;
+    public sealed record Butchering(RimGovernor.Brain.GameFacts.Observations.ButcheringProduction.Supported Capability) : ProductionUse;
 }
 public sealed record ProductionBench
 {
@@ -144,7 +144,7 @@ public sealed record ProductionBench
     /// <summary>The nutrition of the fresh humanlike corpses near a butcher bench (0 for none, and for a cooking bench).</summary>
     public double HumanCorpseNutrition { get; init; }
 
-    public required RimGovernor.Contracts.Wire.Observations.BillStackRow Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.BillStackRow Observed { get; init; }
     public required ProductionUse Use { get; init; }
 
     public string Id => Observed.Bench;

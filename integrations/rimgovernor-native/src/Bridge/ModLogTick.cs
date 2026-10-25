@@ -1,7 +1,7 @@
 using RimGovernor.Host.Sdk;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Gives ModLog (the rimgovernor.log helper) the game tick, so a mod
     // line lines up with the controller's rows. Read off any thread; -1 when

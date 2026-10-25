@@ -173,7 +173,7 @@ public sealed partial class ServiceProcess
     }
 
     // Whether the identity the service attached to names the same colony/load/map as the harness's.
-    private static bool Matches(ServiceIdentity served, RimGovernor.Contracts.Wire.Common.Identity want) =>
+    private static bool Matches(ServiceIdentity served, RimGovernor.Brain.GameFacts.Common.Identity want) =>
         served.ColonyId == want.ColonyId && served.LoadToken == want.LoadToken && served.MapId == want.MapId;
 
     /// <summary>

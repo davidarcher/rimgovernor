@@ -1,10 +1,8 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using DefinitionCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
 using CatalogStat = RimGovernor.Brain.Bridge.CatalogStat;
-using D = RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Bridge;
 
 // Apparel facts use catalog rows for layers, body groups, wear filters, outfit tags, equipped offsets and
@@ -19,7 +17,7 @@ public sealed record GearDefinitions
 }
 
 /// <summary>A pawn's wear inputs: what the apparel rows cannot say.</summary>
-internal sealed record GearWearer(D.Gender Gender, D.DevelopmentalStage Stage, IReadOnlySet<string> Groups)
+internal sealed record GearWearer(RimGovernor.Brain.GameFacts.Defs.Gender Gender, RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage Stage, IReadOnlySet<string> Groups)
 {
     /// <summary>
     /// The game's wear filter for apparel properties: the gender (ApparelProperties.CorrectGenderForWearing), the
@@ -29,7 +27,7 @@ internal sealed record GearWearer(D.Gender Gender, D.DevelopmentalStage Stage, I
     public bool CanWear(RimWorld.ApparelProperties a)
     {
         // The wire and game gender and stage enums carry the same values (none/male/female; newborn/baby/child/adult flags).
-        if ((int)a.gender != (int)D.Gender.None && Gender != D.Gender.None && (int)a.gender != (int)Gender)
+        if ((int)a.gender != (int)RimGovernor.Brain.GameFacts.Defs.Gender.None && Gender != RimGovernor.Brain.GameFacts.Defs.Gender.None && (int)a.gender != (int)Gender)
         {
             return false;
         }
@@ -63,7 +61,7 @@ public static class GearDefinitionsReads
         facts is not null ? new GearDefinitions { Catalog = facts.Catalog, Finished = facts.Finished } : null;
 
     /// <summary>The wear inputs of one gear row.</summary>
-    internal static GearWearer WearerOf(O.GearLoadout p)
+    internal static GearWearer WearerOf(RimGovernor.Brain.GameFacts.Observations.GearLoadout p)
     {
         return new GearWearer(p.Gender, p.DevelopmentalStage, new HashSet<string>(p.BodyPartGroups, StringComparer.Ordinal));
     }
@@ -88,8 +86,8 @@ public static class GearDefinitionsReads
             {
                 Name = name,
                 Armor = DefinitionCatalog.ApparelIsArmor(a),
-                Child = (stage & (int)D.DevelopmentalStage.Child) != 0,
-                Adult = (stage & (int)D.DevelopmentalStage.Adult) != 0,
+                Child = (stage & (int)RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Child) != 0,
+                Adult = (stage & (int)RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Adult) != 0,
                 CoversBody = groups.Contains("Torso") || groups.Contains("Legs"),
             });
         }

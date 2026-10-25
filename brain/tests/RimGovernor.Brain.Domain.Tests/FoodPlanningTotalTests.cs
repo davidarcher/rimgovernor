@@ -1,5 +1,4 @@
-using O = RimGovernor.Contracts.Wire.Observations;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
@@ -11,15 +10,15 @@ public sealed class FoodPlanningTotalTests
     private static readonly Resource Food = new("RawBerries");
     private static readonly AcquisitionSource Bush = new()
     {
-        Observed = new() { Source = new() { Id = "bush" }, Token = "bush", Resource = Food.Value, Yield = 10, Designation = new O.AcquisitionDesignation.Open(), Taken = false, Kind = new O.AcquisitionKind.Plant(true, 1, false) },
-        Entity = new() { Id = "bush", DefName = "Plant_Berry", Label = "Plant_Berry", Place = new O.EntityPlace.OnMap(1, new Cell(1, 1)) }, NutritionYield = .5,
+        Observed = new() { Source = new() { Id = "bush" }, Token = "bush", Resource = Food.Value, Yield = 10, Designation = new RimGovernor.Brain.GameFacts.Observations.AcquisitionDesignation.Open(), Taken = false, Kind = new RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Plant(true, 1, false) },
+        Entity = new() { Id = "bush", DefName = "Plant_Berry", Label = "Plant_Berry", Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(1, new Cell(1, 1)) }, NutritionYield = .5,
     };
 
     [Fact]
     public void PendingYieldPreventsDuplicateAcquisitionAndStalledYieldReopensIt()
     {
-        var designated = Bush with { Observed = Bush.Observed with { Designation = new O.AcquisitionDesignation.Designated(new(0)) } };
-        var pending = RoundsAcquisitionPlanner.WithoutStalled(.5, [designated], [Bush.Id], true);
+        var designated = Bush with { Observed = Bush.Observed with { Designation = new RimGovernor.Brain.GameFacts.Observations.AcquisitionDesignation.Designated(new(0)) } };
+        var pending = AcquisitionPlanner.WithoutStalled(.5, [designated], [Bush.Id], true);
         Assert.Equal(0, pending);
         Assert.Empty(AcquisitionRules.SelectAcquisition([Bush], .5, .5, true, new Dictionary<string, bool>()));
         Assert.Equal(Bush, Assert.Single(AcquisitionRules.SelectAcquisition([Bush], .5, pending, true, new Dictionary<string, bool>())));
@@ -54,7 +53,7 @@ public sealed class FoodPlanningTotalTests
         Assert.False(HumanFoodRules.HumanButcherEligible([], true, false));
         Assert.False(HumanFoodRules.HumanButcherEligible([], false, true));
         Assert.True(HumanFoodRules.HumanButcherEligible([new PawnTrait { Observed = new() { DefName = "Cannibal" }, Effects = new TraitEffects { HumanButcher = true } }], false, true));
-        Assert.True(HumanFoodRules.PreceptAcceptable(new O.PawnIdeo.None(), new IdeologyMode.NotInstalled()));
+        Assert.True(HumanFoodRules.PreceptAcceptable(new RimGovernor.Brain.GameFacts.Observations.PawnIdeo.None(), new IdeologyMode.NotInstalled()));
     }
     [Fact]
     public void AnimalFeedHasAZeroRunwayForNoHerdAndRequiresTheKeptAnimalsFacts()
@@ -83,9 +82,9 @@ public sealed class FoodPlanningTotalTests
     [Fact]
     public void FoodChecksRequireRunwayAndButcherBuildDefinition()
     {
-        Assert.Throws<RequiredFactException>(() => RoundsRules.Reached(null, 3));
-        Assert.True(RoundsRules.Reached(new FoodRunway.NoEaters(), 3));
-        Assert.False(RoundsRules.Reached(new FoodRunway.Days(2), 3));
-        Assert.Throws<RequiredFactException>(() => RoundsBuildingPlanner.ButcherTableAffordable(ColonyFactsCoreTests.Reading()));
+        Assert.Throws<RequiredFactException>(() => Rules.Reached(null, 3));
+        Assert.True(Rules.Reached(new FoodRunway.NoEaters(), 3));
+        Assert.False(Rules.Reached(new FoodRunway.Days(2), 3));
+        Assert.Throws<RequiredFactException>(() => BuildingPlanner.ButcherTableAffordable(ColonyFactsCoreTests.Reading()));
     }
 }

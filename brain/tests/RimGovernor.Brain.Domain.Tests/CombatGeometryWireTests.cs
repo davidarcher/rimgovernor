@@ -1,7 +1,6 @@
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
-using C = RimGovernor.Contracts.Wire.Common;
-using M = RimGovernor.Contracts.Wire.Mirror;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -9,12 +8,12 @@ namespace RimGovernor.Brain.Domain.Tests;
 // route names its own rescuer, and a refused read throws instead of answering a Failure case.
 public sealed class CombatGeometryWireTests
 {
-    private static readonly C.Identity Identity = DefenseWire.Context.Identity;
+    private static readonly RimGovernor.Brain.GameFacts.Common.Identity Identity = DefenseWire.Context.Identity;
 
-    private static M.CombatGeometryCell Scored(int x, int z, bool lineOfFire) => new()
+    private static RimGovernor.Brain.GameFacts.Mirror.CombatGeometryCell Scored(int x, int z, bool lineOfFire) => new()
     {
         Cell = new RimGovernor.Brain.Domain.Cell { X = x, Z = z },
-        Lines = [new M.CombatSightLine { HostileId = new PawnId("Thing_Raider1"), Cover = 0.5, LineOfFire = lineOfFire, ColonistInPath = false, HostileCover = 0.25 }],
+        Lines = [new RimGovernor.Brain.GameFacts.Mirror.CombatSightLine { HostileId = new PawnId("Thing_Raider1"), Cover = 0.5, LineOfFire = lineOfFire, ColonistInPath = false, HostileCover = 0.25 }],
         Standable = true,
         HostileLineOfFire = lineOfFire,
         Door = false,
@@ -22,28 +21,28 @@ public sealed class CombatGeometryWireTests
 
     private static void RoundTrips<T>(T payload)
     {
-        var json = WireJson.Serialize(payload);
-        Assert.Equal(json, WireJson.Serialize(WireJson.Deserialize<T>(json)));
-        Assert.Equal(payload, WireJson.Deserialize<T>(json));
+        var json = OrdersJson.Serialize(payload);
+        Assert.Equal(json, OrdersJson.Serialize(OrdersJson.Deserialize<T>(json)));
+        Assert.Equal(payload, OrdersJson.Deserialize<T>(json));
     }
 
     public static TheoryData<string> Roles => ["cover", "choke", "firing", "rescue", "none"];
 
-    private static M.CombatGeometryPropose? Role(string role) => role switch
+    private static RimGovernor.Brain.GameFacts.Mirror.CombatGeometryPropose? Role(string role) => role switch
     {
-        "cover" => new M.CombatGeometryPropose.CoverBehindLine { Line = [new RimGovernor.Brain.Domain.Cell { X = 1, Z = 2 }] },
-        "choke" => new M.CombatGeometryPropose.AdjacentToChoke { Choke = new RimGovernor.Brain.Domain.Cell { X = 4, Z = 4 }, OurSide = new RimGovernor.Brain.Domain.Cell { X = 4, Z = 1 } },
-        "firing" => new M.CombatGeometryPropose.FiringCells { Targets = [new RimGovernor.Brain.Domain.Cell { X = 9, Z = 9 }], From = new RimGovernor.Brain.Domain.Cell { X = 3, Z = 3 }, Radius = 12 },
-        "rescue" => new M.CombatGeometryPropose.RescuePath { Pawn = new PawnId("Thing_Human1"), To = new RimGovernor.Brain.Domain.Cell { X = 7, Z = 7 } },
+        "cover" => new RimGovernor.Brain.GameFacts.Mirror.CombatGeometryPropose.CoverBehindLine { Line = [new RimGovernor.Brain.Domain.Cell { X = 1, Z = 2 }] },
+        "choke" => new RimGovernor.Brain.GameFacts.Mirror.CombatGeometryPropose.AdjacentToChoke { Choke = new RimGovernor.Brain.Domain.Cell { X = 4, Z = 4 }, OurSide = new RimGovernor.Brain.Domain.Cell { X = 4, Z = 1 } },
+        "firing" => new RimGovernor.Brain.GameFacts.Mirror.CombatGeometryPropose.FiringCells { Targets = [new RimGovernor.Brain.Domain.Cell { X = 9, Z = 9 }], From = new RimGovernor.Brain.Domain.Cell { X = 3, Z = 3 }, Radius = 12 },
+        "rescue" => new RimGovernor.Brain.GameFacts.Mirror.CombatGeometryPropose.RescuePath { Pawn = new PawnId("Thing_Human1"), To = new RimGovernor.Brain.Domain.Cell { X = 7, Z = 7 } },
         _ => null,
     };
 
     [Theory]
     [MemberData(nameof(Roles))]
     public void TheRequestRoundTripsExactly(string role) =>
-        RoundTrips(new M.CombatGeometryRequest { Identity = Identity, Cells = [], HostileIds = [new PawnId("Thing_Raider1")], Propose = Role(role) });
+        RoundTrips(new RimGovernor.Brain.GameOrders.Mirror.CombatGeometryRequest { Identity = Identity, Cells = [], HostileIds = [new PawnId("Thing_Raider1")], Propose = Role(role) });
 
     [Fact]
     public void TheGeometryRoundTripsExactly() =>
-        RoundTrips(new M.CombatGeometry { Context = DefenseWire.Context, Cells = [Scored(1, 1, true)], Proposed = [Scored(2, 1, false)], MainThreadMs = 1.5 });
+        RoundTrips(new RimGovernor.Brain.GameFacts.Mirror.CombatGeometry { Context = DefenseWire.Context, Cells = [Scored(1, 1, true)], Proposed = [Scored(2, 1, false)], MainThreadMs = 1.5 });
 }

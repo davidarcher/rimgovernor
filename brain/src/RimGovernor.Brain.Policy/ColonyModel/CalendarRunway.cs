@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>Exact crossings of the piecewise-linear seasonal food reserve over the native daily calendar.</summary>
 internal static class CalendarRunway
 {
-    internal static double? Crossing(RimGovernor.Contracts.Wire.Observations.FoodClimate calendar, double from, double until, double stock, double net, double consumption)
+    internal static double? Crossing(RimGovernor.Brain.GameFacts.Observations.FoodClimate calendar, double from, double until, double stock, double net, double consumption)
     {
         if (consumption <= 0) return null;
         var now = from;

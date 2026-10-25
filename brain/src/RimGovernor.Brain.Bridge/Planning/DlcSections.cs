@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
-using O = RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameAccess;
 namespace RimGovernor.Brain.Bridge;
 
 /// <summary>
@@ -11,7 +10,7 @@ namespace RimGovernor.Brain.Bridge;
 public static class DlcSectionReads
 {
     /// <summary>The review's DLC sections, read from the colony snapshot.</summary>
-    public static RoundsFacts Installed(RoundsFacts facts, O.ColonyFactsSnapshot colony) => facts with
+    public static ReviewFacts Installed(ReviewFacts facts, RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot colony) => facts with
     {
         Anomaly = AnomalyColonyReads.AnomalyOf(colony.Anomaly),
         Biotech = colony.Biotech,

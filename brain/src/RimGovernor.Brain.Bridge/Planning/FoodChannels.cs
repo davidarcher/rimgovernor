@@ -1,13 +1,12 @@
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
-using O = RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Bridge;
 
 public static class FoodChannelsReads
 {
     /// <summary>Called only after the colony boundary validator has checked the section.</summary>
-    internal static FoodChannelPlanning ColonyFoodChannels(O.FoodChannelsFacts v, Pawns pawns, AnimalRaceCatalog races)
+    internal static FoodChannelPlanning ColonyFoodChannels(RimGovernor.Brain.GameFacts.Observations.FoodChannelsFacts v, Pawns pawns, AnimalRaceCatalog races)
     {
         var pasture = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var row in v.PastureTerrain)
@@ -24,14 +23,14 @@ public static class FoodChannelsReads
         var products = new List<AnimalProduct>();
         foreach (var row in v.Gatherable)
         {
-            if (row.Yield is O.AnimalYield.Producing)
+            if (row.Yield is RimGovernor.Brain.GameFacts.Observations.AnimalYield.Producing)
             {
                 products.Add(new AnimalProduct.Gatherable(row) { Feed = ProductFeed(row.PawnId, row.Race, pawns, races) });
             }
         }
         foreach (var row in v.EggLayer)
         {
-            if (row.Yield is O.AnimalYield.Producing)
+            if (row.Yield is RimGovernor.Brain.GameFacts.Observations.AnimalYield.Producing)
             {
                 products.Add(new AnimalProduct.EggLayer(row) { Feed = ProductFeed(row.PawnId, row.Race, pawns, races) });
             }
@@ -53,7 +52,7 @@ public static class FoodChannelsReads
     /// hunger scales the adult feed (for a plant eater), and the egg interval or the gestation is the
     /// reproduction period.
     /// </summary>
-    private static SlaughterFoodAnimal SlaughterFood(O.FoodSlaughterAnimal row, AnimalRace race, Pawns pawns)
+    private static SlaughterFoodAnimal SlaughterFood(RimGovernor.Brain.GameFacts.Observations.FoodSlaughterAnimal row, AnimalRace race, Pawns pawns)
     {
         // A race without meat yields no food.
         var per = race.Meat is RaceMeat.Yields { NutritionPerUnit: var nutrition } ? nutrition : 0;
@@ -82,8 +81,8 @@ public static class FoodChannelsReads
     }
 
     /// <summary>The animal block of a food channel's animal; one the pawn table does not hold as an animal is a contract break.</summary>
-    private static O.AnimalState AnimalStateOf(Pawns pawns, string id) =>
-        pawns.TryGetValue(id, out var row) && row?.AnimalState is O.PawnAnimalState.Animal { State: var state }
+    private static RimGovernor.Brain.GameFacts.Observations.AnimalState AnimalStateOf(Pawns pawns, string id) =>
+        pawns.TryGetValue(id, out var row) && row?.AnimalState is RimGovernor.Brain.GameFacts.Observations.PawnAnimalState.Animal { State: var state }
             ? state
             : throw new ObservationContractException($"food channel animal {id} has no animal row in the pawn table");
 
@@ -92,7 +91,7 @@ public static class FoodChannelsReads
     /// hunger factor against the adult stage's. A race that eats no plants, or has no food need, eats NoPlants; a
     /// life stage the race's catalog stages do not hold is a contract break.
     /// </summary>
-    internal static AnimalFeed FeedOf(AnimalRace race, O.AnimalState state)
+    internal static AnimalFeed FeedOf(AnimalRace race, RimGovernor.Brain.GameFacts.Observations.AnimalState state)
     {
         if (!race.EatsPlant || race.AdultFeed is not RaceFeed.Eats { PerDay: var adult })
         {
@@ -108,7 +107,7 @@ public static class FoodChannelsReads
     }
 
     /// <summary>Applies the policy decisions to native's raw fishing facts: research state, footprint, reachability verdict, delivery and crew.</summary>
-    private static FishingWaterReview ColonyFishableWater(O.FishableWater water)
+    private static FishingWaterReview ColonyFishableWater(RimGovernor.Brain.GameFacts.Observations.FishableWater water)
     {
         var research = FishingFactsRules.FishingResearchState(water);
         var fishers = water.Fishers;

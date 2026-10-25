@@ -1,8 +1,6 @@
 using System.Globalization;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
-using Clock = RimGovernor.Contracts.Wire.Clock;
-using Common = RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Brain.GameAccess;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -100,12 +98,12 @@ public sealed class ClockRate
     /// detail, target speed and effective rate, what a slow-clock failure names as its cause. A failed read is described,
     /// not thrown: the slow clock stays the failure.
     /// </summary>
-    public static async Task<string> DescribeAsync(Harness h, Common.Identity identity, CancellationToken cancellationToken)
+    public static async Task<string> DescribeAsync(Harness h, RimGovernor.Brain.GameFacts.Common.Identity identity, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(h);
         try
         {
-            var status = await h.CallAsync("clock-rate-status", NativeOps.ReadClockStatus, new Clock.StatusRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
+            var status = await h.CallAsync("clock-rate-status", NativeOps.ReadClockStatus, new RimGovernor.Brain.GameOrders.Clock.StatusRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
             return Describe(status);
         }
         catch (BridgeRefusedException e)
@@ -119,13 +117,13 @@ public sealed class ClockRate
     }
 
     /// <summary>The status as one line: held with its reason and detail, or running with its pacing.</summary>
-    public static string Describe(Clock.Status status)
+    public static string Describe(RimGovernor.Brain.GameFacts.Clock.Status status)
     {
         ArgumentNullException.ThrowIfNull(status);
         var paused = status.ActualPaused == true ? "paused" : "unpaused";
-        var common = string.Create(CultureInfo.InvariantCulture, $"target {(status.LastRun as Clock.RunHistory.RanCase)?.Speed.ToString() ?? "none"}, {status.EffectiveTicksPerSecond:0.#} ticks/s effective, game {paused}");
-        return status.State == Clock.ClockState.Held
+        var common = string.Create(CultureInfo.InvariantCulture, $"target {(status.LastRun as RimGovernor.Brain.GameFacts.Clock.RunHistory.RanCase)?.Speed.ToString() ?? "none"}, {status.EffectiveTicksPerSecond:0.#} ticks/s effective, game {paused}");
+        return status.State == RimGovernor.Brain.GameFacts.Clock.ClockState.Held
             ? $"clock held ({status.Hold}); {common}"
-            : string.Create(CultureInfo.InvariantCulture, $"clock {status.State} paced at {(status.Pacing as Clock.Pacing.RunningCase)?.TicksPerSecond} ticks/s ({status.Pacing}); {common}");
+            : string.Create(CultureInfo.InvariantCulture, $"clock {status.State} paced at {(status.Pacing as RimGovernor.Brain.GameFacts.Clock.Pacing.RunningCase)?.TicksPerSecond} ticks/s ({status.Pacing}); {common}");
     }
 }

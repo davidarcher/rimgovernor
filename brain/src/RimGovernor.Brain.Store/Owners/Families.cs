@@ -58,7 +58,7 @@ public sealed record DefenseTierRecord
 /// <see cref="Killbox"/> with a digest of its footprint. The Need's attempts are counted per tier
 /// (<see cref="DefenseTierRecord.Attempts"/>) for the load in <see cref="World"/>: a reload restarts the unbuilt
 /// tiers' count with the Need's Method history. An older save's <c>Standard</c> and <c>Episode</c> fields are read
-/// and ignored. Whether the layout was verified complete is not stored: the Rounder keeps it in memory per world
+/// and ignored. Whether the layout was verified complete is not stored: the ColonyReview keeps it in memory per world
 /// (#3008), so a restart re-verifies. The firing line and the trap lane are the plan's DefFiring and DefLane nodes
 /// (#3583), not the record's.
 /// </summary>
@@ -233,14 +233,14 @@ public sealed record ProductionLadderRecord
     /// <summary>Sorted and unique.</summary>
     public IReadOnlyList<string> Research { get; init; } = [];
 
-    public ConcernId Concern { get; init; }
+    public FilingKey Concern { get; init; }
 
     /// <summary>
     /// Whether <paramref name="owner"/> may own a ladder: none, the military family's equipment Need (#3259), or the economy family's
     /// resource Need (#3303) under its filing key. A saved ladder of a retired owner is dropped on load; the workshop
     /// re-records its rung on its next step.
     /// </summary>
-    public static bool LadderOwner(ConcernId owner) =>
+    public static bool LadderOwner(FilingKey owner) =>
         owner.Value.Length == 0 || owner == MilitaryFamily.Equipment.FilingKey || owner == EconomyFamily.Resource.FilingKey;
 
     public void Validate()
@@ -452,9 +452,9 @@ public sealed partial class Store
     public Task ClearIdeologyReformAsync(CancellationToken cancellationToken) => Task.Run(() => ClearIdeologyReform(cancellationToken), cancellationToken);
 
     /// <summary>Empties the rounds session cache on a world change; the next review recomputes it from revision zero.</summary>
-    public void ResetRounds(CancellationToken cancellationToken) => Run(tx => _ = tx.Execute("DELETE FROM rounds"), cancellationToken);
+    public void ResetReview(CancellationToken cancellationToken) => Run(tx => _ = tx.Execute("DELETE FROM rounds"), cancellationToken);
 
-    public Task ResetRoundsAsync(CancellationToken cancellationToken) => Task.Run(() => ResetRounds(cancellationToken), cancellationToken);
+    public Task ResetReviewAsync(CancellationToken cancellationToken) => Task.Run(() => ResetReview(cancellationToken), cancellationToken);
 }
 
 internal static class FamiliesSchema

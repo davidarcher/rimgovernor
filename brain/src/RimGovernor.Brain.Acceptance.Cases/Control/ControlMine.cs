@@ -1,7 +1,6 @@
 using System.Globalization;
 using RimGovernor.Brain.Domain;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -69,7 +68,7 @@ internal static class ControlMine
         {
             Tasks = [new SelectedActivityTask(TaskId, worker, [], step, new Cell(cells[0].X, cells[0].Z), 0)],
         };
-        _ = await TypedApply.AppliedAsync(s, "order", new Operations.PawnActivitiesIntent { Batch = batch }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "order", new RimGovernor.Brain.GameOrders.Operations.PawnActivitiesIntent { Batch = batch }, cancellationToken).ConfigureAwait(false);
 
         var rect = new Fx.StageRect(site.X, site.Z, 5, 3);
         var standing = cells;

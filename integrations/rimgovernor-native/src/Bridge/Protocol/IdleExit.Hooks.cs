@@ -3,7 +3,7 @@ using HarmonyLib;
 using RimGovernor.Host.Sdk;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     [StaticConstructorOnStartup]
     internal static partial class IdleExit

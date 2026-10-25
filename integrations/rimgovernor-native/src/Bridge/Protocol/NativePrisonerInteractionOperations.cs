@@ -3,11 +3,8 @@ using System.Linq;
 using System.Text;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // PrisonerInteractionIntent: one colony prisoner's exclusive
     // interaction (Recruit, MaintainOnly, ReduceResistance, Release, or
@@ -19,16 +16,16 @@ namespace HomeBridge.BridgeTools
     {
         // Wire names map to installed defs by exact defName; a DLC mode whose
         // def is absent (Ideology inactive) resolves null and is refused.
-        private static string? DefName(Operations.PrisonerInteraction interaction)
+        private static string? DefName(RimGovernor.Brain.GameOrders.Operations.PrisonerInteraction interaction)
         {
             switch (interaction)
             {
-                case Operations.PrisonerInteraction.AttemptRecruit: return "AttemptRecruit";
-                case Operations.PrisonerInteraction.MaintainOnly: return "MaintainOnly";
-                case Operations.PrisonerInteraction.ReduceResistance: return "ReduceResistance";
-                case Operations.PrisonerInteraction.Release: return "Release";
-                case Operations.PrisonerInteraction.Enslave: return "Enslave";
-                case Operations.PrisonerInteraction.Convert: return "Convert";
+                case RimGovernor.Brain.GameOrders.Operations.PrisonerInteraction.AttemptRecruit: return "AttemptRecruit";
+                case RimGovernor.Brain.GameOrders.Operations.PrisonerInteraction.MaintainOnly: return "MaintainOnly";
+                case RimGovernor.Brain.GameOrders.Operations.PrisonerInteraction.ReduceResistance: return "ReduceResistance";
+                case RimGovernor.Brain.GameOrders.Operations.PrisonerInteraction.Release: return "Release";
+                case RimGovernor.Brain.GameOrders.Operations.PrisonerInteraction.Enslave: return "Enslave";
+                case RimGovernor.Brain.GameOrders.Operations.PrisonerInteraction.Convert: return "Convert";
                 default: return null;
             }
         }
@@ -42,25 +39,25 @@ namespace HomeBridge.BridgeTools
             && !(pawn.IsWildMan() && !def.allowOnWildMan)
             && (def.allowInClassicIdeoMode || Find.IdeoManager == null || !Find.IdeoManager.classicMode);
 
-        private static Common.Failure? Resolve(Operations.PrisonerInteractionIntent? intent, Common.ObservationContext context, out Pawn? pawn, out PrisonerInteractionModeDef? def)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(RimGovernor.Brain.GameOrders.Operations.PrisonerInteractionIntent? intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Pawn? pawn, out PrisonerInteractionModeDef? def)
         {
             pawn = null; def = null;
-            if (intent == null || intent.PawnId is null || !ProtoBoundary.IsIdentifier(intent.PawnId))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Prisoner interaction requires a pawn and an interaction.");
-            var found = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent.PawnId);
+            if (intent == null || intent.PawnId is null || !GameThread.IsIdentifier(intent.PawnId))
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Prisoner interaction requires a pawn and an interaction.");
+            var found = GameThread.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent.PawnId);
             if (found == null || found.Destroyed || found.Dead || !found.IsPrisonerOfColony || found.guest == null)
-                return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact eligible current-map colony prisoner is unavailable.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact eligible current-map colony prisoner is unavailable.");
             var name = DefName(intent.Interaction);
             var mode = name == null ? null : DefDatabase<PrisonerInteractionModeDef>.GetNamedSilentFail(name);
             if (mode == null || !Supported(found, mode))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Unsupported or ineligible native prisoner interaction.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Unsupported or ineligible native prisoner interaction.");
             pawn = found; def = mode;
             return null;
         }
 
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => Resolve(action.Intent?.Prisoner, context, out _, out _);
+        public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Resolve(action.Intent?.Prisoner, context, out _, out _);
 
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
+        public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(action.Intent?.Prisoner, context, out var pawn, out var def);
             if (failure != null || pawn == null || def == null) throw new InvalidOperationException("Prisoner interaction prerequisites changed before apply: " + (failure?.Detail ?? ""));
@@ -71,7 +68,7 @@ namespace HomeBridge.BridgeTools
                 pawn.guest.SetExclusiveInteraction(def);
             }
             if (pawn.guest.ExclusiveInteractionMode != def) throw new InvalidOperationException("Native prisoner interaction readback did not apply.");
-            return new Receipts.EffectEvidence { Effect = new Receipts.PrisonerEffect {
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.PrisonerEffect {
                 InteractionDef = def.defName, Outcome = "held" } };
         }
     }

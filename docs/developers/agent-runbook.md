@@ -49,7 +49,7 @@ tools and `RimGovernor.cmd <tool> -help` their flags; flags are single-dash
 (`-m msg`, `-last 3`, `-flag=value`) and come before positional arguments.
 `cmd.exe` mangles `%` and `^` in arguments: pass such commit messages with
 `land -F file`. `RimGovernor.cmd test` compiles both tools with warnings as errors. C# projects and probes build on
-their own: the wire is plain records in `brain/src/RimGovernor.Brain.Contracts`, so nothing
+their own: the wire is plain records in `brain/src/RimGovernor.Brain.GameFacts`, so nothing
 is generated before a build.
 
 ### Dev Drive (recommended)

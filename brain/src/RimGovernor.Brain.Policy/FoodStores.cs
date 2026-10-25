@@ -38,7 +38,7 @@ public sealed record FoodStoresFacts
     public bool MealClosetOwed { get; init; }
 
     /// <summary>The facts a review already holds; the reserve targets have not been requested.</summary>
-    public static FoodStoresFacts From(RoundsFacts f) => new()
+    public static FoodStoresFacts From(ReviewFacts f) => new()
     {
         Storage = f.FoodStorageUpkeep,
         Reserve = f.FoodReserve,

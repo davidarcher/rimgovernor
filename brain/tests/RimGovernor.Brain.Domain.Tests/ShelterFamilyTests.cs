@@ -1,4 +1,4 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
@@ -53,7 +53,7 @@ public sealed class ShelterFamilyTests
         Assert.Equal(3, StationGraph.SleepGraph(input).Nodes.Where(n => n.Purpose == StationPurpose.Sleep).Sum(n => n.Count));
 
         // The shelter target is the colonist count: three places for three colonists owe nothing, two owe one.
-        var housed = new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 3, BedCapacity = 3, IndoorSleepingCapacity = 3 }, };
+        var housed = new ReviewFacts { Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 3, BedCapacity = 3, IndoorSleepingCapacity = 3 }, };
         Assert.Equal(0, ShelterRules.StandInsOwed(housed).Missing);
         Assert.Equal((3L, 1), ShelterRules.StandInsOwed(housed with { Census = housed.Census with { BedCapacity = 2, IndoorSleepingCapacity = 2 } }));
     }

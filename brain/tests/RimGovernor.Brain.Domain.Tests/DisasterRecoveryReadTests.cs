@@ -1,11 +1,11 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store.Codec;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
-using BuildingHitPoints = RimGovernor.Contracts.Wire.Observations.BuildingHitPoints;
-using ConditionDuration = RimGovernor.Contracts.Wire.Observations.ConditionDuration;
-using EnvironmentCondition = RimGovernor.Contracts.Wire.Observations.EnvironmentCondition;
+using BuildingHitPoints = RimGovernor.Brain.GameFacts.Observations.BuildingHitPoints;
+using ConditionDuration = RimGovernor.Brain.GameFacts.Observations.ConditionDuration;
+using EnvironmentCondition = RimGovernor.Brain.GameFacts.Observations.EnvironmentCondition;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -16,13 +16,13 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class DisasterRecoveryReadTests
 {
-    private static O.BuildingState Building(string id) =>
+    private static RimGovernor.Brain.GameFacts.Observations.BuildingState Building(string id) =>
         PowerBuildingFixtures.Trader(id, "Generator", new(4, 7), 1000, 1000, true) with
         {
             HitPoints = new BuildingHitPoints.Tracked { Current = 100, Maximum = 100 },
         };
 
-    private static O.BuildingFuel.Refuelable Fuel(double amount, double target) => new()
+    private static RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable Fuel(double amount, double target) => new()
     {
         Fuel = amount, TargetFuel = target, OutOfFuel = amount == 0,
         Burn = BuildingServiceWire.IdleBurn with { PerDay = 2, UnitsPerItem = 3, UseDriven = true, InRain = true, WhenPowered = true, Flickable = true },
@@ -39,30 +39,30 @@ public sealed class DisasterRecoveryReadTests
         {
             Roofed = true, RainVulnerable = true, FuelDefinitions = ["WoodLog"], Stuff = "Steel",
             Service = Building("generator").Service with { Fuel = fuel },
-            Door = new O.BuildingDoor { Open = true, HoldOpen = false },
+            Door = new RimGovernor.Brain.GameFacts.Observations.BuildingDoor { Open = true, HoldOpen = false },
         };
         var native = PawnFixtures.Row("a");
         native = native with
         {
-            Needs = native.Needs with { Mood = new O.NeedLevel.Has(.35), BreakThresholdMinor = .2,
-                Food = new O.FoodNeed.Has(.7, RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed),
-                Rest = new O.NeedLevel.Has(.8), Joy = new O.NeedLevel.Has(.6) },
+            Needs = native.Needs with { Mood = new RimGovernor.Brain.GameFacts.Observations.NeedLevel.Has(.35), BreakThresholdMinor = .2,
+                Food = new RimGovernor.Brain.GameFacts.Observations.FoodNeed.Has(.7, RimGovernor.Brain.GameFacts.Defs.HungerCategory.Fed),
+                Rest = new RimGovernor.Brain.GameFacts.Observations.NeedLevel.Has(.8), Joy = new RimGovernor.Brain.GameFacts.Observations.NeedLevel.Has(.6) },
             Social = native.Social with { HighExpectations = true },
         };
-        MoodPawn Worker(O.PawnState row) => new()
+        MoodPawn Worker(RimGovernor.Brain.GameFacts.Observations.PawnState row) => new()
         {
-            Pawn = row, Forecast = new O.PatientForecast { PawnId = row.Pawn.Id, MoodTarget = .65 },
+            Pawn = row, Forecast = new RimGovernor.Brain.GameFacts.Observations.PatientForecast { PawnId = row.Pawn.Id, MoodTarget = .65 },
             Thoughts = [new("TestThought", -5)],
         };
-        O.PawnState Named(string id) => native with { Pawn = native.Pawn with { Id = id } };
+        RimGovernor.Brain.GameFacts.Observations.PawnState Named(string id) => native with { Pawn = native.Pawn with { Id = id } };
         var pawn = Worker(native);
         var planning = new RecoveryPlanning
         {
             Buildings = [building],
-            Workers = [pawn, Worker(Named("forced") with { Job = new O.JobEvidence { PlayerForced = true } }),
+            Workers = [pawn, Worker(Named("forced") with { Job = new RimGovernor.Brain.GameFacts.Observations.JobEvidence { PlayerForced = true } }),
                 Worker(Named("dead") with { Dead = true }), Worker(Named("downed") with { Downed = true }),
                 Worker(Named("drafted") with { Drafted = true }),
-                Worker(Named("mental") with { MentalState = new O.PawnMentalState { DefName = "Wander", IsAggro = false, Ticks = 120 } })],
+                Worker(Named("mental") with { MentalState = new RimGovernor.Brain.GameFacts.Observations.PawnMentalState { DefName = "Wander", IsAggro = false, Ticks = 120 } })],
             Safety = new RecoverySafety { Restrictions = [RecoveryObservationFixtures.Restriction("a", "Safe"), RecoveryObservationFixtures.Restriction("forced"),
                 RecoveryObservationFixtures.Restriction("dead"), RecoveryObservationFixtures.Restriction("downed"), RecoveryObservationFixtures.Restriction("drafted"), RecoveryObservationFixtures.Restriction("mental")] },
         };
@@ -74,22 +74,22 @@ public sealed class DisasterRecoveryReadTests
         Assert.Equal([new PawnId("a"), new PawnId("forced")], selection.Candidates.Select(c => c.Pawn));
         Assert.All(selection.Candidates, candidate => Assert.Same(fuel, candidate.Fuel));
 
-        var record = new RimGovernor.Brain.Store.RoundsRecovery
+        var record = new RimGovernor.Brain.Store.Recovery
         {
             Need = DisasterFamily.Services, Selection = selection,
             World = new RimGovernor.Brain.Store.World(new("colony"), new("load"), new(0)),
             Buildings = planning.Buildings, Workers = planning.Workers,
-            Safety = new() { Restrictions = EquatableArray.From(planning.Safety.Restrictions.Select(r => new RimGovernor.Brain.Store.RoundsRecoveryRestriction(new PawnId(r.Pawn.Id), r.AreaId ?? ""))) },
+            Safety = new() { Restrictions = EquatableArray.From(planning.Safety.Restrictions.Select(r => new RimGovernor.Brain.Store.ReviewRecoveryRestriction(new PawnId(r.Pawn.Id), r.AreaId ?? ""))) },
         };
         Assert.Same(building, Assert.Single(record.Buildings));
         Assert.Same(pawn, record.Workers[0]);
 
-        var back = StoreJson.Deserialize<RimGovernor.Brain.Store.RoundsRecovery>(StoreJson.Serialize(record));
+        var back = StoreJson.Deserialize<RimGovernor.Brain.Store.Recovery>(StoreJson.Serialize(record));
         Assert.Equal(record, back);
         Assert.Equal("{\"Pawn\":\"forced\",\"Area\":\"\"}", StoreJson.Serialize(back.Safety.Restrictions[1]));
         Assert.Equal(building, Assert.Single(back.Buildings));
-        Assert.Equal(fuel.Burn, Assert.IsType<O.BuildingFuel.Refuelable>(back.Buildings[0].Service.Fuel).Burn);
-        Assert.True(Assert.IsType<O.BuildingFuel.Refuelable>(back.Selection.Candidates[0].Fuel).OutOfFuel);
+        Assert.Equal(fuel.Burn, Assert.IsType<RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable>(back.Buildings[0].Service.Fuel).Burn);
+        Assert.True(Assert.IsType<RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable>(back.Selection.Candidates[0].Fuel).OutOfFuel);
         var replay = new RecoveryPlanning
         {
             Buildings = back.Buildings, Workers = back.Workers,
@@ -109,12 +109,12 @@ public sealed class DisasterRecoveryReadTests
             (new ConditionDuration.Timed { Ticks = 2500 }, """{"type":"timed","ticks":2500}"""),
         })
         {
-            var row = WireJson.Serialize(new EnvironmentCondition { Id = "1", DefName = "ToxicFallout", Duration = duration });
+            var row = OrdersJson.Serialize(new EnvironmentCondition { Id = "1", DefName = "ToxicFallout", Duration = duration });
 
             Assert.Contains("\"duration\":" + json, row);
-            Assert.Equal(row, WireJson.Serialize(WireJson.Deserialize<EnvironmentCondition>(row)));
+            Assert.Equal(row, OrdersJson.Serialize(OrdersJson.Deserialize<EnvironmentCondition>(row)));
         }
-        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<EnvironmentCondition>("""{"id":"1","defName":"ToxicFallout"}"""));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => OrdersJson.Deserialize<EnvironmentCondition>("""{"id":"1","defName":"ToxicFallout"}"""));
     }
 
     [Fact]
@@ -127,7 +127,7 @@ public sealed class DisasterRecoveryReadTests
             Building("untracked") with { HitPoints = new BuildingHitPoints.Untracked() },
             Building("low") with { Service = BuildingServiceWire.NoService with { Fuel = Fuel(10, 100) } },
             Building("fueled") with { Service = BuildingServiceWire.NoService with { Fuel = Fuel(80, 100) } },
-            Building("forbidden") with { Service = BuildingServiceWire.NoService with { BrokenDown = true }, Settings = new O.BuildingSettings { Forbidden = true, Control = new O.BuildingControl.None() } },
+            Building("forbidden") with { Service = BuildingServiceWire.NoService with { BrokenDown = true }, Settings = new RimGovernor.Brain.GameFacts.Observations.BuildingSettings { Forbidden = true, Control = new RimGovernor.Brain.GameFacts.Observations.BuildingControl.None() } },
             Building("burning") with { Service = BuildingServiceWire.NoService with { BrokenDown = true }, Burning = true },
         ]);
 
@@ -180,7 +180,7 @@ public sealed class DisasterRecoveryReadTests
                 ID = new("recovery-a"), Building = "generator", Method = RecoveryMethod.Refuel,
                 HitPoints = new BuildingHitPoints.Tracked { Current = 50, Maximum = 100 }, Fuel = Fuel(5, 30),
             },
-            new RecoveryCandidate { ID = new("recovery-b"), Building = "wall", Method = RecoveryMethod.Breakdown, HitPoints = new BuildingHitPoints.Untracked(), Fuel = new O.BuildingFuel.NotRefuelable() },
+            new RecoveryCandidate { ID = new("recovery-b"), Building = "wall", Method = RecoveryMethod.Breakdown, HitPoints = new BuildingHitPoints.Untracked(), Fuel = new RimGovernor.Brain.GameFacts.Observations.BuildingFuel.NotRefuelable() },
         })
         {
             Assert.Equal(candidate, StoreJson.Deserialize<RecoveryCandidate>(StoreJson.Serialize(candidate)));

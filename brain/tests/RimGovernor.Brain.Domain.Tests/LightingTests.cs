@@ -1,15 +1,17 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Observations;
-using LightingFacts = RimGovernor.Contracts.Wire.Observations.LightingFacts;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
+using LightingFacts = RimGovernor.Brain.GameFacts.Observations.LightingFacts;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
 /// The lighting census is one total facts record (#3831): every work cell carries its measured glow, roof and room
-/// plants, and every lamp its lit flag. On the wire it round-trips through <c>WireJsonContext</c> exactly.
+/// plants, and every lamp its lit flag. On the wire it round-trips through <c>OrdersJsonContext</c> exactly.
 /// </summary>
 public sealed class LightingTests
 {
@@ -25,12 +27,12 @@ public sealed class LightingTests
             Lamps = [new LampState("Thing_TorchLamp5", false)],
         };
 
-        var json = WireJson.Serialize(census);
+        var json = OrdersJson.Serialize(census);
 
         Assert.Equal(
             """{"workCells":[{"bench":"Thing_ElectricStove3","cell":{"x":3,"z":4},"glow":0.25,"roofed":true,"plantDefs":["Plant_Agarilux"]}],"lamps":[{"building":"Thing_TorchLamp5","lit":false}]}""",
             json);
-        Assert.Equal(census, WireJson.Deserialize<LightingFacts>(json));
+        Assert.Equal(census, OrdersJson.Deserialize<LightingFacts>(json));
     }
 
     [Fact]

@@ -1,7 +1,5 @@
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -56,19 +54,19 @@ internal static class CaravanDeparture
         var pawns = s.Staged!.Pawns;
         var crew = pawns["crew"].Id;
         var everyone = new[] { crew, pawns["home-a"].Id, pawns["home-b"].Id };
-        Operations.DefCount[] cargo = [.. Packed.Select(p => new Operations.DefCount { DefName = p.Key, Count = p.Value })];
+        RimGovernor.Brain.GameOrders.Operations.DefCount[] cargo = [.. Packed.Select(p => new RimGovernor.Brain.GameOrders.Operations.DefCount { DefName = p.Key, Count = p.Value })];
         var destination = await DestinationAsync(s, crew, cargo, cancellationToken).ConfigureAwait(false);
         s.Record("destination", destination);
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 
-        Task<Operations.ActionResult> Apply(string key, IEnumerable<string> crewIds) => TradeKit.ApplyAsync(s, key, new Operations.FormCaravanIntent
+        Task<RimGovernor.Brain.GameFacts.Operations.ActionResult> Apply(string key, IEnumerable<string> crewIds) => TradeKit.ApplyAsync(s, key, new RimGovernor.Brain.GameOrders.Operations.FormCaravanIntent
         {
             PawnIds = [.. crewIds],
             Cargo = [.. cargo],
             DestinationTile = destination,
         }, cancellationToken);
 
-        void Formed(string label, Operations.ActionResult result)
+        void Formed(string label, RimGovernor.Brain.GameFacts.Operations.ActionResult result)
         {
             if (TradeKit.Applied(label, result).Caravan is not { AssemblyStarted: true } effect || effect.DestinationTile != destination || effect.PawnIds.Count != 1 || effect.PawnIds[0] != crew)
             {
@@ -77,7 +75,7 @@ internal static class CaravanDeparture
         }
 
         var everyoneResult = await Apply("caravan-departure-everyone", everyone).ConfigureAwait(false);
-        if (TradeKit.RefusedCode(everyoneResult) != RimGovernor.Contracts.Wire.Common.FailureCode.InvalidRequest)
+        if (TradeKit.RefusedCode(everyoneResult) != RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest)
         {
             throw new AcceptanceException($"leave-no-one-home: expected an INVALID_REQUEST refusal, got {everyoneResult}");
         }
@@ -91,10 +89,10 @@ internal static class CaravanDeparture
         }
 
         // The crew gathers the pack and walks to the map edge in game time.
-        Observations.CaravanState? caravan = null;
+        RimGovernor.Brain.GameFacts.Observations.CaravanState? caravan = null;
         _ = await s.RunUntilAsync("observe-formation", FormationTicks, async ct =>
         {
-            var world = await s.CallAsync("observe-formation-world", NativeOps.ReadWorldProgression, new Observations.WorldProgressionRequest { Scope = s.Scope }, ct).ConfigureAwait(false);
+            var world = await s.CallAsync("observe-formation-world", NativeOps.ReadWorldProgression, new RimGovernor.Brain.GameOrders.Observations.WorldProgressionRequest { Scope = s.Scope }, ct).ConfigureAwait(false);
             caravan = world.Caravans.FirstOrDefault(c => c.Pawns.Count == 1 && c.Pawns[0].Pawn.Id == crew);
             return ($"{world.Caravans.Count} caravans", caravan is not null);
         }, cancellationToken).ConfigureAwait(false);
@@ -117,20 +115,20 @@ internal static class CaravanDeparture
     }
 
     /// <summary>A non-hostile settlement the crew's pack can reach, by the trade-acquisition pack estimate.</summary>
-    private static async Task<int> DestinationAsync(TypedSession s, string crew, Operations.DefCount[] cargo, CancellationToken cancellationToken)
+    private static async Task<int> DestinationAsync(TypedSession s, string crew, RimGovernor.Brain.GameOrders.Operations.DefCount[] cargo, CancellationToken cancellationToken)
     {
-        var progression = await s.CallAsync("home-tile", NativeOps.ReadWorldProgression, new Observations.WorldProgressionRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var progression = await s.CallAsync("home-tile", NativeOps.ReadWorldProgression, new RimGovernor.Brain.GameOrders.Observations.WorldProgressionRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var home = progression.Maps.FirstOrDefault(m => m.Home)?.Tile
             ?? throw new AcceptanceException("home-tile: no home map tile");
-        var reply = await s.CallAsync("settlements", NativeOps.ReadWorld, new Observations.WorldRequest { Scope = s.Scope, Settlements = new Observations.SettlementSearch { Tile = home, Radius = 1000 } }, cancellationToken).ConfigureAwait(false);
+        var reply = await s.CallAsync("settlements", NativeOps.ReadWorld, new RimGovernor.Brain.GameOrders.Observations.WorldRequest { Scope = s.Scope, Settlements = new RimGovernor.Brain.GameFacts.Observations.SettlementSearch { Tile = home, Radius = 1000 } }, cancellationToken).ConfigureAwait(false);
         var candidates = reply.Settlements
-            .Where(c => c.Relation == Observations.SettlementRelation.Neutral && c.Tile != home)
+            .Where(c => c.Relation == RimGovernor.Brain.GameFacts.Observations.SettlementRelation.Neutral && c.Tile != home)
             .OrderBy(c => c.Id, StringComparer.Ordinal).Take(12).ToList();
         foreach (var candidate in candidates)
         {
-            var pack = new Operations.FormCaravanIntent { PawnIds = [crew], Cargo = [.. cargo], DestinationTile = candidate.Tile };
+            var pack = new RimGovernor.Brain.GameOrders.Operations.FormCaravanIntent { PawnIds = [crew], Cargo = [.. cargo], DestinationTile = candidate.Tile };
             var facts = await TradeKit.AcquisitionAsync(s, "reach-" + candidate.Id, pack, cancellationToken).ConfigureAwait(false);
-            if (facts.Pack is Observations.TradePackEstimate.Packed { Outbound: Observations.PackRoute.Reachable })
+            if (facts.Pack is RimGovernor.Brain.GameFacts.Observations.TradePackEstimate.Packed { Outbound: RimGovernor.Brain.GameFacts.Observations.PackRoute.Reachable })
             {
                 return candidate.Tile;
             }

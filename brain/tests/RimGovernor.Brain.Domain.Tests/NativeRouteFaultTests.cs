@@ -1,10 +1,9 @@
 using System.Net;
 using System.Text;
 using RimGovernor.Brain.Acceptance;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.HttpChannel;
 using Xunit;
-using PbCommon = RimGovernor.Contracts.Wire.Common;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -48,29 +47,29 @@ public sealed class NativeRouteFaultTests
     [Fact]
     public async Task ARefusalIsA422AndComesBackAsTheSameFailure()
     {
-        var (status, body) = await SendAsync(NativeFaults.Refused(new PbCommon.Failure { RefusalClass = RimGovernor.Contracts.Wire.Common.RefusalClass.Unclassified, Code = PbCommon.FailureCode.StaleIdentity, Detail = "the colony changed" }));
+        var (status, body) = await SendAsync(NativeFaults.Refused(new RimGovernor.Brain.GameFacts.Common.Failure { RefusalClass = RimGovernor.Brain.GameFacts.Common.RefusalClass.Unclassified, Code = RimGovernor.Brain.GameFacts.Common.FailureCode.StaleIdentity, Detail = "the colony changed" }));
 
         Assert.Equal(NativeRoutes.RefusedStatus, status);
         var back = Assert.IsType<NativeFailureException>(RoundTrip(status, body));
-        Assert.Equal(PbCommon.FailureCode.StaleIdentity, back.Value.Code);
+        Assert.Equal(RimGovernor.Brain.GameFacts.Common.FailureCode.StaleIdentity, back.Value.Code);
         Assert.Equal("the colony changed", back.Value.Detail);
     }
 
     [Fact]
     public async Task AnUnavailableGameIsA503AndComesBackWithItsReason()
     {
-        var (status, body) = await SendAsync(NativeFaults.Unavailable(new PbCommon.Unavailable { Reason = PbCommon.UnavailableReason.ReadFailed, Detail = "the map is generating" }));
+        var (status, body) = await SendAsync(NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed, Detail = "the map is generating" }));
 
         Assert.Equal(NativeRoutes.UnavailableStatus, status);
         var back = Assert.IsType<NativeUnavailableException>(RoundTrip(status, body));
-        Assert.Equal(PbCommon.UnavailableReason.ReadFailed, back.Value.Reason);
+        Assert.Equal(RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed, back.Value.Reason);
         Assert.Equal("the map is generating", back.Value.Detail);
     }
 
     [Fact]
     public async Task NoLoadedGameIsA503AndComesBackAsNotLoaded()
     {
-        var (status, body) = await SendAsync(NativeFaults.Unavailable(new PbCommon.Unavailable { Reason = PbCommon.UnavailableReason.NotLoaded, Detail = "No game is loaded." }));
+        var (status, body) = await SendAsync(NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.NotLoaded, Detail = "No game is loaded." }));
 
         Assert.Equal(NativeRoutes.UnavailableStatus, status);
         var back = Assert.IsType<NotLoadedException>(RoundTrip(status, body));

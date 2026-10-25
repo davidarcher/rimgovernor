@@ -10,25 +10,34 @@
       "rimgovernor.brain.bridge": {
         "type": "Project",
         "dependencies": {
-          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
-          "RimGovernor.Brain.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.GameAccess": "[1.0.0, )",
+          "RimGovernor.Brain.GameFacts": "[1.0.0, )",
+          "RimGovernor.Brain.GameOrders": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )",
           "RimGovernor.Brain.Policy": "[1.0.0, )"
         }
       },
-      "rimgovernor.brain.bridge.contracts": {
+      "rimgovernor.brain.gameaccess": {
         "type": "Project",
         "dependencies": {
-          "RimGovernor.Brain.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.GameFacts": "[1.0.0, )",
+          "RimGovernor.Brain.GameOrders": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )",
           "RimGovernor.Brain.Policy": "[1.0.0, )",
           "RimGovernor.Brain.Telemetry": "[1.0.0, )"
         }
       },
-      "rimgovernor.brain.contracts": {
+      "rimgovernor.brain.gamefacts": {
         "type": "Project",
         "dependencies": {
           "RimGovernor.Brain.Domain": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.gameorders": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.GameFacts": "[1.0.0, )"
         }
       },
       "rimgovernor.brain.domain": {
@@ -38,8 +47,9 @@
         "type": "Project",
         "dependencies": {
           "RimGovernor.Brain.Bridge": "[1.0.0, )",
-          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
-          "RimGovernor.Brain.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.GameAccess": "[1.0.0, )",
+          "RimGovernor.Brain.GameFacts": "[1.0.0, )",
+          "RimGovernor.Brain.GameOrders": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )",
           "RimGovernor.Brain.Policy": "[1.0.0, )"
         }
@@ -47,7 +57,8 @@
       "rimgovernor.brain.policy": {
         "type": "Project",
         "dependencies": {
-          "RimGovernor.Brain.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.GameFacts": "[1.0.0, )",
+          "RimGovernor.Brain.GameOrders": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )"
         }
       },
@@ -55,7 +66,8 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Data.Sqlite.Core": "[10.0.0, )",
-          "RimGovernor.Brain.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.GameFacts": "[1.0.0, )",
+          "RimGovernor.Brain.GameOrders": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )",
           "RimGovernor.Brain.Policy": "[1.0.0, )",
           "SQLitePCLRaw.provider.e_sqlite3": "[2.1.11, )",

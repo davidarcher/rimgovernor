@@ -1,5 +1,5 @@
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
 using RimGovernor.Brain.Bridge;
@@ -20,12 +20,12 @@ internal sealed class HostColonyStatus(ColonyStatus status) : IColonyStatusReade
 /// and the durable review cursor's progress. It makes no native call and mutates
 /// nothing.
 /// </summary>
-public sealed class RoundsDiagnostics(StoreJournal journal, bool reviewsEnabled, bool methodsEnabled, IReadOnlyList<string> families, FactStore sections) : IRoundsProvider
+public sealed class Diagnostics(StoreJournal journal, bool reviewsEnabled, bool methodsEnabled, IReadOnlyList<string> families, FactStore sections) : IReviewProvider
 {
-    public async Task<RoundsStatus> RoundsStatusAsync(CancellationToken cancellationToken)
+    public async Task<ReviewStatus> ReviewStatusAsync(CancellationToken cancellationToken)
     {
-        var review = await journal.LoadRoundsAsync(cancellationToken).ConfigureAwait(false);
-        var status = new RoundsStatus
+        var review = await journal.LoadReviewAsync(cancellationToken).ConfigureAwait(false);
+        var status = new ReviewStatus
         {
             ReviewsEnabled = reviewsEnabled,
             MethodsEnabled = methodsEnabled,
@@ -66,7 +66,7 @@ public sealed class RoundsDiagnostics(StoreJournal journal, bool reviewsEnabled,
                     // Every census stockpile: a target with zone geometry.
                     foreach (var target in home.Targets)
                     {
-                        if (target is RimGovernor.Contracts.Wire.Observations.HomeCoverageTarget.Scoped { Extent.Zone.Count: > 0 })
+                        if (target is RimGovernor.Brain.GameFacts.Observations.HomeCoverageTarget.Scoped { Extent.Zone.Count: > 0 })
                         {
                             ids.Add(target.Id);
                         }
@@ -93,14 +93,14 @@ public sealed class RoundsDiagnostics(StoreJournal journal, bool reviewsEnabled,
         return status;
     }
 
-    private static bool IsValid(RimGovernor.Brain.Bridge.Contracts.ObservationIdentity id)
+    private static bool IsValid(RimGovernor.Brain.GameAccess.ObservationIdentity id)
     {
         try
         {
             id.Validate();
             return true;
         }
-        catch (RimGovernor.Brain.Bridge.Contracts.ObservationContractException)
+        catch (RimGovernor.Brain.GameAccess.ObservationContractException)
         {
             return false;
         }

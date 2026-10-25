@@ -5,11 +5,8 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // A request is executed by the real comms job at its contact toil. The
     // contact substitutes the already-selected vanilla request option action.
@@ -18,8 +15,8 @@ namespace HomeBridge.BridgeTools
     {
         private sealed class Contact
         {
-            internal required Operations.CommsTradeRequestIntent Intent;
-            internal required Common.Identity Identity;
+            internal required RimGovernor.Brain.GameOrders.Operations.CommsTradeRequestIntent Intent;
+            internal required RimGovernor.Brain.GameFacts.Common.Identity Identity;
             internal required Pawn Pawn;
             internal required Faction Faction;
             internal required Building_CommsConsole Console;
@@ -32,19 +29,19 @@ namespace HomeBridge.BridgeTools
         private static readonly List<Contact> Contacts = new List<Contact>();
         private static bool hooked;
 
-        private static bool Resolve(Operations.CommsTradeRequestIntent intent, Common.Identity identity,
+        private static bool Resolve(RimGovernor.Brain.GameOrders.Operations.CommsTradeRequestIntent intent, RimGovernor.Brain.GameFacts.Common.Identity identity,
             bool arriving, out Map? map, out Pawn? pawn, out Faction? faction, out Building_CommsConsole? console, out string reason)
         {
-            map = ProtoBoundary.ResolveMap(identity); pawn = null; faction = null; console = null; reason = "invalid_request";
-            if (map == null || !ProtoBoundary.IsIdentifier(intent.FactionId)
-                || !ProtoBoundary.IsIdentifier(intent.TraderKind) || !ProtoBoundary.IsIdentifier(intent.ConsoleId)
-                || !ProtoBoundary.IsIdentifier(intent.NegotiatorId)
-                || (intent.Kind != Common.TradeRequestKind.Caravan && intent.Kind != Common.TradeRequestKind.Orbital)) return false;
+            map = GameThread.ResolveMap(identity); pawn = null; faction = null; console = null; reason = "invalid_request";
+            if (map == null || !GameThread.IsIdentifier(intent.FactionId)
+                || !GameThread.IsIdentifier(intent.TraderKind) || !GameThread.IsIdentifier(intent.ConsoleId)
+                || !GameThread.IsIdentifier(intent.NegotiatorId)
+                || (intent.Kind != RimGovernor.Brain.GameFacts.Common.TradeRequestKind.Caravan && intent.Kind != RimGovernor.Brain.GameFacts.Common.TradeRequestKind.Orbital)) return false;
             faction = Find.FactionManager.AllFactionsVisible.FirstOrDefault(f => f.GetUniqueLoadID() == (intent.FactionId ?? "") && !f.IsPlayer && !f.temporary && !f.defeated);
             console = map.listerBuildings.allBuildingsColonist.OfType<Building_CommsConsole>().FirstOrDefault(c => c.GetUniqueLoadID() == (intent.ConsoleId ?? ""));
             pawn = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == (intent.NegotiatorId ?? ""));
             if (faction == null || console == null || pawn == null) { reason = "target_missing"; return false; }
-            var orbital = intent.Kind == Common.TradeRequestKind.Orbital;
+            var orbital = intent.Kind == RimGovernor.Brain.GameFacts.Common.TradeRequestKind.Orbital;
             var kinds = orbital ? faction.def.orbitalTraderKinds : faction.def.caravanTraderKinds;
             var kind = kinds.FirstOrDefault(k => k.defName == (intent.TraderKind ?? "") && k.requestable);
             var last = orbital ? faction.lastOrbitalTraderRequestTick : faction.lastTraderRequestTick;
@@ -62,17 +59,17 @@ namespace HomeBridge.BridgeTools
             return reason == "ready";
         }
 
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
+        public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             Contacts.RemoveAll(c => !c.Live() || (c.Identity.LoadToken ?? "") != (context.Identity?.LoadToken ?? "") || (c.Identity.ColonyId ?? "") != (context.Identity?.ColonyId ?? ""));
             var intent = action.Intent?.CommsTradeRequest;
-            if (intent is null || context.Identity is null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "comms_intent_missing");
+            if (intent is null || context.Identity is null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "comms_intent_missing");
             if (!Resolve(intent, context.Identity, false, out _, out var pawn, out _, out _, out var reason))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, reason);
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, reason);
             if (Contacts.Any(c => c.Pawn == pawn || c.Console.GetUniqueLoadID() == intent.ConsoleId)
                 || (pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.")).CurJob?.def == JobDefOf.UseCommsConsole)
-                return ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "comms_work_present");
-            if (!InstallHook()) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "comms_hook_unavailable");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.OwnerConflict, "comms_work_present");
+            if (!InstallHook()) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "comms_hook_unavailable");
             return null;
         }
 
@@ -90,9 +87,9 @@ namespace HomeBridge.BridgeTools
             var contact = Contacts.FirstOrDefault(c => c.Faction == __instance && c.Pawn == negotiator && c.Owns(negotiator.CurJob));
             if (contact == null) return true;
             Contacts.Remove(contact);
-            if (!ProtoBoundary.ValidateIdentity(contact.Identity, out _, out _) ||
+            if (!GameThread.ValidateIdentity(contact.Identity, out _, out _) ||
                 !Resolve(contact.Intent, contact.Identity, true, out var map, out _, out var faction, out _, out _)) return false;
-            var orbital = contact.Intent.Kind == Common.TradeRequestKind.Orbital;
+            var orbital = contact.Intent.Kind == RimGovernor.Brain.GameFacts.Common.TradeRequestKind.Orbital;
             var kinds = (orbital ? (faction ?? throw new System.InvalidOperationException("Required native value is unavailable: faction.")).def.orbitalTraderKinds : (faction ?? throw new System.InvalidOperationException("Required native value is unavailable: faction.")).def.caravanTraderKinds).Where(k => k.requestable).ToList();
             var index = kinds.FindIndex(k => k.defName == (contact.Intent.TraderKind ?? ""));
             var factory = AccessTools.Method(typeof(FactionDialogMaker), orbital ? "RequestOrbitalTraderOption" : "RequestTraderOption");
@@ -103,7 +100,7 @@ namespace HomeBridge.BridgeTools
             return false;
         }
 
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
+        public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var intent = action.Intent?.CommsTradeRequest;
             if (intent is null || context.Identity is null) throw new InvalidOperationException("comms_intent_missing");
@@ -114,7 +111,7 @@ namespace HomeBridge.BridgeTools
             var contact = new Contact { Intent = intent, Identity = context.Identity, Pawn = (pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.")), Faction = (faction ?? throw new System.InvalidOperationException("Required native value is unavailable: faction.")), Console = (console ?? throw new System.InvalidOperationException("Required native value is unavailable: console.")), Job = job, JobId = job.loadID };
             Contacts.Add(contact);
             if (!(pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.")).jobs.TryTakeOrderedJob(job, JobTag.Misc)) { Contacts.Remove(contact); throw new InvalidOperationException("comms_job_refused"); }
-            return new Receipts.EffectEvidence { Effect = new Receipts.CommsTradeRequestEffect {
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.CommsTradeRequestEffect {
                 FactionId = intent.FactionId, TraderKind = intent.TraderKind,
                 WorkQueued = true } };
         }

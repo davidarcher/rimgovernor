@@ -1,0 +1,50 @@
+using Receipt = RimGovernor.Brain.Executor.Receipt;
+
+namespace RimGovernor.Brain.Runtime;
+
+// There is no LeaseSource dependency (no native epoch lease in-process).
+
+public sealed record HaulCapabilities(GameClient Native, IActionsWriter Writer);
+
+/// <summary>
+/// Sends a haul as an idempotent intent naming the pawn and the item. Native checks both against live state when
+/// it applies and refuses with a reason; an applied haul is ordered, and where the item went is read by the next
+/// planner review.
+/// </summary>
+public sealed class HaulBoundary : IHaulBoundary
+{
+    private readonly GameClient _native;
+    private readonly IActionsWriter _writer;
+    private readonly IClock _clock;
+
+    public HaulBoundary(GameClient native, IActionsWriter writer, IClock clock)
+    {
+        _native = native;
+        _writer = writer;
+        _clock = clock;
+    }
+
+    /// <summary>Anchors the dispatch to a fresh native read. It does not preview: native judges the intent when it applies.</summary>
+    public async Task<HaulInspection> InspectHaulAsync(Target target, CancellationToken ct)
+    {
+        var started = _clock.Now();
+        try
+        {
+            _ = IntentActionRules.IntentAction("inspect", target.Action);
+        }
+        catch (BridgeContractException e)
+        {
+            throw new EvidenceException(e);
+        }
+        var haul = target.Action.Haul!;
+        var reply = await _native.ReadPawnsAsync(Boundary.Identity(target.Snapshot), [haul.Pawn.Value], ct).ConfigureAwait(false);
+        var observed = reply;
+        var current = Boundary.Context(observed.Context, target.Snapshot);
+        var result = new HaulInspection { StartedAt = started, Snapshot = current, Tick = new Tick((observed.Context?.Tick).GetValueOrDefault()), ObservedAt = _clock.Now() };
+        ct.ThrowIfCancellationRequested();
+        return result;
+    }
+
+    /// <summary>Sends the intent through Actions/Apply.</summary>
+    public Task<Receipt> WriteHaulAsync(Placement placement, CancellationToken ct) => Boundary.DispatchIntentAsync(placement, _writer, ct);
+}

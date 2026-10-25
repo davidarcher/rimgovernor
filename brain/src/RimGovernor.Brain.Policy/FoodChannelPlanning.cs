@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
@@ -12,7 +11,7 @@ public sealed record FoodChannelPlanning
     /// <summary>The producing milk and egg yields; an inactive or stalled comp contributes nothing and has no row. Eggs need no handler.</summary>
     public IReadOnlyList<AnimalProduct> Products { get; init; } = [];
 
-    public IReadOnlyList<O.PasteDispenser> PasteDispenser { get; init; } = [];
+    public IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.PasteDispenser> PasteDispenser { get; init; } = [];
 
     public EquatableArray<PenGrazing> Grazing { get; init; }
 
@@ -31,7 +30,7 @@ public sealed record FishingWaterReview
 /// <summary>A water body whose fish the colony eats, with the policy verdicts: reachability, delivery, footprint and crew.</summary>
 public sealed record FishingRegionReview
 {
-    public required O.FishableRegion Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.FishableRegion Observed { get; init; }
 
     public bool Reachable { get; init; }
 

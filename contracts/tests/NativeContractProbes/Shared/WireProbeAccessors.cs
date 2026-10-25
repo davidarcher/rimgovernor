@@ -1,5 +1,3 @@
-using Common = RimGovernor.Contracts.Wire.Common;
-using Authority = RimGovernor.Contracts.Wire.Authority;
 
 // #3100: the wire replies are records whose oneof lives on a nested abstract `Outcome`/`State`/`Operation`
 // record. The probes read replies as flat properties (`reply.Failure`, `status.Active`);
@@ -7,21 +5,21 @@ using Authority = RimGovernor.Contracts.Wire.Authority;
 // like the protobuf oneof accessors they replace.
 internal static class WireProbeAccessors
 {
-    extension(Authority.ControlRequest r)
+    extension(RimGovernor.Brain.GameOrders.Authority.ControlRequest r)
     {
-        public Authority.SetMode? SetMode => (r.Operation as Authority.ControlRequestOperation.SetModeCase)?.Value;
-        public Authority.Revoke? Revoke => (r.Operation as Authority.ControlRequestOperation.RevokeCase)?.Value;
+        public RimGovernor.Brain.GameOrders.Authority.SetMode? SetMode => (r.Operation as RimGovernor.Brain.GameOrders.Authority.ControlRequestOperation.SetModeCase)?.Value;
+        public RimGovernor.Brain.GameOrders.Authority.Revoke? Revoke => (r.Operation as RimGovernor.Brain.GameOrders.Authority.ControlRequestOperation.RevokeCase)?.Value;
     }
-    extension(Authority.ControlReply r)
+    extension(RimGovernor.Brain.GameFacts.Authority.ControlReply r)
     {
-        public Authority.Granted? Granted => r.Outcome?.Granted;
-        public Authority.Revoked? Revoked => r.Outcome?.Revoked;
-        public Common.Failure? Failure => r.Outcome?.Failure;
+        public RimGovernor.Brain.GameFacts.Authority.Granted? Granted => r.Outcome?.Granted;
+        public RimGovernor.Brain.GameFacts.Authority.Revoked? Revoked => r.Outcome?.Revoked;
+        public RimGovernor.Brain.GameFacts.Common.Failure? Failure => r.Outcome?.Failure;
     }
-    extension(Authority.Status s)
+    extension(RimGovernor.Brain.GameFacts.Authority.Status s)
     {
-        public Common.Unavailable? Unavailable => s.State?.Unavailable;
-        public Authority.InactiveAuthority? Inactive => s.State?.Inactive;
-        public Authority.ActiveAuthority? Active => s.State?.Active;
+        public RimGovernor.Brain.GameFacts.Common.Unavailable? Unavailable => s.State?.Unavailable;
+        public RimGovernor.Brain.GameFacts.Authority.InactiveAuthority? Inactive => s.State?.Inactive;
+        public RimGovernor.Brain.GameFacts.Authority.ActiveAuthority? Active => s.State?.Active;
     }
 }

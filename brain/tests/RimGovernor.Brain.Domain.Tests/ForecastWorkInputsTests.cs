@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
@@ -111,7 +110,7 @@ public sealed class ForecastWorkInputsTests
         var shifted = ForecastCapacity.ForecastPawnCapacityOf(Capacity(Pawn() with { Schedule = EquatableArray.From(slots) }) with
         { LocalHour = 12.5, HorizonTicks = GameTime.TicksPerHour });
         Assert.Equal(GameTime.TicksPerHour / 2.0, shifted.Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
-        var worker = PawnFixtures.Worker("cook-builder") with { Observed = (PawnFixtures.Worker("cook-builder")).Observed with { Job = new O.JobEvidence { DefName = "UsefulWork", TargetA = new() { Target = new RimGovernor.Contracts.Wire.Common.Unavailable { Reason = RimGovernor.Contracts.Wire.Common.UnavailableReason.NotApplicable } } } } };
+        var worker = PawnFixtures.Worker("cook-builder") with { Observed = (PawnFixtures.Worker("cook-builder")).Observed with { Job = new RimGovernor.Brain.GameFacts.Observations.JobEvidence { DefName = "UsefulWork", TargetA = new() { Target = new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.NotApplicable } } } } };
         var busy = Capacity() with { CurrentWork = ForecastCurrentWork.ForecastCurrentWorkOf(worker) };
         Assert.IsType<ForecastCapacityWindows.Unread>(ForecastCapacity.ForecastPawnCapacityOf(busy).Capacity.Windows);
         Assert.Equal(80, ForecastCapacity.ForecastPawnCapacityOf(busy with { CurrentWork = ForecastCurrentWork.ForecastCurrentWorkOf(worker, new ForecastWorkRemaining.Timed(20.0)) }).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
@@ -138,7 +137,7 @@ public sealed class ForecastWorkInputsTests
         Assert.IsType<ForecastWorkRemaining.Untimed>(busy.CurrentWork.Remaining);
         Assert.IsType<ForecastCapacityWindows.Unread>(ForecastCapacity.ForecastPawnCapacityOf(busy).Capacity.Windows);
     }
-    private static RoundsFacts Facts()
+    private static ReviewFacts Facts()
     {
         var building = new Building("TestBuilding", new Cell(1, 1), Rotation.North, "");
         var site = ConstructionObservationFixtures.Site(building, id: "frame", stage: "frame");
@@ -147,10 +146,10 @@ public sealed class ForecastWorkInputsTests
         {
             Tick = new Tick(100), Gear = ColonyModelFixtures.NoGear(), CurrentConstruction = CurrentConstruction.Empty with { Sites = EquatableArray.From(new[] { site }) },
             ConstructionClaims = EquatableArray.From(new[] { claim, claim }),
-            ForecastObserved = new() { WorkPawns = new WorkPawnsRead(EquatableArray.From(new[] { PawnFixtures.Worker("cook-builder") with { Observed = PawnFixtures.Row("cook-builder") with { Settings = PawnFixtures.Row("cook-builder").Settings with { Schedule = EquatableArray.From((Pawn().Schedule).Select((assignment, hour) => new O.TimetableSlot { Hour = (uint)hour, AssignmentDefName = assignment })) } } } })) },
+            ForecastObserved = new() { WorkPawns = new WorkPawnsRead(EquatableArray.From(new[] { PawnFixtures.Worker("cook-builder") with { Observed = PawnFixtures.Row("cook-builder") with { Settings = PawnFixtures.Row("cook-builder").Settings with { Schedule = EquatableArray.From((Pawn().Schedule).Select((assignment, hour) => new RimGovernor.Brain.GameFacts.Observations.TimetableSlot { Hour = (uint)hour, AssignmentDefName = assignment })) } } } })) },
             BillReservations = [],
             ProductionPromises = new ProductionPromiseSet.Assessed([]),
-            Census = ColonyFactsCoreTests.Snapshot() with { Resources = default(EquatableArray<RimGovernor.Contracts.Wire.Observations.Quantity>) },
+            Census = ColonyFactsCoreTests.Snapshot() with { Resources = default(EquatableArray<RimGovernor.Brain.GameFacts.Observations.Quantity>) },
         };
     }
 
@@ -158,7 +157,7 @@ public sealed class ForecastWorkInputsTests
     public void LiveReviewDemandCarriesTheObservedRosterAndReservations()
     {
         var facts = Facts();
-        var demand = ResourceRules.ResourceDemandOf(facts, RoundsRules.DefaultRoundsPolicy(), new());
+        var demand = ResourceRules.ResourceDemandOf(facts, Rules.DefaultPlannerSettings(), new());
         Assert.Equal(facts.Tick, demand.Work.Tick);
         Assert.Equal(facts.ForecastObserved.WorkPawns, demand.Work.Pawns);
         Assert.Equal(facts.BillReservations, demand.Work.IngredientReservations);

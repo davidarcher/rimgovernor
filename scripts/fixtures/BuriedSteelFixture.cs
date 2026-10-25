@@ -8,7 +8,7 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Disposable test setup only. On the blank lab it raises a
     // granite block under thick rock roof east of the colonists, holding two
@@ -36,7 +36,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/buried_steel", Description = "UNSAFE FOR MODEL EXECUTION. Disposable lab fixture (#1075): action=prepare raises a thick-roofed granite block beside the colonists with one compacted steel deposit on the face and one buried and fogged behind it, a stockpile and frozen needs.")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "prepare")
+        public async Task<object> Run(INativeContext ctx, CancellationToken cancellationToken, string action = "prepare")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap ?? throw new InvalidOperationException("A loaded game with a current map is required.");

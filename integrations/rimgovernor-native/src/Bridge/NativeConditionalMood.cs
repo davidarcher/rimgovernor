@@ -5,9 +5,8 @@ using System.Reflection;
 using RimWorld;
 using Verse;
 using RimGovernor.Brain.Domain;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 /// <summary>Read native sleep and mood mechanics, never choose a sleep schedule. Only the verified native owl workers are modeled.</summary>
 internal static class NativeConditionalMood
@@ -31,7 +30,7 @@ internal static class NativeConditionalMood
     // 11..17 and 23..5 respectively, both gated by Awake. Need_Seeker changes by
     // def.seeker{Rise,Fall}PerHour * .06 every 150 ticks and Need.IsFrozen gates sleep.
     /// <summary>The pawn's mood need; null without one. A mood need without a mental breaker throws.</summary>
-    internal static Obs.NeedMood? ReadMood(Pawn pawn, EquatableArray<Obs.NeedMemory> memories, List<string> unsupported)
+    internal static RimGovernor.Brain.GameFacts.Observations.NeedMood? ReadMood(Pawn pawn, EquatableArray<RimGovernor.Brain.GameFacts.Observations.NeedMemory> memories, List<string> unsupported)
     {
         if (pawn.needs?.mood is not { } mood) return null;
         var breaker = pawn.mindState?.mentalBreaker ?? throw new InvalidOperationException("mood need without a mental breaker: " + pawn.GetUniqueLoadID());
@@ -40,7 +39,7 @@ internal static class NativeConditionalMood
         mood.thoughts.GetDistinctMoodThoughtGroups(groups);
         var baseline = (pawn.health.hediffSet.OverrideMoodBase ?? mood.def.baseLevel)
             + (total + (pawn.IsColonist || pawn.IsPrisonerOfColony ? Find.Storyteller.difficulty.colonistMoodOffset : 0)) / 100d;
-        var modeled = new List<Obs.NeedConditionalThought>();
+        var modeled = new List<RimGovernor.Brain.GameFacts.Observations.NeedConditionalThought>();
         var unmodeled = new List<string>();
         foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.OrderBy(d => d.defName, StringComparer.Ordinal))
         {
@@ -66,8 +65,8 @@ internal static class NativeConditionalMood
             UnclampedTarget = Finite(baseline, "unclamped mood target"),
             RisePerTick = (double)mood.def.seekerRisePerHour / GenDate.TicksPerHour, FallPerTick = (double)mood.def.seekerFallPerHour / GenDate.TicksPerHour,
             FreezesWhileAsleep = mood.def.freezeWhileSleeping, BreakThreshold = breaker.BreakThresholdMinor,
-            Conditional = unmodeled.Count == 0 ? new Obs.ConditionalMood.Modeled(EquatableArray.From(modeled))
-                : new Obs.ConditionalMood.Unmodeled(EquatableArray.From(unmodeled)),
+            Conditional = unmodeled.Count == 0 ? new RimGovernor.Brain.GameFacts.Observations.ConditionalMood.Modeled(EquatableArray.From(modeled))
+                : new RimGovernor.Brain.GameFacts.Observations.ConditionalMood.Unmodeled(EquatableArray.From(unmodeled)),
             Memories = memories,
         };
     }

@@ -5,19 +5,18 @@ using RimGovernor.Brain.Domain;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 using Cell = RimGovernor.Brain.Domain.Cell;
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 // One native census of every free colonist against every bench bill, patient and surgery (#3341). These are
 // conditional mechanics and current bill deficits, never new demand. A path is searched once for every colonist (NativePathLegs).
 internal static class NativeSupportActivities
 {
-    internal static Obs.SupportActivityRead Read(Map map, NativePathLegs? legs = null)
+    internal static RimGovernor.Brain.GameFacts.Observations.SupportActivityRead Read(Map map, NativePathLegs? legs = null)
     {
         legs ??= new(map);
-        var demands = new List<Obs.SupportDemand>();
-        var workers = new List<Obs.SupportWorker>(); var deliveries = new List<Obs.SupportDelivery>();
+        var demands = new List<RimGovernor.Brain.GameFacts.Observations.SupportDemand>();
+        var workers = new List<RimGovernor.Brain.GameFacts.Observations.SupportWorker>(); var deliveries = new List<RimGovernor.Brain.GameFacts.Observations.SupportDelivery>();
         var findings = new HashSet<string>(StringComparer.Ordinal);
         var roster = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         var benches = map.listerThings.AllThings.OfType<Building_WorkTable>().Where(b => b.Faction == Faction.OfPlayer
@@ -85,7 +84,7 @@ internal static class NativeSupportActivities
                         At(patient.Position), walk, Math.Ceiling(600d / speed))
                     {
                         Medicine = medicine == null ? null : new(medicine.GetUniqueLoadID(), medicine.def.defName, 1, At(medicine.Position), medicine.stackCount),
-                        Treatment = new Obs.SupportTreatment.Tend(TendUtility.CalculateBaseTendQuality(pawn, patient, medicine?.def), Infection(patient, medicine != null),
+                        Treatment = new RimGovernor.Brain.GameFacts.Observations.SupportTreatment.Tend(TendUtility.CalculateBaseTendQuality(pawn, patient, medicine?.def), Infection(patient, medicine != null),
                             new(learning, SkillDefOf.Medicine.defName,
                                 RimGovernor.Brain.Bridge.DefinitionCatalog.ObserveTendLearning(patient.RaceProps.Animal, medicine?.def), "native Toils_Tend.FinalizeTend"))
                     });
@@ -123,7 +122,7 @@ internal static class NativeSupportActivities
                         walk, (double)bill.recipe.WorkAmountTotal(null) / speed)
                     {
                         Medicine = new(source.GetUniqueLoadID(), source.def.defName, count, At(source.Position), source.stackCount),
-                        Treatment = new Obs.SupportTreatment.Surgery(recipe, SurgeryQualityOf(pawn, patient, bill.recipe, bill.Part, bill), skillWork)
+                        Treatment = new RimGovernor.Brain.GameFacts.Observations.SupportTreatment.Surgery(recipe, SurgeryQualityOf(pawn, patient, bill.recipe, bill.Part, bill), skillWork)
                     });
                 }
             }
@@ -141,7 +140,7 @@ internal static class NativeSupportActivities
                 target is Pawn patient ? patient.health.hediffSet.BleedRateTotal : 0));
             return id;
         }
-        Obs.SupportDemand Demand(string id, string kind, string target, IntVec3 location, double poison, double bleed)
+        RimGovernor.Brain.GameFacts.Observations.SupportDemand Demand(string id, string kind, string target, IntVec3 location, double poison, double bleed)
         {
             var room = location.GetRoom(map);
             return new(id, kind, target, At(location), poison, bleed)
@@ -155,7 +154,7 @@ internal static class NativeSupportActivities
     /// A surgery bill's outcome model (#3804): its recipe's surgeryOutcomeEffect outcomes in GetOutcome's order, whether the bed and
     /// room comp applies and the clamp range. Read-only: no outcome is applied and no Rand is drawn.
     /// </summary>
-    private static Obs.SupportDemand SurgeryOutcomesOf(Obs.SupportDemand demand, Pawn patient, Bill_Medical bill)
+    private static RimGovernor.Brain.GameFacts.Observations.SupportDemand SurgeryOutcomesOf(RimGovernor.Brain.GameFacts.Observations.SupportDemand demand, Pawn patient, Bill_Medical bill)
     {
         var (rows, min, max, environment) = SurgeryModel(patient, bill.recipe, bill.Part, false);
         if (rows == null) return demand with { SurgeryQualityMax = float.MaxValue };
@@ -166,13 +165,13 @@ internal static class NativeSupportActivities
     /// The outcome model of <paramref name="recipe"/> on <paramref name="part"/> (#3804; null rows without an outcome effect), the part
     /// taken as missing when <paramref name="partMissing"/> (an organ replacement, #3830).
     /// </summary>
-    internal static (List<Obs.SurgeryOutcomeRead>? Rows, float Min, float Max, bool Environment) SurgeryModel(Pawn patient, RecipeDef recipe, BodyPartRecord? part, bool partMissing)
+    internal static (List<RimGovernor.Brain.GameFacts.Observations.SurgeryOutcomeRead>? Rows, float Min, float Max, bool Environment) SurgeryModel(Pawn patient, RecipeDef recipe, BodyPartRecord? part, bool partMissing)
     {
         if (recipe.surgeryOutcomeEffect is not { } effect) return (null, 0, float.MaxValue, false);
         var comps = effect.comps ?? new List<SurgeryOutcomeComp>();
         var clamp = comps.OfType<SurgeryOutcomeComp_ClampToRange>().LastOrDefault()?.range ?? new FloatRange(0, float.MaxValue);
         var deathless = ModsConfig.BiotechActive && patient.genes != null && patient.genes.HasActiveGene(GeneDefOf.Deathless);
-        var rows = new List<Obs.SurgeryOutcomeRead>();
+        var rows = new List<RimGovernor.Brain.GameFacts.Observations.SurgeryOutcomeRead>();
         foreach (var outcome in effect.outcomes ?? new List<SurgeryOutcome>())
         {
             var wound = WoundSeverity(patient, outcome.applyEffectsToPart ? part : null, partMissing);
@@ -225,7 +224,7 @@ internal static class NativeSupportActivities
         && !NativePawnActivities.Owned(pawn) && pawn.CurJob?.playerForced != true && pawn.jobs.jobQueue.Count == 0 && pawn.carryTracker.CarriedThing == null;
     /// <summary>The selected batch's earliest pending native infection check (HediffComp_Infecter.ticksUntilInfect, -1 once the
     /// wound's check has run), or None when no wound in the batch has one.</summary>
-    private static Obs.InfectionCheck Infection(Pawn patient, bool medicine)
+    private static RimGovernor.Brain.GameFacts.Observations.InfectionCheck Infection(Pawn patient, bool medicine)
     {
         var batch = new List<Hediff>();
         TendUtility.GetOptimalHediffsToTendWithSingleTreatment(patient, medicine, batch);
@@ -244,7 +243,7 @@ internal static class NativeSupportActivities
             if (wound.TryGetComp<HediffComp_TendDuration>() == null) continue;
             pending.Add(ticks);
         }
-        return pending.Count == 0 ? new Obs.InfectionCheck.None() : new Obs.InfectionCheck.Pending(pending.Min());
+        return pending.Count == 0 ? new RimGovernor.Brain.GameFacts.Observations.InfectionCheck.None() : new RimGovernor.Brain.GameFacts.Observations.InfectionCheck.Pending(pending.Min());
     }
 
     private static bool CanWork(Pawn pawn, WorkGiver giver) => giver.MissingRequiredCapacity(pawn) == null

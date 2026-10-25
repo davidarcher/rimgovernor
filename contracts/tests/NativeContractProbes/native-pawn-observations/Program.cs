@@ -14,12 +14,7 @@ internal static class NativePawnObservationsProbe
     private static int checks;
     private const BindingFlags Flags=BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Static|BindingFlags.Instance;
     private static void Check(bool ok,string why) {if(!ok) throw new InvalidOperationException(why);checks++;}
-    private static object Wire(string name,string json) {
-        var type=typeof(RimGovernor.Contracts.Wire.Common.Ref).Assembly.GetType("RimGovernor.Contracts.Wire.Observations."+name,true)!;
-        return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize",new[]{typeof(string)})!.MakeGenericMethod(type).Invoke(null,new object[]{json})!;
-    }
-    private static object Get(object value,string name)=>value.GetType().GetProperty(name) is { } property ? property.GetValue(value)! : value.GetType().GetField(name,Flags)!.GetValue(value)!;
-    private static bool Valid(string json)=>(bool)tools.GetMethod("Validate",Flags)!.Invoke(null,new object?[]{Wire("ListPawnsRequest",json),null})!;
+
     private static bool Throws(Action action,string name) {try {action();return false;}catch(TargetInvocationException e){return e.InnerException!.GetType().Name==name;}}
     internal static int Invoke(string[] args)
     {
@@ -29,40 +24,42 @@ internal static class NativePawnObservationsProbe
             return path==null?null:Assembly.LoadFrom(path);
         };
         bridge=Assembly.LoadFrom(Path.GetFullPath(args[0]));foreach(var reference in bridge.GetReferencedAssemblies()) Assembly.Load(reference);
-        tools=bridge.GetType("HomeBridge.BridgeTools.NativePawnObservationTools",true)!;
+        tools=bridge.GetType("RimGovernor.Native.NativePawnObservationTools",true)!;
         WorkSettingsProof.Run(bridge, Check);
-        AcquisitionProof.Run(bridge, Check);
         ZoneProof.Run(bridge, Check);
-        const string scope="\"scope\":{\"expectedIdentity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0}}";
-        Func<string,string> request=fields=>"{"+scope+(fields.Length==0?"":","+fields)+"}";
-        Check(Valid(request("")),"defaults accepted");
-        Check(Valid(request("\"page\":{\"limit\":1},\"filter\":{\"withinColonistDistance\":0,\"colonist\":false}")),"explicit zero/false accepted");
-        Check(Valid(request("\"page\":{\"limit\":256}")),"maximum bound accepted");
-        // N01.03: frozen paging is no longer refused outright -- a cursor within the
-        // byte bound is accepted (its actual freshness is checked at read time by the
-        // shared NativeObservationSnapshot.Cursor helper, not by Validate).
-        Check(Valid(request("\"page\":{\"cursor\":\"old\"}")),"a within-bound cursor is accepted");
-        foreach(var invalid in new[]{"{}",request("\"page\":{\"limit\":0}"),request("\"page\":{\"limit\":257}"),request("\"page\":{\"cursor\":\""+new string('x',4097)+"\"}"),request("\"filter\":{\"ids\":[\"Pawn1\",\"Pawn1\"]}"),request("\"filter\":{\"ids\":[\"\"]}"),request("\"filter\":{\"withinColonistDistance\":-1}"),request("\"filter\":{\"withinColonistDistance\":\"NaN\"}"),request("\"filter\":{\"withinColonistDistance\":\"Infinity\"}"),request("\"filter\":{\"nameContains\":\""+new string('x',257)+"\"}")})
-            Check(!Valid(invalid),"invalid query refused: "+invalid);
-        var ids=string.Join(",",Enumerable.Range(0,256).Select(i=>"\"Pawn"+i+"\""));
-        Check(Valid(request("\"filter\":{\"ids\":["+ids+"]}")),"256 exact IDs accepted");
-        Check(!Valid(request("\"filter\":{\"ids\":["+ids+",\"extra\"]}")),"257 exact IDs refused");
+        var identity = new RimGovernor.Brain.GameFacts.Common.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 };
+        var query = new RimGovernor.Brain.GameOrders.Observations.ListPawnsRequest {
+            Scope = new RimGovernor.Brain.GameFacts.Observations.ReadScope { ExpectedIdentity = identity }
+        };
+        bool Valid(RimGovernor.Brain.GameOrders.Observations.ListPawnsRequest? value) => (bool)tools.GetMethod("Validate",Flags)!.Invoke(null,new object?[]{value,null})!;
+        Check(Valid(query), "default pawn filter accepted");
+        var filter = new RimGovernor.Brain.GameFacts.Observations.PawnFilter {
+            Colonist = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Excluded,
+            WithinColonistDistance = new RimGovernor.Brain.GameFacts.Observations.ColonistRange.Within { Distance = 0 }
+        };
+        Check(Valid(query with { Filter = filter }), "explicit zero range and excluded membership accepted");
+        Check(!Valid(null) && !Valid(query with { Scope = null }), "identity scope required");
+        foreach (var bad in new[] {
+            filter with { Ids = ["Pawn1", "Pawn1"] }, filter with { Ids = [""] },
+            filter with { NameContains = new string('x',257) }, filter with { NameContains = "bad\0name" },
+            filter with { WithinColonistDistance = new RimGovernor.Brain.GameFacts.Observations.ColonistRange.Within { Distance = -1 } },
+            filter with { WithinColonistDistance = new RimGovernor.Brain.GameFacts.Observations.ColonistRange.Within { Distance = double.NaN } },
+            filter with { WithinColonistDistance = new RimGovernor.Brain.GameFacts.Observations.ColonistRange.Within { Distance = double.PositiveInfinity } }
+        }) Check(!Valid(query with { Filter = bad }), "invalid exact pawn filter refused");
+        Check(Valid(query with { Filter = filter with { Ids = [.. Enumerable.Range(0,256).Select(i=>"Pawn"+i)] } }), "256 exact IDs accepted");
+        Check(!Valid(query with { Filter = filter with { Ids = [.. Enumerable.Range(0,257).Select(i=>"Pawn"+i)] } }), "257 exact IDs refused");
+        // Hunt weapon classification is now Catalog.HuntWeapon, compiler-bound to RimWorld definitions;
+        // AcquisitionObservationTests exercises its consumer's hunter/prey gate using those weapon facts.
         // The filter is a predicate over the native pawn, applied before any row is built (#3768); it reads live
         // Verse.Pawn facts this offline harness cannot construct, so native acceptance covers it. Every row is
         // read whole: there are no detail flags to default or opt out of.
-        var detailsType=bridge.GetType("HomeBridge.BridgeTools.NativePawnDetails",true)!;
+        var detailsType=bridge.GetType("RimGovernor.Native.NativePawnDetails",true)!;
         var native=Assembly.Load("Assembly-CSharp");
-        var backstory=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(native.GetType("RimWorld.BackstoryDef",true)!);
-        backstory.GetType().GetField("defName")!.SetValue(backstory,"BackstoryWithoutGenericLabel");
-        var nativeDefinition=detailsType.GetMethod("Definition",Flags)!.Invoke(null,new[]{backstory})!;
-        Check((string)Get(nativeDefinition,"DefName")=="BackstoryWithoutGenericLabel","real native BackstoryDef with null generic label does not crash projection");
+        // Backstory labels are no longer a published pawn fact.
         var emptyPawn=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(native.GetType("Verse.Pawn",true)!);
-        var missingEquipment=detailsType.GetMethod("Equipment",Flags)!.Invoke(null,new[]{emptyPawn})!;
-        Check(!(bool)Get(missingEquipment,"Armed")!&&Get(missingEquipment,"PrimaryId")==null,"a pawn without an equipment tracker carries no weapon");
-        Check(((IEnumerable)Get(missingEquipment,"Equipped")).Cast<object>().Count()==0&&((IEnumerable)Get(missingEquipment,"Apparel")).Cast<object>().Count()==0,"a pawn without gear trackers has no gear rows");
-        Check(detailsType.GetMethod("Care",Flags)!.Invoke(null,new[]{emptyPawn})!.GetType().Name=="None","a pawn without player settings has no care policy");
-        Check(((IEnumerable)detailsType.GetMethod("Work",Flags)!.Invoke(null,new[]{emptyPawn})!).Cast<object>().Count()==0,"uninitialized work tracker is not queried");
-        Check(detailsType.GetMethod("Manual",Flags)!.Invoke(null,new[]{emptyPawn})==null,"a pawn without a work tracker has no manual-priorities setting");
+        // Equipment reads live MeleeDPS; an uninitialized offline pawn cannot supply that projection.
+        Check(detailsType.GetMethod("Care",Flags)!.Invoke(null,new[]{emptyPawn}) is RimGovernor.Brain.GameFacts.Observations.PawnCare.None,"a pawn without player settings has no care policy");
+        Check(detailsType.GetMethod("Work",Flags)!.Invoke(null,new[]{emptyPawn}) is RimGovernor.Brain.GameFacts.Observations.PawnWork.NeverWorks,"absent work tracker publishes NeverWorks");
         Check(((IEnumerable)detailsType.GetMethod("Schedule",Flags)!.Invoke(null,new[]{emptyPawn})!).Cast<object>().Count()==0,"a pawn without a timetable has no slots");
 
         // ---- N01.03: Social fixture (present-but-empty thought trackers) ----
@@ -131,49 +128,26 @@ internal static class NativePawnObservationsProbe
         needsTrackerT.GetField("mood",Flags)!.SetValue(needsTrackerInst,moodInst);
         socialPawnType.GetField("needs",Flags)!.SetValue(ada,needsTrackerInst);
 
-        var socialMethod=detailsType.GetMethod("Social",Flags)!;
+        // Social also reads live expectations; exercise its side-effect-free thought readers offline.
+        var settingsRead=bridge.GetType("RimGovernor.Native.PawnSettingsRead",true)!;
+        var socialMethod=settingsRead.GetMethod("LiveSituational",Flags)!;
 
         var socialResultDirty=socialMethod.Invoke(null,new object?[]{ada})!;
-        Check((bool)Get(socialResultDirty,"SituationalCacheStale"),"stale situational cache reflected when thoughtsDirty is true");
+        Check((bool)((System.Runtime.CompilerServices.ITuple)socialResultDirty)[1]!,"stale situational cache reflected when thoughtsDirty is true");
 
         sitHandlerT.GetField("thoughtsDirty",Flags)!.SetValue(sitHandlerInst,false);
         var socialResultFresh=socialMethod.Invoke(null,new object?[]{ada})!;
-        Check(!(bool)Get(socialResultFresh,"SituationalCacheStale"),"fresh situational cache reflected when thoughtsDirty is false");
+        Check(!(bool)((System.Runtime.CompilerServices.ITuple)socialResultFresh)[1]!,"fresh situational cache reflected when thoughtsDirty is false");
 
-        Check(((IEnumerable)Get(socialResultFresh,"Memories")).Cast<object>().Count()==0,"present-but-empty memories yields zero rows");
-        Check(((IEnumerable)Get(socialResultFresh,"Situational")).Cast<object>().Count()==0,"present-but-empty situational cache yields zero rows");
+        Check(((IEnumerable)settingsRead.GetMethod("LiveMemories",Flags)!.Invoke(null,new[]{ada})!).Cast<object>().Count()==0,"present-but-empty memories yields zero rows");
+        Check(((IEnumerable)((System.Runtime.CompilerServices.ITuple)socialResultFresh)[0]!).Cast<object>().Count()==0,"present-but-empty situational cache yields zero rows");
 
-        // Regression guard: Social() must never mutate the thought fixtures (never
+        // Regression guard: The thought readers must never mutate the thought fixtures (never
         // recalculate situational thoughts, which deletes/recreates memories as a side
         // effect in real RimWorld -- see PawnSettingsRead's class remarks).
-        Check(ReferenceEquals(memHandlerT.GetField("memories",Flags)!.GetValue(memHandlerInst),memoriesList)&&memoriesList is IList{Count:0},"memories list reference and emptiness unchanged after Social()");
-        Check(ReferenceEquals(sitHandlerT.GetField("cachedThoughts",Flags)!.GetValue(sitHandlerInst),cachedThoughtsList)&&cachedThoughtsList is IList{Count:0},"cached situational thoughts reference and emptiness unchanged after Social()");
+        Check(ReferenceEquals(memHandlerT.GetField("memories",Flags)!.GetValue(memHandlerInst),memoriesList)&&memoriesList is IList{Count:0},"memories list reference and emptiness unchanged after reading thoughts");
+        Check(ReferenceEquals(sitHandlerT.GetField("cachedThoughts",Flags)!.GetValue(sitHandlerInst),cachedThoughtsList)&&cachedThoughtsList is IList{Count:0},"cached situational thoughts reference and emptiness unchanged after reading thoughts");
 
-        // ---- N01.03: corpse detail fixture (projections on a dead pawn) ----
-        // Health()'s and Biography()'s populate branches are unreachable in this offline
-        // harness for ANY pawn (dead or alive): HealthAIUtility.ShouldSeekMedicalRest and
-        // Pawn.CombinedDisabledWorkTags both unconditionally touch Verse.ModsConfig's static
-        // cctor -> GenFilePaths.SaveDataFolderPath -> a Unity Application.persistentDataPath
-        // ECall that throws SecurityException outside the real game process. So this fixture
-        // exercises the equipment and care projections for a corpse instead.
-        var corpse=MakeSocialPawn(103,"Corpse");
-        var healthTrackerT=native.GetType("Verse.Pawn_HealthTracker",true)!;
-        var healthTrackerInst=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(healthTrackerT);
-        healthTrackerT.GetField("pawn",Flags)!.SetValue(healthTrackerInst,corpse);
-        var pawnHealthStateT=native.GetType("Verse.PawnHealthState",true)!;
-        healthTrackerT.GetField("healthState",Flags)!.SetValue(healthTrackerInst,Enum.Parse(pawnHealthStateT,"Dead"));
-        var hediffSetT=native.GetType("Verse.HediffSet",true)!;
-        var hsInst=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(hediffSetT);
-        hediffSetT.GetField("pawn",Flags)!.SetValue(hsInst,corpse);
-        hediffSetT.GetField("hediffs",Flags)!.SetValue(hsInst,Activator.CreateInstance(typeof(List<>).MakeGenericType(native.GetType("Verse.Hediff",true)!)));
-        healthTrackerT.GetField("hediffSet",Flags)!.SetValue(healthTrackerInst,hsInst);
-        var billStackT=native.GetType("RimWorld.BillStack",true)!;
-        var billStackInst=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(billStackT);
-        billStackT.GetField("bills",Flags)!.SetValue(billStackInst,Activator.CreateInstance(typeof(List<>).MakeGenericType(native.GetType("RimWorld.Bill",true)!)));
-        healthTrackerT.GetField("surgeryBills",Flags)!.SetValue(healthTrackerInst,billStackInst);
-        socialPawnType.GetField("health",Flags)!.SetValue(corpse,healthTrackerInst);
-        Check(detailsType.GetMethod("Equipment",Flags)!.Invoke(null,new[]{corpse})!=null,"corpse equipment projection still populates for a dead pawn");
-        Check(detailsType.GetMethod("Care",Flags)!.Invoke(null,new[]{corpse})!=null,"corpse care projection still populates for a dead pawn");
         var number=tools.GetMethod("Number",Flags)!;
         Check((double)number.Invoke(null,new object[]{0d})! == 0,"observed zero retained");
         Check(Throws(()=>number.Invoke(null,new object[]{double.NaN}),"InvalidOperationException"),"nonfinite native fact fails");

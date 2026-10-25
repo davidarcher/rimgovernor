@@ -1,8 +1,5 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Control = RimGovernor.Contracts.Wire.Authority;
-using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
+using RimGovernor.Brain.GameAccess;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -50,17 +47,17 @@ internal static class LifecycleShutdown
         }
 
         // At the main menu the ended identity's retained authority is the only state left to report.
-        Control.Status ended = null!;
+        RimGovernor.Brain.GameFacts.Authority.Status ended = null!;
         await TypedLifecycle.UntilAsync(
             "status-after-unload",
             async ct =>
             {
-                Control.Status status;
+                RimGovernor.Brain.GameFacts.Authority.Status status;
                 try
                 {
-                    status = await s.CallAsync("status-after-unload", NativeOps.ReadAuthorityStatus, new Control.StatusRequest { Identity = identity }, ct).ConfigureAwait(false);
+                    status = await s.CallAsync("status-after-unload", NativeOps.ReadAuthorityStatus, new RimGovernor.Brain.GameOrders.Authority.StatusRequest { Identity = identity }, ct).ConfigureAwait(false);
                 }
-                catch (NativeFailureException e) when (e.Value.Code == Common.FailureCode.Unavailable)
+                catch (NativeFailureException e) when (e.Value.Code == RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable)
                 {
                     return (Wait.Signature("unavailable"), false);
                 }
@@ -70,14 +67,14 @@ internal static class LifecycleShutdown
             },
             cancellationToken).ConfigureAwait(false);
         s.RecordWire("status_after_unload", ended);
-        if (ended.State?.Inactive?.Reason != Control.RevocationReason.Shutdown || ended.Context?.Identity != identity
+        if (ended.State?.Inactive?.Reason != RimGovernor.Brain.GameFacts.Authority.RevocationReason.Shutdown || ended.Context?.Identity != identity
             || !ended.Context.NativeGeneration.IsAt(granted + 1) || ended.Context.Tick < unloadTick)
         {
             throw new AcceptanceException($"status-after-unload: want Inactive(SHUTDOWN) for {identity} at generation {granted + 1}, tick >= {unloadTick}; got {ended}");
         }
 
         // The process survived the unload, and the next game does not inherit the retained state.
-        var loaded = await TypedLifecycle.LoadAsync(s, "load-after", identity, saveName, Lifecycle.Readiness.Map, cancellationToken).ConfigureAwait(false);
+        var loaded = await TypedLifecycle.LoadAsync(s, "load-after", identity, saveName, RimGovernor.Brain.GameFacts.Lifecycle.Readiness.Map, cancellationToken).ConfigureAwait(false);
         var next = loaded.Loaded?.Context?.Identity ?? throw new AcceptanceException($"load-after: no loaded identity: {loaded}");
         if (next == identity)
         {
@@ -86,8 +83,8 @@ internal static class LifecycleShutdown
 
         await TypedLifecycle.ExpectRefusedAsync(
             "status-old-identity",
-            () => s.CallAsync("status-old-identity", NativeOps.ReadAuthorityStatus, new Control.StatusRequest { Identity = identity }, cancellationToken),
-            Common.FailureCode.StaleIdentity).ConfigureAwait(false);
+            () => s.CallAsync("status-old-identity", NativeOps.ReadAuthorityStatus, new RimGovernor.Brain.GameOrders.Authority.StatusRequest { Identity = identity }, cancellationToken),
+            RimGovernor.Brain.GameFacts.Common.FailureCode.StaleIdentity).ConfigureAwait(false);
 
         var fresh = await TypedAuthority.StatusAsync(s, "status-next", next, cancellationToken).ConfigureAwait(false);
         s.RecordWire("status_next", fresh);
@@ -98,15 +95,15 @@ internal static class LifecycleShutdown
     }
 
     /// <summary>Returns to the main menu through lifecycle_menu, naming the game it ends, and polls it to its completed outcome.</summary>
-    private static async Task<Lifecycle.MenuCompleted> MenuAsync(TypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
+    private static async Task<RimGovernor.Brain.GameFacts.Lifecycle.MenuCompleted> MenuAsync(TypedSession s, string label, RimGovernor.Brain.GameFacts.Common.Identity identity, CancellationToken cancellationToken)
     {
         var requestId = TypedLifecycle.Stamp(label);
         var reply = await s.CallAsync(
             label + "-start",
             NativeOps.StartMenu,
-            new Lifecycle.MenuRequest { RequestId = requestId, ExpectedPlayer = TypedLifecycle.Player(identity, requestId) },
+            new RimGovernor.Brain.GameOrders.Lifecycle.MenuRequest { RequestId = requestId, ExpectedPlayer = TypedLifecycle.Player(identity, requestId) },
             cancellationToken).ConfigureAwait(false);
-        Lifecycle.MenuCompleted? completed = null;
+        RimGovernor.Brain.GameFacts.Lifecycle.MenuCompleted? completed = null;
         var poll = 0;
         await TypedLifecycle.UntilAsync(
             label,
@@ -114,7 +111,7 @@ internal static class LifecycleShutdown
             {
                 if (poll++ > 0)
                 {
-                    reply = await s.CallAsync(label + "-poll", NativeOps.PollMenu, new Lifecycle.RequestStatus { RequestId = requestId }, ct).ConfigureAwait(false);
+                    reply = await s.CallAsync(label + "-poll", NativeOps.PollMenu, new RimGovernor.Brain.GameFacts.Lifecycle.RequestStatus { RequestId = requestId }, ct).ConfigureAwait(false);
                 }
 
                 if (reply.Outcome?.Completed is { } done)

@@ -292,7 +292,7 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
     }
 
     /// <summary>The routes standing of one read: the census reviewed fresh, and the traffic door changes (not heat) owed.</summary>
-    public static RoutesStanding RoutesStandingOf(RimGovernor.Contracts.Wire.Observations.RoutesFacts routes, RoomObservation rooms, RoundsPolicy p) =>
+    public static RoutesStanding RoutesStandingOf(RimGovernor.Brain.GameFacts.Observations.RoutesFacts routes, RoomObservation rooms, PlannerSettings p) =>
         new(RoutesRules.ReviewRoutes(routes, p.Routes), DoorControlRules.DoorChanges(rooms, routes, p).Any(d => !d.Heat));
 
 }

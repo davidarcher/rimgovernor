@@ -2,16 +2,16 @@
 
 [Contracts](README.md) · [Developer guide](../README.md)
 
-When the body of a game-thread hop (`ProtoBoundary.OnGameThread`) throws, only that
+When the body of a game-thread hop (`GameThread.OnGameThread`) throws, only that
 call fails. The game thread, the admission queue and later calls are untouched,
 so **a rethrow is safe**: no catch is needed to protect the mod.
 
 ## Path of a throw
 
-1. `MainThreadAdmission.Run` catches it and fails the hop's completion
+1. `GameThreadQueue.Run` catches it and fails the hop's completion
    (`TrySetException`); the host's pump and the game thread never see it.
    `OnGameThread`'s `finally` still closes the watchdog entry.
-2. The awaiting `InProcessNativeFacade` method rethrows the original exception
+2. The awaiting `GameApi` method rethrows the original exception
    to its caller, the brain (no `TargetInvocationException`: nothing is invoked
    by reflection).
 3. On the test-only `/native/{op}` route ([HTTP channel](../architecture/http-channel.md))

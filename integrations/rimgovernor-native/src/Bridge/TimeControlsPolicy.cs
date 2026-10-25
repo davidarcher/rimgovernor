@@ -1,10 +1,9 @@
 using Verse;
-using Clock = RimGovernor.Contracts.Wire.Clock;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The six time-control buttons, left to right. A speed button's value is its
-    // Clock.Speed's (Normal 1 through Hyperfast 5).
+    // RimGovernor.Brain.GameFacts.Clock.Speed's (Normal 1 through Hyperfast 5).
     internal enum TimeButton { Pause, Normal, Fast, Superfast, Ultrafast, Hyperfast }
 
     // The pure decisions of the six-button time controls (TimeControlsRow.cs, #3608).
@@ -16,7 +15,7 @@ namespace HomeBridge.BridgeTools
             TimeButton.Pause, TimeButton.Normal, TimeButton.Fast, TimeButton.Superfast, TimeButton.Ultrafast, TimeButton.Hyperfast,
         };
 
-        internal static Clock.Speed Speed(TimeButton button) => (Clock.Speed)(int)button;
+        internal static RimGovernor.Brain.GameFacts.Clock.Speed Speed(TimeButton button) => (RimGovernor.Brain.GameFacts.Clock.Speed)(int)button;
 
         // With the bot connected a speed click only asks the brain (Supervisor.RequestSpeed);
         // without it the click sets the game's own speed. Pause always goes to the game.
@@ -28,12 +27,12 @@ namespace HomeBridge.BridgeTools
             button != TimeButton.Hyperfast || connected || boostAvailable;
 
         // The game's own speed as a button speed: Ultrafast is Hyperfast while the boost is on.
-        internal static Clock.Speed? GameSpeed(TimeSpeed game, bool boost) => game switch
+        internal static RimGovernor.Brain.GameFacts.Clock.Speed? GameSpeed(TimeSpeed game, bool boost) => game switch
         {
-            TimeSpeed.Normal => Clock.Speed.Normal,
-            TimeSpeed.Fast => Clock.Speed.Fast,
-            TimeSpeed.Superfast => Clock.Speed.Superfast,
-            TimeSpeed.Ultrafast => boost ? Clock.Speed.Hyperfast : Clock.Speed.Ultrafast,
+            TimeSpeed.Normal => RimGovernor.Brain.GameFacts.Clock.Speed.Normal,
+            TimeSpeed.Fast => RimGovernor.Brain.GameFacts.Clock.Speed.Fast,
+            TimeSpeed.Superfast => RimGovernor.Brain.GameFacts.Clock.Speed.Superfast,
+            TimeSpeed.Ultrafast => boost ? RimGovernor.Brain.GameFacts.Clock.Speed.Hyperfast : RimGovernor.Brain.GameFacts.Clock.Speed.Ultrafast,
             _ => null,
         };
 
@@ -41,12 +40,12 @@ namespace HomeBridge.BridgeTools
         // brain has not answered with a Run at that speed, then the last Run's speed
         // (Status.LastRun), so a combat fallback shows the slower speed it runs at;
         // before any Run, the game's own. Not connected: the game's own speed.
-        internal static Clock.Speed? Chosen(bool connected, Clock.Speed? pending, Clock.Speed? run, TimeSpeed game, bool boost) =>
+        internal static RimGovernor.Brain.GameFacts.Clock.Speed? Chosen(bool connected, RimGovernor.Brain.GameFacts.Clock.Speed? pending, RimGovernor.Brain.GameFacts.Clock.Speed? run, TimeSpeed game, bool boost) =>
             connected ? pending ?? run ?? GameSpeed(game, boost) : GameSpeed(game, boost);
 
         // The lit button: a pending click first, then Pause while the game is paused
         // (vanilla's rule), then the chosen speed.
-        internal static TimeButton? Highlight(bool connected, bool paused, Clock.Speed? pending, Clock.Speed? run, TimeSpeed game, bool boost)
+        internal static TimeButton? Highlight(bool connected, bool paused, RimGovernor.Brain.GameFacts.Clock.Speed? pending, RimGovernor.Brain.GameFacts.Clock.Speed? run, TimeSpeed game, bool boost)
         {
             if (connected && pending is { } asked) return (TimeButton)(int)asked;
             if (paused) return TimeButton.Pause;
@@ -55,11 +54,11 @@ namespace HomeBridge.BridgeTools
 
         // The faster/slower keys with the bot connected step the chosen speed, between
         // Normal and vanilla's Faster ceiling (Superfast); null leaves it.
-        internal static Clock.Speed? Step(Clock.Speed? chosen, bool faster)
+        internal static RimGovernor.Brain.GameFacts.Clock.Speed? Step(RimGovernor.Brain.GameFacts.Clock.Speed? chosen, bool faster)
         {
             if (chosen is not { } speed) return null;
-            if (faster) return speed < Clock.Speed.Superfast ? speed + 1 : (Clock.Speed?)null;
-            return speed > Clock.Speed.Normal ? speed - 1 : (Clock.Speed?)null;
+            if (faster) return speed < RimGovernor.Brain.GameFacts.Clock.Speed.Superfast ? speed + 1 : (RimGovernor.Brain.GameFacts.Clock.Speed?)null;
+            return speed > RimGovernor.Brain.GameFacts.Clock.Speed.Normal ? speed - 1 : (RimGovernor.Brain.GameFacts.Clock.Speed?)null;
         }
     }
 }

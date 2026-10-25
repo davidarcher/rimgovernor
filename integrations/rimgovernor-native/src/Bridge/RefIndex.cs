@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// The one resolver from a wire loadId to the live native object: spawned Things,

@@ -57,7 +57,7 @@ internal static class LaunchStagePatches
         }
         catch (Exception ex) when (ex is InvalidOperationException or NotSupportedException or System.ComponentModel.Win32Exception)
         {
-            Log.Warning($"[RimBridge] The launch waterfall has no launch.pre_mods span: the process start time is unreadable ({ex.Message}).");
+            Log.Warning($"[Native] The launch waterfall has no launch.pre_mods span: the process start time is unreadable ({ex.Message}).");
         }
     }
 
@@ -65,7 +65,7 @@ internal static class LaunchStagePatches
     {
         if (target == null)
         {
-            Log.Warning($"[RimBridge] The launch waterfall has no RimWorld stages: DeepProfiler.{prefix.Replace("Prefix", "")} was not found.");
+            Log.Warning($"[Native] The launch waterfall has no RimWorld stages: DeepProfiler.{prefix.Replace("Prefix", "")} was not found.");
             return;
         }
         harmony.Patch(target, prefix: new HarmonyMethod(typeof(LaunchStagePatches), prefix));

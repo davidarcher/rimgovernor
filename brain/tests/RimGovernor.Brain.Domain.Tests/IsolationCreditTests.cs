@@ -1,8 +1,7 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -195,14 +194,14 @@ public sealed class IsolationCreditTests
         Assert.Equal((Agony.Range, Agony.MaxSeverity, Agony.SeverityPerSecond, Agony.DisappearsTicks), (pulse.Range, pulse.MaxSeverity, pulse.SeverityPerSecond, pulse.DisappearsTicks));
         Assert.Equal(ForecastIsolation.PulseLoss(ForecastValueTests.HarmPawn(), Agony), ForecastIsolation.PulseLoss(ForecastValueTests.HarmPawn(), pulse), 9);
 
-        var tracker = new O.PawnAnomalyState.Active(new O.PawnAnomaly
+        var tracker = new RimGovernor.Brain.GameFacts.Observations.PawnAnomalyState.Active(new RimGovernor.Brain.GameFacts.Observations.PawnAnomaly
         {
             Entity = false, Mutant = false, MinContainmentStrength = 0, HiddenFromPlayer = false, PsychicRitualInvoker = false, MeleeOnly = false,
-            Creepjoiner = new O.CreepJoinerState { DownsideTriggered = false, JoinedTick = (int)Day, CombatPower = 55 }, Held = null, Study = null,
+            Creepjoiner = new RimGovernor.Brain.GameFacts.Observations.CreepJoinerState { DownsideTriggered = false, JoinedTick = (int)Day, CombatPower = 55 }, Held = null, Study = null,
         });
-        var frame = new RimGovernor.Brain.Bridge.Contracts.RoundsFrame
+        var frame = new RimGovernor.Brain.GameAccess.ReviewFrame
         {
-            Pawns = new O.PawnSnapshot { Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 0 }, Pawns = [PawnFixtures.Row("cj") with { Anomaly = tracker }, PawnFixtures.Row("pawn")] },
+            Pawns = new RimGovernor.Brain.GameFacts.Observations.PawnSnapshot { Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 0 }, Pawns = [PawnFixtures.Row("cj") with { Anomaly = tracker }, PawnFixtures.Row("pawn")] },
         };
         var projection = ColonyFactsCoreTests.Reading(new()
             {
@@ -221,18 +220,18 @@ public sealed class IsolationCreditTests
                 }
             }
         };
-        var forecast = RoundsCreepJoiner.CreepJoinerForecastOf(projection, frame, catalog);
+        var forecast = CreepJoiner.CreepJoinerForecastOf(projection, frame, catalog);
         Assert.Equal("", forecast.Unread);
         Assert.Equal([new HeldCreepJoiner("cj", 2.5)], forecast.Held);
         Assert.Same(table, forecast.Table);
         Assert.Single(ForecastIsolation.IsolationCredit(Room, Outcome(), [], Context(forecast), Day));
 
         // A fresh colony holds no creepjoiner apart: a named zero, nothing thrown.
-        var fresh = RoundsCreepJoiner.CreepJoinerForecastOf(projection with { Facts = projection.Facts with { Isolation = new IsolationPlanning { Pawns = new IsolationCensus.Counted(EquatableArray.From(Array.Empty<PawnId>())) } } }, frame, catalog);
+        var fresh = CreepJoiner.CreepJoinerForecastOf(projection with { Facts = projection.Facts with { Isolation = new IsolationPlanning { Pawns = new IsolationCensus.Counted(EquatableArray.From(Array.Empty<PawnId>())) } } }, frame, catalog);
         Assert.Empty(ForecastIsolation.IsolationCredit(Room, Outcome(), [], Context(fresh), Day));
         Assert.Equal([ForecastIsolation.NoneHeld], ForecastIsolation.Findings(Room, Outcome(), [], Context(fresh), Day));
         // An unread census of the held apart is unread.
-        Assert.NotEqual("", RoundsCreepJoiner.CreepJoinerForecastOf(projection with { Facts = projection.Facts with { Isolation = new IsolationPlanning() } }, frame, catalog).Unread);
+        Assert.NotEqual("", CreepJoiner.CreepJoinerForecastOf(projection with { Facts = projection.Facts with { Isolation = new IsolationPlanning() } }, frame, catalog).Unread);
     }
 
     private sealed class Tolerance : IEqualityComparer<(double, double)>

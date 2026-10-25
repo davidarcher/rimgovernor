@@ -9,7 +9,7 @@ using Verse;
 using Verse.AI;
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // needs/recreation-shared-seat (#3570): one colonist starts the giver's own play job on the staged multi-seat building,
     // so it holds the building's reservation at the giver job's joyMaxParticipants, as a game in progress does. The stage
@@ -17,7 +17,7 @@ namespace HomeBridge.BridgeTools
     public sealed class RecreationSeatFixture
     {
         [Tool("test/recreation_hold_seat", Description = "UNSAFE FOR MODEL EXECUTION. Start the staged holder's own play job on the staged recreation building, holding one of its seats.")]
-        public async Task<object> HoldSeat(IRimBridgeContext ctx, CancellationToken ct,
+        public async Task<object> HoldSeat(INativeContext ctx, CancellationToken ct,
             [ToolParameter(Description = "The holder's load id.")] string holder = "",
             [ToolParameter(Description = "The recreation building's load id.")] string building = "") => await ctx.MainThread.InvokeAsync<object>(() =>
         {

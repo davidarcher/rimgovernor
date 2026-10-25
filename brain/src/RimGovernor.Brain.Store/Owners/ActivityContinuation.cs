@@ -48,7 +48,7 @@ public sealed partial class Store
     /// </summary>
     private static bool NeedOwedIn(StoreTransaction tx, NeedId need, GenerationSnapshot current)
     {
-        var review = LoadRounds(tx);
+        var review = LoadReview(tx);
         return review.Enabled && review.Snapshot.SameWorld(current) && review.Progress.Any(p => p.Concern == need.FilingKey);
     }
 
@@ -102,7 +102,7 @@ public sealed partial class Store
         {
             if (installed.Spec.Id != prior.Spec.Id) throw new ConflictException("refused continuation permits cleanup only");
             if (!NeedOwedIn(tx, needOwner.Need, current)) throw new ConflictException("met Need permits release only");
-            AdmitRoundsSafeguards(tx, needOwner);
+            AdmitReviewSafeguards(tx, needOwner);
             var retained = batch.Orders.Where(o => old.Orders.Any(p => PawnActivities.SameOrder(p, o)))
                 .Select(o => o.Pawn).ToHashSet(StringComparer.Ordinal);
             if (!WorkRules.WorkResourcesFit(WorkResourcesIn(tx, current, previous, observed), next, retained))

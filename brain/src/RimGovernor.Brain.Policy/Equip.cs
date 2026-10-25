@@ -33,7 +33,7 @@ public sealed record EquipCandidatePawn
     public bool LoneFighter { get; init; }
 
     /// <summary>The mean armor the expected raiders wear, or no hostiles to rate.</summary>
-    public required RimGovernor.Contracts.Wire.Observations.RaidArmor RaidArmor { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.RaidArmor RaidArmor { get; init; }
 
     /// <summary>The equipped primary: the bot owns every equipment decision.</summary>
     public EquipCandidateWeapon? Current { get; init; }
@@ -48,11 +48,11 @@ public sealed record EquipCandidatePawn
 /// <summary>Describes one already-observed loose weapon.</summary>
 public sealed record EquipCandidateWeapon
 {
-    public required RimGovernor.Contracts.Wire.Observations.ResourceStock Stock { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.ResourceStock Stock { get; init; }
 
-    public required RimGovernor.Contracts.Wire.Observations.StockItem Item { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.StockItem Item { get; init; }
 
-    public RimGovernor.Contracts.Wire.Observations.GearItem? Gear { get; init; }
+    public RimGovernor.Brain.GameFacts.Observations.GearItem? Gear { get; init; }
 
     public string Thing => Item.Id;
 

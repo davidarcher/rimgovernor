@@ -1,6 +1,6 @@
 using System;
 using System.Threading.Tasks;
-using HomeBridge.BridgeTools;
+using RimGovernor.Native;
 
 internal static class NativeShutdownProbe
 {

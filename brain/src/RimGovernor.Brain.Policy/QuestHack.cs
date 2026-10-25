@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -34,7 +33,7 @@ public static class QuestHackPolicy
         return seen;
     }
 
-    public static bool IdeologyWorkDeficit(RoundsFacts f)
+    public static bool IdeologyWorkDeficit(ReviewFacts f)
     {
         var offers = f.QuestOffers;
         foreach (var offer in offers)
@@ -56,7 +55,7 @@ public static class QuestHackPolicy
                     {
                         seen = true;
                         // Until the recipient asks, the gift is still owed.
-                        if (request.Ask is not Pb.QuestGiftAsk.Asking { Remaining: <= 0 })
+                        if (request.Ask is not RimGovernor.Brain.GameFacts.Observations.QuestGiftAsk.Asking { Remaining: <= 0 })
                         {
                             return true;
                         }
@@ -88,7 +87,7 @@ public static class QuestHackPolicy
         return "terminal_tribe_absent";
     }
 
-    public static QuestSkipReason HackAdmission(QuestState offer, RoundsFacts f)
+    public static QuestSkipReason HackAdmission(QuestState offer, ReviewFacts f)
     {
         var reason = WorshippedTerminalAdmission(offer);
         if (!reason.IsNone)
@@ -102,7 +101,7 @@ public static class QuestHackPolicy
         return "";
     }
 
-    public static QuestHackWork SelectQuestHack(RoundsFacts f, MapId currentMap)
+    public static QuestHackWork SelectQuestHack(ReviewFacts f, MapId currentMap)
     {
         var all = f.QuestOffers;
         foreach (var offer in all.OrderBy(o => o.Id))
@@ -121,7 +120,7 @@ public static class QuestHackPolicy
             {
                 return result with { Reason = admission };
             }
-            var targets = new List<Pb.QuestHackTarget>();
+            var targets = new List<RimGovernor.Brain.GameFacts.Observations.QuestHackTarget>();
             foreach (var objective in offer.Objectives)
             {
                 targets.AddRange(objective.HackTargets);
@@ -136,7 +135,7 @@ public static class QuestHackPolicy
                 {
                     continue;
                 }
-                if (target.Place is not Pb.QuestHackTargetPlace.OnMap place)
+                if (target.Place is not RimGovernor.Brain.GameFacts.Observations.QuestHackTargetPlace.OnMap place)
                 {
                     return result with { Reason = "hack_target_unavailable" };
                 }
@@ -158,7 +157,7 @@ public static class QuestHackPolicy
         return new QuestHackWork();
     }
 
-    public static QuestSkipReason RelicAdmission(QuestState offer, RoundsFacts f)
+    public static QuestSkipReason RelicAdmission(QuestState offer, ReviewFacts f)
     {
         if (offer.ScriptDef != "RelicHunt")
         {

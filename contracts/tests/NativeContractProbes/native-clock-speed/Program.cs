@@ -1,7 +1,6 @@
 using System;
-using HomeBridge.BridgeTools;
+using RimGovernor.Native;
 using Verse;
-using Clock = RimGovernor.Contracts.Wire.Clock;
 
 // The run speeds (ClockRunSpeed.cs, HyperfastCap.cs, #3604, #3605) against vanilla's TickRateMultiplier for a loaded map
 // (RimWorld 1.7, read with ilspycmd): Ultrafast is 15x, or 20000x while TickManager.UltraSpeedBoost is set. A run segment
@@ -30,7 +29,7 @@ internal static class NativeClockSpeedProbe
     private static float Clamped(TimeSpeed speed) => HyperfastCap.Apply(boost, Vanilla(speed));
 
     // What one run segment at this speed ticks at: the boost it owns, then the clamped multiplier.
-    private static float Played(BoostOwnership owned, Clock.Speed speed)
+    private static float Played(BoostOwnership owned, RimGovernor.Brain.GameFacts.Clock.Speed speed)
     {
         owned.For(ClockRunSpeed.Boost(speed), ReadBoost, WriteBoost);
         return Clamped(ClockRunSpeed.Native(speed));
@@ -38,23 +37,23 @@ internal static class NativeClockSpeedProbe
 
     internal static void Invoke()
     {
-        foreach (var speed in new[] { Clock.Speed.Normal, Clock.Speed.Fast, Clock.Speed.Superfast, Clock.Speed.Ultrafast, Clock.Speed.Hyperfast })
+        foreach (var speed in new[] { RimGovernor.Brain.GameFacts.Clock.Speed.Normal, RimGovernor.Brain.GameFacts.Clock.Speed.Fast, RimGovernor.Brain.GameFacts.Clock.Speed.Superfast, RimGovernor.Brain.GameFacts.Clock.Speed.Ultrafast, RimGovernor.Brain.GameFacts.Clock.Speed.Hyperfast })
             Check(ClockRunSpeed.Ordinary(speed), speed + " is an ordinary run speed");
-        Check(!ClockRunSpeed.Ordinary((Clock.Speed)0), "an unspecified speed is not a run speed");
-        Check(ClockRunSpeed.Native(Clock.Speed.Ultrafast) == TimeSpeed.Ultrafast && ClockRunSpeed.Native(Clock.Speed.Hyperfast) == TimeSpeed.Ultrafast,
+        Check(!ClockRunSpeed.Ordinary((RimGovernor.Brain.GameFacts.Clock.Speed)0), "an unspecified speed is not a run speed");
+        Check(ClockRunSpeed.Native(RimGovernor.Brain.GameFacts.Clock.Speed.Ultrafast) == TimeSpeed.Ultrafast && ClockRunSpeed.Native(RimGovernor.Brain.GameFacts.Clock.Speed.Hyperfast) == TimeSpeed.Ultrafast,
             "Ultrafast and Hyperfast share the game's Ultrafast");
 
         // Ultrafast is vanilla's 15x with the boost off, even when the host tools set it before the Run; the stop restores it.
         boost = true;
         var ultrafast = new BoostOwnership();
-        Check(Played(ultrafast, Clock.Speed.Ultrafast) == 15f && !boost && ultrafast.Owned, "Ultrafast runs at 15x with the boost forced off");
+        Check(Played(ultrafast, RimGovernor.Brain.GameFacts.Clock.Speed.Ultrafast) == 15f && !boost && ultrafast.Owned, "Ultrafast runs at 15x with the boost forced off");
         ultrafast.Release(WriteBoost);
         Check(boost && !ultrafast.Owned, "the stop restores the boost the Run found");
 
         // Hyperfast's boost asks vanilla for 20000x; its own cap holds it at 30x.
         boost = false;
         var hyperfast = new BoostOwnership();
-        Check(Played(hyperfast, Clock.Speed.Hyperfast) == HyperfastCap.Multiplier && boost, "Hyperfast is capped at 30x with the boost on");
+        Check(Played(hyperfast, RimGovernor.Brain.GameFacts.Clock.Speed.Hyperfast) == HyperfastCap.Multiplier && boost, "Hyperfast is capped at 30x with the boost on");
         Check(HyperfastCap.Multiplier == 30f && HyperfastCap.TicksPerSecond == 1800, "the cap is 30x, 1800 ticks/s");
         Check(HyperfastCap.Apply(true, 12f) == 12f, "the cap never raises a slower rate");
         Check(HyperfastCap.Apply(false, 20000f) == 20000f, "an unboosted multiplier is never capped");
@@ -69,10 +68,10 @@ internal static class NativeClockSpeedProbe
         // A speed change in place keeps the first prior: Hyperfast, then Ultrafast, then Normal, then the stop.
         boost = false;
         var changed = new BoostOwnership();
-        Check(Played(changed, Clock.Speed.Hyperfast) == 30f, "the segment starts at Hyperfast");
-        Check(Played(changed, Clock.Speed.Ultrafast) == 15f && !boost, "Hyperfast to Ultrafast turns the boost off");
-        Check(Played(changed, Clock.Speed.Hyperfast) == 30f && boost, "and back on");
-        Check(Played(changed, Clock.Speed.Normal) == 1f && !boost && !changed.Owned, "Normal releases the boost to the value the segment found");
+        Check(Played(changed, RimGovernor.Brain.GameFacts.Clock.Speed.Hyperfast) == 30f, "the segment starts at Hyperfast");
+        Check(Played(changed, RimGovernor.Brain.GameFacts.Clock.Speed.Ultrafast) == 15f && !boost, "Hyperfast to Ultrafast turns the boost off");
+        Check(Played(changed, RimGovernor.Brain.GameFacts.Clock.Speed.Hyperfast) == 30f && boost, "and back on");
+        Check(Played(changed, RimGovernor.Brain.GameFacts.Clock.Speed.Normal) == 1f && !boost && !changed.Owned, "Normal releases the boost to the value the segment found");
         changed.Release(WriteBoost);
         Check(!boost, "a stop with nothing owned writes nothing");
 

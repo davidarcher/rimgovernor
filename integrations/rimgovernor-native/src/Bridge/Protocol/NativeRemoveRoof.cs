@@ -3,11 +3,8 @@ using System.Collections.Generic;
 using HarmonyLib;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // RemoveRoofIntent on Actions/Apply: vanilla remove roof, the
     // NoRoof area (Designator_AreaNoRoof, which also clears BuildRoof), over
@@ -31,11 +28,11 @@ namespace HomeBridge.BridgeTools
         private static void NoRoofHoldsBuild(Pawn pawn, IntVec3 c, ref bool __result)
         { if (__result && pawn.Map != null && pawn.Map.areaManager.NoRoof[c]) __result = false; }
 
-        private static string? Refusal(Operations.RemoveRoofIntent? intent, Common.ObservationContext context, out Map? map, out List<IntVec3> cells)
+        private static string? Refusal(RimGovernor.Brain.GameOrders.Operations.RemoveRoofIntent? intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Map? map, out List<IntVec3> cells)
         {
             map = null; cells = new List<IntVec3>();
             if (intent == null || intent.Cells.Count == 0) return "Remove roof requires cells.";
-            map = ProtoBoundary.ResolveMap(context);
+            map = GameThread.ResolveMap(context);
             if (map == null) return "Current map required.";
             var seen = new HashSet<IntVec3>();
             foreach (var c in intent.Cells)
@@ -51,13 +48,13 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        internal static Common.Failure? Validate(Operations.RemoveRoofIntent? intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.RemoveRoofIntent? intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var refusal = Refusal(intent, context, out _, out _);
-            return refusal == null ? null : ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, refusal);
+            return refusal == null ? null : GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, refusal);
         }
 
-        internal static Receipts.EffectEvidence Apply(Operations.RemoveRoofIntent? intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.RemoveRoofIntent? intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             Install();
             var refusal = Refusal(intent, context, out var map, out var cells);
@@ -73,7 +70,7 @@ namespace HomeBridge.BridgeTools
                 Designate(map, cell);
                 if (!unroofed) designatedCount++;
             }
-            return new Receipts.EffectEvidence { Effect = new Receipts.RemoveRoofEffect { Designated = designatedCount } };
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.RemoveRoofEffect { Designated = designatedCount } };
         }
 
         // Puts one cell in the NoRoof area through the game's designator (which also clears BuildRoof): the intent's
@@ -91,7 +88,7 @@ namespace HomeBridge.BridgeTools
 
     internal sealed class RemoveRoofActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeRemoveRoof.Validate(action.Intent?.RemoveRoof, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeRemoveRoof.Apply(action.Intent?.RemoveRoof, context);
+        public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => NativeRemoveRoof.Validate(action.Intent?.RemoveRoof, context);
+        public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => NativeRemoveRoof.Apply(action.Intent?.RemoveRoof, context);
     }
 }

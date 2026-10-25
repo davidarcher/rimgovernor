@@ -6,7 +6,7 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Private disposable acceptance only. Builds one small roofed refuge
     // Area and one outdoor Area near an existing colonist, restricts that
@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools
     public sealed class RecoveryAreaFixture
     {
         [Tool("test/recovery_area_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: build one small roofed refuge Area and one outdoor Area near an existing colonist, restrict that colonist to the outdoor area, and register a ToxicFallout hazard condition on the current paused map.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Prepare(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;

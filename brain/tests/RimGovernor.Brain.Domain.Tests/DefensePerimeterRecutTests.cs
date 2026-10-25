@@ -1,8 +1,8 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using Planner = RimGovernor.Brain.BuildingRuntime.RoundsDefenseLayoutPlanner;
+using Planner = RimGovernor.Brain.Runtime.DefenseLayoutPlanner;
 
 namespace RimGovernor.Brain.Domain.Tests;
 

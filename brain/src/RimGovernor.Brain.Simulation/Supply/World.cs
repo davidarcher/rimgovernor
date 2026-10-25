@@ -32,19 +32,19 @@ public readonly record struct Good(string Value)
 /// <summary>Planning constants of the simulator.</summary>
 public static class SupplyConstants
 {
-    /// <summary>The planning labor per worker per game day in pawn ticks, as in buildingruntime/rounds_food_plan.go (eight hours of a day).</summary>
+    /// <summary>The planning labor per worker per game day in pawn ticks (eight hours of a day).</summary>
     public const double LaborPerWorkerDay = 20000.0;
 
-    // Runway forecast constants from policy/resource_runway.go.
+    // Runway forecast constants.
     public const int ForecastHistoryDays = 15;
     public const double ForecastHorizonDays = 5.0;
 
-    // Work estimates per unit in pawn ticks, from policy/food_plan.go.
+    // Work estimates per unit in pawn ticks.
     public const double ForageWorkTicks = 2500.0;
     public const double HuntWorkTicks = 7500.0;
 
-    // Labor priors in pawn ticks per unit yielded, copied from policy.AcquisitionLaborPerUnit
-    // (policy/acquisition_catalog.go). Trade is 0.
+    // Labor priors in pawn ticks per unit yielded.
+    // Trade is 0.
     public const double ChopWork = 15.0;
     public const double MineWork = 20.0;
     public const double SalvageWork = 25.0;
@@ -54,7 +54,7 @@ public static class SupplyConstants
     public const double ProduceWork = 60.0;
     public const double DeepDrillWork = 100.0;
 
-    // Floors copied from policy.RoundsPolicy defaults (policy/rounds.go:155) and the scenario's own steel
+    // Floors copied from PlannerSettings defaults and the scenario's own steel
     // and component floors (the derived needs a live colony supplies). Use them in fixtures as Floor values.
     public const double WoodMin = 120.0;
     public const double WoodTarget = 350.0;

@@ -4,8 +4,6 @@ using System.Collections.Frozen;
 
 namespace RimGovernor.Brain.Executor;
 
-// Port of internal/executor/hold.go.
-
 public sealed partial class Executor
 {
     // Maps every Policy.Reason an Admit-style check can return, the emergency subset and the ordinary admission

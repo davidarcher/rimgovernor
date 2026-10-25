@@ -19,12 +19,12 @@ public sealed record SculptureStep
 /// <summary>A packed sculpture in stock: its id, the sculpture definition inside, its quality (QualityCategory ordinal, -1 unknown) and market value.</summary>
 public sealed record PackedSculpture
 {
-    public required RimGovernor.Contracts.Wire.Observations.StockItem Observed { get; init; }
-    public RimGovernor.Contracts.Wire.Observations.PackedBuilding Packed => Observed.Packed
+    public required RimGovernor.Brain.GameFacts.Observations.StockItem Observed { get; init; }
+    public RimGovernor.Brain.GameFacts.Observations.PackedBuilding Packed => Observed.Packed
         ?? throw new DomainException("packed sculpture lacks its building");
     public string Id => Observed.Id;
     public string Def => Packed.DefName;
-    public int Quality => Packed.Quality is RimGovernor.Contracts.Wire.Observations.PackedQuality.Rated rated ? (int)rated.Category : -1;
+    public int Quality => Packed.Quality is RimGovernor.Brain.GameFacts.Observations.PackedQuality.Rated rated ? (int)rated.Category : -1;
     public double MarketValue => Packed.MarketValue;
 }
 

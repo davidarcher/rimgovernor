@@ -89,7 +89,7 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
     public IReadOnlyList<FactFamily> SeriousHarmReads { get; } = [];
 
     /// <summary>Whether the Need is one of the four comfort steps, which build at the Comfort tier.</summary>
-    public static bool ComfortStep(ConcernId concern) =>
+    public static bool ComfortStep(FilingKey concern) =>
         concern == Comfort.FilingKey || concern == Hosting.FilingKey || concern == PartySpot.FilingKey || concern == WorkChairs.FilingKey;
 
     public IReadOnlyList<Need> Derive(RoomsFacts facts)

@@ -1,9 +1,9 @@
 using System.Text.Json;
 using RimGovernor.Brain.Domain;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Fx = RimGovernor.Fixtures.Contracts;
-using IdeoligionDesign = RimGovernor.Contracts.Wire.Common.IdeoligionDesign;
-using Operations = RimGovernor.Contracts.Wire.Operations;
+using IdeoligionDesign = RimGovernor.Brain.GameFacts.Common.IdeoligionDesign;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -51,7 +51,7 @@ internal static class IdeologyReform
     {
         try
         {
-            return JsonSerializer.Deserialize(text, WireJsonContext.Default.CommonIdeoligionDesign)
+            return JsonSerializer.Deserialize(text, OrdersJsonContext.Default.CommonIdeoligionDesign)
                 ?? throw new AcceptanceException($"{label}: the ideoligion design is empty");
         }
         catch (JsonException e)
@@ -79,8 +79,8 @@ internal static class IdeologyReform
             }
         }
 
-        Task<Operations.ActionResult> Send(string key, int wantCount, IdeoligionDesign wantExpected, IdeoligionDesign target) =>
-            TradeKit.ApplyAsync(s, key, new Operations.IdeoligionReformIntent
+        Task<RimGovernor.Brain.GameFacts.Operations.ActionResult> Send(string key, int wantCount, IdeoligionDesign wantExpected, IdeoligionDesign target) =>
+            TradeKit.ApplyAsync(s, key, new RimGovernor.Brain.GameOrders.Operations.IdeoligionReformIntent
             {
                 IdeoId = prepared.IdeoId,
                 Expected = wantExpected,

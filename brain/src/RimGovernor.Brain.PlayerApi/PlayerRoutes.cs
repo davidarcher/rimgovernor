@@ -3,7 +3,6 @@ using System.Text.Json;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.HttpChannel;
 using RimGovernor.Brain.Store;
-using PbClock = RimGovernor.Contracts.Wire.Clock;
 
 namespace RimGovernor.Brain.PlayerApi;
 
@@ -51,17 +50,17 @@ public static class PlayerRoutes
 
     internal static ChannelResponse SetClockSpeed(IClockSpeedControl control, byte[] body)
     {
-        PbClock.Speed requested;
+        RimGovernor.Brain.GameFacts.Clock.Speed requested;
         try
         {
             var fields = StrictJson.Object(body, "speed");
             requested = StrictJson.String(fields["speed"]) switch
             {
-                "Normal" => PbClock.Speed.Normal,
-                "Fast" => PbClock.Speed.Fast,
-                "Superfast" => PbClock.Speed.Superfast,
-                "Ultrafast" => PbClock.Speed.Ultrafast,
-                "Hyperfast" => PbClock.Speed.Hyperfast,
+                "Normal" => RimGovernor.Brain.GameFacts.Clock.Speed.Normal,
+                "Fast" => RimGovernor.Brain.GameFacts.Clock.Speed.Fast,
+                "Superfast" => RimGovernor.Brain.GameFacts.Clock.Speed.Superfast,
+                "Ultrafast" => RimGovernor.Brain.GameFacts.Clock.Speed.Ultrafast,
+                "Hyperfast" => RimGovernor.Brain.GameFacts.Clock.Speed.Hyperfast,
                 _ => throw new StrictJsonException("unknown speed"),
             };
         }

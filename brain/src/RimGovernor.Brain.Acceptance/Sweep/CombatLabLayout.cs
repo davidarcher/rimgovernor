@@ -6,8 +6,8 @@ using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Store.Codec;
-using RimGovernor.Contracts.Wire;
-using Wl = RimGovernor.Contracts.Wire.Lifecycle;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -48,7 +48,7 @@ public static class CombatLabLayout
         var blob = FamilyBlob(StoreJson.Serialize(record), null);
 
         // The batch put replaces the whole set, so read the save's blobs and add the layout to them.
-        var loaded = await h.CallAsync("store-layout-read", NativeOps.ReadGovernorState, new Wl.GovernorStateRequest(), cancellationToken).ConfigureAwait(false);
+        var loaded = await h.CallAsync("store-layout-read", NativeOps.ReadGovernorState, new RimGovernor.Brain.GameOrders.Lifecycle.GovernorStateRequest(), cancellationToken).ConfigureAwait(false);
         var blobs = new Dictionary<string, string>(loaded.Blobs, StringComparer.Ordinal)
         {
             [Store.Store.GovernorDefenseLayoutKey] = blob,
@@ -58,8 +58,8 @@ public static class CombatLabLayout
         // its DefFiring and DefLane nodes (#3583), so the staged world holds a plan of that opening and those nodes.
         var plan = Plan(l);
         blobs[Store.Store.GovernorLayoutPlanKey] = FamilyBlob(StoreJson.Serialize(plan), (world.Colony.Value, world.Map.Value));
-        var reply = await h.CallAsync("store-layout", NativeOps.PutGovernorStateBatch, new Wl.PutGovernorStateBatchRequest { Blobs = blobs }, cancellationToken).ConfigureAwait(false);
-        _ = reply.Loaded ?? throw new AcceptanceException($"store-layout: {WireJson.Serialize(reply)}");
+        var reply = await h.CallAsync("store-layout", NativeOps.PutGovernorStateBatch, new RimGovernor.Brain.GameOrders.Lifecycle.PutGovernorStateBatchRequest { Blobs = blobs }, cancellationToken).ConfigureAwait(false);
+        _ = reply.Loaded ?? throw new AcceptanceException($"store-layout: {OrdersJson.Serialize(reply)}");
 
         return JsonNode.Parse(StoreJson.Serialize(record));
     }

@@ -1,5 +1,5 @@
-using O = RimGovernor.Contracts.Wire.Observations;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
@@ -20,7 +20,7 @@ public sealed class ColonyCalendarContinuationTests
 
     private static ColonyModelInput Input(bool[] year, double nutrition) => ColonyModelFixtures.Devilstrand() with
     {
-        Calendar = new O.FoodClimate
+        Calendar = new RimGovernor.Brain.GameFacts.Observations.FoodClimate
         {
             DayOfYear = 58, Season = "Winter", GrowingYear = EquatableArray.From(year),
             GrowingDays = year.Count(day => day), GrowingDaysRemaining = year.TakeWhile(day => day).Count(),
@@ -32,7 +32,7 @@ public sealed class ColonyCalendarContinuationTests
         Pawns = EquatableArray.From(new[] { new ModelPawn
         {
             Pawn = "Anna", Needs = EquatableArray.From(new[] { new ModelNeed { Kind = "food", Fall = 1d / GameTime.TicksPerDay, Gain = 0, Threshold = .3, Service = new ModelService.NoneObserved() } }),
-            Skills = EquatableArray.From<O.Skill>([]),
+            Skills = EquatableArray.From<RimGovernor.Brain.GameFacts.Observations.Skill>([]),
             Consciousness = 1.0,
             Moving = 1.0,
             Manipulation = 1.0,
@@ -130,12 +130,12 @@ public sealed class ColonyCalendarContinuationTests
     public void TwoGrowingWindowsSurviveWireDecodeAndASecondSeasonHandoff()
     {
         var year = Enumerable.Range(0, 60).Select(d => d < 10 || d >= 20 && d < 30).ToArray();
-        var wire = new RimGovernor.Contracts.Wire.Observations.FoodClimate
+        var wire = new RimGovernor.Brain.GameFacts.Observations.FoodClimate
         {
             GrowingYear = EquatableArray.From(year), GrowingDays = 20, GrowingDaysRemaining = 10,
             GrowingDaysUntil = 0, NonGrowingDays = 10, DayOfYear = 58, SowingNow = true, Season = "Winter",
         };
-        var decoded = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.FoodClimate>(WireJson.Serialize(wire));
+        var decoded = OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.FoodClimate>(OrdersJson.Serialize(wire));
         Assert.Equal(year, decoded.GrowingYear);
         var input = Input(year, 25) with { Calendar = decoded };
         Assert.Same(decoded, input.Calendar);

@@ -140,7 +140,7 @@ public sealed record ResourceMethodRequest
 
     public EquatableArray<GearBench> Benches { get; init; }
 
-    /// <summary>The catalog's craft recipes (RoundsFacts.Crafts): a resource no standing bench's recipe makes is produced by one with no bench (#3659).</summary>
+    /// <summary>The catalog's craft recipes (ReviewFacts.Crafts): a resource no standing bench's recipe makes is produced by one with no bench (#3659).</summary>
     public EquatableArray<GearRecipe> Crafts { get; init; }
 }
 

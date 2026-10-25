@@ -5,7 +5,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Read-only native facts. No bill.ShouldDoNow calls (that mutates paused).
     internal static class FoodLarderFacts

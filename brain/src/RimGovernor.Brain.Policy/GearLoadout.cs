@@ -66,11 +66,11 @@ public sealed record GearRoleInput
 {
     /// <summary>The gear census's work rows (catalog-resolved), skills and traits.</summary>
     public EquatableArray<WorkPriority> Work { get; init; } = [];
-    public EquatableArray<RimGovernor.Contracts.Wire.Observations.Skill> Skills => Pawn.Biography.Skills;
+    public EquatableArray<RimGovernor.Brain.GameFacts.Observations.Skill> Skills => Pawn.Biography.Skills;
     public EquatableArray<PawnTrait> Traits { get; init; } = [];
-    public required RimGovernor.Contracts.Wire.Observations.GearLoadout Observed { get; init; }
-    public required RimGovernor.Contracts.Wire.Observations.PawnState Pawn { get; init; }
-    public bool Child => (Observed.DevelopmentalStage & RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Child) != 0;
+    public required RimGovernor.Brain.GameFacts.Observations.GearLoadout Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PawnState Pawn { get; init; }
+    public bool Child => (Observed.DevelopmentalStage & RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Child) != 0;
     public bool Slave => Observed.ApparelPolicy?.Slave ?? throw new DomainException("gear role has no apparel policy");
     // DisabledWorkTags carries native enum names; policy has no game-enum dependency.
     public bool IncapableOfViolence => Pawn.Biography.DisabledWorkTags.Contains("Violent");
@@ -79,8 +79,8 @@ public sealed record GearRoleInput
     public bool UnrevealedCreepjoiner { get; init; }
 
     /// <summary>The PreceptDef names of the pawn's ideo, from its pawn row (<see cref="GearObservation"/>'s stamp); empty for a pawn without an ideo.</summary>
-    public RimGovernor.Contracts.Wire.Observations.PawnIdeo Ideology => Pawn.Settings.PolicyInputs.Ideo;
-    public EquatableArray<string> Precepts => Ideology is RimGovernor.Contracts.Wire.Observations.PawnIdeo.Member m ? m.Precepts : [];
+    public RimGovernor.Brain.GameFacts.Observations.PawnIdeo Ideology => Pawn.Settings.PolicyInputs.Ideo;
+    public EquatableArray<string> Precepts => Ideology is RimGovernor.Brain.GameFacts.Observations.PawnIdeo.Member m ? m.Precepts : [];
 }
 
 /// <summary>
@@ -90,9 +90,9 @@ public sealed record GearRoleInput
 public abstract record GearOptionOrigin
 {
     private GearOptionOrigin() { }
-    public sealed record Observed(RimGovernor.Contracts.Wire.Observations.GearLoadoutOption Value) : GearOptionOrigin;
-    public sealed record Equipped(RimGovernor.Contracts.Wire.Observations.GearItem Item, RimGovernor.Contracts.Wire.Observations.EntityRef Entity) : GearOptionOrigin;
-    public sealed record Catalog(RimGovernor.Contracts.Wire.Observations.GearLockedBill Bill, string Stuff, bool Qualityless) : GearOptionOrigin;
+    public sealed record Observed(RimGovernor.Brain.GameFacts.Observations.GearLoadoutOption Value) : GearOptionOrigin;
+    public sealed record Equipped(RimGovernor.Brain.GameFacts.Observations.GearItem Item, RimGovernor.Brain.GameFacts.Observations.EntityRef Entity) : GearOptionOrigin;
+    public sealed record Catalog(RimGovernor.Brain.GameFacts.Observations.GearLockedBill Bill, string Stuff, bool Qualityless) : GearOptionOrigin;
 }
 
 public sealed record GearOption
@@ -124,8 +124,8 @@ public sealed record GearOption
     /// Awful=0 through Legendary=6; Normal for a <see cref="Qualityless"/> item, whose stats StatPart_Quality leaves unscaled as
     /// Normal's factors do. A crafted bill's quality is its <see cref="QualityOdds"/> instead.
     /// </summary>
-    public int Quality => ItemQuality is RimGovernor.Contracts.Wire.Observations.ItemQuality.Graded g ? (int)g.Category : 2;
-    private RimGovernor.Contracts.Wire.Observations.ItemQuality? ItemQuality => Origin switch
+    public int Quality => ItemQuality is RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded g ? (int)g.Category : 2;
+    private RimGovernor.Brain.GameFacts.Observations.ItemQuality? ItemQuality => Origin switch
     {
         GearOptionOrigin.Observed o => o.Value.Quality,
         GearOptionOrigin.Equipped e => e.Item.Quality,
@@ -141,7 +141,7 @@ public sealed record GearOption
     public EquatableArray<double> QualityOdds { get; init; }
 
     /// <summary>The def has no quality (no CompQuality): the item counts toward no royal title's minimum apparel quality (#3841).</summary>
-    public bool Qualityless => Origin is GearOptionOrigin.Catalog c ? c.Qualityless : ItemQuality is RimGovernor.Contracts.Wire.Observations.ItemQuality.Qualityless;
+    public bool Qualityless => Origin is GearOptionOrigin.Catalog c ? c.Qualityless : ItemQuality is RimGovernor.Brain.GameFacts.Observations.ItemQuality.Qualityless;
 
     public GearSlot Slot { get; init; }
     public EquatableArray<string> Layers { get; init; }
@@ -238,8 +238,8 @@ public abstract record GearArrival
 public sealed record GearLoadoutInput
 {
     public required GearRoleInput Role { get; init; }
-    public required RimGovernor.Contracts.Wire.Observations.GearLoadout Observed { get; init; }
-    public bool Female => Observed.Gender == RimGovernor.Contracts.Wire.Defs.Gender.Female;
+    public required RimGovernor.Brain.GameFacts.Observations.GearLoadout Observed { get; init; }
+    public bool Female => Observed.Gender == RimGovernor.Brain.GameFacts.Defs.Gender.Female;
     public bool Nudist { get; init; }
 
     /// <summary>The finished research census; an option is eligible only once every project its Research names is finished.</summary>
@@ -249,7 +249,7 @@ public sealed record GearLoadoutInput
     public bool PsychicDrone { get; init; }
 
     public double Ambient { get; init; }
-    public required RimGovernor.Contracts.Wire.Observations.PawnBodyStats Body { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PawnBodyStats Body { get; init; }
     public double ComfortableMin => Body.ComfortableMinC;
     public double ComfortableMax => Body.ComfortableMaxC;
     public EquatableArray<GearOption> Worn { get; init; }

@@ -2,11 +2,8 @@ using System;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The zone intent's delete shape. Mirrors ZoneCellsTool.Delete's two
     // landmine checks (phantom cells; a stockpile's haul grid pointing
@@ -18,11 +15,11 @@ namespace HomeBridge.BridgeTools
     {
         private const string Kind = "Zone deletion";
 
-        private static Zone? Resolve(Operations.ZoneIntent? intent, Map map) =>
+        private static Zone? Resolve(RimGovernor.Brain.GameOrders.Operations.ZoneIntent? intent, Map map) =>
             NativeZoneIntent.Id(intent) != null
                 ? RefIndex.Zone(map, (intent ?? throw new System.InvalidOperationException("Required native value is unavailable: intent.")).Zone?.Id ?? "") is Zone z && z.Cells.Count > 0 ? z : null : null;
 
-        private static ApplyPreconditions Rules(Operations.ZoneIntent? intent, Zone? zone, Map map)
+        private static ApplyPreconditions Rules(RimGovernor.Brain.GameOrders.Operations.ZoneIntent? intent, Zone? zone, Map map)
         {
             var slotGroup = (zone as Zone_Stockpile)?.slotGroup;
             return new ApplyPreconditions(Kind)
@@ -31,16 +28,16 @@ namespace HomeBridge.BridgeTools
                 .Require(() => zone != null && (slotGroup == null || zone.Cells.All(c => map.haulDestinationManager?.SlotGroupAt(c) == slotGroup)), "the stockpile's haul grid no longer matches its cells");
         }
 
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
+        public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
-            var map = ProtoBoundary.LoadedMap(context);
+            var map = GameThread.LoadedMap(context);
             var rules = Rules(action.Intent?.Zone, Resolve(action.Intent?.Zone, map), map);
             return rules.Holds ? null : rules.Failure();
         }
 
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
+        public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
-            var map = ProtoBoundary.LoadedMap(context);
+            var map = GameThread.LoadedMap(context);
             var zone = Resolve(action.Intent?.Zone, map);
             var rules = Rules(action.Intent?.Zone, zone, map);
             if (!rules.Holds) throw new InvalidOperationException("Zone deletion prerequisites changed before apply: " + rules.Reason);

@@ -1,6 +1,6 @@
 using Microsoft.Data.Sqlite;
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
@@ -88,7 +88,7 @@ public sealed class NeedFamilyTests
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-need-family-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
         facts = facts with { Census = facts.Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 },   FieldCoverage = 1.0};
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.Review(new() { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
         var family = new CareFamily();
         Colony? colony = null;
         var runner = new FamilyRunner<CareFacts>(family, (scope, _) =>
@@ -251,15 +251,15 @@ public sealed class NeedFamilyTests
         var family = new CareFamily();
         var runner = new FamilyRunner<CareFacts>(family, (_, _) => Task.FromResult(new CareFacts(default, default)),
             new FamilySchedule { Kinds = [ActionKind.PawnActivities] });
-        var catalog = ClockPlannerCatalog.WithFamilies([runner]);
+        var catalog = PlannerCatalog.WithFamilies([runner]);
         var entry = Assert.Single(catalog, e => e.Family is not null);
         Assert.Equal("test-care", entry.Name);
         Assert.True(entry.Immediate);
-        Assert.True(ClockScheduler.OrdinaryPlanner(entry));
+        Assert.True(PlannerScheduler.OrdinaryPlanner(entry));
         Assert.Equal([ActionKind.PawnActivities], entry.Kinds);
         Assert.True(entry.Declared().SetEquals([FactFamily.Definitions, FactFamily.Identity, FactFamily.Pawns, FactFamily.Emergency]));
         Assert.NotEmpty(entry.Sections);
-        Assert.Throws<ControlException>(() => ClockPlannerCatalog.WithFamilies([runner, runner]));
+        Assert.Throws<ControlException>(() => PlannerCatalog.WithFamilies([runner, runner]));
 
         var row = PlannerWave.NeedDecision(entry, new NeedReport(Rest, Verdict.WaitFor(Cause.WaitingOnNeed, Bleeding.Value)), TimeSpan.Zero, false);
         Assert.Equal(("planner_step", "test-care", "waiting", "waiting_on_need"), (row.Kind, row.Target, row.Verdict, row.Reason));

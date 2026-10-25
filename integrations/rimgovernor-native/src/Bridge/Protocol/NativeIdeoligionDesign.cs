@@ -3,21 +3,20 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Build off the live object. Refusal never clears the colony's precepts.
     internal static class NativeIdeoligionDesign
     {
-        internal static Common.Failure? Prepare(Ideo source, Common.IdeoligionDesign design, bool reform, out Ideo? candidate)
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Prepare(Ideo source, RimGovernor.Brain.GameFacts.Common.IdeoligionDesign design, bool reform, out Ideo? candidate)
         {
             candidate = null;
-            Common.Failure Invalid(string reason) => ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, reason);
+            RimGovernor.Brain.GameFacts.Common.Failure Invalid(string reason) => GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, reason);
             if (!ModsConfig.IdeologyActive || source == null || design == null)
                 return Invalid("Ideoligion design requires Ideology and an explicit mode.");
             if (reform && (!source.Fluid || source.development == null || !source.development.CanReformNow || !design.Fluid))
-                return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The ideoligion cannot reform now.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "The ideoligion cannot reform now.");
             var memes = new List<MemeDef>();
             foreach (var name in design.Memes)
             {
@@ -127,7 +126,7 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        internal static void Create(Common.IdeoligionDesign design)
+        internal static void Create(RimGovernor.Brain.GameFacts.Common.IdeoligionDesign design)
         {
             var player = Faction.OfPlayer;
             var source = player.ideos.PrimaryIdeo;

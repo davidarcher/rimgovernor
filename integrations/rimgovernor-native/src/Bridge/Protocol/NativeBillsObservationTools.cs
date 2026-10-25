@@ -4,14 +4,12 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Read-only bench census behind Observations/ReadBills and ReadRecipes.
     // Every bench row carries the NativeProductionBills.Snapshot token of its
@@ -23,10 +21,10 @@ namespace HomeBridge.BridgeTools
     {
 
         // On the game thread: the typed core of the tool, shared with the in-process facade.
-        internal static Obs.BillsSnapshot HandleReadBills(Obs.BillsRequest parsed)
+        internal static RimGovernor.Brain.GameFacts.Observations.BillsSnapshot HandleReadBills(RimGovernor.Brain.GameOrders.Observations.BillsRequest parsed)
         {
             if (!Validate(parsed, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
-            if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
+            if (!GameThread.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
                 throw NativeFaults.Refused(error);
             return Read(map, parsed, context);
         }
@@ -34,31 +32,31 @@ namespace HomeBridge.BridgeTools
         // Read is the read on the main thread under a validated identity: the
         // snapshot its tool encodes, and the section the bundle carries. Every
         // bench row is whole or the read fails.
-        internal static Obs.BillsSnapshot Read(Map map, Obs.BillsRequest parsed, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Observations.BillsSnapshot Read(Map map, RimGovernor.Brain.GameOrders.Observations.BillsRequest parsed, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             Ready(map);
             try
             {
                 var benches = Benches(map, false);
                 if (parsed.BenchId is not null) benches = benches.Where(b => RefIndex.Is(b, parsed.BenchId)).ToList();
-                return new Obs.BillsSnapshot { Context = context, Benches = [.. benches.Select(bench => Stack(bench, context))] };
+                return new RimGovernor.Brain.GameFacts.Observations.BillsSnapshot { Context = context, Benches = [.. benches.Select(bench => Stack(bench, context))] };
             }
             catch (Exception e) { throw ReadFailed("Bench or bill facts", e); }
         }
 
         // On the game thread: the typed core of the tool, shared with the in-process facade.
-        internal static Obs.RecipesSnapshot HandleReadRecipes(Obs.RecipesRequest parsed)
+        internal static RimGovernor.Brain.GameFacts.Observations.RecipesSnapshot HandleReadRecipes(RimGovernor.Brain.GameOrders.Observations.RecipesRequest parsed)
         {
             if (!Validate(parsed, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
-            if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
+            if (!GameThread.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
                 throw NativeFaults.Refused(error);
             Ready(map);
             var bench = Benches(map, true).ById(parsed.BenchId)
-                ?? throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.NotFound, "No spawned bench with that id is on the current map."));
+                ?? throw NativeFaults.Refused(GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "No spawned bench with that id is on the current map."));
             try
             {
                 var recipes = (bench.def.AllRecipes ?? new List<RecipeDef>()).Where(r => r != null).OrderBy(r => r.defName, StringComparer.Ordinal);
-                return new Obs.RecipesSnapshot
+                return new RimGovernor.Brain.GameFacts.Observations.RecipesSnapshot
                 {
                     Snapshot = NativeProductionBills.Snapshot(bench, (IBillGiver)bench, context),
                     BenchDef = Id(bench.def.defName),
@@ -71,20 +69,20 @@ namespace HomeBridge.BridgeTools
         private static void Ready(Map map)
         {
             if (Faction.OfPlayerSilentFail == null || map.listerThings == null)
-                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.NativeComponentMissing, Detail = "Player faction or map things are unavailable." });
+                throw NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.NativeComponentMissing, Detail = "Player faction or map things are unavailable." });
         }
 
-        internal static bool Validate(Obs.BillsRequest request, out Common.Failure failure)
+        internal static bool Validate(RimGovernor.Brain.GameOrders.Observations.BillsRequest request, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, and optional bench id are required.");
-            if (request?.Scope?.ExpectedIdentity == null || request.BenchId is not null && !ProtoBoundary.IsIdentifier(request.BenchId)) return false;
+            failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Identity, and optional bench id are required.");
+            if (request?.Scope?.ExpectedIdentity == null || request.BenchId is not null && !GameThread.IsIdentifier(request.BenchId)) return false;
             return true;
         }
 
-        internal static bool Validate(Obs.RecipesRequest request, out Common.Failure failure)
+        internal static bool Validate(RimGovernor.Brain.GameOrders.Observations.RecipesRequest request, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity and a bench id identifier are required.");
-            return request?.Scope?.ExpectedIdentity != null && ProtoBoundary.IsIdentifier(request.BenchId);
+            failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Identity and a bench id identifier are required.");
+            return request?.Scope?.ExpectedIdentity != null && GameThread.IsIdentifier(request.BenchId);
         }
 
         private static List<Thing> Benches(Map map, bool allFactions)
@@ -96,7 +94,7 @@ namespace HomeBridge.BridgeTools
                 .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
         }
 
-        internal static Obs.BillStackRow Stack(Thing bench, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Observations.BillStackRow Stack(Thing bench, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var giver = (IBillGiver)bench;
             var stack = giver.BillStack ?? throw new InvalidOperationException("Bench bill stack unavailable.");
@@ -108,9 +106,9 @@ namespace HomeBridge.BridgeTools
             var workSpeed = bench.GetStatValue(StatDefOf.WorkTableWorkSpeedFactor);
             if (float.IsNaN(workSpeed) || float.IsInfinity(workSpeed) || workSpeed < 0f)
                 throw new InvalidOperationException("Bench work speed " + workSpeed + " is not a finite non-negative factor.");
-            var bills = new List<Obs.BillState>();
+            var bills = new List<RimGovernor.Brain.GameFacts.Observations.BillState>();
             for (var index = 0; index < stack.Count; index++) bills.Add(NativeProductionBills.BillRow(stack.Bills[index], index));
-            return new Obs.BillStackRow
+            return new RimGovernor.Brain.GameFacts.Observations.BillStackRow
             {
                 Snapshot = NativeProductionBills.Snapshot(bench, giver, context),
                 Bench = Id(bench.GetUniqueLoadID()),
@@ -120,8 +118,8 @@ namespace HomeBridge.BridgeTools
                 WorkSpeed = workSpeed,
                 Room = bench.GetRoom() is Room room ? NativeRef.Room(room) : null,
                 AutoRefuel = NativeAutoRefuel.Comp(bench) is CompRefuelable refuel
-                    ? new Obs.BenchAutoRefuel.Refuelable { Allowed = refuel.allowAutoRefuel }
-                    : new Obs.BenchAutoRefuel.NotRefuelable(),
+                    ? new RimGovernor.Brain.GameFacts.Observations.BenchAutoRefuel.Refuelable { Allowed = refuel.allowAutoRefuel }
+                    : new RimGovernor.Brain.GameFacts.Observations.BenchAutoRefuel.NotRefuelable(),
             };
         }
 
@@ -134,13 +132,13 @@ namespace HomeBridge.BridgeTools
                 && (recipe.requiredGiverWorkType == null || recipe.requiredGiverWorkType == d.workType))
             .OrderBy(d => d.defName, StringComparer.Ordinal).Select(d => d.workType).FirstOrDefault();
 
-        private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
+        private static string Id(string value) => GameThread.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
         // The detail names the failure so a controller log is diagnosable
         // without the game log; the full trace still goes to the game log.
         private static Exception ReadFailed(string what, Exception e)
         {
             ModLog.Warn("observe", "" + what + " read failed: " + e);
-            return NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
+            return NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed,
                 Detail = what + " could not be read completely: " + PlacementPreviewOperation.Diagnostic(e.GetType().Name + ": " + e.Message) });
         }
     }

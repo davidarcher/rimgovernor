@@ -1,38 +1,37 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Domain;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class QuestSiteExitObservationTests
 {
-    private static RimGovernor.Contracts.Wire.Observations.WorldProgressionSnapshot Read(O.QuestSiteExtraction extraction) => new()
+    private static RimGovernor.Brain.GameFacts.Observations.WorldProgressionSnapshot Read(RimGovernor.Brain.GameFacts.Observations.QuestSiteExtraction extraction) => new()
     {
-        Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 4 }, Tick = 100 },
+        Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 4 }, Tick = 100 },
         Maps = [], Caravans = [], Assemblies = [], Quests = [],
-        Sites = [new O.WorldSite
+        Sites = [new RimGovernor.Brain.GameFacts.Observations.WorldSite
         {
             Id = "Site_3",
-            State = O.WorldSiteState.Spawned,
-            Place = new O.SitePlace.Loaded(12, 0, new O.SiteMap
+            State = RimGovernor.Brain.GameFacts.Observations.WorldSiteState.Spawned,
+            Place = new RimGovernor.Brain.GameFacts.Observations.SitePlace.Loaded(12, 0, new RimGovernor.Brain.GameFacts.Observations.SiteMap
             {
                 Id = new MapId(4),
-                Threat = new O.SiteThreat.Clear(),
+                Threat = new RimGovernor.Brain.GameFacts.Observations.SiteThreat.Clear(),
                 Extraction = extraction,
                 MiningTargets = [],
             }),
             QuestIds = [],
-            Route = new O.SiteRoute.NoCrew(),
-            Security = new O.SiteThreatBudget.Bounded(0, 0),
+            Route = new RimGovernor.Brain.GameFacts.Observations.SiteRoute.NoCrew(),
+            Security = new RimGovernor.Brain.GameFacts.Observations.SiteThreatBudget.Bounded(0, 0),
         }],
     };
 
     [Fact]
     public void CombatUsesTheActualLoadedSitesExtractionCrew()
     {
-        var native = new O.ExtractionCrew
+        var native = new RimGovernor.Brain.GameFacts.Observations.ExtractionCrew
         {
             CanReform = false,
             Crew = [new PawnId("Human1")],
@@ -45,13 +44,13 @@ public sealed class QuestSiteExitObservationTests
             ExitCells = [new Cell(0, 5)],
         };
 
-        Assert.Same(native, QuestReads.CombatSiteExitOf(Read(new O.QuestSiteExtraction.Crew(native)), new MapId(4)));
+        Assert.Same(native, QuestReads.CombatSiteExitOf(Read(new RimGovernor.Brain.GameFacts.Observations.QuestSiteExtraction.Crew(native)), new MapId(4)));
     }
 
     [Fact]
     public void NoAbleCrewOrNoLoadedSiteHasNoCombatExtraction()
     {
-        var read = Read(new O.QuestSiteExtraction.NoCrew());
+        var read = Read(new RimGovernor.Brain.GameFacts.Observations.QuestSiteExtraction.NoCrew());
 
         Assert.Null(QuestReads.CombatSiteExitOf(read, new MapId(4)));
         Assert.Null(QuestReads.CombatSiteExitOf(read, new MapId(5)));

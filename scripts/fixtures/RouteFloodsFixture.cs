@@ -11,7 +11,7 @@ using Verse;
 using Verse.AI;
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 // Private disposable acceptance only: the coupled forecast's route matrix by per-origin floods (#3685) against the
 // game's A* search. Three wall lines with gaps go across the lab, about two hundred reachable cells on a six-cell grid
@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools;
 public sealed partial class PawnControlFixture
 {
     [Tool("test/route_floods", Description = "UNSAFE FOR MODEL EXECUTION. Wall the lab in three lines, flood about two hundred cells each to every other, and search a sample of the pairs by A*.")]
-    public async Task<object> RouteFloods(IRimBridgeContext ctx, CancellationToken ct)
+    public async Task<object> RouteFloods(INativeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             var map = Find.CurrentMap ?? throw new InvalidOperationException("Load a colony first.");

@@ -6,7 +6,7 @@ public static partial class ColonyPlanningRules
     /// The first of the definition's stuff options whose cost list the colony stock covers, and how many of the
     /// definition that stock builds. None is null.
     /// </summary>
-    public static (string Stuff, long Count)? StockedStuff(RoundsFacts facts, IReadOnlyDictionary<Resource, long> stock, string name)
+    public static (string Stuff, long Count)? StockedStuff(ReviewFacts facts, IReadOnlyDictionary<Resource, long> stock, string name)
     {
         foreach (var d in facts.Definitions)
         {
@@ -39,7 +39,7 @@ public static partial class ColonyPlanningRules
     }
 
     /// <summary>One planning definition's native availability, unknown when the census did not describe it.</summary>
-    public static bool DefinitionAvailable(RoundsFacts facts, string name)
+    public static bool DefinitionAvailable(ReviewFacts facts, string name)
     {
         foreach (var d in facts.Definitions)
         {
@@ -52,7 +52,7 @@ public static partial class ColonyPlanningRules
     }
 
     /// <summary>Pairs the power family's generator definitions with their native availability, observed fuel stock and catalog delivery profile.</summary>
-    public static IReadOnlyList<GeneratorOption> GeneratorOptions(RoundsFacts facts, IReadOnlyDictionary<Resource, long> stock, Func<Resource, bool> renewable)
+    public static IReadOnlyList<GeneratorOption> GeneratorOptions(ReviewFacts facts, IReadOnlyDictionary<Resource, long> stock, Func<Resource, bool> renewable)
     {
         var available = new Dictionary<string, bool>(StringComparer.Ordinal);
         foreach (var d in facts.Definitions)

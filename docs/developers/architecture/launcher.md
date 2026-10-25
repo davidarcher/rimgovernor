@@ -63,7 +63,7 @@ route does not answer; the page shows unknown, never a guess), plus the rows the
 (`otlp/logs.jsonl`, read with `LogTail`) gained since `since`. The first read of a ring starts at its end,
 so history from an earlier run is not shown; the launcher keeps the newest 3000 rows and counts
 WARN and ERROR rows since it began watching. Views: Now (emergencies, colony census, resource
-runways, latest rounds review, newest `clock_step`, `clock_stop`, `authority` and native `clock_hold`, `clock_resume` and `clock_authority`
+runways, latest colony review, newest `clock_step`, `clock_stop`, `authority` and native `clock_hold`, `clock_resume` and `clock_authority`
 rows), Concerns (every concern's method, blocker and next review, from `/api/routines`), Problems
 (WARN and ERROR rows collapsed by kind, component, verdict, reason and target) and Log (filter by
 level, kind regex and text). The bar above the views shows Bot on or Bot off (`state.enabled` from

@@ -3,11 +3,8 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The SUBDUE pawn order: a violence-capable colonist melee-attacks an
     // exact spawned pawn with blunt melee. Which target to subdue is brain
@@ -16,21 +13,21 @@ namespace HomeBridge.BridgeTools
     // is drafted when it is not; the plan's draft keeps it drafted.
     internal static class NativeSubdueOperations
     {
-        internal static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Pawn? target)
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Pawn? pawn, out Pawn? target)
         {
             target = null;
             if (!NativeGiveJob.TryPawn(intent, context, out pawn, out var snapshot, out var failure)) return failure;
-            target = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent.TargetId);
-            if (target == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Subdue target is not spawned.");
+            target = GameThread.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent.TargetId);
+            if (target == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Subdue target is not spawned.");
             string? reason = null;
             if (!snapshot.Eligible || !pawn.IsColonistPlayerControlled || pawn.WorkTagIsDisabled(WorkTags.Violent)) reason = "incapable colonist";
             else if (!Running(pawn, target) && !pawn.CanReach(target, PathEndMode.Touch, NativeOrderDanger.OrderDanger)) reason = "target is unreachable";
-            return reason == null ? null : ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Subdue refused: " + reason);
+            return reason == null ? null : GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Subdue refused: " + reason);
         }
 
-        internal static Common.Failure? Validate(JobOrder intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Resolve(intent, context, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var victim);
             if (failure != null || pawn == null || victim == null) throw new InvalidOperationException("Subdue prerequisites changed before apply: " + (failure?.Detail ?? ""));

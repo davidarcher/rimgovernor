@@ -8,15 +8,15 @@ public sealed class TradeReviewLifecycleTests
     [Fact]
     public void NoSurgeryCandidateDoesNotReadTradeOrGearInputs()
     {
-        var facts = new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot(), Population = PopulationFixtures.Census() };
-        Assert.True(MedicalRules.SurgeryNeedRecovered(facts, RoundsRules.DefaultRoundsPolicy(), false));
+        var facts = new ReviewFacts { Census = ColonyFactsCoreTests.Snapshot(), Population = PopulationFixtures.Census() };
+        Assert.True(MedicalRules.SurgeryNeedRecovered(facts, Rules.DefaultPlannerSettings(), false));
     }
 
     [Fact]
     public void TradePreservesTheSharedPlansNoEatersOutcome()
     {
-        var facts = new RoundsFacts { FoodPlan = new FoodPlan(), FoodDays = new FoodRunway.Days(1) };
-        var food = TradePolicyRules.RoundsTradeFood(facts, RoundsRules.DefaultRoundsPolicy());
+        var facts = new ReviewFacts { FoodPlan = new FoodPlan(), FoodDays = new FoodRunway.Days(1) };
+        var food = TradePolicyRules.TradeFood(facts, Rules.DefaultPlannerSettings());
         Assert.IsType<FoodRunway.NoEaters>(food.Runway);
     }
 }

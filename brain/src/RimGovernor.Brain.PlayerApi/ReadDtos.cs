@@ -75,17 +75,17 @@ internal sealed record ProgressDto(
 
 // routines
 
-internal sealed record RoundsStatusDto(
+internal sealed record ReviewStatusDto(
     ExtentEligibilityDto ExtentEligibility,
-    RoundsExtentDto Extent,
+    ExtentDto Extent,
     IReadOnlyList<ResourceRunwayDto> ResourceRunways,
     bool ReviewsEnabled,
     bool MethodsEnabled,
     IReadOnlyList<string> ActiveFamilies,
     long? LastReviewTick,
     IReadOnlyList<ConcernProgressDto> Progress,
-    RoundsRosterDto? Roster,
-    IReadOnlyList<RoundsSectionDto> Sections,
+    RosterDto? Roster,
+    IReadOnlyList<SectionDto> Sections,
     IReadOnlyList<LootHoldDto> LootHolds);
 
 internal sealed record ExtentEligibilityDto(bool Known, string Reason, IReadOnlyList<ExtentRegionEligibilityDto> Regions);
@@ -100,7 +100,7 @@ internal sealed record ExtentRegionEligibilityDto(
     bool Eligible,
     IReadOnlyList<string> HoldReasons);
 
-internal sealed record RoundsExtentDto(bool Known, int Regions, int Cells, string? MissingEvidence);
+internal sealed record ExtentDto(bool Known, int Regions, int Cells, string? MissingEvidence);
 
 internal sealed record ResourceRunwayDto(
     string Resource,
@@ -130,29 +130,29 @@ internal sealed record ConcernProgressDto(
 
 internal sealed record ProgressCooldownDto(string Key, long Until);
 
-internal sealed record RoundsSectionDto(string Section, string Family, long AsOf, bool Complete, string Source, string StoredAt);
+internal sealed record SectionDto(string Section, string Family, long AsOf, bool Complete, string Source, string StoredAt);
 
-internal sealed record RoundsRosterDto(
+internal sealed record RosterDto(
     long Tick,
-    IReadOnlyList<RoundsCoverageDto> Coverage,
-    IReadOnlyList<RoundsRosterPawnDto> Pawns);
+    IReadOnlyList<CoverageDto> Coverage,
+    IReadOnlyList<RosterPawnDto> Pawns);
 
-internal sealed record RoundsCoverageDto(string Work, int Demand, int Owners, int Capable);
+internal sealed record CoverageDto(string Work, int Demand, int Owners, int Capable);
 
-internal sealed record RoundsRosterPawnDto(
+internal sealed record RosterPawnDto(
     string Pawn,
     double Age,
     bool Child,
     bool Ranged,
-    IReadOnlyList<RoundsTraitDto> Traits,
-    RoundsTraitEffectsDto Effects,
-    IReadOnlyList<RoundsProfileSkillDto> Skills,
+    IReadOnlyList<TraitDto> Traits,
+    TraitEffectsDto Effects,
+    IReadOnlyList<ProfileSkillDto> Skills,
     IReadOnlyList<string> Incapable,
     IReadOnlyList<string> Forbidden);
 
-internal sealed record RoundsTraitDto(string Name, int Degree);
+internal sealed record TraitDto(string Name, int Degree);
 
-internal sealed record RoundsTraitEffectsDto(
+internal sealed record TraitEffectsDto(
     double WorkSpeed,
     double LearnRate,
     double MoveSpeed,
@@ -160,7 +160,7 @@ internal sealed record RoundsTraitEffectsDto(
     int ChemicalInterest,
     IReadOnlyList<string> Flags);
 
-internal sealed record RoundsProfileSkillDto(string Name, int Level, int Stored, string Passion, bool Disabled, double LearnFactor);
+internal sealed record ProfileSkillDto(string Name, int Level, int Stored, string Passion, bool Disabled, double LearnFactor);
 
 // colony
 

@@ -20,8 +20,8 @@ public sealed class RaidDefenseTests
     [Fact]
     public void ATotalDefenseCapacityCanBeZeroOrPositive()
     {
-        Assert.Equal(new RaidDefense(500, 0), RaidDefense.Of(new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { RaidPoints = 500.0 } } }, DefenseCapacity = 0 }));
-        Assert.Equal(new RaidDefense(500, 120), RaidDefense.Of(new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { RaidPoints = 500.0 } } }, DefenseCapacity = 120.0 }));
+        Assert.Equal(new RaidDefense(500, 0), RaidDefense.Of(new ReviewFacts { Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { RaidPoints = 500.0 } } }, DefenseCapacity = 0 }));
+        Assert.Equal(new RaidDefense(500, 120), RaidDefense.Of(new ReviewFacts { Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { RaidPoints = 500.0 } } }, DefenseCapacity = 120.0 }));
     }
 
     [Fact]
@@ -32,7 +32,7 @@ public sealed class RaidDefenseTests
         Assert.Equal(ArmoryTier.Smithing, ArmoryRules.AssessArmory(new RaidDefense(500, 200), smithing).Tier);
         Assert.Equal(ArmoryTier.Neolithic, ArmoryRules.AssessArmory(new RaidDefense(200, 500), smithing).Tier);
         Assert.Equal("research census", Assert.Throws<RequiredFactException>(() =>
-            ArmoryRules.AssessArmory(new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { RaidPoints = 500.0 } } }, DefenseCapacity = 120.0 })).Fact);
+            ArmoryRules.AssessArmory(new ReviewFacts { Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { RaidPoints = 500.0 } } }, DefenseCapacity = 120.0 })).Fact);
     }
 
     private static GearRecipe Recipe() => new() { Access = ProductionBenchFixtures.Recipe("defense-recipe"), Ingredients = [], RequiredWork = [], WorkAmount = 100 };

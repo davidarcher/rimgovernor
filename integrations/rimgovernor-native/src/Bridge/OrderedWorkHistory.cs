@@ -7,7 +7,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Counts native orders outside the bridge's synchronous main-thread scope.
     // The game/load identity scopes this evidence; it is never a saved authority.

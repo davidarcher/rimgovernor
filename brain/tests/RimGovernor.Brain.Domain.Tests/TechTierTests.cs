@@ -1,7 +1,7 @@
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using TechLevel = RimGovernor.Contracts.Wire.Defs.TechLevel;
+using TechLevel = RimGovernor.Brain.GameFacts.Defs.TechLevel;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -29,5 +29,5 @@ public sealed class TechTierTests
 
     [Fact]
     public void MissingResearchIsRejectedAtResearchBoundary() =>
-        Assert.Throws<RequiredFactException>(() => new RoundsFacts().Research);
+        Assert.Throws<RequiredFactException>(() => new ReviewFacts().Research);
 }

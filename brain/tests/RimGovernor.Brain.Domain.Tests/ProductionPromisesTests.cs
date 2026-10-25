@@ -2,8 +2,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Bridge;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
-using Ops = RimGovernor.Contracts.Wire.Operations;
 using RimGovernor.Brain.Store;
 using JournalStore = RimGovernor.Brain.Store.Store;
 
@@ -22,7 +20,7 @@ public sealed class ProductionPromisesTests
 
     private static EquatableArray<ProductionBatchState> Census(int remaining = 5) =>
         [
-            new(BillWire.Bill("bill") with { ManagedUnchanged = true, RepeatMode = Ops.RepeatMode.Count, RepeatCount = remaining }),
+            new(BillWire.Bill("bill") with { ManagedUnchanged = true, RepeatMode = RimGovernor.Brain.GameFacts.Operations.RepeatMode.Count, RepeatCount = remaining }),
         ];
 
     private static ProductionBatch Placed =>
@@ -51,7 +49,7 @@ public sealed class ProductionPromisesTests
             BillWire.Reservation(bill, "cook", new Amount(Material, 10)),
         ];
 
-    private static RoundsFacts Facts(ProductionPromiseSet promises) =>
+    private static ReviewFacts Facts(ProductionPromiseSet promises) =>
         new()
         {
             MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } },
@@ -60,7 +58,7 @@ public sealed class ProductionPromisesTests
             BasicComfort = ComfortTests.NoComfortObservation,
             ProductionPromises = promises,
             BillReservations = EmptyReservations,
-            Census = ColonyFactsCoreTests.Snapshot() with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = Material.Value, Units = 100 }, new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = Other.Value, Units = 20 }] },
+            Census = ColonyFactsCoreTests.Snapshot() with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = Material.Value, Units = 100 }, new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = Other.Value, Units = 20 }] },
             Gear = ColonyModelFixtures.NoGear(), CurrentConstruction = CurrentConstruction.Empty with
             {
                 Deficit = new Dictionary<Resource, long> { [Material] = 60 },
@@ -72,7 +70,7 @@ public sealed class ProductionPromisesTests
     public void PendingBatchAndConstructionAddInsteadOfCompetingStockFloors()
     {
         var facts = Facts(Promises(Batch));
-        var demand = ResourceRules.ResourceDemandOf(facts, RoundsRules.DefaultRoundsPolicy(), new());
+        var demand = ResourceRules.ResourceDemandOf(facts, Rules.DefaultPlannerSettings(), new());
         Assert.Equal(110, demand.Needs[Material]);
         Assert.Equal(110, demand.Retained.RetainedStock()[Material]);
         Assert.Equal(-10, demand.MaterialAvailability.AssessedBalances()[Material].ExactCount());
@@ -81,20 +79,20 @@ public sealed class ProductionPromisesTests
         Assert.Equal(20, demand.MaterialAvailability.AssessedBalances()[Other].ExactCount());
         // Changing the output's name does not change ingredient contention; this applies to a cooking batch too.
         var cooking = Batch with { Order = new ProductionBill("stove", "TestCookingRecipe", BillMode.GearBatch, 5, Material.Value) };
-        Assert.Equal(demand.Needs[Material], ResourceRules.ResourceDemandOf(Facts(Promises(cooking)), RoundsRules.DefaultRoundsPolicy(), new()).Needs[Material]);
+        Assert.Equal(demand.Needs[Material], ResourceRules.ResourceDemandOf(Facts(Promises(cooking)), Rules.DefaultPlannerSettings(), new()).Needs[Material]);
     }
 
     [Fact]
     public void ExactNativeHandoffCountsOnceAndCompletedIterationsReduceThePromise()
     {
         var facts = Facts(Promises(Placed, Census())) with { BillReservations = Reserved("bill") };
-        var demand = ResourceRules.ResourceDemandOf(facts, RoundsRules.DefaultRoundsPolicy(), new());
+        var demand = ResourceRules.ResourceDemandOf(facts, Rules.DefaultPlannerSettings(), new());
         Assert.Equal(110, demand.Needs[Material]);
         Assert.Equal(-10, demand.MaterialAvailability.AssessedBalances()[Material].ExactCount());
-        var remaining = ResourceRules.ResourceDemandOf(facts with { ProductionPromises = Promises(Placed, Census(2)) }, RoundsRules.DefaultRoundsPolicy(), new());
+        var remaining = ResourceRules.ResourceDemandOf(facts with { ProductionPromises = Promises(Placed, Census(2)) }, Rules.DefaultPlannerSettings(), new());
         Assert.Equal(80, remaining.Needs[Material]);
         Assert.Equal(20, remaining.MaterialAvailability.AssessedBalances()[Material].ExactCount());
-        var unrelated = ResourceRules.ResourceDemandOf(facts with { BillReservations = Reserved("another-bill") }, RoundsRules.DefaultRoundsPolicy(), new());
+        var unrelated = ResourceRules.ResourceDemandOf(facts with { BillReservations = Reserved("another-bill") }, Rules.DefaultPlannerSettings(), new());
         Assert.Equal(120, unrelated.Needs[Material]);
     }
 
@@ -133,7 +131,7 @@ public sealed class ProductionPromisesTests
     public void UnknownReadbackIsNotCompletionAndUnknownChoicesAreResourceLocal()
     {
         var unlinked = Placed with { Progress = Placed.Progress with { Bill = null } };
-        var unread = ResourceRules.ResourceDemandOf(Facts(Promises(unlinked)), RoundsRules.DefaultRoundsPolicy(), new());
+        var unread = ResourceRules.ResourceDemandOf(Facts(Promises(unlinked)), Rules.DefaultPlannerSettings(), new());
         Assert.IsType<MaterialUnits.Open>(unread.MaterialAvailability.AssessedBalances()[Material]);
         Assert.False(ProductionRules.MaterialBudgetCovers(unread.MaterialAvailability.AssessedBalances(), [new(Material, 1)], 1));
         Assert.Equal(20, unread.MaterialAvailability.AssessedBalances()[Other].ExactCount());
@@ -147,7 +145,7 @@ public sealed class ProductionPromisesTests
         Assert.IsType<ProductionPromiseSet.Blocked>(ProductionRules.ProductionPromisesOf([Priced(Batch), new BatchPricing.Unpriced(second)], default));
         Assert.Equal(50, Promises(Priced(Batch, unfinished: true)).AssessedPromises()[0].MaterialClaims[0].ExactCount());
         Assert.Empty(ProductionRules.ProductionPromisesOf([], Census()).AssessedPromises());
-        Assert.IsType<MaterialAvailability.Blocked>(ResourceRules.ResourceDemandOf(Facts(new ProductionPromiseSet.Blocked(ProductionPromiseBlock.TruncatedWork)), RoundsRules.DefaultRoundsPolicy(), new()).MaterialAvailability);
+        Assert.IsType<MaterialAvailability.Blocked>(ResourceRules.ResourceDemandOf(Facts(new ProductionPromiseSet.Blocked(ProductionPromiseBlock.TruncatedWork)), Rules.DefaultPlannerSettings(), new()).MaterialAvailability);
     }
 
     [Fact]
@@ -171,12 +169,12 @@ public sealed class ProductionPromisesTests
     [Fact]
     public void NativeProjectionCountsOnlyACountBillsRemaining()
     {
-        var bill = BillWire.Bill("bill") with { ManagedUnchanged = true, Finished = false, RepeatMode = Ops.RepeatMode.Count, RepeatCount = 3 };
-        O.BillsSnapshot Snapshot(O.BillState row) => BillWire.Census(row);
+        var bill = BillWire.Bill("bill") with { ManagedUnchanged = true, Finished = false, RepeatMode = RimGovernor.Brain.GameFacts.Operations.RepeatMode.Count, RepeatCount = 3 };
+        RimGovernor.Brain.GameFacts.Observations.BillsSnapshot Snapshot(RimGovernor.Brain.GameFacts.Observations.BillState row) => BillWire.Census(row);
         var census = ConstructionReads.ProductionBatchStates(Snapshot(bill));
         Assert.Equal(30, Promises(Placed, census).AssessedPromises()[0].MaterialClaims[0].ExactCount());
-        Assert.IsType<MaterialUnits.Open>(Promises(Placed, ConstructionReads.ProductionBatchStates(Snapshot(bill with { RepeatMode = Ops.RepeatMode.Target }))).AssessedPromises()[0].MaterialClaims[0].Units);
-        Assert.Throws<DomainException>(() => ConstructionReads.ProductionBatchStates(Snapshot(bill with { RepeatMode = (Ops.RepeatMode)0 })));
+        Assert.IsType<MaterialUnits.Open>(Promises(Placed, ConstructionReads.ProductionBatchStates(Snapshot(bill with { RepeatMode = RimGovernor.Brain.GameFacts.Operations.RepeatMode.Target }))).AssessedPromises()[0].MaterialClaims[0].Units);
+        Assert.Throws<DomainException>(() => ConstructionReads.ProductionBatchStates(Snapshot(bill with { RepeatMode = (RimGovernor.Brain.GameFacts.Operations.RepeatMode)0 })));
         Assert.Throws<RequiredFactException>(() => ConstructionReads.ProductionBatchStates(null));
         Assert.Throws<RequiredFactException>(() => ConstructionReads.ProductionBatchStates(Snapshot(bill with { Id = "" })));
     }
@@ -191,11 +189,11 @@ public sealed class ProductionPromisesTests
         {
             Tick = new Tick(100),
             ForecastObserved = new() { WorkPawns = new WorkPawnsRead(default(EquatableArray<WorkPawn>)) },
-            Census = ((Facts(new ProductionPromiseSet.Assessed([]))).Census with { WorkResources = default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>) }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = Material.Value, Units = 120 }] },
+            Census = ((Facts(new ProductionPromiseSet.Assessed([]))).Census with { WorkResources = default(EquatableArray<RimGovernor.Brain.GameFacts.Observations.WorkResourcePawn>) }) with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = Material.Value, Units = 120 }] },
             WorkAdmission = new() { Recipes = [new("TestRecipe", Slots, false) { Products = [], WorkAmount = 0 }],
                 Bills = default(EquatableArray<ProductionBatchState>) },
         };
-        var review = journal.ReviewRounds(new RoundsRequest { Current = world, Tick = facts.Tick, Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, lifetime.Token);
+        var review = journal.Review(new ReviewRequest { Current = world, Tick = facts.Tick, Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts }, lifetime.Token);
         Assert.True(review.Review.Enabled);
         Assert.Empty(journal.ProductionBatches(world, facts.Tick, lifetime.Token).ReadBatches());
         var action = DomainAction.NewProductionBillAction(new ActionId("batch"), Batch.Order);

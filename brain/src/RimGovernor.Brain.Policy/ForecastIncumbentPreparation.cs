@@ -1,4 +1,5 @@
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -47,10 +48,10 @@ public static class ForecastIncumbentPreparation
 
     /// <summary>Conditional comparison only. The original review's admission claims remain authoritative
     /// until exact native release is observed on a later review.</summary>
-    public static (RoundsFacts Facts, EquatableArray<ForecastObservedIncumbent> Incumbents) PrepareCoupledIncumbents(
-        RoundsFacts facts, ProductionBatchCensus batches, WorkActionCensus actions)
+    public static (ReviewFacts Facts, EquatableArray<ForecastObservedIncumbent> Incumbents) PrepareCoupledIncumbents(
+        ReviewFacts facts, ProductionBatchCensus batches, WorkActionCensus actions)
     {
-        (RoundsFacts Facts, EquatableArray<ForecastObservedIncumbent> Incumbents) Protected() => (ForecastCoupledCandidates.ReviewCoupledActivities(facts), []);
+        (ReviewFacts Facts, EquatableArray<ForecastObservedIncumbent> Incumbents) Protected() => (ForecastCoupledCandidates.ReviewCoupledActivities(facts), []);
         var original = facts.WorkView;
         var needs = facts.ForecastObserved.Needs;
         if (original is null || needs is null || actions.Truncated || original.Claims.Truncated
@@ -241,7 +242,7 @@ public static class ForecastIncumbentPreparation
     /// task waits on (a prerequisite, an input it produces, or a bill both hold) is reconsidered only with that participant,
     /// so releasing it strands nobody. Nothing reconsidered is in flight, so a release interrupts no recipe; the bills say what
     /// moving the work would mean.</summary>
-    private static List<BoundaryMethod> BoundaryMethods(RoundsFacts facts, WorkActionCensus actions, WorkAdmissionEvidence evidence,
+    private static List<BoundaryMethod> BoundaryMethods(ReviewFacts facts, WorkActionCensus actions, WorkAdmissionEvidence evidence,
         EquatableArray<WorkResourcePawn> native)
     {
         var methods = new List<BoundaryMethod>();

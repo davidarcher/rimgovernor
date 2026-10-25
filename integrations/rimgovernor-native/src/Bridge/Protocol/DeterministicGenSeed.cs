@@ -6,7 +6,7 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Vanilla seeds several map-generation Rand blocks with System.HashCode.Combine,
     // whose result differs per process (the runtime salts it at start). The same spec

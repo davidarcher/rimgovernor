@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Policy;
-using O = RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -10,7 +9,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class ClimateStatesTests
 {
-    private static readonly RoundsPolicy Limits = RoundsRules.DefaultRoundsPolicy();
+    private static readonly PlannerSettings Limits = Rules.DefaultPlannerSettings();
 
     private static readonly Cell Inside = new(1, 1);
 
@@ -64,7 +63,7 @@ public sealed class ClimateStatesTests
     public void ARefuelSwitchOutranksTheRoomMethodAndNamesTheCampfire()
     {
         var sleeper = new SleepingPerson { Native = SleepingNativeFixtures.Person(id: new PawnId("p")), Pawn = SleepingNativeFixtures.Pawn(id: new PawnId("p"), ownedBed: "bed", comfortableMin: 16, comfortableMax: 26) };
-        var burning = HeatCampfire.Of("fire", "room", new O.BenchAutoRefuel.Refuelable { Allowed = true });
+        var burning = HeatCampfire.Of("fire", "room", new RimGovernor.Brain.GameFacts.Observations.BenchAutoRefuel.Refuelable { Allowed = true });
         var cooling = Cooling(campfires: [burning!], sleepers: [sleeper]);
         var off = TemperatureMethodRules.SelectTemperatureMethod(Rooms(30, true, "bed"), ["bed"], cooling, Limits);
         Assert.Equal(TemperatureMethod.RefuelOff, off.Method);
@@ -76,9 +75,9 @@ public sealed class ClimateStatesTests
     [Fact]
     public void ACampfireWithAnUnreadRoomOrToggleIsNotBuilt()
     {
-        Assert.Null(HeatCampfire.Of("fire", default, new O.BenchAutoRefuel.Refuelable { Allowed = true }));
-        Assert.Null(HeatCampfire.Of("fire", "room", new O.BenchAutoRefuel.NotRefuelable()));
-        Assert.NotNull(HeatCampfire.Of("fire", "room", new O.BenchAutoRefuel.Refuelable { Allowed = false }));
+        Assert.Null(HeatCampfire.Of("fire", default, new RimGovernor.Brain.GameFacts.Observations.BenchAutoRefuel.Refuelable { Allowed = true }));
+        Assert.Null(HeatCampfire.Of("fire", "room", new RimGovernor.Brain.GameFacts.Observations.BenchAutoRefuel.NotRefuelable()));
+        Assert.NotNull(HeatCampfire.Of("fire", "room", new RimGovernor.Brain.GameFacts.Observations.BenchAutoRefuel.Refuelable { Allowed = false }));
     }
 
     [Fact]
@@ -107,7 +106,7 @@ public sealed class ClimateStatesTests
     [Fact]
     public void OutdoorHazardsDeriveFromTheConditionAndTemperatureReads()
     {
-        var calm = new RoundsFacts { DisasterConditions = [], Census = ColonyFactsCoreTests.Snapshot() with { OutdoorTemperatureC = 15.0 } };
+        var calm = new ReviewFacts { DisasterConditions = [], Census = ColonyFactsCoreTests.Snapshot() with { OutdoorTemperatureC = 15.0 } };
         Assert.False(OutdoorHazardRules.OutdoorAcquisitionHeld(calm));
         var cold = calm with { Census = calm.Census with { OutdoorTemperatureC = -25.0 } };
         Assert.Equal([new OutdoorHazard(HazardKind.ExtremeCold)], OutdoorHazardRules.OutdoorHazardsOf(cold).ToList());
@@ -122,7 +121,7 @@ public sealed class ClimateStatesTests
     public void BlightIsADeficitWhileAnyPlantStands()
     {
         Assert.False(BlightRules.BlightDeficit([]));
-        Assert.True(BlightRules.BlightDeficit([new BlightedPlant { Observed = new() { Thing = new() { Id = "plant" }, Designated = false }, Entity = new() { Id = "plant", DefName = "Plant_Rice", Label = "rice", Place = new RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap(1, new Cell(1, 2)) } }]));
+        Assert.True(BlightRules.BlightDeficit([new BlightedPlant { Observed = new() { Thing = new() { Id = "plant" }, Designated = false }, Entity = new() { Id = "plant", DefName = "Plant_Rice", Label = "rice", Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(1, new Cell(1, 2)) } }]));
     }
 
     [Fact]

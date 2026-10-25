@@ -1,4 +1,4 @@
-using GearStock = RimGovernor.Contracts.Wire.Observations.GearStock;
+using GearStock = RimGovernor.Brain.GameFacts.Observations.GearStock;
 using System.Text;
 
 namespace RimGovernor.Brain.Policy;
@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Policy;
 /// player-job, ownership, reachability and resource-policy checks. Proposals still require a fresh native
 /// admission against the exact inspected loadout before dispatch.
 /// </summary>
-public sealed record GearCandidate(RimGovernor.Contracts.Wire.Observations.GearCandidate Observed, Resource Definition)
+public sealed record GearCandidate(RimGovernor.Brain.GameFacts.Observations.GearCandidate Observed, Resource Definition)
 {
     public string Target => Observed.Item.Thing.Id;
     public GearCandidateValuation Valuation { get; init; } = new GearCandidateValuation.Native();
@@ -40,8 +40,8 @@ public sealed record GearReplacement
 /// <summary>One worn garment as the native loadout reports it: Condition is its hit-point fraction (1 for a definition without hit points) and Groups the body-part groups it covers.</summary>
 public sealed record GearApparel
 {
-    public required RimGovernor.Contracts.Wire.Observations.GearItem Observed { get; init; }
-    public required RimGovernor.Contracts.Wire.Observations.EntityRef Entity { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.GearItem Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.EntityRef Entity { get; init; }
     public Resource Definition => new(Entity.DefName);
     public double Condition => Observed.ConditionFraction;
     public EquatableArray<string> Groups { get; init; }
@@ -78,7 +78,7 @@ public sealed record GearPawn
     /// <summary>The modeled loadout input; null for a pawn with no outfit or one the model refused.</summary>
     public GearLoadoutInput? Model => LoadoutModel is GearModel.Modeled m ? m.Input : null;
 
-    public required RimGovernor.Contracts.Wire.Observations.GearLoadout Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.GearLoadout Observed { get; init; }
     public PawnId Pawn => Observed.Pawn;
 
     /// <summary>
@@ -180,7 +180,7 @@ public sealed record GearObservation
     /// <summary>Throws <see cref="DomainException"/>.</summary>
     public void Validate()
     {
-        var seen = new HashSet<(string, string?, RimGovernor.Contracts.Wire.Observations.ItemQuality, int)>();
+        var seen = new HashSet<(string, string?, RimGovernor.Brain.GameFacts.Observations.ItemQuality, int)>();
         foreach (var row in Stored)
         {
             var key = (row.DefName, row.Stuff, row.Quality, row.HpBand);
@@ -257,7 +257,7 @@ public sealed record GearMethod
 
 public sealed record GearBill
 {
-    public required RimGovernor.Contracts.Wire.Observations.BillState Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.BillState Observed { get; init; }
     public string Id => Observed.Id;
     public string Recipe => Observed.Recipe;
 
@@ -325,7 +325,7 @@ public sealed record GearRecipe
 
 public sealed record GearBench
 {
-    public required RimGovernor.Contracts.Wire.Observations.BillStackRow Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.BillStackRow Observed { get; init; }
     public string Id => Observed.Bench;
     public string Def => Observed.BenchDef;
     public bool Usable => Observed.Usable;
@@ -362,7 +362,7 @@ public sealed record GearPlanningRequest
     public ItemFacts Items { get; init; } = new();
 
     /// <summary>
-    /// The catalog's craft recipes (RoundsFacts.Crafts): a need no standing bench's recipe makes is ordered from
+    /// The catalog's craft recipes (ReviewFacts.Crafts): a need no standing bench's recipe makes is ordered from
     /// one of these with no bench kind (#3659), and the station graph hosts it.
     /// </summary>
     public EquatableArray<GearRecipe> Crafts { get; init; }

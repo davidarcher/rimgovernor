@@ -38,7 +38,7 @@ public static partial class GoalRules
             }
             else if (goal.Kind == GoalKind.WornCount && goal.Target != "" && goal.Count > 0)
             {
-                var gear = f.Rounds.Gear;
+                var gear = f.ReviewState.Gear;
                 var want = new WornGoal(new Resource(goal.Target), new Resource(goal.Qualifier), goal.Count);
                 var missing = goal.Count - WearingCount(gear, want);
                 if (missing > 0)
@@ -70,7 +70,7 @@ public static partial class GoalRules
 
     /// <summary>The colonists still to wear a <c>WornCount</c> goal's garment.</summary>
     internal static int WornMissing(GoalRecord goal, GoalsFacts f) =>
-        goal.Count - WearingCount(f.Rounds.Gear, new WornGoal(new Resource(goal.Target), new Resource(goal.Qualifier), goal.Count));
+        goal.Count - WearingCount(f.ReviewState.Gear, new WornGoal(new Resource(goal.Target), new Resource(goal.Qualifier), goal.Count));
 
     /// <summary>The floor each goal's routes all break, by goal need id, from a coupled selection's <c>goal_infeasible</c> findings (#3503).</summary>
     public static IReadOnlyDictionary<string, string> InfeasibleOf(ForecastCoupledSelection selection)

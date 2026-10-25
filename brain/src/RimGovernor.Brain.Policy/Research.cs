@@ -1,4 +1,4 @@
-using TechLevel = RimGovernor.Contracts.Wire.Defs.TechLevel;
+using TechLevel = RimGovernor.Brain.GameFacts.Defs.TechLevel;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -59,8 +59,8 @@ public sealed record ResearchProjectDefinition
 public abstract record ResearchProjectObservation
 {
     private ResearchProjectObservation() { }
-    public sealed record Listed(RimGovernor.Contracts.Wire.Observations.ResearchProject Project) : ResearchProjectObservation;
-    public sealed record NotListed(RimGovernor.Contracts.Wire.Observations.ResearchSnapshot Snapshot, string Project) : ResearchProjectObservation;
+    public sealed record Listed(RimGovernor.Brain.GameFacts.Observations.ResearchProject Project) : ResearchProjectObservation;
+    public sealed record NotListed(RimGovernor.Brain.GameFacts.Observations.ResearchSnapshot Snapshot, string Project) : ResearchProjectObservation;
 }
 
 /// <summary>Catalog planning values joined to canonical native evidence without copying its fields.</summary>

@@ -1,5 +1,3 @@
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -34,16 +32,16 @@ internal static class QuestGiveItem
 
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 
-        Task<Operations.ActionResult> Apply(string key, int remaining) => TradeKit.ApplyAsync(s, key, new Operations.GiveItemIntent
+        Task<RimGovernor.Brain.GameFacts.Operations.ActionResult> Apply(string key, int remaining) => TradeKit.ApplyAsync(s, key, new RimGovernor.Brain.GameOrders.Operations.GiveItemIntent
         {
-            Hauler = new Common.Ref { Id = prepared.HaulerId },
-            Recipient = new Common.Ref { Id = prepared.RecipientId },
+            Hauler = new RimGovernor.Brain.GameFacts.Common.Ref { Id = prepared.HaulerId },
+            Recipient = new RimGovernor.Brain.GameFacts.Common.Ref { Id = prepared.RecipientId },
             Definition = "Silver",
             ExpectedRemaining = remaining,
         }, cancellationToken);
 
         var stale = await Apply("giving-stale-count", 19).ConfigureAwait(false);
-        if (TradeKit.RefusedCode(stale) != Common.FailureCode.InvalidRequest)
+        if (TradeKit.RefusedCode(stale) != RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest)
         {
             throw new AcceptanceException($"giving-stale-count: expected an INVALID_REQUEST refusal, got {stale}");
         }

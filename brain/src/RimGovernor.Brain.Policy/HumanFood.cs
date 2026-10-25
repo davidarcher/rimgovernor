@@ -1,15 +1,14 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
 public sealed record HumanButcherCandidate
 {
-    public required RimGovernor.Contracts.Wire.Observations.HumanButcherCandidate Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.HumanButcherCandidate Observed { get; init; }
     public PawnId ID => new(Observed.PawnId);
     public EquatableArray<PawnTrait> Traits { get; init; }
 
     /// <summary>The canonical ideology state retained from the matching pawn row.</summary>
-    public required O.PawnIdeo Ideology { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PawnIdeo Ideology { get; init; }
 
     public bool CanWork => Observed.CanWork;
 }
@@ -51,15 +50,15 @@ public static class HumanFoodRules
     /// has a self-took-action effect on ButcheredHuman with a mood-losing stage. A pawn without an ideoligion is
     /// not acceptable (only a trait qualifies it); with Ideology absent no precept exists to object. The matching pawn row is required.
     /// </summary>
-    public static bool PreceptAcceptable(O.PawnIdeo held, IdeologyMode ideology)
+    public static bool PreceptAcceptable(RimGovernor.Brain.GameFacts.Observations.PawnIdeo held, IdeologyMode ideology)
     {
         if (ideology is IdeologyMode.NotInstalled)
             return true;
         if (ideology is not IdeologyMode.Installed { Primary: var i })
             throw new RequiredFactException("human butcher ideology mode");
-        if (held is O.PawnIdeo.None)
+        if (held is RimGovernor.Brain.GameFacts.Observations.PawnIdeo.None)
             return false;
-        if (held is not O.PawnIdeo.Member member)
+        if (held is not RimGovernor.Brain.GameFacts.Observations.PawnIdeo.Member member)
             throw new RequiredFactException("human butcher pawn ideology");
         foreach (var e in i.HeldBy(member.Precepts).EffectsInForce())
         {

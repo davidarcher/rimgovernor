@@ -1,0 +1,88 @@
+using RimGovernor.Brain.Policy;
+namespace RimGovernor.Brain.Runtime;
+
+/// <summary>
+/// The rooms/art Need's work: its pinned sculpture bills, declared to the work ledger and filed under the Need. The
+/// ledger reads the Need's standing as of the last declaration, so no owner's open work gates the bills.
+/// </summary>
+public sealed class ArtPlanner : IPurposeReporter
+{
+    /// <summary>The ledger key the art bills report under, a subject of the rooms/art Need.</summary>
+    internal static readonly FilingKey ArtBillsKey = NeedId.Of(RoomsFamily.FamilyId, "art", "bills").FilingKey;
+
+    private readonly ColonyReview _reviewer;
+    private readonly object _mu = new();
+
+    /// <summary>Whether a sculpture is in progress at a bench (the last declaration's reading).</summary>
+    private bool _sculpting;
+
+    /// <summary>The rooms/art Need as of the last declaration; unknown before the first.</summary>
+    private Need? _need;
+
+    public ArtPlanner(ColonyReview reviewer)
+    {
+        if (reviewer is null)
+        {
+            throw new ControlException("NewReviewArtPlanner: reviewer == nil");
+        }
+        _reviewer = reviewer;
+    }
+
+    /// <summary>Declares the art orders of this review and returns the rooms/art Need's share.</summary>
+    public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
+        Task.FromResult(DeclareOrdersAll(snapshot, projection, benches, ct).For(RoomsFamily.Art.FilingKey.Value));
+
+    internal Declared DeclareOrdersAll(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
+    {
+        var sculpting = ArtOrdersRules.SculptureInProgress(benches);
+        var pawns = projection.Facts.ForecastObserved.WorkPawns.Pawns;
+        var profiles = PawnRules.Profiles(pawns);
+        var request = new ArtOrderRequest
+        {
+            Benches = [.. benches],
+            Demand = ArtDemand(projection, profiles),
+            Colonists = projection.Facts.Census.ColonistCount,
+            Items = projection.Facts.Items,
+            RoomsOwed = projection.Facts.SculptureRoomsOwed,
+            Profiles = [.. profiles],
+        };
+        var need = RoomsFamily.ArtNeed(new RoomsFacts { Profiles = EquatableArray.From(request.Profiles), SculptureRoomsOwed = request.RoomsOwed });
+        lock (_mu)
+        {
+            _sculpting = sculpting;
+            _need = need;
+        }
+        return ArtOrdersRules.DeclareArtOrders(request);
+    }
+
+    (FilingKey Key, FilingKey Need) IPurposeReporter.ReportTarget() => ReportTarget();
+
+    PurposeReport IPurposeReporter.Report() => Report();
+
+    internal static (FilingKey Key, FilingKey Need) ReportTarget() => (ArtBillsKey, RoomsFamily.Art.FilingKey);
+
+    internal PurposeReport Report()
+    {
+        lock (_mu)
+        {
+            // Reports follow the declare that set the Need; a declare that raised never reaches here.
+            var need = _need ?? throw new RequiredFactException("art need");
+            if (!_sculpting)
+            {
+                return new PurposeReport { Need = need, Order = BuildingReasonNoDeficit };
+            }
+            return new PurposeReport { Need = need, Order = WaitFor(Cause.ExistingWork, "sculpture") };
+        }
+    }
+
+    internal static ArtDemand ArtDemand(ColonyReading facts, IReadOnlyList<PawnProfile> profiles)
+    {
+        var stock = ResourceStockRules.Count(facts.Snapshot.Resources);
+        var rooms = facts.Facts.Upkeep.Rooms;
+        var census = facts.Facts.CurrentConstruction;
+        var obs = facts.Facts.Sleeping;
+        var traits = SleepingUpkeepPlanner.SleepingTraits(facts) ?? throw new RequiredFactException("sleeping traits");
+        var tier = TechTierRules.SelectTechTier(facts.Tables.FinishedResearch.Select(project => new ResearchProjectId(project)).ToArray(), facts.Snapshot.PlayerTechLevel);
+        return ArtRules.NewArtDemand(obs, RoomQualityRules.RoomQualityTargets(obs, traits, tier, facts.Facts.Impressiveness), FurnitureRoomsRules.FurnitureRooms(rooms, census, facts.PlanningWindow.Cells), stock, profiles, facts.Facts.Items);
+    }
+}

@@ -1,13 +1,12 @@
-using D = RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Store;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 using Amount = RimGovernor.Brain.Policy.Amount;
-using GearStock = RimGovernor.Contracts.Wire.Observations.GearStock;
+using GearStock = RimGovernor.Brain.GameFacts.Observations.GearStock;
 using GearCandidate = RimGovernor.Brain.Policy.GearCandidate;
 using Journal = RimGovernor.Brain.Store.Store;
 
@@ -36,19 +35,19 @@ public sealed class ClothingChoiceTests
             [Input(stuff, stuff)], 0.0, work, 5.0, new(15, 15))
         { RequiredCount = 10 };
     private static RecipeActivityRead Read(params RecipeActivityOption[] options) => new()
-    { Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options), Retained = [] };
-    private static RoundsFacts Facts(double cloth = 30, double wool = 30, double devilstrand = 0) => WorkResourceTestFacts.Create("tailor", "helper") with
-    { Census = (WorkResourceTestFacts.Create("tailor", "helper")).Census with { Resources = [new O.Quantity { DefName = "Cloth", Units = (long)cloth }, new O.Quantity { DefName = "Wool", Units = (long)wool }, new O.Quantity { DefName = "DevilstrandCloth", Units = (long)devilstrand }] }};
+    { Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options), Retained = [] };
+    private static ReviewFacts Facts(double cloth = 30, double wool = 30, double devilstrand = 0) => WorkResourceTestFacts.Create("tailor", "helper") with
+    { Census = (WorkResourceTestFacts.Create("tailor", "helper")).Census with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Cloth", Units = (long)cloth }, new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Wool", Units = (long)wool }, new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "DevilstrandCloth", Units = (long)devilstrand }] }};
     private static WorkResourceView Resources(double cloth = 30, double wool = 30, double devilstrand = 0) => WorkRules.WorkResourcesOf(
         ProductionRules.WorkAdmissionEvidenceOf(Facts(cloth, wool, devilstrand), new ProductionBatchCensus.Read([])), new ProductionBatchCensus.Read([]), []);
-    private static RoundsFacts Review(GearObservation census, RecipeActivityRead read, WorkResourceView resources)
+    private static ReviewFacts Review(GearObservation census, RecipeActivityRead read, WorkResourceView resources)
     {
         var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0);
         var template = facts.ForecastObserved.Needs!.Pawns[0];
         return facts with { Gear = census, WorkView = resources, MoodBreak = new() { Threshold = 0.3, Tiers = [new(1, 2), new(1, 3), new(1, 5)] }, ForecastObserved = facts.ForecastObserved with
         {
             Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "tailor" }, template with { Pawn = "helper" },
-                template with { Pawn = "wearer", Apparel = NeedsFixtures.Apparel(D.Gender.Male, true, true), ThoughtStages = [.. template.ThoughtStages, .. ApparelStages] }] },
+                template with { Pawn = "wearer", Apparel = NeedsFixtures.Apparel(RimGovernor.Brain.GameFacts.Defs.Gender.Male, true, true), ThoughtStages = [.. template.ThoughtStages, .. ApparelStages] }] },
             Coupled = CoupledFixtures.Empty with { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Tick = 100, Clothing = read, Construction = ConstructionFixtures.NoConstruction() }
         } };
     }
@@ -57,7 +56,7 @@ public sealed class ClothingChoiceTests
     {
         var facts = Review(census, read, resources);
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
-        // The colony model's horizon, as the review stamps it before the comparison (Rounder).
+        // The colony model's horizon, as the review stamps it before the comparison (ColonyReview).
         generated = generated with { Context = generated.Context with { InvestmentHorizonDays = 10d } };
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
             facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
@@ -181,7 +180,7 @@ public sealed class ClothingChoiceTests
     {
         var census = Census();
         // #3621: a physical replacement no longer withholds the craft; the comparison weighs the swap against it.
-        var physical = census with { Pawns = [census.Pawns[0] with { Candidates = [new(new O.GearCandidate { Item = GearFixtures.Item("stored-shirt", new O.ItemQuality.Graded(D.QualityCategory.Normal)), Gain = 1 }, new("Shirt"))] }] };
+        var physical = census with { Pawns = [census.Pawns[0] with { Candidates = [new(new RimGovernor.Brain.GameFacts.Observations.GearCandidate { Item = GearFixtures.Item("stored-shirt", new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded(RimGovernor.Brain.GameFacts.Defs.QualityCategory.Normal)), Gain = 1 }, new("Shirt"))] }] };
         Assert.Equal(ClothingActivitiesRules.ClothingActivityRequirements(census), ClothingActivitiesRules.ClothingActivityRequirements(physical));
         Assert.NotEmpty(ClothingActivitiesRules.ClothingActivityRequirements(physical));
     }
@@ -289,12 +288,12 @@ public sealed class ClothingChoiceTests
         var path = Path.Combine(Path.GetTempPath(), "rg-clothing-" + Guid.NewGuid().ToString("N") + ".db");
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(path, ct);
-        journal.ReviewRounds(new RoundsRequest
+        journal.Review(new ReviewRequest
         {
             Current = world,
             Tick = new(100),
             Enabled = true,
-            Policy = RoundsRules.DefaultRoundsPolicy(),
+            Policy = Rules.DefaultPlannerSettings(),
             Facts = Facts() with { Gear = Census() }
         }, ct);
         var batch = Start(Census(), Read(Option("Cloth")), journal.WorkResources(world, ct), out _)!;

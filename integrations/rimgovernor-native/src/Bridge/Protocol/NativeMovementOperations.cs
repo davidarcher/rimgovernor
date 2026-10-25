@@ -3,11 +3,8 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class NativeMovementOperations
     {
@@ -23,29 +20,29 @@ namespace HomeBridge.BridgeTools
 
         // Resolves the move's pawn and checks it is alive, spawned, owned and
         // drafted, and the cell standable and reachable; null when it applies.
-        internal static Common.Failure? Resolve(Operations.MoveIntent? move,Common.ObservationContext context,out Pawn? pawn,out IntVec3 destination)
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(RimGovernor.Brain.GameOrders.Operations.MoveIntent? move,RimGovernor.Brain.GameFacts.Common.ObservationContext context,out Pawn? pawn,out IntVec3 destination)
         {
             pawn=null;destination=IntVec3.Invalid;
-            if(move==null || move.PawnId is null || !ProtoBoundary.IsIdentifier(move.PawnId))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"A move requires a pawn id and explicit destination coordinates.");
-            if(!NativePawnControlState.IsReady)return ProtoBoundary.Fail(Common.FailureCode.Unavailable,"Live native pawn control hooks are required.");
+            if(move==null || move.PawnId is null || !GameThread.IsIdentifier(move.PawnId))
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest,"A move requires a pawn id and explicit destination coordinates.");
+            if(!NativePawnControlState.IsReady)return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable,"Live native pawn control hooks are required.");
             destination=new IntVec3(move.Destination.X,0,move.Destination.Z);
-            var map=ProtoBoundary.LoadedMap(context);
+            var map=GameThread.LoadedMap(context);
             pawn=map.mapPawns.AllPawnsSpawned.SingleOrDefault(p=>p.GetUniqueLoadID()==(move.PawnId ?? ""));
-            if(pawn==null || pawn.Dead)return ProtoBoundary.Fail(Common.FailureCode.NotFound,"The pawn is not alive and spawned on this map.");
+            if(pawn==null || pawn.Dead)return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound,"The pawn is not alive and spawned on this map.");
             var identity=new NativeControlIdentity(Current.Game,map,(context.Identity?.ColonyId ?? ""),(context.Identity?.LoadToken ?? ""));
             var check=NativePawnControlState.Observe(identity,pawn,out var snapshot);
             if(check!=NativePawnControlResult.Ready || snapshot==null)return NativeDraftProtocol.Failure(check,context);
-            if(!Owns(snapshot))return ProtoBoundary.Fail(Common.FailureCode.OwnerConflict,"A move requires an eligible drafted pawn.");
+            if(!Owns(snapshot))return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.OwnerConflict,"A move requires an eligible drafted pawn.");
             if(Matches(pawn,destination))return null;
-            if(!Legal(pawn,destination))return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"The destination is not a standable, unfogged cell this pawn can reach.");
+            if(!Legal(pawn,destination))return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest,"The destination is not a standable, unfogged cell this pawn can reach.");
             return null;
         }
 
-        internal static Receipts.EffectEvidence Evidence(Pawn pawn,IntVec3 destination,bool issued)=>new Receipts.EffectEvidence {Effect=new Receipts.JobEffect {
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Evidence(Pawn pawn,IntVec3 destination,bool issued)=>new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence {Effect=new RimGovernor.Brain.GameFacts.Receipts.JobEffect {
             PawnId=pawn.GetUniqueLoadID(),JobDef="Goto",Issued=issued}};
 
-        internal static Receipts.EffectEvidence Apply(Operations.MoveIntent move,Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.MoveIntent move,RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure=Resolve(move,context,out var pawn,out var destination);
             if(failure!=null || pawn==null)throw new InvalidOperationException("Move prerequisites changed before apply: "+(failure?.Detail ?? ""));
@@ -58,9 +55,9 @@ namespace HomeBridge.BridgeTools
 
     internal sealed class MoveActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action,Common.ObservationContext context)=>
+        public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action,RimGovernor.Brain.GameFacts.Common.ObservationContext context)=>
             NativeMovementOperations.Resolve(action.Intent?.Move,context,out _,out _);
-        public Receipts.EffectEvidence Apply(Operations.Action action,Common.ObservationContext context)=>
+        public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action,RimGovernor.Brain.GameFacts.Common.ObservationContext context)=>
             NativeMovementOperations.Apply(action.Intent?.Move ?? throw new InvalidOperationException("Action carries no move intent."),context);
     }
 }

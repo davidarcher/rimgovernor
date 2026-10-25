@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using HomeBridge.BridgeTools;
+using RimGovernor.Native;
 
 internal static class NativeRoofSupportProbe
 {

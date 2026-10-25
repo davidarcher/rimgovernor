@@ -6,7 +6,7 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Private disposable acceptance only (#3501): a colony whose ideoligion grants the Convert ability through a role
     // has that role held by one colonist (the guide) and one other colonist holding another ideoligion (the target).
@@ -17,7 +17,7 @@ namespace HomeBridge.BridgeTools
     public sealed class ConvertColonistFixture
     {
         [Tool("test/convert_colonist_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture (#3501): hold the Convert-granting role with one colonist and give another colonist a different ideoligion. Requires Ideology.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Prepare(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
@@ -54,7 +54,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/convert_colonist_inspect", Description = "Read-only conversion postcondition for the convert-colonist fixture: the target's ideoligion and certainty.")]
-        public async Task<object> Inspect(IRimBridgeContext ctx, CancellationToken cancellationToken, string targetId)
+        public async Task<object> Inspect(INativeContext ctx, CancellationToken cancellationToken, string targetId)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var target = Find.Maps.SelectMany(m => m.mapPawns.AllPawnsSpawned).FirstOrDefault(p => p.GetUniqueLoadID() == targetId);

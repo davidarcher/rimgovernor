@@ -1,14 +1,15 @@
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
-using Common = RimGovernor.Contracts.Wire.Common;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
 /// The status threat census is total (#3770): every fact is a plain value, the nearest-colonist distance is a
 /// <see cref="ColonistDistance"/> (nearest or no colonist) and a hunt's prey is a <see cref="ThreatPrey"/> relation.
-/// It round-trips through <c>WireJsonContext</c> exactly.
+/// It round-trips through <c>OrdersJsonContext</c> exactly.
 /// </summary>
 public sealed class ThreatsWireTests
 {
@@ -22,7 +23,7 @@ public sealed class ThreatsWireTests
             [
                 new ThreatPawn
                 {
-                    Pawn = new Common.Ref { Id = "Wolf_7" },
+                    Pawn = new RimGovernor.Brain.GameFacts.Common.Ref { Id = "Wolf_7" },
                     Prey = new ThreatPrey(false),
                     Ours = false,
                     Passive = false,
@@ -48,11 +49,11 @@ public sealed class ThreatsWireTests
             ],
         };
 
-        var json = WireJson.Serialize(threats);
+        var json = OrdersJson.Serialize(threats);
 
         Assert.Equal(
             """{"pawns":[{"pawn":{"id":"Wolf_7"},"prey":{"ours":false},"ours":false,"passive":false,"nearestColonist":{"type":"nearest","cells":14},"mentalState":null,"factionHostile":false,"prisonBreak":false,"predatorHunt":true,"predator":true,"downed":false}],"hostileBuildings":[{"building":{"id":"Hive_3","defName":"Hive","label":"hive","place":{"type":"on_map","mapId":1,"cell":{"x":5,"z":6}}},"snapshot":"tok","nearestColonist":{"type":"no_colonist"},"passive":true,"fogged":true,"occupied":{"minimum":{"x":5,"z":6},"maximum":{"x":5,"z":6}}}]}""",
             json);
-        Assert.Equal(threats, WireJson.Deserialize<ThreatsSnapshot>(json));
+        Assert.Equal(threats, OrdersJson.Deserialize<ThreatsSnapshot>(json));
     }
 }

@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Bridge;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -23,11 +22,11 @@ internal static class TendGates
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        var rows = await TypedPawns.ListAsync(s, "tend-gates", new Observations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only }, cancellationToken).ConfigureAwait(false);
+        var rows = await TypedPawns.ListAsync(s, "tend-gates", new RimGovernor.Brain.GameFacts.Observations.PawnFilter { Colonist = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Only }, cancellationToken).ConfigureAwait(false);
         var table = await s.CallAsync(
             "tend-table",
             NativeOps.ReadTendDoctors,
-            new Observations.TendDoctorsRequest { Scope = s.Scope, PawnIds = [.. rows.Select(row => row.Pawn.Id ?? "")], ReachBudgetMs = 50 },
+            new RimGovernor.Brain.GameOrders.Observations.TendDoctorsRequest { Scope = s.Scope, PawnIds = [.. rows.Select(row => row.Pawn.Id ?? "")], ReachBudgetMs = 50 },
             cancellationToken).ConfigureAwait(false);
         var doctors = table.Doctors.ToDictionary(doctor => doctor.PawnId, StringComparer.Ordinal);
         var reach = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
@@ -46,7 +45,7 @@ internal static class TendGates
                 continue;
             }
 
-            if (doctor.Reach is not Observations.TendReach.Read read)
+            if (doctor.Reach is not RimGovernor.Brain.GameFacts.Observations.TendReach.Read read)
             {
                 continue;
             }

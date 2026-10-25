@@ -7,35 +7,33 @@ using System.Threading.Tasks;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Host.Sdk;
-using Common = RimGovernor.Contracts.Wire.Common;
 using DomainCell = RimGovernor.Brain.Domain.Cell;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class NativeClearanceObservationTools
     {
         // A refused request throws NativeRefusedException; a census that cannot be read completely throws an
         // unavailable fault.
-        internal static Obs.ClearanceTargetsSnapshot HandleRead(Obs.ClearanceTargetsRequest request)
+        internal static RimGovernor.Brain.GameFacts.Observations.ClearanceTargetsSnapshot HandleRead(RimGovernor.Brain.GameOrders.Observations.ClearanceTargetsRequest request)
         {
-            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out var error))
+            if (!GameThread.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out var error))
                 throw NativeFaults.Refused(error);
             var player = Faction.OfPlayerSilentFail;
             if (player == null || map.areaManager?.Home == null || map.listerThings == null || map.designationManager == null || map.roofGrid == null || map.roofCollapseBuffer == null)
-                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.NativeComponentMissing, Detail = "Player, Home, building or roof trackers unavailable." });
+                throw NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.NativeComponentMissing, Detail = "Player, Home, building or roof trackers unavailable." });
             try { return Read(map, request, context, player); }
             catch (Exception readError)
             {
                 ModLog.Error("observe", "Clearance census read failed: " + readError);
-                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
+                throw NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed,
                     Detail = PlacementPreviewOperation.Diagnostic("Clearance facts could not be read completely: " + readError.GetType().Name + ": " + readError.Message) });
             }
         }
 
-        private static Obs.ClearanceTargetsSnapshot Read(Map map, Obs.ClearanceTargetsRequest request, Common.ObservationContext context, Faction player)
+        private static RimGovernor.Brain.GameFacts.Observations.ClearanceTargetsSnapshot Read(Map map, RimGovernor.Brain.GameOrders.Observations.ClearanceTargetsRequest request, RimGovernor.Brain.GameFacts.Common.ObservationContext context, Faction player)
         {
             // Scoped to Home: a hilly map carries tens of thousands of
             // natural-rock buildings map-wide, so the census walks
@@ -54,17 +52,17 @@ namespace HomeBridge.BridgeTools
             // own buildings are targets too and constructed floors are
             // reported one cell at a time.
             var planned = PlannedCells(map, request.PlannedGround);
-            var floors = new List<Obs.ClearanceFloor>();
+            var floors = new List<RimGovernor.Brain.GameFacts.Observations.ClearanceFloor>();
             foreach (var cell in planned) {
                 foreach (var thing in cell.GetThingList(map))
                     if (thing is Building b && b.Spawned && b.Faction == player) buildings[b.thingIDNumber] = b;
                 if (cell.Fogged(map)) continue;
                 var top = map.terrainGrid.TopTerrainAt(cell);
                 if (top == null || top.natural || !map.terrainGrid.CanRemoveTopLayerAt(cell)) continue;
-                floors.Add(new Obs.ClearanceFloor { Cell = new DomainCell(cell.x, cell.z), DefName = Id(top.defName), Designated = map.designationManager.DesignationAt(cell, DesignationDefOf.RemoveFloor) != null });
+                floors.Add(new RimGovernor.Brain.GameFacts.Observations.ClearanceFloor { Cell = new DomainCell(cell.x, cell.z), DefName = Id(top.defName), Designated = map.designationManager.DesignationAt(cell, DesignationDefOf.RemoveFloor) != null });
             }
             ObservationWork.Captured("clearanceScan", Now() - began, buildings.Count);
-            var targets = new List<Obs.ClearanceTarget>();
+            var targets = new List<RimGovernor.Brain.GameFacts.Observations.ClearanceTarget>();
             var salvage = request.IncludeSalvage ? SalvageRead.Begin(map, request) : null;
             long dangerTicks = 0, roofTicks = 0, salvageTicks = 0, salvageRows = 0;
             began = Now();
@@ -84,15 +82,15 @@ namespace HomeBridge.BridgeTools
                 phase = Now();
                 var blocker = RoofSupportSafety.Blocker(building, out _);
                 roofTicks += Now() - phase;
-                Obs.ClearanceSalvage salvaged = new Obs.ClearanceSalvage.NotRequested();
+                RimGovernor.Brain.GameFacts.Observations.ClearanceSalvage salvaged = new RimGovernor.Brain.GameFacts.Observations.ClearanceSalvage.NotRequested();
                 if (salvage != null) {
                     phase = Now();
                     var evidence = salvage.Evidence(building);
-                    salvaged = evidence != null ? new Obs.ClearanceSalvage.Computed(evidence) : new Obs.ClearanceSalvage.Skipped();
+                    salvaged = evidence != null ? new RimGovernor.Brain.GameFacts.Observations.ClearanceSalvage.Computed(evidence) : new RimGovernor.Brain.GameFacts.Observations.ClearanceSalvage.Skipped();
                     salvageTicks += Now() - phase;
                     salvageRows++;
                 }
-                targets.Add(new Obs.ClearanceTarget {
+                targets.Add(new RimGovernor.Brain.GameFacts.Observations.ClearanceTarget {
                     EntityId = Id(building.GetUniqueLoadID()), DefName = Id(building.def.defName),
                     Minimum = new DomainCell(rect.minX, rect.minZ), Maximum = new DomainCell(rect.maxX, rect.maxZ),
                     Class = Classify(building), RoofBlocker = blocker, AncientDanger = danger, Designated = designated,
@@ -108,15 +106,15 @@ namespace HomeBridge.BridgeTools
             ObservationWork.Captured("clearanceRoofBlocker", roofTicks, targets.Count);
             ObservationWork.Captured("clearanceSalvage", salvageTicks, salvageRows);
             ObservationWork.Captured("clearanceTargetRows", targetTicks - dangerTicks - roofTicks - salvageTicks, targets.Count);
-            return new Obs.ClearanceTargetsSnapshot { Context = context, Targets = [.. targets], Floors = [.. floors] };
+            return new RimGovernor.Brain.GameFacts.Observations.ClearanceTargetsSnapshot { Context = context, Targets = [.. targets], Floors = [.. floors] };
         }
 
         // yields memoizes, per def within one read, the probe item and its storage
         // headroom: neither depends on the building, so repeat ruins are cheap.
-        private static Obs.SalvageEvidence Salvage(Map map, Building building, EventLootFacts.HaulingSafety safety, Dictionary<ThingDef, (Thing item, long headroom)> yields)
+        private static RimGovernor.Brain.GameFacts.Observations.SalvageEvidence Salvage(Map map, Building building, EventLootFacts.HaulingSafety safety, Dictionary<ThingDef, (Thing item, long headroom)> yields)
         {
             var safe = !building.IsForbidden(Faction.OfPlayer) && !building.IsBurning() && safety.Safe(building) == true;
-            var result = new Obs.SalvageEvidence { Safe = safe, PathLength = Math.Max(0, safety.PathLength), Labor = building.GetStatValue(StatDefOf.WorkToBuild), Yields = [] };
+            var result = new RimGovernor.Brain.GameFacts.Observations.SalvageEvidence { Safe = safe, PathLength = Math.Max(0, safety.PathLength), Labor = building.GetStatValue(StatDefOf.WorkToBuild), Yields = [] };
             foreach (var cost in building.def.CostListAdjusted(building.Stuff, false)) {
                 var count = (long)Math.Floor(cost.count * building.def.resourcesFractionWhenDeconstructed);
                 if (count <= 0) continue;
@@ -135,7 +133,7 @@ namespace HomeBridge.BridgeTools
                     if (route == null) headroom = 0;
                     else result = result with { Safe = result.Safe && route.Value };
                 }
-                result = result with { Yields = [.. result.Yields, new Obs.SalvageYield { DefName = cost.thingDef.defName, Count = count, UnitValue = item.MarketValue, StorageHeadroom = headroom }] };
+                result = result with { Yields = [.. result.Yields, new RimGovernor.Brain.GameFacts.Observations.SalvageYield { DefName = cost.thingDef.defName, Count = count, UnitValue = item.MarketValue, StorageHeadroom = headroom }] };
             }
             return result;
         }
@@ -171,7 +169,7 @@ namespace HomeBridge.BridgeTools
         private static int salvageMaxAgeTicks;
         private static double salvageFrameBudgetMs, salvageInlineBudgetMs, salvageCensusBudgetMs;
         private const int salvageSignatureEveryTicks = 60;
-        private sealed class SalvageEntry { internal long Local, Colony, Stamp; internal int Computed; internal required Obs.SalvageEvidence Evidence; }
+        private sealed class SalvageEntry { internal long Local, Colony, Stamp; internal int Computed; internal required RimGovernor.Brain.GameFacts.Observations.SalvageEvidence Evidence; }
         private static readonly Dictionary<int, SalvageEntry> salvageCache = new Dictionary<int, SalvageEntry>();
         private static readonly Dictionary<int, Building> salvageTargets = new Dictionary<int, Building>();
         private static Game? salvageGame;
@@ -200,7 +198,7 @@ namespace HomeBridge.BridgeTools
             return passSafety;
         }
 
-        private static Obs.SalvageEvidence Store(Map map, Building b, long local)
+        private static RimGovernor.Brain.GameFacts.Observations.SalvageEvidence Store(Map map, Building b, long local)
         {
             var safety = Pass(map);
             var entry = new SalvageEntry { Local = local, Colony = salvageSignature, Stamp = ++salvageStamp, Computed = Find.TickManager.TicksGame, Evidence = Salvage(map, b, safety, passYields) };
@@ -253,7 +251,7 @@ namespace HomeBridge.BridgeTools
             private long inline, served, inlineTicks, capped;
             private SalvageRead(Map map, bool census) { this.map = map; this.census = census; }
 
-            internal static SalvageRead Begin(Map map, Obs.ClearanceTargetsRequest request)
+            internal static SalvageRead Begin(Map map, RimGovernor.Brain.GameOrders.Observations.ClearanceTargetsRequest request)
             {
                 salvageMaxAgeTicks = request.SalvageMaxAgeTicks;
                 salvageFrameBudgetMs = request.SalvageFrameBudgetMs;
@@ -269,7 +267,7 @@ namespace HomeBridge.BridgeTools
                 return new SalvageRead(map, salvageCache.Count == 0);
             }
 
-            internal Obs.SalvageEvidence? Evidence(Building b)
+            internal RimGovernor.Brain.GameFacts.Observations.SalvageEvidence? Evidence(Building b)
             {
                 var id = b.thingIDNumber;
                 seen.Add(id);
@@ -328,7 +326,7 @@ namespace HomeBridge.BridgeTools
 
         // PlannedCells clips the requested rectangles to the map and merges
         // them, so overlapping rectangles visit each cell once.
-        private static List<IntVec3> PlannedCells(Map map, IEnumerable<Obs.Rectangle> rects)
+        private static List<IntVec3> PlannedCells(Map map, IEnumerable<RimGovernor.Brain.GameFacts.Observations.Rectangle> rects)
         {
             var cells = new HashSet<IntVec3>();
             foreach (var r in rects) {
@@ -353,10 +351,10 @@ namespace HomeBridge.BridgeTools
             return false;
         }
 
-        private static Obs.ClearanceClass Classify(Building building) =>
-            building is Building_AncientCryptosleepCasket ? Obs.ClearanceClass.AncientCasket :
-            building.def == ThingDefOf.ShipChunk ? Obs.ClearanceClass.ShipChunk :
-            building.def == ThingDefOf.Wall || building is Building_Door ? Obs.ClearanceClass.AncientWallDoor : Obs.ClearanceClass.Other;
+        private static RimGovernor.Brain.GameFacts.Observations.ClearanceClass Classify(Building building) =>
+            building is Building_AncientCryptosleepCasket ? RimGovernor.Brain.GameFacts.Observations.ClearanceClass.AncientCasket :
+            building.def == ThingDefOf.ShipChunk ? RimGovernor.Brain.GameFacts.Observations.ClearanceClass.ShipChunk :
+            building.def == ThingDefOf.Wall || building is Building_Door ? RimGovernor.Brain.GameFacts.Observations.ClearanceClass.AncientWallDoor : RimGovernor.Brain.GameFacts.Observations.ClearanceClass.Other;
 
         private const int HiveDangerRadius = 14;
 
@@ -396,6 +394,6 @@ namespace HomeBridge.BridgeTools
             return false;
         }
         private static long Now() => System.Diagnostics.Stopwatch.GetTimestamp();
-        private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
+        private static string Id(string value) => GameThread.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
     }
 }

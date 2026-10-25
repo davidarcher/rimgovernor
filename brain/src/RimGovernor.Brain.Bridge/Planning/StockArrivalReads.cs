@@ -1,8 +1,7 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using DefinitionCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
-using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Bridge;
 
 /// <summary>
@@ -14,8 +13,8 @@ namespace RimGovernor.Brain.Bridge;
 /// </summary>
 public static class StockArrivalReads
 {
-    public static StockArrival Of(DefinitionCatalog catalog, IReadOnlySet<string> finished, O.BillsSnapshot? bills, O.PawnSnapshot? pawns,
-        O.ColonyFactsSnapshot colony, IReadOnlyList<Resource> medicines)
+    public static StockArrival Of(DefinitionCatalog catalog, IReadOnlySet<string> finished, RimGovernor.Brain.GameFacts.Observations.BillsSnapshot? bills, RimGovernor.Brain.GameFacts.Observations.PawnSnapshot? pawns,
+        RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot colony, IReadOnlyList<Resource> medicines)
     {
         if (bills is null)
         {
@@ -36,7 +35,7 @@ public static class StockArrivalReads
         }
 
         var crafters = (pawns?.Pawns ?? []).Where(row => row.Colonist && !row.Dead && !row.Downed && !row.Drafted
-            && row.MentalState is null && row.Settings.Work is not O.PawnWork.NeverWorks).ToArray();
+            && row.MentalState is null && row.Settings.Work is not RimGovernor.Brain.GameFacts.Observations.PawnWork.NeverWorks).ToArray();
         var craft = StockArrivalRules.Craft(catalog.StockRecipes(finished), bills.Benches, crafters, stock);
         if (craft.Unread.Length != 0)
         {
@@ -58,7 +57,7 @@ public static class StockArrivalReads
     // read carries, the colony's wealth and raid points, and the silver above the routine trade's reserve (#3855 Q2 A, #3907): the map's
     // for caravans and visitors, the silver within trade-beacon range for orbital traders (#3910: the routine trade's reserve holds
     // against the sheet's silver, which for an orbital trader is the beacon's).
-    private static (IReadOnlyList<TradeSource> Sources, IReadOnlyList<string> Findings, string Unread) Trade(DefinitionCatalog catalog, O.ThreatFacts threat,
+    private static (IReadOnlyList<TradeSource> Sources, IReadOnlyList<string> Findings, string Unread) Trade(DefinitionCatalog catalog, RimGovernor.Brain.GameFacts.Observations.ThreatFacts threat,
         long silver, long colonists)
     {
         var facts = threat.Trade ?? throw new RequiredFactException("trader visit observation");

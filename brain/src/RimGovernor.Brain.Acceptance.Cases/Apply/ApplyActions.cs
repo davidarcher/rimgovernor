@@ -1,7 +1,6 @@
 using System.Reflection;
 using System.Text.Json.Serialization;
 using RimGovernor.Brain.Bridge;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -32,8 +31,8 @@ internal static class ApplyActions
         foreach (var (arm, intent) in arms)
         {
             var key = "probe-" + arm;
-            var request = new Operations.ApplyRequest { Identity = s.Identity, Actions = [new Operations.Action { Key = key, Intent = intent }], DeferSnapshot = false };
-            Operations.ActionResult? first = null;
+            var request = new RimGovernor.Brain.GameOrders.Operations.ApplyRequest { Identity = s.Identity, Actions = [new RimGovernor.Brain.GameOrders.Operations.Action { Key = key, Intent = intent }], DeferSnapshot = false };
+            RimGovernor.Brain.GameFacts.Operations.ActionResult? first = null;
             foreach (var attempt in new[] { "send", "resend" })
             {
                 var reply = await s.CallAsync(attempt + "-" + arm, NativeOps.Apply, request, cancellationToken).ConfigureAwait(false);
@@ -58,12 +57,12 @@ internal static class ApplyActions
     /// <summary>
     /// Every arm of the Action oneof in ordinal order, each carrying its payload with the top-level string fields named
     /// <c>*Id</c> set to an id no game holds. The arms are the derived cases of
-    /// <see cref="Operations.ActionIntent"/>, discriminated by the arm's wire name.
+    /// <see cref="RimGovernor.Brain.GameOrders.Operations.ActionIntent"/>, discriminated by the arm's wire name.
     /// </summary>
-    private static List<(string Arm, Operations.ActionIntent Intent)> Arms()
+    private static List<(string Arm, RimGovernor.Brain.GameOrders.Operations.ActionIntent Intent)> Arms()
     {
-        var arms = new List<(string, Operations.ActionIntent)>();
-        foreach (var derived in typeof(Operations.ActionIntent).GetCustomAttributes<JsonDerivedTypeAttribute>(inherit: false))
+        var arms = new List<(string, RimGovernor.Brain.GameOrders.Operations.ActionIntent)>();
+        foreach (var derived in typeof(RimGovernor.Brain.GameOrders.Operations.ActionIntent).GetCustomAttributes<JsonDerivedTypeAttribute>(inherit: false))
         {
             if (derived.TypeDiscriminator is not string arm
                 || derived.DerivedType.GetProperty("Value")?.PropertyType is not { } payloadType
@@ -81,7 +80,7 @@ internal static class ApplyActions
                 }
             }
 
-            arms.Add((arm, (Operations.ActionIntent)Activator.CreateInstance(derived.DerivedType, payload)!));
+            arms.Add((arm, (RimGovernor.Brain.GameOrders.Operations.ActionIntent)Activator.CreateInstance(derived.DerivedType, payload)!));
         }
 
         arms.Sort((a, b) => string.CompareOrdinal(a.Item1, b.Item1));

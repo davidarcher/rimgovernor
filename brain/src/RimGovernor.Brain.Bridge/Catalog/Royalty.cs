@@ -188,7 +188,7 @@ public sealed partial class DefinitionCatalog
     /// The colony section's neuroformer stock by def, each with its tradeability (a trader can sell a Sellable or All
     /// thing) read from its ThingDef row. A neuroformer with no row, or a def listed twice, is an error.
     /// </summary>
-    public IReadOnlyDictionary<string, P.Neuroformer> WithNeuroformerDefs(RimGovernor.Contracts.Wire.Observations.RoyaltyColonyFacts colony)
+    public IReadOnlyDictionary<string, P.Neuroformer> WithNeuroformerDefs(RimGovernor.Brain.GameFacts.Observations.RoyaltyColonyFacts colony)
     {
         var neuroformers = new Dictionary<string, P.Neuroformer>(StringComparer.Ordinal);
         foreach (var stock in colony.Neuroformers)

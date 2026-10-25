@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using HomeBridge.BridgeTools;
+using RimGovernor.Native;
 using RimGovernor.Host.Sdk;
 
 // The frame capture's section spans. Every duration here is a supplied
@@ -88,15 +88,15 @@ internal static class NativeObservationWorkProbe
 
     private static void RequiredBuildingsDoNotDisappear()
     {
-        var complete = new RimGovernor.Contracts.Wire.Observations.BuildingsSnapshot
+        var complete = new RimGovernor.Brain.GameFacts.Observations.BuildingsSnapshot
         {
-            Context = new RimGovernor.Contracts.Wire.Common.ObservationContext { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new RimGovernor.Contracts.Wire.Common.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 1 },
+            Context = new RimGovernor.Brain.GameFacts.Common.ObservationContext { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new RimGovernor.Brain.GameFacts.Common.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 1 },
             Buildings = [],
         };
         Check(ReferenceEquals(complete, SnapshotFrames.SnapshotSectionException.Read("Buildings", () => complete)), "known empty buildings stay observed");
         try
         {
-            SnapshotFrames.SnapshotSectionException.Read<RimGovernor.Contracts.Wire.Observations.BuildingsSnapshot>("Buildings",
+            SnapshotFrames.SnapshotSectionException.Read<RimGovernor.Brain.GameFacts.Observations.BuildingsSnapshot>("Buildings",
                 () => throw new InvalidOperationException("building 42: Invalid native amount."));
             throw new Exception("a failed building read was accepted");
         }

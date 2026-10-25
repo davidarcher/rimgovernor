@@ -1,7 +1,8 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Common;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Common;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 using IngredientReservation = RimGovernor.Brain.Policy.IngredientReservation;
 
@@ -21,10 +22,10 @@ public sealed class ForecastStockHandoffTests
         EquatableArray<Amount> physical = [new(Meal, stocks.Where(s => !reserved.Contains(s.Id) && s.Holder.IsEmpty).Sum(s => s.Count)), new(Medicine, 5)];
         var facts = new ColonyForecastFacts
         {
-            Census = ColonyFactsCoreTests.Snapshot() with { Resources = EquatableArray.From(physical.Select(amount => new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = amount.Resource.Value, Units = amount.Count })), ResourceThings = EquatableArray.From(stocks.Where(s => !reserved.Contains(s.Id) && s.Holder.IsEmpty).Select(s => s.Id).Append("med")) },
+            Census = ColonyFactsCoreTests.Snapshot() with { Resources = EquatableArray.From(physical.Select(amount => new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = amount.Resource.Value, Units = amount.Count })), ResourceThings = EquatableArray.From(stocks.Where(s => !reserved.Contains(s.Id) && s.Holder.IsEmpty).Select(s => s.Id).Append("med")) },
             Food = new() { Reserved = reserved, Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] }, Stocks = stocks, Consumers = [new FoodConsumer { Id = new("animal"), NutritionPerDay = 1d,
         HumanMeatAcceptable = false }] },
-            Medicine = new() { Items = [new() { Id = "med", Definition = Medicine.Value, Count = 5, Forbidden = false, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Never() }, new() { Id = "barred-med", Definition = Medicine.Value, Count = 100, Forbidden = true, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Never() }] },
+            Medicine = new() { Items = [new() { Id = "med", Definition = Medicine.Value, Count = 5, Forbidden = false, Rot = new RimGovernor.Brain.GameFacts.Observations.ItemRot.Never() }, new() { Id = "barred-med", Definition = Medicine.Value, Count = 100, Forbidden = true, Rot = new RimGovernor.Brain.GameFacts.Observations.ItemRot.Never() }] },
             Items = new() { Nutrition = new Dictionary<Resource, double> { [Meal] = .5 }, MedicalPotency = new Dictionary<Resource, double> { [Medicine] = 1 } }
         };
         var input = ProjectGraphTests.Colony() with { OtherNutritionPerDay = ForecastStockScope.OtherDemand(facts.Food, []), Stocks = new() { Materials = physical, Nutrition = ForecastStockScope.Nutrition(facts.Food), Medicine = [new(Medicine, 5)] }, Pawns = [] };
@@ -138,8 +139,8 @@ public sealed class ForecastStockHandoffTests
     {
         var request = Request(Stock("food", 10));
         request = request with { Facts = request.Facts with { Medicine = request.Facts.Medicine with
-        { Items = EquatableArray.From(request.Facts.Medicine.Items.Append(new RimGovernor.Contracts.Wire.Observations.UpkeepItem
-        { Id = "unreachable", Definition = Medicine.Value, Count = 100, Forbidden = false, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Rotting(30000) })) } } };
+        { Items = EquatableArray.From(request.Facts.Medicine.Items.Append(new RimGovernor.Brain.GameFacts.Observations.UpkeepItem
+        { Id = "unreachable", Definition = Medicine.Value, Count = 100, Forbidden = false, Rot = new RimGovernor.Brain.GameFacts.Observations.ItemRot.Rotting(30000) })) } } };
         var handoff = ForecastHandoffPolicy.Project(Evaluate(request))!;
         Assert.Empty(handoff.Gaps);
         Assert.Equal(5, Assert.Single(handoff.State!.Medicine).Count);

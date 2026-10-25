@@ -35,7 +35,7 @@ public sealed partial class Store
     private static readonly string[] _familyTables = ["colony_layout_plans", "defense_layout", "production_ladder", "soldier_squad", "combat_restoration", "admin_creep_joiners", "economy_trade_missions", "colony_extent_events", "ideology_reform", "goals"];
 
     /// <summary>The retired Concern whose Standard carried the pending reform before the ideology family (#3260).</summary>
-    private static readonly ConcernId LegacyReformKind = new("ImproveIdeoligion");
+    private static readonly FilingKey LegacyReformKind = new("ImproveIdeoligion");
 
     private static string Blob(Action<Utf8JsonWriter> body)
     {

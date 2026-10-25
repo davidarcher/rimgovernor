@@ -1,10 +1,10 @@
 using System.Text;
 using RimGovernor.Brain.Acceptance;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Host;
 using RimGovernor.Brain.PlayerApi;
 using Xunit;
-using Speed = RimGovernor.Contracts.Wire.Clock.Speed;
+using Speed = RimGovernor.Brain.GameFacts.Clock.Speed;
 
 namespace RimGovernor.Brain.Domain.Tests;
 

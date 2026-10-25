@@ -1,6 +1,6 @@
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Executor;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
@@ -32,14 +32,14 @@ public sealed class RecordedReviewInputsTests
                 FieldCrops = [new() { Edible = true, GrowingCells = 30, Demand = 2, GrowDays = 10, HarvestNutrition = 1 }],
             },
         };
-        var review = new RoundsReading { Reading = observed, Frame = new(), Emergency = new() };
+        var review = new ReviewReading { Reading = observed, Frame = new(), Emergency = new() };
         review = review.WithFacts(f => ColonyPlanningRules.ApplyFieldBudget(f, 5));
-        var result = new StoreReview.RoundsResult
+        var result = new StoreReview.ReviewResult
         {
             Detection = new(review.Reading.Facts, new(), new()),
         };
 
-        var recorded = Assert.IsType<SnapshotRounds>(SnapshotRoundsReplay.FromReview(default, observed.Identity.Tick, result, observed));
+        var recorded = Assert.IsType<SnapshotReview>(SnapshotReviewReplay.FromReview(default, observed.Identity.Tick, result, observed));
 
         Assert.Equal(.5, recorded.Facts.FieldCoverage);
         Assert.Same(review.Reading.Facts, recorded.Facts);

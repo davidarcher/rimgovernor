@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -32,11 +31,11 @@ public sealed class MechGestationPlanningTests
     {
         Observed = PawnFixtures.Row(Mechanitor.Value) with
         {
-            Biotech = new O.PawnBiotechState.Active(new O.PawnBiotech
+            Biotech = new RimGovernor.Brain.GameFacts.Observations.PawnBiotechState.Active(new RimGovernor.Brain.GameFacts.Observations.PawnBiotech
             {
-                DevelopmentalStage = RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Adult,
+                DevelopmentalStage = RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Adult,
                 Genes = [], Mech = null, Deathrest = null,
-                Mechanitor = new O.PawnMechanitor
+                Mechanitor = new RimGovernor.Brain.GameFacts.Observations.PawnMechanitor
                 {
                     TotalBandwidth = total, UsedBandwidth = used, UsedBandwidthFromGestation = 0,
                     ControlGroups = groups, ControlledMechs = [],
@@ -45,22 +44,22 @@ public sealed class MechGestationPlanningTests
         },
     };
 
-    private static O.PawnState NativeMech(string id, string kind, O.EntityPlace place, string mode)
+    private static RimGovernor.Brain.GameFacts.Observations.PawnState NativeMech(string id, string kind, RimGovernor.Brain.GameFacts.Observations.EntityPlace place, string mode)
     {
         var row = PawnFixtures.Row(id);
         return row with
         {
             KindDefName = kind, Mechanoid = true, Colonist = false, FreeColonist = false, Humanlike = false,
             Pawn = row.Pawn with { Place = place },
-            Biotech = new O.PawnBiotechState.Active(new O.PawnBiotech
+            Biotech = new RimGovernor.Brain.GameFacts.Observations.PawnBiotechState.Active(new RimGovernor.Brain.GameFacts.Observations.PawnBiotech
             {
-                DevelopmentalStage = RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Adult,
+                DevelopmentalStage = RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Adult,
                 Genes = [], Mechanitor = null, Deathrest = null,
-                Mech = new O.PawnMech
+                Mech = new RimGovernor.Brain.GameFacts.Observations.PawnMech
                 {
                     Overseer = new() { Id = Mechanitor.Value }, WorkMode = mode,
                     Group = new() { Index = 0, RechargeBelow = .1, RechargeAbove = 1 },
-                    Energy = new O.PawnMechEnergy.Level { Fraction = 1 },
+                    Energy = new RimGovernor.Brain.GameFacts.Observations.PawnMechEnergy.Level { Fraction = 1 },
                 },
             }),
         };
@@ -69,11 +68,11 @@ public sealed class MechGestationPlanningTests
     public void FleetRetainsActualPawnAndBiotechRows()
     {
         var mechanitor = Overseer(6, 2).Observed;
-        var mech = NativeMech("mech", "Mech_Lifter", new O.EntityPlace.Unplaced(), "RoleWork");
-        var fleet = RimGovernor.Brain.Bridge.RoundsContainmentReads.MechFleetOf([mechanitor, mech]);
+        var mech = NativeMech("mech", "Mech_Lifter", new RimGovernor.Brain.GameFacts.Observations.EntityPlace.Unplaced(), "RoleWork");
+        var fleet = RimGovernor.Brain.Bridge.ContainmentReads.MechFleetOf([mechanitor, mech]);
         Assert.Same(mechanitor, Assert.Single(fleet.Mechanitors).Observed);
         Assert.Same(mech, Assert.Single(fleet.Mechs).Observed);
-        Assert.Same(Assert.IsType<O.PawnBiotechState.Active>(mech.Biotech).Facts.Mech, fleet.Mechs[0].Mech);
+        Assert.Same(Assert.IsType<RimGovernor.Brain.GameFacts.Observations.PawnBiotechState.Active>(mech.Biotech).Facts.Mech, fleet.Mechs[0].Mech);
         Assert.Same(mech.Pawn.Place, fleet.Mechs[0].Place);
     }
     /// <summary>An idle gestator with no waste, a ready charger and nothing on the floor.</summary>
@@ -81,8 +80,8 @@ public sealed class MechGestationPlanningTests
     {
         Catalog = Catalog,
         Mechanitors = [m],
-        Gestators = [new O.MechGestatorState { BillId = null, WasteCount = 0 }],
-        Chargers = [new O.MechChargerState { Powered = true, FullOfWaste = false, ChargingMechId = null }],
+        Gestators = [new RimGovernor.Brain.GameFacts.Observations.MechGestatorState { BillId = null, WasteCount = 0 }],
+        Chargers = [new RimGovernor.Brain.GameFacts.Observations.MechChargerState { Powered = true, FullOfWaste = false, ChargingMechId = null }],
     };
 
     private static ProductionRecipe Recipe(string kind) => new() { Access = ProductionBenchFixtures.Recipe("Gestate" + kind), MechKind = kind, Food = new RecipeFood.NotFood() };
@@ -135,7 +134,7 @@ public sealed class MechGestationPlanningTests
     {
         static MechInput Mech(string id, string kind) => new()
         {
-            Observed = NativeMech(id, kind, new O.EntityPlace.Unplaced(), "SelfShutdown"),
+            Observed = NativeMech(id, kind, new RimGovernor.Brain.GameFacts.Observations.EntityPlace.Unplaced(), "SelfShutdown"),
         };
         var lifter = Mech("lifter", "Mech_Lifter");
         var militor = Mech("militor", "Mech_Militor");
@@ -155,12 +154,12 @@ public sealed class MechGestationPlanningTests
     [Fact]
     public void AGuardOnTheMapAttacksTheNearestHostileAndAnUnplacedOneIsLeftAlone()
     {
-        static MechInput Guard(string id, O.EntityPlace place) => new()
+        static MechInput Guard(string id, RimGovernor.Brain.GameFacts.Observations.EntityPlace place) => new()
         {
             Observed = NativeMech(id, "Mech_Militor", place, "RoleEscort"),
         };
-        var onMap = Guard("guard-a", new RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap(0, new RimGovernor.Brain.Domain.Cell { X = 10, Z = 10 }));
-        var unplaced = Guard("guard-b", new RimGovernor.Contracts.Wire.Observations.EntityPlace.Unplaced());
+        var onMap = Guard("guard-a", new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(0, new RimGovernor.Brain.Domain.Cell { X = 10, Z = 10 }));
+        var unplaced = Guard("guard-b", new RimGovernor.Brain.GameFacts.Observations.EntityPlace.Unplaced());
         var overseers = new Dictionary<string, Cell> { [Mechanitor.Value] = new Cell(10, 12) };
         MechHostile[] hostiles = [new() { Id = new PawnId("far"), Cell = new Cell(20, 10) }, new() { Id = new PawnId("near"), Cell = new Cell(12, 10) }];
 

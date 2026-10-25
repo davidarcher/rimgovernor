@@ -1,13 +1,10 @@
 using System.Runtime.CompilerServices;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Policy;
 using RimWorld;
 using Verse;
 using Xunit;
-using C = RimGovernor.Contracts.Wire.Common;
-using D = RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests.Game;
 
@@ -56,12 +53,12 @@ public sealed class PrimaryWeaponRoleTests
     private static GearObservation Census(string? def)
     {
         var equipment = GearFixtures.NoEquipment;
-        var things = new List<O.Thing>();
+        var things = new List<RimGovernor.Brain.GameFacts.Observations.Thing>();
         if (def is not null)
         {
             const string id = "Weapon_1";
-            equipment = equipment with { Armed = true, PrimaryId = id, Equipped = [GearFixtures.Item(id, new O.ItemQuality.Graded(D.QualityCategory.Good)) with { ConditionFraction = 0.8 }] };
-            things.Add(new O.Thing { Entity = new O.EntityRef { Id = id, DefName = def, Label = def, Place = new O.EntityPlace.Unplaced() }, Forbidden = false, Corpse = false });
+            equipment = equipment with { Armed = true, PrimaryId = id, Equipped = [GearFixtures.Item(id, new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded(RimGovernor.Brain.GameFacts.Defs.QualityCategory.Good)) with { ConditionFraction = 0.8 }] };
+            things.Add(new RimGovernor.Brain.GameFacts.Observations.Thing { Entity = new RimGovernor.Brain.GameFacts.Observations.EntityRef { Id = id, DefName = def, Label = def, Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.Unplaced() }, Forbidden = false, Corpse = false });
         }
         var tables = new Tables(default, default, Things.Of(things), []);
         var row = GearFixtures.Loadout("pawn") with { ApparelPolicy = PoliciesTests.EmptyOutfit };

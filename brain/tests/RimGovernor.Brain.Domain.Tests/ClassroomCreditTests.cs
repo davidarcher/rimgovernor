@@ -1,6 +1,6 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -102,7 +102,7 @@ public sealed class ClassroomCreditTests
         if (realMarginals)
         {
             // The production way (#3822): tier 2 runs over the colony model and hands its marginals and the raise of each stock to the
-            // context, as Rounder does; nothing is set by hand.
+            // context, as ColonyReview does; nothing is set by hand.
             var policy = new ColonyModelPolicy { MedicineTendsPerDay = 0.0 };
             var marginals = ProjectMarginalValue.Of(Colony(true), policy, new SkillStockTests.LevelDays(CalendarRules.YearDays));
             context = context with { Investment = marginals.PerUnit, SkillRaises = marginals.SkillRaises, ModelBasis = new(Colony(true), policy) };
@@ -120,7 +120,7 @@ public sealed class ClassroomCreditTests
         if (learning)
         {
             // Each child holds a Construction stock that does not decay, so a level gained lasts the horizon.
-            anna = anna with { Skills = EquatableArray.From<O.Skill>([new() { Passion = O.Passion.None, DefName = "Construction", Level = 1, Learning = CapabilityMaintenanceTests.Learning() with { TrackerAllowsLearning = false } }]) };
+            anna = anna with { Skills = EquatableArray.From<RimGovernor.Brain.GameFacts.Observations.Skill>([new() { Passion = RimGovernor.Brain.GameFacts.Observations.Passion.None, DefName = "Construction", Level = 1, Learning = CapabilityMaintenanceTests.Learning() with { TrackerAllowsLearning = false } }]) };
         }
 
         return input with { Pawns = EquatableArray.From(new[] { anna with { Pawn = "child" }, anna with { Pawn = "other" } }) };

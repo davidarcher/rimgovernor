@@ -1,5 +1,6 @@
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -119,9 +120,9 @@ public sealed class PracticeHarmTests
     [InlineData(false)]
     public void TheProductionComparisonSchedulesABoutWhoseXpTheHarmPricesAndAFreshColonyNone(bool priced)
     {
-        // The production path (#3822): RoundsWork fills the work pawns' Skills and the practice read's workers;
+        // The production path (#3822): Work fills the work pawns' Skills and the practice read's workers;
         // GenerateCoupledActivities builds the bout's tasks and the context's practice sessions; the review's tier-2 marginals
-        // (Rounder sets ForecastCoupledContext.Investment from them) price the XP. No Ideology role holds a requirement here.
+        // (ColonyReview sets ForecastCoupledContext.Investment from them) price the XP. No Ideology role holds a requirement here.
         var facts = ForecastPortfolioChoiceTests.Observed([], [], helper: true);
         var learning = CapabilityMaintenanceTests.Learning() with { Xp = 0d };
         var roster = ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Observed = p.Observed with { Biography = p.Observed.Biography with { Skills = [new() { DefName = "Melee", Passion = Passion.None, Level = 1, Learning = learning }] } } }).ToArray();

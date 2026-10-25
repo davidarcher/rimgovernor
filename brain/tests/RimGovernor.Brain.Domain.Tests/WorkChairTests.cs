@@ -1,5 +1,5 @@
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
@@ -99,7 +99,7 @@ public sealed class WorkChairTests
         };
     }
 
-    private static RoundsBuildingPlanner Planner() => new() { Concern = RoomsFamily.WorkChairs.FilingKey, Need = RoomsFamily.WorkChairs, Phase = Phase.ComfortWorkChair };
+    private static BuildingPlanner Planner() => new() { Concern = RoomsFamily.WorkChairs.FilingKey, Need = RoomsFamily.WorkChairs, Phase = Phase.ComfortWorkChair };
 
     [Fact]
     public void ThePlannerOrdersTheChairOnlyOnTheBenchInteractionCell()
@@ -113,7 +113,7 @@ public sealed class WorkChairTests
         var (count, method, selection) = resolved.Selection(facts);
         Assert.True(selection.IsZero, selection.ToString());
         Assert.Equal((1L, new MethodId("work-chair-DiningChair-12-11")), (count, method));
-        Assert.True(RoomsRounds.WorkChairsOwed(facts));
+        Assert.True(RoomsReview.WorkChairsOwed(facts));
     }
 
     [Fact]
@@ -123,14 +123,14 @@ public sealed class WorkChairTests
         var (resolved, reason) = Planner().SelectWorkChair(facts);
         Assert.Null(resolved);
         Assert.Equal(Verdict.BuildingReasonNoDeficit, reason);
-        Assert.False(RoomsRounds.WorkChairsOwed(facts));
+        Assert.False(RoomsReview.WorkChairsOwed(facts));
     }
 
     [Fact]
     public void AnUnreadCensusRefusesChairPlanning()
     {
         var facts = Projection(Workshop(Chosen), null);
-        Assert.Throws<RequiredFactException>(() => RoomsRounds.WorkChairsOwed(facts));
+        Assert.Throws<RequiredFactException>(() => RoomsReview.WorkChairsOwed(facts));
         Assert.Throws<RequiredFactException>(() => Planner().SelectWorkChair(facts));
     }
 }

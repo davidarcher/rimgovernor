@@ -5,11 +5,9 @@ using RimGovernor.Brain.Domain;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Obs = RimGovernor.Contracts.Wire.Observations;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Cell = RimGovernor.Brain.Domain.Cell;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 internal static class NativeCoupledForecast
 {
@@ -18,7 +16,7 @@ internal static class NativeCoupledForecast
     /// pair of locations the sub-reads name, for every free colonist (#3341). One leg cache serves every sub-read, so a
     /// path two of them share is searched once (NativePathLegs).
     /// </summary>
-    internal static Obs.CoupledForecastRead Read(Map map, Common.ObservationContext context, Obs.NeedsForecastRead? needs = null)
+    internal static RimGovernor.Brain.GameFacts.Observations.CoupledForecastRead Read(Map map, RimGovernor.Brain.GameFacts.Common.ObservationContext context, RimGovernor.Brain.GameFacts.Observations.NeedsForecastRead? needs = null)
     {
         var legs = new NativePathLegs(map);
         var lap = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -95,11 +93,11 @@ internal static class NativeCoupledForecast
         legs.Floods(origins.Select(o => (o.Value.Pawn, o.Key, (IReadOnlyList<IntVec3>)o.Value.To)).ToList());
         ObservationWork.Detail("cf.fc.routes.floods", legs.FloodTicks - floodTicks, legs.FloodCount - flooded);        var routes = legs.Batched(() =>
         {
-            var rows = new List<Obs.CoupledRoute>();
+            var rows = new List<RimGovernor.Brain.GameFacts.Observations.CoupledRoute>();
             var observed = new HashSet<(int Pawn, Cell From, Cell To, bool Initial)>();
             NativePathLegs.Found? Leg(int i, Cell from, Cell to) => legs.Find(pawns[i], new(from.X, 0, from.Z), new IntVec3(to.X, 0, to.Z), PathEndMode.OnCell);
             void Row(int i, Cell from, Cell to, bool initial, NativePathLegs.Found? leg) =>
-                rows.Add(new(ids[i], from, to, leg is { } found ? new Obs.RouteTicks.Reachable(found.For(moves[i])) : Obs.RouteTicks.None) { FromStart = initial });
+                rows.Add(new(ids[i], from, to, leg is { } found ? new RimGovernor.Brain.GameFacts.Observations.RouteTicks.Reachable(found.For(moves[i])) : RimGovernor.Brain.GameFacts.Observations.RouteTicks.None) { FromStart = initial });
             // One pawn over the leg between two cells.
             void One(int i, Cell from, Cell to) { if (observed.Add((i, from, to, false))) Row(i, from, to, false, Leg(i, from, to)); }
             // One pawn over the leg from where it stands.
@@ -125,7 +123,7 @@ internal static class NativeCoupledForecast
             foreach (var i in hunters)
             {
                 FromStart(i, prey.Location);
-                if (prey.CorpseStore is Obs.HuntCorpseStore.Store store) One(i, prey.Location, store.Cell);
+                if (prey.CorpseStore is RimGovernor.Brain.GameFacts.Observations.HuntCorpseStore.Store store) One(i, prey.Location, store.Cell);
                 One(i, prey.Location, starts[i]);
             }
             foreach (var from in locations)

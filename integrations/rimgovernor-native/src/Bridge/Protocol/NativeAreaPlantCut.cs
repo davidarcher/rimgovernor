@@ -3,11 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // AreaPlantCutIntent on Actions/Apply:
     // every non-crop plant on cells is ordered cut, wild plants with
@@ -60,17 +57,17 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        internal static Common.Failure? Validate(Operations.AreaPlantCutIntent? intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.AreaPlantCutIntent? intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
-            var map = ProtoBoundary.ResolveMap(context);
-            if (map == null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Current map required.");
+            var map = GameThread.ResolveMap(context);
+            if (map == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Current map required.");
             var refusal = Refusal(intent?.Cells, map, out _);
-            return refusal == null ? null : ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, refusal);
+            return refusal == null ? null : GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, refusal);
         }
 
-        internal static Receipts.EffectEvidence Apply(Operations.AreaPlantCutIntent intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.AreaPlantCutIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
-            var map = ProtoBoundary.ResolveMap(context) ?? throw new InvalidOperationException("Area plant cut prerequisites changed before apply: current map required.");
+            var map = GameThread.ResolveMap(context) ?? throw new InvalidOperationException("Area plant cut prerequisites changed before apply: current map required.");
             var refusal = Refusal(intent.Cells, map, out var cells);
             if (refusal != null) throw new InvalidOperationException("Area plant cut prerequisites changed before apply: " + refusal);
             foreach (var cell in cells)
@@ -82,7 +79,7 @@ namespace HomeBridge.BridgeTools
                     designator.DesignateThing(plant);
                     if (!Designated(plant)) throw new InvalidOperationException($"Native plant cut designation was not observed at {cell}.");
                 }
-            return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.AreaPlantCutCase() };
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.EffectEvidenceEffect.AreaPlantCutCase() };
         }
 
 
@@ -90,7 +87,7 @@ namespace HomeBridge.BridgeTools
 
     internal sealed class AreaPlantCutActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeAreaPlantCut.Validate(action.Intent?.AreaPlantCut, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeAreaPlantCut.Apply(action.Intent?.AreaPlantCut ?? throw new InvalidOperationException("Action carries no area-plant-cut intent."), context);
+        public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => NativeAreaPlantCut.Validate(action.Intent?.AreaPlantCut, context);
+        public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => NativeAreaPlantCut.Apply(action.Intent?.AreaPlantCut ?? throw new InvalidOperationException("Action carries no area-plant-cut intent."), context);
     }
 }

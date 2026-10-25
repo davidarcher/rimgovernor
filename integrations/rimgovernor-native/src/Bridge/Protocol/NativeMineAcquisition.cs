@@ -5,10 +5,8 @@ using System.Text;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class NativeMineAcquisition
     {
@@ -23,10 +21,10 @@ namespace HomeBridge.BridgeTools
         // (action-contracts.md): ResourceAcquisitionTools.Eligible plus the
         // request's cell, resource and designation rules, one rule at a time;
         // the excavation-geometry rule reports MiningBlocker's own text.
-        internal static bool Prepare(AcquireRequest command, Common.ObservationContext context, out Mineable? rock, out Common.Failure failure)
+        internal static bool Prepare(AcquireRequest command, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Mineable? rock, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
-            rock = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Mining requires an exact safe mineable snapshot, an eligible miner and safe excavation geometry.");
-            var map = ProtoBoundary.LoadedMap(context);
+            rock = null; failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Mining requires an exact safe mineable snapshot, an eligible miner and safe excavation geometry.");
+            var map = GameThread.LoadedMap(context);
             var found = RefIndex.Thing<Mineable>(map, command.SourceId);
             var blocker = found == null ? null : ResourceAcquisitionTools.MiningBlocker(found, map);
             var rules = new ApplyPreconditions(Kind)

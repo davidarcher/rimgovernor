@@ -18,8 +18,8 @@ public sealed class VoluntaryMethodAdmissionTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-disaster-recovery-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
-            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn") }, ct);
+        journal.Review(new() { Current = World, Tick = new(100), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("pawn") }, ct);
         var plan = new PlanSpec(new("emergency-plan"), new(1),
             [DomainAction.NewRecoveryServiceAction(new("emergency-action"), new(new("pawn"), "building", method))]);
         var committed = journal.CommitClaimedMethod(DisasterFamily.Services, World, new("emergency-method"), "", plan, ct);
@@ -34,8 +34,8 @@ public sealed class VoluntaryMethodAdmissionTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-return-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
-            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn") }, ct);
+        journal.Review(new() { Current = World, Tick = new(100), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("pawn") }, ct);
         var departure = new CaravanDeparture([new("pawn")], [], 2, mode);
         var plan = new PlanSpec(new("return-plan"), new(1),
             [DomainAction.NewCaravanDepartureAction(new("return-action"), departure)]);

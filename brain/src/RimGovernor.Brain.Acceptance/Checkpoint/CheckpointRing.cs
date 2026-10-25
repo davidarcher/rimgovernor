@@ -458,7 +458,7 @@ public sealed partial class CheckpointRing
     private static bool IsCaptureFailure(Exception e) =>
         e is AcceptanceException or IOException or UnauthorizedAccessException or JsonException;
 
-    // Rounds half away from zero to a multiple of step.
+    // Round half away from zero to a multiple of step.
     private static TimeSpan RoundTo(TimeSpan d, TimeSpan step)
     {
         if (step <= TimeSpan.Zero)

@@ -1,17 +1,16 @@
 using System.Threading.Channels;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Bridge;
 
 /// <summary>
-/// One captured frame handed to the planner worker: the whole <see cref="Obs.BundleSnapshot"/> (every section
+/// One captured frame handed to the planner worker: the whole <see cref="RimGovernor.Brain.GameFacts.Observations.BundleSnapshot"/> (every section
 /// carried, the cell grid a keyframe) and what the capture cost. Immutable by convention: the game thread built
 /// it and nothing mutates it after it is published.
 /// </summary>
 /// <param name="Snapshot">The captured frame.</param>
 /// <param name="Writes">The applied-write count the frame was captured at (the stream's write watermark).</param>
 /// <param name="CaptureMicros">Game-thread microseconds the capture took.</param>
-public sealed record NativeFrame(Obs.BundleSnapshot Snapshot, long Writes, uint CaptureMicros);
+public sealed record NativeFrame(RimGovernor.Brain.GameFacts.Observations.BundleSnapshot Snapshot, long Writes, uint CaptureMicros);
 
 /// <summary>
 /// The latest-wins slot between the native encoder worker (the single writer) and the planner worker (the single

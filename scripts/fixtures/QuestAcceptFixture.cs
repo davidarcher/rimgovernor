@@ -7,7 +7,7 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Private disposable acceptance only (#3404). quest_accept_prepare builds one minimal not-yet-accepted quest (no
     // QuestGen node graph) carrying a two-option QuestPart_Choice reward with no rewards attached to either option, so
@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools
     public sealed class QuestAcceptFixture
     {
         [Tool("test/quest_accept_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: build one minimal not-yet-accepted quest with a two-option, reward-free QuestPart_Choice and no accepter requirement.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Prepare(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
@@ -44,7 +44,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/quest_hack_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable lab: an unhacked Ideology terminal and ordinary Research worker; no autohack designation, hacking job or completion supplied.")]
-        public async Task<object> PrepareHack(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> PrepareHack(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -68,7 +68,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/quest_hack_read", Description = "UNSAFE FOR MODEL EXECUTION. Read exact terminal autohack, actual native hacking progress/completion and the vanilla comp's last hacker; never changes progress.")]
-        public async Task<object> ReadHack(IRimBridgeContext ctx, CancellationToken cancellationToken, string terminalId)
+        public async Task<object> ReadHack(INativeContext ctx, CancellationToken cancellationToken, string terminalId)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -82,7 +82,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/quest_give_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable Ideology lab with a vanilla beggar lord requesting twenty silver; no delivery job or received items supplied.")]
-        public async Task<object> PrepareGive(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> PrepareGive(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -107,7 +107,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/quest_give_read", Description = "UNSAFE FOR MODEL EXECUTION. Read actual recipient silver inventory and native whole-request remainder, plus the exact hauler's current job; no delivery mutations.")]
-        public async Task<object> ReadGive(IRimBridgeContext ctx, CancellationToken cancellationToken, string recipientId, string haulerId)
+        public async Task<object> ReadGive(INativeContext ctx, CancellationToken cancellationToken, string recipientId, string haulerId)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;

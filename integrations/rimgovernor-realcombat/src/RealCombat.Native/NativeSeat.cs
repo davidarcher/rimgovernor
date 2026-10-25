@@ -1,10 +1,6 @@
 using HarmonyLib;
-using HomeBridge.BridgeTools;
+using RimGovernor.Native;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.RealCombat.Native;
 
@@ -33,7 +29,7 @@ public sealed class NativeSeat
     }
 
     /// <summary>The wire identity the controller addresses orders with.</summary>
-    public Common.Identity Identity => new() { ColonyId = _colony.ColonyId, LoadToken = _colony.LoadToken, MapId = _map.uniqueID };
+    public RimGovernor.Brain.GameFacts.Common.Identity Identity => new() { ColonyId = _colony.ColonyId, LoadToken = _colony.LoadToken, MapId = _map.uniqueID };
 
     /// <summary>Hook installs that failed, as the mirror reports them; empty when every hook is in.</summary>
     public IReadOnlyList<string> HookErrors => [.. CombatMirror.HookErrors];
@@ -72,17 +68,17 @@ public sealed class NativeSeat
     }
 
     /// <summary>The combat mirror's projection of the map now: pawn rows and the event ring.</summary>
-    public Observations.BundleSnapshot Capture() => CombatMirror.Capture(_map, new Observations.BundleSnapshot());
+    public RimGovernor.Brain.GameFacts.Observations.BundleSnapshot Capture() => CombatMirror.Capture(_map, new RimGovernor.Brain.GameFacts.Observations.BundleSnapshot());
 
     /// <summary>Applies one batch of combat orders in request order and returns the per-order results.</summary>
-    public IReadOnlyList<RimGovernor.Brain.Domain.CombatResult> Apply(Operations.CombatOrders orders)
+    public IReadOnlyList<RimGovernor.Brain.Domain.CombatResult> Apply(RimGovernor.Brain.GameOrders.Operations.CombatOrders orders)
     {
-        var effect = NativeCombatOrders.Apply(orders, new Common.ObservationContext { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = Identity, Tick = Find.TickManager.TicksGame });
-        return ((Receipts.EffectEvidenceEffect.CombatOrdersCase)effect.Effect!).Value.Results;
+        var effect = NativeCombatOrders.Apply(orders, new RimGovernor.Brain.GameFacts.Common.ObservationContext { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = Identity, Tick = Find.TickManager.TicksGame });
+        return ((RimGovernor.Brain.GameFacts.Receipts.EffectEvidenceEffect.CombatOrdersCase)effect.Effect!).Value.Results;
     }
 
     /// <summary>Applies one Ability action (a psycast or permit call) under native authority; null when applied, else the refusal.</summary>
-    public string? ApplyAbility(Operations.Action action)
+    public string? ApplyAbility(RimGovernor.Brain.GameOrders.Operations.Action action)
     {
         try
         {

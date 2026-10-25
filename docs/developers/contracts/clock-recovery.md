@@ -99,7 +99,7 @@ not holds.
 
 ## Event consumer
 
-`ColonyEventConsumer` opens the queue through `INativeFacade.OpenColonyEventsAsync`, an in-process call with no wire op.
+`ColonyEventConsumer` opens the queue through `IGameApi.OpenColonyEventsAsync`, an in-process call with no wire op.
 The open drops whatever was queued and clears the loss counter, so a started or restarted brain replays no backlog and
 its first step plans Full. Each batch is read against the current world's context: another world's event is ignored,
 and a context that does not match the held authority ends it. A batch wakes the step loop with its invalidated families
@@ -128,14 +128,14 @@ and the acknowledgements the next `Run` carries. A refusal (`stale_facts`, `inva
 A colony with no layout plan holds the clock under `first_plan` (#3652, a brain-only hold: no native hold reason)
 until its first plan exists and a review has planned with it. The review derives the plan at its end, after the ledger
 and the resource demand, and reads the rooms census while no plan exists; a station fact still unread names the hold
-(`RoundsResult.FirstPlanUnread`, the `clock_run` row's `first_plan_fact`), and the scheduler retries the review
+(`ReviewResult.FirstPlanUnread`, the `clock_run` row's `first_plan_fact`), and the scheduler retries the review
 (rounds selection `first_plan`) while the clock is held, since a held clock advances no tick to make one due. A derive
 that fails for anything but an unread fact (`chain_error`, `no_core`) holds nothing and retries hourly.
 
 An urgent build holds the clock under `urgent_build` (#3537, brain-only, watch fact `UrgentBuilds`): the sleeping
 shelter's step admits a shell or a bedless colonist's bed (`UrgentBuilds.Placing`), the clock is held until its plan's
-placement settles, and the scheduler then runs a rounds review (rounds selection `urgent_build`) that compares those
-placed sites alone (`RoundsFacts.UrgentSites`, [voluntary control](voluntary-control.md)) so its coupled work binds
+placement settles, and the scheduler then runs a colony review (rounds selection `urgent_build`) that compares those
+placed sites alone (`ReviewFacts.UrgentSites`, [voluntary control](voluntary-control.md)) so its coupled work binds
 them before a vanilla builder can take them; the review that commits releases the plans it covered (`Reviewed`). The
 tracking is in memory only: a restart has no urgent plan to wait for, and the next hourly review compares the sites.
 
@@ -181,37 +181,34 @@ census and a pawn without a food need or active mental state remain real absence
 
 ## Scheduler step
 
-`ClockScheduler.Step` uses the player's cancellation and serialization scope for one decision. It only plans: it
-reads the bundle with the clock status, runs the planner wave and returns a `ClockSchedulerResult`; it starts and
-stops nothing. `ClockRunDriver.AfterStepAsync` acts on the result (see Run driver). The step has no polling loop;
-autonomous play attaches `ClockRunDriver`.
+`PlannerScheduler.Step` uses the player's cancellation and serialization scope for one decision. It only plans: it
+reads the bundle with the clock status, runs the planner wave and returns a `PlannerSchedulerResult`; it starts and
+stops nothing. `PlannerRunDriver.AfterStepAsync` acts on the result (see Run driver). The step has no polling loop;
+autonomous play attaches `PlannerRunDriver`.
 
 
 ### Planner wave
 
-The rounder runs first and its failure aborts the step; every other composed planner
+The review coordinator runs first and its failure aborts the step; every other composed planner
 then runs as one concurrent wave whose failures are isolated: a planner whose native
 read is refused or whose preview is stale commits nothing and is reported in
-`ClockSchedulerResult.PlannerFailures`, but its peers finish and the run decision is still
+`PlannerSchedulerResult.PlannerFailures`, but its peers finish and the run decision is still
 taken on what they committed. Only the step's own context ending fails the wave.
 Planners are admitted in concern-priority order, at most `bridge.MaxConcurrentCalls`
 at a time, so a tight budget is spent on the highest priorities first. Native reads
 still execute one at a time on the game's main thread.
 
-**Admission classes.** The bridge hands call slots out by `AdmissionClass`: `control`
-(clock, authority, operations, lifecycle, placement previews),
-`observation` (`observations_*`, presentation state) or `mirror` (the clock
-events read: one call at a time, outside the shared slots). One slot is
-reserved for control and a waiting control call is admitted before any waiting read,
-so a `Run`, `Hold` or heartbeat never queues behind a burst of reads. The class rides beside
-`request` and `trace` on the wire, and the companion's `MainThreadAdmission` runs
-queued control hops before observation hops within a frame (untyped tools bypass
-that ordering).
+**Queue classes.** The in-process facade passes a `queueClass` to
+`GameThread.OnGameThread`: `control` for writes and clock or authority operations,
+`observation` for reads. `GameThreadQueue` runs queued control hops before observation
+hops, in arrival order within each class. Control hops run even when the per-frame
+allowance is spent; observation hops wait for the next frame. Queue classification
+belongs to game-thread scheduling; Method admission owns resource claims.
 
 **Critical and optional planners.** The wave waits on the critical class
-only. Each catalog entry is `critical` (combat, custody, medicine, recovery and the like) or `optional` (the development reviews). The Rounder review completes first; `StepBudget.Wall` bounds the subsequent
+only. Each catalog entry is `critical` (combat, custody, medicine, recovery and the like) or `optional` (the development reviews). The ColonyReview review completes first; `StepBudget.Wall` bounds the subsequent
 planner wave; past it, planners still
-evaluating are named on `ClockSchedulerResult.HeldBy` (`held_by` on the row) and the
+evaluating are named on `PlannerSchedulerResult.HeldBy` (`held_by` on the row) and the
 step does not complete (`HeldException`; the next step evaluates again). Optional
 planners run on the same snapshot, started after the critical ones, and are joined
 up to the same wall budget; those still evaluating are cancelled, listed under
@@ -235,7 +232,7 @@ native generation), the plan revision it commits under, the observation tick, an
 mutation). A read is stale only when its scope differs or the view is invalidated;
 the read's tick never makes it stale, because native revalidates every action on
 apply. Validity rides the step context and reaches the Worker
-(`ClockScheduler.Validity`, `WorkerConfig.Validity`). Section versions live on
+(`PlannerScheduler.Validity`, `WorkerConfig.Validity`). Section versions live on
 `facts.Store.Versions`: each moves on an invalidation naming the section, on a
 whole-view invalidation and on a scope change, never on a refresh at cadence. A
 `dispatch` run held on stale facts is marked `stale` (`stale_holds`).
@@ -243,7 +240,7 @@ whole-view invalidation and on a scope change, never on a refresh at cadence. A
 ### Fact sources
 
 Every state read a step issues is served from the newest snapshot frame
-(`FacadeNativeClient.Frames.cs`) past the client's last write; only parameterized reads no frame
+(`GameClient.Frames.cs`) past the client's last write; only parameterized reads no frame
 carries and the tick read cross the native channel. The frame stream is the only cross-step memo
 of wire replies. The sections of one frame share its tick, so readers apply no tick
 check between rows: a routine read's boundary (`observation.sameColonyContext`)
@@ -270,14 +267,14 @@ has no window. Fogged cells are never listed and the row carries no `reachable`
 (`placement_preview` refuses an unreachable site). A failed read serves the held
 window of the same region.
 
-The review retains its census for the step's planners (`roundsCensus`): a planner of
+The review retains its census for the step's planners (`reviewCensus`): a planner of
 the same load, map and native generation plans from it at any tick at or after the
 review until committed clock evidence invalidates it. There is no paused review
 bracket: CAS evidence on every write refuses a decision the world moved past.
 
 ## Run driver
 
-`ClockRunDriver` runs three loops separately: the colony event consumer, the heartbeat and the step loop. The step loop
+`PlannerRunDriver` runs three loops separately: the colony event consumer, the heartbeat and the step loop. The step loop
 calls `AfterStepAsync` after every scheduler step. The consumer never takes the Player gate; a batch read in a world that
 is not the one authority was granted for disables authority. No event is acknowledged or persisted.
 
@@ -334,14 +331,14 @@ queues the `plannerCatalog` entries `plannerSelection` picks over its due queue
 | Cause | Entries run |
 | --- | --- |
 | `full` | every configured entry |
-| `review`, `retry` | entries an invalidation since the last step dirtied (their declared `sections` include one an `ObservationInvalidated` row dirtied, `facts.Invalidation.Sections`; ids narrow a Colony invalidation to the entity sections they are rows of by their load-id shape, `Section.Keyed`: zone ids to the zone census alone, thing ids to the buildings, ids of no known shape to every entity section, while a Pawns invalidation dirties both pawn sections whatever it names, since no pawn section is an entity section; a family entry declares every section of each family it reads except the zone census, which only a family whose schedule names it declares, `FamilySchedule.Sections`, and is matched by its sections, by name only for a sectionless family such as world) and entries whose next review tick has passed (`plannerEntry.reviewEvery` for a catalog planner or a family with a cadence of its own; for the other family entries the tick the last committed rounds review stands until, `PlannerEntry.RoundsCadence`, moved with every review the rounder commits, #3556); with nothing dirty or due the step runs the driver tail alone. The rounder runs before them only when the last committed rounds review has stood `ClockSchedulerConfig.RoundsEveryTicks` (one in-game hour, #3556); otherwise the entries read that review. An entry selected `due` alone on such a step runs for its cadence: a ready Need whose last ordinary run ended in a wait or a refusal (not open work, a held claim or an unread field) keeps that verdict and Method and skips its work; a `dirty`, `wake`, `full` or `all` selection, a changed standing, the immediate pass or another world runs it again (#3556). A wait only wall-clock time ends is never kept and keeps the entry dirty: a force-pausing choice dialog read inside its interactivity grace (`Verdict.WaitsOnRealTime`) holds the clock with no tick, event or invalidation to end the wait, so the held clock's next `retry` step runs the entry again and answers the dialog (#3697). Every family entry's read validates against the scope the step read with its clock status (`FamilyReadScope.Scope`) and hops to the game thread for the tick only outside a step. Promoted to `full` once `FullStepEvery` has passed in wall time without a full wave, so a held clock's retries reach it too: it re-runs an entry refused admission on a held clock, which no tick, mark or invalidation reaches (#3706) |
+| `review`, `retry` | entries an invalidation since the last step dirtied (their declared `sections` include one an `ObservationInvalidated` row dirtied, `facts.Invalidation.Sections`; ids narrow a Colony invalidation to the entity sections they are rows of by their load-id shape, `Section.Keyed`: zone ids to the zone census alone, thing ids to the buildings, ids of no known shape to every entity section, while a Pawns invalidation dirties both pawn sections whatever it names, since no pawn section is an entity section; a family entry declares every section of each family it reads except the zone census, which only a family whose schedule names it declares, `FamilySchedule.Sections`, and is matched by its sections, by name only for a sectionless family such as world) and entries whose next review tick has passed (`plannerEntry.reviewEvery` for a catalog planner or a family with a cadence of its own; for the other family entries the tick the last committed colony review stands until, `PlannerEntry.Cadence`, moved with every review the review coordinator commits, #3556); with nothing dirty or due the step runs the driver tail alone. The review coordinator runs before them only when the last committed colony review has stood `PlannerSchedulerConfig.ReviewEveryTicks` (one in-game hour, #3556); otherwise the entries read that review. An entry selected `due` alone on such a step runs for its cadence: a ready Need whose last ordinary run ended in a wait or a refusal (not open work, a held claim or an unread field) keeps that verdict and Method and skips its work; a `dirty`, `wake`, `full` or `all` selection, a changed standing, the immediate pass or another world runs it again (#3556). A wait only wall-clock time ends is never kept and keeps the entry dirty: a force-pausing choice dialog read inside its interactivity grace (`Verdict.WaitsOnRealTime`) holds the clock with no tick, event or invalidation to end the wait, so the held clock's next `retry` step runs the entry again and answers the dialog (#3697). Every family entry's read validates against the scope the step read with its clock status (`FamilyReadScope.Scope`) and hops to the game thread for the tick only outside a step. Promoted to `full` once `FullStepEvery` has passed in wall time without a full wave, so a held clock's retries reach it too: it re-runs an entry refused admission on a held clock, which no tick, mark or invalidation reaches (#3706) |
 | `wake` | the dirtied entries as above; a hold carrying no evidence (a hazard, a game pause, a brain hold) is an early review of everything and marks every entry; all of them when authority changed |
 
 An entry that reported `existing_work` waits on the open attempts of its kinds
 (`plannerQueue.waits`): it is not selected again until one reaches its outcome row,
 its next review tick passes, or a full step runs, and a step that skips it lists it
-under `waiting`. The rounder runs before any wave; its retained census is retired by
-any typed-event invalidation (`roundsCensusStore` generation).
+under `waiting`. The review coordinator runs before any wave; its retained census is retired by
+any typed-event invalidation (`reviewCensusStore` generation).
 
 ### Routine verdicts
 

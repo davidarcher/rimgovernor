@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Store;
 /// </summary>
 /// <param name="Concern">The Need the method serves, as its filing key.</param>
 /// <param name="Reason">The planner's short reason, empty when it gave none.</param>
-public sealed record PlanMethodBinding(ConcernId Concern, MethodId Method, PlanId Plan, string Reason);
+public sealed record PlanMethodBinding(FilingKey Concern, MethodId Method, PlanId Plan, string Reason);
 
 public sealed partial class Store
 {
@@ -78,7 +78,7 @@ public sealed partial class Store
                     [("$plan", plan)],
                     r => (Need: r.GetString(0), Method: r.GetString(1), Reason: r.Text(2))
                 );
-                return found ? new PlanMethodBinding(new ConcernId(row.Need), new MethodId(row.Method), plan, row.Reason ?? "") : null;
+                return found ? new PlanMethodBinding(new FilingKey(row.Need), new MethodId(row.Method), plan, row.Reason ?? "") : null;
             },
             cancellationToken
         );

@@ -25,7 +25,7 @@ public sealed class StrandedStockTests
 
     private static LootItem Row(string thing, long headroom, params string[] acceptedBy) =>
         LootFixtures.Stack(thing, "Steel", new Cell(50, 50), false,
-            new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 0 }, 10, headroom, acceptedBy, null);
+            new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Safe { PathLength = 0 }, 10, headroom, acceptedBy, null);
 
     [Fact]
     public void AStackOnlyTheYardAcceptsIsStrandedAtTheYardAlone()
@@ -59,7 +59,7 @@ public sealed class StrandedStockTests
         var request = Request(
             Row("Thing_1", 75, "Zone_yard"),
             forbidden with { Observed = forbidden.Observed with { Forbidden = true } },
-            unsafeStack with { Observed = unsafeStack.Observed with { Safety = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Unsafe() } });
+            unsafeStack with { Observed = unsafeStack.Observed with { Safety = new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Unsafe() } });
         Assert.Equal(0L, StoreRules.StrandedStacks(request, Yard));
     }
 
@@ -67,7 +67,7 @@ public sealed class StrandedStockTests
     public void AnUnreachedStackCannotBeHauledToEitherStore()
     {
         var stack = Row("Thing_1", 0, "Zone_yard");
-        var request = Request(stack with { Observed = stack.Observed with { Safety = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Unreached() } });
+        var request = Request(stack with { Observed = stack.Observed with { Safety = new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Unreached() } });
         Assert.Equal(0L, StoreRules.StrandedStacks(request, Yard));
         Assert.Equal(0L, StoreRules.StrandedStacks(request, Warehouse));
     }

@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 // Quit callbacks run on the game thread. Final brain holds still need that thread;
 // waiting without draining its existing queue deadlocks cleanup until a timeout.

@@ -2,38 +2,36 @@ using System;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The exact job issued by Building_GravEngine.GetFloatMenuOptions. Its
     // driver reserves and reaches the engine, then calls Inspect after work.
     internal static class NativeGravEngineInspectionOperations
     {
-        private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Building_GravEngine? engine, out bool running)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Pawn? pawn, out Building_GravEngine? engine, out bool running)
         {
             engine = null; running = false;
             if (!NativeGiveJob.TryPawn(intent, context, out pawn, out var snapshot, out var failure)) return failure;
             if (!snapshot.Eligible || snapshot.Drafted || !pawn.IsColonistPlayerControlled || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Moving))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Inspection requires an eligible undrafted mobile colonist.");
-            var map = ProtoBoundary.LoadedMap(context);
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Inspection requires an eligible undrafted mobile colonist.");
+            var map = GameThread.LoadedMap(context);
             engine = RefIndex.Thing(map, intent.TargetId) as Building_GravEngine;
             if (engine == null || !engine.Spawned || engine.Destroyed || engine.Position.Fogged(map))
-                return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact grav engine is not visible on this map.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact grav engine is not visible on this map.");
             if (Find.ResearchManager.gravEngineInspected)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The grav engine has already been inspected.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The grav engine has already been inspected.");
             var current = pawn.CurJob;
             running = current != null && current.def == JobDefOf.InspectGravEngine && current.targetA.Thing == engine;
             if (running) return null;
             if (!pawn.CanReserveAndReach(engine, PathEndMode.Touch, Danger.None))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The colonist cannot reserve and reach the grav engine.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The colonist cannot reserve and reach the grav engine.");
             return null;
         }
 
-        internal static Common.Failure? Validate(JobOrder intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var engine, out var running);
             if (failure != null || pawn == null || engine == null) throw new InvalidOperationException(failure?.Detail);

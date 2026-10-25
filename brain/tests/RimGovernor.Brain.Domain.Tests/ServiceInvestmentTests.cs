@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -69,7 +70,7 @@ public sealed class ServiceInvestmentTests
             batch = batch with { Orders = [.. batch.Orders.Select(o => o.Task.Length == 0 ? o
                 : o with { Task = batch.Tasks.First(t => t.Pawn == o.Pawn && t.Step.Kind != PawnActivityKind.Supply).Id })] };
         }
-        var read = ConstructionFixtures.NoTasks() with { Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Tick = 110, Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 } }, Truncated = truncated,
+        var read = ConstructionFixtures.NoTasks() with { Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Tick = 110, Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 } }, Truncated = truncated,
             Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
                 new(o.Assignment, o.Method, o.Revision, 0, state, "", 110)))) };
         Assert.Equal(needed ? ActivityNeed.Owed : ActivityNeed.Ended, ForecastServiceInvestments.ReviewServiceActivityNeed(batch, ActivityNeed.Owed, read));
@@ -80,7 +81,7 @@ public sealed class ServiceInvestmentTests
     public void FoodProposalUsesSameBeneficiariesAndRetiresWhenTheirDemandIsMet()
     {
         var facts = ForecastCoupledSelectionTests.Review();
-        ForecastCoupledSelection Select(RoundsFacts f) => ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new(100),
+        ForecastCoupledSelection Select(ReviewFacts f) => ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new(100),
             300d / GameTime.TicksPerDay, f,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(f) }, []), f.CoupledAlternatives!);
         var proposal = Assert.Single(Select(facts).ServiceInvestments);
         Assert.Equal(FoodRules.FoodSupplyNeed.FilingKey, proposal.Target.Owner);
@@ -129,7 +130,7 @@ public sealed class ServiceInvestmentTests
             [new(new("plan"), partialAction, new() { Action = partialAction.Id, Stage = Stage.Completed, Attempt = new(1), Tick = new(99) })]);
         Assert.Empty(displacedView.Claims.Materials);
         Assert.True(WorkRules.WorkResourcesFit(facts.WorkView, new(new("new-plan"), new(1), [action])));
-        var scarce = facts with { Census = facts.Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 99 }] }};
+        var scarce = facts with { Census = facts.Census with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Rice", Units = 99 }] }};
         var poor = WorkRules.WorkResourcesOf(ProductionRules.WorkAdmissionEvidenceOf(scarce, new ProductionBatchCensus.Read([])), new ProductionBatchCensus.Read([]), []);
         Assert.False(WorkRules.WorkResourcesFit(poor, new(new("new-plan"), new(1), [action])));
     }

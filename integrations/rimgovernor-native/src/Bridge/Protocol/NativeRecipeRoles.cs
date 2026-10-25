@@ -1,7 +1,7 @@
 using System.Linq;
 using RimWorld;
 using Verse;
-namespace HomeBridge.BridgeTools {
+namespace RimGovernor.Native {
  // The roles a recipe plays, read from the recipe def itself: the
  // game's own worker class and ingredient/product shape, never a defName.
  internal static class NativeRecipeRoles {

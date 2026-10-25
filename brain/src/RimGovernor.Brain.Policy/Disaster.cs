@@ -1,6 +1,5 @@
-using O = RimGovernor.Contracts.Wire.Observations;
-using BuildingHitPoints = RimGovernor.Contracts.Wire.Observations.BuildingHitPoints;
-using ConditionDuration = RimGovernor.Contracts.Wire.Observations.ConditionDuration;
+using BuildingHitPoints = RimGovernor.Brain.GameFacts.Observations.BuildingHitPoints;
+using ConditionDuration = RimGovernor.Brain.GameFacts.Observations.ConditionDuration;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -56,7 +55,7 @@ public enum DisasterService
 /// </summary>
 public sealed record DisasterCondition
 {
-    public required O.EnvironmentCondition Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.EnvironmentCondition Observed { get; init; }
 
     public string Id => Observed.Id;
 
@@ -243,7 +242,7 @@ public static class DisasterRules
     /// refuelable building under a quarter of its fuel target, refuels first. Forbidden and burning buildings are
     /// skipped. Native eligibility and resource previews remain mandatory at action admission. Throws on an invalid row.
     /// </summary>
-    public static EquatableArray<RecoveryWork> RecoveryPending(IReadOnlyList<O.BuildingState> rows)
+    public static EquatableArray<RecoveryWork> RecoveryPending(IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.BuildingState> rows)
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var work = new List<RecoveryWork>();
@@ -253,7 +252,7 @@ public static class DisasterRules
             {
                 throw new DomainException("invalid recovery identity");
             }
-            if (row.Service.Fuel is O.BuildingFuel.Refuelable fuel && (!FoodForecastRules.FoodNumber(fuel.Fuel) || !FoodForecastRules.FoodNumber(fuel.TargetFuel)))
+            if (row.Service.Fuel is RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable fuel && (!FoodForecastRules.FoodNumber(fuel.Fuel) || !FoodForecastRules.FoodNumber(fuel.TargetFuel)))
             {
                 throw new DomainException("invalid recovery fuel");
             }
@@ -273,7 +272,7 @@ public static class DisasterRules
             {
                 work.Add(new RecoveryWork(row.Building.Id, RecoveryMethod.Repair));
             }
-            if (row.Service.Fuel is O.BuildingFuel.Refuelable low && low.Fuel < low.TargetFuel * .25)
+            if (row.Service.Fuel is RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable low && low.Fuel < low.TargetFuel * .25)
             {
                 work.Add(new RecoveryWork(row.Building.Id, RecoveryMethod.Refuel));
             }
@@ -286,7 +285,7 @@ public static class DisasterRules
     }
 
     /// <summary>Whether a building stands whole: at its maximum hit points (or untracked) and not broken down.</summary>
-    private static bool Whole(O.BuildingState b) =>
+    private static bool Whole(RimGovernor.Brain.GameFacts.Observations.BuildingState b) =>
         (b.HitPoints is not BuildingHitPoints.Tracked hp || hp.Current == hp.Maximum) && !b.Service.BrokenDown;
 
     /// <summary>
@@ -303,7 +302,7 @@ public static class DisasterRules
 
     public static DisasterHistory? ReviewDisaster(
         EquatableArray<DisasterCondition> currentRows,
-        EquatableArray<O.BuildingState> rows,
+        EquatableArray<RimGovernor.Brain.GameFacts.Observations.BuildingState> rows,
         IReadOnlyDictionary<DisasterService, DisasterServiceStatus> services,
         DisasterHistory? previous,
         Tick tick,

@@ -4,9 +4,8 @@ using System.Diagnostics;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// Read-only measurement of the snapshot frame capture for the acceptance probe: wall time and managed
@@ -50,7 +49,7 @@ namespace HomeBridge.BridgeTools
         internal sealed class GameSide
         {
             internal int Width, Height, Held, Things;
-            internal Obs.BundleSnapshot? Frame;
+            internal RimGovernor.Brain.GameFacts.Observations.BundleSnapshot? Frame;
         }
 
         internal static double Ms(long stopwatchTicks) => stopwatchTicks * 1000.0 / Stopwatch.Frequency;
@@ -66,7 +65,7 @@ namespace HomeBridge.BridgeTools
             for (int i = 0; i < iterations; i++)
             {
                 ObservationWork.BeginCapture();
-                Obs.BundleSnapshot? frame;
+                RimGovernor.Brain.GameFacts.Observations.BundleSnapshot? frame;
                 try { frame = rec.Time("capture.total", () => SnapshotFrames.Capture(map, shape)); }
                 finally
                 {

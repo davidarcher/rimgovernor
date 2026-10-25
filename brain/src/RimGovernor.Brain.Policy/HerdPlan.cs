@@ -1,4 +1,4 @@
-using Sex = RimGovernor.Contracts.Wire.Defs.Gender;
+using Sex = RimGovernor.Brain.GameFacts.Defs.Gender;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -43,7 +43,7 @@ public sealed record HerdPlanInput
     public EquatableArray<UpkeepAnimal> Wild { get; init; }
     public required AnimalRaceCatalog Races { get; init; }
     public double Budget { get; init; }
-    public required RimGovernor.Contracts.Wire.Observations.ThreatFacts Threat { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.ThreatFacts Threat { get; init; }
     public EquatableArray<PenGrazing> Pens { get; init; }
     public FoodPlan? Food { get; init; }
 
@@ -113,10 +113,10 @@ public sealed partial record HerdPlan
 }
 
 /// <summary>The herd plan's views of a routine reading.</summary>
-public static class RoundsFactsHerdPlanExtensions
+public static class FactsHerdPlanExtensions
 {
     /// <summary>The plan's facts from a routine reading.</summary>
-    public static HerdPlanInput HerdPlanInput(this RoundsFacts f) =>
+    public static HerdPlanInput HerdPlanInput(this ReviewFacts f) =>
         new()
         {
             Animals = f.AnimalUpkeep.Animals,
@@ -131,10 +131,10 @@ public static class RoundsFactsHerdPlanExtensions
         };
 
     /// <summary>The population band of the herd plan of f.</summary>
-    public static HerdPolicy HerdPolicy(this RoundsFacts f) => HerdPlanRules.PlanHerd(f.HerdPlanInput()).Policy;
+    public static HerdPolicy HerdPolicy(this ReviewFacts f) => HerdPlanRules.PlanHerd(f.HerdPlanInput()).Policy;
 
     /// <summary>The herds by race the station graph's pens are sized for.</summary>
-    public static IReadOnlyList<StationHerd> PenHerds(this RoundsFacts f) => HerdPlanRules.PlanHerd(f.HerdPlanInput()).StationHerds();
+    public static IReadOnlyList<StationHerd> PenHerds(this ReviewFacts f) => HerdPlanRules.PlanHerd(f.HerdPlanInput()).StationHerds();
 }
 
 /// <summary>Herd policy behaviour owned by the herd surplus rules.</summary>

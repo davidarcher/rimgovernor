@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// The read blocks that hang off a pawn's CONFIGURATION rather than their
@@ -101,8 +101,8 @@ namespace HomeBridge.BridgeTools
 
         // ==================================================================
         // Typed-protocol accessors (N01.03 PawnSocial). Non-mutating reads that
-        // return plain data so the Protocol/ layer can do its own protobuf
-        // projection without this file depending on the generated Observations
+        // return plain data so the Protocol/ layer can do its own typed
+        // projection without this file depending on the Contracts observation
         // types. A game read that throws propagates: the bridge host turns it
         // into a success:false reply (docs/developers/contracts/bridge-thrown-hop.md).
         // ==================================================================

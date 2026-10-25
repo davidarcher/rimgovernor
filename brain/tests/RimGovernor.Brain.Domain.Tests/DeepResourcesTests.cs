@@ -1,12 +1,14 @@
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
 /// The deep resource census is one total facts record (#3767): every member is <c>required</c>, a drill's deposit is
-/// a relation (null once nothing valuable remains under it), and the record round-trips through <c>WireJsonContext</c>
+/// a relation (null once nothing valuable remains under it), and the record round-trips through <c>OrdersJsonContext</c>
 /// exactly.
 /// </summary>
 public sealed class DeepResourcesTests
@@ -29,11 +31,11 @@ public sealed class DeepResourcesTests
             ],
         };
 
-        var json = WireJson.Serialize(deep);
+        var json = OrdersJson.Serialize(deep);
 
         Assert.Equal(
             """{"lumps":[{"definition":"Plasteel","count":300,"centre":{"x":10,"z":12},"cellCount":3}],"groundScanners":[{"definition":"GroundPenetratingScanner","position":{"x":2,"z":3},"powered":true,"working":false,"ticksToNextFind":42000}],"longRangeScanners":[],"drills":[{"id":"Thing_DeepDrill7","definition":"DeepDrill","position":{"x":10,"z":12},"deposit":{"resource":"Plasteel","remaining":100},"designated":false},{"id":"Thing_DeepDrill9","definition":"DeepDrill","position":{"x":10,"z":4},"deposit":null,"designated":true}]}""",
             json);
-        Assert.Equal(deep, WireJson.Deserialize<DeepResources>(json));
+        Assert.Equal(deep, OrdersJson.Deserialize<DeepResources>(json));
     }
 }

@@ -1,8 +1,7 @@
-using Identity = RimGovernor.Brain.Bridge.Contracts.ObservationIdentity;
+using Identity = RimGovernor.Brain.GameAccess.ObservationIdentity;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
-using O = RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameAccess;
 using Cell = RimGovernor.Brain.Domain.Cell;
 using PawnId = RimGovernor.Brain.Domain.PawnId;
 
@@ -77,11 +76,11 @@ internal sealed class ConstructionState
     }
 
     // Projects row into the state, marking the lists dirty only when the row's projection differs from the one held.
-    private void Set(string id, O.BuildingState row)
+    private void Set(string id, RimGovernor.Brain.GameFacts.Observations.BuildingState row)
     {
         switch (row.Status)
         {
-            case O.BuildingStatus.Built:
+            case RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Built:
             {
                 var next = BuiltEntryOf(row);
                 if (!_built.TryGetValue(id, out var old) || old != next)
@@ -92,8 +91,8 @@ internal sealed class ConstructionState
                 _sites.Remove(id);
                 break;
             }
-            case O.BuildingStatus.Blueprint:
-            case O.BuildingStatus.Frame:
+            case RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Blueprint:
+            case RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Frame:
             {
                 if (_built.Remove(id))
                 {
@@ -122,7 +121,7 @@ internal sealed class ConstructionState
         }
     }
 
-    private static BuiltEntry BuiltEntryOf(O.BuildingState row)
+    private static BuiltEntry BuiltEntryOf(RimGovernor.Brain.GameFacts.Observations.BuildingState row)
     {
         try
         {
@@ -153,7 +152,7 @@ internal sealed class ConstructionState
     }
 
     // Removes a replaced or removed row's share of the deficit.
-    private void DropNeeds(string id, O.BuildingState row)
+    private void DropNeeds(string id, RimGovernor.Brain.GameFacts.Observations.BuildingState row)
     {
         foreach (var n in ConstructionReads.SiteNeeds(row))
         {
@@ -211,7 +210,7 @@ internal readonly record struct SiteNeed(Resource Resource, long Count);
 public static class ConstructionReads
 {
     /// <summary>Projects one built row for the construction census.</summary>
-    internal static CurrentBuilding CurrentBuildingOf(O.BuildingState row)
+    internal static CurrentBuilding CurrentBuildingOf(RimGovernor.Brain.GameFacts.Observations.BuildingState row)
     {
         var result = new CurrentBuilding { Observed = row };
         _ = result.Building;
@@ -222,20 +221,20 @@ public static class ConstructionReads
     /// Projects one construction blueprint or frame row; ok is false for an installation blueprint, which is no
     /// construction site. A blueprint or frame without its construction state is a contract error.
     /// </summary>
-    internal static (ConstructionSite Site, bool Ok, DomainException? Error) ConstructionSiteOf(O.BuildingState row)
+    internal static (ConstructionSite Site, bool Ok, DomainException? Error) ConstructionSiteOf(RimGovernor.Brain.GameFacts.Observations.BuildingState row)
     {
         var site = new ConstructionSite { Observed = row };
         try
         {
-            if (row.Status == O.BuildingStatus.Built)
+            if (row.Status == RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Built)
             {
                 throw new ObservationContractException("a built row is no construction site");
             }
-            if (row.Construction is O.ConstructionState.Installation)
+            if (row.Construction is RimGovernor.Brain.GameFacts.Observations.ConstructionState.Installation)
             {
                 return (site, false, null);
             }
-            if (row.Construction is not O.ConstructionState.Build)
+            if (row.Construction is not RimGovernor.Brain.GameFacts.Observations.ConstructionState.Build)
             {
                 throw new ObservationContractException("a blueprint or frame row carries no construction state");
             }
@@ -250,10 +249,10 @@ public static class ConstructionReads
     }
 
     /// <summary>What one construction blueprint or frame row is still owed, nothing for any other row.</summary>
-    internal static List<SiteNeed> SiteNeeds(O.BuildingState row)
+    internal static List<SiteNeed> SiteNeeds(RimGovernor.Brain.GameFacts.Observations.BuildingState row)
     {
         var needs = new List<SiteNeed>();
-        if (row.Construction is not O.ConstructionState.Build build)
+        if (row.Construction is not RimGovernor.Brain.GameFacts.Observations.ConstructionState.Build build)
         {
             return needs;
         }
@@ -284,7 +283,7 @@ public static class ConstructionReads
     }
 
     /// <summary>Bill lifecycle from the same census as ingredient reservations.</summary>
-    public static EquatableArray<ProductionBatchState> ProductionBatchStates(O.BillsSnapshot? snapshot)
+    public static EquatableArray<ProductionBatchState> ProductionBatchStates(RimGovernor.Brain.GameFacts.Observations.BillsSnapshot? snapshot)
     {
         if (snapshot is null) throw new RequiredFactException("bills");
         var rows = new List<ProductionBatchState>();
@@ -299,13 +298,13 @@ public static class ConstructionReads
     }
 
     /// <summary>The bill's bound unfinished item; a bound item without an id, or an embedded ingredient without a def or a positive count, is a broken read.</summary>
-    private static void ValidateProductionUnfinishedWork(string bill, O.BillUnfinishedWork work)
+    private static void ValidateProductionUnfinishedWork(string bill, RimGovernor.Brain.GameFacts.Observations.BillUnfinishedWork work)
     {
         switch (work)
         {
-            case O.BillUnfinishedWork.None:
+            case RimGovernor.Brain.GameFacts.Observations.BillUnfinishedWork.None:
                 return;
-            case O.BillUnfinishedWork.Bound bound:
+            case RimGovernor.Brain.GameFacts.Observations.BillUnfinishedWork.Bound bound:
                 if (string.IsNullOrWhiteSpace(bound.Item)) throw new RequiredFactException("unfinished_work.item:" + bill);
                 var seen = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var amount in bound.Ingredients)
@@ -323,7 +322,7 @@ public static class ConstructionReads
     /// section fails the frame), so a missing census, a row without its pawn or bill, or an item without its def or a
     /// non-negative count is an unread fact.
     /// </summary>
-    public static EquatableArray<IngredientReservation> BillReservations(O.BillsSnapshot? v)
+    public static EquatableArray<IngredientReservation> BillReservations(RimGovernor.Brain.GameFacts.Observations.BillsSnapshot? v)
     {
         if (v is null) throw new RequiredFactException("bill_reservations");
         var output = new List<IngredientReservation>();

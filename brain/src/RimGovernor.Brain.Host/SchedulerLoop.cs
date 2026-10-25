@@ -1,4 +1,4 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 
 namespace RimGovernor.Brain.Host;
 
@@ -23,8 +23,8 @@ internal sealed class SchedulerLoop
 {
     private readonly Player _player;
     private readonly Session _session;
-    private readonly ClockScheduler _scheduler;
-    private readonly ClockRunDriver? _clock;
+    private readonly PlannerScheduler _scheduler;
+    private readonly PlannerRunDriver? _clock;
     private readonly WakeSignal _wake;
     private readonly BrainTimings _timings;
     private readonly BrainWatchdog _watchdog;
@@ -38,8 +38,8 @@ internal sealed class SchedulerLoop
     public SchedulerLoop(
         Player player,
         Session session,
-        ClockScheduler scheduler,
-        ClockRunDriver? clock,
+        PlannerScheduler scheduler,
+        PlannerRunDriver? clock,
         WakeSignal wake,
         BrainTimings timings,
         BrainWatchdog watchdog,
@@ -130,7 +130,7 @@ internal sealed class SchedulerLoop
                 previous = null;
             }
 
-            ClockSchedulerResult? result = null;
+            PlannerSchedulerResult? result = null;
             var outcome = Guard("step", async ct =>
             {
                 using var bounded = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -215,7 +215,7 @@ internal sealed class SchedulerLoop
     // retried, as a full step because the scheduler replans after the cancellation, and never counts toward the fault
     // limit that suspends authority.
     internal static bool IsRetry(Exception? error, bool faulted) =>
-        faulted && error is OperationCanceledException or RimGovernor.Brain.Executor.AuthorityException or RimGovernor.Brain.Bridge.Contracts.ObservationChangedException or ControlException or RimGovernor.Brain.Executor.HeldException;
+        faulted && error is OperationCanceledException or RimGovernor.Brain.Executor.AuthorityException or RimGovernor.Brain.GameAccess.ObservationChangedException or ControlException or RimGovernor.Brain.Executor.HeldException;
 
     /// <summary>
     /// Runs <paramref name="work"/> on the pool and waits for it on this thread, bounded by the watchdog. A work
@@ -334,7 +334,7 @@ internal sealed class SchedulerLoop
         }
     }
 
-    private void Report(Outcome outcome, Exception? error, ClockSchedulerResult? result, StepKey? previous, out StepKey key)
+    private void Report(Outcome outcome, Exception? error, PlannerSchedulerResult? result, StepKey? previous, out StepKey key)
     {
         key = StepKey.Of(outcome == Outcome.Done, error, result);
         if (previous is { } p && p == key)
@@ -362,7 +362,7 @@ internal sealed class SchedulerLoop
     /// <summary>What distinguishes one step's outcome from the last, so a sustained outcome logs and backs off once.</summary>
     private readonly record struct StepKey(bool Failed, string Failure, bool Running, bool Deferred)
     {
-        public static StepKey Of(bool done, Exception? error, ClockSchedulerResult? result)
+        public static StepKey Of(bool done, Exception? error, PlannerSchedulerResult? result)
         {
             var failure = error?.Message ?? "";
             if (result is { PlannerFailures.Count: > 0 })

@@ -1,20 +1,19 @@
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class MonolithCanonicalTests
 {
-    private static O.MonolithState Monolith() => new()
+    private static RimGovernor.Brain.GameFacts.Observations.MonolithState Monolith() => new()
     {
         MonolithId = "monolith", PendingVoidStructureIds = [], VoidNodeId = null,
         VoidNodePawnIds = [], CanActivate = true, NextLevelDef = null,
         CodexShortfall = 0, BlockingConditions = [], GleamingInteractionAvailable = false,
     };
 
-    private static O.AnomalyColonyFacts Colony(O.MonolithState monolith) => new()
+    private static RimGovernor.Brain.GameFacts.Observations.AnomalyColonyFacts Colony(RimGovernor.Brain.GameFacts.Observations.MonolithState monolith) => new()
     {
         Incidents = new() { MonolithSpawned = true, AmbientHorrorMode = false, Level = 0 },
         Monolith = monolith,
@@ -26,7 +25,7 @@ public sealed class MonolithCanonicalTests
     public void BridgeRetainsActualMonolithAndIncidentRows()
     {
         var facts = Colony(Monolith());
-        var view = Assert.IsType<AnomalyState.Active>(AnomalyColonyReads.AnomalyOf(new O.AnomalySection.Active(facts)));
+        var view = Assert.IsType<AnomalyState.Active>(AnomalyColonyReads.AnomalyOf(new RimGovernor.Brain.GameFacts.Observations.AnomalySection.Active(facts)));
         Assert.Same(facts, view.Monolith);
         Assert.Same(facts.Monolith, view.Monolith.Monolith);
         Assert.Same(facts.Incidents, view.Monolith.Incidents);

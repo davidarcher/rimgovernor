@@ -45,7 +45,7 @@ reachable console/negotiator, and no passing ships for orbital requests.
 Catalog sell generators establish compatibility only; unsupported forms
 remain unknown, and no stock or price is inferred.
 
-The Rounder retains proposals for food and resources in derived memory. An
+The ColonyReview retains proposals for food and resources in derived memory. An
 executor claims one before admitting Hands work, holds the claim through
 reconciliation, and releases it after the attempt resolves. Native queued
 arrivals and comms work also block request proposals after restart. This
@@ -180,7 +180,7 @@ expected rate x factor`.
   since the plan opened it (`Opened`), so unrequested candidates are not
   penalised. Once a group has deliveries it uses the available trailing
   counter differences immediately, with at least one day's expected demand
-  in the denominator; a burst between nearby Rounds cannot promise a sustained
+  in the denominator; a burst between nearby Colony review cannot promise a sustained
   flow. The first cumulative read is a baseline, earning no delivery credit.
 - **Holds**: a factor holds while the ledger is unavailable, after a load
   (re-baseline: the epoch changed) and for a group without a row while rows were
@@ -253,7 +253,7 @@ still needs priced like a planted field, the sowing (`FieldSowTicksPerCell`
 per cell) as upfront labor, the full grow days across the calendar as lead
 (`NewFieldLeadDays`: growth that outlasts the growing days left waits out the
 frost) and the rot stock cap. None is offered while crops cannot be sown
-outdoors. The field executor (`RoundsField.cs`) places a new field only when
+outdoors. The field executor (`Field.cs`) places a new field only when
 the plan opened a `new:` candidate; pending zone creates and add-cells count as
 designated nutrition against the gap (`foodPlanFieldRoom`). Site choice stays
 with the executor.
@@ -279,8 +279,8 @@ capped at a year. The same `ToxicFallout` read feeds the indoor-site
 
 A caravan's prices exist only in an open trade session's sheet, so the plan
 cannot see them when it is built. The negotiator's session is the look a player
-takes at the goods: each time `RoundsTradePlanner` reads the sheet of its open
-session it records a `policy.TradeOffers` in `Rounder.tradeOffers` (memory
+takes at the goods: each time `TradePlanner` reads the sheet of its open
+session it records a `policy.TradeOffers` in `ColonyReview.tradeOffers` (memory
 only, derived state, per trader id): the trader, negotiator, observed tick, the
 colony's silver, the trader's goods-stack count and one `TradeOffer` (def,
 units held, silver price) per priced row. The book is read through
@@ -292,7 +292,7 @@ leaves the census, a settled session (accept or end) and a new generation drop
 the record. #2166 presents traders on the model from the same records.
 
 Browsing is general: the Round marks every tradeable caravan on the census with
-no fresh record in `UnpricedTraders` (`Rounder.MarkUnpriced`), and
+no fresh record in `UnpricedTraders` (`ColonyReview.MarkUnpriced`), and
 `TradeRecovered` keeps the `economy/caravan` Need unmet while one is present,
 whatever the colony needs. The negotiator opens a session, the sheet read
 records the offers and the plan is rebuilt; lines stage only for what the plan
@@ -316,7 +316,7 @@ its lead beats the alternatives. The book is keyed by the loaded world, not the
 plan revision, so the food plan (built from the frame's trader census) and the
 resource plan read one record.
 
-Trade buys only what the plan opened: `RoundsTradePlanner.selection` limits the
+Trade buys only what the plan opened: `TradePlanner.selection` limits the
 economy/resource shortfall and the component target to the units the plan opened
 for that trader (`resourceSupply.tradeLines`) and the food nutrition to the food
 plan's opened candidate for that trader; medicine, surgery parts, ingredient

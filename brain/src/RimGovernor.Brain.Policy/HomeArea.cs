@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
-using HomeCoverageFacts = RimGovernor.Contracts.Wire.Observations.HomeCoverageFacts;
+using HomeCoverageFacts = RimGovernor.Brain.GameFacts.Observations.HomeCoverageFacts;
 
 namespace RimGovernor.Brain.Policy;
 

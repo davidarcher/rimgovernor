@@ -6,7 +6,7 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Spoilage preference: when the supervisor is active, the colony uses
     // its oldest stock first. Both patches only reorder or re-weigh candidates

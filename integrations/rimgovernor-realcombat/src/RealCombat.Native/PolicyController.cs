@@ -1,5 +1,5 @@
-using HomeBridge.BridgeTools;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Native;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Bridge;
 using PawnId = RimGovernor.Brain.Domain.PawnId;
 using RimGovernor.Brain.Host;
@@ -7,7 +7,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.RealCombat;
 using Verse;
 using Tick = RimGovernor.Brain.Domain.Tick;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.RealCombat.Native;
 
@@ -23,8 +22,8 @@ public sealed class PolicyController : IFightController
 
     private readonly List<PawnId> _orderable = [];
     private NativeSeat? _seat;
-    private INativeFacade? _facade;
-    private FacadeNativeClient? _client;
+    private IGameApi? _facade;
+    private GameClient? _client;
     private CombatMemory _memory = new();
     private int _decided = int.MinValue;
     private int _serial;
@@ -57,7 +56,7 @@ public sealed class PolicyController : IFightController
     {
         _seat = NativeSeat.Open(map);
         _facade = PolicyFacade.Create();
-        _client = FacadeNativeClient.Create(_facade, CatalogOfArena);
+        _client = GameClient.Create(_facade, CatalogOfArena);
         _client.OpenFramesAsync(CancellationToken.None).GetAwaiter().GetResult();
     }
 
@@ -86,7 +85,7 @@ public sealed class PolicyController : IFightController
 
         try
         {
-            var request = new Obs.SnapshotStreamRequest { RoutePathBudget = new Obs.FrameBudget.Unlimited(), LinesOfFireBudget = new Obs.FrameBudget.Millis { Value = 15 } };
+            var request = new RimGovernor.Brain.GameOrders.Observations.SnapshotStreamRequest { RoutePathBudget = new RimGovernor.Brain.GameFacts.Observations.FrameBudget.Unlimited(), LinesOfFireBudget = new RimGovernor.Brain.GameFacts.Observations.FrameBudget.Millis { Value = 15 } };
             var frame = SnapshotFrames.Capture(map, request);
             if (frame is null)
             {
@@ -96,7 +95,7 @@ public sealed class PolicyController : IFightController
 
             PolicyFacade.Publish(_facade!, new NativeFrame(frame, ++_serial, 0));
             var combat = _client!.ReadCombatAsync(_seat!.Identity, CancellationToken.None).GetAwaiter().GetResult();
-            var stop = RoundsDefensePlanner.CombatStop(combat, _memory.Tick);
+            var stop = DefensePlanner.CombatStop(combat, _memory.Tick);
             if (stop.Cause is CombatDecisionTrigger.Review && _decided != int.MinValue && tick - _decided < BackstopTicks)
             {
                 return;
@@ -105,7 +104,7 @@ public sealed class PolicyController : IFightController
             var step = CombatReads.DecideCombatStep(combat, _orderable, _memory with { Tick = new Tick(tick) }, $"rc-{tick}", _seat.Identity, GeometryOf, Layout, ReadsOf(tick, frame));
             if (step is null)
             {
-                Idle = "no fight: " + RoundsDefensePlanner.CombatFrameInputs(combat, [], []).Reason;
+                Idle = "no fight: " + DefensePlanner.CombatFrameInputs(combat, [], []).Reason;
                 return;
             }
 
@@ -167,7 +166,7 @@ public sealed class PolicyController : IFightController
     }
 
     // The reads the defense round adds to the view: the catalog's combat drugs and the royalty facts.
-    private CombatReads ReadsOf(int tick, Obs.BundleSnapshot frame)
+    private CombatReads ReadsOf(int tick, RimGovernor.Brain.GameFacts.Observations.BundleSnapshot frame)
     {
         var identity = _seat!.Identity;
         var catalog = _client!.DefinitionCatalogAsync(identity, CancellationToken.None).GetAwaiter().GetResult();
@@ -198,16 +197,16 @@ public sealed class PolicyController : IFightController
 
     // The royalty facts the rounds read: the colonists' pawn rows and the colony section of the frame, against the catalog.
     // Null when the frame has no colony facts or an inactive royalty section (no Royalty); a row the read cannot use throws.
-    private static RoyaltyFacts? RoyaltyOf(Obs.BundleSnapshot frame, DefinitionCatalog catalog) =>
+    private static RoyaltyFacts? RoyaltyOf(RimGovernor.Brain.GameFacts.Observations.BundleSnapshot frame, DefinitionCatalog catalog) =>
         frame.ColonyFacts is { } colony
         && RimGovernor.Brain.Bridge.ColonyPlanningReads.RoyaltyOf(colony.Royalty, frame.Pawns, catalog) is RoyaltyState.Active { Facts: var royalty }
             ? royalty
             : null;
 
-    private RimGovernor.Contracts.Wire.Mirror.CombatGeometry GeometryOf(RimGovernor.Contracts.Wire.Mirror.CombatGeometryRequest request) =>
+    private RimGovernor.Brain.GameFacts.Mirror.CombatGeometry GeometryOf(RimGovernor.Brain.GameOrders.Mirror.CombatGeometryRequest request) =>
         _client!.CombatGeometryAsync(request, CancellationToken.None).GetAwaiter().GetResult();
 
     // The catalog of the load over the game's Defs, with the def stat table its definition catalog read built.
-    private static DefinitionCatalog CatalogOfArena(RimGovernor.Contracts.Wire.Common.Identity identity) =>
+    private static DefinitionCatalog CatalogOfArena(RimGovernor.Brain.GameFacts.Common.Identity identity) =>
         NativeCatalogFactory.Create(identity);
 }

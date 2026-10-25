@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy;
 public static class ClearanceReads
 {
@@ -6,11 +5,11 @@ public static class ClearanceReads
     internal const long SalvageUnitsPerTrip = 75;
 
     /// <summary>The planner's work items for the census rows, in census order.</summary>
-    public static IReadOnlyList<ClearanceTarget> Targets(O.ClearanceTargetsSnapshot census) =>
+    public static IReadOnlyList<ClearanceTarget> Targets(RimGovernor.Brain.GameFacts.Observations.ClearanceTargetsSnapshot census) =>
         [.. census.Targets.Select(Target)];
 
     /// <summary>The planner's work item for one census row: the class by its wire name, salvage priced as a source candidate.</summary>
-    public static ClearanceTarget Target(O.ClearanceTarget row)
+    public static ClearanceTarget Target(RimGovernor.Brain.GameFacts.Observations.ClearanceTarget row)
     {
         var target = new ClearanceTarget
         {
@@ -26,15 +25,15 @@ public static class ClearanceReads
             Player = row.Player,
             EnclosesRoom = row.EnclosesRoom,
         };
-        if (row.Salvage is O.ClearanceSalvage.Computed computed)
+        if (row.Salvage is RimGovernor.Brain.GameFacts.Observations.ClearanceSalvage.Computed computed)
         {
             return target with { Salvage = Salvage(row.EntityId, computed.Evidence) };
         }
         // A skipped row was not computed, which is not the same as no salvage; NotRequested carries neither.
-        return target with { SalvageSkipped = row.Salvage is O.ClearanceSalvage.Skipped };
+        return target with { SalvageSkipped = row.Salvage is RimGovernor.Brain.GameFacts.Observations.ClearanceSalvage.Skipped };
     }
 
-    private static SalvageEvidence Salvage(string id, O.SalvageEvidence s)
+    private static SalvageEvidence Salvage(string id, RimGovernor.Brain.GameFacts.Observations.SalvageEvidence s)
     {
         var yields = new List<CandidateYield>(s.Yields.Count);
         foreach (var y in s.Yields)

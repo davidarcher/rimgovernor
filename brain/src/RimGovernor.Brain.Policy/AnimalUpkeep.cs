@@ -1,5 +1,4 @@
-using O = RimGovernor.Contracts.Wire.Observations;
-using Sex = RimGovernor.Contracts.Wire.Defs.Gender;
+using Sex = RimGovernor.Brain.GameFacts.Defs.Gender;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -7,11 +6,11 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>A native animal and its catalog- and policy-derived herd inputs.</summary>
 public sealed record UpkeepAnimal
 {
-    public required O.PawnState Pawn { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PawnState Pawn { get; init; }
 
     /// <summary>The owned herd membership; absent for a wild animal.</summary>
-    public O.ColonyAnimal? Colony { get; init; }
-    public O.AnimalState State => Pawn.AnimalState is O.PawnAnimalState.Animal animal
+    public RimGovernor.Brain.GameFacts.Observations.ColonyAnimal? Colony { get; init; }
+    public RimGovernor.Brain.GameFacts.Observations.AnimalState State => Pawn.AnimalState is RimGovernor.Brain.GameFacts.Observations.PawnAnimalState.Animal animal
         ? animal.State : throw new RequiredFactException("upkeep animal state");
     public PawnId Id => new(Pawn.Pawn.Id ?? throw new RequiredFactException("upkeep animal id"));
     public Resource Definition => new(Pawn.Pawn.DefName ?? throw new RequiredFactException("upkeep animal race"));
@@ -19,17 +18,17 @@ public sealed record UpkeepAnimal
     public Sex Gender => State.Gender;
     public bool SupportsAreas => State.SupportsAllowedAreas;
     public string AllowedArea => Pawn.Settings.AllowedAreaId ?? "";
-    public bool RequiresPen => Colony?.Roping is O.AnimalRoping.Roped;
+    public bool RequiresPen => Colony?.Roping is RimGovernor.Brain.GameFacts.Observations.AnimalRoping.Roped;
     public bool Contained => State.PenId is not null;
     public string Pen => State.PenId ?? "";
-    public string SuitablePen => Colony?.Roping is O.AnimalRoping.Roped roped ? roped.SuitablePen ?? "" : "";
+    public string SuitablePen => Colony?.Roping is RimGovernor.Brain.GameFacts.Observations.AnimalRoping.Roped roped ? roped.SuitablePen ?? "" : "";
     public bool Release => State.Release;
     public bool Slaughter => State.Slaughter;
     public bool SafeToRelease => State.SafeToRelease;
-    public EquatableArray<O.TrainingEntry> Training => State.Training;
+    public EquatableArray<RimGovernor.Brain.GameFacts.Observations.TrainingEntry> Training => State.Training;
     public bool Tameable => State.Tameable;
     public bool Tame => State.Tame;
-    public string Care => Pawn.Settings.Care is O.PawnCare.Configured care ? Domain.Wire.Name(WorkRules.MedicalCareOf(care.MedicalCare)) : "";
+    public string Care => Pawn.Settings.Care is RimGovernor.Brain.GameFacts.Observations.PawnCare.Configured care ? Domain.Wire.Name(WorkRules.MedicalCareOf(care.MedicalCare)) : "";
     public bool Bonded => State.Bonded;
     public EquatableArray<string> BondedPawns => State.BondedPawnIds;
     public string Master => State.MasterId;
@@ -58,7 +57,7 @@ public sealed record AnimalUpkeepObservation
 
     /// <summary>The player's roaming animals (the census rows' Roam, #3812), which a planned pen keeps; a colony without one has
     /// none. Null when native could not read the census, which a pen credit raises as a required fact.</summary>
-    public IReadOnlyList<O.ColonyAnimal>? Roamers { get; init; }
+    public IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.ColonyAnimal>? Roamers { get; init; }
 
     public FoodSupply Food { get; init; } = new() { Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] } };
 

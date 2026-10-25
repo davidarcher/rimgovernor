@@ -10,7 +10,7 @@ public sealed partial class Store
     /// <summary>Read-only selection input. Commit rechecks the authoritative journal under its own transaction.</summary>
     public ProductionMaterialView ProductionMaterials(GenerationSnapshot current, CancellationToken cancellationToken) => Run(tx =>
     {
-        var review = LoadRounds(tx);
+        var review = LoadReview(tx);
         if (!review.Enabled || review.Snapshot != current || review.WorkEvidence is not { } evidence) return new([], new MaterialAvailability.Blocked(MaterialBudgetBlock.AwaitingReview));
         return new ProductionMaterialView(evidence.Recipes, WorkResourcesIn(tx, current).Materials);
     }, cancellationToken);

@@ -3,11 +3,8 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // GiveJobIntent Arrest: the arrester's owned draft (the
     // plan couples a draft intent ahead of it) takes JobDefOf.Arrest onto the
@@ -18,19 +15,19 @@ namespace HomeBridge.BridgeTools
         private static bool Running(Pawn pawn, Pawn target, Building_Bed bed) => pawn.CurJob != null && pawn.CurJob.def == JobDefOf.Arrest
             && pawn.CurJob.targetA.Thing == target && pawn.CurJob.targetB.Thing == bed;
 
-        private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Pawn? target, out Building_Bed? bed)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Pawn? pawn, out Pawn? target, out Building_Bed? bed)
         {
             target = null; bed = null;
             if (!NativeGiveJob.TryPawn(intent, context, out pawn, out var snapshot, out var failure)) return failure;
-            if (!intent.HasBedId || !ProtoBoundary.IsIdentifier(intent.BedId))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Arrest requires the exact prisoner bed.");
-            var map = ProtoBoundary.LoadedMap(context);
+            if (!intent.HasBedId || !GameThread.IsIdentifier(intent.BedId))
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Arrest requires the exact prisoner bed.");
+            var map = GameThread.LoadedMap(context);
             target = map.mapPawns.AllPawnsSpawned.ById(intent.TargetId);
             bed = RefIndex.Thing<Building_Bed>(map, intent.BedId);
             if (target == null || bed == null)
-                return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact arrest target or bed is not spawned on this map.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact arrest target or bed is not spawned on this map.");
             if (!NativeMovementOperations.Owns(snapshot))
-                return ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "Arrest requires an eligible drafted pawn.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.OwnerConflict, "Arrest requires an eligible drafted pawn.");
             if (Running(pawn, target, bed)) return null;
             string? reason = null;
             if (target.Dead || !target.InMentalState && !(target.Faction == Faction.OfAncients && !target.HostileTo(pawn) && !target.Downed && target.RaceProps.Humanlike && !target.IsPrisonerOfColony)) reason = "target is not living in a mental state or a standing neutral ancient";
@@ -46,12 +43,12 @@ namespace HomeBridge.BridgeTools
                 || !RestUtility.IsValidBedFor(bed, target, pawn, false, guestStatus: GuestStatus.Prisoner))
                 reason = "destination must be a usable native prisoner bed";
             else if (!pawn.CanReserveAndReach(target, PathEndMode.Touch, Danger.Deadly)) reason = "target cannot be reserved and reached";
-            return reason == null ? null : ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Arrest refused: " + reason + ".");
+            return reason == null ? null : GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Arrest refused: " + reason + ".");
         }
 
-        internal static Common.Failure? Validate(JobOrder intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var target, out var bed);
             if (failure != null || pawn == null || target == null || bed == null) throw new InvalidOperationException(failure?.Detail);

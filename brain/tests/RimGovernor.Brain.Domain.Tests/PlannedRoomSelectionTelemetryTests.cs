@@ -1,4 +1,4 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Telemetry;
@@ -38,9 +38,9 @@ public sealed class PlannedRoomSelectionTelemetryTests
             Rejected = EquatableArray.From([.. filler, .. real.Rejected]),
         };
 
-        var full = RowJson.Encode(RowValues.Normalize(Rounder.CoupledSelectionAttrs(large, 2500, false, null)))!;
+        var full = RowJson.Encode(RowValues.Normalize(ColonyReview.CoupledSelectionAttrs(large, 2500, false, null)))!;
         Assert.True(full.Length > TelemetryEmitter.PayloadCapBytes, $"the full row is {full.Length} bytes");
-        var attrs = Rounder.PlannedRoomSelectionAttrs(large, candidates, 2500);
+        var attrs = ColonyReview.PlannedRoomSelectionAttrs(large, candidates, 2500);
         var compact = RowJson.Encode(RowValues.Normalize(attrs))!;
         Assert.True(compact.Length <= TelemetryEmitter.PayloadCapBytes, $"the companion is {compact.Length} bytes");
 
@@ -53,9 +53,9 @@ public sealed class PlannedRoomSelectionTelemetryTests
             {
                 var emitter = new TelemetryEmitter(writer);
                 emitter.Decide(new() { Kind = TelemetryKinds.CoupledSelectionKind, Component = "rounds", Verdict = "selected", Reason = "shared_consequences",
-                    Target = Rounder.PlannedUnplacedTarget, Attrs = Rounder.CoupledSelectionAttrs(large, 2500, false, null) });
+                    Target = ColonyReview.PlannedUnplacedTarget, Attrs = ColonyReview.CoupledSelectionAttrs(large, 2500, false, null) });
                 emitter.Decide(new() { Kind = TelemetryKinds.PlannedRoomSelectionKind, Component = "rounds", Verdict = "selected", Reason = "shared_consequences",
-                    Target = Rounder.PlannedUnplacedTarget, Attrs = attrs });
+                    Target = ColonyReview.PlannedUnplacedTarget, Attrs = attrs });
             }
             rows = OtlpTimeline.Read(Path.Combine(directory, "logs.jsonl"));
         }

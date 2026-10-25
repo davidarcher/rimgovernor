@@ -14,13 +14,13 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 /// <summary>Disposable CombatLab experiment. Independent live-game ticks; never calls the hypothetical arena.</summary>
 public sealed class HuntingPredictionFixture
 {
     [Tool("test/hunting_prediction_trial", Description = "UNSAFE FOR MODEL EXECUTION. Prepared revenge-enabled native Hunt experiment with observed input and outcome; test builds only.")]
-    public async Task<object> Trial(IRimBridgeContext ctx, CancellationToken cancellationToken, int seed = 1,
+    public async Task<object> Trial(INativeContext ctx, CancellationToken cancellationToken, int seed = 1,
         string stratum = "baseline", int horizon = 6000, string animal = "WildBoar", int preyCount = 0, int hunters = 0)
     {
         return await ctx.MainThread.InvokeAsync<object>(() => Run(seed, stratum, horizon, animal, preyCount, hunters), cancellationToken);
@@ -95,7 +95,7 @@ public sealed class HuntingPredictionFixture
             map.terrainGrid.TerrainAt(c).defName != (stratum == "terrain" && c.z is >= 44 and <= 48 ? "Sand" : "Soil")))
             throw new InvalidOperationException("Native lab environment differs from the observed request.");
         // The served hunt read of the same scene, before a shot, for the analytic estimate's comparison (#3533).
-        var huntRead = System.Text.Json.JsonSerializer.Serialize(NativeHuntActivity.Read(map), RimGovernor.Contracts.Wire.WireJsonContext.Default.HuntActivityRead);
+        var huntRead = System.Text.Json.JsonSerializer.Serialize(NativeHuntActivity.Read(map), RimGovernor.Brain.GameOrders.OrdersJsonContext.Default.HuntActivityRead);
         var first = new Dictionary<Pawn, int>();
         var last = new Dictionary<Pawn, int>();
         var left = new Dictionary<Pawn, int>();

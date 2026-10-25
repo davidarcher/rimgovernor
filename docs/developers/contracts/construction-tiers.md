@@ -117,7 +117,7 @@ save/load, set-tier, the stale target refusal and the unchanged floor.
 
 Defense builds are placed Secure (`policy.DefenseBuildTier`, #2527). They are
 placed Survive, and already placed layout blueprints and frames are lifted to
-Survive with the set-tier op (`RoundsDefenseLayoutPlanner.retier`, one
+Survive with the set-tier op (`DefenseLayoutPlanner.retier`, one
 `defense-retier-*` method per set of sites), when
 `policy.DefensePromoted(Facts.RaidPoints, Facts.DefenseCapacity)` holds: raid
 points above the observed capacity. Unknown raid points or capacity never promote. It

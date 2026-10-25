@@ -1,4 +1,4 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class ClimateTotalTests
 {
-    private static Tables EmptyTables(RimGovernor.Contracts.Wire.Observations.ColonyFactsSnapshot snapshot) =>
+    private static Tables EmptyTables(RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot snapshot) =>
         new(default, default, default, []) { PawnCensus = new() { Context = snapshot.Context, Pawns = [] } };
 
     [Theory]

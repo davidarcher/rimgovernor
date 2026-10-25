@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -87,8 +86,8 @@ public sealed class GarmentNodeTests
     public void AHerdGivesLeatherGearAValueFromTheHuntArrival()
     {
         var option = Bill("Apparel_Jacket", Leather, 0.6);
-        var deer = new AcquisitionSource { Observed = new() { Source = new() { Id = "deer0" }, Token = "deer0", Resource = "Meat_Deer", Yield = 1, Designation = new O.AcquisitionDesignation.Open(), Taken = false, Kind = new O.AcquisitionKind.Hunt(82, 1, false, false, false, false) },
-        Entity = new() { Id = "deer0", DefName = "Deer", Label = "Deer", Place = new O.EntityPlace.OnMap(1, new Cell(0, 0)) }, NutritionYield = 4.1, Products = [new SourceProduct(Leather, 39.6)] };
+        var deer = new AcquisitionSource { Observed = new() { Source = new() { Id = "deer0" }, Token = "deer0", Resource = "Meat_Deer", Yield = 1, Designation = new RimGovernor.Brain.GameFacts.Observations.AcquisitionDesignation.Open(), Taken = false, Kind = new RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Hunt(82, 1, false, false, false, false) },
+        Entity = new() { Id = "deer0", DefName = "Deer", Label = "Deer", Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(1, new Cell(0, 0)) }, NutritionYield = 4.1, Products = [new SourceProduct(Leather, 39.6)] };
         var input = Colony(8, 0, Recipe("Apparel_Jacket", Leather, 70, 5_000)) with
         {
             Land = default,

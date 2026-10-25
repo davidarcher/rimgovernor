@@ -4,12 +4,6 @@ using RimGovernor.Brain.Store;
 
 namespace RimGovernor.Brain.Executor;
 
-// Port of internal/executor (executor.go, haul_types.go, movement_types.go, trade_types.go).
-// Dropped: the HaulJournal, MovementJournal and TradeJournal marker interfaces. They existed only to let callers
-// type-assert a journal that also had the untyped Prepare; IJournal.Prepare is part of the one journal here.
-// Awaiting (#3053): PlanState, BatchAttempt, BatchResult and BatchReceipt in RimGovernor.Brain.Store, and the
-// store's IJournal implementation. They are named, never redefined, here.
-
 /// <summary>Building authority changed or is disabled.</summary>
 public sealed class AuthorityException : DomainException
 {
@@ -60,10 +54,10 @@ public sealed class StoppedException : DomainException
 }
 
 /// <summary>Decides whether a non-root plan may dispatch under the root plan's authority.</summary>
-public interface IRoundsScope
+public interface IReviewScope
 {
     /// <summary>Throws when <paramref name="target"/> is not authorized under <paramref name="root"/>.</summary>
-    Task AuthorizeRoundsPlanAsync(GenerationSnapshot root, GenerationSnapshot target, CancellationToken ct);
+    Task AuthorizeReviewPlanAsync(GenerationSnapshot root, GenerationSnapshot target, CancellationToken ct);
 }
 
 /// <summary>

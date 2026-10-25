@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -153,8 +154,8 @@ public sealed class FirstPlanHeldTests
     {
         // The refusal of a held clock throws its HeldException; the row is still the refusal's (layout/first-plan-held
         // found it filed as failed/run_error, with neither refused nor first_plan_fact).
-        var note = new BuildingRuntime.ClockRunDriver.RunNote { Action = "refused", Decision = Decide("resource demand"), FirstPlanUnread = "resource demand" };
-        var row = BuildingRuntime.ClockRunDriver.RunRow(new BuildingRuntime.ClockSchedulerResult(), note, new Executor.HeldException("clock run refused: FirstPlan"), TimeSpan.Zero);
+        var note = new Runtime.PlannerRunDriver.RunNote { Action = "refused", Decision = Decide("resource demand"), FirstPlanUnread = "resource demand" };
+        var row = Runtime.PlannerRunDriver.RunRow(new Runtime.PlannerSchedulerResult(), note, new Executor.HeldException("clock run refused: FirstPlan"), TimeSpan.Zero);
 
         Assert.NotNull(row);
         Assert.Equal("refused", row.Verdict);

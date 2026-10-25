@@ -1,5 +1,3 @@
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -42,8 +40,8 @@ internal static class CombatLabSiegeStage
         var lab = new StagedLab(Fixture, s.Staged!);
         var hostiles = lab.Hostiles();
         var frames = new LabFrames(s);
-        Observations.ThreatPawn? far = null;
-        Observations.PawnState? builder = null;
+        RimGovernor.Brain.GameFacts.Observations.ThreatPawn? far = null;
+        RimGovernor.Brain.GameFacts.Observations.PawnState? builder = null;
         _ = await s.RunUntilAsync("build", BuildTicks, async ct =>
         {
             var pawns = (await CombatLabKit.PawnsAsync(s, "raiders", hostiles, ct).ConfigureAwait(false)).Values.Where(p => !p.Dead).ToList();
@@ -67,7 +65,7 @@ internal static class CombatLabSiegeStage
         var colonist = lab.Colonists()[0];
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
         await CombatLabKit.DraftAsync(s, [colonist], cancellationToken).ConfigureAwait(false);
-        CombatLabKit.Applied("attack frame", await CombatLabKit.OrderAsync(s, "attack-frame", colonist, new Operations.CombatOrderOrder.AttackCase(CombatLabKit.Pawn(target)), cancellationToken).ConfigureAwait(false), "AttackStatic");
+        CombatLabKit.Applied("attack frame", await CombatLabKit.OrderAsync(s, "attack-frame", colonist, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AttackCase(CombatLabKit.Pawn(target)), cancellationToken).ConfigureAwait(false), "AttackStatic");
         var p = await CombatLabKit.PawnAsync(s, "attacker", colonist, cancellationToken).ConfigureAwait(false);
         if (CombatLabKit.Job(p) != "AttackStatic" || CombatLabKit.JobThing(p) != target)
         {
@@ -78,10 +76,10 @@ internal static class CombatLabSiegeStage
     // The emergency census's engaging besieger at least FarCells from the nearest colonist: the threat the fight opens on.
     // The census classes a pawn a hostile threat when it is a manhunter, of a hostile faction or breaking out of prison;
     // it is engaging unless the native marks it passive.
-    private static Observations.ThreatPawn? FarThreat(Observations.BundleSnapshot frame, List<string> hostiles) =>
+    private static RimGovernor.Brain.GameFacts.Observations.ThreatPawn? FarThreat(RimGovernor.Brain.GameFacts.Observations.BundleSnapshot frame, List<string> hostiles) =>
         frame.Emergency?.Threats.Pawns.FirstOrDefault(t =>
             (t.FactionHostile || t.PrisonBreak || (t.MentalState ?? "").Contains("manhunter", StringComparison.OrdinalIgnoreCase))
             && !t.Passive
             && hostiles.Contains(t.Pawn.Id ?? "", StringComparer.Ordinal)
-            && t.NearestColonist is Observations.ColonistDistance.Nearest { Cells: >= FarCells });
+            && t.NearestColonist is RimGovernor.Brain.GameFacts.Observations.ColonistDistance.Nearest { Cells: >= FarCells });
 }

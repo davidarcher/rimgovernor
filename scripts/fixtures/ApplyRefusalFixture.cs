@@ -9,7 +9,7 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Private disposable acceptance only. Stages one target per
     // routine write kind apply/refusal moves the world under, then moves
@@ -27,13 +27,13 @@ namespace HomeBridge.BridgeTools
     public sealed class ApplyRefusalFixture
     {
         [Tool("test/apply_refusal_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: stage one target per routine write kind apply/refusal moves (stockpile zone over a roofed interior, a haul item, a colonist, a wild hare, a plant pot, a build cell).")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Prepare(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
                 if (map == null || Current.Game == null || player == null || !Find.TickManager.Paused)
                     return Refuse("A paused disposable colony map is required.");
-                if (!ProtoBoundary.TryReadContext(map, out var context, out var unavailable))
+                if (!GameThread.TryReadContext(map, out var context, out var unavailable))
                     return Refuse("Native context unavailable: " + unavailable.Detail);
                 var pawn = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && !p.Drafted && !p.InMentalState
                         && p.drafter != null && p.workSettings?.Initialized == true && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling))
@@ -147,7 +147,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/apply_refusal_move", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: move the world under a staged target: fill_cell (x,z), delete_zone (id), draft_pawn / undraft_pawn (id), designate_hunt (id), destroy_thing (id).")]
-        public async Task<object> Move(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "", string id = "", int x = -1, int z = -1)
+        public async Task<object> Move(INativeContext ctx, CancellationToken cancellationToken, string action = "", string id = "", int x = -1, int z = -1)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;

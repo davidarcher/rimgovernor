@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// Helpers shared by the bridge tools. Nothing here knows about a specific

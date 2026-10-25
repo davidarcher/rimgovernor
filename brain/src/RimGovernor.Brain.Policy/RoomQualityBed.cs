@@ -1,4 +1,4 @@
-using BedQuality = RimGovernor.Contracts.Wire.Observations.BedQuality;
+using BedQuality = RimGovernor.Brain.GameFacts.Observations.BedQuality;
 
 namespace RimGovernor.Brain.Policy;
 

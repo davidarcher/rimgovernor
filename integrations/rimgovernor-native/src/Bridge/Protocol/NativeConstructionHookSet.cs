@@ -4,7 +4,7 @@ using System.Linq;
 using System.Reflection;
 using HarmonyLib;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal sealed class NativeConstructionHookSet
     {

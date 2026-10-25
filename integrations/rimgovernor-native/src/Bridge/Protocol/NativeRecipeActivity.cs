@@ -6,12 +6,10 @@ using System.Threading.Tasks;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Domain;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 internal static class NativeRecipeActivity
 {
@@ -19,12 +17,12 @@ internal static class NativeRecipeActivity
     /// Every free colonist's tailoring alternatives at every bench, stuff, stack and accepting storage cell (#3341). A
     /// stack's carry and return legs and a bench's output legs are searched once for every colonist (NativePathLegs).
     /// </summary>
-    internal static Obs.RecipeActivityRead Read(Common.Identity identity, NativePathLegs? legs = null)
+    internal static RimGovernor.Brain.GameFacts.Observations.RecipeActivityRead Read(RimGovernor.Brain.GameFacts.Common.Identity identity, NativePathLegs? legs = null)
     {
-        if (!ProtoBoundary.ValidateIdentity(identity, out var map, out var context, out var error)) throw NativeFaults.Refused(error);
+        if (!GameThread.ValidateIdentity(identity, out var map, out var context, out var error)) throw NativeFaults.Refused(error);
         legs ??= new(map);
-        var options = new List<Obs.RecipeActivityOption>();
-        var retained = new List<Obs.RecipeRetainedOutput>();
+        var options = new List<RimGovernor.Brain.GameFacts.Observations.RecipeActivityOption>();
+        var retained = new List<RimGovernor.Brain.GameFacts.Observations.RecipeRetainedOutput>();
         var pawns = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         foreach (var bench in map.listerThings.AllThings.OfType<Building_WorkTable>().OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal))
         foreach (var recipe in bench.def.AllRecipes.Where(r => r.products.Any(p => p.thingDef.IsApparel)).OrderBy(r => r.defName, StringComparer.Ordinal))
@@ -66,7 +64,7 @@ internal static class NativeRecipeActivity
                 foreach (var selectedBill in billOptions)
                 {
 
-                var inputs = new List<Obs.RecipeIngredientObservation>();
+                var inputs = new List<RimGovernor.Brain.GameFacts.Observations.RecipeIngredientObservation>();
                 var required = recipe.ingredients.Sum(i => (long)i.CountRequiredOfFor(stuff, recipe, null));
                 if (required <= 0 || required > int.MaxValue) continue;
                 double travel = 0;

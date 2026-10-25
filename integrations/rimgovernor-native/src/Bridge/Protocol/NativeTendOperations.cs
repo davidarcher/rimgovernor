@@ -3,11 +3,8 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // GiveJobIntent TendPatient, the doctor dispatch of
     // MaintainMedicalCare and CriticalMedical. First WorkGiver_Tend's own
@@ -28,29 +25,29 @@ namespace HomeBridge.BridgeTools
 
         // Resolve names the first gate the order fails and builds the job it
         // would issue.
-        private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Pawn? patient, out Job? job)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Pawn? pawn, out Pawn? patient, out Job? job)
         {
             patient = null; job = null;
             if (!NativeGiveJob.TryPawn(intent, context, out pawn, out var snapshot, out var failure)) return failure;
-            if (!snapshot.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Tend requires an eligible doctor.");
-            var map = ProtoBoundary.LoadedMap(context);
+            if (!snapshot.Eligible) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Tend requires an eligible doctor.");
+            var map = GameThread.LoadedMap(context);
             patient = map.mapPawns.AllPawnsSpawned.ById(intent.TargetId);
-            if (patient == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact patient pawn is not spawned on this map.");
-            if (patient.Dead) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The patient is dead and cannot be tended.");
+            if (patient == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact patient pawn is not spawned on this map.");
+            if (patient.Dead) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The patient is dead and cannot be tended.");
             if (Running(pawn, patient)) return null;
             if (!patient.health.HasHediffsNeedingTend())
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The patient has nothing that needs tending right now.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The patient has nothing that needs tending right now.");
             if (patient.InAggroMentalState)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The patient is in an aggressive mental state and cannot be tended until it ends.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The patient is in an aggressive mental state and cannot be tended until it ends.");
             if (pawn.WorkTypeIsDisabled(WorkTypeDefOf.Doctor))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The doctor has the Doctor work type disabled.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The doctor has the Doctor work type disabled.");
             var giver = Giver();
-            if (giver == null) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "WorkGiver_Tend is unavailable in this game.");
+            if (giver == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "WorkGiver_Tend is unavailable in this game.");
             var missing = giver.MissingRequiredCapacity(pawn);
             if (missing != null)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The doctor is missing a capacity tending needs (" + missing.defName + ").");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The doctor is missing a capacity tending needs (" + missing.defName + ").");
             if (!pawn.CanReach(patient, PathEndMode.ClosestTouch, Danger.Deadly))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The doctor cannot reach the patient.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The doctor cannot reach the patient.");
             // The ordinary path: what "Prioritize tending X" issues, medicine
             // and bed chosen by the work giver. It refuses a patient on the
             // ground, which is the drafted float menu's job instead.
@@ -58,22 +55,22 @@ namespace HomeBridge.BridgeTools
             if (job == null)
             {
                 if (patient.InBed())
-                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The patient is in a bed and WorkGiver_Tend makes no job for this doctor (already being tended, or the bed is reserved).");
+                    return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The patient is in a bed and WorkGiver_Tend makes no job for this doctor (already being tended, or the bed is reserved).");
                 if (!patient.Downed)
-                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The patient is up and not in a bed; WorkGiver_Tend makes no job and ground tending needs a downed patient.");
+                    return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The patient is up and not in a bed; WorkGiver_Tend makes no job and ground tending needs a downed patient.");
                 var medicine = HealthAIUtility.FindBestMedicine(pawn, patient, onlyUseInventory: true);
                 job = medicine == null ? JobMaker.MakeJob(JobDefOf.TendPatient, patient) : JobMaker.MakeJob(JobDefOf.TendPatient, patient, medicine);
                 job.count = 1;
                 job.draftedTend = true;
             }
             if (job.def != JobDefOf.TendPatient)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "WorkGiver_Tend produced a " + job.def.defName + " job rather than TendPatient.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "WorkGiver_Tend produced a " + job.def.defName + " job rather than TendPatient.");
             return null;
         }
 
-        internal static Common.Failure? Validate(JobOrder intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var patient, out var job);
             if (failure != null || pawn == null || patient == null) throw new InvalidOperationException(failure?.Detail);

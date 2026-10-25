@@ -10,7 +10,7 @@ using UnityEngine;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     public sealed class NativeAuthorityHookHealth
     {
@@ -258,7 +258,7 @@ namespace HomeBridge.BridgeTools
                 var frames = new System.Diagnostics.StackTrace(2, false).GetFrames() ?? Array.Empty<System.Diagnostics.StackFrame>();
                 caller = frames.Select(f => f.GetMethod()).Where(m => m != null && m.DeclaringType != null)
                     .Select(m => m!.DeclaringType!.FullName + "." + m.Name)
-                    .FirstOrDefault(n => !n.StartsWith("HomeBridge.", StringComparison.Ordinal) && !n.StartsWith("HarmonyLib.", StringComparison.Ordinal)
+                    .FirstOrDefault(n => !n.StartsWith("RimGovernor.Native.", StringComparison.Ordinal) && !n.StartsWith("HarmonyLib.", StringComparison.Ordinal)
                         && !n.Contains("_Patch")) ?? "unknown";
             }
             catch (Exception error) { caller = "stack unavailable: " + error.GetType().Name; }

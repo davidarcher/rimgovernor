@@ -1,4 +1,5 @@
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -109,8 +110,8 @@ internal static class NeedsFixtures
     };
 
     /// <summary>The apparel workers' pawn facts with no kind-required apparel, no requirements and no minimum quality.</summary>
-    public static NeedApparel Apparel(RimGovernor.Contracts.Wire.Defs.Gender gender, bool legs, bool safe) =>
-        new(gender, legs, safe) { KindRequired = [], Requirements = [], MinimumQuality = RimGovernor.Contracts.Wire.Defs.QualityCategory.Awful };
+    public static NeedApparel Apparel(RimGovernor.Brain.GameFacts.Defs.Gender gender, bool legs, bool safe) =>
+        new(gender, legs, safe) { KindRequired = [], Requirements = [], MinimumQuality = RimGovernor.Brain.GameFacts.Defs.QualityCategory.Awful };
 
     /// <summary>An indoor roofed cell (thin constructed roof).</summary>
     public static readonly NeedCell Indoors = new(true, false, false, false, false);

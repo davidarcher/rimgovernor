@@ -1,5 +1,4 @@
-using O = RimGovernor.Contracts.Wire.Observations;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
@@ -46,7 +45,7 @@ public sealed class RoomsFamilyTests
     private static PawnProfile Artist(string id, string inspiration = "") => new()
     {
         Observed = PawnFixtures.Row(id) with { Inspiration = inspiration,
-            Biography = PawnFixtures.Row(id).Biography with { Skills = [new() { DefName = "Artistic", Passion = O.Passion.None, Level = 10 }] } },
+            Biography = PawnFixtures.Row(id).Biography with { Skills = [new() { DefName = "Artistic", Passion = RimGovernor.Brain.GameFacts.Observations.Passion.None, Level = 10 }] } },
         WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "Artistic" },
     };
 
@@ -157,7 +156,7 @@ public sealed class RoomsFamilyTests
     [Fact]
     public void TheArtBillsAreFiledUnderTheArtNeed()
     {
-        var (key, need) = RoundsArtPlanner.ReportTarget();
+        var (key, need) = ArtPlanner.ReportTarget();
         Assert.Equal(RoomsFamily.Art.FilingKey, need);
         Assert.NotEqual(need, key);
         Assert.True(RoomsFamily.ComfortStep(RoomsFamily.PartySpot.FilingKey));
@@ -167,10 +166,10 @@ public sealed class RoomsFamilyTests
     [Fact]
     public void TheFamilyIsOneDueQueueEntryReplacingTheLightingFlooringComfortAndGatheringPlanners()
     {
-        var entry = ClockPlannerCatalog.FamilyEntry(new FamilyRunner<RoomsFacts>(All(), (_, _) => Task.FromResult(new RoomsFacts()), RoomsRounds.Schedule));
+        var entry = PlannerCatalog.FamilyEntry(new FamilyRunner<RoomsFacts>(All(), (_, _) => Task.FromResult(new RoomsFacts()), RoomsReview.Schedule));
         Assert.Equal("rooms", entry.Name);
         Assert.Contains(ActionKind.Building, entry.Kinds);
-        Assert.DoesNotContain(ClockPlannerCatalog.Entries, e => e.Name is "lighting" or "flooring" or "basicComfort" or "comfort" or "gathering");
+        Assert.DoesNotContain(PlannerCatalog.Entries, e => e.Name is "lighting" or "flooring" or "basicComfort" or "comfort" or "gathering");
         Assert.False(entry.Immediate);
     }
 
@@ -211,13 +210,13 @@ public sealed class RoomsFamilyTests
         var journal = Reviewed();
         Colony? colony = null;
         var runner = new FamilyRunner<RoomsFacts>(new RoomsFamily(true, false, false, true, false), (_, _) => Task.FromResult(colony!.Facts),
-            RoomsRounds.Schedule,
+            RoomsReview.Schedule,
             (work, _, call) =>
             {
                 var verdicts = new List<Verdict>();
                 foreach (var (need, method, definition, cell) in colony!.Builds.Where(b => b.Need == work.Need.Id))
                 {
-                    verdicts.Add(RoundsBuildingPlanner.OwnerCommitVerdict(journal.CommitOwnerWork(work.Owner, new MethodId(method), "", Build(need, definition, cell), call)));
+                    verdicts.Add(BuildingPlanner.OwnerCommitVerdict(journal.CommitOwnerWork(work.Owner, new MethodId(method), "", Build(need, definition, cell), call)));
                 }
                 return Task.FromResult(verdicts.Count == 0 ? Verdict.AwaitingPlan(work.Need.Id.Value, "no_method") : verdicts[^1]);
             });
@@ -234,7 +233,7 @@ public sealed class RoomsFamilyTests
         facts = facts with
         {
 
-            Census = (facts.Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "WoodLog", Units = 1000 }] },   FieldCoverage = 1.0,
+            Census = (facts.Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 }) with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "WoodLog", Units = 1000 }] },   FieldCoverage = 1.0,
             WorkAdmission = facts.WorkAdmission with
             {
                 Buildings = [
@@ -242,7 +241,7 @@ public sealed class RoomsFamilyTests
                     new("DiningChair", "", [new(new("WoodLog"), 10)]) { Size = new Cell(1, 1) }],
             },
         };
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.Review(new() { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
         return journal;
     }
 

@@ -6,13 +6,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using RimWorld;
 using Verse;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Host.Sdk;
-using Common = RimGovernor.Contracts.Wire.Common;
 using DomainCell = RimGovernor.Brain.Domain.Cell;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Read-only census behind Observations/ListWallUpgradeSites, on the
     // WallUpgradeSafety geometry. Two row
@@ -35,46 +33,46 @@ namespace HomeBridge.BridgeTools
     {
         // A refused request (invalid, or a target id no colonist wall carries) throws NativeRefusedException; a census
         // that cannot be read completely throws an unavailable fault.
-        internal static Obs.WallUpgradeSnapshot HandleListWallUpgradeSites(Obs.WallUpgradeSitesRequest request)
+        internal static RimGovernor.Brain.GameFacts.Observations.WallUpgradeSnapshot HandleListWallUpgradeSites(RimGovernor.Brain.GameOrders.Observations.WallUpgradeSitesRequest request)
         {
             if (!Validate(request, out var failure)) throw NativeFaults.Refused(failure);
-            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out var error))
+            if (!GameThread.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out var error))
                 throw NativeFaults.Refused(error);
             if (Faction.OfPlayerSilentFail == null || map.listerBuildings == null || map.roofGrid == null || map.zoneManager == null)
-                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.NativeComponentMissing, Detail = "Player faction or map structure trackers are unavailable." });
+                throw NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.NativeComponentMissing, Detail = "Player faction or map structure trackers are unavailable." });
             var walls = map.listerBuildings.allBuildingsColonist.Where(b => b.def == ThingDefOf.Wall && b.Spawned).ToList();
             Building? target = null;
             if (request.TargetId is not null && (target = walls.ById(request.TargetId)) == null)
-                throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.NotFound, "No spawned colonist wall with that id is on the current map."));
+                throw NativeFaults.Refused(GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "No spawned colonist wall with that id is on the current map."));
             try
             {
-                var rows = new List<Obs.WallUpgradeSite>();
+                var rows = new List<RimGovernor.Brain.GameFacts.Observations.WallUpgradeSite>();
                 if (target != null)
                 {
                     foreach (var normal in WallUpgradeSafety.Directions)
-                        if (Replacement(map, target, normal, context) is Obs.WallUpgradeSite row) rows.Add(row);
+                        if (Replacement(map, target, normal, context) is RimGovernor.Brain.GameFacts.Observations.WallUpgradeSite row) rows.Add(row);
                 }
                 else
                 {
                     foreach (var wall in walls.Where(WallUpgradeSafety.Stone).OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal))
                         foreach (var normal in WallUpgradeSafety.Directions.Where(n => !WallUpgradeSafety.Corner(n)))
-                            if (Cleanup(map, wall, normal, context) is Obs.WallUpgradeSite row) rows.Add(row);
+                            if (Cleanup(map, wall, normal, context) is RimGovernor.Brain.GameFacts.Observations.WallUpgradeSite row) rows.Add(row);
                 }
-                return new Obs.WallUpgradeSnapshot { Context = context, Sites = [.. rows] };
+                return new RimGovernor.Brain.GameFacts.Observations.WallUpgradeSnapshot { Context = context, Sites = [.. rows] };
             }
             catch (Exception readError)
             {
                 ModLog.Error("observe", "Wall upgrade census read failed: " + readError);
-                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
+                throw NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed,
                     Detail = PlacementPreviewOperation.Diagnostic("Wall, room or roof facts could not be read completely: " + readError.GetType().Name + ": " + readError.Message) });
             }
         }
 
-        internal static bool Validate(Obs.WallUpgradeSitesRequest request, out Common.Failure failure)
+        internal static bool Validate(RimGovernor.Brain.GameOrders.Observations.WallUpgradeSitesRequest request, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, optional target id are required.");
+            failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Identity, optional target id are required.");
             return request?.Scope?.ExpectedIdentity != null
-                && (request.TargetId is null || ProtoBoundary.IsIdentifier(request.TargetId));
+                && (request.TargetId is null || GameThread.IsIdentifier(request.TargetId));
         }
 
         internal static bool Interior(Map map, IntVec3 inside)
@@ -91,7 +89,7 @@ namespace HomeBridge.BridgeTools
             return edifice != null && edifice.def == ThingDefOf.Wall && edifice.Faction == Faction.OfPlayer ? edifice : null;
         }
 
-        internal static Obs.WallUpgradeSite? Replacement(Map map, Building wall, IntVec3 normal, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Observations.WallUpgradeSite? Replacement(Map map, Building wall, IntVec3 normal, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var origin = wall.Position;
             var outside = origin + normal;
@@ -135,7 +133,7 @@ namespace HomeBridge.BridgeTools
             return backups.Select(b => (b ?? throw new System.InvalidOperationException("Required native value is unavailable: b."))).ToList();
         }
 
-        internal static Obs.WallUpgradeSite? Cleanup(Map map, Building permanent, IntVec3 normal, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Observations.WallUpgradeSite? Cleanup(Map map, Building permanent, IntVec3 normal, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var origin = permanent.Position;
             if (!Interior(map, origin - normal)) return null;
@@ -146,8 +144,8 @@ namespace HomeBridge.BridgeTools
             return Site(map, backups[0], permanent, normal, cells, context, backups, permanent, RoofSupportSafety.Blocker(backups[0], out _));
         }
 
-        private static Obs.WallUpgradeSite Site(Map map, Building target, Building original, IntVec3 normal, List<IntVec3> cells, Common.ObservationContext context, List<Building>? backups, Building? replacement, string? blocker) =>
-            new Obs.WallUpgradeSite {
+        private static RimGovernor.Brain.GameFacts.Observations.WallUpgradeSite Site(Map map, Building target, Building original, IntVec3 normal, List<IntVec3> cells, RimGovernor.Brain.GameFacts.Common.ObservationContext context, List<Building>? backups, Building? replacement, string? blocker) =>
+            new RimGovernor.Brain.GameFacts.Observations.WallUpgradeSite {
                 Target = NativeBuildingObservationTools.Ref(target),
                 Origin = new DomainCell(original.Position.x, original.Position.z),
                 Normal = new DomainCell(normal.x, normal.z),
@@ -165,7 +163,7 @@ namespace HomeBridge.BridgeTools
 
         // SiteToken is the wall removal receipt's site version: the target's
         // own token plus the site's geometry, designation and backups.
-        internal static string SiteToken(Obs.WallUpgradeSite row, Common.ObservationContext context) =>
+        internal static string SiteToken(RimGovernor.Brain.GameFacts.Observations.WallUpgradeSite row, RimGovernor.Brain.GameFacts.Common.ObservationContext context) =>
             NativeObservationSnapshot.Snapshot("wall-site", context, row.Target.Id ?? "", w => {
                 w.Write(row.Original.Id ?? ""); w.Write(row.Normal.X); w.Write(row.Normal.Z); w.Write(row.TargetSnapshot.Token ?? "");
                 w.Write(row.Designated); w.Write(row.RemovalId ?? "");

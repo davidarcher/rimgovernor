@@ -8,11 +8,8 @@ using Verse;
 using Verse.AI;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Telemetry;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>Execution of already-journaled exact activities. No economic selection.</summary>
     internal static class NativePawnActivities
@@ -73,8 +70,8 @@ namespace HomeBridge.BridgeTools
         internal static bool CarryHeld(Pawn pawn) => pawn.carryTracker.CarriedThing != null
             && !(Standing(pawn) && pawn.CurJob is { playerForced: false } job && !job.def.carryThingAfterJob);
         internal static PawnActivityStep? ActiveStep(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && e.Step < e.Order.Steps.Length ? e.Order.Steps[e.Step] : null;
-        internal static Operations.PawnActivityExecution? Read(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && !e.Order.Release ? Row(e) : null;
-        private static Operations.PawnActivityExecution Row(Entry e) => new(e.Order.Assignment, e.Order.Method, e.Order.Revision,
+        internal static RimGovernor.Brain.GameFacts.Operations.PawnActivityExecution? Read(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && !e.Order.Release ? Row(e) : null;
+        private static RimGovernor.Brain.GameFacts.Operations.PawnActivityExecution Row(Entry e) => new(e.Order.Assignment, e.Order.Method, e.Order.Revision,
             e.Step, e.State, e.Reason, e.Tick);
         /// <summary>The load id of the job the pawn's order is running, or null while it runs none (#3775: native-side, never on the wire).</summary>
         internal static int? RunningJobId(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && e.Running != null ? e.RunningId : null;
@@ -133,7 +130,7 @@ namespace HomeBridge.BridgeTools
         internal static int StartJobPrefixes()
             => Harmony.GetPatchInfo(AccessTools.Method(typeof(Pawn_JobTracker), "StartJob"))?.Prefixes.Count(p => p.owner == HarmonyOwner) ?? 0;
 
-        internal static Common.Failure? Validate(PawnActivities? batch, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(PawnActivities? batch, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             try { batch?.Validate(); } catch (Exception ex) { return Refuse(ex.Message); }
             if (batch == null || !installed || !context.NativeGeneration.IsAt(batch.AuthorityGeneration)) return Refuse("Missing/stale activity authority.");
@@ -307,7 +304,7 @@ namespace HomeBridge.BridgeTools
             });
             record.Ordered = true;
         }
-        private static Common.Failure Refuse(string text) => ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, text);
+        private static RimGovernor.Brain.GameFacts.Common.Failure Refuse(string text) => GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, text);
         private static Thing? Thing(string id) => RefIndex.Thing(Find.CurrentMap, id);
 
         private static bool DeliveryAllowed(Pawn pawn, Thing target, PawnActivityStep step) => DeliveryRefusal(pawn, target, step) == null;
@@ -358,7 +355,7 @@ namespace HomeBridge.BridgeTools
                 && Reservable(pawn, site, PathEndMode.Touch, Danger.None);
         }
 
-        internal static Receipts.EffectEvidence Apply(PawnActivities batch, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(PawnActivities batch, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var invalid = Validate(batch, context);
             if (invalid != null) throw new InvalidOperationException(invalid.Detail);
@@ -413,7 +410,7 @@ namespace HomeBridge.BridgeTools
                 if (e.Order.Release) { e.State = PawnActivityTelemetry.ReleasedState; Emit(e); }
                 else Emit(e);
             }
-            return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.PawnActivitiesCase() };
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.EffectEvidenceEffect.PawnActivitiesCase() };
         }
         private static bool TryOwned(Pawn pawn, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Entry? e)
         {
@@ -849,7 +846,7 @@ namespace HomeBridge.BridgeTools
     }
     internal sealed class PawnActivitiesActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativePawnActivities.Validate(action.Intent?.PawnActivities?.Batch, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativePawnActivities.Apply(action.Intent?.PawnActivities?.Batch ?? throw new InvalidOperationException("Pawn activities batch is missing."), context);
+        public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => NativePawnActivities.Validate(action.Intent?.PawnActivities?.Batch, context);
+        public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => NativePawnActivities.Apply(action.Intent?.PawnActivities?.Batch ?? throw new InvalidOperationException("Pawn activities batch is missing."), context);
     }
 }

@@ -5,7 +5,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Trees carry blockAdjacentSow: a sown plant blocks sowing on its 8
     // neighbours (PlantUtility.AdjacentSowBlocker), so a plain growing zone

@@ -3,37 +3,35 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 internal static class NativeActivityTasks
 {
-    internal static Obs.ActivityTaskRead Read(Obs.ActivityTaskRequest request)
+    internal static RimGovernor.Brain.GameFacts.Observations.ActivityTaskRead Read(RimGovernor.Brain.GameOrders.Observations.ActivityTaskRequest request)
     {
-        if (!ProtoBoundary.ValidateIdentity(request.Identity, out var map, out var context, out var error)) throw NativeFaults.Refused(error);
+        if (!GameThread.ValidateIdentity(request.Identity, out var map, out var context, out var error)) throw NativeFaults.Refused(error);
         request.Batch.Validate();
         try { return Read(map, context, request); }
         catch (Exception readError)
         {
             ModLog.Error("observe", "Activity task read failed: " + readError);
-            throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
+            throw NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed,
                 Detail = PlacementPreviewOperation.Diagnostic("Activity tasks could not be read completely: " + readError.GetType().Name + ": " + readError.Message) });
         }
     }
 
     // A bad identity is refused and a failed read unavailable (#3775); every binding names its kind's fact (ActivityTaskBinding).
-    private static Obs.ActivityTaskRead Read(Map map, Common.ObservationContext context, Obs.ActivityTaskRequest request)
+    private static RimGovernor.Brain.GameFacts.Observations.ActivityTaskRead Read(Map map, RimGovernor.Brain.GameFacts.Common.ObservationContext context, RimGovernor.Brain.GameOrders.Observations.ActivityTaskRequest request)
     {
-        var participants = new List<Obs.ActivityTaskObservation>();
-        var bindings = new List<Obs.ActivityTaskBinding>();
+        var participants = new List<RimGovernor.Brain.GameFacts.Observations.ActivityTaskObservation>();
+        var bindings = new List<RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding>();
         var satisfied = new HashSet<string>(StringComparer.Ordinal);
         var budget = 128;
         var truncated = false;
@@ -96,7 +94,7 @@ internal static class NativeActivityTasks
                                 || !pawn.CanReserveAndReach(new IntVec3(destination.X, 0, destination.Z), PathEndMode.OnCell, Danger.None)) continue;
                         }
                         bindings.Add(step.Kind == PawnActivityKind.Supply && site is IConstructible current
-                            ? new Obs.ActivityTaskBinding.Supply(task.Id, bound, current.ThingCountNeeded(item.def)) : new Obs.ActivityTaskBinding.Bound(task.Id, bound));
+                            ? new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Supply(task.Id, bound, current.ThingCountNeeded(item.def)) : new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound(task.Id, bound));
                     }
                 }
                 else if (step.Kind is PawnActivityKind.Eat or PawnActivityKind.Sleep or PawnActivityKind.Recreation)
@@ -123,13 +121,13 @@ internal static class NativeActivityTasks
                         if (step.Kind == PawnActivityKind.Sleep && (pawn.needs.rest == null || !RestUtility.CanUseBedNow(target, pawn, true))) continue;
                         if (step.Kind == PawnActivityKind.Recreation && (NativeRecreation.GiverFor(target) is not { } joyGiver
                             || !NativeRecreation.Usable(pawn, target, joyGiver))) continue;
-                        bindings.Add(new Obs.ActivityTaskBinding.Bound(task.Id, step with { Target = target.GetUniqueLoadID() }));
+                        bindings.Add(new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound(task.Id, step with { Target = target.GetUniqueLoadID() }));
                     }
                 }
                 else if (step.Practice != null)
                 {
                     var target = RefIndex.Thing(map, step.Target);
-                    if (target != null && NativePracticeActivities.Legal(pawn, target, step)) bindings.Add(new Obs.ActivityTaskBinding.Bound(task.Id, step));
+                    if (target != null && NativePracticeActivities.Legal(pawn, target, step)) bindings.Add(new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound(task.Id, step));
                 }
                 else if (step.Kind == PawnActivityKind.Work && step.Job == "BuildRoof" && step is CellActivityStep { Destination: var destination })
                 {
@@ -139,7 +137,7 @@ internal static class NativeActivityTasks
                     if (map.areaManager.BuildRoof[cell] && !pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction)
                         && DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver)?.Worker is WorkGiver_BuildRoof giver
                         && giver.HasJobOnCell(pawn, cell, false) && pawn.CanReach(cell, PathEndMode.Touch, Danger.None))
-                        bindings.Add(new Obs.ActivityTaskBinding.Bound(task.Id, step));
+                        bindings.Add(new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound(task.Id, step));
                 }
                 else if (step.Kind == PawnActivityKind.Work && step.Job == "Sow")
                 {
@@ -147,7 +145,7 @@ internal static class NativeActivityTasks
                     if (NativeSowingActivities.FullySown(map, step.Target)) { satisfied.Add(task.Id); continue; }
                     if (NativeSowingActivities.Giver?.defName == step.WorkGiver && NativeSowingActivities.Grower(map, step.Target) is { } grower
                         && NativeSowingActivities.LegalCells(pawn, grower) is [var nearest, ..])
-                        bindings.Add(new Obs.ActivityTaskBinding.Bound(task.Id, step.At(new(nearest.x, nearest.z))));
+                        bindings.Add(new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound(task.Id, step.At(new(nearest.x, nearest.z))));
                 }
                 else if (step.Kind == PawnActivityKind.Work && step.IsSet)
                 {
@@ -159,7 +157,7 @@ internal static class NativeActivityTasks
                     var legal = NativeSetActivities.Legal(pawn, step, setGiver);
                     var legalCells = NativeSetActivities.LegalCells(pawn, step, setGiver);
                     if (legal.Count + legalCells.Count == 0) continue;
-                    bindings.Add(new Obs.ActivityTaskBinding.Bound(task.Id, step with { Targets = EquatableArray.From(legal.Select(m => m.GetUniqueLoadID())),
+                    bindings.Add(new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound(task.Id, step with { Targets = EquatableArray.From(legal.Select(m => m.GetUniqueLoadID())),
                         Cells = EquatableArray.From(legalCells.Select(c => new Cell(c.x, c.z))), Count = legal.Count + legalCells.Count }));
                 }
                 else if (step.Kind == PawnActivityKind.Work)
@@ -179,7 +177,7 @@ internal static class NativeActivityTasks
                         JobMaker.ReturnToPool(surgery);
                     }
                     else if (giver is WorkGiver_GrowerHarvest ? !giver.HasJobOnCell(pawn, target.Position, false) : !giver.HasJobOnThing(pawn, target, false)) continue;
-                    bindings.Add(new Obs.ActivityTaskBinding.Bound(task.Id, step with { Target = target.GetUniqueLoadID() }));
+                    bindings.Add(new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound(task.Id, step with { Target = target.GetUniqueLoadID() }));
                 }
                 else if (step.Kind == PawnActivityKind.Recipe)
                 {
@@ -202,7 +200,7 @@ internal static class NativeActivityTasks
                             var take = Math.Min(left, item.stackCount); reboundInputs.Add(new(item.GetUniqueLoadID(), take)); left -= take;
                         }
                         var rebound = step with { Recipe = recipe with { Ingredients = EquatableArray.From(reboundInputs) } };
-                        if (left == 0 && NativeActivityRecipe.Resolve(pawn, bench, rebound, out _, out _, out _)) bindings.Add(new Obs.ActivityTaskBinding.Bound(task.Id, rebound));
+                        if (left == 0 && NativeActivityRecipe.Resolve(pawn, bench, rebound, out _, out _, out _)) bindings.Add(new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound(task.Id, rebound));
                         continue;
                     }
                     var count = recipe.Ingredients.Sum(i => i.Count);
@@ -224,11 +222,11 @@ internal static class NativeActivityTasks
                     if (remainingIngredients == 0 && NativeActivityRecipe.Resolve(pawn, bench, bound, out _, out _, out _))
                     {
                         // A task bound to its recipe's productive work (#3775) binds only with that work's ticks read; any other binds as is.
-                        if (task is not BoundRecipeTask) { bindings.Add(new Obs.ActivityTaskBinding.Bound(task.Id, bound)); continue; }
+                        if (task is not BoundRecipeTask) { bindings.Add(new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound(task.Id, bound)); continue; }
                         var productive = bench is Building_WorkTable table && DefDatabase<RecipeDef>.GetNamedSilentFail(recipe.Recipe) is { } definition
                             ? NativeProductiveSkill.Read(pawn, definition, table) : null;
                         if (productive?.Rates.SingleOrDefault(r => productive.Learning.StoredLevel == r.StoredLevel) is { WorkPerTick: > 0 and var rate })
-                            bindings.Add(new Obs.ActivityTaskBinding.Recipe(task.Id, bound, Math.Ceiling(productive.WorkAmount / rate)));
+                            bindings.Add(new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Recipe(task.Id, bound, Math.Ceiling(productive.WorkAmount / rate)));
                     }
                 }
             }

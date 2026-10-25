@@ -91,7 +91,7 @@ public static class ArmoryRules
     }
 
     /// <summary>Selects the armory tier from the raid threat and the research census a routine frame read; a frame without the census throws (D3).</summary>
-    public static ArmoryAssessment AssessArmory(RoundsFacts f)
+    public static ArmoryAssessment AssessArmory(ReviewFacts f)
     {
         var research = f.Research;
         return AssessArmory(RaidDefense.Of(f), research);

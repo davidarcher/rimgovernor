@@ -1,7 +1,3 @@
-using Common = RimGovernor.Contracts.Wire.Common;
-using Mirror = RimGovernor.Contracts.Wire.Mirror;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -65,15 +61,15 @@ internal static class CombatLabNativeHold
             s,
             "move",
             cancellationToken,
-            CombatLabKit.Order(defender, new Operations.CombatOrderOrder.FireModeCase(Operations.CombatFireMode.Hold)),
-            CombatLabKit.Order(defender, new Operations.CombatOrderOrder.MoveCase(cell))).ConfigureAwait(false))
+            CombatLabKit.Order(defender, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.FireModeCase(RimGovernor.Brain.GameFacts.Operations.CombatFireMode.Hold)),
+            CombatLabKit.Order(defender, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.MoveCase(cell))).ConfigureAwait(false))
         {
             CombatLabKit.Applied("move", r);
         }
 
         var frames = new LabFrames(s);
         _ = await frames.UntilAsync("arrive", CombatLabKit.ProbeTicks, 0, f => LabFrames.Row(f, defender)?.Cell == cell, cancellationToken).ConfigureAwait(false);
-        CombatLabKit.Applied("hold-position", await CombatLabKit.OrderAsync(s, "hold-position", defender, new Operations.CombatOrderOrder.HoldPositionCase(new Operations.Clear()), cancellationToken).ConfigureAwait(false));
+        CombatLabKit.Applied("hold-position", await CombatLabKit.OrderAsync(s, "hold-position", defender, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.HoldPositionCase(new RimGovernor.Brain.GameOrders.Operations.Clear()), cancellationToken).ConfigureAwait(false));
 
         // Hold fire: the defender stays on the cell and silent while a live hostile is in range.
         var start = await CombatLabKit.TickAsync(s, "hold-start", cancellationToken).ConfigureAwait(false);
@@ -98,8 +94,8 @@ internal static class CombatLabNativeHold
             s,
             "engage",
             cancellationToken,
-            CombatLabKit.Order(defender, new Operations.CombatOrderOrder.HoldPositionCase(new Operations.Clear())),
-            CombatLabKit.Order(defender, new Operations.CombatOrderOrder.FireModeCase(Operations.CombatFireMode.AtWill))).ConfigureAwait(false))
+            CombatLabKit.Order(defender, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.HoldPositionCase(new RimGovernor.Brain.GameOrders.Operations.Clear())),
+            CombatLabKit.Order(defender, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.FireModeCase(RimGovernor.Brain.GameFacts.Operations.CombatFireMode.AtWill))).ConfigureAwait(false))
         {
             CombatLabKit.Applied("engage", r);
         }
@@ -107,7 +103,7 @@ internal static class CombatLabNativeHold
         var release = await CombatLabKit.TickAsync(s, "engage-start", cancellationToken).ConfigureAwait(false);
         string? first = null;
         long gone = -1;
-        Mirror.CombatEventRow? retarget = null;
+        RimGovernor.Brain.GameFacts.Mirror.CombatEventRow? retarget = null;
         _ = await frames.UntilAsync("retarget", FightTicks + CombatLabKit.ProbeTicks, release, f =>
         {
             OnCell(f, defender, cell);
@@ -132,7 +128,7 @@ internal static class CombatLabNativeHold
     }
 
     // The frame shows the defender standing, alive, on the assigned cell; anything else fails the case.
-    private static void OnCell(Observations.BundleSnapshot f, string defender, RimGovernor.Brain.Domain.Cell cell)
+    private static void OnCell(RimGovernor.Brain.GameFacts.Observations.BundleSnapshot f, string defender, RimGovernor.Brain.Domain.Cell cell)
     {
         if (LabFrames.Row(f, defender) is not { Downed: not true, Dead: not true } row || row.Cell != cell)
         {
@@ -141,6 +137,6 @@ internal static class CombatLabNativeHold
     }
 
     // The defender's shot_fired events from tick from on, oldest first.
-    private static IEnumerable<Mirror.CombatEventRow> Shots(LabFrames frames, string defender, long from) =>
-        frames.Events.Where(e => e.Kind == Mirror.CombatLogKind.ShotFired && e.ThingId == defender && e.At.Tick >= from);
+    private static IEnumerable<RimGovernor.Brain.GameFacts.Mirror.CombatEventRow> Shots(LabFrames frames, string defender, long from) =>
+        frames.Events.Where(e => e.Kind == RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.ShotFired && e.ThingId == defender && e.At.Tick >= from);
 }

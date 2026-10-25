@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using RimGovernor.Contracts.Host;
+using RimGovernor.Brain.GameFacts.Host;
+using RimGovernor.Brain.GameOrders.Host;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -8,10 +9,10 @@ namespace RimGovernor.Brain.Acceptance;
 public sealed partial class Harness
 {
     /// <summary>The host tool that sets the clock speed.</summary>
-    public const string SetTimeSpeedTool = "rimgovernor/set_time_speed";
+    public const string SetTimeSpeedTool = "set_time_speed";
 
     /// <summary>The host tool that loads a save and waits for the requested readiness.</summary>
-    public const string LoadGameReadyTool = "rimgovernor/load_game_ready";
+    public const string LoadGameReadyTool = "load_game_ready";
 
     /// <summary>Sets the clock speed through <see cref="SetTimeSpeedTool"/>, recorded under <paramref name="label"/>.</summary>
     public async Task<TimeSpeedReply> SetTimeSpeedAsync(string label, TimeSpeedRequest request, CancellationToken cancellationToken)
@@ -22,7 +23,7 @@ public sealed partial class Harness
     }
 
     /// <summary>The host tool that presses an in-game time-control button (#3608).</summary>
-    public const string PressTimeSpeedTool = "rimgovernor/press_time_speed";
+    public const string PressTimeSpeedTool = "press_time_speed";
 
     /// <summary>
     /// Presses the time-control button <paramref name="request"/> names through <see cref="PressTimeSpeedTool"/>, as a

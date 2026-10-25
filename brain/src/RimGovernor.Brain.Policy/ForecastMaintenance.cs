@@ -1,9 +1,10 @@
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>A generated practice session (#3341): its task and the native mechanics of the pawn practising there.</summary>
 public sealed record ForecastPracticeTask(string Task, PracticeWorker Worker);
-public sealed record ForecastMaintenanceRequirement(AssignedCapability Requirement, EquatableArray<RimGovernor.Contracts.Wire.Observations.Skill> Skills);
+public sealed record ForecastMaintenanceRequirement(AssignedCapability Requirement, EquatableArray<RimGovernor.Brain.GameFacts.Observations.Skill> Skills);
 public sealed record ForecastMaintenanceConsequence(string Requirement, ForecastMaintenanceGap MissingXp, EquatableArray<string> Findings);
 
 /// <summary>The XP an assigned capability still lacks at the plan's end: projected (0 when a branch is met), or unprojectable

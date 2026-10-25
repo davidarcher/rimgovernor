@@ -3,11 +3,8 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // GiveJobIntent Equip: FloatMenuOptionProvider_Equip's
     // gates in order, then the exact JobDefOf.Equip job a player's float-menu
@@ -22,35 +19,35 @@ namespace HomeBridge.BridgeTools
         private static bool Holds(Pawn pawn, Thing weapon) => ReferenceEquals(pawn.equipment?.Primary, weapon);
         private static bool Running(Pawn pawn, Thing weapon) => pawn.CurJob != null && pawn.CurJob.def == JobDefOf.Equip && pawn.CurJob.targetA.Thing == weapon;
 
-        private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Thing? weapon)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Pawn? pawn, out Thing? weapon)
         {
             weapon = null;
             if (!NativeGiveJob.TryPawn(intent, context, out pawn, out var snapshot, out var failure)) return failure;
-            if (!snapshot.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Equip requires an eligible pawn.");
-            var map = ProtoBoundary.LoadedMap(context);
+            if (!snapshot.Eligible) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Equip requires an eligible pawn.");
+            var map = GameThread.LoadedMap(context);
             weapon = RefIndex.Is(pawn.equipment?.Primary, intent.TargetId) ? (pawn.equipment ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.equipment.")).Primary
                 : RefIndex.Thing(map, intent.TargetId);
             if (weapon != null && (Holds(pawn, weapon) || Running(pawn, weapon))) return null;
-            if (weapon == null || !Eligible(weapon)) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact equippable weapon is unavailable.");
+            if (weapon == null || !Eligible(weapon)) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact equippable weapon is unavailable.");
             if (pawn.equipment == null)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn has no equipment tracker and can carry no weapon.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Pawn has no equipment tracker and can carry no weapon.");
             if (pawn.WorkTagIsDisabled(WorkTags.Violent))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn has WorkTags.Violent disabled and cannot equip a weapon.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Pawn has WorkTags.Violent disabled and cannot equip a weapon.");
             if (weapon.def.IsRangedWeapon && pawn.WorkTagIsDisabled(WorkTags.Shooting))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn has WorkTags.Shooting disabled and cannot equip a ranged weapon.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Pawn has WorkTags.Shooting disabled and cannot equip a ranged weapon.");
             if (!pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn is incapable of manipulation and cannot pick anything up.");
-            if (weapon.IsBurning()) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Weapon is on fire.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Pawn is incapable of manipulation and cannot pick anything up.");
+            if (weapon.IsBurning()) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Weapon is on fire.");
             if (!pawn.CanReach(weapon, PathEndMode.ClosestTouch, Danger.Deadly))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn cannot reach the weapon.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Pawn cannot reach the weapon.");
             if (!EquipmentUtility.CanEquip(weapon, pawn, out var cantReason, false))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn cannot equip the weapon: " + (string.IsNullOrEmpty(cantReason) ? "refused" : cantReason));
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Pawn cannot equip the weapon: " + (string.IsNullOrEmpty(cantReason) ? "refused" : cantReason));
             return null;
         }
 
-        internal static Common.Failure? Validate(JobOrder intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Resolve(intent, context, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var weapon);
             if (failure != null || pawn == null || weapon == null) throw new InvalidOperationException(failure?.Detail);

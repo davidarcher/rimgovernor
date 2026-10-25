@@ -9,12 +9,12 @@ using RimWorld;
 using Verse;
 using Pol = RimGovernor.Brain.Policy;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     public sealed class IdeoligionDesignFixture
     {
         [Tool("test/ideoligion_design_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage an eligible fluid ideoligion and return a legal plain-precept reform without applying it.")]
-        public async Task<object> PrepareDesign(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> PrepareDesign(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var ideo = Faction.OfPlayerSilentFail?.ideos?.PrimaryIdeo;
@@ -30,19 +30,19 @@ namespace HomeBridge.BridgeTools
                         precepts.Remove(old.def.defName); precepts.Add(def.defName);
                         var design = expected with { Precepts = [.. precepts] };
                         if (NativeIdeoligionDesign.Prepare(ideo, design, true, out _) != null) continue;
-                        return new { success = true, ideoId = ideo.GetUniqueLoadID(), expected = RimGovernor.Contracts.Wire.WireJson.Serialize(expected), design = RimGovernor.Contracts.Wire.WireJson.Serialize(design), count = ideo.development.reformCount };
+                        return new { success = true, ideoId = ideo.GetUniqueLoadID(), expected = RimGovernor.Brain.GameOrders.OrdersJson.Serialize(expected), design = RimGovernor.Brain.GameOrders.OrdersJson.Serialize(design), count = ideo.development.reformCount };
                     }
                 return new { success = false, reason = "No legal plain-precept change is available in this fixture." };
             }, cancellationToken).ConfigureAwait(false);
         }
 
         [Tool("test/ideoligion_design_inspect", Description = "Read the disposable primary ideoligion's exact design and reform progression.")]
-        public async Task<object> InspectDesign(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> InspectDesign(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var ideo = Faction.OfPlayer.ideos.PrimaryIdeo;
                 var sharedWith = Find.FactionManager.AllFactions.Where(f => !f.IsPlayer && f.ideos != null && f.ideos.Has(ideo)).Select(f => f.def.defName).ToArray();
-                return new { design = RimGovernor.Contracts.Wire.WireJson.Serialize(IdeoligionReformActionHandler.ReadDesign(ideo)), count = ideo.development?.reformCount ?? 0, points = ideo.development?.Points ?? 0, sharedWith };
+                return new { design = RimGovernor.Brain.GameOrders.OrdersJson.Serialize(IdeoligionReformActionHandler.ReadDesign(ideo)), count = ideo.development?.reformCount ?? 0, points = ideo.development?.Points ?? 0, sharedWith };
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -51,7 +51,7 @@ namespace HomeBridge.BridgeTools
         // unregistered ideo: vanilla generation meets its memes' required precepts, which the lab's own ideo need not.
         // The reply holds the faction's precepts, by def and load id, before and after the design.
         [Tool("test/ideoligion_shared_design", Description = "UNSAFE FOR MODEL EXECUTION. Make a world faction share the player's primary ideoligion, then apply colony creation's ideoligion design.")]
-        public async Task<object> DesignShared(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> DesignShared(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var player = Faction.OfPlayerSilentFail; var ideo = player?.ideos?.PrimaryIdeo;
@@ -66,12 +66,12 @@ namespace HomeBridge.BridgeTools
                 var design = IdeoligionReformActionHandler.ReadDesign(IdeoGenerator.GenerateIdeo(new IdeoGenerationParms((player ?? throw new InvalidOperationException("Player faction required.")).def))) with { Fluid = false };
                 try { NativeIdeoligionDesign.Create(design); }
                 catch (InvalidOperationException e) { return new { success = false, reason = "The design was refused: " + e.Message }; }
-                return new { success = true, faction = faction.def.defName, design = RimGovernor.Contracts.Wire.WireJson.Serialize(design), before, after = Precepts() };
+                return new { success = true, faction = faction.def.defName, design = RimGovernor.Brain.GameOrders.OrdersJson.Serialize(design), before, after = Precepts() };
             }, cancellationToken).ConfigureAwait(false);
         }
 
         [Tool("test/theme_preset_read", Description = "Read one shipped theme preset's meme and precept goal targets as they resolve over the installed game.")]
-        public Task<object> ReadThemePreset(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public Task<object> ReadThemePreset(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "The preset id.")] string preset = "")
         {
             // The preset book is built off the game thread (NativeCatalogFactory.Presets).
@@ -102,7 +102,7 @@ namespace HomeBridge.BridgeTools
     public sealed class FirstRitualFixture
     {
         [Tool("test/first_ritual_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture (#1665): stage one free-start ritual of the colony ideoligion with its finished required building and its cooldown passed. Requires Ideology.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Prepare(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
@@ -177,7 +177,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/first_ritual_inspect", Description = "Read-only ritual postcondition for the first-ritual fixture: whether a lord job of the ritual precept runs, its last finished tick and active obligations.")]
-        public async Task<object> Inspect(IRimBridgeContext ctx, CancellationToken cancellationToken, string ritualId)
+        public async Task<object> Inspect(INativeContext ctx, CancellationToken cancellationToken, string ritualId)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var ideo = Faction.OfPlayerSilentFail?.ideos?.PrimaryIdeo;
@@ -211,13 +211,13 @@ namespace HomeBridge.BridgeTools
                     if(dialog==null) continue;
                     var assignments=Traverse.Create(dialog).Field("assignments").GetValue<RitualRoleAssignments>();
                     if(assignments==null || (Traverse.Create(dialog).Method("BlockingIssues").GetValue<IEnumerable<string>>()?.Any() ?? false)) continue;
-                    var intent=new RimGovernor.Contracts.Wire.Operations.RitualIntent {
+                    var intent=new RimGovernor.Brain.GameOrders.Operations.RitualIntent {
                         PawnId=organizer.GetUniqueLoadID(), Ritual=ritual.GetUniqueLoadID(), Verb="begin",
-                        Location=new RimGovernor.Contracts.Wire.Operations.RitualLocation.At(new RimGovernor.Brain.Domain.Cell(building.Position.x,building.Position.z)),
-                        Roles=[.. ritual.behavior.def.roles.Select(role=>new RimGovernor.Contracts.Wire.Operations.RitualRoleAssignment {
+                        Location=new RimGovernor.Brain.GameOrders.Operations.RitualLocation.At(new RimGovernor.Brain.Domain.Cell(building.Position.x,building.Position.z)),
+                        Roles=[.. ritual.behavior.def.roles.Select(role=>new RimGovernor.Brain.GameOrders.Operations.RitualRoleAssignment {
                             Slot=role.id, PawnIds=[.. assignments.AssignedPawns(role).Select(p=>p.GetUniqueLoadID())] })],
                         SpectatorPawnIds=[.. assignments.AllCandidatePawns.Where(assignments.PawnSpectating).Select(p=>p.GetUniqueLoadID())] };
-                    return RimGovernor.Contracts.Wire.WireJson.Serialize(intent);
+                    return RimGovernor.Brain.GameOrders.OrdersJson.Serialize(intent);
                 }
             }
             return "";

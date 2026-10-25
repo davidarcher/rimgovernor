@@ -1,6 +1,6 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using DefinitionCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
 namespace RimGovernor.Brain.Bridge;
 

@@ -3,11 +3,8 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // GiveJobIntent Wear, the gear family's wear order: the
     // pawn's availability, the apparel's eligibility are checked live, then the exact JobDefOf.Wear job an apparel
@@ -19,26 +16,26 @@ namespace HomeBridge.BridgeTools
         private static bool Worn(Pawn pawn, Apparel apparel) => pawn.apparel != null && pawn.apparel.WornApparel.Contains(apparel);
         private static bool Running(Pawn pawn, Apparel apparel) => pawn.CurJob != null && pawn.CurJob.def == JobDefOf.Wear && pawn.CurJob.targetA.Thing == apparel;
 
-        private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Apparel? apparel)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Pawn? pawn, out Apparel? apparel)
         {
             apparel = null;
             if (!NativeGiveJob.TryPawn(intent, context, out pawn, out _, out var failure)) return failure;
-            if (!pawn.IsFreeColonist) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact free colonist is not spawned on this map.");
+            if (!pawn.IsFreeColonist) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact free colonist is not spawned on this map.");
             apparel = pawn.apparel?.WornApparel.ById(intent.TargetId);
             if (apparel != null) return null;
-            apparel = ProtoBoundary.LoadedMap(context).listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>().ById(intent.TargetId);
-            if (apparel == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact loose apparel is unavailable.");
+            apparel = GameThread.LoadedMap(context).listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>().ById(intent.TargetId);
+            if (apparel == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact loose apparel is unavailable.");
             if (Running(pawn, apparel)) return null;
             var blocked = GearUpkeepTools.Available(pawn);
-            if (blocked != null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Wear requires an available pawn: " + blocked);
+            if (blocked != null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Wear requires an available pawn: " + blocked);
             var refusal = GearUpkeepTools.Eligible(pawn, apparel);
-            if (refusal != null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn cannot wear the apparel: " + refusal);
+            if (refusal != null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Pawn cannot wear the apparel: " + refusal);
             return null;
         }
 
-        internal static Common.Failure? Validate(JobOrder intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Resolve(intent, context, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var apparel);
             if (failure != null || pawn == null || apparel == null) throw new InvalidOperationException(failure?.Detail);

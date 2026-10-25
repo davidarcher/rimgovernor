@@ -8,8 +8,8 @@ using System.Reflection.PortableExecutable;
 namespace RimGovernor.Tools.Workflow.Commands;
 
 /// <summary>
-/// The orphan gate over the brain's records: every member of a wire record in <c>RimGovernor.Brain.Contracts</c> and of
-/// a record in <c>RimGovernor.Brain.Policy</c> must be read outside its declaration, and an observation (any wire record outside <c>Operations</c>)
+/// The orphan gate over the brain's records: every member of a public type in GameFacts or GameOrders and of
+/// a record in <c>RimGovernor.Brain.Policy</c> must be read outside its declaration, and a GameFacts member
 /// the native side writes must be read by the brain. It reads the built assemblies, so a reference is the member token the compiler
 /// bound (a getter call, an initializer's setter, a positional constructor), never a text match. A reference into the
 /// declaring assembly is followed through that assembly's own calls to the backing fields it reaches: a computed
@@ -23,7 +23,10 @@ namespace RimGovernor.Tools.Workflow.Commands;
 internal static class ContractOrphans
 {
     /// <summary>The wire records: the public types of the wire namespace, enums aside.</summary>
-    public static readonly Target Wire = new("Contracts", "RimGovernor.Contracts.Wire", RecordsOnly: false, IntentNamespaces: ["Operations"]);
+    public static readonly Target Facts = new("GameFacts", "RimGovernor.Brain.GameFacts", RecordsOnly: false);
+
+    /// <summary>Requests and intent: native consumers must read their members.</summary>
+    public static readonly Target Orders = new("GameOrders", "RimGovernor.Brain.GameOrders", RecordsOnly: false, IntentRecords: true);
 
     /// <summary>Policy's records, of any visibility: IDE0051/IDE0052 see only private members.</summary>
     public static readonly Target PolicyRecords = new("Policy", "RimGovernor.Brain.Policy", RecordsOnly: true);
@@ -55,19 +58,14 @@ internal static class ContractOrphans
 
     /// <summary>
     /// Which members of an assembly are checked. <paramref name="Name"/> prefixes every finding; members are the
-    /// public types under <paramref name="Namespace"/> or, with <paramref name="RecordsOnly"/>, its records. With
+    /// public types owned by the assembly or, with <paramref name="RecordsOnly"/>, its records.
+    /// <paramref name="Namespace"/> trims the usual namespace from findings; types outside it keep their full name. With
     /// <paramref name="ReferenceIsUse"/>, a consumer's write uses a member as a read does.
-    /// A member under one of <paramref name="IntentNamespaces"/> (sub-namespaces of the target, such as <c>Operations</c>) is a
-    /// brain-to-native intent record: the native side reads it, and may construct its own copy to compare against, so
-    /// "written by the native side, never read by the brain" applies only to the rest, the native-to-brain observations.
-    /// <paramref name="IntentRecords"/> applies that direction to the whole target assembly when orders have their own project.
+    /// <paramref name="IntentRecords"/> marks a brain-to-native assembly: native readers may also construct their own
+    /// copies for comparison. Facts written by native still need a brain reader, even when native also reads them.
     /// </summary>
     internal sealed record Target(string Name, string Namespace, bool RecordsOnly, bool ReferenceIsUse = false,
-        IReadOnlyList<string>? IntentNamespaces = null, bool IntentRecords = false)
-    {
-        public bool IsIntent(string member) =>
-            IntentRecords || IntentNamespaces?.Any(n => member.StartsWith(n + ".", StringComparison.Ordinal)) == true;
-    }
+        bool IntentRecords = false);
 
     /// <summary>How the brain and the native side use one member.</summary>
     private sealed class Use
@@ -110,7 +108,7 @@ internal static class ContractOrphans
         }
         checkedCount = uses.Count;
         return [.. uses
-            .Select(u => (Key: $"{target.Name}|{u.Key}", Reason: target.ReferenceIsUse && u.Value.BrainWrite ? null : Verdict(u.Value, target.IsIntent(u.Key))))
+            .Select(u => (Key: $"{target.Name}|{u.Key}", Reason: target.ReferenceIsUse && u.Value.BrainWrite ? null : Verdict(u.Value, target.IntentRecords)))
             .Where(u => u.Reason is not null)
             .Select(u => (u.Key, u.Reason!))
             .OrderBy(u => u.Key, StringComparer.Ordinal)];
@@ -153,12 +151,13 @@ internal static class ContractOrphans
             {
                 var type = md.GetTypeDefinition(handle);
                 var full = names.TypeDef(handle);
-                if (!full.StartsWith(target.Namespace + ".", StringComparison.Ordinal) || serializer.Contains(handle)
+                if (serializer.Contains(handle)
                     || (target.RecordsOnly ? !IsRecord(md, type) : !IsPublic(md, handle) || IsEnum(names, type)))
                 {
                     continue;
                 }
-                var shown = full[(target.Namespace.Length + 1)..].Replace('/', '.');
+                var shown = (full.StartsWith(target.Namespace + ".", StringComparison.Ordinal)
+                    ? full[(target.Namespace.Length + 1)..] : full).Replace('/', '.');
                 foreach (var p in type.GetProperties())
                 {
                     var property = md.GetPropertyDefinition(p);

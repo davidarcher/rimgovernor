@@ -6,8 +6,10 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -29,7 +31,7 @@ public sealed class PortfolioAllocationTests
         WriteIndented = true
     };
 
-    internal static RoundsFacts LargerFacts()
+    internal static ReviewFacts LargerFacts()
     {
         var facts = ProductiveLearningTests.NormalFoodFacts();
         var roster = WorkResourceTestFacts.Create("pawn", "helper", "diner", "porter");
@@ -40,7 +42,7 @@ public sealed class PortfolioAllocationTests
         facts = facts with
         {
 
-            Census = (facts.Census with { WorkResources = roster.Census.WorkResources }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 16 }] },
+            Census = (facts.Census with { WorkResources = roster.Census.WorkResources }) with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Rice", Units = 16 }] },
             ForecastObserved = facts.ForecastObserved with
             {
                 WorkPawns = roster.ForecastObserved.WorkPawns,
@@ -60,7 +62,7 @@ public sealed class PortfolioAllocationTests
         return WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
     }
 
-    internal static ColonyForecastRequest Request(RoundsFacts facts, ForecastCoupledCandidates generated, double horizon = 700) =>
+    internal static ColonyForecastRequest Request(ReviewFacts facts, ForecastCoupledCandidates generated, double horizon = 700) =>
         ForecastCoupled.CoupledForecastRequestOf(new(100), horizon / GameTime.TicksPerDay,
             facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
 
@@ -136,7 +138,7 @@ public sealed class PortfolioAllocationTests
 
     /// <summary>Selection over <see cref="Budgets"/> x <see cref="Traversals"/> on one generated workload: each row's budget in both units, its
     /// three allocation and time samples and the complete selected quality, after the generation's own samples.</summary>
-    private static void WriteMatrix(string path, RoundsFacts facts, ForecastCoupledCandidates generated, double horizon,
+    private static void WriteMatrix(string path, ReviewFacts facts, ForecastCoupledCandidates generated, double horizon,
         (ForecastCoupledCandidates Result, long[] Bytes, double[] Milliseconds) generation)
     {
         var request = Request(facts, generated, horizon);

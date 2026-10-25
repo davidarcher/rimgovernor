@@ -1,5 +1,3 @@
-using D = RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
@@ -122,7 +120,7 @@ public sealed class GoalValueTests
     {
         // #3816: the worn-count goal pays the wearer's share when a selected commitment's outfit change dresses that pawn in the
         // garment, a crafted overlay or a swap into a stored one alike; the delivery adds nothing to the development count.
-        var duster = new GearOption { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("duster", "Duster", "Cloth", GearSource.Worn) with { Condition = 0, Quality = new O.ItemQuality.Graded(D.QualityCategory.Awful) }), Slot = GearSlot.Outer };
+        var duster = new GearOption { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("duster", "Duster", "Cloth", GearSource.Worn) with { Condition = 0, Quality = new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded(RimGovernor.Brain.GameFacts.Defs.QualityCategory.Awful) }), Slot = GearSlot.Outer };
         var crafted = new ForecastCommitment("clothing", [])
         {
             ActivityCompletions = ["done"], Outcome = new("clothing", "clothing/pawn/Duster", "done"),

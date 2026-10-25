@@ -8,7 +8,7 @@ public sealed record ForecastWorkInputs
     public EquatableArray<IngredientReservation> IngredientReservations { get; init; }
 
     /// <summary>The observed work roster and bill reservations at the review tick.</summary>
-    public static ForecastWorkInputs ForecastWorkInputsOf(RoundsFacts facts) => new()
+    public static ForecastWorkInputs ForecastWorkInputsOf(ReviewFacts facts) => new()
     {
         Tick = facts.Tick, Pawns = facts.ForecastObserved.WorkPawns, IngredientReservations = facts.BillReservations,
     };

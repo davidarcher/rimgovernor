@@ -289,7 +289,7 @@ name list. `ActiveCondition.condition_class` is the concrete `GetType().FullName
 `DefinitionCatalog.OutdoorsPermanentlyDark(biome)` is
 true when a `BiomeDef.biomeMapConditions` condition's `conditionClass` is or
 derives from `RimWorld.GameCondition_NoSunlight`; the colony projection carries
-it as `RoundsFacts.OutdoorsDark` and `CropClimate.OutdoorsDark`, unknown
+it as `ReviewFacts.OutdoorsDark` and `CropClimate.OutdoorsDark`, unknown
 without a biome read or catalog. Native `FoodClimate.sowing_now` folds
 the same fact: false in a permanently dark biome (read from the game defs with
 `typeof(GameCondition_NoSunlight).IsAssignableFrom`), unset when the biome or a
@@ -504,7 +504,7 @@ entity holder; a holding platform carries its `CompEntityHolder` block `holder`
 (the containment strength its room provides now, whether it is available, the
 pawn it holds, null for none, and the doors the game counts for its room).
 A failed read fails the pawn or building read; non-finite numbers throw. Policy
-reads the Contracts records directly (`bridge.AnomalyFactsRules.PawnAnomaly`
+reads the GameFacts records directly (`bridge.AnomalyFactsRules.PawnAnomaly`
 lifts the pawn block into the squad facts); all of it is derived state held in
 memory (persistence-contracts.md) and adds no store. Thing rows (items, corpses)
 carry no study state.
@@ -576,7 +576,7 @@ Verdicts come from the game (comps, buildings, `ChildcareUtility`), never
 def-name lists. `ColonyProjection.BiotechSection` carries the section as read;
 `observation.BiotechColonyReads` lifts it into the policy inputs (the recharge
 policy's chargers, the gestation review's gestators and wastepacks, the
-gene-bank Need's banks and packs, the pollution census). `RoundsFacts.Biotech`
+gene-bank Need's banks and packs, the pollution census). `ReviewFacts.Biotech`
 carries the section itself: the biotech family matches `Active` and derives no
 Need on a colony without Biotech. Derived state held in memory (persistence-contracts.md); it
 adds no store.

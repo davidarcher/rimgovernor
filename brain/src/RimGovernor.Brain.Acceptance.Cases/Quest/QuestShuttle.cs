@@ -1,4 +1,3 @@
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -37,7 +36,7 @@ internal static class QuestShuttle
         var (quest, pawn) = named ? (prepared.NamedQuest, prepared.NamedPawn) : (prepared.CountedQuest, prepared.CountedPawn);
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 
-        async Task Apply(string key, Operations.QuestShuttleIntent intent)
+        async Task Apply(string key, RimGovernor.Brain.GameOrders.Operations.QuestShuttleIntent intent)
         {
             var effect = TradeKit.Applied(key, await TradeKit.ApplyAsync(s, key, intent, cancellationToken).ConfigureAwait(false)).QuestShuttle;
             var loading = intent.Launch != true;
@@ -47,10 +46,10 @@ internal static class QuestShuttle
             }
         }
 
-        await Apply("shuttle-load", new Operations.QuestShuttleIntent
+        await Apply("shuttle-load", new RimGovernor.Brain.GameOrders.Operations.QuestShuttleIntent
         {
             QuestId = quest,
-            Loading = named ? new Operations.QuestShuttleIntentLoading.AutoloadCase(true) : new Operations.ShuttlePawnList { PawnIds = [pawn] }, Launch = false }).ConfigureAwait(false);
+            Loading = named ? new RimGovernor.Brain.GameOrders.Operations.QuestShuttleIntentLoading.AutoloadCase(true) : new RimGovernor.Brain.GameOrders.Operations.ShuttlePawnList { PawnIds = [pawn] }, Launch = false }).ConfigureAwait(false);
 
         _ = await s.RunUntilAsync("shuttle-board", BoardTicks, async ct =>
         {
@@ -65,7 +64,7 @@ internal static class QuestShuttle
             return ($"{shuttle.AllRequiredLoaded} {string.Join(",", shuttle.LoadedPawnIds.Select(p => p.Value))}", shuttle.AllRequiredLoaded);
         }, cancellationToken).ConfigureAwait(false);
 
-        await Apply("shuttle-launch", new Operations.QuestShuttleIntent { QuestId = quest, Launch = true }).ConfigureAwait(false);
+        await Apply("shuttle-launch", new RimGovernor.Brain.GameOrders.Operations.QuestShuttleIntent { QuestId = quest, Launch = true }).ConfigureAwait(false);
         _ = await s.RunUntilAsync("shuttle-depart", DepartTicks, async ct =>
         {
             var row = await QuestKit.QuestAsync(s, "shuttle-depart-read", quest, ct).ConfigureAwait(false);

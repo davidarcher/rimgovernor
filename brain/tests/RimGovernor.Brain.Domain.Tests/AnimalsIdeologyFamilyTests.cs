@@ -1,5 +1,5 @@
 using System.Text.Json.Nodes;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Store.Codec;
@@ -154,7 +154,7 @@ public sealed class AnimalsIdeologyFamilyTests
         public FamilyRun Run() =>
             Runner.RunAsync(new FamilyStep { Journal = Journal, World = World }, TestContext.Current.CancellationToken).GetAwaiter().GetResult();
 
-        public ConcernProgress? Row(NeedId need) => Journal.LoadRounds(TestContext.Current.CancellationToken).Progress.SingleOrDefault(p => p.Concern == need.FilingKey);
+        public ConcernProgress? Row(NeedId need) => Journal.LoadReview(TestContext.Current.CancellationToken).Progress.SingleOrDefault(p => p.Concern == need.FilingKey);
     }
 
     private static Journal OpenJournal(string name)
@@ -162,7 +162,7 @@ public sealed class AnimalsIdeologyFamilyTests
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-" + name + "-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
         return journal;
     }
 
@@ -202,7 +202,7 @@ public sealed class AnimalsIdeologyFamilyTests
     {
         using var colony = Open();
         colony.Facts = Roles(new RoleAssignment(new("a"), "role-1", "Leader"));
-        colony.Journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(), [PlannerWave.NeedProgressOf("ideology", colony.Run())!], TestContext.Current.CancellationToken);
+        colony.Journal.RecordPlannerReasons(new Dictionary<FilingKey, PlannerNote>(), [PlannerWave.NeedProgressOf("ideology", colony.Run())!], TestContext.Current.CancellationToken);
         var row = colony.Row(IdeologyFamily.Roles)!;
         Assert.Equal(("ideorole-a-role-1", true), (row.Method, row.Open));
     }
@@ -210,19 +210,19 @@ public sealed class AnimalsIdeologyFamilyTests
     [Fact]
     public void EachFamilyIsOneDueQueueEntryAndTheOldPlannersAreGone()
     {
-        var animals = ClockPlannerCatalog.FamilyEntry(new FamilyRunner<AnimalsFacts>(new AnimalsFamily(), (_, _) => Task.FromResult(new AnimalsFacts()), AnimalsReader.Schedule));
+        var animals = PlannerCatalog.FamilyEntry(new FamilyRunner<AnimalsFacts>(new AnimalsFamily(), (_, _) => Task.FromResult(new AnimalsFacts()), AnimalsReader.Schedule));
         Assert.Equal("animals", animals.Name);
         Assert.Contains(ActionKind.Husbandry, animals.Kinds);
         Assert.Contains(ActionKind.BedUse, animals.Kinds);
         Assert.Contains(ActionKind.Building, animals.Kinds);
 
-        var ideology = ClockPlannerCatalog.FamilyEntry(new FamilyRunner<IdeologyFacts>(new IdeologyFamily(), (_, _) => Task.FromResult(new IdeologyFacts()), IdeologyReader.Schedule));
+        var ideology = PlannerCatalog.FamilyEntry(new FamilyRunner<IdeologyFacts>(new IdeologyFamily(), (_, _) => Task.FromResult(new IdeologyFacts()), IdeologyReader.Schedule));
         Assert.Equal("ideology", ideology.Name);
         Assert.Contains(ActionKind.Assign, ideology.Kinds);
         Assert.Contains(ActionKind.Ritual, ideology.Kinds);
         Assert.Contains(ActionKind.IdeoligionReform, ideology.Kinds);
 
-        Assert.DoesNotContain(ClockPlannerCatalog.Entries, e => e.Name is "animalContainment" or "husbandry" or "ideoRoles" or "rituals" or "ideoligion");
+        Assert.DoesNotContain(PlannerCatalog.Entries, e => e.Name is "animalContainment" or "husbandry" or "ideoRoles" or "rituals" or "ideoligion");
     }
 
     [Fact]
@@ -269,7 +269,7 @@ public sealed class AnimalsIdeologyFamilyTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var source = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-legacy-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        source.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
+        source.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
         var saved = new Dictionary<string, string>(source.GovernorStateBlobs(ct));
         var key = Journal.LegacyStandardKeyPrefix + "std-reform";
 

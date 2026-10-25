@@ -10,7 +10,7 @@ public static class GeneBankConcernRules
     /// Whether more packs lie loose (held by no bank) than the standing banks' free slots hold, over the Biotech
     /// colony section's banks and genepacks.
     /// </summary>
-    public static bool GeneBankOwed(RimGovernor.Contracts.Wire.Observations.BiotechColonyFacts biotech)
+    public static bool GeneBankOwed(RimGovernor.Brain.GameFacts.Observations.BiotechColonyFacts biotech)
     {
         var free = biotech.GeneBanks.Sum(b => Math.Max(b.Capacity - b.PackIds.Count, 0));
         var loose = biotech.Genepacks.Count(p => p.BankId is null);

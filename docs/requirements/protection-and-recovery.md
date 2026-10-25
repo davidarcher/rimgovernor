@@ -44,7 +44,7 @@ Evidence P1, P3–P5.
 
 ## Evidence and inspection coverage
 
-- **P1 — From danger to work.** [DisasterRounds](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsDisaster.cs)
+- **P1 — From danger to work.** [DisasterReview](../../brain/src/RimGovernor.Brain.Runtime/Review/DisasterReview.Disaster.cs)
   reads current emergency and service facts. Sheltering commits owed area changes;
   the ordinary services pass chooses recovery work under the need. The read rejects
   a different world or observations older than the review. The
@@ -77,14 +77,14 @@ episode closure. [recovery/area](../../brain/src/RimGovernor.Brain.Acceptance.Ca
 checks restrictions and refuses clearing them during a roof hazard. It does not
 assert that each pawn reaches shelter before injury.
 
-[RoundsCombat](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsCombat.cs)
+[ReviewCombat](../../brain/src/RimGovernor.Brain.Runtime/Review/DefensePlanner.Combat.cs)
 reads the fight, chooses orders, commits a batch and sends it through Hands.
-[RoundsCombatStep](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsCombatStep.cs)
+[CombatStep](../../brain/src/RimGovernor.Brain.Runtime/Review/CombatReads.CombatStep.cs)
 reconsiders the fight from fresh observations. The registered
 [combat/attack](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Combat/CombatCases.cs)
 checks explicit melee, rifle and grenade attacks against prepared targets,
 requiring the target down or dead. It does not prove autonomous tactics.
-[post-fight work](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsDefensePostFight.cs)
+[post-fight work](../../brain/src/RimGovernor.Brain.Runtime/Review/DefensePlanner.PostFight.cs)
 rechecks enemies, stripping and custody candidates; care belongs to RG-HEALTH-001.
 
 ### P5 — Confirmed planner holds

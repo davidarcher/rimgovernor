@@ -11,7 +11,7 @@ using Verse;
 using Verse.AI;
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 // Private disposable acceptance only: the forecast food read's cost on a colony with a stockpile, which once searched one
 // path per (harvestable plant, empty accepting storage cell) pair, so ripe plants and a stockpile multiply. Forty
@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools;
 public sealed partial class PawnControlFixture
 {
     [Tool("test/food_storage_routes", Description = "UNSAFE FOR MODEL EXECUTION. Sow forty ripe rice plants beside a default stockpile grown through 25, 100 and 225 cells, and run the forecast's food read at each size.")]
-    public async Task<object> FoodStorageRoutes(IRimBridgeContext ctx, CancellationToken ct)
+    public async Task<object> FoodStorageRoutes(INativeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             var map = Find.CurrentMap ?? throw new InvalidOperationException("Load a colony first.");

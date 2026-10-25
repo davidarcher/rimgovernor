@@ -1,5 +1,5 @@
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
@@ -80,7 +80,7 @@ public sealed class FamilyKeptWaitsTests
         var ct = TestContext.Current.CancellationToken;
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
         facts = facts with { Census = facts.Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 },   FieldCoverage = 1.0};
-        journal.ReviewRounds(new() { Current = world, Tick = new(100), Revision = journal.LoadRounds(ct).Revision, Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.Review(new() { Current = world, Tick = new(100), Revision = journal.LoadReview(ct).Revision, Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
     }
 
     [Fact]

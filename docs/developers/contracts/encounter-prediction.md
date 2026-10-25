@@ -6,7 +6,7 @@
 states one observed scene, its world/tick/build/mod identity, actual body-part
 health, equipment condition and quality, terrain/roof cells, wild herd, native
 Hunt targets and timed participant departures. It contains independent experiment
-seeds, never the live RNG state. No native facade, order action, process handle,
+seeds, never the live RNG state. No game API, order action, process handle,
 roster selection, demand calculation or journal belongs to this boundary.
 
 `LocalEncounterPredictor` in Host adapts that contract to the existing isolated

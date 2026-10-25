@@ -6,7 +6,7 @@ It is a hard fork: no upstream tracking; changes from upstream are cherry-picked
 below updated. The upstream is MIT licensed; its notice is retained verbatim beside this file.
 | Upstream | Vendored commit | Commit date | Vendored into | Notice |
 | --- | --- | --- | --- | --- |
-| [pardeike/RimBridgeServer](https://github.com/pardeike/RimBridgeServer) (v2.1.1) | `ca5997c9e02f53609358223a673834e35a1d1ee1` | 2026-08-25 | `src/Host`, `src/Core`, `src/Contracts`, `src/Extensions.Abstractions`, `src/Sdk` | `rimbridgeserver/LICENSE` (Copyright (c) 2025 Andreas Pardeike) |
+| [pardeike/NativeServer](https://github.com/pardeike/NativeServer) (v2.1.1) | `ca5997c9e02f53609358223a673834e35a1d1ee1` | 2026-08-25 | `src/Host`, `src/Core`, `src/Contracts`, `src/Extensions.Abstractions`, `src/Sdk` | `rimbridgeserver/LICENSE` (Copyright (c) 2025 Andreas Pardeike) |
 
 Only the upstream's `Source/` tree was copied; tests, docs,
 skills, workflows and artwork were not.
@@ -15,12 +15,12 @@ skills, workflows and artwork were not.
 
 | Upstream | Here |
 | --- | --- |
-| assembly/namespace `RimBridgeServer`, `RimBridgeServer.Core`, `.Contracts`, `.Extensions.Abstractions`, `.Sdk` | `RimGovernor.Host`, `RimGovernor.Host.Core`, `.Contracts`, `.Extensions.Abstractions`, `.Sdk` |
-| `RimBridgeServerMod` | `RimGovernorHostMod` |
+| assembly/namespace `NativeServer`, `NativeServer.Core`, `.Contracts`, `.Extensions.Abstractions`, `.Sdk` | `RimGovernor.Host`, `RimGovernor.Host.Core`, `.Contracts`, `.Extensions.Abstractions`, `.Sdk` |
+| `NativeServerMod` | `RimGovernorHostMod` |
 | Harmony ids `pardeike.rimbridgeserver.*` | `davidarcher.rimgovernor.host.*` |
 | mod package id `brrainz.rimbridgeserver` | folded into `davidarcher.rimgovernor.native`; `About.xml` declares `incompatibleWith` it |
 
-Tool names were `rimworld/*` and `rimbridge/*` upstream; here they are `rimgovernor/*` (#2059).
+Tool names were `rimworld/*` and `rimbridge/*` upstream; here they are plain operation names such as `set_time_speed`.
 
 ## Deviations from the vendored source
 
@@ -28,7 +28,7 @@ Tool names were `rimworld/*` and `rimbridge/*` upstream; here they are `rimgover
 - Pruned to what RimGovernor calls (#2056): the UI workbench, Lua/script runner and MoonSharp, virtual pointer,
   map click injector, architect, context menus, view/screenshot, DPA, input, selection, notification, mod
   settings/configuration and debug-action modules, the SDK tool client, game clock and evidence helpers, and 118
-  of the 125 built-in tools. What remains of the vendored `Host` project is the `rimgovernor/*` host-owned
+  of the 125 built-in tools. What remains of the vendored `Host` project is the host-owned
   tools the brain calls plus the host core; see `docs/developers/source-map.md`.
 - `Assembly-CSharp` is publicised at build time (TaskPubliciser, build-only, not redistributed), as upstream does.
 

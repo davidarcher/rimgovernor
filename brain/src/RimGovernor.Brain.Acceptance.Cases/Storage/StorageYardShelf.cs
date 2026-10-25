@@ -2,7 +2,6 @@ using System.Globalization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -77,15 +76,15 @@ internal static class StorageYardShelf
 
         // The yard's settings: its filter preset and priority (StoreStorage's yard), plus Cloth so the shelf admits a deteriorating stack.
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
-        _ = await TypedApply.AppliedAsync(s, "yard-shelf-settings", new Operations.ZoneIntent
+        _ = await TypedApply.AppliedAsync(s, "yard-shelf-settings", new RimGovernor.Brain.GameOrders.Operations.ZoneIntent
         {
             Zone = new() { Id = shelf },
-            Stockpile = new Operations.StockpileSettings
+            Stockpile = new RimGovernor.Brain.GameOrders.Operations.StockpileSettings
             {
-                Priority = new Operations.StockpilePriorityChange.Selected(StockpilePriority.Low),
-                Preset = new Operations.StockpilePresetChange.Selected(FilterBase.OutdoorSafeWaste),
-                Filter = new Operations.FilterPatch { Allow = [new() { Definition = new Operations.FilterSelectorDefinition.ThingDefCase(Wearing) }], HitPoints = new Operations.HitPointRange.Preserve() },
-            }, Delete = false, RequireCoveredEmpty = false, Kind = Operations.ZoneType.Existing }, cancellationToken).ConfigureAwait(false);
+                Priority = new RimGovernor.Brain.GameOrders.Operations.StockpilePriorityChange.Selected(StockpilePriority.Low),
+                Preset = new RimGovernor.Brain.GameOrders.Operations.StockpilePresetChange.Selected(FilterBase.OutdoorSafeWaste),
+                Filter = new RimGovernor.Brain.GameOrders.Operations.FilterPatch { Allow = [new() { Definition = new RimGovernor.Brain.GameOrders.Operations.FilterSelectorDefinition.ThingDefCase(Wearing) }], HitPoints = new RimGovernor.Brain.GameOrders.Operations.HitPointRange.Preserve() },
+            }, Delete = false, RequireCoveredEmpty = false, Kind = RimGovernor.Brain.GameOrders.Operations.ZoneType.Existing }, cancellationToken).ConfigureAwait(false);
 
         var grid = await TypedApply.CellsAsync(s, "yard-shelf-census", site, cancellationToken).ConfigureAwait(false);
         var stacks = 0;

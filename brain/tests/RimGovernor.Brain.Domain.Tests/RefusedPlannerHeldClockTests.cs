@@ -1,4 +1,4 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
@@ -41,12 +41,12 @@ public sealed class RefusedPlannerHeldClockTests
         queue.Ran(wake, ["colony", "shelter"], name => name == "colony" ? refused : Verdict.BuildingReasonNoDeficit, 600, null);
 
         // The clock stays held at 600: a retry step inside the safety-net interval selects nothing.
-        var early = ClockScheduler.Promoted(StepCause.Retry, LastFull, LastFull + TimeSpan.FromSeconds(5), TimeSpan.Zero);
+        var early = PlannerScheduler.Promoted(StepCause.Retry, LastFull, LastFull + TimeSpan.FromSeconds(5), TimeSpan.Zero);
         Assert.Equal(StepCause.Retry, early);
         Assert.False(queue.Selection(600, false, null).Planners);
 
         // The retry past the interval is a full step, and a full selection runs the refused planner again.
-        var late = ClockScheduler.Promoted(StepCause.Retry, LastFull, LastFull + StepReasons.DefaultFullStepEvery, TimeSpan.Zero);
+        var late = PlannerScheduler.Promoted(StepCause.Retry, LastFull, LastFull + StepReasons.DefaultFullStepEvery, TimeSpan.Zero);
         Assert.Equal(StepCause.Full, late);
         var full = queue.Selection(600, true, null);
         Assert.True(full.Planners);
@@ -58,9 +58,9 @@ public sealed class RefusedPlannerHeldClockTests
     public void OnlyReviewAndRetryStepsArePromoted()
     {
         var late = LastFull + StepReasons.DefaultFullStepEvery;
-        Assert.Equal(StepCause.Full, ClockScheduler.Promoted(StepCause.Review, LastFull, late, TimeSpan.Zero));
-        Assert.Equal(StepCause.Wake, ClockScheduler.Promoted(StepCause.Wake, LastFull, late, TimeSpan.Zero));
-        Assert.Equal(StepCause.Full, ClockScheduler.Promoted(StepCause.Retry, default, LastFull, TimeSpan.Zero));
-        Assert.Equal(StepCause.Retry, ClockScheduler.Promoted(StepCause.Retry, LastFull, late, TimeSpan.FromMinutes(5)));
+        Assert.Equal(StepCause.Full, PlannerScheduler.Promoted(StepCause.Review, LastFull, late, TimeSpan.Zero));
+        Assert.Equal(StepCause.Wake, PlannerScheduler.Promoted(StepCause.Wake, LastFull, late, TimeSpan.Zero));
+        Assert.Equal(StepCause.Full, PlannerScheduler.Promoted(StepCause.Retry, default, LastFull, TimeSpan.Zero));
+        Assert.Equal(StepCause.Retry, PlannerScheduler.Promoted(StepCause.Retry, LastFull, late, TimeSpan.FromMinutes(5)));
     }
 }

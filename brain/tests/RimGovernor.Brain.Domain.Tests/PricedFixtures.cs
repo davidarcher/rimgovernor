@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -14,7 +15,7 @@ internal static class PricedFixtures
 {
     public const double DefaultHorizon = 300;
 
-    public static RoundsFacts Priced(this RoundsFacts facts, double horizon = DefaultHorizon) =>
+    public static ReviewFacts Priced(this ReviewFacts facts, double horizon = DefaultHorizon) =>
         facts.CoupledAlternatives is null ? facts : facts with { CoupledAlternatives = facts.CoupledAlternatives.Priced(horizon) };
 
     public static ForecastCoupledCandidates Priced(this ForecastCoupledCandidates candidates, double horizon = DefaultHorizon)

@@ -12,7 +12,7 @@ using RimGovernor.Host.Sdk;
 using RimGovernor.Brain.Domain;
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 public sealed partial class PawnControlFixture
 {
@@ -25,7 +25,7 @@ public sealed partial class PawnControlFixture
     private static readonly HashSet<string> clothingResumed = new(StringComparer.Ordinal);
 
     [Tool("test/clothing_activity_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Prepare naked wearer, tailoring bench, competing materials and split stacks; install no selected recipe, bill or assignment.")]
-    public async Task<object> PrepareClothingActivity(IRimBridgeContext ctx, CancellationToken ct,
+    public async Task<object> PrepareClothingActivity(INativeContext ctx, CancellationToken ct,
         [ToolParameter(Description = "Interrupt once after an actual unfinished garment exists", DefaultValue = false)] bool interrupt = false) =>
         await ctx.MainThread.InvokeAsync<object>(() =>
         {
@@ -168,7 +168,7 @@ public sealed partial class PawnControlFixture
     }
 
     [Tool("test/clothing_activity_read", Description = "UNSAFE FOR MODEL EXECUTION. Observe normal-planner exact garment output, input conservation and interrupted unfinished-work recovery.")]
-    public async Task<object> ReadClothingActivity(IRimBridgeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() =>    {
+    public async Task<object> ReadClothingActivity(INativeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() =>    {
         ObserveClothingOutput(Find.CurrentMap);
         // The ordinary ledger must never orphan the exact interrupted execution anchor.
         // Read the native forward link; BoundWorker can mutate it when priorities are zero.

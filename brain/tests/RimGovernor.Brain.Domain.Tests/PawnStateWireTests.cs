@@ -1,14 +1,15 @@
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
-using Common = RimGovernor.Contracts.Wire.Common;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
 /// A pawn row is read whole (#3768): every section is present, and the cases a section can lack are named states
 /// (not an animal, no DLC, no colonist, no hostiles, no care, no ideoligion, not a guest). Each named state, and the
-/// opt-in tend table, round-trips through <c>WireJsonContext</c> exactly.
+/// opt-in tend table, round-trips through <c>OrdersJsonContext</c> exactly.
 /// </summary>
 public sealed class PawnStateWireTests
 {
@@ -17,7 +18,7 @@ public sealed class PawnStateWireTests
     {
         var row = PawnFixtures.Row("p1");
 
-        var json = WireJson.Serialize(row);
+        var json = OrdersJson.Serialize(row);
 
         Assert.Contains("\"animalState\":{\"type\":\"not_animal\"}", json, StringComparison.Ordinal);
         Assert.Contains("\"nearestColonist\":{\"type\":\"none\"}", json, StringComparison.Ordinal);
@@ -25,7 +26,7 @@ public sealed class PawnStateWireTests
         Assert.Contains("\"biotech\":{\"type\":\"inactive\"}", json, StringComparison.Ordinal);
         Assert.Contains("\"care\":{\"type\":\"none\"}", json, StringComparison.Ordinal);
         Assert.Contains("\"guest\":{\"type\":\"free\"}", json, StringComparison.Ordinal);
-        Assert.Equal(row, WireJson.Deserialize<PawnState>(json));
+        Assert.Equal(row, OrdersJson.Deserialize<PawnState>(json));
     }
 
     [Fact]
@@ -38,15 +39,15 @@ public sealed class PawnStateWireTests
             Royalty = new PawnRoyaltyState.NoTracker(),
             Settings = PawnFixtures.Row("p1").Settings with
             {
-                Care = new PawnCare.Configured(RimGovernor.Contracts.Wire.Operations.MedicalCare.Best, true, RimGovernor.Contracts.Wire.Operations.HostilityResponse.Attack),
-                PolicyInputs = PawnFixtures.Inputs("ideo1", 0.75, ["Cannibalism_Preferred"], "Leader", RimGovernor.Contracts.Wire.Defs.GuestStatus.Prisoner),
+                Care = new PawnCare.Configured(RimGovernor.Brain.GameFacts.Operations.MedicalCare.Best, true, RimGovernor.Brain.GameFacts.Operations.HostilityResponse.Attack),
+                PolicyInputs = PawnFixtures.Inputs("ideo1", 0.75, ["Cannibalism_Preferred"], "Leader", RimGovernor.Brain.GameFacts.Defs.GuestStatus.Prisoner),
             },
         };
 
-        var json = WireJson.Serialize(row);
+        var json = OrdersJson.Serialize(row);
 
         Assert.Contains("\"ideo\":{\"type\":\"member\",\"ideoId\":\"ideo1\"", json, StringComparison.Ordinal);
-        Assert.Equal(row, WireJson.Deserialize<PawnState>(json));
+        Assert.Equal(row, OrdersJson.Deserialize<PawnState>(json));
     }
 
     [Fact]
@@ -54,7 +55,7 @@ public sealed class PawnStateWireTests
     {
         var table = new TendDoctorSnapshot
         {
-            Context = new Common.ObservationContext { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
+            Context = new RimGovernor.Brain.GameFacts.Common.ObservationContext { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
             Doctors =
             [
                 new TendDoctor { PawnId = "a", ControlEligible = true, Spawned = true, HasDrafter = true, CapacitiesOk = true, Reach = new TendReach.Read(["b"]) },
@@ -62,10 +63,10 @@ public sealed class PawnStateWireTests
             ],
         };
 
-        var json = WireJson.Serialize(table);
+        var json = OrdersJson.Serialize(table);
 
         Assert.Contains("\"reach\":{\"type\":\"read\",\"pawnIds\":[\"b\"]}", json, StringComparison.Ordinal);
         Assert.Contains("\"reach\":{\"type\":\"reach_skipped\"}", json, StringComparison.Ordinal);
-        Assert.Equal(table, WireJson.Deserialize<TendDoctorSnapshot>(json));
+        Assert.Equal(table, OrdersJson.Deserialize<TendDoctorSnapshot>(json));
     }
 }

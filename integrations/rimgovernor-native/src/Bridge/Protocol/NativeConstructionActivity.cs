@@ -4,16 +4,14 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 internal static class NativeConstructionActivity
 {
@@ -26,25 +24,25 @@ internal static class NativeConstructionActivity
     // (NativePathLegs) and shared by every row that walks it, and the rows are built batched (NativePathLegs.Batched,
     // #3556): the legs every row could ask are collected first and searched together on the game's path job workers.
     // A bad identity is refused, and a read that fails is unavailable (#3775): never an empty read.
-    internal static Obs.ConstructionActivityRead Read(Obs.ConstructionActivityRequest request, NativePathLegs? legs = null)
+    internal static RimGovernor.Brain.GameFacts.Observations.ConstructionActivityRead Read(RimGovernor.Brain.GameOrders.Observations.ConstructionActivityRequest request, NativePathLegs? legs = null)
     {
-        if (!ProtoBoundary.ValidateIdentity(request.Identity, out var map, out var context, out var error)) throw NativeFaults.Refused(error);
+        if (!GameThread.ValidateIdentity(request.Identity, out var map, out var context, out var error)) throw NativeFaults.Refused(error);
         try { return Read(map, context, request, legs ?? new(map)); }
         catch (Exception readError)
         {
             ModLog.Error("observe", "Construction activity read failed: " + readError);
-            throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
+            throw NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed,
                 Detail = PlacementPreviewOperation.Diagnostic("Construction activity could not be read completely: " + readError.GetType().Name + ": " + readError.Message) });
         }
     }
 
-    private static Obs.ConstructionActivityRead Read(Map map, Common.ObservationContext context, Obs.ConstructionActivityRequest request, NativePathLegs legs)
+    private static RimGovernor.Brain.GameFacts.Observations.ConstructionActivityRead Read(Map map, RimGovernor.Brain.GameFacts.Common.ObservationContext context, RimGovernor.Brain.GameOrders.Observations.ConstructionActivityRequest request, NativePathLegs legs)
     {
         // Where the hop's run time goes, per part of the read (hop_run parts): the placement legality, the rows (both
         // runs of the batched read, less the searches), the path searches, the thermal read and the room predictions.
         var mark = Stopwatch.GetTimestamp();
         var searched = legs.SearchTicks;
-        void Lap(string part, long less = 0) { var now = Stopwatch.GetTimestamp(); ProtoBoundary.HopPart(part, now - mark - less); mark = now; }
+        void Lap(string part, long less = 0) { var now = Stopwatch.GetTimestamp(); GameThread.HopPart(part, now - mark - less); mark = now; }
         // Each colonist gets a row wherever it is free, eligible and routed.
         var roster = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         var findings = new HashSet<string>(StringComparer.Ordinal);
@@ -72,13 +70,13 @@ internal static class NativeConstructionActivity
         // it). The Cut and RemoveFloor waves below are read as set ops (#3613, #3615).
         var removals = map.designationManager.AllDesignations
             .Where(d => d.def == DesignationDefOf.Deconstruct || d.def == DesignationDefOf.Uninstall || d.def == DesignationDefOf.Haul)
-            .Select(d => (Kind: d.def == DesignationDefOf.Deconstruct ? Obs.PlannedClearingKind.Deconstruct
-                : d.def == DesignationDefOf.Uninstall ? Obs.PlannedClearingKind.Uninstall : Obs.PlannedClearingKind.Haul, Thing: d.target.Thing))
-            .Where(d => d.Thing != null && d.Thing.Spawned && (d.Kind == Obs.PlannedClearingKind.Deconstruct ? d.Thing is Verse.Building deconstructible && deconstructible.DeconstructibleBy(Faction.OfPlayer).Accepted
-                : d.Kind == Obs.PlannedClearingKind.Uninstall ? d.Thing is Verse.Building packable && Uninstallable(packable)
+            .Select(d => (Kind: d.def == DesignationDefOf.Deconstruct ? RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Deconstruct
+                : d.def == DesignationDefOf.Uninstall ? RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Uninstall : RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Haul, Thing: d.target.Thing))
+            .Where(d => d.Thing != null && d.Thing.Spawned && (d.Kind == RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Deconstruct ? d.Thing is Verse.Building deconstructible && deconstructible.DeconstructibleBy(Faction.OfPlayer).Accepted
+                : d.Kind == RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Uninstall ? d.Thing is Verse.Building packable && Uninstallable(packable)
                 : Haulable(d.Thing)))
             .Select(d => (d.Kind, Thing: d.Thing))
-            .Concat(NativeDesignationGuards.HaulOuts(map).Where(Haulable).Select(t => (Kind: Obs.PlannedClearingKind.Haul, Thing: t))).Distinct().OrderBy(d => d.Thing.thingIDNumber).ThenBy(d => d.Kind).ToArray();
+            .Concat(NativeDesignationGuards.HaulOuts(map).Where(Haulable).Select(t => (Kind: RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Haul, Thing: t))).Distinct().OrderBy(d => d.Thing.thingIDNumber).ThenBy(d => d.Kind).ToArray();
         // The standing CutPlant designations, one Cut op per contiguous wave of plants (#3613), and the standing RemoveFloor
         // designations, one RemoveFloor op per contiguous wave of cells (#3615).
         var cutWaves = CutWaves(map);
@@ -88,8 +86,8 @@ internal static class NativeConstructionActivity
         {
             // The collecting run's rows and findings are discarded with it; the real run's are the read's.
             var runFindings = new HashSet<string>(StringComparer.Ordinal);
-            var runOptions = new List<Obs.ConstructionActivityOption>();
-            var setRoutes = new List<Obs.CoupledRoute>();
+            var runOptions = new List<RimGovernor.Brain.GameFacts.Observations.ConstructionActivityOption>();
+            var setRoutes = new List<RimGovernor.Brain.GameFacts.Observations.CoupledRoute>();
             foreach (var site in placed) Rows(map, legs, roster, site, finishGiver, runFindings, runOptions, setRoutes);
             var runAnswers = planned.Select(p => p.Site is { } site ? Answer(map, legs, roster, site, finishGiver, runFindings) : p.Unknown).ToArray();
             var runRoutes = Routes(map, legs, roster, request.Routes, runFindings);
@@ -98,11 +96,11 @@ internal static class NativeConstructionActivity
             var deconstructGiver = Giver<WorkGiver_Deconstruct>();
             var uninstallGiver = Giver<WorkGiver_Uninstall>();
             var haulGiver = Giver<WorkGiver_HaulGeneral>();
-            var removalOps = new List<Obs.PlannedSiteClearing>();
+            var removalOps = new List<RimGovernor.Brain.GameFacts.Observations.PlannedSiteClearing>();
             foreach (var (kind, thing) in removals)
             {
                 var id = thing.GetUniqueLoadID();
-                if (kind == Obs.PlannedClearingKind.Haul)
+                if (kind == RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Haul)
                 {
                     // The stack leaves the planned room it stands in: storage inside any planned footprint covering it is no destination.
                     var footprint = new HashSet<IntVec3>(planned.Where(p => p.Site != null && p.Site.Footprint.Contains(thing.Position)).SelectMany(p => (p.Site ?? throw new System.InvalidOperationException("Required native value is unavailable: p.Site.")).Footprint));
@@ -111,7 +109,7 @@ internal static class NativeConstructionActivity
                     continue;
                 }
                 var building = (Verse.Building)thing;
-                if (kind == Obs.PlannedClearingKind.Uninstall)
+                if (kind == RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Uninstall)
                 {
                     if (NativeDesignationGuards.RoofWait(building) != null) { runFindings.Add("removal_roof_support"); continue; }
                     removalOps.Add(new(id, kind) { Options = EquatableArray.From(RemovalRows(legs, free, building, id, building.def.defName, uninstallGiver, building.def.building.uninstallWork)), Targets = [], Cells = [] });
@@ -136,7 +134,7 @@ internal static class NativeConstructionActivity
         findings.UnionWith(found);
         var paths = legs.SearchTicks - searched;
         Lap("rows", paths);
-        ProtoBoundary.HopPart("paths", paths);
+        GameThread.HopPart("paths", paths);
         var thermal = request.Thermal is { } asked ? NativeCoupledThermal.ReadPlanned(map, asked) : null;
         Lap("thermal");
         var predictions = NativeRoomPrediction.Predict(map, request.RoomPredictions);
@@ -151,9 +149,9 @@ internal static class NativeConstructionActivity
     // Routes between planned sites (#3313): per probe and free colonist, the native path from the probe's cell (or the
     // pawn's own, FromStart) to its target cell nearest that origin. A probe's cell is every colonist's origin, so its
     // path is searched once. No path leaves the row's ticks unknown.
-    private static List<Obs.CoupledRoute> Routes(Map map, NativePathLegs legs, Pawn[] roster, EquatableArray<Obs.PlannedRouteProbe> probes, HashSet<string> findings)
+    private static List<RimGovernor.Brain.GameFacts.Observations.CoupledRoute> Routes(Map map, NativePathLegs legs, Pawn[] roster, EquatableArray<RimGovernor.Brain.GameOrders.Observations.PlannedRouteProbe> probes, HashSet<string> findings)
     {
-        var rows = new List<Obs.CoupledRoute>();
+        var rows = new List<RimGovernor.Brain.GameFacts.Observations.CoupledRoute>();
         var pawns = roster.Where(Free).ToArray();
         foreach (var probe in probes)
         {
@@ -169,7 +167,7 @@ internal static class NativeConstructionActivity
                 var origin = probe.FromStart ? pawn.Position : new IntVec3(probe.From.X, 0, probe.From.Z);
                 var target = reach.Length == 0 ? to : reach.OrderBy(c => c.DistanceToSquared(origin)).ThenBy(c => c.x).ThenBy(c => c.z).First();
                 var cost = legs.Cost(pawn, origin, target, PathEndMode.Touch);
-                rows.Add(new(pawn.GetUniqueLoadID(), new(origin.x, origin.z), probe.To, cost is { } ticks ? new Obs.RouteTicks.Reachable(ticks) : Obs.RouteTicks.None)
+                rows.Add(new(pawn.GetUniqueLoadID(), new(origin.x, origin.z), probe.To, cost is { } ticks ? new RimGovernor.Brain.GameFacts.Observations.RouteTicks.Reachable(ticks) : RimGovernor.Brain.GameFacts.Observations.RouteTicks.None)
                     { FromStart = probe.FromStart });
             }
         }
@@ -183,9 +181,9 @@ internal static class NativeConstructionActivity
 
     // A hypothetical site's leg-free half: native blueprint legality for every piece and its footprint. Anything native
     // cannot resolve leaves the site Unresolved (no rows, no clearing; Site null with the unresolved answer), never a default.
-    private static (Obs.PlannedSiteAnswer Unknown, Prepared? Site) Prepare(Map map, Obs.PlannedConstructionSite request, HashSet<string> findings)
+    private static (RimGovernor.Brain.GameFacts.Observations.PlannedSiteAnswer Unknown, Prepared? Site) Prepare(Map map, RimGovernor.Brain.GameOrders.Observations.PlannedConstructionSite request, HashSet<string> findings)
     {
-        var unknown = new Obs.PlannedSiteAnswer(request.Id) { Verdict = Obs.PlannedSiteVerdict.Unresolved, Options = [], Clearing = [] };
+        var unknown = new RimGovernor.Brain.GameFacts.Observations.PlannedSiteAnswer(request.Id) { Verdict = RimGovernor.Brain.GameFacts.Observations.PlannedSiteVerdict.Unresolved, Options = [], Clearing = [] };
         if (request.Positions.Count == 0) { findings.Add("planned_site_empty"); return (unknown, null); }
         if (!PlacementPreviewOperation.TryResolveBuildable(request.Definition, out var definition, out _)
             || !definition.BuildableByPlayer || definition.blueprintDef == null) { findings.Add("planned_site_definition_unresolved"); return (unknown, null); }
@@ -236,15 +234,15 @@ internal static class NativeConstructionActivity
     }
 
     // A prepared site's answer: its clearing ops, then the placed-site rows against its cells, and the verdict.
-    private static Obs.PlannedSiteAnswer Answer(Map map, NativePathLegs legs, Pawn[] roster, Prepared site, WorkGiverDef? finishGiver, HashSet<string> findings)
+    private static RimGovernor.Brain.GameFacts.Observations.PlannedSiteAnswer Answer(Map map, NativePathLegs legs, Pawn[] roster, Prepared site, WorkGiverDef? finishGiver, HashSet<string> findings)
     {
         var clearing = Clearing(map, legs, roster, site.Id, site.Definition, site.Things, site.Footprint, findings, out var unsure);
-        var siteVerdict = site.Illegal ? Obs.PlannedSiteVerdict.Illegal
-            : site.Fogged || unsure || site.Things.Any(t => t.Kind == Clear.Unestimable) ? Obs.PlannedSiteVerdict.Unestimable
-            : Obs.PlannedSiteVerdict.Feasible;
+        var siteVerdict = site.Illegal ? RimGovernor.Brain.GameFacts.Observations.PlannedSiteVerdict.Illegal
+            : site.Fogged || unsure || site.Things.Any(t => t.Kind == Clear.Unestimable) ? RimGovernor.Brain.GameFacts.Observations.PlannedSiteVerdict.Unestimable
+            : RimGovernor.Brain.GameFacts.Observations.PlannedSiteVerdict.Feasible;
         var cells = site.Cells;
         IntVec3 Nearest(IntVec3 origin) => cells.OrderBy(c => c.DistanceToSquared(origin)).ThenBy(c => c.x).ThenBy(c => c.z).First();
-        var options = new List<Obs.ConstructionActivityOption>();
+        var options = new List<RimGovernor.Brain.GameFacts.Observations.ConstructionActivityOption>();
         Rows(map, legs, roster, new Site(site.Id, site.Definition, cells[0], Nearest, null, site.Owed, site.Work, _ => true, _ => true, site.Stuff, site.Work / cells.Length, site.Owed.Length > 0), finishGiver, findings, options);
         return new(site.Id)
         {
@@ -276,10 +274,10 @@ internal static class NativeConstructionActivity
     // Clearing ops: one Cut for the plants, one Mine for the natural rock, one Deconstruct per deconstructible building,
     // one Haul per haulable stack, with per-pawn rows. A stack with no accepting storage outside the footprint, and a
     // roof-holder whose removal the enclosure guard would hold, have no op (unknown).
-    private static List<Obs.PlannedSiteClearing> Clearing(Map map, NativePathLegs legs, Pawn[] roster, string site, BuildableDef definition,
+    private static List<RimGovernor.Brain.GameFacts.Observations.PlannedSiteClearing> Clearing(Map map, NativePathLegs legs, Pawn[] roster, string site, BuildableDef definition,
         (Thing Thing, Clear Kind)[] things, HashSet<IntVec3> footprint, HashSet<string> findings, out bool unknown)
     {
-        var result = new List<Obs.PlannedSiteClearing>();
+        var result = new List<RimGovernor.Brain.GameFacts.Observations.PlannedSiteClearing>();
         unknown = false;
         var pawns = roster.Where(Free).ToArray();
         var plants = things.Where(t => t.Kind == Clear.Cut).Select(t => (Plant)t.Thing).OrderBy(t => t.thingIDNumber).ToArray();
@@ -298,7 +296,7 @@ internal static class NativeConstructionActivity
                     return speed > 0 ? rock.Sum(r => Math.Ceiling(r.HitPoints / (double)NaturalRockDamagePerPickHit))
                         * Math.Round(JobDriver_Mine.BaseTicksBetweenPickHits / speed) : null;
                 }, pawn => MiningLearning(pawn, rock));
-            result.Add(new(mineId, Obs.PlannedClearingKind.Mine) { Options = EquatableArray.From(rows), Targets = EquatableArray.From(rock.Select(r => r.GetUniqueLoadID())), Cells = [] });
+            result.Add(new(mineId, RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Mine) { Options = EquatableArray.From(rows), Targets = EquatableArray.From(rock.Select(r => r.GetUniqueLoadID())), Cells = [] });
         }
         // One Deconstruct op per building, its rows naming it: the brain binds the op to it before placement (#3557). A
         // roof-holder's op carries the roofed cells its removal leaves unsupported (#3617); one whose support is unknown has no op.
@@ -307,7 +305,7 @@ internal static class NativeConstructionActivity
         {
             if (RoofCells(building) is not { } roofCells) { unknown = true; findings.Add("planned_clearing_roof_support"); continue; }
             var id = site + "/deconstruct/" + building.GetUniqueLoadID();
-            result.Add(new(id, Obs.PlannedClearingKind.Deconstruct)
+            result.Add(new(id, RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Deconstruct)
             {
                 Options = EquatableArray.From(RemovalRows(legs, pawns, building, id, definition.defName, deconstructGiver, DeconstructWork(building), roofCells)),
                 Targets = [],
@@ -319,12 +317,12 @@ internal static class NativeConstructionActivity
         {
             if (Destination(map, item, footprint) is not { } destination) { unknown = true; findings.Add("planned_clearing_haul_destination_unknown"); continue; }
             var id = site + "/haul/" + item.GetUniqueLoadID();
-            result.Add(new(id, Obs.PlannedClearingKind.Haul) { Options = EquatableArray.From(HaulRows(legs, pawns, item, id, definition.defName, haulGiver, destination)), Targets = [], Cells = [] });
+            result.Add(new(id, RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Haul) { Options = EquatableArray.From(HaulRows(legs, pawns, item, id, definition.defName, haulGiver, destination)), Targets = [], Cells = [] });
         }
         return result;
     }
 
-    private static Obs.ProductiveSkillWork? MiningLearning(Pawn pawn, Thing[] rocks)
+    private static RimGovernor.Brain.GameFacts.Observations.ProductiveSkillWork? MiningLearning(Pawn pawn, Thing[] rocks)
     {
         var learning = NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Mining, StatDefOf.MiningSpeed,
             rocks.Sum(r => Math.Ceiling(r.HitPoints / (double)NaturalRockDamagePerPickHit)), 1, 0.07, true, false,
@@ -332,27 +330,27 @@ internal static class NativeConstructionActivity
         if (learning == null) return null;
         return learning with
         {
-            Rates = EquatableArray.From(learning.Rates.Select(r => new Obs.SkillWorkRate(r.StoredLevel,
+            Rates = EquatableArray.From(learning.Rates.Select(r => new RimGovernor.Brain.GameFacts.Observations.SkillWorkRate(r.StoredLevel,
                 r.WorkPerTick > 0
                     ? 1.0 / Math.Max(1, Math.Round(JobDriver_Mine.BaseTicksBetweenPickHits / r.WorkPerTick)) : 0))),
-            Stages = EquatableArray.From(rocks.Select(r => new Obs.ProductiveWorkStage(
+            Stages = EquatableArray.From(rocks.Select(r => new RimGovernor.Brain.GameFacts.Observations.ProductiveWorkStage(
                 Math.Ceiling(r.HitPoints / (double)NaturalRockDamagePerPickHit), 1,
                 pawn.Faction == null || r.Faction != pawn.Faction ? 0.07 : 0, 1, true)))
         };
     }
     // A set op's rows: one per able pawn, routed to the member nearest it (Location that member's cell); finish is the summed
     // native work (null when the pawn's rate is zero: it cannot finish).
-    private static List<Obs.ConstructionActivityOption> WorkRows(NativePathLegs legs, Pawn[] pawns, Thing[] targets, string id, string definition, string giver,
-        Func<Pawn, bool> able, Func<Pawn, double?> finish, Func<Pawn, Obs.ProductiveSkillWork?>? learning = null)
+    private static List<RimGovernor.Brain.GameFacts.Observations.ConstructionActivityOption> WorkRows(NativePathLegs legs, Pawn[] pawns, Thing[] targets, string id, string definition, string giver,
+        Func<Pawn, bool> able, Func<Pawn, double?> finish, Func<Pawn, RimGovernor.Brain.GameFacts.Observations.ProductiveSkillWork?>? learning = null)
     {
-        var rows = new List<Obs.ConstructionActivityOption>();
+        var rows = new List<RimGovernor.Brain.GameFacts.Observations.ConstructionActivityOption>();
         foreach (var pawn in pawns.Where(able))
         {
             var nearest = targets.OrderBy(t => t.Position.DistanceToSquared(pawn.Position)).ThenBy(t => t.thingIDNumber).First();
             if (legs.Cost(pawn, pawn.Position, nearest, PathEndMode.Touch) is not { } route) continue;
             var cell = new Cell(nearest.Position.x, nearest.Position.z);
             rows.Add(new(id, definition, cell, pawn.GetUniqueLoadID(), "", "", cell, 0, 0, giver, route,
-                new Obs.ConstructionDelivery.Unsourced(), Finish(finish(pawn), () => learning?.Invoke(pawn)), 0, new Obs.StackStorage.Unsourced()));
+                new RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery.Unsourced(), Finish(finish(pawn), () => learning?.Invoke(pawn)), 0, new RimGovernor.Brain.GameFacts.Observations.StackStorage.Unsourced()));
         }
         return rows;
     }
@@ -360,7 +358,7 @@ internal static class NativeConstructionActivity
     // A Cut op over its plants (a planned site's, or a standing wave's, #3613), Targets the plants lowest id first: rows for a
     // pawn not incapable of PlantCutting (the cut giver's work type) and willing to cut every plant; its Finish sums
     // harvestWork / JobDriver_PlantWork.WorkDonePerTick (a rate of zero: CannotFinish).
-    private static Obs.PlannedSiteClearing CutOp(NativePathLegs legs, Pawn[] pawns, Plant[] plants, string id, string definition, string giver)
+    private static RimGovernor.Brain.GameFacts.Observations.PlannedSiteClearing CutOp(NativePathLegs legs, Pawn[] pawns, Plant[] plants, string id, string definition, string giver)
     {
         var rows = WorkRows(legs, pawns, plants, id, definition, giver,
             pawn => !pawn.WorkTypeIsDisabled(WorkTypeDefOf.PlantCutting) && plants.All(p => PlantUtility.PawnWillingToCutPlant_Job(p, pawn)),
@@ -369,9 +367,9 @@ internal static class NativeConstructionActivity
             pawn => NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Plants, StatDefOf.PlantWorkSpeed,
                 plants.Sum(p => (double)p.def.plant.harvestWork), 1, 0.085, true, false,
                 "JobDriver_PlantCut: yielding plants learn before work") is { } learning ? learning with
-                { Stages = EquatableArray.From(plants.Select(p => new Obs.ProductiveWorkStage(p.def.plant.harvestWork,
+                { Stages = EquatableArray.From(plants.Select(p => new RimGovernor.Brain.GameFacts.Observations.ProductiveWorkStage(p.def.plant.harvestWork,
                     UnityEngine.Mathf.Lerp(3.3f, 1f, p.Growth), p.def.plant.harvestedThingDef != null && p.CanYieldNow() ? 0.085 : 0))) } : null);
-        return new(id, Obs.PlannedClearingKind.Cut) { Options = EquatableArray.From(rows), Targets = EquatableArray.From(plants.Select(p => p.GetUniqueLoadID())), Cells = [] };
+        return new(id, RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Cut) { Options = EquatableArray.From(rows), Targets = EquatableArray.From(plants.Select(p => p.GetUniqueLoadID())), Cells = [] };
     }
 
     // The standing Cut waves (#3613): the spawned plants under a CutPlant designation (the room reconcile's Cut, or the
@@ -410,11 +408,11 @@ internal static class NativeConstructionActivity
     // the FloorOut method), Definition the first cell's terrain, Cells the wave: rows for a free pawn not incapable of
     // Construction and able to manipulate, routed to the cell nearest it (Location that cell); its Finish is the cells'
     // summed floor-removal work at JobDriver_RemoveBuilding's rate (a rate of zero: CannotFinish).
-    private static Obs.PlannedSiteClearing RemoveFloorOp(Map map, NativePathLegs legs, Pawn[] pawns, IntVec3[] cells, string giver)
+    private static RimGovernor.Brain.GameFacts.Observations.PlannedSiteClearing RemoveFloorOp(Map map, NativePathLegs legs, Pawn[] pawns, IntVec3[] cells, string giver)
     {
         var id = "removefloor/" + cells[0].x + "/" + cells[0].z + "/x" + cells.Length;
         var definition = map.terrainGrid.TerrainAt(cells[0]).defName;
-        var rows = new List<Obs.ConstructionActivityOption>();
+        var rows = new List<RimGovernor.Brain.GameFacts.Observations.ConstructionActivityOption>();
         foreach (var pawn in pawns)
         {
             if (pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction) || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)) continue;
@@ -422,18 +420,18 @@ internal static class NativeConstructionActivity
             if (legs.Cost(pawn, pawn.Position, nearest, PathEndMode.Touch) is not { } route) continue;
             var rate = pawn.GetStatValue(StatDefOf.ConstructionSpeed) * 1.7;
             var cell = new Cell(nearest.x, nearest.z);
-            rows.Add(new(id, definition, cell, pawn.GetUniqueLoadID(), "", "", cell, 0, 0, giver, route, new Obs.ConstructionDelivery.Unsourced(),
+            rows.Add(new(id, definition, cell, pawn.GetUniqueLoadID(), "", "", cell, 0, 0, giver, route, new RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery.Unsourced(),
                 Finish(rate > 0 ? Math.Ceiling(RemoveFloorWork * cells.Length / rate) : null, () => NativeProductiveSkill.ReadWork(pawn,
                     SkillDefOf.Construction, StatDefOf.ConstructionSpeed, RemoveFloorWork * cells.Length, 1.7, 0.1,
                     false, false, "JobDriver_AffectFloor: work then learning") is { } learning
-                    ? learning with { WorkQuantum = RemoveFloorWork } : null), 0, new Obs.StackStorage.Unsourced()));
+                    ? learning with { WorkQuantum = RemoveFloorWork } : null), 0, new RimGovernor.Brain.GameFacts.Observations.StackStorage.Unsourced()));
         }
-        return new(id, Obs.PlannedClearingKind.RemoveFloor) { Options = EquatableArray.From(rows), Targets = [], Cells = EquatableArray.From(cells.Select(c => new Cell(c.x, c.z))) };
+        return new(id, RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.RemoveFloor) { Options = EquatableArray.From(rows), Targets = [], Cells = EquatableArray.From(cells.Select(c => new Cell(c.x, c.z))) };
     }
 
     // A row's finish: the work's ticks with the skill learning it pays, or CannotFinish without ticks (the learning unread).
-    private static Obs.ConstructionFinish Finish(double? ticks, Func<Obs.ProductiveSkillWork?> learning) =>
-        ticks is { } work ? new Obs.ConstructionFinish.Finishes(work, learning()) : new Obs.ConstructionFinish.CannotFinish();
+    private static RimGovernor.Brain.GameFacts.Observations.ConstructionFinish Finish(double? ticks, Func<RimGovernor.Brain.GameFacts.Observations.ProductiveSkillWork?> learning) =>
+        ticks is { } work ? new RimGovernor.Brain.GameFacts.Observations.ConstructionFinish.Finishes(work, learning()) : new RimGovernor.Brain.GameFacts.Observations.ConstructionFinish.CannotFinish();
 
     // The standing FloorOut waves (#3615): the cells under a RemoveFloor designation (the room reconcile's FloorOut, or the
     // player's) whose top layer can still be removed, grouped by contiguity (eight-adjacent cells), each wave lowest x then z first.
@@ -480,10 +478,10 @@ internal static class NativeConstructionActivity
     // WorkToBuild, JobDriver_Uninstall's uninstallWork) at JobDriver_RemoveBuilding's rate (ConstructionSpeed x 1.7 a
     // tick); a rate of zero: CannotFinish. A roof-holder's rows (#3617) add JobDriver_RemoveRoof's work (65 a cell at
     // the same rate) for its roofCells and route to, and locate at, the one nearest the pawn.
-    private static List<Obs.ConstructionActivityOption> RemovalRows(NativePathLegs legs, Pawn[] pawns, Verse.Building building, string site, string definition, string giver, double work,
+    private static List<RimGovernor.Brain.GameFacts.Observations.ConstructionActivityOption> RemovalRows(NativePathLegs legs, Pawn[] pawns, Verse.Building building, string site, string definition, string giver, double work,
         List<IntVec3>? roofCells = null)
     {
-        var rows = new List<Obs.ConstructionActivityOption>();
+        var rows = new List<RimGovernor.Brain.GameFacts.Observations.ConstructionActivityOption>();
         foreach (var pawn in pawns)
         {
             if (pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction) || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)) continue;
@@ -494,11 +492,11 @@ internal static class NativeConstructionActivity
             var rate = pawn.GetStatValue(StatDefOf.ConstructionSpeed) * 1.7;
             var total = work + RemoveRoofWorkPerCell * (roofCells?.Count ?? 0);
             rows.Add(new(site, definition, cell, pawn.GetUniqueLoadID(), building.def.defName, building.GetUniqueLoadID(), cell, 0, 0, giver,
-                route, new Obs.ConstructionDelivery.Unsourced(), Finish(rate > 0 ? Math.Ceiling(total / rate) : null, () => NativeProductiveSkill.ReadWork(pawn,
+                route, new RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery.Unsourced(), Finish(rate > 0 ? Math.Ceiling(total / rate) : null, () => NativeProductiveSkill.ReadWork(pawn,
                     SkillDefOf.Construction, StatDefOf.ConstructionSpeed, total, 1.7, 0, false, false,
                     "JobDriver_RemoveBuilding: construction speed, no learning") is { } learning ? learning with
-                    { Stages = EquatableArray.From(Enumerable.Repeat(new Obs.ProductiveWorkStage(RemoveRoofWorkPerCell, 1, 0d), roofCells?.Count ?? 0)
-                        .Append(new(work, 1, 0d))) } : null), 0, new Obs.StackStorage.Unsourced()));
+                    { Stages = EquatableArray.From(Enumerable.Repeat(new RimGovernor.Brain.GameFacts.Observations.ProductiveWorkStage(RemoveRoofWorkPerCell, 1, 0d), roofCells?.Count ?? 0)
+                        .Append(new(work, 1, 0d))) } : null), 0, new RimGovernor.Brain.GameFacts.Observations.StackStorage.Unsourced()));
         }
         return rows;
     }
@@ -510,9 +508,9 @@ internal static class NativeConstructionActivity
     // Location the destination, Count the stack and Capacity the carry; SiteApproachTicks and the Carried delivery's
     // ApproachTicks the pickup route, its DeliveryTicks the loaded carries plus the returns between trips, a Finish of 0
     // (the carry is the work), AvailableInput the stack and Storage where storage would take it.
-    private static List<Obs.ConstructionActivityOption> HaulRows(NativePathLegs legs, Pawn[] pawns, Thing item, string site, string definition, string giver, IntVec3 destination)
+    private static List<RimGovernor.Brain.GameFacts.Observations.ConstructionActivityOption> HaulRows(NativePathLegs legs, Pawn[] pawns, Thing item, string site, string definition, string giver, IntVec3 destination)
     {
-        var rows = new List<Obs.ConstructionActivityOption>();
+        var rows = new List<RimGovernor.Brain.GameFacts.Observations.ConstructionActivityOption>();
         foreach (var pawn in pawns)
         {
             var capacity = pawn.carryTracker.MaxStackSpaceEver(item.def);
@@ -524,7 +522,7 @@ internal static class NativeConstructionActivity
             var trips = (item.stackCount + capacity - 1) / capacity;
             rows.Add(new(site, definition, new(destination.x, destination.z), pawn.GetUniqueLoadID(), item.def.defName, item.GetUniqueLoadID(),
                 new(item.Position.x, item.Position.z), item.stackCount, capacity, giver, first,
-                new Obs.ConstructionDelivery.Carried(first, (double)loaded * trips + returning * (trips - 1)), new Obs.ConstructionFinish.Finishes(0, null),
+                new RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery.Carried(first, (double)loaded * trips + returning * (trips - 1)), new RimGovernor.Brain.GameFacts.Observations.ConstructionFinish.Finishes(0, null),
                 item.stackCount, StackStorageOf(item.Map, item)));
         }
         return rows;
@@ -564,9 +562,9 @@ internal static class NativeConstructionActivity
     // each with the share it can supply (the demand, or the whole stack under it) and its storage distance
     // (StackStorageOf). The reader picks the whole alternatives, or the set nearest the site that covers the demand, and
     // the stacks a remote delivery collects. Too little stock leaves none (source_stock_short).
-    private static (Thing? Source, int Share, Obs.StackStorage Storage)[] Sources(Map map, Site site, HashSet<string> findings)
+    private static (Thing? Source, int Share, RimGovernor.Brain.GameFacts.Observations.StackStorage Storage)[] Sources(Map map, Site site, HashSet<string> findings)
     {
-        if (site.Owed.Length == 0) return [(null, 0, new Obs.StackStorage.Unsourced())];
+        if (site.Owed.Length == 0) return [(null, 0, new RimGovernor.Brain.GameFacts.Observations.StackStorage.Unsourced())];
         var (def, need) = site.Owed[0];
         var stacks = map.listerThings.ThingsOfDef(def).Where(t => t.Spawned && !t.IsForbidden(Faction.OfPlayer))
             .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
@@ -576,16 +574,16 @@ internal static class NativeConstructionActivity
 
     // Straight-line distance from the stack to the nearest cell of any storage that accepts it: zero when it already
     // sits in storage, Unaccepted when none accepts it.
-    internal static Obs.StackStorage StackStorageOf(Map map, Thing thing)
+    internal static RimGovernor.Brain.GameFacts.Observations.StackStorage StackStorageOf(Map map, Thing thing)
     {
-        if (thing.GetSlotGroup() != null) return new Obs.StackStorage.Accepted(0);
+        if (thing.GetSlotGroup() != null) return new RimGovernor.Brain.GameFacts.Observations.StackStorage.Accepted(0);
         var best = double.PositiveInfinity;
         foreach (var group in map.haulDestinationManager.AllGroupsListInPriorityOrder)
         {
             if (!group.Settings.AllowedToAccept(thing)) continue;
             foreach (var cell in group.CellsList) best = Math.Min(best, (cell - thing.Position).LengthHorizontal);
         }
-        return double.IsPositiveInfinity(best) ? new Obs.StackStorage.Unaccepted() : new Obs.StackStorage.Accepted(best);
+        return double.IsPositiveInfinity(best) ? new RimGovernor.Brain.GameFacts.Observations.StackStorage.Unaccepted() : new RimGovernor.Brain.GameFacts.Observations.StackStorage.Accepted(best);
     }
 
     // Per pawn x material source (Sources): site approach, first approach, delivery trips for the source's share and
@@ -594,7 +592,7 @@ internal static class NativeConstructionActivity
     // into the rows. A placed site also adds, per pawn and stack under its demand, the route from the site back to the
     // stack (to setRoutes): the leg one pawn walks between delivering one stack of a set and fetching the next.
     private static void Rows(Map map, NativePathLegs legs, Pawn[] roster, Site site, WorkGiverDef? finishGiver, HashSet<string> findings,
-        List<Obs.ConstructionActivityOption> options, List<Obs.CoupledRoute>? setRoutes = null)
+        List<RimGovernor.Brain.GameFacts.Observations.ConstructionActivityOption> options, List<RimGovernor.Brain.GameFacts.Observations.CoupledRoute>? setRoutes = null)
     {
         // Mixed-material sites need a complete multi-input observation; never pretend one material completes them.
         if (site.Owed.Length > 1) { findings.Add("mixed_material_demand_unsupported"); return; }
@@ -612,28 +610,28 @@ internal static class NativeConstructionActivity
             var skillWork = finish ? NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Construction, StatDefOf.ConstructionSpeed,
                 site.Work, factor, site.PaysXp ? 0.25 : 0, true, false, "JobDriver_ConstructFinishFrame: learning before construction work") : null;
             if (skillWork != null) skillWork = skillWork with { WorkQuantum = site.WorkQuantum };
-            Obs.ConstructionFinish finishes = finish && speed > 0 ? new Obs.ConstructionFinish.Finishes((double)site.Work / speed, skillWork) : new Obs.ConstructionFinish.CannotFinish();
+            RimGovernor.Brain.GameFacts.Observations.ConstructionFinish finishes = finish && speed > 0 ? new RimGovernor.Brain.GameFacts.Observations.ConstructionFinish.Finishes((double)site.Work / speed, skillWork) : new RimGovernor.Brain.GameFacts.Observations.ConstructionFinish.CannotFinish();
             foreach (var (source, share, storage) in sources)
             {
                 var count = site.Owed.Length == 0 ? 0 : site.Owed[0].Count;
                 var capacity = source == null ? 0 : pawn.carryTracker.MaxStackSpaceEver(source.def);
                 // How the pawn carries the stack: no stack, a carry it cannot make, a leg with no path, or the priced carry.
-                Obs.ConstructionDelivery delivery;
-                if (source == null) delivery = new Obs.ConstructionDelivery.Unsourced();
+                RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery delivery;
+                if (source == null) delivery = new RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery.Unsourced();
                 else if (capacity <= 0 || source.IsForbidden(pawn)
                     || pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling) || pawn.WorkTagIsDisabled(WorkTags.ManualDumb)
                     || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)
-                    || !pawn.CanReserveAndReach(source, PathEndMode.Touch, Danger.None)) delivery = new Obs.ConstructionDelivery.CannotCarry();
+                    || !pawn.CanReserveAndReach(source, PathEndMode.Touch, Danger.None)) delivery = new RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery.CannotCarry();
                 else if (legs.Cost(pawn, pawn.Position, source, PathEndMode.Touch) is { } first
                     && legs.Cost(pawn, source.Position, To(source.Position), PathEndMode.Touch) is { } loaded
                     && legs.Cost(pawn, site.Target(source.Position), source, PathEndMode.Touch) is { } returning)
                 {
                     if (share < count)
-                        setRoutes?.Add(new(pawn.GetUniqueLoadID(), new(site.Location.x, site.Location.z), new(source.Position.x, source.Position.z), new Obs.RouteTicks.Reachable(returning)) { FromStart = false });
+                        setRoutes?.Add(new(pawn.GetUniqueLoadID(), new(site.Location.x, site.Location.z), new(source.Position.x, source.Position.z), new RimGovernor.Brain.GameFacts.Observations.RouteTicks.Reachable(returning)) { FromStart = false });
                     var trips = (share + capacity - 1) / capacity;
-                    delivery = new Obs.ConstructionDelivery.Carried(first, (double)loaded * trips + returning * (trips - 1));
+                    delivery = new RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery.Carried(first, (double)loaded * trips + returning * (trips - 1));
                 }
-                else delivery = new Obs.ConstructionDelivery.Unreachable();
+                else delivery = new RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery.Unreachable();
                 options.Add(new(site.Id, site.Definition.defName, new(site.Location.x, site.Location.z), pawn.GetUniqueLoadID(),
                     source?.def.defName ?? "", source?.GetUniqueLoadID() ?? "", new(source?.Position.x ?? site.Location.x, source?.Position.z ?? site.Location.z),
                     count, capacity, finishGiver?.defName ?? "", siteRoute, delivery, finishes, source?.stackCount ?? 0, storage));

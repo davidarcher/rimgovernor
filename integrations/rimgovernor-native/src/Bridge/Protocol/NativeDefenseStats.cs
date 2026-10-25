@@ -1,7 +1,7 @@
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Defense capacity facts: damage per second read from the game's
     // own verbs and stats, never from a fixed table.

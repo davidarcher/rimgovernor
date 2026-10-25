@@ -1,8 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -96,12 +94,12 @@ internal static class ControlPreemptHolder
         {
             Tasks = [new SelectedActivityTask(TaskId, deliverer, [], step, new Cell(origin.X, origin.Z), 0)],
         };
-        _ = await TypedApply.AppliedAsync(s, "order", new Operations.PawnActivitiesIntent { Batch = batch }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "order", new RimGovernor.Brain.GameOrders.Operations.PawnActivitiesIntent { Batch = batch }, cancellationToken).ConfigureAwait(false);
 
-        Operations.PawnActivityExecution? execution = null;
+        RimGovernor.Brain.GameFacts.Operations.PawnActivityExecution? execution = null;
         _ = await s.RunUntilAsync("deliver", Budget, async ct =>
         {
-            var tasks = await s.CallAsync("execution", NativeOps.ReadActivityTasks, new Observations.ActivityTaskRequest(s.Identity, batch), ct).ConfigureAwait(false);
+            var tasks = await s.CallAsync("execution", NativeOps.ReadActivityTasks, new RimGovernor.Brain.GameOrders.Observations.ActivityTaskRequest(s.Identity, batch), ct).ConfigureAwait(false);
             execution = tasks.Pawns.FirstOrDefault(p => p.Pawn == deliverer)?.Execution;
             if (execution?.State == "failed")
             {

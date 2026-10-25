@@ -1,5 +1,5 @@
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
@@ -53,23 +53,23 @@ public sealed class WorkAssignmentsNeedTests
         Assert.IsType<WorkRosterRead.Unread>(facts.WorkRoster);
         Assert.IsType<WorkRosterRead.Read>(new WorkRosterRead.Read([]));
         Assert.IsType<WorkPawnsRead>(new WorkPawnsRead([]));
-        Assert.Equal(WorkAssignmentsReview.Settled, RoundsRules.WorkAssignmentsOwed(facts with { WorkCoverage = WorkCoverageState.Matched, CleanupPawns = false }, null));
-        Assert.Equal(WorkAssignmentsReview.Owed, RoundsRules.WorkAssignmentsOwed(facts with { WorkCoverage = WorkCoverageState.Unmatched, CleanupPawns = false }, null));
+        Assert.Equal(WorkAssignmentsReview.Settled, Rules.WorkAssignmentsOwed(facts with { WorkCoverage = WorkCoverageState.Matched, CleanupPawns = false }, null));
+        Assert.Equal(WorkAssignmentsReview.Owed, Rules.WorkAssignmentsOwed(facts with { WorkCoverage = WorkCoverageState.Unmatched, CleanupPawns = false }, null));
     }
 
     [Fact]
     public void WorkReviewNamesTheAwaitingPlannerStateAndPreservesKnownWork()
     {
         var covered = WorkResourceTestFacts.Create("pawn") with { WorkCoverage = WorkCoverageState.Matched, CleanupPawns = false };
-        Assert.Equal(WorkAssignmentsReview.Settled, RoundsRules.WorkAssignmentsOwed(covered, null));
-        Assert.Equal(WorkAssignmentsReview.Owed, RoundsRules.WorkAssignmentsOwed(covered with { WorkCoverage = WorkCoverageState.Unmatched }, null));
-        Assert.Equal(WorkAssignmentsReview.Owed, RoundsRules.WorkAssignmentsOwed(covered with { CleanupPawns = true }, null));
-        Assert.Equal(WorkAssignmentsReview.Owed, RoundsRules.WorkAssignmentsOwed(covered with { HostilityOwed = true }, null));
-        Assert.Equal(WorkAssignmentsReview.Owed, RoundsRules.WorkAssignmentsOwed(covered with { NamesOwed = true }, null));
-        Assert.Equal(WorkAssignmentsReview.Owed, RoundsRules.WorkAssignmentsOwed(covered with { CoupledWorkActive = true }, null));
-        Assert.Equal(WorkAssignmentsReview.AwaitingPlanner, RoundsRules.WorkAssignmentsOwed(covered with { WorkCoverage = WorkCoverageState.Unread }, null));
+        Assert.Equal(WorkAssignmentsReview.Settled, Rules.WorkAssignmentsOwed(covered, null));
+        Assert.Equal(WorkAssignmentsReview.Owed, Rules.WorkAssignmentsOwed(covered with { WorkCoverage = WorkCoverageState.Unmatched }, null));
+        Assert.Equal(WorkAssignmentsReview.Owed, Rules.WorkAssignmentsOwed(covered with { CleanupPawns = true }, null));
+        Assert.Equal(WorkAssignmentsReview.Owed, Rules.WorkAssignmentsOwed(covered with { HostilityOwed = true }, null));
+        Assert.Equal(WorkAssignmentsReview.Owed, Rules.WorkAssignmentsOwed(covered with { NamesOwed = true }, null));
+        Assert.Equal(WorkAssignmentsReview.Owed, Rules.WorkAssignmentsOwed(covered with { CoupledWorkActive = true }, null));
+        Assert.Equal(WorkAssignmentsReview.AwaitingPlanner, Rules.WorkAssignmentsOwed(covered with { WorkCoverage = WorkCoverageState.Unread }, null));
         // An owed setting is owed whatever the coverage read says.
-        Assert.Equal(WorkAssignmentsReview.Owed, RoundsRules.WorkAssignmentsOwed(covered with { WorkCoverage = WorkCoverageState.Unread, MedicalCareOwed = true }, null));
+        Assert.Equal(WorkAssignmentsReview.Owed, Rules.WorkAssignmentsOwed(covered with { WorkCoverage = WorkCoverageState.Unread, MedicalCareOwed = true }, null));
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public sealed class WorkAssignmentsNeedTests
         var ct = TestContext.Current.CancellationToken;
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-work-assignments-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
+        journal.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
         static PlanSpec Plan(params Func<ActionId, DomainAction>[] actions)
         {
             var id = PlanIds.MintPlanId();
@@ -112,7 +112,7 @@ public sealed class WorkAssignmentsNeedTests
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-work-coupled-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkRules.ReviewWorkResources(WorkResourceTestFacts.Create("a", "b"), new ProductionBatchCensus.Read([]), new([]));
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
         var coupled = PlanIds.MintPlanId();
         var method = "coupled-" + coupled.Value;
         var held = journal.CommitClaimedMethod(AdminFamily.WorkAssignments, World, new MethodId(method), "shared colony consequence portfolio",
@@ -120,13 +120,13 @@ public sealed class WorkAssignmentsNeedTests
                 new PawnActivities(1, [new PawnActivityOrder("a", method + "/a", method, 0, 1, false, [new PawnActivityStep(PawnActivityKind.Hold, "", "", "", 0, long.MaxValue)])]))]), ct);
         Assert.Equal(ClaimOutcome.Admitted, held.Outcome);
         Assert.True(StorePackage.PlanOpen(journal.LoadPlan(held.Owner.Methods[0].Plan, ct)));
-        Assert.Empty(BuildingRuntime.RoundsWorkPlanner.OpenWorkPlans(journal, held.Owner, ct));
+        Assert.Empty(Runtime.WorkPlanner.OpenWorkPlans(journal, held.Owner, ct));
 
         var work = PlanIds.MintPlanId();
         var committed = journal.CommitClaimedMethod(AdminFamily.WorkAssignments, World, new MethodId("work-a"), "", new PlanSpec(work, new PlanRevision(1),
             [DomainAction.NewWorkAssignmentAction(new ActionId(work.Value + "-0"), WorkAssignment.NewWorkAssignment(new("b"), [new WorkSetting("TestWork", 1)]))]), ct);
         Assert.Equal(ClaimOutcome.Admitted, committed.Outcome);
-        var open = Assert.Single(BuildingRuntime.RoundsWorkPlanner.OpenWorkPlans(journal, committed.Owner, ct));
+        var open = Assert.Single(Runtime.WorkPlanner.OpenWorkPlans(journal, committed.Owner, ct));
         Assert.Equal(work, open.Spec.Id);
     }
 
@@ -138,7 +138,7 @@ public sealed class WorkAssignmentsNeedTests
         var ct = TestContext.Current.CancellationToken;
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-work-skill-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
+        journal.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
         var id = PlanIds.MintPlanId();
         var assign = DomainAction.NewWorkAssignmentAction(new ActionId(id.Value + "-0"), WorkAssignment.NewWorkAssignment(new("a"), [new WorkSetting("TestWork", 1)]));
         var wall = DomainAction.NewBuildingAction(new ActionId(id.Value + "-1"), new Building("TestWall", new Cell(3, 3), Rotation.North, "Wood"), ConstructionTier.Survive);

@@ -6,16 +6,15 @@ using RimGovernor.Runtime;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Obs = RimGovernor.Contracts.Wire.Observations;
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 internal static class NativePracticeActivities
 {
     /// <summary>Every free colonist's practice at every stand or marker (#3341).</summary>
-    internal static Obs.PracticeActivityRead Read(Map map, NativePathLegs? legs = null)
+    internal static RimGovernor.Brain.GameFacts.Observations.PracticeActivityRead Read(Map map, NativePathLegs? legs = null)
     {
         legs ??= new(map);
-        var workers = new List<Obs.PracticeWorker>();
+        var workers = new List<RimGovernor.Brain.GameFacts.Observations.PracticeWorker>();
         // Every stand and marker, for a drill's company (#3871).
         var practiceTargets = RangeTraining.Stands(map).Concat(map.listerThings.ThingsOfDef(SparringBouts.MarkerDef)).ToArray();
         foreach (var pawn in map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal))
@@ -71,7 +70,7 @@ internal static class NativePracticeActivities
     /// was shared (a bout) or NearTrainer finds company; that refuses it where ThoughtUtility.CanGetThought does. None without a
     /// mood or the def.
     /// </summary>
-    private static EquatableArray<Obs.NeedMemory> TrainedWith(Pawn pawn)
+    private static EquatableArray<RimGovernor.Brain.GameFacts.Observations.NeedMemory> TrainedWith(Pawn pawn)
     {
         // The mod's own def has no DefOf; TrainingCompany names it.
         var def = DefDatabase<ThoughtDef>.GetNamedSilentFail(TrainingCompany.ThoughtName);

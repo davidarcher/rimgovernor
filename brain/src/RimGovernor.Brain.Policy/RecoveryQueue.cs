@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Policy;
 // whatever its distance from Home. Rank is tier, then distance: tier 1 a room obstruction, tier 2 anything
 // yielding at least one currently short resource, tier 3 the rest; within a tier nearest first. Safety holds
 // apply per thing; demand never holds one. Each clearance method admits one bounded recovery batch. The review
-// journals the queue (Rounds.RecoveryQueue); the clearance planner executes its removals as a roof-first batch
+// journals the queue (ReviewState.RecoveryQueue); the clearance planner executes its removals as a roof-first batch
 // (PlanRecoveryBatch) and loot is released by FilterLootReach under the same hold vocabulary.
 
 /// <summary>Orders the queue: lower is first.</summary>
@@ -391,7 +391,7 @@ public static partial class RecoveryRules
     /// The resources below their effective stock target (the targets carry the derived resource needs): the
     /// short set tier 2 ranks by. An unread stock census leaves none short. Throws on an invalid demand.
     /// </summary>
-    private static HashSet<Resource> RecoveryShortResources(RoundsPolicy p, RoundsFacts f)
+    private static HashSet<Resource> RecoveryShortResources(PlannerSettings p, ReviewFacts f)
     {
         var targets = new List<ResourceDemand>();
         if (f.ResourceNeeds is not null)
@@ -430,7 +430,7 @@ public static partial class RecoveryRules
     /// nearest of which is the origin. roomObstructions names the census ids a planned room waits on (tier 1).
     /// The caller sets Slot. Throws on an invalid extent or demand.
     /// </summary>
-    public static RecoveryRequest ReviewRecoveryRequest(RoundsPolicy p, RoundsFacts f, IReadOnlyList<ClearanceTarget> rows, IReadOnlySet<string> roomObstructions)
+    public static RecoveryRequest ReviewRecoveryRequest(PlannerSettings p, ReviewFacts f, IReadOnlyList<ClearanceTarget> rows, IReadOnlySet<string> roomObstructions)
     {
         var extent = ColonyExtentRules.DeriveColonyExtent(f.MapBounds, f.CurrentConstruction, f.ConstructionClaims, f.HomeCoverage);
         var shortSet = RecoveryShortResources(p, f);

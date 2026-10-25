@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
-using RimGovernor.Contracts.Wire;
-using Common = RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -51,7 +51,7 @@ internal static class LifecycleIdeoligionDesign
                 var spec = NewColonyStart.Spec() with { Storyteller = "Phoebe", Difficulty = "Peaceful", SaveName = "ideoligion-design-accept", GovernorIdeoligion = true };
                 _ = await NewColonyStart.CompleteAsync(s, "ideoligion", NewColonyStart.Request("ideoligion-create", spec), cancellationToken, throughBrain: true).ConfigureAwait(false);
                 var read = await s.FixtureAsync("created-design", Inspect, true, cancellationToken).ConfigureAwait(false);
-                var design = WireJson.Deserialize<Common.IdeoligionDesign>(read.Design);
+                var design = OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Common.IdeoligionDesign>(read.Design);
                 s.RecordWire("design", design);
                 var memes = design.Memes.ToList();
                 var precepts = design.Precepts.ToList();

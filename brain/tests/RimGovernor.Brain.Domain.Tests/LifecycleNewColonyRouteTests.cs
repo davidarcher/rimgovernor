@@ -1,12 +1,10 @@
 using System.Text;
 using System.Text.Json;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.HttpChannel;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.PlayerApi;
 using Xunit;
-using PbCommon = RimGovernor.Contracts.Wire.Common;
-using PbLifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -31,21 +29,21 @@ public sealed class LifecycleNewColonyRouteTests
 
     private sealed class Writer(Exception failure) : ILifecycleWriter
     {
-        public Task<PbLifecycle.NewColonyReply> NewColonyAsync(PbLifecycle.NewColonyRequest request, CancellationToken cancellationToken) => Task.FromException<PbLifecycle.NewColonyReply>(failure);
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.NewColonyReply> NewColonyAsync(RimGovernor.Brain.GameOrders.Lifecycle.NewColonyRequest request, CancellationToken cancellationToken) => Task.FromException<RimGovernor.Brain.GameFacts.Lifecycle.NewColonyReply>(failure);
 
-        public Task<PbLifecycle.NewColonyReply> ReadNewColonyAsync(string requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.NewColonyReply> ReadNewColonyAsync(string requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public Task<PbLifecycle.MenuReply> MenuAsync(PbLifecycle.MenuRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.MenuReply> MenuAsync(RimGovernor.Brain.GameOrders.Lifecycle.MenuRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public Task<PbLifecycle.MenuReply> ReadMenuAsync(string requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.MenuReply> ReadMenuAsync(string requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public Task<PbLifecycle.SaveReply> SaveAsync(PbLifecycle.SaveRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.SaveReply> SaveAsync(RimGovernor.Brain.GameOrders.Lifecycle.SaveRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public Task<PbLifecycle.SaveReply> ReadSaveAsync(string requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.SaveReply> ReadSaveAsync(string requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public Task<PbLifecycle.LoadReply> LoadAsync(PbLifecycle.LoadRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.LoadReply> LoadAsync(RimGovernor.Brain.GameOrders.Lifecycle.LoadRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public Task<PbLifecycle.LoadReply> ReadLoadAsync(string requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.LoadReply> ReadLoadAsync(string requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private static async Task<(int Status, string Code, string Detail)> PostAsync(Exception failure)
@@ -79,7 +77,7 @@ public sealed class LifecycleNewColonyRouteTests
     [Fact]
     public async Task ANativeRefusalAnswersByItsCode()
     {
-        var failure = new PbCommon.Failure { RefusalClass = RimGovernor.Contracts.Wire.Common.RefusalClass.Unclassified, Code = PbCommon.FailureCode.InvalidRequest, Detail = "Unknown scenario." };
+        var failure = new RimGovernor.Brain.GameFacts.Common.Failure { RefusalClass = RimGovernor.Brain.GameFacts.Common.RefusalClass.Unclassified, Code = RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, Detail = "Unknown scenario." };
         var (status, code, detail) = await PostAsync(new NativeFailureException(failure, Result.Empty));
 
         Assert.Equal(400, status);

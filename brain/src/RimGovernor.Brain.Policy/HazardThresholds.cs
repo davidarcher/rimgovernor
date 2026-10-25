@@ -32,5 +32,5 @@ public static class HazardThresholdsRules
     /// game's own "eat now" line (Need_Food.PercentageThreshUrgentlyHungry), above starving, so the review
     /// that answers it runs under a held clock instead of racing a running one (#3435).
     /// </summary>
-    public const RimGovernor.Contracts.Wire.Defs.HungerCategory HungerHoldCategory = RimGovernor.Contracts.Wire.Defs.HungerCategory.UrgentlyHungry;
+    public const RimGovernor.Brain.GameFacts.Defs.HungerCategory HungerHoldCategory = RimGovernor.Brain.GameFacts.Defs.HungerCategory.UrgentlyHungry;
 }

@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -41,7 +40,7 @@ internal static class ToolsFoodChannels
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var cow = s.Staged!.Pawns[Cow].Id;
-        var facts = await s.CallAsync("food-channels", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var facts = await s.CallAsync("food-channels", NativeOps.ReadColonyFacts, new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var channels = facts.FoodChannels;
         s.RecordWire("food_channels", channels);
         if (channels.FishableWater is not null || !channels.Forage.Any(row => row.DefName == "Plant_Berry"))

@@ -9,7 +9,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>Passive game-thread observations. Never creates, changes or terminates a job.</summary>
     public static class PawnActivityTracker
@@ -160,7 +160,7 @@ namespace HomeBridge.BridgeTools
             foreach (var map in Find.Maps)
                 foreach (var pawn in map.mapPawns.FreeColonistsSpawned) Started(pawn);
         }
-        internal static void Execution(RimGovernor.Contracts.Wire.Operations.PawnActivityExecution row, Pawn pawn)
+        internal static void Execution(RimGovernor.Brain.GameFacts.Operations.PawnActivityExecution row, Pawn pawn)
         {
             emitter?.EmitRow(PawnActivityTelemetry.ExecutionKind, new RowContext { Component = "pawn-activity", Tick = row.Tick },
                 new Dictionary<string, object?> { [PawnActivityTelemetry.PawnKey] = pawn.GetUniqueLoadID(), [PawnActivityTelemetry.AssignmentKey] = row.Assignment,

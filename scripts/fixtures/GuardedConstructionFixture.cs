@@ -8,13 +8,13 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Private disposable acceptance only: the wall/* cases' native construction probes.
     public sealed class GuardedConstructionFixture
     {
         [Tool("test/wall_layers", Description = "UNSAFE FOR MODEL EXECUTION. Paused disposable lab only. prepare stages a funded, unfinished three-thick 9x9 wall ring with a three-cell open gate at the map centre and normal builder work. audit reads remaining frames, standing walls and colonist escape. controls arms the completion guard as a running supervisor would, directly attempts a completion that would strand a neighbouring frame, then completes an isolated frame with a pawn standing on it and reports vanilla relocation and escape.")]
-        public async Task<object> WallLayers(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "audit")
+        public async Task<object> WallLayers(INativeContext ctx, CancellationToken cancellationToken, string action = "audit")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -98,7 +98,7 @@ namespace HomeBridge.BridgeTools
         private static string replaceFirstViolation = "";
 
         [Tool("test/wall_replacement", Description = "UNSAFE FOR MODEL EXECUTION. Paused 100x100 lab (#2529). prepare stages a roofed 5x5 room inside a 7x7 steel wall ring at the map centre and a lone roofed steel pillar 20 cells east, builders outside the ring, and clears the violation count. run ticks the game n single ticks (each audited: the target cell impassable, the room still enclosed with 25 cells and no reach to the map edge); a replacement Frame is funded the tick it appears so only construction work remains. audit reads the cell without ticking.")]
-        public async Task<object> WallReplacement(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "audit", int x = 0, int z = 0, int ticks = 0)
+        public async Task<object> WallReplacement(INativeContext ctx, CancellationToken cancellationToken, string action = "audit", int x = 0, int z = 0, int ticks = 0)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -173,7 +173,7 @@ namespace HomeBridge.BridgeTools
         private static IntVec3? pickupSite;
 
         [Tool("test/remote_pickup",Description = "UNSAFE FOR MODEL EXECUTION. Paused 100x100 lab (#2517, #3046). remote stages a cold 5x5 wooden hut (3x3 roofed interior, door mid south, a lit campfire, no bed) whose mid east wall is an unfunded wood wall frame at the map centre, and three WoodLog stacks 40 cells east of the frame, each in its own one-cell stockpile (15, then 20 at 8 cells and 20 at 14 cells from the first), with a stockpile on the 3x7 cells east of the frame for the surplus, so vanilla hauling moves no stack; local stages the same hut 30 cells west, with two loose stacks 4 cells east of its frame, and removes the stockpiles; audit reads the last staged frame's delivered wood, the loose stacks and the carriers. A brain order or vanilla delivery may deliver; each stage destroys all other wood.")]
-        public async Task<object> RemotePickup(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "audit")
+        public async Task<object> RemotePickup(INativeContext ctx, CancellationToken cancellationToken, string action = "audit")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -248,7 +248,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/construction_skill",Description = "UNSAFE FOR MODEL EXECUTION. Paused 100x100 lab: prepare stages a material-filled wall and quality bed blueprint with a low-skill helper and drafted skilled builder; convert tests exact blueprint-to-frame setting transfer; audit/controls observe vanilla completion and finishing eligibility. No production caller.")]
-        public async Task<object> ConstructionSkill(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "audit")
+        public async Task<object> ConstructionSkill(INativeContext ctx, CancellationToken cancellationToken, string action = "audit")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -308,7 +308,7 @@ namespace HomeBridge.BridgeTools
         private static IntVec3 TierCell(Map map, int index) => map.Center + new IntVec3(6, 0, -12 + 6 * index);
 
         [Tool("test/construction_tier_gate", Description = "UNSAFE FOR MODEL EXECUTION. Paused 100x100 lab: prepare stages five steel (limited) and fifty wood plus four wall blueprints (A steel tier 0, B steel tier 5, C wood tier 5, D steel untiered); query asks the patched delivery work-giver whether one colonist is handed a delivery job for each; enclose walls in A so it is unreachable. Re-tiering goes through Actions/Apply. No production caller.")]
-        public async Task<object> ConstructionTierGateFixture(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "query")
+        public async Task<object> ConstructionTierGateFixture(INativeContext ctx, CancellationToken cancellationToken, string action = "query")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;

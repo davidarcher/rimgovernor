@@ -2,11 +2,8 @@ using System;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // A medical ProductionBillIntent (patient set) on Actions/Apply: queue one medical operation
     // bill on one patient (a colonist, slave or colony prisoner) through
@@ -18,39 +15,39 @@ namespace HomeBridge.BridgeTools
     // jobs choose the surgeon. Applied means queued.
     internal static class NativeSurgery
     {
-        private static Common.Failure? Resolve(Operations.ProductionBillIntent? intent, Common.ObservationContext context,
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(RimGovernor.Brain.GameOrders.Operations.ProductionBillIntent? intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context,
             out Pawn? pawn, out RecipeDef? recipe, out BodyPartRecord? part)
         {
             pawn = null; recipe = null; part = null;
             if (intent == null || intent.PartIndex is null || intent.BenchId is not null || intent.Settings != null || intent.ReplaceOwnedBill != null
-                || !ProtoBoundary.IsIdentifier(intent.Patient?.Id) || !ProtoBoundary.IsIdentifier(intent.RecipeDef)
-                || (intent.PartIndex is Operations.SurgeryTarget.Part { Index: < 0 }))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Surgery requires an exact patient, an exact recipe and a whole-body or exact part index.");
-            var map = ProtoBoundary.LoadedMap(context);
+                || !GameThread.IsIdentifier(intent.Patient?.Id) || !GameThread.IsIdentifier(intent.RecipeDef)
+                || (intent.PartIndex is RimGovernor.Brain.GameOrders.Operations.SurgeryTarget.Part { Index: < 0 }))
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Surgery requires an exact patient, an exact recipe and a whole-body or exact part index.");
+            var map = GameThread.LoadedMap(context);
             pawn = map.mapPawns.AllPawnsSpawned.ById(intent.Patient.Id);
             if (pawn == null || pawn.Dead || !pawn.RaceProps.Humanlike
                 || !(pawn.Faction == Faction.OfPlayer || pawn.IsPrisonerOfColony))
-                return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living humanlike colony patient is not spawned on this map.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Living humanlike colony patient is not spawned on this map.");
             recipe = pawn.def.AllRecipes?.FirstOrDefault(r => r.defName == (intent.RecipeDef ?? ""));
-            if (recipe == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Recipe " + (intent.RecipeDef ?? "") + " is not offered for this patient.");
+            if (recipe == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Recipe " + (intent.RecipeDef ?? "") + " is not offered for this patient.");
             var parts = pawn.RaceProps.body.AllParts;
-            if (intent.PartIndex is Operations.SurgeryTarget.Part selected)
+            if (intent.PartIndex is RimGovernor.Brain.GameOrders.Operations.SurgeryTarget.Part selected)
             {
-                if (selected.Index >= parts.Count) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Body part index is out of range.");
+                if (selected.Index >= parts.Count) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Body part index is out of range.");
                 part = parts[selected.Index];
             }
             if (recipe.targetsBodyPart != (part != null))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, recipe.targetsBodyPart ? "Recipe needs a body part." : "Recipe is whole-body; no part index.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, recipe.targetsBodyPart ? "Recipe needs a body part." : "Recipe is whole-body; no part index.");
             if (!recipe.AvailableNow || !recipe.Worker.AvailableReport(pawn).Accepted)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Recipe is not available now.");
-            if (!recipe.AvailableOnNow(pawn, part)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Recipe is not available on this body part.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Recipe is not available now.");
+            if (!recipe.AvailableOnNow(pawn, part)) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Recipe is not available on this body part.");
             if (part != null && !recipe.Worker.GetPartsToApplyOn(pawn, recipe).Contains(part))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Recipe does not apply to this body part.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Recipe does not apply to this body part.");
             if (Queued(pawn, recipe, part) != null) return null;
             if (Stands(pawn, recipe, part))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Recipe " + recipe.defName + " already stands on this part.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Recipe " + recipe.defName + " already stands on this part.");
             if (!intent.AcknowledgeViolation && recipe.Worker.IsViolationOnPawn(pawn, part, Faction.OfPlayer))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Recipe is a violation on this patient; acknowledge_violation is required.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Recipe is a violation on this patient; acknowledge_violation is required.");
             return null;
         }
 
@@ -60,9 +57,9 @@ namespace HomeBridge.BridgeTools
         private static Bill_Medical? Queued(Pawn pawn, RecipeDef recipe, BodyPartRecord? part) =>
             pawn.BillStack?.Bills.OfType<Bill_Medical>().FirstOrDefault(b => b.recipe == recipe && b.Part == part);
 
-        internal static Common.Failure? Validate(Operations.ProductionBillIntent? intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.ProductionBillIntent? intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.ProductionBillIntent intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.ProductionBillIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var recipe, out var part);
             if (failure != null) throw new ApplyRefusedException(failure);
@@ -74,13 +71,13 @@ namespace HomeBridge.BridgeTools
                 bill = Queued(pawn, recipe, part);
                 if (bill == null) throw new InvalidOperationException("Native surgery bill was not queued.");
             }
-            var effect = new Receipts.SurgeryEffect
+            var effect = new RimGovernor.Brain.GameFacts.Receipts.SurgeryEffect
             {
                 PawnId = pawn.GetUniqueLoadID(), Bill = NativeRef.Of(bill.GetUniqueLoadID()),
-                State = Receipts.SurgeryState.Queued,
-                Target = part is null ? new Receipts.SurgeryTarget.WholeBodyCase() : new Receipts.SurgeryTarget.PartCase(((Operations.SurgeryTarget.Part)intent.PartIndex).Index),
+                State = RimGovernor.Brain.GameFacts.Receipts.SurgeryState.Queued,
+                Target = part is null ? new RimGovernor.Brain.GameFacts.Receipts.SurgeryTarget.WholeBodyCase() : new RimGovernor.Brain.GameFacts.Receipts.SurgeryTarget.PartCase(((RimGovernor.Brain.GameOrders.Operations.SurgeryTarget.Part)intent.PartIndex).Index),
             };
-            return new Receipts.EffectEvidence { Effect = effect };
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = effect };
         }
     }
 }

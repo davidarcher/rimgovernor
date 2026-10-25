@@ -1,6 +1,8 @@
 using System.Text.Json;
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Presentation;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Presentation;
+using RimGovernor.Brain.GameOrders.Presentation;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -17,21 +19,21 @@ public sealed class PresentationWireTests
     public void NotificationsRequestNamesEveryLimitAndFlag()
     {
         var full = $$"""{"identity":{{Identity}},"letterLimit":40,"messageLimit":12,"alertLimit":40,"includeLetters":true,"includeMessages":false,"includeAlerts":true}""";
-        var request = WireJson.Deserialize<NotificationsRequest>(full);
+        var request = OrdersJson.Deserialize<NotificationsRequest>(full);
         Assert.Equal(40u, request.LetterLimit);
         Assert.False(request.IncludeMessages);
-        Assert.Equal(request, WireJson.Deserialize<NotificationsRequest>(WireJson.Serialize(request)));
+        Assert.Equal(request, OrdersJson.Deserialize<NotificationsRequest>(OrdersJson.Serialize(request)));
 
         var missing = $$"""{"identity":{{Identity}},"letterLimit":40,"messageLimit":12,"alertLimit":40,"includeLetters":true,"includeAlerts":true}""";
-        Assert.ThrowsAny<JsonException>(() => WireJson.Deserialize<NotificationsRequest>(missing));
+        Assert.ThrowsAny<JsonException>(() => OrdersJson.Deserialize<NotificationsRequest>(missing));
     }
 
     [Fact]
     public void RenderDemandAndOverlayRequireTheirFacts()
     {
-        Assert.ThrowsAny<JsonException>(() => WireJson.Deserialize<RenderDemand>("""{"viewer":{"identity":""" + Identity + "}}"));
-        Assert.ThrowsAny<JsonException>(() => WireJson.Deserialize<OverlayRequest>($$"""{"identity":{{Identity}},"layerId":"x","shapes":[],"labels":[]}"""));
-        var overlay = WireJson.Deserialize<OverlayRequest>($$"""{"identity":{{Identity}},"layerId":"x","enabled":false,"shapes":[],"labels":[]}""");
+        Assert.ThrowsAny<JsonException>(() => OrdersJson.Deserialize<RenderDemand>("""{"viewer":{"identity":""" + Identity + "}}"));
+        Assert.ThrowsAny<JsonException>(() => OrdersJson.Deserialize<OverlayRequest>($$"""{"identity":{{Identity}},"layerId":"x","shapes":[],"labels":[]}"""));
+        var overlay = OrdersJson.Deserialize<OverlayRequest>($$"""{"identity":{{Identity}},"layerId":"x","enabled":false,"shapes":[],"labels":[]}""");
         Assert.False(overlay.Enabled);
     }
 }

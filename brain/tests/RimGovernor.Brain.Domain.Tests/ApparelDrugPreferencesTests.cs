@@ -1,5 +1,4 @@
-using O = RimGovernor.Contracts.Wire.Observations;
-using RimGovernor.Contracts.Wire.Defs;
+using RimGovernor.Brain.GameFacts.Defs;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -42,7 +41,7 @@ public sealed class ApparelDrugPreferencesTests
         Assert.Equal(["Apparel_FlakVest"], Allowed(State(ApparelPreference.ArmorOnly), GearRole.Worker));
     }
 
-    private static RoundsFacts GearFacts() => new()
+    private static ReviewFacts GearFacts() => new()
     {
         Garments =
         [

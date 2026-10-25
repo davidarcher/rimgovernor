@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Bridge;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -43,14 +42,14 @@ internal static class SmokeIdentity
         }
 
         // The lab is wiped: every building on it, any faction, is the player's.
-        var player = await s.BuildingsAsync("buildings-player", new Observations.ListBuildingsRequest(), cancellationToken).ConfigureAwait(false);
-        var any = await s.BuildingsAsync("buildings-any", new Observations.ListBuildingsRequest { AnyFaction = true }, cancellationToken).ConfigureAwait(false);
+        var player = await s.BuildingsAsync("buildings-player", new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest(), cancellationToken).ConfigureAwait(false);
+        var any = await s.BuildingsAsync("buildings-any", new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest { AnyFaction = true }, cancellationToken).ConfigureAwait(false);
         if (any.Count != player.Count)
         {
             throw new AcceptanceException($"the lab is not blank: {any.Count - player.Count} buildings of another faction");
         }
 
-        var clearance = await s.CallAsync("clearance", NativeOps.ReadClearanceTargets, new Observations.ClearanceTargetsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var clearance = await s.CallAsync("clearance", NativeOps.ReadClearanceTargets, new RimGovernor.Brain.GameOrders.Observations.ClearanceTargetsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         s.RecordWire("clearance", clearance);
         if (clearance.Context.Identity != s.Identity)
         {

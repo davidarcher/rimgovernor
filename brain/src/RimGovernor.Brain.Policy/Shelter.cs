@@ -1,4 +1,4 @@
-using SleepingTemperature = RimGovernor.Contracts.Wire.Observations.SleepingTemperature;
+using SleepingTemperature = RimGovernor.Brain.GameFacts.Observations.SleepingTemperature;
 using System.Globalization;
 
 namespace RimGovernor.Brain.Policy;
@@ -31,13 +31,13 @@ public sealed record ShelterFacts
     /// <summary>The bot-owned allowed areas differ from the enclosed roofed rooms and the plan (SafeAreaCells).</summary>
     public SafeAreaStatus SafeAreaOwed { get; init; }
 
-    /// <summary>The season's comfort band the sleeping rooms are held inside (<see cref="RoundsPolicy.ColdExit"/>, <see cref="RoundsPolicy.HotExit"/>).</summary>
+    /// <summary>The season's comfort band the sleeping rooms are held inside (<see cref="PlannerSettings.ColdExit"/>, <see cref="PlannerSettings.HotExit"/>).</summary>
     public double ColdExit { get; init; }
 
     public double HotExit { get; init; }
 
     /// <summary>The facts a review already holds, with <paramref name="policy"/> taken for the season.</summary>
-    public static ShelterFacts From(RoundsFacts f, RoundsPolicy policy)
+    public static ShelterFacts From(ReviewFacts f, PlannerSettings policy)
     {
         var p = policy.Seasonal(f.Calendar, f.DisasterConditions);
         return new()
@@ -115,8 +115,8 @@ public static partial class ShelterRules
 
     /// <summary>
     /// The sleeping rooms' temperature, a plain threshold at the exit bars (decision 16): unmet while the coldest
-    /// sleeping room (outdoors when none is measured) is below <see cref="RoundsPolicy.ColdExit"/> or the warmest above
-    /// <see cref="RoundsPolicy.HotExit"/>, or while a refuel switch, an unheated sleeping room or a venting door is
+    /// sleeping room (outdoors when none is measured) is below <see cref="PlannerSettings.ColdExit"/> or the warmest above
+    /// <see cref="PlannerSettings.HotExit"/>, or while a refuel switch, an unheated sleeping room or a venting door is
     /// owed; met otherwise. Its deficit is whole.
     /// </summary>
     public static Need TemperatureNeedOf(ShelterFacts f)

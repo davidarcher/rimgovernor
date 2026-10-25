@@ -1,0 +1,293 @@
+using System.Text.Json;
+using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.Policy;
+using RimGovernor.Brain.Store.Codec;
+using BuildingHitPoints = RimGovernor.Brain.GameFacts.Observations.BuildingHitPoints;
+
+namespace RimGovernor.Brain.Store;
+
+/// <summary>Shared null handling for the review records: a pointer field without omitempty writes null.</summary>
+internal static class CodecKit
+{
+    internal static void PutNullable<T>(this Utf8JsonWriter w, string name, T? value, Codecs o)
+        where T : struct
+    {
+        if (value is { } v)
+        {
+            w.Put(name, v, o);
+        }
+        else
+        {
+            w.WriteNull(name);
+        }
+    }
+
+    internal static void PutNullableRef<T>(this Utf8JsonWriter w, string name, T? value, Codecs o)
+        where T : class
+    {
+        if (value is not null)
+        {
+            w.Put(name, value, o);
+        }
+        else
+        {
+            w.WriteNull(name);
+        }
+    }
+
+    internal static T? GetNullable<T>(this JsonElement e, string name, Codecs o)
+        where T : struct => e.Has(name) ? e.Get<T>(name, o) : null;
+
+    internal static T? GetNullableRef<T>(this JsonElement e, string name, Codecs o)
+        where T : class => e.Has(name) ? e.Get<T>(name, o) : null;
+}
+
+public sealed class ResourceRunwayRecordConverter : ObjectCodec<ResourceRunwayRecord>
+{
+    protected override ResourceRunwayRecord Read(JsonElement e, Codecs o) =>
+        new()
+        {
+            Resource = new Resource(e.Str("Resource")),
+            Tick = e.Get<Tick>("Tick", o),
+            WindowDays = e.Dbl("WindowDays"),
+            Reserve = e.I64("Reserve"),
+            Stock = e.I64("Stock"),
+            SurfaceOre = e.I64("SurfaceOre"),
+            ConsumptionPerDay = e.GetNullable<double>("ConsumptionPerDay", o),
+            StockDays = e.GetNullable<double>("StockDays", o),
+            DaysLeft = e.GetNullable<double>("DaysLeft", o),
+            Deficit = e.GetNullable<bool>("Deficit", o),
+            Target = e.I64("Target"),
+        };
+
+    protected override void WriteFields(Utf8JsonWriter w, ResourceRunwayRecord v, Codecs o)
+    {
+        w.WriteString("Resource", v.Resource.Value);
+        w.Put("Tick", v.Tick, o);
+        w.WriteNum("WindowDays", v.WindowDays);
+        w.WriteNum("Reserve", v.Reserve);
+        w.WriteNum("Stock", v.Stock);
+        w.WriteNum("SurfaceOre", v.SurfaceOre);
+        w.PutNullable("ConsumptionPerDay", v.ConsumptionPerDay, o);
+        w.PutNullable("StockDays", v.StockDays, o);
+        w.PutNullable("DaysLeft", v.DaysLeft, o);
+        w.PutNullable("Deficit", v.Deficit, o);
+        w.WriteNum("Target", v.Target);
+    }
+}
+
+public sealed class RecoveryRestrictionConverter : ObjectCodec<ReviewRecoveryRestriction>
+{
+    protected override ReviewRecoveryRestriction Read(JsonElement e, Codecs o) =>
+        new(new PawnId(e.Str("Pawn")), e.Str("Area"));
+
+    protected override void WriteFields(Utf8JsonWriter w, ReviewRecoveryRestriction v, Codecs o)
+    {
+        w.WriteString("Pawn", v.Pawn.Value);
+        w.WriteString("Area", v.Area);
+    }
+}
+
+public sealed class RecoverySafetyConverter : ObjectCodec<ReviewRecoverySafety>
+{
+    protected override ReviewRecoverySafety Read(JsonElement e, Codecs o) =>
+        new() { Restrictions = e.GetOr("Restrictions", default(EquatableArray<ReviewRecoveryRestriction>), o) };
+
+    protected override void WriteFields(Utf8JsonWriter w, ReviewRecoverySafety v, Codecs o) => w.Put("Restrictions", v.Restrictions, o);
+}
+
+/// <summary>The review's retained recovery selection (#3304: it had no codec, so a disaster review could not be written).</summary>
+public sealed class RecoverySelectionConverter : ObjectCodec<RecoverySelection>
+{
+    protected override RecoverySelection Read(JsonElement e, Codecs o) =>
+        new()
+        {
+            Tick = e.Get<Tick>("Tick", o),
+            Reason = e.Get<RecoverySelectionReason>("Reason", o),
+            Candidates = e.GetOr("Candidates", default(EquatableArray<RecoveryCandidate>), o),
+        };
+
+    protected override void WriteFields(Utf8JsonWriter w, RecoverySelection v, Codecs o)
+    {
+        w.Put("Tick", v.Tick, o);
+        w.Put("Reason", v.Reason, o);
+        w.Put("Candidates", v.Candidates, o);
+    }
+}
+
+/// <summary>One retained recovery candidate; an unknown prior area persists as null.</summary>
+public sealed class RecoveryCandidateConverter : ObjectCodec<RecoveryCandidate>
+{
+    protected override RecoveryCandidate Read(JsonElement e, Codecs o) =>
+        new()
+        {
+            ID = new MethodId(e.Str("ID")),
+            Kind = e.Get<RecoveryProposalKind>("Kind", o),
+            Pawn = new PawnId(e.Str("Pawn")),
+            Building = e.Str("Building"),
+            Method = e.Get<RecoveryMethod>("Method", o),
+            HitPoints = e.GetNullable<int>("HitPoints", o) is { } current
+                ? new BuildingHitPoints.Tracked { Current = current, Maximum = e.I32("MaxHitPoints") }
+                : new BuildingHitPoints.Untracked(),
+            Fuel = e.Get<RimGovernor.Brain.GameFacts.Observations.BuildingFuel>("Fuel", o),
+            PriorArea = e.Has("PriorArea") ? e.Str("PriorArea") : null,
+        };
+
+    protected override void WriteFields(Utf8JsonWriter w, RecoveryCandidate v, Codecs o)
+    {
+        w.WriteString("ID", v.ID.Value);
+        w.Put("Kind", v.Kind, o);
+        w.WriteString("Pawn", v.Pawn.Value);
+        w.WriteString("Building", v.Building);
+        w.Put("Method", v.Method, o);
+        if (v.HitPoints is BuildingHitPoints.Tracked hp)
+        {
+            w.WriteNum("HitPoints", hp.Current);
+            w.WriteNum("MaxHitPoints", hp.Maximum);
+        }
+        w.Put("Fuel", v.Fuel, o);
+        if (v.PriorArea is null)
+        {
+            w.WriteNull("PriorArea");
+        }
+        else
+        {
+            w.WriteString("PriorArea", v.PriorArea);
+        }
+    }
+}
+
+public sealed class RecoveryConverter : ObjectCodec<Recovery>
+{
+    protected override Recovery Read(JsonElement e, Codecs o) =>
+        new()
+        {
+            Need = new NeedId(e.Str("Need")),
+            World = e.Get<World>("World", o),
+            Used = e.GetOr("Used", default(EquatableArray<MethodId>), o),
+            Safety = e.Get<ReviewRecoverySafety>("Safety", o),
+            Workers = e.Get<EquatableArray<MoodPawn>>("Workers", o),
+            Buildings = e.Get<EquatableArray<RimGovernor.Brain.GameFacts.Observations.BuildingState>>("Buildings", o),
+            Selection = e.Get<RecoverySelection>("Selection", o),
+        };
+
+    protected override void WriteFields(Utf8JsonWriter w, Recovery v, Codecs o)
+    {
+        w.WriteString("Need", v.Need.Value);
+        w.Put("World", v.World, o);
+        w.Put("Used", v.Used, o);
+        w.Put("Safety", v.Safety, o);
+        w.Put("Workers", v.Workers, o);
+        w.Put("Buildings", v.Buildings, o);
+        w.Put("Selection", v.Selection, o);
+    }
+}
+
+public sealed class ReviewMoodCauseConverter : ObjectCodec<ReviewMoodCause>
+{
+    protected override ReviewMoodCause Read(JsonElement e, Codecs o) => new(e.Get<MoodNeed>("Need", o), e.Dbl("Level"));
+
+    protected override void WriteFields(Utf8JsonWriter w, ReviewMoodCause v, Codecs o)
+    {
+        w.Put("Need", v.Need, o);
+        w.WriteNum("Level", v.Level);
+    }
+}
+
+public sealed class ReviewMoodStateConverter : ObjectCodec<ReviewMoodState>
+{
+    protected override ReviewMoodState Read(JsonElement e, Codecs o) =>
+        new()
+        {
+            Pawn = e.Get<MoodPawn>("Pawn", o),
+            Active = e.Bool("Active"),
+            Missing = e.Bool("Missing"),
+            MentalRisk = e.Bool("MentalRisk"),
+            Causes = e.GetOr("Causes", default(EquatableArray<ReviewMoodCause>), o),
+            Provision = e.GetOr("Provision", default(EquatableArray<MoodProvision>), o),
+            Unowned = e.GetOr("Unowned", default(EquatableArray<MoodThought>), o),
+        };
+
+    protected override void WriteFields(Utf8JsonWriter w, ReviewMoodState v, Codecs o)
+    {
+        w.Put("Pawn", v.Pawn, o);
+        w.WriteBoolean("Active", v.Active);
+        w.WriteBoolean("Missing", v.Missing);
+        w.WriteBoolean("MentalRisk", v.MentalRisk);
+        w.Put("Causes", v.Causes, o);
+        if (v.Provision.Count > 0)
+        {
+            w.Put("Provision", v.Provision, o);
+        }
+        if (v.Unowned.Count > 0)
+        {
+            w.Put("Unowned", v.Unowned, o);
+        }
+    }
+}
+
+public sealed class MoodConverter : ObjectCodec<Mood>
+{
+    protected override Mood Read(JsonElement e, Codecs o) => new() { States = e.GetOr("States", default(EquatableArray<ReviewMoodState>), o) };
+
+    protected override void WriteFields(Utf8JsonWriter w, Mood v, Codecs o) => w.Put("States", v.States, o);
+}
+
+public sealed class MoodMethodConverter : ObjectCodec<MoodMethod>
+{
+    protected override MoodMethod Read(JsonElement e, Codecs o) =>
+        new()
+        {
+            Pawn = new PawnId(e.Str("Pawn")),
+            Need = e.Get<MoodNeed>("Need", o),
+            Reason = e.Get<MoodMethodReason>("Reason", o),
+            Concern = e.GetOr("Concern", default(FilingKey), o),
+            Thought = e.StrOr("Thought"),
+            Target = e.Dbl("Target"),
+            NeedBenefit = e.Dbl("NeedBenefit"),
+        };
+
+    protected override void WriteFields(Utf8JsonWriter w, MoodMethod v, Codecs o)
+    {
+        w.WriteString("Pawn", v.Pawn.Value);
+        w.Put("Need", v.Need, o);
+        w.Put("Reason", v.Reason, o);
+        if (v.Concern.Value.Length != 0)
+        {
+            w.Put("Concern", v.Concern, o);
+        }
+        if (v.Thought.Length != 0)
+        {
+            w.WriteString("Thought", v.Thought);
+        }
+        w.WriteNum("Target", v.Target);
+        w.WriteNum("NeedBenefit", v.NeedBenefit);
+    }
+}
+
+public sealed class CombatConverter : ObjectCodec<ReviewCombat>
+{
+    protected override ReviewCombat Read(JsonElement e, Codecs o) =>
+        new(e.Get<Situation>("Situation", o), e.Get<EquatableArray<PawnId>>("Prey", o), e.Get<EquatableArray<PawnId>>("Hunters", o));
+
+    protected override void WriteFields(Utf8JsonWriter w, ReviewCombat v, Codecs o)
+    {
+        w.Put("Situation", v.Situation, o);
+        w.Put("Prey", v.Prey, o);
+        w.Put("Hunters", v.Hunters, o);
+    }
+}
+
+public sealed class WallCellConverter : ObjectCodec<WallCell>
+{
+    protected override WallCell Read(JsonElement e, Codecs o) => new(e.Get<Cell>("Cell", o), e.BoolOr("Standing"));
+
+    protected override void WriteFields(Utf8JsonWriter w, WallCell v, Codecs o)
+    {
+        w.Put("Cell", v.Cell, o);
+        if (v.Standing)
+        {
+            w.WriteBoolean("Standing", true);
+        }
+    }
+}

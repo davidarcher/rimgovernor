@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -17,25 +16,25 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>A held or capturable entity joined to its actual holding building; native observations retain their canonical owners.</summary>
 public sealed record ContainedEntity
 {
-    public required O.PawnState Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PawnState Observed { get; init; }
 
-    public O.BuildingState? Platform { get; init; }
+    public RimGovernor.Brain.GameFacts.Observations.BuildingState? Platform { get; init; }
 
-    private O.PawnAnomaly Anomaly => Observed.Anomaly is O.PawnAnomalyState.Active active
+    private RimGovernor.Brain.GameFacts.Observations.PawnAnomaly Anomaly => Observed.Anomaly is RimGovernor.Brain.GameFacts.Observations.PawnAnomalyState.Active active
         ? active.Facts : throw new RequiredFactException("contained entity anomaly facts");
 
     public string Id => Observed.Pawn.Id;
 
     public double Need => Anomaly.MinContainmentStrength;
 
-    public O.EntityEscapeState Escape => Anomaly.Held?.Escape ?? throw new RequiredFactException("contained entity held facts");
+    public RimGovernor.Brain.GameFacts.Observations.EntityEscapeState Escape => Anomaly.Held?.Escape ?? throw new RequiredFactException("contained entity held facts");
 
-    public O.StudyYieldState? Study => Anomaly.Study?.Yield;
+    public RimGovernor.Brain.GameFacts.Observations.StudyYieldState? Study => Anomaly.Study?.Yield;
 
     public double PlatformStrength => Platform?.Anomaly?.Holder.ContainmentStrength
         ?? throw new RequiredFactException("contained entity platform strength");
 
-    public Cell PlatformCell => Platform?.Building.Place is O.EntityPlace.OnMap onMap ? onMap.Cell
+    public Cell PlatformCell => Platform?.Building.Place is RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap onMap ? onMap.Cell
         : throw new RequiredFactException("contained entity platform cell");
 }
 

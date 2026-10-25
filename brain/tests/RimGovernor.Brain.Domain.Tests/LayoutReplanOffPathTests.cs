@@ -1,5 +1,5 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -18,7 +18,7 @@ public sealed class LayoutReplanOffPathTests
     {
         var catalog = new DefinitionCatalog([new Verse.ThingDef { defName = "Silver" }, new Verse.TerrainDef { defName = "Soil" }], DefStatTable.Empty, new CatalogDerived("Silver", "Wort", 10f));
 
-        var run = Rounder.RunLayoutReplan(new LayoutPlan(), new StationFacts { Catalog = new StationCatalog { PlayBuildings = [] } }, new MapSurvey(), catalog, [], new RoomGrowth());
+        var run = ColonyReview.RunLayoutReplan(new LayoutPlan(), new StationFacts { Catalog = new StationCatalog { PlayBuildings = [] } }, new MapSurvey(), catalog, [], new RoomGrowth());
 
         Assert.False(run.Advised);
         Assert.Equal(RimGovernor.Brain.Telemetry.RequiredFactTelemetry.Kind, run.StationRow.Kind);
@@ -37,12 +37,12 @@ public sealed class LayoutReplanOffPathTests
         var pending = new PendingLayoutReplan(World, new Tick(120), held, ColonyFactsCoreTests.Reading(), new MapSurvey(), null!, new RoomGrowth(), 3, "", "terrain", [], new PerimeterWall(new WallStrength.Unrated(), new WallStrength.Unrated()), [],
             Task.FromResult(new LayoutReplanRun { StationRow = new RimGovernor.Brain.Telemetry.Decision { Kind = RimGovernor.Brain.Telemetry.TelemetryKinds.LayoutStationsKind } }));
 
-        Assert.True(Rounder.LayoutReplanAdoptable(pending, World, new Tick(130), held, true));
-        Assert.True(Rounder.LayoutReplanAdoptable(pending, World with { Revision = new(2), Native = new(3) }, new Tick(130), held, true));
-        Assert.False(Rounder.LayoutReplanAdoptable(pending, World with { Load = new("reloaded") }, new Tick(130), held, true));
-        Assert.False(Rounder.LayoutReplanAdoptable(pending, World, new Tick(130), held with { Tick = new Tick(125) }, true));
-        Assert.False(Rounder.LayoutReplanAdoptable(pending, World, new Tick(110), held, true));
-        Assert.False(Rounder.LayoutReplanAdoptable(pending, World, new Tick(130), held, false));
+        Assert.True(ColonyReview.LayoutReplanAdoptable(pending, World, new Tick(130), held, true));
+        Assert.True(ColonyReview.LayoutReplanAdoptable(pending, World with { Revision = new(2), Native = new(3) }, new Tick(130), held, true));
+        Assert.False(ColonyReview.LayoutReplanAdoptable(pending, World with { Load = new("reloaded") }, new Tick(130), held, true));
+        Assert.False(ColonyReview.LayoutReplanAdoptable(pending, World, new Tick(130), held with { Tick = new Tick(125) }, true));
+        Assert.False(ColonyReview.LayoutReplanAdoptable(pending, World, new Tick(110), held, true));
+        Assert.False(ColonyReview.LayoutReplanAdoptable(pending, World, new Tick(130), held, false));
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public sealed class LayoutReplanOffPathTests
         // The shell admitted in the review that started the run (#3537): room 5 is in flight now and the run held only
         // the rooms it had fixed, in flight, slept in or in use. Without a census every room was held.
         var growth = new RoomGrowth { Fixed = [1], InFlight = [2], Slept = [3], InUse = [4] };
-        Assert.Equal([5], Rounder.NewlyHeldRooms(growth, [5, 4, 3, 2, 1]));
-        Assert.Empty(Rounder.NewlyHeldRooms(growth with { Fixed = null }, [5]));
+        Assert.Equal([5], ColonyReview.NewlyHeldRooms(growth, [5, 4, 3, 2, 1]));
+        Assert.Empty(ColonyReview.NewlyHeldRooms(growth with { Fixed = null }, [5]));
     }
 }

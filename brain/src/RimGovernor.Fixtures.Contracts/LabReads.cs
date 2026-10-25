@@ -299,7 +299,7 @@ public sealed record DeadMansWorn
 }
 
 /// <summary>
-/// The payload of the production <c>rimgovernor/acceptance_read_capture_profile</c> read (snake-case spans, as the
+/// The payload of the production <c>acceptance_read_capture_profile</c> read (snake-case spans, as the
 /// native profile writes them).
 /// </summary>
 public sealed record CaptureProfileRead

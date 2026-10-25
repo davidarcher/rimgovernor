@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Policy;
-using O = RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -13,7 +12,7 @@ public sealed class SeasonalFoodThresholdTests
     private const double NonGrowing = 20;
 
 
-    private static readonly O.FoodClimate LastGrowingDay = new()
+    private static readonly RimGovernor.Brain.GameFacts.Observations.FoodClimate LastGrowingDay = new()
     {
         GrowingYear = EquatableArray.From(Enumerable.Range(0, CalendarRules.YearDays).Select(day => day == 0 || day > 20)),
         SowingNow = true,
@@ -25,7 +24,7 @@ public sealed class SeasonalFoodThresholdTests
         NonGrowingDays = NonGrowing,
     };
 
-    private static RoundsPolicy Seasonal(O.FoodClimate calendar) => RoundsRules.DefaultRoundsPolicy().Seasonal(calendar, default(EquatableArray<DisasterCondition>));
+    private static PlannerSettings Seasonal(RimGovernor.Brain.GameFacts.Observations.FoodClimate calendar) => Rules.DefaultPlannerSettings().Seasonal(calendar, default(EquatableArray<DisasterCondition>));
 
     [Fact]
     public void ThresholdsDoNotJumpAtTheFrost()
@@ -41,7 +40,7 @@ public sealed class SeasonalFoodThresholdTests
 
         Assert.Equal(before.FoodMinDays, after.FoodMinDays, 9);
         Assert.Equal(before.FoodTargetDays, after.FoodTargetDays, 9);
-        Assert.True(after.FoodMinDays > RoundsRules.DefaultRoundsPolicy().FoodMinDays);
+        Assert.True(after.FoodMinDays > Rules.DefaultPlannerSettings().FoodMinDays);
     }
 
     [Fact]

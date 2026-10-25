@@ -24,7 +24,7 @@ public sealed record LightTerrains
 /// <summary>A held native cell, retaining its published grid and exact row index without copying observations.</summary>
 public sealed record SiteCell
 {
-    public SiteCell(RimGovernor.Contracts.Wire.Mirror.CellGrid native, int index)
+    public SiteCell(RimGovernor.Brain.GameFacts.Mirror.CellGrid native, int index)
     {
         ArgumentNullException.ThrowIfNull(native);
         if (native.Width < 1 || native.Height < 1 || index < 0 || (long)index >= (long)native.Width * native.Height || index >= native.Held.Length)
@@ -39,7 +39,7 @@ public sealed record SiteCell
         Index = index;
     }
 
-    public RimGovernor.Contracts.Wire.Mirror.CellGrid Native { get; }
+    public RimGovernor.Brain.GameFacts.Mirror.CellGrid Native { get; }
 
     public int Index { get; }
 

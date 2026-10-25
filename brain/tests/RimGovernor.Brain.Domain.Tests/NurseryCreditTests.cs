@@ -1,5 +1,6 @@
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -208,7 +209,7 @@ public sealed class NurseryCreditTests
     public void TheCoupledContextCarriesTheBabyFitsTheRoundsRead()
     {
         // The production path (#3822): GenerateCoupledActivities builds the context from the review's facts; the babies, their
-        // fits and who hears them ride on the needs read (NeedsForecastRead.Babies), which RoundsRead fills.
+        // fits and who hears them ride on the needs read (NeedsForecastRead.Babies), which Read fills.
         var review = ForecastCoupledTests.ConstructionReview();
         var needs = review.ForecastObserved.Needs!;
         var hearer = needs.Pawns[0].Pawn;

@@ -2,19 +2,27 @@
   "version": 2,
   "dependencies": {
     "net10.0": {
-      "rimgovernor.brain.bridge.contracts": {
+      "rimgovernor.brain.gameaccess": {
         "type": "Project",
         "dependencies": {
-          "RimGovernor.Brain.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.GameFacts": "[1.0.0, )",
+          "RimGovernor.Brain.GameOrders": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )",
           "RimGovernor.Brain.Policy": "[1.0.0, )",
           "RimGovernor.Brain.Telemetry": "[1.0.0, )"
         }
       },
-      "rimgovernor.brain.contracts": {
+      "rimgovernor.brain.gamefacts": {
         "type": "Project",
         "dependencies": {
           "RimGovernor.Brain.Domain": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.gameorders": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.GameFacts": "[1.0.0, )"
         }
       },
       "rimgovernor.brain.domain": {
@@ -23,7 +31,8 @@
       "rimgovernor.brain.policy": {
         "type": "Project",
         "dependencies": {
-          "RimGovernor.Brain.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.GameFacts": "[1.0.0, )",
+          "RimGovernor.Brain.GameOrders": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )"
         }
       },

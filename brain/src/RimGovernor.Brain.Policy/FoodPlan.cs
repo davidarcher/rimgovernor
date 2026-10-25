@@ -103,7 +103,7 @@ public sealed record FoodPlan
 /// </summary>
 public sealed record FoodField
 {
-    public required RimGovernor.Contracts.Wire.Observations.ZoneState.Growing Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.ZoneState.Growing Observed { get; init; }
     public string Id => Observed.Id;
 
     public FieldPlan Plan { get; init; } = new();
@@ -377,7 +377,7 @@ public static class FoodPlanRules
     /// across the calendar, so growth that outlasts the growing days left waits out the non-growing stretch. A
     /// crop is sown only while it grows, so the walk starts at the current temperature factor 1.
     /// </summary>
-    public static double NewFieldLeadDays(double growDays,RimGovernor.Contracts.Wire.Observations.FoodClimate calendar)
+    public static double NewFieldLeadDays(double growDays,RimGovernor.Brain.GameFacts.Observations.FoodClimate calendar)
     {
         var days = growDays;
         var c = calendar;

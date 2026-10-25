@@ -145,7 +145,7 @@ public static class ConstructionDemandRules
     }
 
     /// <summary>ConstructionDemand over a review's facts.</summary>
-    public static Dictionary<Resource, long> ConstructionDemandOf(RoundsFacts f, RoundsPolicy p, RoundsLatches l) =>
+    public static Dictionary<Resource, long> ConstructionDemandOf(ReviewFacts f, PlannerSettings p, Latches l) =>
         ConstructionDemand(new ConstructionDemandInput
         {
             Stock = new StockReader(f.ObservedStock(), f.WoodStock()),

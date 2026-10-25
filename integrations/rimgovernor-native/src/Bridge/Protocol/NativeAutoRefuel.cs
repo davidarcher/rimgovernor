@@ -2,11 +2,8 @@ using System;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // BuildingPatchIntent's auto_refuel arm: the game's auto-refuel
     // toggle (CompRefuelable.allowAutoRefuel) on one exact player building
@@ -16,31 +13,31 @@ namespace HomeBridge.BridgeTools
     internal static class NativeAutoRefuel
     {
         internal static CompRefuelable? Comp(Thing thing) =>
-            thing is Building building && !building.Destroyed && building.Spawned && ProtoBoundary.IsLoaded(building.Map)
+            thing is Building building && !building.Destroyed && building.Spawned && GameThread.IsLoaded(building.Map)
                 && building.Faction == Faction.OfPlayerSilentFail && building.TryGetComp<CompRefuelable>() is CompRefuelable comp
                 && comp.Props.showAllowAutoRefuelToggle ? comp : null;
 
-        private static Common.Failure? Resolve(Operations.BuildingPatchIntent intent, Common.ObservationContext context, out Thing? thing)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Thing? thing)
         {
             thing = null;
-            if (!ProtoBoundary.IsIdentifier(intent.ThingId)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An auto-refuel switch requires an exact building.");
-            thing = RefIndex.Thing(ProtoBoundary.LoadedMap(context), intent.ThingId);
-            if (thing == null || Comp(thing) == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact player building with an auto-refuel toggle is unavailable.");
+            if (!GameThread.IsIdentifier(intent.ThingId)) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "An auto-refuel switch requires an exact building.");
+            thing = RefIndex.Thing(GameThread.LoadedMap(context), intent.ThingId);
+            if (thing == null || Comp(thing) == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact player building with an auto-refuel toggle is unavailable.");
             return null;
         }
 
-        internal static Common.Failure? Validate(Operations.BuildingPatchIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Resolve(intent, context, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.BuildingPatchIntent intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var thing);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
             var comp = (Comp((thing ?? throw new System.InvalidOperationException("Required native value is unavailable: thing."))) ?? throw new System.InvalidOperationException("Required native value is unavailable: Comp((thing ?? throw new System.InvalidOperationException(\"Required native value is unavailable: thing.\")))."));
-            if (intent.Change is not Operations.BuildingPatchIntentChange.AutoRefuelCase { Value: var wanted }) throw new InvalidOperationException("Auto-refuel setting missing");
+            if (intent.Change is not RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.AutoRefuelCase { Value: var wanted }) throw new InvalidOperationException("Auto-refuel setting missing");
             comp.allowAutoRefuel = wanted;
             if (comp.allowAutoRefuel != wanted) throw new InvalidOperationException("Native auto-refuel requires readback.");
-            return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
-                Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.AutoRefuel, Outcome = Receipts.FieldOutcome.Applied }] } };
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.SettingsEffect {
+                Fields = [new RimGovernor.Brain.GameFacts.Receipts.FieldResult { Field = RimGovernor.Brain.GameFacts.Receipts.SettingsField.AutoRefuel, Outcome = RimGovernor.Brain.GameFacts.Receipts.FieldOutcome.Applied }] } };
         }
     }
 }

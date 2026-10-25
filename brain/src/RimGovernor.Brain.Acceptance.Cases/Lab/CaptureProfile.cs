@@ -6,14 +6,14 @@ using Fx = RimGovernor.Fixtures.Contracts;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>lab/capture-profile-250</c>: the read-only <c>rimgovernor/acceptance_read_capture_profile</c> tool times and counts
+/// <c>lab/capture-profile-250</c>: the read-only <c>acceptance_read_capture_profile</c> tool times and counts
 /// the managed allocation of the snapshot frame capture, its sections, the cell grid read, each game API the grid read
 /// calls over the whole map and the brain's grid reads. Wall time is load-sensitive and only reported; allocated bytes are
 /// not, so the case holds ceilings on them. A unit test cannot run the game's map APIs.
 /// </summary>
 internal static class LabCaptureProfile
 {
-    private const string Tool = "rimgovernor/acceptance_read_capture_profile";
+    private const string Tool = "acceptance_read_capture_profile";
 
     // Median allocated bytes per span on the 250x250 debug start, set well above what the forecast's id-index read
     // allocates (capture 15.9 MB, food 0.26 MB, needs 0.37 MB) and well below the per-thing load-id scans it replaced

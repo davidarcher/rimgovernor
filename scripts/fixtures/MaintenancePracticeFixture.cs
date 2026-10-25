@@ -11,7 +11,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 using Fx = RimGovernor.Fixtures.Contracts;
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 public sealed class MaintenancePracticeFixture
 {
@@ -25,7 +25,7 @@ public sealed class MaintenancePracticeFixture
     private static Map? map;
 
     [Tool("test/maintenance_prepare", Description="UNSAFE FOR MODEL EXECUTION. Prepare an actual assigned native combat role just below its minimum. Vanilla unassigns such a pawn on the next precept tick, so the fixture suppresses that revalidation for its own role, with practice facilities and no selected activity. Test builds only.")]
-    public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken ct, bool melee = false)
+    public async Task<object> Prepare(INativeContext ctx, CancellationToken ct, bool melee = false)
     {
         var center = await ctx.MainThread.InvokeAsync(() => Find.CurrentMap.Center, ct);
         if (melee) await new SparringFixture().Prepare(ctx, ct, center.x, center.z, 2, levels: "5,5", markers: 2, far: 2);
@@ -93,7 +93,7 @@ public sealed class MaintenancePracticeFixture
         if (drafted && holder.equipment.Primary?.def.defName == realWeapon) restored = true;
     }
     [Tool("test/maintenance_read", Description="Read normal planner Method attribution, actual capability and weapon restoration. Test builds only.")]
-    public async Task<object> Read(IRimBridgeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() =>
+    public async Task<object> Read(INativeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() =>
     {
         if (holder == null) throw new InvalidOperationException("Prepare first.");
         if (drafted && holder.equipment.Primary?.def.defName == realWeapon) restored = true;
@@ -104,7 +104,7 @@ public sealed class MaintenancePracticeFixture
         });
     }, ct);
     [Tool("test/maintenance_disturb", Description="UNSAFE FOR MODEL EXECUTION. Rearm below-floor maintenance and draft during native gear swap. No work is selected. Test builds only.")]
-    public async Task<object> Disturb(IRimBridgeContext ctx, CancellationToken ct, string action) => await ctx.MainThread.InvokeAsync<object>(() =>
+    public async Task<object> Disturb(INativeContext ctx, CancellationToken ct, string action) => await ctx.MainThread.InvokeAsync<object>(() =>
     {
         if (holder == null || role == null) throw new InvalidOperationException("Prepare first.");
         if (action == "interrupt") { SetDeficit(); interrupt = true; }

@@ -6,7 +6,7 @@ Equipment and apparel are their own contracts: the [loadout model](equipment-upk
 the [apparel policy operation](apparel-policy.md) and the [weapon planner](weapon-planner.md).
 
 Upkeep uses the existing ColonyPlan, resource admission and Hands executor.
-`rimgovernor/observations_read_colony_facts` `upkeep` is versioned read-only native evidence, read whole:
+`observations_read_colony_facts` `upkeep` is versioned read-only native evidence, read whole:
 every census list is total and a read native cannot make fails the observation. Only the routes
 section stays nullable (#3782). An item's rot, a bed's quality, a person's royal standing and an
 animal's roping are named states.
@@ -199,7 +199,7 @@ building of the power census (generators, turret barrels) is a `FuelConsumer`; i
 `fuelMultiplier` fuel units per item; `bridge.RefuelBurn`). A comp burning continuously
 (native `CompTick`) burns while switched on and, if `consumeFuelOnlyWhenPowered`, powered;
 it needs the horizon's burn (`ProjectionHorizonDays`) less its tank, in items, as a stock
-level kept in the Rounder's `constructionMemory`. A barrel already empty has runway zero
+level kept in the ColonyReview's `constructionMemory`. A barrel already empty has runway zero
 whatever its rate and needs its refill to target. A comp that burns per use
 (`consumeFuelOnlyWhenUsed`, a turret per shot) holding fuel has no daily rate: it is
 listed in `FuelProjection.Gaps`. Any consumer whose fuel level, burn, gate or fuel item is
@@ -374,7 +374,7 @@ recipes are blockers. Patient care, drug policies and player bills are preserved
 designations and bill receipts never prove replenishment.
 
 Medicine is also a resource runway: the herbal definition is forecast with a zero
-reserve beside the configured resource targets (`RoundsPolicy.RunwayReserves`), its rate
+reserve beside the configured resource targets (`PlannerSettings.RunwayReserves`), its rate
 the observed `medicine_tend` spend over the 15-day window. Below five days of runway
 the resource ladder is asked for five days of use; an unread rate or stock leaves the
 runway unknown, and a quiet colony demands nothing. There is no per-colonist production
@@ -413,7 +413,7 @@ proportion to consumption) offsets it, and the unheld edible stock every animal 
 group can eat covers the rest for a runway of days against `ProjectionHorizonDays`. A
 shorter runway demands the items the missing nutrition takes (the stock's lowest-defName
 item, else the cheapest `FeedItems` a bench makes) as a `economy/resource` stock level,
-merged into the Rounder's construction memory like the fuel needs; kibble and hay are made
+merged into the ColonyReview's construction memory like the fuel needs; kibble and hay are made
 on any bench and the old bench-reachability and delivery-fallback constraints are gone.
 Missing animals, pens, stock or forecast leave the projection unknown, never defaulted.
 `HerdFeedShort`, which gates taming, is

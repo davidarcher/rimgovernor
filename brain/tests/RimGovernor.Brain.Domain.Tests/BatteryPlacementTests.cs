@@ -1,7 +1,7 @@
 using RimGovernor.Brain.Facts;
 using System.Reflection;
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -27,7 +27,7 @@ public sealed class BatteryPlacementTests
 
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
-            if (targetMethod?.Name != nameof(IRoundsBuildingSource.PreviewBuildingAsync))
+            if (targetMethod?.Name != nameof(IReviewBuildingSource.PreviewBuildingAsync))
             {
                 throw new NotSupportedException(targetMethod?.Name + " is outside the battery rig");
             }
@@ -91,8 +91,8 @@ public sealed class BatteryPlacementTests
                 }
             }
         };
-        var native = DispatchProxy.Create<IRoundsBuildingSource, Native>();
-        var planner = new RoundsBuildingPlanner
+        var native = DispatchProxy.Create<IReviewBuildingSource, Native>();
+        var planner = new BuildingPlanner
         {
             Native = native,
             Concern = PowerFamily.Basic.FilingKey,
@@ -127,8 +127,8 @@ public sealed class BatteryPlacementTests
         }
         var battery = PowerBuildingFixtures.Trader("battery", PowerRules.BatteryDefinition, new(8, 8), 0, 0, true) with
         {
-            Service = BuildingServiceWire.NoService with { Power = new RimGovernor.Contracts.Wire.Observations.BuildingPower.Battery { Network = "net", StorageWD = 600 } },
-            Occupied = new RimGovernor.Contracts.Wire.Observations.Rectangle { Minimum = new() { X = 8, Z = 8 }, Maximum = new() { X = 8, Z = 9 } },
+            Service = BuildingServiceWire.NoService with { Power = new RimGovernor.Brain.GameFacts.Observations.BuildingPower.Battery { Network = "net", StorageWD = 600 } },
+            Occupied = new RimGovernor.Brain.GameFacts.Observations.Rectangle { Minimum = new() { X = 8, Z = 8 }, Maximum = new() { X = 8, Z = 9 } },
             RainVulnerable = true, Roofed = false,
         };
         var topology = new PowerTopology { Buildings = [battery], Blackout = false, Eclipse = false };

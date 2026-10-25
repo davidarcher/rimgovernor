@@ -1,5 +1,3 @@
-using D = RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
 using Amount = RimGovernor.Brain.Policy.Amount;
@@ -48,8 +46,8 @@ public sealed class GearStuffChoiceTests
     [Fact]
     public void AHuntableAnimalArrivesAtItsHuntLead()
     {
-        var deer = new AcquisitionSource { Observed = new() { Source = new() { Id = "deer" }, Token = "deer", Resource = "Meat_Deer", Yield = 1, Designation = new O.AcquisitionDesignation.Open(), Taken = false, Kind = new O.AcquisitionKind.Hunt(82, 1, false, false, false, false) },
-        Entity = new() { Id = "deer", DefName = "Deer", Label = "Deer", Place = new O.EntityPlace.OnMap(1, new Cell(0, 0)) }, Products = [new SourceProduct(Leather, 30)] };
+        var deer = new AcquisitionSource { Observed = new() { Source = new() { Id = "deer" }, Token = "deer", Resource = "Meat_Deer", Yield = 1, Designation = new RimGovernor.Brain.GameFacts.Observations.AcquisitionDesignation.Open(), Taken = false, Kind = new RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Hunt(82, 1, false, false, false, false) },
+        Entity = new() { Id = "deer", DefName = "Deer", Label = "Deer", Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(1, new Cell(0, 0)) }, Products = [new SourceProduct(Leather, 30)] };
         var hunt = ClothingDemandRules.HuntYieldCandidate(deer);
         Assert.Equal(new CandidateLead.Days(0), hunt!.Lead);
         Assert.Equal(new GearArrival.InDays(0), Arrival(new(), hunt, ClothingDemandRules.HuntYieldCandidate(deer with { Observed = deer.Observed with { Source = new() { Id = "doe" }, Token = "doe" }, Entity = deer.Entity with { Id = "doe" } })).Of(Shirt(Leather.Value, .1)));
@@ -57,8 +55,8 @@ public sealed class GearStuffChoiceTests
         Assert.IsType<GearArrival.NoKnownDay>(Arrival(new(), hunt).Of(Shirt(Leather.Value, .1)));
         var cotton = new AcquisitionSource
         {
-            Observed = new() { Source = new() { Id = "cotton" }, Token = "cotton", Resource = "Cloth", Yield = 10, Designation = new O.AcquisitionDesignation.Open(), Taken = false, Kind = new O.AcquisitionKind.Plant(false, 1, false) },
-            Entity = new() { Id = "cotton", DefName = "Plant_Cotton", Label = "cotton", Place = new O.EntityPlace.OnMap(1, new Cell(0, 0)) },
+            Observed = new() { Source = new() { Id = "cotton" }, Token = "cotton", Resource = "Cloth", Yield = 10, Designation = new RimGovernor.Brain.GameFacts.Observations.AcquisitionDesignation.Open(), Taken = false, Kind = new RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Plant(false, 1, false) },
+            Entity = new() { Id = "cotton", DefName = "Plant_Cotton", Label = "cotton", Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(1, new Cell(0, 0)) },
             Products = [new SourceProduct(Cloth, 10)],
         };
         Assert.Null(ClothingDemandRules.HuntYieldCandidate(cotton));

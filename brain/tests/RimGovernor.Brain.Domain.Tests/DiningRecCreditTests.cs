@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -176,7 +177,7 @@ public sealed class DiningRecCreditTests
     {
         // The production path (#3822): GenerateCoupledActivities builds the context from the review's facts, the planned rooms
         // predicted as native predicts every priced room furnished, each colonist's room memory rows as native reads them and its
-        // thoughts as RoundsMood reads them (none held yet).
+        // thoughts as Mood reads them (none held yet).
         var dining = new PlannedRoom { Id = 2, Role = PlannedRole.Dining, Region = RegionRules.RectRegion(new() { X = 10, Z = 0, Width = 5, Height = 5 }) };
         var rec = new PlannedRoom { Id = 3, Role = PlannedRole.Rec, Region = RegionRules.RectRegion(new() { X = 20, Z = 0, Width = 5, Height = 5 }) };
         var review = ForecastCoupledTests.ConstructionReview();

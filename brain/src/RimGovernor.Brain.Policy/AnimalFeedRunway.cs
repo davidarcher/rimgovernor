@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 // Animal feed runway. Each race group of the kept herd eats NutritionPerDay (the food forecast's per-animal
 // rate); the pasture of the pens feeds part of it and the unheld stock every animal of the group can eat the
 // rest. The runway is that stock over the net daily consumption, against MaintenanceHorizonDays. The shortfall is
-// a forward-projector domain and the feed to stock ahead of it is an economy/resource level in the Rounder's
+// a forward-projector domain and the feed to stock ahead of it is an economy/resource level in the ColonyReview's
 // construction memory, like FuelRunway. Missing required consumption, pasture, stock or feed facts refuse the calculation.
 //
 // Herd growth from known events is in it: a pregnant animal adds the catalog's mean litter, eating as a newborn
@@ -51,9 +51,9 @@ public sealed record AnimalFeedRunway
 public static class AnimalFeedRunwayExtensions
 {
     /// <summary>PlanAnimalFeedRunway from the review's complete food census and kept herd.</summary>
-    public static AnimalFeedRunway AnimalFeedRunway(this RoundsFacts f) => AnimalFeedRunwayRules.PlanAnimalFeedRunway(AnimalFeedInputsOf(f));
+    public static AnimalFeedRunway AnimalFeedRunway(this ReviewFacts f) => AnimalFeedRunwayRules.PlanAnimalFeedRunway(AnimalFeedInputsOf(f));
 
-    internal static AnimalFeedInputs AnimalFeedInputsOf(RoundsFacts f)
+    internal static AnimalFeedInputs AnimalFeedInputsOf(ReviewFacts f)
     {
         var u = f.AnimalUpkeep;
         var input = new AnimalFeedInputs

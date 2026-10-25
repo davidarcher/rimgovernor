@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// Facts one gear census reads many times over: a policy's sorted

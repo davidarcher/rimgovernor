@@ -1,6 +1,6 @@
 using System;
 using Verse;
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Persist identity with the save; a load token is deliberately never serialized.
     public sealed class ColonyIdentity : GameComponent

@@ -10,9 +10,8 @@ using Verse;
 using Verse.AI;
 using RimGovernor.Host.Sdk;
 using RimGovernor.Brain.Domain;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The control cases (#3398): a staged producer, helper, crop, meal and bed; Hands executions installed straight into
     // the native execution table; and one native lifecycle probe per case.
@@ -25,11 +24,11 @@ namespace HomeBridge.BridgeTools
         private static readonly MethodInfo Choose = AccessTools.Method(typeof(Pawn_JobTracker), "DetermineNextJob")
             ?? throw new MissingMethodException("Pawn_JobTracker.DetermineNextJob");
 
-        private static Common.ObservationContext Context()
+        private static RimGovernor.Brain.GameFacts.Common.ObservationContext Context()
         {
             var s=NativeControlAuthority.ForGame(Current.Game).Status();
-            return new Common.ObservationContext { NativeGeneration=new RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase(s.Generation), Tick=Find.TickManager.TicksGame,
-                Identity=new Common.Identity { ColonyId=s.Identity!.ColonyId, LoadToken=s.Identity.LoadToken, MapId=s.Identity.MapId } };
+            return new RimGovernor.Brain.GameFacts.Common.ObservationContext { NativeGeneration=new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase(s.Generation), Tick=Find.TickManager.TicksGame,
+                Identity=new RimGovernor.Brain.GameFacts.Common.Identity { ColonyId=s.Identity!.ColonyId, LoadToken=s.Identity.LoadToken, MapId=s.Identity.MapId } };
         }
 
         // Every colonist waits on a long job until an execution takes it.
@@ -38,7 +37,7 @@ namespace HomeBridge.BridgeTools
             foreach (var p in map.mapPawns.FreeColonistsSpawned.ToArray()) p.jobs.StartJob(JobMaker.MakeJob(JobDefOf.Wait,120000),JobCondition.InterruptForced);
         }
 
-        private static void Apply(params PawnActivityOrder[] orders) => NativePawnActivities.Apply(new PawnActivities(((RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase)Context().NativeGeneration).Value, orders), Context());
+        private static void Apply(params PawnActivityOrder[] orders) => NativePawnActivities.Apply(new PawnActivities(((RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase)Context().NativeGeneration).Value, orders), Context());
 
         // The worker's next revision of its current order, with these steps.
         private static PawnActivityOrder Revised(PawnActivityOrder order, params PawnActivityStep[] steps) =>
@@ -51,7 +50,7 @@ namespace HomeBridge.BridgeTools
         private static PawnActivityStep Hold(long until) => new PawnActivityStep(PawnActivityKind.Hold,"","","",0,until);
 
         [Tool("test/pawn_control_prepare", Description="UNSAFE FOR MODEL EXECUTION. Bind the staged producer, helper, crop, meal and bed; stand every colonist still.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken ct,
+        public async Task<object> Prepare(INativeContext ctx, CancellationToken ct,
             [ToolParameter(Description="The producer's load id.")] string worker = "",
             [ToolParameter(Description="The helper's load id.")] string helper = "",
             [ToolParameter(Description="The ripe crop's load id.")] string crop = "",
@@ -70,7 +69,7 @@ namespace HomeBridge.BridgeTools
         },ct).ConfigureAwait(false);
 
         [Tool("test/pawn_control_install",Description="UNSAFE FOR MODEL EXECUTION. Validate and install the producer's harvest, meal and sleep and the helper's hold; every other colonist's work priorities go off.")]
-        public async Task<object> Install(IRimBridgeContext ctx,CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(()=>
+        public async Task<object> Install(INativeContext ctx,CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(()=>
         {
             var c=Context();
             var harvest=DefDatabase<WorkGiverDef>.AllDefsListForReading.First(d=>d.Worker is WorkGiver_GrowerHarvest).defName;
@@ -80,7 +79,7 @@ namespace HomeBridge.BridgeTools
                 new PawnActivityStep(PawnActivityKind.Sleep,bed!.GetUniqueLoadID(),"","",0,deadline)});
             helperOrder=new PawnActivityOrder(helper!.GetUniqueLoadID(),"helper","food-method",0,1,false,new[]{
                 Hold(deadline)});
-            var batch=new PawnActivities(((RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase)c.NativeGeneration).Value,new[]{workerOrder,helperOrder});
+            var batch=new PawnActivities(((RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase)c.NativeGeneration).Value,new[]{workerOrder,helperOrder});
             var invalid=NativePawnActivities.Validate(batch,c); if(invalid!=null)throw new InvalidOperationException(invalid.Detail);
             // An unassigned colonist runs vanilla work (#3669): the idle colonists must not harvest the staged crop themselves.
             foreach(var p in worker.Map.mapPawns.FreeColonistsSpawned.Where(p=>p!=worker&&p!=helper)) p.workSettings?.DisableAll();
@@ -95,18 +94,18 @@ namespace HomeBridge.BridgeTools
         },ct).ConfigureAwait(false);
 
         [Tool("test/pawn_control_read",Description="UNSAFE FOR MODEL EXECUTION. Read the producer's execution, job and needs, and whether the crop is harvested.")]
-        public async Task<object> Read(IRimBridgeContext ctx,CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(()=>FixtureKit.Reply(new Fx.ControlRead {
+        public async Task<object> Read(INativeContext ctx,CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(()=>FixtureKit.Reply(new Fx.ControlRead {
             Worker=Execution(NativePawnActivities.Read(worker!)),
             Job=worker!.CurJob?.def.defName, Food=worker.needs.food.CurLevelPercentage, Rest=worker.needs.rest.CurLevelPercentage,
             CropHarvested=((Plant)crop!).Growth<1 || crop.Destroyed,
             Forced=worker.CurJob?.playerForced==true,
         }),ct).ConfigureAwait(false);
 
-        internal static Fx.ActivityExecution? Execution(RimGovernor.Contracts.Wire.Operations.PawnActivityExecution? e) =>
+        internal static Fx.ActivityExecution? Execution(RimGovernor.Brain.GameFacts.Operations.PawnActivityExecution? e) =>
             e == null ? null : new Fx.ActivityExecution { State=e.State, Reason=e.Reason, Revision=e.Revision };
 
         [Tool("test/pawn_control_loaded",Description="UNSAFE FOR MODEL EXECUTION. Assert a real reload discarded all old execution ownership.")]
-        public async Task<object> Loaded(IRimBridgeContext ctx,CancellationToken ct)=>await ctx.MainThread.InvokeAsync<object>(()=>
+        public async Task<object> Loaded(INativeContext ctx,CancellationToken ct)=>await ctx.MainThread.InvokeAsync<object>(()=>
         {
             if(Find.CurrentMap.mapPawns.AllPawnsSpawned.Any(NativePawnActivities.Owned) || (worker!=null && NativePawnActivities.Owned(worker)))
                 throw new InvalidOperationException("Load restored activity ownership.");
@@ -114,7 +113,7 @@ namespace HomeBridge.BridgeTools
         },ct).ConfigureAwait(false);
 
         [Tool("test/pawn_control_probe",Description="UNSAFE FOR MODEL EXECUTION. One bounded native lifecycle probe over the installed executions: atomic, deadline, refusal, preemption, release, overrides or player.")]
-        public async Task<object> Probe(IRimBridgeContext ctx,CancellationToken ct,
+        public async Task<object> Probe(INativeContext ctx,CancellationToken ct,
             [ToolParameter(Description="The probe: atomic, deadline, refusal, preemption, release, overrides or player.")] string probe = "")=>await ctx.MainThread.InvokeAsync<object>(()=>
         {
             if(workerOrder==null||helperOrder==null)throw new InvalidOperationException("Install the executions first.");
@@ -137,7 +136,7 @@ namespace HomeBridge.BridgeTools
         {
             var c=Context();
             var original=NativePawnActivities.Read(worker!)!;
-            var invalid=new PawnActivities(((RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase)c.NativeGeneration).Value,new[]{
+            var invalid=new PawnActivities(((RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase)c.NativeGeneration).Value,new[]{
                 Revised(workerOrder!,Hold(deadline)),
                 Revised(helperOrder!,new PawnActivityStep(PawnActivityKind.Eat,"missing","","",1,deadline))});
             if(NativePawnActivities.Validate(invalid,c)==null || NativePawnActivities.Read(worker!)!=original)throw new InvalidOperationException("Invalid batch was not atomic.");
@@ -204,8 +203,8 @@ namespace HomeBridge.BridgeTools
             if (!ReferenceEquals(worker.CurJob, direct)) throw new InvalidOperationException("Released controlled pawn could not start a direct job.");
             Install(Fresh());
             var collidingRelease=release with {ExpectedRevision=1,Revision=2};
-            if(NativePawnActivities.Validate(new PawnActivities(((RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase)Context().NativeGeneration).Value,new[]{collidingRelease}),Context())==null)throw new InvalidOperationException("Release matched revision but ignored changed assignment.");
-            if(NativePawnActivities.Validate(new PawnActivities(((RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase)Context().NativeGeneration).Value,new[]{release}),Context())==null)throw new InvalidOperationException("Old release could erase a newer assignment.");
+            if(NativePawnActivities.Validate(new PawnActivities(((RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase)Context().NativeGeneration).Value,new[]{collidingRelease}),Context())==null)throw new InvalidOperationException("Release matched revision but ignored changed assignment.");
+            if(NativePawnActivities.Validate(new PawnActivities(((RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase)Context().NativeGeneration).Value,new[]{release}),Context())==null)throw new InvalidOperationException("Old release could erase a newer assignment.");
         }
 
         // A fresh assignment for the worker once nothing owns it.

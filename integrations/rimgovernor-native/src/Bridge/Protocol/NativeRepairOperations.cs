@@ -3,11 +3,8 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // GiveJobIntent Repair, the bounded repair response of
     // home-upkeep/repairs: an exact damaged player building, an
@@ -20,33 +17,33 @@ namespace HomeBridge.BridgeTools
     {
         private static bool Running(Pawn pawn, Thing target) => pawn.CurJob != null && pawn.CurJob.def == JobDefOf.Repair && pawn.CurJob.targetA.Thing == target;
 
-        private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Building? building, out WorkGiverJobResult? job)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Pawn? pawn, out Building? building, out WorkGiverJobResult? job)
         {
             pawn = null; building = null; job = null;
             if (!NativeGiveJob.TryPawn(intent, context, out pawn, out var snapshot, out var failure)) return failure;
             if (snapshot.Drafted || !snapshot.Eligible)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Repair requires an eligible undrafted pawn.");
-            var map = ProtoBoundary.LoadedMap(context);
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Repair requires an eligible undrafted pawn.");
+            var map = GameThread.LoadedMap(context);
             building = map.listerBuildings.allBuildingsColonist.ById(intent.TargetId);
             if (building == null || building.Destroyed || !building.Spawned || building.Map != map)
-                return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact spawned player building is unavailable.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact spawned player building is unavailable.");
             if (Running(pawn, building)) return null;
             if (!building.def.useHitPoints || building.HitPoints >= building.MaxHitPoints)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Building is not damaged.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Building is not damaged.");
             if (!pawn.CanReach(building, PathEndMode.Touch, NativeOrderDanger.OrderDanger))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn cannot reach the building.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Pawn cannot reach the building.");
             // WorkGiver_Repair's HasJobOnThing carries the remaining gates (home
             // area, reservation, burning, pending deconstruction/uninstall) and
             // WorkGiverDispatch adds the float-menu capability refusals.
             job = WorkGiverDispatch.TryJob(pawn, building, def => def.giverClass == typeof(WorkGiver_Repair), out var reason);
             if (job == null || job.Job.def != JobDefOf.Repair)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "WorkGiver_Repair refuses this building for this pawn right now" + (string.IsNullOrEmpty(reason) ? "." : ": " + reason));
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "WorkGiver_Repair refuses this building for this pawn right now" + (string.IsNullOrEmpty(reason) ? "." : ": " + reason));
             return null;
         }
 
-        internal static Common.Failure? Validate(JobOrder intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var building, out var result);
             if (failure != null || pawn == null || building == null) throw new InvalidOperationException(failure?.Detail);

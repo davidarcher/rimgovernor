@@ -1,10 +1,8 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Cell = RimGovernor.Brain.Domain.Cell;
-using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Executor;
 
 /// <summary>

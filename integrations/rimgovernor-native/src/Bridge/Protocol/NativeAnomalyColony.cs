@@ -3,9 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Anomaly colony facts: the GameComponent_Anomaly level state and the
     // void monolith it gates. Per-thing facts ride the pawn and building rows
@@ -14,13 +13,13 @@ namespace HomeBridge.BridgeTools
     // read.
     internal static class NativeAnomalyColony
     {
-        internal static Obs.AnomalySection Read()
+        internal static RimGovernor.Brain.GameFacts.Observations.AnomalySection Read()
         {
-            if (!ModsConfig.AnomalyActive) return new Obs.AnomalySection.Inactive();
+            if (!ModsConfig.AnomalyActive) return new RimGovernor.Brain.GameFacts.Observations.AnomalySection.Inactive();
             var anomaly = Find.Anomaly;
-            return new Obs.AnomalySection.Active(new Obs.AnomalyColonyFacts
+            return new RimGovernor.Brain.GameFacts.Observations.AnomalySection.Active(new RimGovernor.Brain.GameFacts.Observations.AnomalyColonyFacts
             {
-                Incidents = new Obs.AnomalyIncidentState { MonolithSpawned = anomaly.MonolithSpawned, Level = anomaly.Level, AmbientHorrorMode = anomaly.AmbientHorrorMode },
+                Incidents = new RimGovernor.Brain.GameFacts.Observations.AnomalyIncidentState { MonolithSpawned = anomaly.MonolithSpawned, Level = anomaly.Level, AmbientHorrorMode = anomaly.AmbientHorrorMode },
                 Monolith = Monolith(anomaly),
             });
         }
@@ -29,7 +28,7 @@ namespace HomeBridge.BridgeTools
         // Every verdict is the game's own: CanActivate, the next level def's
         // requirement, the Gleaming comp's CanInteract and the spawned void
         // things on the monolith's map.
-        private static Obs.MonolithState? Monolith(GameComponent_Anomaly anomaly)
+        private static RimGovernor.Brain.GameFacts.Observations.MonolithState? Monolith(GameComponent_Anomaly anomaly)
         {
             if (!anomaly.MonolithSpawned || anomaly.monolith is not Building_VoidMonolith monolith || monolith.Map is not Map map) return null;
             var next = anomaly.NextLevelDef;
@@ -38,7 +37,7 @@ namespace HomeBridge.BridgeTools
             var node = Find.Maps.SelectMany(m => m.listerThings.ThingsOfDef(ThingDefOf.VoidNode)).OrderBy(t => t.thingIDNumber).FirstOrDefault();
             var nodeComp = node?.TryGetComp<CompVoidNode>();
             var touchable = node != null && nodeComp != null && node.Map != null && nodeComp.CanInteract().Accepted;
-            return new Obs.MonolithState
+            return new RimGovernor.Brain.GameFacts.Observations.MonolithState
             {
                 MonolithId = monolith.GetUniqueLoadID(),
                 CanActivate = monolith.CanActivate(out _, out _),

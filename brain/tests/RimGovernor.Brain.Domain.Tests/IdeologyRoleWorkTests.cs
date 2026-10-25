@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -24,7 +23,7 @@ public sealed class IdeologyRoleWorkTests
         new IdeoligionFacts { Observed = IdeologyReadsTests.NoPrecepts with { IdeoId = Ours, Roles = [IdeologyTestRows.Role("role-1", "Specialist", true, [])] } });
 
     private static WorkPawn Colonist(string id, int crafting, params WorkPriority[] work) => PawnFixtures.Worker(id) with
-    { Work = PawnFixtures.WorkTable(true, EquatableArray.From(work)), Observed = PawnFixtures.Row(id) with { Biography = PawnFixtures.Row(id).Biography with { Skills = [new() { Passion = O.Passion.None, DefName = "Crafting", Level = crafting }] }, Settings = PawnFixtures.Row(id).Settings with { PolicyInputs = PawnFixtures.Inputs(Ours, 0.5) } } };
+    { Work = PawnFixtures.WorkTable(true, EquatableArray.From(work)), Observed = PawnFixtures.Row(id) with { Biography = PawnFixtures.Row(id).Biography with { Skills = [new() { Passion = RimGovernor.Brain.GameFacts.Observations.Passion.None, DefName = "Crafting", Level = crafting }] }, Settings = PawnFixtures.Row(id).Settings with { PolicyInputs = PawnFixtures.Inputs(Ours, 0.5) } } };
 
     private static EquatableArray<WorkPawn> Pawns(params WorkPawn[] rows) => EquatableArray.From(rows);
 
@@ -45,8 +44,8 @@ public sealed class IdeologyRoleWorkTests
     [Fact]
     public void PriorityOneWorkTheRoleDisablesSkipsThePawn()
     {
-        var hauler = Colonist("a", 10, new WorkPriority { Observed = new O.WorkSetting { DefName = "Hauling", Priority = 1, Disabled = false } });
-        var crafter = Colonist("b", 6, new WorkPriority { Observed = new O.WorkSetting { DefName = "Hauling", Priority = 3, Disabled = false } }, new WorkPriority { Observed = new O.WorkSetting { DefName = "Crafting", Priority = 1, Disabled = false } });
+        var hauler = Colonist("a", 10, new WorkPriority { Observed = new RimGovernor.Brain.GameFacts.Observations.WorkSetting { DefName = "Hauling", Priority = 1, Disabled = false } });
+        var crafter = Colonist("b", 6, new WorkPriority { Observed = new RimGovernor.Brain.GameFacts.Observations.WorkSetting { DefName = "Hauling", Priority = 3, Disabled = false } }, new WorkPriority { Observed = new RimGovernor.Brain.GameFacts.Observations.WorkSetting { DefName = "Crafting", Priority = 1, Disabled = false } });
         Assert.Equal(new PawnId("b"), Assigned(IdeologyRolesRules.RoleAssignments(Ideo(), Pawns(hauler, crafter), NoneSelected)));
     }
 

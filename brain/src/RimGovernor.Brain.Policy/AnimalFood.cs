@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy;
 
 
@@ -28,7 +27,7 @@ public abstract record AnimalBreeding
 /// <summary>One animal whose meat the colony eats: the nutrition its live meat yields, what it eats and how often its race renews.</summary>
 public sealed record SlaughterFoodAnimal
 {
-    public required O.FoodSlaughterAnimal Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.FoodSlaughterAnimal Observed { get; init; }
 
     public PawnId ID => new(Observed.PawnId);
 
@@ -57,8 +56,8 @@ public static class AnimalFoodExtensions
         !a.Release && !a.Slaughter && !a.State.Protected() && a.SafeToRelease;
 
     /// <summary>A downed, mentally broken, pregnant, mastered or colonist-bonded animal.</summary>
-    private static bool Protected(this O.AnimalState f) =>
-        f.Downed || f.InMentalState || f.Pregnancy is not O.AnimalPregnancy.NotPregnant || f.MasterId.Length != 0 || f.ColonistBonded;
+    private static bool Protected(this RimGovernor.Brain.GameFacts.Observations.AnimalState f) =>
+        f.Downed || f.InMentalState || f.Pregnancy is not RimGovernor.Brain.GameFacts.Observations.AnimalPregnancy.NotPregnant || f.MasterId.Length != 0 || f.ColonistBonded;
 }
 
 public static class AnimalFoodRules
@@ -142,7 +141,7 @@ public static class AnimalFoodRules
             if (a.Slaughter)
             {
                 pending.Add(a.Id);
-                a = a with { Pawn = a.Pawn with { AnimalState = new O.PawnAnimalState.Animal(a.State with { Slaughter = false, SlaughterDesignatable = true }) } };
+                a = a with { Pawn = a.Pawn with { AnimalState = new RimGovernor.Brain.GameFacts.Observations.PawnAnimalState.Animal(a.State with { Slaughter = false, SlaughterDesignatable = true }) } };
             }
 
             observed.Add(a);

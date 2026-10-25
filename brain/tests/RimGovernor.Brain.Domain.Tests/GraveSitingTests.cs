@@ -1,4 +1,4 @@
-using WasteItem = RimGovernor.Contracts.Wire.Observations.WasteItem;
+using WasteItem = RimGovernor.Brain.GameFacts.Observations.WasteItem;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -104,7 +104,7 @@ public sealed class GraveSitingTests
     [Fact]
     public void WithoutASarcophagusTheDeadOweAGraveAndNoRoom()
     {
-        var corpse = new WasteItem { Thing = new() { Id = "corpse" }, CorpseClass = RimGovernor.Contracts.Wire.Common.CorpseClass.Colonist, Grave = null };
+        var corpse = new WasteItem { Thing = new() { Id = "corpse" }, CorpseClass = RimGovernor.Brain.GameFacts.Common.CorpseClass.Colonist, Grave = null };
         var shapes = new PieceShapes { Furniture = new RoomFurniture { Sarcophagus = "Sarcophagus" } };
         var step = TombRules.NextTombStep(Plan, [corpse], [], shapes, false);
         Assert.Equal(TombStepKind.Grave, step.Kind);

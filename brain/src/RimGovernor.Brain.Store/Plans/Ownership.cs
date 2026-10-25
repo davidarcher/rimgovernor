@@ -52,7 +52,7 @@ public sealed record BuildingMethodDecision(bool Admitted, NeedOwner Owner, IRea
 /// stockpile role key. Role is empty for a legacy role-less claim. <see cref="Owner"/> is the owner's filing key
 /// (decision 20): the owning Need's NeedId.FilingKey.
 /// </summary>
-public sealed record OwnedZone(string Id, ZoneKind Kind, string Crop, EquatableArray<Cell> Cells, string Role, ConcernId Owner, StockpileFilter? Filter, StockpilePriority? Priority);
+public sealed record OwnedZone(string Id, ZoneKind Kind, string Crop, EquatableArray<Cell> Cells, string Role, FilingKey Owner, StockpileFilter? Filter, StockpilePriority? Priority);
 
 /// <summary>The last completed autopilot stockpile_patch on one storage target, as of <see cref="Tick"/>.</summary>
 public sealed record AppliedStockpile(string Target, StorageTargetKind Kind, StockpileFilter Filter, StockpilePriority Priority, string Role, Tick Tick);
@@ -307,7 +307,7 @@ public sealed partial class Store
     internal static EquatableArray<OwnedZone> ZoneClaimsIn(StoreTransaction tx, GenerationSnapshot current, Tick tick)
     {
         var result = new List<OwnedZone>();
-        void Add(PlanId plan, ConcernId owner)
+        void Add(PlanId plan, FilingKey owner)
         {
             foreach (var progress in LoadIn(tx, plan).Progress)
             {

@@ -49,10 +49,10 @@ public sealed class IdeoligionGoalReformTests
 
     private static int? GoalOf(DesignChoice choice) => choice.Serves is ReformServes.Goal goal ? goal.Id : null;
 
-    private static RimGovernor.Contracts.Wire.Observations.IdeoDevelopment Points(int have = 40, int cost = 30, bool fluid = true) =>
-        fluid ? new RimGovernor.Contracts.Wire.Observations.IdeoDevelopment.Fluid(have >= cost, have, 2, cost) : new RimGovernor.Contracts.Wire.Observations.IdeoDevelopment.Fixed();
+    private static RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment Points(int have = 40, int cost = 30, bool fluid = true) =>
+        fluid ? new RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment.Fluid(have >= cost, have, 2, cost) : new RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment.Fixed();
 
-    private static DesignChoice Choose(IdeoligionDesign current, IReadOnlyList<IdeoGoalTarget> targets, RimGovernor.Contracts.Wire.Observations.IdeoDevelopment? development = null, DesignOptions? options = null) =>
+    private static DesignChoice Choose(IdeoligionDesign current, IReadOnlyList<IdeoGoalTarget> targets, RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment? development = null, DesignOptions? options = null) =>
         IdeoligionDesignRules.ChooseIdeoligionReform(options ?? Options(), current, development ?? Points(), true, NoBelievers, targets);
 
     [Fact]
@@ -156,7 +156,7 @@ public sealed class IdeoligionGoalReformTests
         Assert.Equal("development_points:12/30", Assert.Single(new IdeologyFamily().Propose([need], facts)).Hold!.Subject);
     }
 
-    private static GoalsFacts GoalFacts(GoalRecord goal, RimGovernor.Contracts.Wire.Observations.IdeoDevelopment development, DesignChoice? reform, params string[] memes) => new()
+    private static GoalsFacts GoalFacts(GoalRecord goal, RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment development, DesignChoice? reform, params string[] memes) => new()
     {
         Goals = [goal],
         Ideology = new IdeologyMode.Installed(new Ideoligion(

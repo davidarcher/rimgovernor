@@ -7,7 +7,7 @@ using System.Text;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal sealed class PlacementQuery
     {

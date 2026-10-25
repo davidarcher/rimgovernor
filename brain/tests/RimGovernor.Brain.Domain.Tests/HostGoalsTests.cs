@@ -1,4 +1,4 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Host;
 using RimGovernor.Brain.Policy;
@@ -63,13 +63,13 @@ public sealed class HostGoalsTests
     [Fact]
     public void NamedPlannerIsMarkedDueAndAnUnknownNameIsIgnored()
     {
-        var queue = new PlannerQueue { Catalog = () => ClockPlannerCatalog.Entries };
+        var queue = new PlannerQueue { Catalog = () => PlannerCatalog.Entries };
         var before = queue.Seq;
 
         queue.Wake(new StepReason { Cause = StepCause.Wake, Planners = ["no-such-planner"] });
         Assert.Equal(before, queue.Seq);
 
-        queue.Wake(new StepReason { Cause = StepCause.Wake, Planners = [ClockScheduler.DefensePlanner] });
+        queue.Wake(new StepReason { Cause = StepCause.Wake, Planners = [PlannerScheduler.DefensePlanner] });
         Assert.Equal(before + 1, queue.Seq);
     }
 }

@@ -10,7 +10,7 @@ using Verse;
 using Verse.AI;
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 // Private disposable acceptance only: the leg store's invalidation (#3686). On an open 40x40 soil patch a leg runs 30
 // cells east; walls are built off its path, across it and removed again, and a target cell is walled in, left walled in
@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools;
 public sealed partial class PawnControlFixture
 {
     [Tool("test/leg_invalidation", Description = "UNSAFE FOR MODEL EXECUTION. Build and remove walls on an open patch and read a stored path leg after each change, with its search count.")]
-    public async Task<object> LegInvalidation(IRimBridgeContext ctx, CancellationToken ct)
+    public async Task<object> LegInvalidation(INativeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             var map = Find.CurrentMap ?? throw new InvalidOperationException("Load a colony first.");

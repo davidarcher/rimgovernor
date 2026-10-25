@@ -196,13 +196,13 @@ public sealed record BrainHostOptions
     public required BrainComposition Composition { get; init; }
 
     /// <summary>Whether the rounds methods run.</summary>
-    public bool RoundsMethods { get; init; } = true;
+    public bool ReviewMethods { get; init; } = true;
 
     /// <summary>Runs the bot for every fresh observed world without a player click.</summary>
     public bool AutoResume { get; init; }
 
-    /// <summary>The facade to run over; the one the mod published to <see cref="NativeFacadeRegistry"/> when null.</summary>
-    public INativeFacade? Facade { get; init; }
+    /// <summary>The facade to run over; the one the mod published to <see cref="GameApiRegistry"/> when null.</summary>
+    public IGameApi? Facade { get; init; }
 
     /// <summary>
     /// The route table of the HTTP channel to register the player routes on. Null registers none: how the Bridge

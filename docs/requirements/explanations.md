@@ -46,7 +46,7 @@ Evidence E2–E4.
 
 ## Evidence and inspection coverage
 
-- **E1 — Cause changes.** [PlannerReasonLog](../../brain/src/RimGovernor.Brain.BuildingRuntime/Planner/PlannerReasons.cs)
+- **E1 — Cause changes.** [PlannerReasonLog](../../brain/src/RimGovernor.Brain.Runtime/Planner/PlannerScheduler.PlannerReasons.cs)
   retains each need's current cause in memory and emits transitions when it
   changes. First-seen clear needs produce no transition; subject-only changes
   update the standing note without a new transition. Restart begins fresh history.
@@ -66,7 +66,7 @@ the actual player view before judging wording or status completeness; see
 
 ### E3 — From stored cause to player display
 
-[RoundsDiagnostics.RoundsStatusAsync](../../brain/src/RimGovernor.Brain.Host/HostProviders.cs)
+[Diagnostics.ReviewStatusAsync](../../brain/src/RimGovernor.Brain.Host/HostProviders.cs)
 reads stored progress and fact freshness. [ReadProjections.ConcernProgressRow](../../brain/src/RimGovernor.Brain.PlayerApi/ReadProjections.cs)
 projects method, expected work, blocker, subject and review/progress ticks.
 [ObserveService.ViewAsync](../../tools/launcher/Observe.cs) fetches that route and

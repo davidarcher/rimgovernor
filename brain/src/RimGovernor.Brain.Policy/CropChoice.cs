@@ -10,7 +10,7 @@ public sealed class OutdoorsDarkUnknownException()
 
 public sealed record CropClimate
 {
-    public required RimGovernor.Contracts.Wire.Observations.ColonyFactsSnapshot Census { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot Census { get; init; }
 
     public bool Sowing => Census.FoodClimate.SowingNow;
 
@@ -133,7 +133,7 @@ public sealed record FieldRequest
 
     public int Cooks { get; init; }
 
-    public RimGovernor.Contracts.Wire.Observations.FoodClimate Calendar => Climate.Census.FoodClimate;
+    public RimGovernor.Brain.GameFacts.Observations.FoodClimate Calendar => Climate.Census.FoodClimate;
 
     public EquatableArray<DisasterCondition> Conditions { get; init; }
 

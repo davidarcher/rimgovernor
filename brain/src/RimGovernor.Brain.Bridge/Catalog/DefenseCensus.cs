@@ -1,5 +1,4 @@
-using RimGovernor.Brain.Bridge.Contracts;
-using Obs = RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameAccess;
 using Domain = RimGovernor.Brain.Domain;
 using P = RimGovernor.Brain.Policy;
 
@@ -31,7 +30,7 @@ public sealed partial class DefinitionCatalog
     /// a player door stands, and EdgeReachable as a flood over the mirror from the map edge. A cell the mirror does not
     /// hold, or holds without its terrain or walkability, is fogged: unknown. The cells are the projection's own tick.
     /// </summary>
-    public IReadOnlyList<Obs.DefenseCell> DefenseSiteFromCells(IReadOnlyList<P.SiteCell> cells, P.Bounds bounds, CellRect region)
+    public IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.DefenseCell> DefenseSiteFromCells(IReadOnlyList<P.SiteCell> cells, P.Bounds bounds, CellRect region)
     {
         if (bounds.Width < 1 || bounds.Height < 1)
         {
@@ -53,7 +52,7 @@ public sealed partial class DefinitionCatalog
         }
         var census = new CensusReader(this);
         var reach = CensusReader.EdgeReachable(grid, width, height);
-        var rows = new List<Obs.DefenseCell>((int)region.Cells);
+        var rows = new List<RimGovernor.Brain.GameFacts.Observations.DefenseCell>((int)region.Cells);
         for (var z = region.Min.Z; z <= region.Max.Z; z++)
         {
             for (var x = region.Min.X; x <= region.Max.X; x++)
@@ -175,12 +174,12 @@ public sealed partial class DefinitionCatalog
         }
 
         // One census row: fogged when the mirror does not know the cell.
-        public Obs.DefenseCell Cell(P.SiteCell? cell, Domain.Cell at, bool edgeReachable)
+        public RimGovernor.Brain.GameFacts.Observations.DefenseCell Cell(P.SiteCell? cell, Domain.Cell at, bool edgeReachable)
         {
             var view = Read(cell);
             if (!view.Known || cell is null)
             {
-                return new Obs.DefenseCell.Fogged { Cell = at };
+                return new RimGovernor.Brain.GameFacts.Observations.DefenseCell.Fogged { Cell = at };
             }
             P.Thing? edifice = null;
             P.Thing? cover = null;
@@ -197,7 +196,7 @@ public sealed partial class DefinitionCatalog
                 }
             }
             var kind = cover is null ? null : CoverKindOf(cover);
-            return new Obs.DefenseCell.Seen
+            return new RimGovernor.Brain.GameFacts.Observations.DefenseCell.Seen
             {
                 Cell = at,
                 Terrain = cell.Terrain,
@@ -209,7 +208,7 @@ public sealed partial class DefinitionCatalog
                 Roofed = cell.Roofed,
                 Edifice = edifice is null
                     ? null
-                    : new Obs.DefenseEdifice
+                    : new RimGovernor.Brain.GameFacts.Observations.DefenseEdifice
                     {
                         DefName = EdificeName(edifice),
                         Stuff = edifice.Building?.Stuff,
@@ -219,7 +218,7 @@ public sealed partial class DefinitionCatalog
                     },
                 Cover = cover is null || kind is not { } k
                     ? null
-                    : new Obs.DefenseCover { ThingId = ThingLoadId(cover), DefName = EdificeName(cover), Kind = k, Designated = cover.Has(P.ThingMarks.Designated) },
+                    : new RimGovernor.Brain.GameFacts.Observations.DefenseCover { ThingId = ThingLoadId(cover), DefName = EdificeName(cover), Kind = k, Designated = cover.Has(P.ThingMarks.Designated) },
             };
         }
 
@@ -234,21 +233,21 @@ public sealed partial class DefinitionCatalog
             t.Has(P.ThingMarks.Blueprint) ? 0 : t.Has(P.ThingMarks.Frame) ? FrameFill : catalog.FindThing(t.Def)?.fillPercent ?? 0;
 
         // NativeClearCover.KindOf: how the game's designators remove the thing, null for one they cannot (a corpse, filth).
-        private Obs.CoverKind? CoverKindOf(P.Thing t)
+        private RimGovernor.Brain.GameFacts.Observations.CoverKind? CoverKindOf(P.Thing t)
         {
             if (t.Category == P.ThingCategory.Plant)
             {
-                return Obs.CoverKind.Plant;
+                return RimGovernor.Brain.GameFacts.Observations.CoverKind.Plant;
             }
             if (t.Category == P.ThingCategory.Building && (t.Has(P.ThingMarks.NaturalRock) || catalog.FindThing(t.Def)?.mineable == true) && !t.Has(P.ThingMarks.Frame) && !t.Has(P.ThingMarks.Blueprint))
             {
-                return Obs.CoverKind.Mineable;
+                return RimGovernor.Brain.GameFacts.Observations.CoverKind.Mineable;
             }
             if (t.Category == P.ThingCategory.Item)
             {
-                return IsChunk(t.Def) ? Obs.CoverKind.Chunk : null;
+                return IsChunk(t.Def) ? RimGovernor.Brain.GameFacts.Observations.CoverKind.Chunk : null;
             }
-            return t.Category == P.ThingCategory.Building ? Obs.CoverKind.Building : null;
+            return t.Category == P.ThingCategory.Building ? RimGovernor.Brain.GameFacts.Observations.CoverKind.Building : null;
         }
 
         private bool IsChunk(string def)

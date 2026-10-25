@@ -1,7 +1,7 @@
 
 using RimWorld;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>Tick and day conversions through the game's own date constants
     /// (GenDate.TicksPerDay, TicksPerHour), the same values the catalog's

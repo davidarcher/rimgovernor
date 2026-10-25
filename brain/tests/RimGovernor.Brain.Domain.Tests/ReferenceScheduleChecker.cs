@@ -56,7 +56,7 @@ internal static class ReferenceScheduleChecker
                     bad.Add($"worker_unavailable:{step.Worker}:{step.Activity}");
                 double travel;
                 if (origin == task.Location) travel = 0;
-                else if (routes.TryGetValue((step.Worker, origin, task.Location), out var route) && route is RimGovernor.Contracts.Wire.Observations.RouteTicks.Reachable(var ticks)) travel = ticks;
+                else if (routes.TryGetValue((step.Worker, origin, task.Location), out var route) && route is RimGovernor.Brain.GameFacts.Observations.RouteTicks.Reachable(var ticks)) travel = ticks;
                 else { bad.Add($"unreachable_route:{step.Worker}:{origin}:{task.Location}"); travel = double.NaN; }
                 if (!double.IsNaN(travel) && Math.Abs(step.Arrive - (step.Depart + travel)) > Eps) bad.Add($"travel_time:{step.Activity}");
                 if (step.Start < step.Arrive - Eps) bad.Add($"starts_before_arrival:{step.Activity}");

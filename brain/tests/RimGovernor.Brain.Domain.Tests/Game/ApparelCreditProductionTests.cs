@@ -1,12 +1,9 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Policy;
 using RimWorld;
 using Verse;
 using Xunit;
-using C = RimGovernor.Contracts.Wire.Common;
-using D = RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests.Game;
 
@@ -45,20 +42,20 @@ public sealed class ApparelCreditProductionTests
         return new([Cloth, shirt, new TerrainDef { defName = "Soil" }, recipe], table, new CatalogDerived("Cloth", "Wort", 10f));
     }
 
-    private static O.GearLoadoutOption Option(string id, GearSource source, double condition, D.QualityCategory? quality = D.QualityCategory.Normal) =>
+    private static RimGovernor.Brain.GameFacts.Observations.GearLoadoutOption Option(string id, GearSource source, double condition, RimGovernor.Brain.GameFacts.Defs.QualityCategory? quality = RimGovernor.Brain.GameFacts.Defs.QualityCategory.Normal) =>
         GearFixtures.Option(id, ShirtDef, "Cloth", source) with
         {
             Condition = condition,
-            Quality = quality is { } graded ? new O.ItemQuality.Graded(graded) : new O.ItemQuality.Qualityless(),
+            Quality = quality is { } graded ? new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded(graded) : new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Qualityless(),
         };
 
     // A fresh colony's crafter as the native bill row carries it (#3850): a middling Crafting skill, uninspired, no role.
-    private static readonly O.GearCrafter Crafter = new(6, false, 0);
+    private static readonly RimGovernor.Brain.GameFacts.Observations.GearCrafter Crafter = new(6, false, 0);
 
     // The census of one colonist in a tattered shirt (or, with a worn row, that shirt), decoded by the observation read; the shirt
     // bill names its crafters.
-    private static GearObservation Census(bool dressed = true, O.GearLoadoutOption? worn = null, EquatableArray<O.GearCrafter>? crafters = null,
-        O.GearLoadoutOption? bill = null)
+    private static GearObservation Census(bool dressed = true, RimGovernor.Brain.GameFacts.Observations.GearLoadoutOption? worn = null, EquatableArray<RimGovernor.Brain.GameFacts.Observations.GearCrafter>? crafters = null,
+        RimGovernor.Brain.GameFacts.Observations.GearLoadoutOption? bill = null)
     {
         var row = GearFixtures.Loadout("pawn") with
         {
@@ -75,18 +72,18 @@ public sealed class ApparelCreditProductionTests
         };
     }
 
-    private static O.NeedThoughtStage Stage(int stage, double offset) => new("ApparelDamaged", ForecastApparel.Damaged, stage, offset, NeedsFixtures.Lasting((double)GameTime.TicksPerDay, false));
+    private static RimGovernor.Brain.GameFacts.Observations.NeedThoughtStage Stage(int stage, double offset) => new("ApparelDamaged", ForecastApparel.Damaged, stage, offset, NeedsFixtures.Lasting((double)GameTime.TicksPerDay, false));
 
     // The pawn's needs row as the native read writes it, with or without the apparel facts, and the shirt bill the clothing
     // read observes running.
-    private static ForecastCoupledContext Generate(O.NeedApparel? apparel, bool dressed = true, O.GearLoadoutOption? worn = null,
-        EquatableArray<O.GearCrafter>? crafters = null)
+    private static ForecastCoupledContext Generate(RimGovernor.Brain.GameFacts.Observations.NeedApparel? apparel, bool dressed = true, RimGovernor.Brain.GameFacts.Observations.GearLoadoutOption? worn = null,
+        EquatableArray<RimGovernor.Brain.GameFacts.Observations.GearCrafter>? crafters = null)
     {
         var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0);
         var template = facts.ForecastObserved.Needs!.Pawns[0];
-        var clothing = new O.RecipeActivityRead
+        var clothing = new RimGovernor.Brain.GameFacts.Observations.RecipeActivityRead
         {
-            Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
+            Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
             Options = [],
             Retained = [new("running", ShirtDef, "Cloth", 25.0)],
         };
@@ -117,17 +114,17 @@ public sealed class ApparelCreditProductionTests
     public void ARetainedShirtBillOverATatteredShirtShiftsTheWearersBreaksByTheTatteredStage()
     {
         Assert.Single(ClothingActivitiesRules.ClothingActivityRequirements(Census()));
-        var context = Generate(NeedsFixtures.Apparel(D.Gender.Male, true, true));
+        var context = Generate(NeedsFixtures.Apparel(RimGovernor.Brain.GameFacts.Defs.Gender.Male, true, true));
         Assert.Equal([0.05], context.ApparelShifts["pawn"]);
     }
 
     // #3836: the title's unmet-requirement thought, read for every pawn under Royalty (inactive without a requirement).
-    private static readonly O.NeedThoughtStage TitleStage = new("TitleApparelRequirementNotMet", ForecastApparel.TitleApparel, 0, -4, NeedsFixtures.Situational);
+    private static readonly RimGovernor.Brain.GameFacts.Observations.NeedThoughtStage TitleStage = new("TitleApparelRequirementNotMet", ForecastApparel.TitleApparel, 0, -4, NeedsFixtures.Situational);
 
     [Fact]
     public void AnUndressedTitledColonistsRequiredShirtBillShiftsTheirBreaksByTheRequirementThought()
     {
-        var titled = NeedsFixtures.Apparel(D.Gender.Male, true, true) with { Requirements = [new(ForecastApparel.TitleApparel, [ShirtDef])] };
+        var titled = NeedsFixtures.Apparel(RimGovernor.Brain.GameFacts.Defs.Gender.Male, true, true) with { Requirements = [new(ForecastApparel.TitleApparel, [ShirtDef])] };
         Assert.Equal([0.04], Generate(titled, dressed: false).ApparelShifts["pawn"]);
     }
 
@@ -136,7 +133,7 @@ public sealed class ApparelCreditProductionTests
     {
         // A fresh colony's colonist has no title and no role: the native read writes no requirement, and the shirt changes
         // only what the other workers read (a male pawn's torso is no nakedness), so it shifts nothing.
-        var context = Generate(NeedsFixtures.Apparel(D.Gender.Male, true, true), dressed: false);
+        var context = Generate(NeedsFixtures.Apparel(RimGovernor.Brain.GameFacts.Defs.Gender.Male, true, true), dressed: false);
         Assert.False(context.ApparelShifts.ContainsKey("pawn"));
     }
 
@@ -148,14 +145,14 @@ public sealed class ApparelCreditProductionTests
     }
 
     // #3841: the title's minimum-quality thought, read for every pawn under Royalty (inactive with no title in effect).
-    private static readonly O.NeedThoughtStage QualityStage = new("TitleApparelMinQualityNotMet", ForecastApparel.TitleApparelQuality, 0, -4, NeedsFixtures.Situational);
+    private static readonly RimGovernor.Brain.GameFacts.Observations.NeedThoughtStage QualityStage = new("TitleApparelMinQualityNotMet", ForecastApparel.TitleApparelQuality, 0, -4, NeedsFixtures.Situational);
 
-    private static readonly O.NeedApparel Knight = NeedsFixtures.Apparel(D.Gender.Male, true, true) with { MinimumQuality = D.QualityCategory.Normal };
+    private static readonly RimGovernor.Brain.GameFacts.Observations.NeedApparel Knight = NeedsFixtures.Apparel(RimGovernor.Brain.GameFacts.Defs.Gender.Male, true, true) with { MinimumQuality = RimGovernor.Brain.GameFacts.Defs.QualityCategory.Normal };
 
     [Fact]
     public void ATitledColonistsNormalShirtBillOverAPoorShirtShiftsTheirBreaksByTheMinimumQualityThought()
     {
-        var poor = Option("worn-shirt", GearSource.Worn, 1, quality: D.QualityCategory.Poor);
+        var poor = Option("worn-shirt", GearSource.Worn, 1, quality: RimGovernor.Brain.GameFacts.Defs.QualityCategory.Poor);
         // The same def and groups at a higher quality is a candidate: the worker reads the lowest worn quality.
         Assert.Single(ClothingActivitiesRules.ClothingActivityRequirements(Census(worn: poor)));
         Assert.Equal([0.04], Generate(Knight, worn: poor).ApparelShifts["pawn"]);
@@ -165,7 +162,7 @@ public sealed class ApparelCreditProductionTests
     public void AFreshColonysUntitledColonistInAPoorShirtGetsNothingFromTheMinimumQualityThought()
     {
         // No title in effect: the native read writes the Awful minimum, which no garment is below.
-        var context = Generate(NeedsFixtures.Apparel(D.Gender.Male, true, true), worn: Option("worn-shirt", GearSource.Worn, 1, quality: D.QualityCategory.Poor));
+        var context = Generate(NeedsFixtures.Apparel(RimGovernor.Brain.GameFacts.Defs.Gender.Male, true, true), worn: Option("worn-shirt", GearSource.Worn, 1, quality: RimGovernor.Brain.GameFacts.Defs.QualityCategory.Poor));
         Assert.False(context.ApparelShifts.ContainsKey("pawn"));
     }
 
@@ -184,8 +181,8 @@ public sealed class ApparelCreditProductionTests
     [Fact]
     public void AShirtBillDecodesAtItsBestCraftersQualityOdds()
     {
-        O.GearCrafter novice = new(3, false, 0), master = new(15, false, 0), inspired = new(8, true, 0);
-        GearOption Bill(EquatableArray<O.GearCrafter> crafters) => Assert.Single(Census(crafters: crafters).Pawns[0].Model!.Options);
+        RimGovernor.Brain.GameFacts.Observations.GearCrafter novice = new(3, false, 0), master = new(15, false, 0), inspired = new(8, true, 0);
+        GearOption Bill(EquatableArray<RimGovernor.Brain.GameFacts.Observations.GearCrafter> crafters) => Assert.Single(Census(crafters: crafters).Pawns[0].Model!.Options);
         Assert.Equal(CraftedQualityRules.Odds(Crafter), Bill([Crafter]).QualityOdds);
         Assert.Equal(CraftedQualityRules.Odds(master), Bill([novice, master]).QualityOdds);
         Assert.Equal(CraftedQualityRules.Odds(inspired), Bill([master, inspired]).QualityOdds);
@@ -200,11 +197,11 @@ public sealed class ApparelCreditProductionTests
     [Fact]
     public void AFreshColonysShirtBillLiftsAnExcellentMinimumOnlyAsAChanceAndAnUntitledColonistGetsNothing()
     {
-        var count = NeedsFixtures.Apparel(D.Gender.Male, true, true) with { MinimumQuality = D.QualityCategory.Excellent };
-        var good = Option("worn-shirt", GearSource.Worn, 1, quality: D.QualityCategory.Good);
+        var count = NeedsFixtures.Apparel(RimGovernor.Brain.GameFacts.Defs.Gender.Male, true, true) with { MinimumQuality = RimGovernor.Brain.GameFacts.Defs.QualityCategory.Excellent };
+        var good = Option("worn-shirt", GearSource.Worn, 1, quality: RimGovernor.Brain.GameFacts.Defs.QualityCategory.Good);
         // The fresh colony's crafter may make an Excellent shirt: a candidate whose lifting outcome is the thought's shift.
         Assert.Single(ClothingActivitiesRules.ClothingActivityRequirements(Census(worn: good)));
         Assert.Equal([0.04], Generate(count, worn: good).ApparelShifts["pawn"]);
-        Assert.False(Generate(NeedsFixtures.Apparel(D.Gender.Male, true, true), worn: good).ApparelShifts.ContainsKey("pawn"));
+        Assert.False(Generate(NeedsFixtures.Apparel(RimGovernor.Brain.GameFacts.Defs.Gender.Male, true, true), worn: good).ApparelShifts.ContainsKey("pawn"));
     }
 }

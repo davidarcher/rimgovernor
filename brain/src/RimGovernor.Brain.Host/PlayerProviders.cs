@@ -1,4 +1,4 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.PlayerApi;
 using RimGovernor.Brain.Store;
 
@@ -75,9 +75,9 @@ internal sealed class HostControlReader(StoreJournal journal) : IControlReader
 /// <summary>The brain's live target speed, set through the player API.</summary>
 internal sealed class HostClockSpeed(ClockTargetSpeed target) : IClockSpeedControl
 {
-    public PbClock.Speed Speed => target.Speed;
+    public RimGovernor.Brain.GameFacts.Clock.Speed Speed => target.Speed;
 
-    public void Change(PbClock.Speed speed) => target.Set(speed);
+    public void Change(RimGovernor.Brain.GameFacts.Clock.Speed speed) => target.Set(speed);
 }
 
 /// <summary>

@@ -24,7 +24,7 @@ Neither an absent section nor an invalid enum value can certify it as met.
 ## Pawn profile
 
 `policy.BuildProfile` reads a `PawnProfile` from the same `WorkPawn` the review
-already carries (`RoundsWork.cs`): the actual native skill rows, including learning evidence, with the effective
+already carries (`Work.cs`): the actual native skill rows, including learning evidence, with the effective
 level, the stored level beneath aptitude, passion and disabled flag; traits with
 degree; the backstory-incapable work types; biological age (`Child` from the Biotech developmental stage).
 The profile retains the complete canonical native pawn row. Identity, skills,
@@ -78,7 +78,7 @@ For each:
   (`baselineDemand`: one doctor, one cook per eight pawns, one grower per 150
   field cells, one constructor — two with blueprints pending and six pawns —,
   one plant cutter, one hunter — two with four pawns —, a warden while a
-  prisoner is held; `RoundsWorkDemand` reads the census from the routine facts)
+  prisoner is held; `WorkDemand` reads the census from the routine facts)
   and, for any other skilled type, one owner when a natural specialist exists
   (level 6 or a passion). Handling also has one owner while the herd plan holds a
   milk or wool job (`WorkDemand.Handling`): gathering yield and speed scale
@@ -113,9 +113,9 @@ For each:
   combat skill target with budget left.
 
 `WorkDecision.Coverage` lists demand, owners and capable count per type
-(`RoundsFacts.WorkRoster`: `WorkRosterRead.Read` once the planner planned, `Unread` otherwise;
-`RoundsFacts.WorkCoverage` is the `WorkCoverageState` Unread, Matched or Unmatched).
-The pawn census the planner reads is `RoundsFacts.ForecastObserved.WorkPawns`, a `WorkPawnsRead` containing every colonist's row. A complete census with no colonists is empty; an absent native census fails the read. `Capacity` is false when a required type or a core
+(`ReviewFacts.WorkRoster`: `WorkRosterRead.Read` once the planner planned, `Unread` otherwise;
+`ReviewFacts.WorkCoverage` is the `WorkCoverageState` Unread, Matched or Unmatched).
+The pawn census the planner reads is `ReviewFacts.ForecastObserved.WorkPawns`, a `WorkPawnsRead` containing every colonist's row. A complete census with no colonists is empty; an absent native census fails the read. `Capacity` is false when a required type or a core
 role (Doctor, Cooking, Construction, Growing) found no owner. `Matches`
 compares the proposal to the readback with checkbox semantics when manual
 priorities are off (enabled or not, never the rank).
@@ -163,7 +163,7 @@ remain unfinished. There is no new demand calculation or order writer.
 ## Ready work
 
 `ProjectReadyWork` (`ReadyWork.cs`) projects plans into diagnostic
-candidates (`Rounds.ReadyWork`); admission does not read it. Parallelism is the
+candidates (`ReviewState.ReadyWork`); admission does not read it. Parallelism is the
 observed count of eligible workers or claims, with no constant cap. An action
 kind without a stage adapter (everything but Building, Haul, CutPlant,
 AreaPlantCut, ProductionBill, GrowerCrop, ZoneCreate, SupplyAllow and
@@ -247,7 +247,7 @@ When unmet demand clears, helpers hold for `ConstructionHelpHoldTicks`
 (2500) from the last tick it held (`held_after_demand`), then return to the
 ordinary 0; an override set meanwhile wins. The record (`Idle`, `Helpers`,
 `DemandTick`, `Ready`, `Unmet`, `Reason`, `Withheld`) rides the roster report
-(`Rounds.Roster.Help`), which the next review reads back for the
+(`ReviewState.Roster.Help`), which the next review reads back for the
 hysteresis; `no_sustained_idle_pawn` and `no_unmet_suitable_construction`
 name why spare capacity went unused.
 
@@ -333,7 +333,7 @@ not add a mech first. The charger definitions are the catalog rows with
 `PlanningDefinition.MechCharger` (a `Building_MechCharger` thing class),
 `observation.MechChargerDefs`.
 
-`biotech/mech-charger` (`BiotechFamily.cs`, `RoundsBiotech.cs`, #3261) is the Need
+`biotech/mech-charger` (`BiotechFamily.cs`, `Biotech.cs`, #3261) is the Need
 for that: derived only while the Biotech colony section is active (the mech fleet is required,
 `MechRules.MechChargerOwed`), unmet while a charger is owed, and a precondition of
 `biotech/mechs`. Its one Method per charger count builds the first catalog-flagged,
@@ -346,7 +346,7 @@ cells and polluted cells, then near an atomizer. A charger blueprint, frame or
 open plan holds it. Powering the charger is the power concern's; emptying its waste is
 the `biotech/pollution` Need's.
 
-`biotech/gene-bank` (`GeneBankConcern.cs`, `RoundsBiotech.cs`, #3261) keeps every genepack in a
+`biotech/gene-bank` (`GeneBankConcern.cs`, `Biotech.cs`, #3261) keeps every genepack in a
 gene bank: a Genepack deteriorates unless it
 sits in a powered bank (4 packs each). A Need over the Colony fact family, read
 from the keyed Biotech colony section: derived only while the section is active, and owed while
@@ -362,9 +362,9 @@ consumer wired like any other); harvesting, assembly and implanting are other
 concerns.
 
 The `admin/work-ledger` Need (`WorkLedger.cs`, `ColonyAdmin.cs`,
-`RoundsLedger.cs`, #3304) is the bot's production-bill ledger (epic #2590); it replaced the
+`Ledger.cs`, #3304) is the bot's production-bill ledger (epic #2590); it replaced the
 `MaintainWorkLedger` Concern. The ledger is memory only
-(`Rounder.ledger`): a planner that has migrated implements
+(`ColonyReview.ledger`): a planner that has migrated implements
 `buildingruntime.OrderDeclarer` (`DeclareOrders(ctx, snapshot, projection, benches)` returns a
 `policy.Declared`: its whole wanted `OrderSpec` set, plus an `Abstain{Owner, Fact}` per
 owner that lacks a fact: `policy.Abstaining(Cause)` is the only constructor, the `CauseUnread*` members of `policy.Cause` are a
@@ -377,13 +377,13 @@ frames; the declared list keeps the composition order, and the first declarer to
 reads every bench's bills through the bench census (`ReadGearBenches`;
 `policy.LedgerActuals` is unknown while any bench's bills or any bill's spec is
 unread), and runs `policy.ReconcileLedger`. The finding is the Need's
-(`Rounder.LedgerOwedIn`): unmet exactly while the diff places or removes anything, unknown with no
+(`ColonyReview.LedgerOwedIn`): unmet exactly while the diff places or removes anything, unknown with no
 declarer or an unread readback (so a ledger with no declarers never touches a
 bill). Orders are identified as native identifies bills: recipe, ingredient
 filter, worker pin and repeat mode with its count (`OrderSpec.Key` uses the wire
 class, so a food target equals a stock target); no native tag. A bill is
-identified across Rounds by its native `UniqueLoadID`, which vanilla scribes
-with the bill, so ids survive Rounds and save/load; a restart empties the
+identified across Colony review by its native `UniqueLoadID`, which vanilla scribes
+with the bill, so ids survive Colony review and save/load; a restart empties the
 orphan counters and only delays removal. The Need's work step commits the review's
 plan as one Need Method of `production_bill` and
 `remove_production_bill` actions (removals first, at most
@@ -394,7 +394,7 @@ touches a bill an open Method claims (`bill/<bench>/<recipe>`, `bill/<id>`) is a
 resolves (an unknown receipt holds its claims until its resend resolves).
 
 The bench dispatcher (`WorkDispatch.cs`, `WorkDispatchMemory.cs`; pure policy,
-memory in `Rounder.ledger.dispatch`) sizes and places the orders. A declared order
+memory in `ColonyReview.ledger.dispatch`) sizes and places the orders. A declared order
 carries `OrderSpec.Product` and `Class` beside the spec (not in `Key`); with them a
 stock target is a rate-model order. Its deficit is target minus the projection's
 stock count, its demand deficit over the class refill window, its per-bench capacity
@@ -415,14 +415,14 @@ gain (and whose stock never reached the target) widens by one bench, capped at t
 usable benches, unless the recipe's ingredient stock is at or below one unit
 (`ingredient_bound`) or every carrying bill is active, ingredients are present and
 no pawn's job targeted a carrying bench all window (`haul_bound`); with a bill on
-every eligible bench it reports `benches_exhausted`. `RoundsFacts.UnmetThroughput`
+every eligible bench it reports `benches_exhausted`. `ReviewFacts.UnmetThroughput`
 is one row per bench kind (`policy.UnmetThroughput`: units a day short and the
 reason, also `no_bench` when the model wants more benches than exist and
 `bench_slots_full` for an unplaced copy with capable benches), the demand signal the
 facilities ladder reads. A finished bill is spent and never satisfies an order.
 
 The ledger's read-only view is in memory only and has one reader, the station planner. Each review leaves a
-`policy.LedgerView` (`policy.BuildLedgerView`) in `Rounder.ledger.view`: the status (`no_review`, `inactive`,
+`policy.LedgerView` (`policy.BuildLedgerView`) in `ColonyReview.ledger.view`: the status (`no_review`, `inactive`,
 `readback_unknown` or `reconciled`) and, once reconciled, the wanted orders in key order, each the spec as the
 station planner keys it (recipe, ingredients, worker, mode, target, product). `StationFactsOf` reads them as the
 `work ledger orders` fact: known (empty) for an inactive ledger, unknown before a review or while the readback was
@@ -434,7 +434,7 @@ and were deleted under #3566.
 Orphan removal covers every bill of a production recipe kind: one no plan placed (a
 player's, or placed before a restart) is an orphan like any other, and the journal
 keeps no placement record. The first migration (#2597) was `MaintainEquipment` (now the `military/equipment` Need):
-`RoundsGearPlanner` declares the apparel batches and `RoundsArmoryPlanner` the
+`GearPlanner` declares the apparel batches and `ArmoryPlanner` the
 weapon batches, armor ladder and mortar-shell stock (`policy.DeclareGearOrders`,
 `DeclareArmoryOrders`); both keep only their non-bill work (wear orders, apparel
 policies, the crafting spot). An existing bill that makes a need is declared as it
@@ -442,14 +442,14 @@ stands (so its spec key never drifts), a new batch is declared only while no wea
 candidate is pending, and the declared batches are the ingredient demand of
 `openBills`.
 
-The second migration (#2604) is declare-only: `RoundsMedicalPlanner` declares
+The second migration (#2604) is declare-only: `MedicalPlanner` declares
 the `medical/reserves` Need's stock-target medicine bill (`policy.DeclareMedicine`) and
-`RoundsCareBillDeclarer` the surgery part (the `medical/surgery` Need, declared while
+`CareBillDeclarer` the surgery part (the `medical/surgery` Need, declared while
 the Need is unmet, #3258) bills (the baby food bill is now `BabyFoodDeclarer`'s, filed
 under the `food/baby-feeding` Need, #3254, and the mech gestation bill
 `MechBillDeclarer`'s, filed under `biotech/mechs`, #3261)
 (`policy.DeclareSelection` over the unchanged selectors), each only while its concern
-is workable; the old `RoundsBillPlanner` purposes are deleted. These bills are
+is workable; the old `BillPlanner` purposes are deleted. These bills are
 placed and kept but never removed in the first pass (a gestation bill is the mech
 being formed, a part or medicine bill serves a patient). Removability is
 decided by the recipe kind, not by who placed the bill. The bench census sets
@@ -464,7 +464,7 @@ beside it), both waiting for orphan removal of these kinds.
 
 The food bills (#2602) are the second migration: cooking (now the `food/cooking` Need, #3254), `MaintainFoodStorage` (now the `food-stores/storage` Need, #3251),
 food supply (now the `food/supply` Need, #3254) and refrigeration (now the `food-stores/refrigeration` Need, #3280) declare to the ledger. The cooking,
-reserve (preserve), butcher and cook-ahead `RoundsBillPlanner`s and the food-storage
+reserve (preserve), butcher and cook-ahead `BillPlanner`s and the food-storage
 upkeep planner declare through `policy.DeclareFoodOrders` (`FoodOrders.cs`): the
 same selectors that once chose the next bill now run over the bench census read
 without its bills, so the declaration is what should stand. A stock-target bill that
@@ -474,13 +474,13 @@ fact or a food-plan channel not yet open abstains; the cook-ahead bill ends with
 solar flare. The food-plan gates, the purposes' verdicts and the reserve
 work-lending ride on the declarers, not on catalog planners: `DeclareOrders` notes
 each verdict on the request that declares (`purposeReporter`) and the ledger step
-files it (`AdminRounds.LedgerPurposeReports`; see below). Human-meat and survival-pack ingredient filters
+files it (`AdminReview.LedgerPurposeReports`; see below). Human-meat and survival-pack ingredient filters
 ride in the declared spec. Food orders set no `Product`/`Class`, so each stands on
 one bench until the resource census covers meals.
 
 The food, art and export declarers are also `purposeReporter`s: no catalog
 planner stands for them, and the admin family files their verdicts beside its
-Need reports (`AdminRounds.LedgerPurposeReports`, through `FamilyRun.Filed`). A purpose
+Need reports (`AdminReview.LedgerPurposeReports`, through `FamilyRun.Filed`). A purpose
 whose concern is not workable reports no deficit; a purpose with open work of its
 own reports existing work; otherwise it reports what its declaration noted
 (awaiting the food plan, a missing cooking or butcher bench, an unread fact, or
@@ -496,7 +496,7 @@ the Need or concern would compete with them for its one winning cause and relabe
 strip with another purpose's reason. A purpose that serves a Need reads the Need's
 standing (`PurposeReport.Need`) instead of open work.
 
-`economy/resource` (#2601) is migrated too: `RoundsResourcePlanner` declares
+`economy/resource` (#2601) is migrated too: `ResourcePlanner` declares
 `policy.DeclareResourceOrders` (a stock-target order, with `Product` and
 `Class` for the dispatcher, per floor below its target, the beer reserve as a
 `BeerReserve` order, and a standing bill that makes a floor's resource as it
@@ -508,7 +508,7 @@ are gone: the order is judged again every Round at the floor's full target.
 
 The `rooms/art` Need (#2603, #3255) migrates the worker-pinned sculpture batches (room
 decoration only since #2607; sculptures to sell are the `economy/trade` Need's):
-`RoundsArtPlanner.DeclareOrders` (`policy.DeclareArtOrders`) declares, while an
+`ArtPlanner.DeclareOrders` (`policy.DeclareArtOrders`) declares, while an
 inspired artist or an owed bedroom is open, every active sculpture
 bill pinned to a current artist as it stands plus the bill the art selectors
 choose for each artist lacking one. A sculpture pinned to someone who is no longer an
@@ -516,12 +516,12 @@ artist, or any sculpture once the need is known gone, is undeclared and so
 removed after the grace rounds; an unread need or artist abstains. The declarer
 keeps no game-time hint. The produce-item quest
 decrees of the `joiners/decrees` Need declare through
-`JoinersRounds.DeclareOrdersAsync` (`policy.DeclareDecreeOrders`): the
+`JoinersReview.DeclareOrdersAsync` (`policy.DeclareDecreeOrders`): the
 funded batch, or the bill already making the item as it stands; the planner keeps
 the crafting game time and the harvest and hunt decrees.
 
 The `economy/trade` Need (#2607, #3316) answers `SilverShort`: while the gap is open,
-`RoundsTradeExportPlanner.DeclareOrders` (`policy.DeclareExportOrders`) ranks
+`TradeExportPlanner.DeclareOrders` (`policy.DeclareExportOrders`) ranks
 craftable sale goods and declares the winners as finite `GearBatch` orders
 (priority 3) pinned to the best capable worker. One owner per bill spec:
 `economy/resource` owns products with a floor; `economy/trade` owns floorless
@@ -562,7 +562,7 @@ overseer: the existing combat batch's draft (when undrafted) and `attack` order.
 Both are pure over recorded facts and fed from the pawn
 table, which already holds every spawned pawn with its `PawnBiotech` block
 (`observation.MechFleet`: living colonist mechanitors, living mechs). The routine
-read carries the fleet as `Projection.Mechs`; `RoundsWorkPlanner` appends
+read carries the fleet as `Projection.Mechs`; `WorkPlanner` appends
 `PlanMechControl`'s settings to the work plan's `PawnSettingsAction`s, with the
 Biotech catalog from the frame. The combat frame's pawn cut keeps mechanitor and
 mech rows (and `Combat.Catalog` is read when one is present), so each fight stop

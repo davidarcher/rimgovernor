@@ -1,8 +1,9 @@
 using System.Globalization;
 using System.Text.Json;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Common;
-using RimGovernor.Contracts.Wire.Lifecycle;
+using RimGovernor.Brain.GameFacts.Common;
+using RimGovernor.Brain.GameFacts.Lifecycle;
+using RimGovernor.Brain.GameOrders.Lifecycle;
 
 namespace RimGovernor.Brain.PlayerApi;
 

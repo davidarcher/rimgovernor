@@ -1,9 +1,8 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using Journal = RimGovernor.Brain.Store.Store;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -29,7 +28,7 @@ public sealed class BiotechRoyaltyFamilyTests
         }).Derive(facts), n => n.Id == id);
 
     /// <summary>A Biotech section with nothing owed: no wastepack, no polluted cell, no gene bank or genepack.</summary>
-    private static readonly O.BiotechColonyFacts Settled = BiotechSectionTests.Colony with
+    private static readonly RimGovernor.Brain.GameFacts.Observations.BiotechColonyFacts Settled = BiotechSectionTests.Colony with
     {
         PollutedUncoveredCells = 0,
         Wastepacks = [],
@@ -37,7 +36,7 @@ public sealed class BiotechRoyaltyFamilyTests
         Genepacks = [],
     };
 
-    private static BiotechFacts.Active Bio(O.BiotechColonyFacts? colony = null, bool mechsOwed = false, bool chargerOwed = false) =>
+    private static BiotechFacts.Active Bio(RimGovernor.Brain.GameFacts.Observations.BiotechColonyFacts? colony = null, bool mechsOwed = false, bool chargerOwed = false) =>
         new() { Colony = colony ?? Settled, MechsOwed = mechsOwed, MechChargerOwed = chargerOwed };
 
     private static Need Royalty(RoyaltyFamilyFacts facts, NeedId id) =>
@@ -56,7 +55,7 @@ public sealed class BiotechRoyaltyFamilyTests
         Assert.Empty(new RoyaltyFamily().Derive(NoRoyalty with { PsylinkOwed = true }));
         Assert.Empty(new RoyaltyFamily().Propose([], NoRoyalty));
         Assert.Empty(new IdeologyFamily().Derive(new IdeologyFacts()));
-        Assert.IsType<AnomalyState.Inactive>(new RoundsFacts().Anomaly);
+        Assert.IsType<AnomalyState.Inactive>(new ReviewFacts().Anomaly);
         Assert.Empty(new AnomalyFamily().Derive(new AnomalyFacts()));
     }
 
@@ -67,7 +66,7 @@ public sealed class BiotechRoyaltyFamilyTests
     public void TheOwedNeedsAreMetOrUnmetByTheirOwedFact(string kind)
     {
         var id = NeedId.Of(BiotechFamily.FamilyId, kind);
-        var looseGenepack = Settled with { Genepacks = [new O.GenepackState { BankId = null }] };
+        var looseGenepack = Settled with { Genepacks = [new RimGovernor.Brain.GameFacts.Observations.GenepackState { BankId = null }] };
         BiotechFacts With(bool owed) => kind switch
         {
             "mech-charger" => Bio(chargerOwed: owed),
@@ -99,7 +98,7 @@ public sealed class BiotechRoyaltyFamilyTests
         Assert.True(alone.MechsReady(Bio(mechsOwed: true)));
     }
 
-    private static O.Wastepack Pack(string id, bool forbidden = false) => new()
+    private static RimGovernor.Brain.GameFacts.Observations.Wastepack Pack(string id, bool forbidden = false) => new()
     {
         ThingId = id,
         DefName = "Wastepack",
@@ -110,7 +109,7 @@ public sealed class BiotechRoyaltyFamilyTests
         Forbidden = forbidden,
     };
 
-    private static BiotechFacts.Active Polluted(uint uncovered, params O.Wastepack[] packs) =>
+    private static BiotechFacts.Active Polluted(uint uncovered, params RimGovernor.Brain.GameFacts.Observations.Wastepack[] packs) =>
         Bio(Settled with { PollutedUncoveredCells = uncovered, Wastepacks = [.. packs] }) with { PollutedCells = [new Cell(3, 4)] };
 
     [Fact]
@@ -147,24 +146,24 @@ public sealed class BiotechRoyaltyFamilyTests
         var ct = TestContext.Current.CancellationToken;
         var forbidden = Polluted(0, Pack("w2", forbidden: true));
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-pollution-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        var review = journal.ReviewRounds(new RoundsRequest
+        var review = journal.Review(new ReviewRequest
         {
             Current = World,
             Tick = new(100),
             Enabled = true,
-            Policy = RoundsRules.DefaultRoundsPolicy(),
-            Facts = WorkResourceTestFacts.Create("a", "b") with { Biotech = new O.BiotechSection.Active(forbidden.Colony) },
+            Policy = Rules.DefaultPlannerSettings(),
+            Facts = WorkResourceTestFacts.Create("a", "b") with { Biotech = new RimGovernor.Brain.GameFacts.Observations.BiotechSection.Active(forbidden.Colony) },
         }, ct).Review;
         Assert.Equal("w2", Assert.Single(review.PollutionSupplies).Thing);
 
         BiotechFacts facts = forbidden;
-        var runner = new FamilyRunner<BiotechFacts>(new BiotechFamily(new BiotechNeeds { Pollution = true }), (_, _) => Task.FromResult(facts), BiotechRounds.Schedule);
+        var runner = new FamilyRunner<BiotechFacts>(new BiotechFamily(new BiotechNeeds { Pollution = true }), (_, _) => Task.FromResult(facts), BiotechReview.Schedule);
         FamilyRun Run() => runner.RunAsync(new FamilyStep { Journal = journal, World = World }, ct).GetAwaiter().GetResult();
         var first = Run();
         Assert.Equal(Outcome.Admitted, Assert.Single(first.Reports, r => r.Need == BiotechFamily.Pollution).Verdict.Outcome);
         var plan = journal.LoadPlan(Assert.Single(first.Methods).Plan, ct);
         Assert.Equal(ActionKind.SupplyAllow, Assert.Single(plan.Progress).Action.Kind);
-        Assert.Contains(ActionKind.SupplyAllow, BiotechRounds.Schedule.Kinds);
+        Assert.Contains(ActionKind.SupplyAllow, BiotechReview.Schedule.Kinds);
 
         // New work that allows the same pack again overlaps the open Method's claim on it and is refused.
         facts = Polluted(2, Pack("w2", forbidden: true));
@@ -233,16 +232,16 @@ public sealed class BiotechRoyaltyFamilyTests
         public FamilyRun Run() =>
             Runner.RunAsync(new FamilyStep { Journal = Journal, World = World }, TestContext.Current.CancellationToken).GetAwaiter().GetResult();
 
-        public ConcernProgress? Row(NeedId need) => Journal.LoadRounds(TestContext.Current.CancellationToken).Progress.SingleOrDefault(p => p.Concern == need.FilingKey);
+        public ConcernProgress? Row(NeedId need) => Journal.LoadReview(TestContext.Current.CancellationToken).Progress.SingleOrDefault(p => p.Concern == need.FilingKey);
     }
 
     private static Colony Open()
     {
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-royalty-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
+        journal.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
         Colony? colony = null;
-        var runner = new FamilyRunner<RoyaltyFamilyFacts>(new RoyaltyFamily(true, false), (_, _) => Task.FromResult(colony!.Facts), RoyaltyRounds.Schedule);
+        var runner = new FamilyRunner<RoyaltyFamilyFacts>(new RoyaltyFamily(true, false), (_, _) => Task.FromResult(colony!.Facts), RoyaltyReview.Schedule);
         colony = new Colony { Journal = journal, Runner = runner };
         return colony;
     }
@@ -277,7 +276,7 @@ public sealed class BiotechRoyaltyFamilyTests
     {
         using var colony = Open();
         colony.Facts = Permit(Titled("a"));
-        colony.Journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(), [PlannerWave.NeedProgressOf("royalty", colony.Run())!], TestContext.Current.CancellationToken);
+        colony.Journal.RecordPlannerReasons(new Dictionary<FilingKey, PlannerNote>(), [PlannerWave.NeedProgressOf("royalty", colony.Run())!], TestContext.Current.CancellationToken);
         var row = colony.Row(RoyaltyFamily.Permits)!;
         Assert.Equal(("permit-a-CallAid", true), (row.Method, row.Open));
     }
@@ -285,17 +284,17 @@ public sealed class BiotechRoyaltyFamilyTests
     [Fact]
     public void EachFamilyIsOneDueQueueEntryAndTheOldPlannersAreGone()
     {
-        var biotech = ClockPlannerCatalog.FamilyEntry(new FamilyRunner<BiotechFacts>(new BiotechFamily(AllBiotech), (_, _) => Task.FromResult<BiotechFacts>(new BiotechFacts.Inactive()), BiotechRounds.Schedule));
+        var biotech = PlannerCatalog.FamilyEntry(new FamilyRunner<BiotechFacts>(new BiotechFamily(AllBiotech), (_, _) => Task.FromResult<BiotechFacts>(new BiotechFacts.Inactive()), BiotechReview.Schedule));
         Assert.Equal("biotech", biotech.Name);
         Assert.Contains(ActionKind.Building, biotech.Kinds);
         Assert.Contains(ActionKind.Area, biotech.Kinds);
         Assert.Contains(ActionKind.WastepackHaul, biotech.Kinds);
 
-        var royalty = ClockPlannerCatalog.FamilyEntry(new FamilyRunner<RoyaltyFamilyFacts>(new RoyaltyFamily(), (_, _) => Task.FromResult(NoRoyalty), RoyaltyRounds.Schedule));
+        var royalty = PlannerCatalog.FamilyEntry(new FamilyRunner<RoyaltyFamilyFacts>(new RoyaltyFamily(), (_, _) => Task.FromResult(NoRoyalty), RoyaltyReview.Schedule));
         Assert.Equal("royalty", royalty.Name);
         Assert.Contains(ActionKind.PawnSettings, royalty.Kinds);
 
-        Assert.DoesNotContain(ClockPlannerCatalog.Entries, e => e.Name is "pollution" or "mechcharger" or "genebank" or "psylink" or "permits");
+        Assert.DoesNotContain(PlannerCatalog.Entries, e => e.Name is "pollution" or "mechcharger" or "genebank" or "psylink" or "permits");
     }
 
     [Fact]

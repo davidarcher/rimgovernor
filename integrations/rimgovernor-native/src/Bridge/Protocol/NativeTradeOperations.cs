@@ -8,11 +8,8 @@ using RimWorld;
 using RimWorld.Planet;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The trade arm of Actions/Apply (NativeActionDispatch): OpenTrade,
     // SetTradeLines, AcceptTrade, EndTrade. Drives RimWorld's own static
@@ -46,11 +43,11 @@ namespace HomeBridge.BridgeTools
         internal readonly Pawn Trader;
         internal readonly Pawn Negotiator;
         internal readonly bool GiftMode;
-        internal readonly Common.Identity Identity;
+        internal readonly RimGovernor.Brain.GameFacts.Common.Identity Identity;
         internal readonly Map Map;
         internal readonly Job Job;
         private readonly int jobId;
-        internal NativeTradeWalk(Pawn trader, Pawn negotiator, bool giftMode, Common.Identity identity, Map map, Job job)
+        internal NativeTradeWalk(Pawn trader, Pawn negotiator, bool giftMode, RimGovernor.Brain.GameFacts.Common.Identity identity, Map map, Job job)
         { Trader = trader; Negotiator = negotiator; GiftMode = giftMode; Identity = identity; Map = map; Job = job; jobId = job.loadID; }
         // RimWorld pools Job instances: the same object can return as another
         // job under a new loadID, so identity alone never proves the walk is
@@ -146,7 +143,7 @@ namespace HomeBridge.BridgeTools
         internal readonly struct OpenSession
         {
             internal readonly string SessionId, DealSignature;
-            internal readonly TradeDeal Deal; internal readonly ITrader Trader; internal readonly Pawn Negotiator; internal readonly Common.TradeTarget Target; internal readonly bool GiftMode;
+            internal readonly TradeDeal Deal; internal readonly ITrader Trader; internal readonly Pawn Negotiator; internal readonly RimGovernor.Brain.GameFacts.Common.TradeTarget Target; internal readonly bool GiftMode;
             internal OpenSession(string id, string signature, TradeDeal deal, ITrader trader, Pawn negotiator, bool gift)
             { SessionId = id; DealSignature = signature; Deal = deal; Trader = trader; Negotiator = negotiator; GiftMode = gift; Target = (_sessionTarget ?? throw new System.InvalidOperationException("Required native value is unavailable: _sessionTarget.")); }
         }
@@ -154,7 +151,7 @@ namespace HomeBridge.BridgeTools
         // SessionSheet is the read-side counterpart of RequireSession: the
         // open session for this identity, or the same refusal an operation
         // against it would get.
-        internal static bool SessionSheet(Common.Identity identity, out OpenSession session, out Common.Failure failure)
+        internal static bool SessionSheet(RimGovernor.Brain.GameFacts.Common.Identity identity, out OpenSession session, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
             session = default;
             if (!RequireSession(identity, out failure)) return false;
@@ -165,11 +162,11 @@ namespace HomeBridge.BridgeTools
         }
 
         // The live session, held by exactly the named trader and negotiator.
-        private static bool RequireParticipants(string traderId, string negotiatorId, Common.Identity identity, out Common.Failure failure)
+        private static bool RequireParticipants(string traderId, string negotiatorId, RimGovernor.Brain.GameFacts.Common.Identity identity, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
             if (!RequireSession(identity, out failure)) return false;
             if (string.IsNullOrEmpty(traderId) || string.IsNullOrEmpty(negotiatorId) || traderId != SessionTargetKey() || negotiatorId != SafeString(_sessionNegotiator))
-            { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "The open trade session is held by a different trader or negotiator."); return false; }
+            { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.StaleIdentity, "The open trade session is held by a different trader or negotiator."); return false; }
             return true;
         }
 
@@ -179,16 +176,16 @@ namespace HomeBridge.BridgeTools
         // the session binds its participants the way the vanilla dialog
         // does, and the sheet, line staging, accept and end need only both
         // still present, tradeable and eligible.
-        private static bool RequireSession(Common.Identity identity, out Common.Failure failure)
+        private static bool RequireSession(RimGovernor.Brain.GameFacts.Common.Identity identity, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "No native trade session is open for this identity.");
+            failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "No native trade session is open for this identity.");
             if (_sessionId == null || _sessionColonyId != (identity.ColonyId ?? "") || _sessionLoadToken != (identity.LoadToken ?? "") || _sessionMap?.uniqueID != identity.MapId) return false;
             if (!TradeSession.Active || TradeSession.deal == null || !ReferenceEquals(TradeSession.deal, _sessionDeal)
                 || !ReferenceEquals(TradeSession.trader, _sessionTrader) || !ReferenceEquals(TradeSession.playerNegotiator, _sessionNegotiator)
-                || !ProtoBoundary.IsLoaded(_sessionMap))
-            { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "Trade session, map or load changed; do not reuse a stale session."); return false; }
+                || !GameThread.IsLoaded(_sessionMap))
+            { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.StaleIdentity, "Trade session, map or load changed; do not reuse a stale session."); return false; }
             if (!SessionParticipantsLive())
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Trader, negotiator or inventory owner became unavailable."); return false; }
+            { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Trader, negotiator or inventory owner became unavailable."); return false; }
             return true;
         }
 
@@ -212,12 +209,12 @@ namespace HomeBridge.BridgeTools
         // kept game) belongs to nobody who can still end it: close it so the
         // open proceeds instead of refusing until the game restarts.
         // The game's TradeSession is closed only while it is still ours.
-        private static void DropForeignSession(Common.Identity identity)
+        private static void DropForeignSession(RimGovernor.Brain.GameFacts.Common.Identity identity)
         {
             if (_sessionId == null) return;
             var sameIdentity = _sessionColonyId == (identity.ColonyId ?? "") && _sessionLoadToken == (identity.LoadToken ?? "") && _sessionMap?.uniqueID == identity.MapId;
             var ours = TradeSession.Active && ReferenceEquals(TradeSession.deal, _sessionDeal);
-            if (sameIdentity && ours && ProtoBoundary.IsLoaded(_sessionMap) && SessionParticipantsLive()) return;
+            if (sameIdentity && ours && GameThread.IsLoaded(_sessionMap) && SessionParticipantsLive()) return;
             if (ours) { CloseSession(false); return; }
             _sessionId = null; _sessionColonyId = null; _sessionLoadToken = null; _sessionMap = null;
             _sessionDeal = null; _sessionTrader = null; _sessionNegotiator = null; _giftMode = false;
@@ -228,45 +225,45 @@ namespace HomeBridge.BridgeTools
         // intent reuses instead of opening again.
         private enum OpenReuse { None, Session, Walk }
 
-        private static bool PrepareOpen(Operations.OpenTrade? command, string traderId, string negotiatorId, Common.Identity identity, out Pawn? trader, out Pawn? negotiator, out OpenReuse reuse, out Common.Failure failure)
+        private static bool PrepareOpen(RimGovernor.Brain.GameOrders.Operations.OpenTrade? command, string traderId, string negotiatorId, RimGovernor.Brain.GameFacts.Common.Identity identity, out Pawn? trader, out Pawn? negotiator, out OpenReuse reuse, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
             trader = null; negotiator = null; reuse = OpenReuse.None;
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "OpenTrade requires a trader and a negotiator.");
+            failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "OpenTrade requires a trader and a negotiator.");
             if (command == null || string.IsNullOrEmpty(traderId) || string.IsNullOrEmpty(negotiatorId) || traderId == negotiatorId) return false;
             var giftMode = command.GiftMode;
             DropForeignSession(identity);
             if (_sessionId != null)
             {
                 if (!RequireParticipants(traderId, negotiatorId, identity, out failure)) return false;
-                if (_giftMode != giftMode) { failure = ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "The open trade session differs in gift mode."); return false; }
+                if (_giftMode != giftMode) { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.OwnerConflict, "The open trade session differs in gift mode."); return false; }
                 reuse = OpenReuse.Session; trader = _sessionTrader as Pawn; negotiator = _sessionNegotiator; return true;
             }
-            if (_contact != null && _contact.Live()) { failure = ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "Another comms contact is live."); return false; }
+            if (_contact != null && _contact.Live()) { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.OwnerConflict, "Another comms contact is live."); return false; }
             var walk = _walk;
             if (walk != null && walk.Live())
             {
                 if (SafeString(walk.Trader) != traderId || SafeString(walk.Negotiator) != negotiatorId || walk.GiftMode != giftMode)
-                { failure = ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "Another negotiator is already walking to a trader."); return false; }
+                { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.OwnerConflict, "Another negotiator is already walking to a trader."); return false; }
                 reuse = OpenReuse.Walk; trader = walk.Trader; negotiator = walk.Negotiator; return true;
             }
-            if (OpenTradeDialog() != null) { failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "A Dialog_Trade window is already open on screen."); return false; }
-            if (TradeSession.Active) { failure = ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "A TradeSession is already open outside this adapter."); return false; }
-            var map = ProtoBoundary.ResolveMap(identity);
-            if (map == null) { failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "No current map."); return false; }
+            if (OpenTradeDialog() != null) { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "A Dialog_Trade window is already open on screen."); return false; }
+            if (TradeSession.Active) { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.OwnerConflict, "A TradeSession is already open outside this adapter."); return false; }
+            var map = GameThread.ResolveMap(identity);
+            if (map == null) { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "No current map."); return false; }
             trader = map.mapPawns.AllPawnsSpawned.ById(traderId) is Pawn p && p.trader != null && p.trader.traderKind != null ? p : null;
-            if (trader == null) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact map caravan trader is unavailable; this adapter does not support direct orbital open."); return false; }
-            if (!SafeCanTradeNow(trader)) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Trader reports CanTradeNow:false."); return false; }
+            if (trader == null) { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact map caravan trader is unavailable; this adapter does not support direct orbital open."); return false; }
+            if (!SafeCanTradeNow(trader)) { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Trader reports CanTradeNow:false."); return false; }
             var negotiatorPawn = map.mapPawns.FreeColonistsSpawned.ById(negotiatorId);
             negotiator = negotiatorPawn;
             if (negotiatorPawn == null || SafeBool(() => negotiatorPawn.Dead) || SafeBool(() => negotiatorPawn.Downed) || SafeBool(() => negotiatorPawn.InMentalState)
                 || SafeBool(() => negotiatorPawn.WorkTagIsDisabled(WorkTags.Social)))
-            { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact eligible negotiator is unavailable."); return false; }
+            { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact eligible negotiator is unavailable."); return false; }
             var traderPawn = trader;
             if (SafeBool(() => traderPawn.mindState != null && traderPawn.mindState.traderDismissed) || !negotiatorPawn.CanTradeWith(traderPawn.Faction, traderPawn.TraderKind).Accepted
                 || !negotiatorPawn.CanReach(traderPawn, PathEndMode.Touch, Danger.Deadly))
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Native player trade eligibility or reachability refused this negotiator."); return false; }
+            { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Native player trade eligibility or reachability refused this negotiator."); return false; }
             if (Chebyshev(negotiatorPawn.Position, traderPawn.Position) > 1 && !ArrivalHook())
-            { failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The negotiator must walk to the trader and the arrival hook is unavailable."); return false; }
+            { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "The negotiator must walk to the trader and the arrival hook is unavailable."); return false; }
             return true;
         }
 
@@ -276,14 +273,14 @@ namespace HomeBridge.BridgeTools
         // beside each other. Shared by the immediate open at admission and
         // the arrival of a walked open; the caller holds whatever authority
         // the moment needs.
-        private static void BindSession(Pawn trader, Pawn negotiator, bool giftMode, Common.Identity identity, Map map)
+        private static void BindSession(Pawn trader, Pawn negotiator, bool giftMode, RimGovernor.Brain.GameFacts.Common.Identity identity, Map map)
         {
             try { TradeSession.SetupWith(trader, negotiator, giftMode); }
             catch (Exception e) { throw new InvalidOperationException("TradeSession.SetupWith threw: " + e.GetType().Name, e); }
             if (!TradeSession.Active || TradeSession.deal == null) throw new InvalidOperationException("TradeSession.SetupWith returned but the session is not active.");
             _sessionId = Guid.NewGuid().ToString("N"); _sessionColonyId = identity.ColonyId; _sessionLoadToken = identity.LoadToken;
             _sessionMap = map; _sessionDeal = TradeSession.deal; _sessionTrader = trader; _sessionNegotiator = negotiator;
-            _sessionTarget = new Common.TradeTarget { Kind = new Common.MapTradeTarget { TraderId = trader.GetUniqueLoadID() } };
+            _sessionTarget = new RimGovernor.Brain.GameFacts.Common.TradeTarget { Kind = new RimGovernor.Brain.GameFacts.Common.MapTradeTarget { TraderId = trader.GetUniqueLoadID() } };
             _giftMode = giftMode;
         }
 
@@ -333,7 +330,7 @@ namespace HomeBridge.BridgeTools
                 if (_sessionId != null || TradeSession.Active || OpenTradeDialog() != null
                     || !trader.Spawned || trader.Map != walk.Map || !SafeCanTradeNow(trader) || SafeBool(() => trader.mindState != null && trader.mindState.traderDismissed)
                     || !negotiator.Spawned || SafeBool(() => negotiator.Dead) || SafeBool(() => negotiator.Downed) || SafeBool(() => negotiator.InMentalState)
-                    || !negotiator.CanTradeWith(trader.Faction, trader.TraderKind).Accepted || !ProtoBoundary.IsLoaded(walk.Map))
+                    || !negotiator.CanTradeWith(trader.Faction, trader.TraderKind).Accepted || !GameThread.IsLoaded(walk.Map))
                     return true;
                 BindSession(trader, negotiator, walk.GiftMode, walk.Identity, walk.Map);
             }
@@ -342,7 +339,7 @@ namespace HomeBridge.BridgeTools
         }
         // The adapter's one live trade for this identity: the open session's
         // pair (open) or a walk the negotiator is still running. Reads only.
-        internal static bool Live(Common.Identity identity, out Pawn? trader, out Pawn? negotiator, out bool open)
+        internal static bool Live(RimGovernor.Brain.GameFacts.Common.Identity identity, out Pawn? trader, out Pawn? negotiator, out bool open)
         {
             trader = null; negotiator = null; open = false;
             if (_sessionId != null)
@@ -357,8 +354,8 @@ namespace HomeBridge.BridgeTools
             return true;
         }
 
-        private static Receipts.EffectEvidence OpenEvidence(Pawn trader) =>
-            new Receipts.EffectEvidence { Effect = new Receipts.TradeEffect.OpenCase(
+        private static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence OpenEvidence(Pawn trader) =>
+            new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.TradeEffect.OpenCase(
                 _sessionId ?? throw new InvalidOperationException("An open trade has no session id."),
                 trader.Faction?.GetUniqueLoadID() ?? throw new InvalidOperationException("An open trader has no faction.")) };
 
@@ -377,10 +374,10 @@ namespace HomeBridge.BridgeTools
         // exact defName match. A typed caller already holds an exact defName or
         // index from an observation read, so ambiguity is refused rather than
         // guessed.
-        private static bool ResolveRow(List<Tradeable> all, string lineId, out int index, out Common.Failure failure)
+        private static bool ResolveRow(List<Tradeable> all, string lineId, out int index, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
             index = -1;
-            failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "No row matches '" + lineId + "'.");
+            failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "No row matches '" + lineId + "'.");
             if (string.IsNullOrEmpty(lineId)) return false;
             var trimmed = lineId.Trim();
             if (trimmed.StartsWith("#", StringComparison.Ordinal))
@@ -392,7 +389,7 @@ namespace HomeBridge.BridgeTools
             for (var i = 0; i < all.Count; i++) { var def = SafeDef(all[i]); if (def != null && string.Equals(def.defName, trimmed, StringComparison.Ordinal)) hits.Add(i); }
             if (hits.Count != 1)
             {
-                failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, hits.Count == 0 ? "No row matches defName '" + trimmed + "'." : "'" + trimmed + "' matches multiple rows; address one by '#index'.");
+                failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, hits.Count == 0 ? "No row matches defName '" + trimmed + "'." : "'" + trimmed + "' matches multiple rows; address one by '#index'.");
                 return false;
             }
             index = hits[0]; return true;
@@ -400,65 +397,65 @@ namespace HomeBridge.BridgeTools
 
         // Validates every requested line before applying any of them:
         // SetTradeLines is an atomic admission, never a per-line partial apply.
-        private static bool PrepareLines(Operations.SetTradeLines? command, string traderId, string negotiatorId, Common.Identity identity, List<Tradeable> all, out List<PreparedLine> prepared, out Common.Failure failure)
+        private static bool PrepareLines(RimGovernor.Brain.GameOrders.Operations.SetTradeLines? command, string traderId, string negotiatorId, RimGovernor.Brain.GameFacts.Common.Identity identity, List<Tradeable> all, out List<PreparedLine> prepared, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
             prepared = new List<PreparedLine>();
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "SetTradeLines requires at least one line.");
+            failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "SetTradeLines requires at least one line.");
             if (command == null || command.Lines.Count == 0) return false;
             if (!RequireParticipants(traderId, negotiatorId, identity, out failure)) return false;
-            if (OpenTradeDialog() != null) { failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "A Dialog_Trade window is open on screen; close it first."); return false; }
+            if (OpenTradeDialog() != null) { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "A Dialog_Trade window is open on screen; close it first."); return false; }
             var seen = new HashSet<int>();
             var giftMode = SafeBool(() => TradeSession.giftMode);
             foreach (var line in command.Lines)
             {
-                if (line.LineId is null) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Every trade line requires a line_id and absolute_count."); return false; }
+                if (line.LineId is null) { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Every trade line requires a line_id and absolute_count."); return false; }
                 if (!ResolveRow(all, (line.LineId ?? ""), out var index, out failure)) return false;
-                if (!seen.Add(index)) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Line '" + (line.LineId ?? "") + "' repeats a row already addressed in this request."); return false; }
+                if (!seen.Add(index)) { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Line '" + (line.LineId ?? "") + "' repeats a row already addressed in this request."); return false; }
                 var row = all[index]; var target = line.AbsoluteCount;
-                if (!SafeBool(() => row.TraderWillTrade) && target != 0) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "'" + (line.LineId ?? "") + "' will not trade (TraderWillTrade is false)."); return false; }
-                if (SafeBool(() => row.IsCurrency) && !giftMode) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The silver row is computed from the other lines, not set."); return false; }
+                if (!SafeBool(() => row.TraderWillTrade) && target != 0) { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "'" + (line.LineId ?? "") + "' will not trade (TraderWillTrade is false)."); return false; }
+                if (SafeBool(() => row.IsCurrency) && !giftMode) { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The silver row is computed from the other lines, not set."); return false; }
                 if (IsPawnRow(row) && !(command.AllowPawns) && WouldGiveAway(row, target))
-                { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Refusing to sell a pawn row without allow_pawns."); return false; }
+                { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Refusing to sell a pawn row without allow_pawns."); return false; }
                 AcceptanceReport report;
-                try { report = row.CanAdjustTo(target); } catch (Exception e) { failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "CanAdjustTo threw: " + e.GetType().Name); return false; }
-                if (!report.Accepted) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, string.IsNullOrEmpty(report.Reason) ? "The game rejected that count." : report.Reason); return false; }
+                try { report = row.CanAdjustTo(target); } catch (Exception e) { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NativeFailure, "CanAdjustTo threw: " + e.GetType().Name); return false; }
+                if (!report.Accepted) { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, string.IsNullOrEmpty(report.Reason) ? "The game rejected that count." : report.Reason); return false; }
                 prepared.Add(new PreparedLine(index, target));
             }
             return true;
         }
 
         // -------------------------------------------------------- accept
-        private static bool PrepareAccept(Operations.AcceptTrade? command, string traderId, string negotiatorId, Common.Identity identity, out Common.Failure failure)
+        private static bool PrepareAccept(RimGovernor.Brain.GameOrders.Operations.AcceptTrade? command, string traderId, string negotiatorId, RimGovernor.Brain.GameFacts.Common.Identity identity, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "AcceptTrade requires a request.");
+            failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "AcceptTrade requires a request.");
             if (command == null) return false;
             if (!RequireParticipants(traderId, negotiatorId, identity, out failure)) return false;
-            if (OpenTradeDialog() != null) { failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "A Dialog_Trade window is open on screen; close it first."); return false; }
+            if (OpenTradeDialog() != null) { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "A Dialog_Trade window is open on screen; close it first."); return false; }
             var deal = _sessionDeal ?? throw new InvalidOperationException("The trade deal is unavailable.");
             RefreshPrices(deal);
             SafeUpdateCurrency(deal);
             if (command.ExpectedDealSignature is null || DealSignature() != (command.ExpectedDealSignature ?? ""))
-            { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "Trade contents or prices changed since preview."); return false; }
+            { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.StaleIdentity, "Trade contents or prices changed since preview."); return false; }
             var stagedCount = deal.AllTradeables.Count(t => SafeInt(() => t.CountToTransfer) != 0);
             if (stagedCount == 0 && !(command.AllowEmpty))
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Nothing is staged; pass allow_empty to trade nothing deliberately."); return false; }
+            { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Nothing is staged; pass allow_empty to trade nothing deliberately."); return false; }
             HashSet<Thing> colonyGoods, traderGoods;
             try
             {
                 colonyGoods = new HashSet<Thing>((_sessionTrader ?? throw new System.InvalidOperationException("Required native value is unavailable: _sessionTrader.")).ColonyThingsWillingToBuy(_sessionNegotiator));
                 traderGoods = new HashSet<Thing>(_sessionTrader.Goods);
             }
-            catch (Exception e) { failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Trade stock could not be read: " + e.GetType().Name); return false; }
+            catch (Exception e) { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NativeFailure, "Trade stock could not be read: " + e.GetType().Name); return false; }
             foreach (var row in deal.AllTradeables.Where(t => SafeInt(() => t.CountToTransfer) != 0))
             {
                 var buys = row.ActionToDo == TradeAction.PlayerBuys;
                 var source = buys ? row.thingsTrader : row.thingsColony;
                 var available = buys ? traderGoods : colonyGoods;
                 if (source.Any(t => t.Destroyed || (t.stackCount > 0 && !available.Contains(t))) || !row.CanAdjustTo(row.CountToTransfer).Accepted)
-                { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "Trade stock changed or is no longer eligible."); return false; }
+                { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.StaleIdentity, "Trade stock changed or is no longer eligible."); return false; }
             }
             if (IsFavorSession() && !SafeBool(() => TradeSession.giftMode) && (_sessionNegotiator?.royalty == null || _sessionTrader?.Faction == null))
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A favor deal needs a negotiator with a royalty tracker and a faction trader."); return false; }
+            { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "A favor deal needs a negotiator with a royalty tracker and a faction trader."); return false; }
             if (!SafeBool(() => TradeSession.giftMode))
             {
                 var currency = SafeCurrencyTradeable(deal);
@@ -466,30 +463,30 @@ namespace HomeBridge.BridgeTools
                 var traderAffordable = SafeBool(() => deal.DoesTraderHaveEnoughSilver());
                 if (!affordable || !traderAffordable)
                 {
-                    failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, currency == null ? (IsFavorSession() ? "This deal has no favor row." : "This deal has no silver row.")
+                    failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, currency == null ? (IsFavorSession() ? "This deal has no favor row." : "This deal has no silver row.")
                         : !affordable ? "The colony cannot afford this deal." : "The trader cannot afford this deal.");
                     return false;
                 }
             }
-            if (!CaravanCargoFits(deal)) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Caravan carrying capacity would be exceeded."); return false; }
+            if (!CaravanCargoFits(deal)) { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Caravan carrying capacity would be exceeded."); return false; }
             return true;
         }
 
         // ----------------------------------------------------------- end
-        private static bool PrepareEnd(Operations.EndTrade? command, string traderId, string negotiatorId, Common.Identity identity, out Common.Failure failure)
+        private static bool PrepareEnd(RimGovernor.Brain.GameOrders.Operations.EndTrade? command, string traderId, string negotiatorId, RimGovernor.Brain.GameFacts.Common.Identity identity, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "EndTrade requires an explicit kind.");
+            failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "EndTrade requires an explicit kind.");
             if (command == null || !Enum.IsDefined(command.Kind)) return false;
             if (_sessionId != null && (_sessionColonyId != (identity.ColonyId ?? "") || _sessionLoadToken != (identity.LoadToken ?? "")))
-            { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "The session belongs to another world identity."); return false; }
+            { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.StaleIdentity, "The session belongs to another world identity."); return false; }
             if (_contact != null && _contact.Live() && (TargetKey(_contact.Target) != traderId || _contact.Pawn.GetUniqueLoadID() != negotiatorId)
                 || _walk != null && _walk.Live() && (_walk.Trader.GetUniqueLoadID() != traderId || _walk.Negotiator.GetUniqueLoadID() != negotiatorId))
-            { failure = ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "A different pair owns the pending trade."); return false; }
+            { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.OwnerConflict, "A different pair owns the pending trade."); return false; }
             // A cancel with no session left is already done, and one whose
             // trader has since left still closes; a session held by a
             // different pair is refused.
-            if (command.Kind == Operations.EndTradeKind.Cancel && _sessionId != null && !EndMatches(traderId, negotiatorId))
-            { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "The open trade session is held by a different trader or negotiator."); return false; }
+            if (command.Kind == RimGovernor.Brain.GameOrders.Operations.EndTradeKind.Cancel && _sessionId != null && !EndMatches(traderId, negotiatorId))
+            { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.StaleIdentity, "The open trade session is held by a different trader or negotiator."); return false; }
             // close_dialog: the escape hatch. It always succeeds at sweeping
             // any stray Dialog_Trade window; it only additionally closes the
             // session (ApplyEnd) when the named pair holds it.
@@ -504,53 +501,53 @@ namespace HomeBridge.BridgeTools
         // Actions/Apply's trade arm (NativeActionDispatch). The pair on the
         // TradeIntent names the session.
         // Whether the step applies to live state now; null when it does.
-        internal static Common.Failure? Validate(Operations.TradeIntent intent, Common.Identity identity)
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.TradeIntent intent, RimGovernor.Brain.GameFacts.Common.Identity identity)
         {
-            Common.Failure failure;
-            if (intent.Target == null || string.IsNullOrEmpty(TargetKey(intent.Target))) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A typed trade target is required.");
-            if (intent.Step is Operations.TradeIntentStep.OpenCase && intent.Target.Kind is not Common.TradeTargetKind.MapTraderCase) return PrepareWorldOpen(intent, identity, out _, out _, out _, out failure) ? null : failure;
+            RimGovernor.Brain.GameFacts.Common.Failure failure;
+            if (intent.Target == null || string.IsNullOrEmpty(TargetKey(intent.Target))) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "A typed trade target is required.");
+            if (intent.Step is RimGovernor.Brain.GameOrders.Operations.TradeIntentStep.OpenCase && intent.Target.Kind is not RimGovernor.Brain.GameFacts.Common.TradeTargetKind.MapTraderCase) return PrepareWorldOpen(intent, identity, out _, out _, out _, out failure) ? null : failure;
             switch (intent.Step)
             {
-                case Operations.TradeIntentStep.OpenCase open:
+                case RimGovernor.Brain.GameOrders.Operations.TradeIntentStep.OpenCase open:
                     return PrepareOpen(open.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), identity, out _, out _, out _, out failure) ? null : failure;
-                case Operations.TradeIntentStep.SetLinesCase setLines:
+                case RimGovernor.Brain.GameOrders.Operations.TradeIntentStep.SetLinesCase setLines:
                     var all = RequireSession(identity, out _) ? (_sessionDeal ?? throw new System.InvalidOperationException("Required native value is unavailable: _sessionDeal.")).AllTradeables : new List<Tradeable>();
                     return PrepareLines(setLines.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), identity, all, out _, out failure) ? null : failure;
-                case Operations.TradeIntentStep.AcceptCase accept:
+                case RimGovernor.Brain.GameOrders.Operations.TradeIntentStep.AcceptCase accept:
                     return PrepareAccept(accept.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), identity, out failure) ? null : failure;
-                case Operations.TradeIntentStep.EndCase end:
+                case RimGovernor.Brain.GameOrders.Operations.TradeIntentStep.EndCase end:
                     return PrepareEnd(end.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), identity, out failure) ? null : failure;
                 default:
-                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A trade intent names exactly one step.");
+                    return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "A trade intent names exactly one step.");
             }
         }
 
         // Applies a validated step; the caller holds native authority. A
         // throw after a partial effect leaves the session to the next read.
-        internal static Receipts.EffectEvidence Apply(Operations.TradeIntent intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.TradeIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             if (intent.Target == null) throw new InvalidOperationException("A typed trade target is required.");
-            if (intent.Step is Operations.TradeIntentStep.OpenCase && intent.Target.Kind is not Common.TradeTargetKind.MapTraderCase) return ApplyWorldOpen(intent, context);
+            if (intent.Step is RimGovernor.Brain.GameOrders.Operations.TradeIntentStep.OpenCase && intent.Target.Kind is not RimGovernor.Brain.GameFacts.Common.TradeTargetKind.MapTraderCase) return ApplyWorldOpen(intent, context);
             switch (intent.Step)
             {
-                case Operations.TradeIntentStep.OpenCase open: return ApplyOpen(open.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context);
-                case Operations.TradeIntentStep.SetLinesCase setLines: return ApplyLines(setLines.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context.Identity);
-                case Operations.TradeIntentStep.AcceptCase accept: return ApplyAccept(accept.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context.Identity);
-                case Operations.TradeIntentStep.EndCase end: return ApplyEnd(end.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context.Identity);
+                case RimGovernor.Brain.GameOrders.Operations.TradeIntentStep.OpenCase open: return ApplyOpen(open.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context);
+                case RimGovernor.Brain.GameOrders.Operations.TradeIntentStep.SetLinesCase setLines: return ApplyLines(setLines.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context.Identity);
+                case RimGovernor.Brain.GameOrders.Operations.TradeIntentStep.AcceptCase accept: return ApplyAccept(accept.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context.Identity);
+                case RimGovernor.Brain.GameOrders.Operations.TradeIntentStep.EndCase end: return ApplyEnd(end.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context.Identity);
                 default: throw new InvalidOperationException("A trade intent names exactly one step.");
             }
         }
 
-        private static Receipts.EffectEvidence ApplyOpen(Operations.OpenTrade command, string traderId, string negotiatorId, Common.ObservationContext context)
+        private static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence ApplyOpen(RimGovernor.Brain.GameOrders.Operations.OpenTrade command, string traderId, string negotiatorId, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var identity = context.Identity;
             if (!PrepareOpen(command, traderId, negotiatorId, identity, out var trader, out var negotiator, out var reuse, out _) || trader == null || negotiator == null)
                 throw new InvalidOperationException("Open prerequisites changed after validation.");
             var giftMode = command.GiftMode;
-            var map = ProtoBoundary.ResolveMap(context);
+            var map = GameThread.ResolveMap(context);
             if (map == null) throw new InvalidOperationException("No current map.");
             if (reuse == OpenReuse.Session) return OpenEvidence(trader);
-            if (reuse == OpenReuse.Walk) return new Receipts.EffectEvidence { Effect = new Receipts.TradeEffect.ApproachingCase() };
+            if (reuse == OpenReuse.Walk) return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.TradeEffect.ApproachingCase() };
             if (Adjacent(trader, negotiator))
             {
                 BindSession(trader, negotiator, giftMode, identity, map);
@@ -569,27 +566,27 @@ namespace HomeBridge.BridgeTools
             catch (Exception e) { _walk = null; throw new InvalidOperationException("Ordered TradeWithPawn threw: " + e.GetType().Name, e); }
             if (!taken) { _walk = null; throw new InvalidOperationException("The negotiator did not take the walk to the trader."); }
             return _sessionId != null && ReferenceEquals(_sessionTrader, trader) ? OpenEvidence(trader)
-                : new Receipts.EffectEvidence { Effect = new Receipts.TradeEffect.ApproachingCase() };
+                : new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.TradeEffect.ApproachingCase() };
         }
 
-        private static Receipts.EffectEvidence ApplyLines(Operations.SetTradeLines command, string traderId, string negotiatorId, Common.Identity identity)
+        private static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence ApplyLines(RimGovernor.Brain.GameOrders.Operations.SetTradeLines command, string traderId, string negotiatorId, RimGovernor.Brain.GameFacts.Common.Identity identity)
         {
             var deal = _sessionDeal; if (deal == null) throw new InvalidOperationException("Trade session closed before native effect.");
             var all = deal.AllTradeables;
             if (!PrepareLines(command, traderId, negotiatorId, identity, all, out var prepared, out _)) throw new InvalidOperationException("Trade lines prerequisites changed after validation.");
-            var lineEffects = new List<Receipts.TradeLineEffect>();
+            var lineEffects = new List<RimGovernor.Brain.GameFacts.Receipts.TradeLineEffect>();
             foreach (var line in prepared)
             {
                 var row = all[line.Index];
                 row.AdjustTo(line.Target);
-                lineEffects.Add(new Receipts.TradeLineEffect { LineId = "#" + line.Index });
+                lineEffects.Add(new RimGovernor.Brain.GameFacts.Receipts.TradeLineEffect { LineId = "#" + line.Index });
             }
             SafeUpdateCurrency(deal);
-            var evidence = new Receipts.EffectEvidence { Effect = new Receipts.TradeEffect.StagedCase([.. lineEffects]) };
+            var evidence = new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.TradeEffect.StagedCase([.. lineEffects]) };
             return evidence;
         }
 
-        private static Receipts.EffectEvidence ApplyAccept(Operations.AcceptTrade command, string traderId, string negotiatorId, Common.Identity identity)
+        private static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence ApplyAccept(RimGovernor.Brain.GameOrders.Operations.AcceptTrade command, string traderId, string negotiatorId, RimGovernor.Brain.GameFacts.Common.Identity identity)
         {
             if (!PrepareAccept(command, traderId, negotiatorId, identity, out _)) throw new InvalidOperationException("Accept prerequisites changed after validation.");
             var deal = _sessionDeal ?? throw new InvalidOperationException("The trade deal is unavailable."); var traderPawn = _sessionTrader;
@@ -614,8 +611,8 @@ namespace HomeBridge.BridgeTools
             _sessionDeal = null; _sessionTrader = null; _sessionNegotiator = null; _giftMode = false;
             // A deal the game would not execute still ends the session, but the
             // accept is refused: the routine fails the method and replans.
-            if (!executed) throw new ApplyRefusedException(Common.FailureCode.NativeFailure, "The game declined to execute the deal; the session is closed.");
-            var evidence = new Receipts.EffectEvidence { Effect = new Receipts.TradeEffect.ExecutedCase(
+            if (!executed) throw new ApplyRefusedException(RimGovernor.Brain.GameFacts.Common.FailureCode.NativeFailure, "The game declined to execute the deal; the session is closed.");
+            var evidence = new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.TradeEffect.ExecutedCase(
                 command.ExpectedDealSignature ?? throw new InvalidOperationException("An accepted deal has no signature."),
                 beforeSilver, afterSilver, actuallyTraded) };
             return evidence;
@@ -629,11 +626,11 @@ namespace HomeBridge.BridgeTools
             return trader.ColonyThingsWillingToBuy(negotiator).Where(t => t != null && !t.Destroyed && t.def == ThingDefOf.Silver).Sum(t => t.stackCount);
         }
 
-        private static Receipts.EffectEvidence ApplyEnd(Operations.EndTrade command, string traderId, string negotiatorId, Common.Identity identity)
+        private static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence ApplyEnd(RimGovernor.Brain.GameOrders.Operations.EndTrade command, string traderId, string negotiatorId, RimGovernor.Brain.GameFacts.Common.Identity identity)
         {
             if (!PrepareEnd(command, traderId, negotiatorId, identity, out _)) throw new InvalidOperationException("End prerequisites changed after validation.");
             var matches = EndMatches(traderId, negotiatorId);
-            if (command.Kind == Operations.EndTradeKind.CloseDialog)
+            if (command.Kind == RimGovernor.Brain.GameOrders.Operations.EndTradeKind.CloseDialog)
             {
                 var stack = Find.WindowStack;
                 try { foreach (var w in stack?.Windows?.OfType<Window>().Where(IsTradeDialog).ToList() ?? new List<Window>()) { try { w.Close(false); } catch { try { (stack ?? throw new System.InvalidOperationException("Required native value is unavailable: stack.")).TryRemove(w, false); } catch { } } } }
@@ -641,7 +638,7 @@ namespace HomeBridge.BridgeTools
             }
             matches = CancelApproach(traderId, negotiatorId) || matches;
             if (_sessionId != null && matches) CloseSession(command.ReceiveQuest);
-            return new Receipts.EffectEvidence { Effect = new Receipts.TradeEffect.EndedCase() };
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.TradeEffect.EndedCase() };
         }
     }
 }

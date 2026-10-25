@@ -4,22 +4,18 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
 using DomainCell = RimGovernor.Brain.Domain.Cell;
-using Obs = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Staged excavation read: certifies a requested rock cell set (a stage or a
     // whole target) for ordinary pawn mining. Roofed cells are admissible; the
     // site-level support answer is a counterfactual over all requested cells.
     internal static class NativeExcavationSite
     {
-        internal static bool Validate(Obs.ExcavationSiteRequest request, out Common.Failure failure)
+        internal static bool Validate(RimGovernor.Brain.GameOrders.Observations.ExcavationSiteRequest request, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity, 1 or more unique nonnegative cells and an access cell required.");
+            failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Valid identity, 1 or more unique nonnegative cells and an access cell required.");
             if (request?.Scope?.ExpectedIdentity == null || request.Cells.Count < 1 || !HasCell(request.AccessCell)) return false;
             var seen = new HashSet<(int, int)>();
             foreach (var cell in request.Cells) if (!HasCell(cell) || !seen.Add((cell.X, cell.Z))) return false;
@@ -27,12 +23,12 @@ namespace HomeBridge.BridgeTools
         }
         private static bool HasCell(RimGovernor.Brain.Domain.Cell cell) => cell.X >= 0 && cell.Z >= 0;
 
-        internal static Obs.ExcavationCell Row(IntVec3 cell, Map map)
+        internal static RimGovernor.Brain.GameFacts.Observations.ExcavationCell Row(IntVec3 cell, Map map)
         {
             if (!cell.InBounds(map))
-                return new Obs.ExcavationCell { Cell = new DomainCell(cell.x, cell.z), Fogged = false, Definition = null, Walkable = false, MineDesignated = false, Eligible = false };
+                return new RimGovernor.Brain.GameFacts.Observations.ExcavationCell { Cell = new DomainCell(cell.x, cell.z), Fogged = false, Definition = null, Walkable = false, MineDesignated = false, Eligible = false };
             var eligible = ExcavationTools.Eligible(cell, map);
-            return new Obs.ExcavationCell {
+            return new RimGovernor.Brain.GameFacts.Observations.ExcavationCell {
                 Cell = new DomainCell(cell.x, cell.z),
                 Fogged = cell.Fogged(map),
                 Definition = ExcavationTools.RockAt(cell, map)?.def.defName,
@@ -43,13 +39,13 @@ namespace HomeBridge.BridgeTools
         }
 
         // A request with no cell on the map is refused before Read: the site has no geometry to judge.
-        internal static bool OnMap(Obs.ExcavationSiteRequest request, Map map, out Common.Failure failure)
+        internal static bool OnMap(RimGovernor.Brain.GameOrders.Observations.ExcavationSiteRequest request, Map map, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "At least one requested excavation cell must be on the map.");
+            failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "At least one requested excavation cell must be on the map.");
             return request.Cells.Any(c => new IntVec3(c.X, 0, c.Z).InBounds(map));
         }
 
-        internal static Obs.ExcavationSiteSnapshot Read(Map map, Obs.ExcavationSiteRequest request, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Observations.ExcavationSiteSnapshot Read(Map map, RimGovernor.Brain.GameOrders.Observations.ExcavationSiteRequest request, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var cells = request.Cells.Select(c => new IntVec3(c.X, 0, c.Z)).ToList();
             var access = new IntVec3(request.AccessCell.X, 0, request.AccessCell.Z);
@@ -59,8 +55,8 @@ namespace HomeBridge.BridgeTools
             // Through fog the support check judges every roof it walks, so it never answers Unknown.
             var check = ExcavationSafety.Check(map, known, out var supportBlocker, throughFog: true);
             if (check == ExcavationSafety.Support.Unknown) throw new InvalidOperationException("Excavation support through fog answered unknown.");
-            var support = check == ExcavationSafety.Support.Supported ? Obs.ExcavationSupport.Supported : Obs.ExcavationSupport.Unsupported;
-            if (collapsePending) { support = Obs.ExcavationSupport.Unsupported; supportBlocker = "Roof collapse is already pending"; }
+            var support = check == ExcavationSafety.Support.Supported ? RimGovernor.Brain.GameFacts.Observations.ExcavationSupport.Supported : RimGovernor.Brain.GameFacts.Observations.ExcavationSupport.Unsupported;
+            if (collapsePending) { support = RimGovernor.Brain.GameFacts.Observations.ExcavationSupport.Unsupported; supportBlocker = "Roof collapse is already pending"; }
             // The access cell may itself be rock (single-cell dispatch reads pass
             // the target): a miner stands on any visible walkable neighbour.
             var stand = ExcavationTools.StandingCell(access, map);
@@ -80,7 +76,7 @@ namespace HomeBridge.BridgeTools
                 if (fronts.Count > 0) { stand = fronts[0]; reachable = true; }
             }
             var workers = reachable ? ExcavationTools.Workers(map, stand) : new List<Pawn>();
-            return new Obs.ExcavationSiteSnapshot {
+            return new RimGovernor.Brain.GameFacts.Observations.ExcavationSiteSnapshot {
                 Context = context, Cells = [.. rows], Support = support, SupportBlocker = supportBlocker,
                 CollapsePending = collapsePending, Workers = [.. workers.Select(w => w.GetUniqueLoadID())], AccessReachable = reachable,
             };

@@ -5,7 +5,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Telemetry;
 using Decision = RimGovernor.Brain.Telemetry.Decision;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -25,7 +24,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 internal static class LayoutFirstBedroomCloses
 {
     private const int Colonists = 3;
-    private static readonly HashSet<Observations.RoomRole> SleepingRoles = [Observations.RoomRole.Bedroom, Observations.RoomRole.Barracks];
+    private static readonly HashSet<RimGovernor.Brain.GameFacts.Observations.RoomRole> SleepingRoles = [RimGovernor.Brain.GameFacts.Observations.RoomRole.Bedroom, RimGovernor.Brain.GameFacts.Observations.RoomRole.Barracks];
     private static readonly TelemetryKind[] Read = [TelemetryKinds.LayoutPlan, TelemetryKinds.LayoutReplanTiled, TelemetryKinds.PlannerStep];
 
     internal static TypedCase Case() => new()
@@ -67,7 +66,7 @@ internal static class LayoutFirstBedroomCloses
     private static HashSet<Cell> Ring(PlannedRoom r) => r.Unfenced() ? [] : [.. r.Region.Walls().Cells()];
 
     // The census room the planned room's ring encloses: proper, indoors, roofed, off the map edge, filling exactly its region.
-    private static Observations.RoomState? Enclosing(PlannedRoom r, IEnumerable<Observations.RoomState> rooms)
+    private static RimGovernor.Brain.GameFacts.Observations.RoomState? Enclosing(PlannedRoom r, IEnumerable<RimGovernor.Brain.GameFacts.Observations.RoomState> rooms)
     {
         var bounds = r.Region.Bounds();
         return rooms.FirstOrDefault(room => room is { ProperRoom: true, Outdoors: false, OpenRoofCount: 0, TouchesMapEdge: false }
@@ -88,7 +87,7 @@ internal static class LayoutFirstBedroomCloses
         var floor = Read.SelectMany(s.Telemetry).Select(r => r.Sequence).DefaultIfEmpty(0UL).Max();
         LogRow? planned = null;
         Closed? closed = null;
-        Observations.RoomState? census = null;
+        RimGovernor.Brain.GameFacts.Observations.RoomState? census = null;
         var owned = new Dictionary<string, string>(StringComparer.Ordinal);
 
         // Each planned room's ring start: the tick it was first seen and the newest replan row then.
@@ -104,23 +103,23 @@ internal static class LayoutFirstBedroomCloses
             {
                 return ("no plan", false);
             }
-            var reply = await s.CallAsync("rooms", NativeOps.ListRooms, new Observations.ListRoomsRequest { Scope = s.Scope }, ct).ConfigureAwait(false);
+            var reply = await s.CallAsync("rooms", NativeOps.ListRooms, new RimGovernor.Brain.GameOrders.Observations.ListRoomsRequest { Scope = s.Scope }, ct).ConfigureAwait(false);
             var snapshot = reply;
             var tick = snapshot.Context?.Tick ?? throw new AcceptanceException("the rooms read carries no tick");
-            var buildings = await s.BuildingsAsync("buildings", new Observations.ListBuildingsRequest(), ct).ConfigureAwait(false);
+            var buildings = await s.BuildingsAsync("buildings", new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest(), ct).ConfigureAwait(false);
             foreach (var r in plan.Rooms)
             {
                 var ring = Ring(r);
                 var (wall, door) = r.RingDefs();
-                var pieces = buildings.Where(b => b.Building.Place is Observations.EntityPlace.OnMap { Cell: var at } && ring.Contains(CellOf(at))
-                    && (b.Construction is Observations.ConstructionState.Build build ? build.Definition : b.Building.DefName) is { } def && (def == wall || def == door)).ToList();
+                var pieces = buildings.Where(b => b.Building.Place is RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap { Cell: var at } && ring.Contains(CellOf(at))
+                    && (b.Construction is RimGovernor.Brain.GameFacts.Observations.ConstructionState.Build build ? build.Definition : b.Building.DefName) is { } def && (def == wall || def == door)).ToList();
                 if (pieces.Count > 0 && !started.ContainsKey(r.Id))
                 {
                     started[r.Id] = (tick, s.Telemetry(TelemetryKinds.LayoutReplanTiled).Select(row => row.Sequence).DefaultIfEmpty(floor).Max());
                 }
-                foreach (var b in pieces.Where(b => b.Status is Observations.BuildingStatus.Frame or Observations.BuildingStatus.Built))
+                foreach (var b in pieces.Where(b => b.Status is RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Frame or RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Built))
                 {
-                    _ = shell.TryAdd((r.Id, CellOf(((Observations.EntityPlace.OnMap)b.Building.Place).Cell)), tick);
+                    _ = shell.TryAdd((r.Id, CellOf(((RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap)b.Building.Place).Cell)), tick);
                 }
             }
 
@@ -136,10 +135,10 @@ internal static class LayoutFirstBedroomCloses
 
             // The closed room as the plan now holds it (a started room keeps its id) and the census room it encloses.
             census = plan.Rooms.FirstOrDefault(r => r.Id == closed.Room) is { } room ? Enclosing(room, snapshot.Rooms) : null;
-            var pawns = await s.CallAsync("colonists", NativeOps.ListPawns, new Observations.ListPawnsRequest
+            var pawns = await s.CallAsync("colonists", NativeOps.ListPawns, new RimGovernor.Brain.GameOrders.Observations.ListPawnsRequest
             {
                 Scope = s.Scope,
-                Filter = new Observations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only },
+                Filter = new RimGovernor.Brain.GameFacts.Observations.PawnFilter { Colonist = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Only },
             }, ct).ConfigureAwait(false);
             owned = pawns.Pawns
                 .ToDictionary(p => p.Pawn.Id, p => p.OwnedBed?.Id ?? "", StringComparer.Ordinal);

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Tick-rate reporting and frame accounting. Native never raises a speed
     // beyond the one the brain's Run asked for: Normal, Fast, Superfast and
@@ -47,14 +47,14 @@ namespace HomeBridge.BridgeTools
         private static int CeilingTicksPerSecond(State s) => s.Ceiling.TicksPerSecond;
 
         // What bounds the epoch's rate, most binding first.
-        private static RimGovernor.Contracts.Wire.Clock.PacingReason PacingReasonOf(State s)
+        private static RimGovernor.Brain.GameFacts.Clock.PacingReason PacingReasonOf(State s)
         {
             var unclamped = UnclampedTicksPerSecond(s);
             if (s.Ceiling.TicksPerSecond > 0 && s.Ceiling.TicksPerSecond < unclamped)
                 return s.Ceiling.Binding == ClockCeiling.Input.Heartbeat
-                    ? RimGovernor.Contracts.Wire.Clock.PacingReason.Heartbeat
-                    : RimGovernor.Contracts.Wire.Clock.PacingReason.FrameBudget;
-            return RimGovernor.Contracts.Wire.Clock.PacingReason.Fixed;
+                    ? RimGovernor.Brain.GameFacts.Clock.PacingReason.Heartbeat
+                    : RimGovernor.Brain.GameFacts.Clock.PacingReason.FrameBudget;
+            return RimGovernor.Brain.GameFacts.Clock.PacingReason.Fixed;
         }
 
         // The rate the speed asks for before the ceiling: what ClampTickRate saw

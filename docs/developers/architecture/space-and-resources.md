@@ -47,7 +47,7 @@ each stock unit is counted once. Unknown stock leaves demand unknown. Estimated
 acquisition yield is not inventory. Priorities are 1–100, higher first; economic
 floors default to 1 and a merged row retains its highest priority.
 
-Every Round plans the resource deficits once. `Rounder.resourceSupply` builds one
+Every Round plans the resource deficits once. `ColonyReview.resourceSupply` builds one
 `policy.PlanResourceSupply` over the unmet economy/resource floors, cached per
 observed tick, invalidation generation and economy/resource revision like the food
 plan, and plans them after food against the labor food leaves (`workers * 20000`
@@ -62,11 +62,11 @@ trips; storage headroom bounds a hauled yield, unknown headroom is none; an
 unknown cost fact withholds a candidate). One admission decides which candidates
 open; the planners do not rank:
 
-- `RoundsResourcePlanner` dispatches the mine and produce candidates the plan
+- `ResourcePlanner` dispatches the mine and produce candidates the plan
   opened, in rank order (`dispatchSupplied`): a mine to `dispatchMineSource`, a
   bill to the bench. When the plan opened
   nothing for it the tail still tunnels to buried ore or waits on a designation.
-- `RoundsAcquisitionPlanner` designates the chop, harvest and hunt candidates the
+- `AcquisitionPlanner` designates the chop, harvest and hunt candidates the
   plan opened (`resourceSelection`), at most eight rows and the free hunt slots.
   A resource with a designation in flight is existing work for it.
 - A deep drill is a candidate for each lump of a metal in deficit that a preview
@@ -82,7 +82,7 @@ open; the planners do not rank:
   and the open costs of an admitted shelter or bench short of a resource each
   raise a floor
   measured by one stock reader (`policy.StockReader`). The review computes the
-  demand and the Rounder keeps it in memory (empty until the first review after
+  demand and the ColonyReview keeps it in memory (empty until the first review after
   a restart).
 - Open-bill demand (`policy.OpenBillDemand`): the work ledger's declared gear-batch
   orders (bill filter, batch count, catalog slot counts) raise each slot's cheapest

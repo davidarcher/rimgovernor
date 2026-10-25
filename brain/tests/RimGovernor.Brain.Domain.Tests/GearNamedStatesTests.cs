@@ -1,5 +1,3 @@
-using D = RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -21,7 +19,7 @@ public sealed class GearNamedStatesTests
         {
             var role = GearLoadoutRules.DeriveGearRole(GearFixtures.Role with
             {
-                Work = [new WorkPriority { Observed = new O.WorkSetting { DefName = Wire.Name(work), Priority = 1, Disabled = false } }],
+                Work = [new WorkPriority { Observed = new RimGovernor.Brain.GameFacts.Observations.WorkSetting { DefName = Wire.Name(work), Priority = 1, Disabled = false } }],
             });
             Assert.True(Enum.IsDefined(role), work.ToString());
         }
@@ -29,7 +27,7 @@ public sealed class GearNamedStatesTests
         Assert.Equal(GearRole.Worker, GearLoadoutRules.DeriveGearRole(GearFixtures.Role));
         Assert.Equal(GearRole.Worker, GearLoadoutRules.DeriveGearRole(GearFixtures.Role with
         {
-            Work = [new WorkPriority { Observed = new O.WorkSetting { DefName = Wire.Name(WorkType.Training), Priority = 1, Disabled = false } }],
+            Work = [new WorkPriority { Observed = new RimGovernor.Brain.GameFacts.Observations.WorkSetting { DefName = Wire.Name(WorkType.Training), Priority = 1, Disabled = false } }],
         }));
     }
 
@@ -52,7 +50,7 @@ public sealed class GearNamedStatesTests
                 new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new("unchosen") }, LoadoutModel = new GearModel.NoOutfit(), Candidates = [], ColdFloor = new InsulationFloor.Chosen(3) },
             ],
         };
-        var stamped = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearChoices(new RoundsFacts { Gear = gear }, [new GearChoice("chosen", false, new InsulationFloor.Chosen(-10), new InsulationFloor.Worn())]).Gear.Pawns;
+        var stamped = RimGovernor.Brain.Runtime.ColonyReview.WithGearChoices(new ReviewFacts { Gear = gear }, [new GearChoice("chosen", false, new InsulationFloor.Chosen(-10), new InsulationFloor.Worn())]).Gear.Pawns;
         Assert.Equal(new InsulationFloor.Chosen(-10), stamped[0].ColdFloor);
         Assert.IsType<InsulationFloor.Worn>(stamped[0].HeatFloor);
         // A pawn the comparator names no choice for is back at its worn insulation.

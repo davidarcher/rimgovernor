@@ -1,7 +1,6 @@
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Store.Codec;
-using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -19,7 +18,7 @@ internal static class TypedGovernorState
     public static async Task InjectAsync<T>(TypedSession s, string key, T record, bool scoped, CancellationToken cancellationToken)
     {
         // The batch put replaces the whole set, so read the save's blobs and add the record to them.
-        var loaded = await s.CallAsync("read-governor-state", NativeOps.ReadGovernorState, new Lifecycle.GovernorStateRequest(), cancellationToken).ConfigureAwait(false);
+        var loaded = await s.CallAsync("read-governor-state", NativeOps.ReadGovernorState, new RimGovernor.Brain.GameOrders.Lifecycle.GovernorStateRequest(), cancellationToken).ConfigureAwait(false);
         var fields = new List<(string Key, JsonNode? Value)> { ("schemaVersion", Store.Store.GovernorStateSchemaVersion) };
         if (scoped)
         {
@@ -28,7 +27,7 @@ internal static class TypedGovernorState
 
         fields.Add(("record", JsonNode.Parse(StoreJson.Serialize(record))));
         var blobs = new Dictionary<string, string>(loaded.Blobs, StringComparer.Ordinal) { [key] = ServedOps.Args([.. fields]).ToJsonString() };
-        var put = await s.CallAsync("put-governor-state", NativeOps.PutGovernorStateBatch, new Lifecycle.PutGovernorStateBatchRequest { Blobs = blobs }, cancellationToken).ConfigureAwait(false);
+        var put = await s.CallAsync("put-governor-state", NativeOps.PutGovernorStateBatch, new RimGovernor.Brain.GameOrders.Lifecycle.PutGovernorStateBatchRequest { Blobs = blobs }, cancellationToken).ConfigureAwait(false);
         if (put.Loaded is null)
         {
             throw new AcceptanceException("put-governor-state: not loaded");

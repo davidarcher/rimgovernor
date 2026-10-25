@@ -2,11 +2,13 @@ using System.Collections;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.HttpChannel;
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Common;
-using RimGovernor.Contracts.Wire.Presentation;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Common;
+using RimGovernor.Brain.GameFacts.Presentation;
+using RimGovernor.Brain.GameOrders.Presentation;
 
 namespace RimGovernor.Brain.PlayerApi;
 
@@ -166,7 +168,7 @@ public static class PresentationRoutes
             throw new InvalidOperationException("invalid presentation wire");
         }
 
-        var json = WireJson.Serialize(reply);
+        var json = OrdersJson.Serialize(reply);
         if (Encoding.UTF8.GetByteCount(json) > MaxReplyBytes)
         {
             return ChannelResponse.Failure(503, "response_limit", "Presentation response exceeds its configured bound");
@@ -275,7 +277,7 @@ public static class PresentationRoutes
         }
 
         var isPair = type.IsGenericType && type.GetGenericTypeDefinition() == typeof(KeyValuePair<,>);
-        if (!isPair && type.Namespace?.StartsWith("RimGovernor.Contracts.Wire", StringComparison.Ordinal) != true)
+        if (!isPair && type.Assembly != typeof(FactsJson).Assembly)
         {
             return true;
         }

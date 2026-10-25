@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -26,7 +25,7 @@ public static class QuestHospitality
     /// Reuses sleeping upkeep and ordinary guest work, including crash rescue pickup. Native facts end
     /// hosting and prove transporter loading.
     /// </summary>
-    public static HospitalityWork SelectHospitalityWork(RoundsFacts f, Tick tick)
+    public static HospitalityWork SelectHospitalityWork(ReviewFacts f, Tick tick)
     {
         var rows = f.QuestOffers;
         var waiting = new HospitalityWork();
@@ -46,7 +45,7 @@ public static class QuestHospitality
         return waiting;
     }
 
-    private static HospitalityWork HospitalityWorkOf(RoundsFacts f, Tick tick)
+    private static HospitalityWork HospitalityWorkOf(ReviewFacts f, Tick tick)
     {
         var offers = f.QuestOffers;
         foreach (var offer in offers.OrderBy(o => o.Id))
@@ -138,11 +137,11 @@ public static class QuestHospitality
             }
             foreach (var objective in offer.Objectives)
             {
-                if (objective.Kind != Pb.QuestObjectiveKind.HostLodgers)
+                if (objective.Kind != RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.HostLodgers)
                 {
                     continue;
                 }
-                if (objective.MinimumMood is Pb.QuestMoodFloor.Floor { Mood: var threshold })
+                if (objective.MinimumMood is RimGovernor.Brain.GameFacts.Observations.QuestMoodFloor.Floor { Mood: var threshold })
                 {
                     foreach (var guest in objective.LodgerMoods)
                     {
@@ -159,7 +158,7 @@ public static class QuestHospitality
     }
 
     /// <summary>Requires vacant appropriate beds before adding guests.</summary>
-    public static QuestSkipReason HospitalityAdmission(QuestState offer, RoundsFacts f)
+    public static QuestSkipReason HospitalityAdmission(QuestState offer, ReviewFacts f)
     {
         if (f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile } || !HospitalityFamily(profile.Family) || profile.Family == QuestFamily.HospitalityAnimals)
         {
@@ -168,9 +167,9 @@ public static class QuestHospitality
         long need = 0;
         foreach (var objective in offer.Objectives)
         {
-            if (objective.Kind == Pb.QuestObjectiveKind.HostLodgers)
+            if (objective.Kind == RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.HostLodgers)
             {
-                if (objective.Goal is not Pb.QuestObjectiveGoal.Pawns { Count: var count })
+                if (objective.Goal is not RimGovernor.Brain.GameFacts.Observations.QuestObjectiveGoal.Pawns { Count: var count })
                 {
                     return "guest_count_unknown";
                 }
@@ -203,7 +202,7 @@ public static class QuestHospitality
         return "";
     }
 
-    public static bool HospitalityDeficit(RoundsFacts f)
+    public static bool HospitalityDeficit(ReviewFacts f)
     {
         var rows = f.QuestOffers;
         foreach (var offer in rows)
@@ -220,7 +219,7 @@ public static class QuestHospitality
             {
                 foreach (var objective in offer.Objectives)
                 {
-                    if (objective.Kind == Pb.QuestObjectiveKind.AcceptRequirementUnmet)
+                    if (objective.Kind == RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.AcceptRequirementUnmet)
                     {
                         return true;
                     }
@@ -230,7 +229,7 @@ public static class QuestHospitality
         return false;
     }
 
-    public static HashSet<PawnId> ProtectedQuestGuestIds(RoundsFacts f)
+    public static HashSet<PawnId> ProtectedQuestGuestIds(ReviewFacts f)
     {
         var ids = new HashSet<PawnId>();
         var rows = f.QuestOffers;
@@ -249,7 +248,7 @@ public static class QuestHospitality
                         ids.Add(id);
                     }
                 }
-                if (objective.Kind == Pb.QuestObjectiveKind.HostLodgers)
+                if (objective.Kind == RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.HostLodgers)
                 {
                     foreach (var id in objective.PawnIds)
                     {

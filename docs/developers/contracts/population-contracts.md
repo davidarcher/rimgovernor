@@ -20,7 +20,7 @@ The population concern is `Population-<pawn ID>` per observed candidate, run as 
 
 ## Prisoner read and interactions
 
-`rimgovernor/observations_read_population` reads human pawn custody, recruitment eligibility, current
+`observations_read_population` reads human pawn custody, recruitment eligibility, current
 exclusive interaction, resistance, time held (`prisoner_ticks`, the `TimeAsPrisoner` record), food need,
 bed and owned bed. It lists the exclusive interactions `PrisonerInteractionIntent` accepts:
 `AttemptRecruit`, `MaintainOnly`, `ReduceResistance`, `Release`, and `Enslave` and `Convert` while
@@ -63,8 +63,8 @@ The routine chooses each prisoner's use itself, with no player-only exemption:
 2. Otherwise, able to labor and not a wild man: enslaved when the colony's slavery precept is
    `Slavery_Acceptable` or `Slavery_Honorable` (every other precept costs mood). `shelter/sleeping` gives
    each slave a bed set for slaves (`BuildingPatchIntent.for_slaves`).
-3. Otherwise released: at once while the food runway is below `RoundsPolicy.FoodTargetDays`, else after
-   `RoundsPolicy.PrisonerReleaseAfterDays` (15 by default) in custody.
+3. Otherwise released: at once while the food runway is below `PlannerSettings.FoodTargetDays`, else after
+   `PlannerSettings.PrisonerReleaseAfterDays` (15 by default) in custody.
 
 A prisoner being recruited with its resistance broken keeps recruiting; an unknown fact never
 authorizes a write. Native faction admission, resistance and recruitment probability are never written.

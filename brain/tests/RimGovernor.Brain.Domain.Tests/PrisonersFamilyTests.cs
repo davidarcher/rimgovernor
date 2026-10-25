@@ -1,5 +1,5 @@
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
@@ -22,7 +22,7 @@ public sealed class PrisonersFamilyTests
     private static PrisonerFacts Prisoner(string pawn, PrisonerInteractionMode current = PrisonerInteractionMode.Maintain, string ideo = "") => PopulationFixtures.Held(pawn, ideo: ideo) with
     {
         CurrentInteraction = new PrisonerHeldInteraction.Settable(current),
-        Prospect = PopulationFixtures.Prospect(pawn, [new RimGovernor.Contracts.Wire.Observations.Skill { DefName = "Shooting", Level = 12, Passion = RimGovernor.Contracts.Wire.Observations.Passion.Major }]),
+        Prospect = PopulationFixtures.Prospect(pawn, [new RimGovernor.Brain.GameFacts.Observations.Skill { DefName = "Shooting", Level = 12, Passion = RimGovernor.Brain.GameFacts.Observations.Passion.Major }]),
     };
 
     private static readonly PrisonerColony Colony1 = new() { Colonists = 1 };
@@ -126,13 +126,13 @@ public sealed class PrisonersFamilyTests
     {
         public required Journal Journal { get; init; }
         public required FamilyRunner<PrisonersFacts> Runner { get; init; }
-        public required RoundsRequest Review { get; init; }
+        public required ReviewRequest Review { get; init; }
         public PrisonersFacts Facts { get; set; } = new();
 
         public void File(FamilyRun run) =>
-            Journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(), [PlannerWave.NeedProgressOf(PrisonersFamily.FamilyId, run)!], TestContext.Current.CancellationToken);
+            Journal.RecordPlannerReasons(new Dictionary<FilingKey, PlannerNote>(), [PlannerWave.NeedProgressOf(PrisonersFamily.FamilyId, run)!], TestContext.Current.CancellationToken);
 
-        public ConcernProgress? Row(NeedId need) => Journal.LoadRounds(TestContext.Current.CancellationToken).Progress.SingleOrDefault(p => p.Concern == need.FilingKey);
+        public ConcernProgress? Row(NeedId need) => Journal.LoadReview(TestContext.Current.CancellationToken).Progress.SingleOrDefault(p => p.Concern == need.FilingKey);
 
         public void Dispose() => Journal.Dispose();
 
@@ -149,10 +149,10 @@ public sealed class PrisonersFamilyTests
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-prisoners-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
         facts = facts with { Census = facts.Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 },   FieldCoverage = 1.0};
-        var review = new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts };
-        journal.ReviewRounds(review, ct);
+        var review = new ReviewRequest { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts };
+        journal.Review(review, ct);
         Colony? colony = null;
-        var runner = new FamilyRunner<PrisonersFacts>(new PrisonersFamily(Policy), (_, _) => Task.FromResult(colony!.Facts), PrisonersRounds.Schedule);
+        var runner = new FamilyRunner<PrisonersFacts>(new PrisonersFamily(Policy), (_, _) => Task.FromResult(colony!.Facts), PrisonersReview.Schedule);
         colony = new Colony { Journal = journal, Runner = runner, Review = review };
         return colony;
     }
@@ -214,12 +214,12 @@ public sealed class PrisonersFamilyTests
     [Fact]
     public void TheFamilyIsOneDueQueueEntryWakingOnItsReadsAndMethodKinds()
     {
-        var entry = ClockPlannerCatalog.FamilyEntry(new FamilyRunner<PrisonersFacts>(new PrisonersFamily(Policy), (_, _) => Task.FromResult(new PrisonersFacts()), PrisonersRounds.Schedule));
+        var entry = PlannerCatalog.FamilyEntry(new FamilyRunner<PrisonersFacts>(new PrisonersFamily(Policy), (_, _) => Task.FromResult(new PrisonersFacts()), PrisonersReview.Schedule));
         Assert.Equal(PrisonersFamily.FamilyId, entry.Name);
         Assert.Contains(ActionKind.PrisonerInteraction, entry.Kinds);
         Assert.Contains(ActionKind.BedUse, entry.Kinds);
         Assert.Contains(RimGovernor.Brain.Facts.Section.Rooms, entry.Sections);
-        Assert.DoesNotContain(ClockPlannerCatalog.Entries, e => e.Name == "prisonerInteraction");
+        Assert.DoesNotContain(PlannerCatalog.Entries, e => e.Name == "prisonerInteraction");
         Assert.False(entry.Immediate);
     }
 

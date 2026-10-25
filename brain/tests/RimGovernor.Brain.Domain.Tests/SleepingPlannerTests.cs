@@ -278,7 +278,7 @@ public sealed class SleepingPlannerTests
         };
 
         var review = SleepingRules.ReviewSleeping(sleeping, new SleepingHistory(), new Tick(600));
-        var choice = SleepingRules.SelectSleepingMethod(new SleepingRequest { Targets = review.Targets, Sleeping = sleeping, Rooms = RoomFixtures.Census(Array.Empty<RimGovernor.Contracts.Wire.Observations.RoomState>()) });
+        var choice = SleepingRules.SelectSleepingMethod(new SleepingRequest { Targets = review.Targets, Sleeping = sleeping, Rooms = RoomFixtures.Census(Array.Empty<RimGovernor.Brain.GameFacts.Observations.RoomState>()) });
 
         if (willing)
         {

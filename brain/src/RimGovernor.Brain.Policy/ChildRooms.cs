@@ -1,4 +1,5 @@
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -258,13 +259,13 @@ public static class ChildRoomsRules
 
             switch (bt.DevelopmentalStage)
             {
-                case RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Newborn:
+                case RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Newborn:
                     babies++;
                     break;
-                case RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Baby:
+                case RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Baby:
                     babies++;
                     break;
-                case RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Child:
+                case RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Child:
                     children++;
                     break;
             }

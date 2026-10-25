@@ -1,6 +1,4 @@
 using RimGovernor.Brain.Policy;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -21,9 +19,9 @@ internal static class RoomFixtures
         bool roofed = true,
         IEnumerable<string>? beds = null,
         double temperatureC = 21,
-        IEnumerable<Observations.RoomDoor>? doors = null,
-        IEnumerable<Observations.RoomContent>? contents = null,
-        IEnumerable<Observations.RoomStat>? stats = null,
+        IEnumerable<RimGovernor.Brain.GameFacts.Observations.RoomDoor>? doors = null,
+        IEnumerable<RimGovernor.Brain.GameFacts.Observations.RoomContent>? contents = null,
+        IEnumerable<RimGovernor.Brain.GameFacts.Observations.RoomStat>? stats = null,
         uint cellCount = 0,
         int gridRoom = 0) => new()
     {
@@ -42,7 +40,7 @@ internal static class RoomFixtures
         Center = new(0, 0),
         Stats = EquatableArray.From(stats ?? []),
         Pawns = [],
-        Beds = EquatableArray.From((beds ?? []).Select(b => new Common.Ref { Id = b })),
+        Beds = EquatableArray.From((beds ?? []).Select(b => new RimGovernor.Brain.GameFacts.Common.Ref { Id = b })),
         Contents = EquatableArray.From(contents ?? []),
         Doors = EquatableArray.From(doors ?? []),
         GridRoom = gridRoom,

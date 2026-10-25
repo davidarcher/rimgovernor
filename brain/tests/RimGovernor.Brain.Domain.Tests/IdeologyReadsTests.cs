@@ -1,10 +1,10 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.Runtime;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using RimWorld;
 using Verse;
 using Xunit;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -16,7 +16,7 @@ public sealed class IdeologyReadsTests
     private static readonly MemeDef Pure = new() { defName = "Purity" };
 
     /// <summary>A fixed ideoligion holding nothing: the shared whole section the tests build theirs from.</summary>
-    internal static readonly Obs.IdeologySnapshot NoPrecepts = new()
+    internal static readonly RimGovernor.Brain.GameFacts.Observations.IdeologySnapshot NoPrecepts = new()
     {
         IdeoId = "Ideo_1",
         Memes = [],
@@ -26,7 +26,7 @@ public sealed class IdeologyReadsTests
         Buildings = [],
         Believers = 0,
         BelieverPawns = [],
-        Development = new Obs.IdeoDevelopment.Fixed(),
+        Development = new RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment.Fixed(),
         StyleCategories = [],
         VeneratedAnimals = [],
     };
@@ -41,7 +41,7 @@ public sealed class IdeologyReadsTests
         var snapshot = NoPrecepts with
         {
             Precepts = [precept], Roles = [role], Rituals = [ritual], Buildings = [building],
-            Development = new Obs.IdeoDevelopment.Fluid(true, 7, 2, 12),
+            Development = new RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment.Fluid(true, 7, 2, 12),
         };
         var ideology = IdeologyDecoder.Decode(snapshot, Catalog());
 
@@ -78,12 +78,12 @@ public sealed class IdeologyReadsTests
         var snapshot = NoPrecepts with
         {
             Memes = ["Nudism"],
-            Precepts = [new Obs.IdeoPrecept { Id = "Precept_1", DefName = "Nudity_Male_Required" }],
-            Roles = [new Obs.IdeoRole { Id = "Precept_2", DefName = "IdeoRole_Leader", Active = true, Pawns = [new PawnId("Human7")], Converts = false, ConvertReady = false }],
-            Rituals = [new Obs.IdeoRitual { Id = "Precept_3", Pattern = "Gathering", LastFinishedTick = -1, ActiveObligations = 0, RepeatPenaltyActive = false, Running = false }],
+            Precepts = [new RimGovernor.Brain.GameFacts.Observations.IdeoPrecept { Id = "Precept_1", DefName = "Nudity_Male_Required" }],
+            Roles = [new RimGovernor.Brain.GameFacts.Observations.IdeoRole { Id = "Precept_2", DefName = "IdeoRole_Leader", Active = true, Pawns = [new PawnId("Human7")], Converts = false, ConvertReady = false }],
+            Rituals = [new RimGovernor.Brain.GameFacts.Observations.IdeoRitual { Id = "Precept_3", Pattern = "Gathering", LastFinishedTick = -1, ActiveObligations = 0, RepeatPenaltyActive = false, Running = false }],
             Buildings =
             [
-                new Obs.IdeoBuilding
+                new RimGovernor.Brain.GameFacts.Observations.IdeoBuilding
                 {
                     Building = "Altar", Applies = true, Present = false, Satisfied = false, MinArea = 25, MinImpressiveness = 0, FloorTags = [],
                     Things = [new("Column", 2)], ForbiddenBuildingTags = [], Unread = [],
@@ -91,16 +91,16 @@ public sealed class IdeologyReadsTests
             ],
             Believers = 1,
             BelieverPawns = [new PawnId("Human7")],
-            Development = new Obs.IdeoDevelopment.Fluid(true, 7, 2, 12),
+            Development = new RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment.Fluid(true, 7, 2, 12),
         };
 
-        var json = WireJson.Serialize(snapshot);
+        var json = OrdersJson.Serialize(snapshot);
 
         Assert.Equal(
             """{"ideoId":"Ideo_1","memes":["Nudism"],"precepts":[{"id":"Precept_1","defName":"Nudity_Male_Required"}],"roles":[{"id":"Precept_2","defName":"IdeoRole_Leader","active":true,"pawns":["Human7"],"converts":false,"convertReady":false}],"rituals":[{"id":"Precept_3","pattern":"Gathering","lastFinishedTick":-1,"activeObligations":0,"repeatPenaltyActive":false,"running":false}],"buildings":[{"building":"Altar","applies":true,"present":false,"satisfied":false,"minArea":25,"minImpressiveness":0,"floorTags":[],"things":[{"def":"Column","count":2}],"forbiddenBuildingTags":[],"unread":[]}],"believers":1,"believerPawns":["Human7"],"development":{"type":"fluid","canReform":true,"points":7,"reformCount":2,"nextReformPoints":12},"styleCategories":[],"veneratedAnimals":[]}""",
             json);
-        Assert.Equal(snapshot, WireJson.Deserialize<Obs.IdeologySnapshot>(json));
-        Assert.Equal(NoPrecepts, WireJson.Deserialize<Obs.IdeologySnapshot>(WireJson.Serialize(NoPrecepts)));
+        Assert.Equal(snapshot, OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.IdeologySnapshot>(json));
+        Assert.Equal(NoPrecepts, OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.IdeologySnapshot>(OrdersJson.Serialize(NoPrecepts)));
     }
 
     [Fact]
@@ -109,7 +109,7 @@ public sealed class IdeologyReadsTests
         var snapshot = NoPrecepts with
         {
             Believers = 3,
-            Development = new Obs.IdeoDevelopment.Fluid(true, 7, 2, 12),
+            Development = new RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment.Fluid(true, 7, 2, 12),
             StyleCategories = ["Rustic", "Totemic"],
             VeneratedAnimals = ["Muffalo", "Thrumbo"],
         };
@@ -118,7 +118,7 @@ public sealed class IdeologyReadsTests
 
         Assert.Equal(["Rustic", "Totemic"], ideo.Facts.StyleCategories);
         Assert.Equal(["Muffalo", "Thrumbo"], ideo.Facts.VeneratedAnimals);
-        Assert.Equal(new Obs.IdeoDevelopment.Fluid(true, 7, 2, 12), ideo.Facts.Development);
+        Assert.Equal(new RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment.Fluid(true, 7, 2, 12), ideo.Facts.Development);
     }
 
     [Fact]
@@ -126,32 +126,32 @@ public sealed class IdeologyReadsTests
     {
         var ideo = IdeologyDecoder.Decode(NoPrecepts, Catalog());
 
-        Assert.Equal(new RimGovernor.Contracts.Wire.Observations.IdeoDevelopment.Fixed(), ideo.Facts.Development);
+        Assert.Equal(new RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment.Fixed(), ideo.Facts.Development);
         Assert.Empty(ideo.Facts.StyleCategories);
     }
 
     [Fact]
     public void TheFramesIdeologyModeIsNotInstalledWithoutTheExpansionAndInstalledWithItsPrimaryIdeoligion()
     {
-        Assert.IsType<RimGovernor.Brain.Policy.IdeologyMode.NotInstalled>(IdeologyDecoder.Mode(new Obs.IdeologyFrame.NotInstalled(), Catalog()));
+        Assert.IsType<RimGovernor.Brain.Policy.IdeologyMode.NotInstalled>(IdeologyDecoder.Mode(new RimGovernor.Brain.GameFacts.Observations.IdeologyFrame.NotInstalled(), Catalog()));
 
-        var installed = Assert.IsType<RimGovernor.Brain.Policy.IdeologyMode.Installed>(IdeologyDecoder.Mode(new Obs.IdeologyFrame.Installed { Snapshot = NoPrecepts with { IdeoId = "Ideo_7" } }, Catalog()));
+        var installed = Assert.IsType<RimGovernor.Brain.Policy.IdeologyMode.Installed>(IdeologyDecoder.Mode(new RimGovernor.Brain.GameFacts.Observations.IdeologyFrame.Installed { Snapshot = NoPrecepts with { IdeoId = "Ideo_7" } }, Catalog()));
         Assert.Equal("Ideo_7", installed.Primary.Facts.IdeoId);
     }
 
     [Fact]
     public void TheFramesIdeologyModeRefusesAFrameWithoutTheSection()
     {
-        Assert.Contains("ideology flag", Assert.Throws<RimGovernor.Brain.Bridge.Contracts.BridgeContractException>(() => IdeologyDecoder.Mode(null, Catalog())).Message);
+        Assert.Contains("ideology flag", Assert.Throws<RimGovernor.Brain.GameAccess.BridgeContractException>(() => IdeologyDecoder.Mode(null, Catalog())).Message);
     }
 
     [Fact]
     public void TheIdeologyFrameRoundTripsBothCases()
     {
-        Obs.IdeologyFrame[] frames = [new Obs.IdeologyFrame.NotInstalled(), new Obs.IdeologyFrame.Installed { Snapshot = NoPrecepts }];
+        RimGovernor.Brain.GameFacts.Observations.IdeologyFrame[] frames = [new RimGovernor.Brain.GameFacts.Observations.IdeologyFrame.NotInstalled(), new RimGovernor.Brain.GameFacts.Observations.IdeologyFrame.Installed { Snapshot = NoPrecepts }];
         foreach (var frame in frames)
         {
-            Assert.Equal(frame, WireJson.Deserialize<Obs.IdeologyFrame>(WireJson.Serialize(frame)));
+            Assert.Equal(frame, OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.IdeologyFrame>(OrdersJson.Serialize(frame)));
         }
     }
 

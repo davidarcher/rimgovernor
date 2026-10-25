@@ -1,9 +1,9 @@
 using Microsoft.Data.Sqlite;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using ConditionDuration = RimGovernor.Contracts.Wire.Observations.ConditionDuration;
+using ConditionDuration = RimGovernor.Brain.GameFacts.Observations.ConditionDuration;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -36,7 +36,7 @@ public sealed class DisasterFamilyTests
         Started = new(1),
         Observed = new(1),
         Phase = DisasterPhase.Disrupted,
-        Conditions = [new DisasterCondition { Observed = new RimGovernor.Contracts.Wire.Observations.EnvironmentCondition { Id = "condition-1", DefName = "Flare", Duration = new ConditionDuration.Timed { Ticks = 2500 } } }],
+        Conditions = [new DisasterCondition { Observed = new RimGovernor.Brain.GameFacts.Observations.EnvironmentCondition { Id = "condition-1", DefName = "Flare", Duration = new ConditionDuration.Timed { Ticks = 2500 } } }],
         Services = [.. AllServices.Select(s => new DisasterEvidence(s, s == DisasterService.Infrastructure ? Finding.Unmet : Finding.Met))],
         Affected = [DisasterService.Infrastructure],
     };
@@ -48,12 +48,12 @@ public sealed class DisasterFamilyTests
         Assert.Equal("disaster service finding", Assert.Throws<RequiredFactException>(() =>
             RecoveryRules.SelectRecoveryMethods(new RecoveryPlanning(), unread, [], new(1))).Fact);
         Assert.Throws<DomainException>(() => new RecoverySelection { Reason = (RecoverySelectionReason)999 }.Validate());
-        Assert.Throws<ControlException>(() => DisasterRounds.RecoverySelectionVerdict(RecoverySelectionReason.None));
-        Assert.Throws<ControlException>(() => DisasterRounds.RecoverySelectionVerdict((RecoverySelectionReason)999));
+        Assert.Throws<ControlException>(() => DisasterReview.RecoverySelectionVerdict(RecoverySelectionReason.None));
+        Assert.Throws<ControlException>(() => DisasterReview.RecoverySelectionVerdict((RecoverySelectionReason)999));
         Assert.Equal(Verdict.WaitFor(Cause.MethodUsed, "recovery_service_proposal"),
-            DisasterRounds.RecoverySelectionVerdict(RecoverySelectionReason.MethodsSeen));
+            DisasterReview.RecoverySelectionVerdict(RecoverySelectionReason.MethodsSeen));
         Assert.Equal(Verdict.WaitFor(Cause.MethodUsed, "recovery_service_proposal"),
-            DisasterRounds.RecoverySelectionVerdict(RecoverySelectionReason.AdmissionRequired));
+            DisasterReview.RecoverySelectionVerdict(RecoverySelectionReason.AdmissionRequired));
     }
     [Fact]
     public void RecoveryRefusesARestrictionWhoseWorkerIsMissingFromTheTotalCensus()
@@ -70,7 +70,7 @@ public sealed class DisasterFamilyTests
     [Fact]
     public void ShelteringIsUnmetWhileAMoveIsOwedAndAnUnknownTriggerRaisesOnTheRead()
     {
-        Assert.Equal("sheltering triggers", Assert.Throws<RequiredFactException>(() => DisasterFacts.From(new RoundsFacts(), null)).Fact);
+        Assert.Equal("sheltering triggers", Assert.Throws<RequiredFactException>(() => DisasterFacts.From(new ReviewFacts(), null)).Fact);
 
         var owed = Derive(new DisasterFacts { Changes = [Move("a", "Safe"), Move("b", "Safe")] }, DisasterFamily.Sheltering);
         Assert.Equal((Satisfaction.Unmet, 2.0), (owed.Satisfaction, owed.Deficit));
@@ -119,7 +119,7 @@ public sealed class DisasterFamilyTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-disaster-claims-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
+        journal.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
 
         var service = journal.CommitClaimedMethod(DisasterFamily.Services, World, new("recovery-a"), "",
             Plan(id => DomainAction.NewRecoveryServiceAction(id, new(new("a"), "battery", RecoveryMethod.Repair))), ct);
@@ -145,20 +145,20 @@ public sealed class DisasterFamilyTests
         var path = Path.Combine(Path.GetTempPath(), "rg-disaster-recovery-" + Guid.NewGuid().ToString("N") + ".db");
         var facts = WorkResourceTestFacts.Create("a") with
         {
-            DisasterConditions = EquatableArray.From([new DisasterCondition { Observed = new RimGovernor.Contracts.Wire.Observations.EnvironmentCondition { Id = "condition-1", DefName = "Flare", Duration = new ConditionDuration.Timed { Ticks = 2500 } } }]),
+            DisasterConditions = EquatableArray.From([new DisasterCondition { Observed = new RimGovernor.Brain.GameFacts.Observations.EnvironmentCondition { Id = "condition-1", DefName = "Flare", Duration = new ConditionDuration.Timed { Ticks = 2500 } } }]),
             RecoveryBuildings = [PowerBuildingFixtures.Trader("generator", "Generator", new(2, 3), 1000, 1000, true)],
             MoodPawns = [new MoodPawn { Pawn = PawnFixtures.Row("a"), Forecast = null, Thoughts = [] }],
             RecoverySafety = new RecoverySafety { Restrictions = [RecoveryObservationFixtures.Restriction("a")] },
         };
-        RoundsResult Review(Journal journal, long tick) => journal.ReviewRounds(new RoundsRequest
+        ReviewResult Review(Journal journal, long tick) => journal.Review(new ReviewRequest
         {
-            Current = World, Tick = new(tick), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts, Revision = journal.LoadRounds(ct).Revision,
+            Current = World, Tick = new(tick), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts, Revision = journal.LoadReview(ct).Revision,
         }, ct);
         using (var journal = Journal.Open(path, ct))
         {
             var review = Review(journal, 100).Review;
             Assert.NotNull(review.Disaster);
-            var recovery = Assert.IsType<RoundsRecovery>(review.Recovery);
+            var recovery = Assert.IsType<Recovery>(review.Recovery);
             Assert.Equal(DisasterFamily.Services, recovery.Need);
             Assert.Equal(new RimGovernor.Brain.Store.World(World.Colony, World.Load, World.Map), recovery.World);
             Assert.Same(Assert.Single(facts.RecoveryBuildings), Assert.Single(recovery.Buildings));
@@ -167,7 +167,7 @@ public sealed class DisasterFamilyTests
             {
                 Assert.Same(facts.MoodPawns[i], recovery.Workers[i]);
             }
-            Assert.Equal(recovery, journal.LoadRounds(ct).Recovery);
+            Assert.Equal(recovery, journal.LoadReview(ct).Recovery);
         }
         SqliteConnection.ClearAllPools();
         using (var connection = new SqliteConnection($"Data Source={path};Pooling=False"))
@@ -181,13 +181,13 @@ public sealed class DisasterFamilyTests
         SqliteConnection.ClearAllPools();
         using (var reopened = Journal.Open(path, ct))
         {
-            Assert.ThrowsAny<Exception>(() => reopened.LoadRounds(ct));
+            Assert.ThrowsAny<Exception>(() => reopened.LoadReview(ct));
             // The load sequence (GovernorState.EnsureAsync) resets the review before anything reads it.
             var saved = reopened.GovernorStateBlobs(ct);
             reopened.RebuildOwners(null, ct);
             reopened.RebuildFamilies(saved, ct);
-            reopened.ResetRounds(ct);
-            Assert.Null(reopened.LoadRounds(ct).Recovery);
+            reopened.ResetReview(ct);
+            Assert.Null(reopened.LoadReview(ct).Recovery);
 
             // The next full review selects under the Need.
             var review = Review(reopened, 110).Review;
@@ -200,9 +200,9 @@ public sealed class DisasterFamilyTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-disaster-progress-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a") }, ct);
+        journal.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("a") }, ct);
         var facts = new DisasterFacts { Changes = [Move("a", "Safe")], Disaster = Disrupted() };
-        var runner = new FamilyRunner<DisasterFacts>(new DisasterFamily(), (_, _) => Task.FromResult(facts), DisasterRounds.Schedule);
+        var runner = new FamilyRunner<DisasterFacts>(new DisasterFamily(), (_, _) => Task.FromResult(facts), DisasterReview.Schedule);
 
         var immediate = await runner.RunAsync(new FamilyStep { Journal = journal, World = World, Immediate = true }, ct);
         Assert.Equal([DisasterFamily.Sheltering], immediate.Standings.Select(s => s.Need.Id));
@@ -210,15 +210,15 @@ public sealed class DisasterFamilyTests
         var run = await runner.RunAsync(new FamilyStep { Journal = journal, World = World }, ct);
         var services = Assert.Single(run.Reports, r => r.Need == DisasterFamily.Services).Verdict;
         Assert.True(services.Is(Cause.WaitingOnNeed));
-        journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(), [PlannerWave.NeedProgressOf(DisasterFamily.FamilyId, run)!], ct);
-        var progress = journal.LoadRounds(ct).Progress;
+        journal.RecordPlannerReasons(new Dictionary<FilingKey, PlannerNote>(), [PlannerWave.NeedProgressOf(DisasterFamily.FamilyId, run)!], ct);
+        var progress = journal.LoadReview(ct).Progress;
         Assert.Contains(progress, p => p.Concern == DisasterFamily.Sheltering.FilingKey);
         Assert.Contains(progress, p => p.Concern == DisasterFamily.Services.FilingKey);
 
-        var entry = ClockPlannerCatalog.FamilyEntry(runner);
+        var entry = PlannerCatalog.FamilyEntry(runner);
         Assert.Equal("disaster", entry.Name);
         Assert.True(entry.Immediate);
-        Assert.DoesNotContain(ClockPlannerCatalog.Entries, e => e.Name == "recovery");
+        Assert.DoesNotContain(PlannerCatalog.Entries, e => e.Name == "recovery");
     }
 
     private static PlanSpec Plan(Func<ActionId, DomainAction> action)

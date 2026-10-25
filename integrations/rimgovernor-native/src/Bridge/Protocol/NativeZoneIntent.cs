@@ -1,8 +1,5 @@
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The one zone write. Its shape selects the edit (operations.proto
     // ZoneIntent): delete, create (kind set), cells (add or remove cells) or
@@ -12,16 +9,16 @@ namespace HomeBridge.BridgeTools
     {
         // Id is the referenced zone (or storage building) id, null when the
         // intent names none.
-        internal static string? Id(Operations.ZoneIntent? intent) =>
-            intent?.Zone != null && intent.Zone.Id is not null && ProtoBoundary.IsIdentifier(intent.Zone.Id) ? (intent.Zone.Id ?? "") : null;
+        internal static string? Id(RimGovernor.Brain.GameOrders.Operations.ZoneIntent? intent) =>
+            intent?.Zone != null && intent.Zone.Id is not null && GameThread.IsIdentifier(intent.Zone.Id) ? (intent.Zone.Id ?? "") : null;
 
-        internal static bool Adding(Operations.ZoneIntent intent) => intent.AddCells != null;
+        internal static bool Adding(RimGovernor.Brain.GameOrders.Operations.ZoneIntent intent) => intent.AddCells != null;
 
-        internal static Operations.Cells? EditCells(Operations.ZoneIntent intent) => intent.AddCells ?? intent.RemoveCells;
+        internal static RimGovernor.Brain.GameOrders.Operations.Cells? EditCells(RimGovernor.Brain.GameOrders.Operations.ZoneIntent intent) => intent.AddCells ?? intent.RemoveCells;
 
         // DeleteOnly is a delete naming its zone and nothing else.
-        internal static bool DeleteOnly(Operations.ZoneIntent? intent) =>
-            Id(intent) != null && (intent ?? throw new System.InvalidOperationException("Required native value is unavailable: intent.")).Delete && intent.Kind == Operations.ZoneType.Existing && intent.Label is null && intent.AddCells == null && intent.RemoveCells == null
+        internal static bool DeleteOnly(RimGovernor.Brain.GameOrders.Operations.ZoneIntent? intent) =>
+            Id(intent) != null && (intent ?? throw new System.InvalidOperationException("Required native value is unavailable: intent.")).Delete && intent.Kind == RimGovernor.Brain.GameOrders.Operations.ZoneType.Existing && intent.Label is null && intent.AddCells == null && intent.RemoveCells == null
             && intent.Stockpile == null && intent.Growing == null && intent.Fishing == null && !intent.RequireCoveredEmpty;
     }
 
@@ -33,17 +30,17 @@ namespace HomeBridge.BridgeTools
         private static readonly IActionHandler CellEdit = new ZoneCellsActionHandler();
         private static readonly IActionHandler Settings = new StockpileActionHandler();
 
-        private static IActionHandler Shape(Operations.ZoneIntent? intent)
+        private static IActionHandler Shape(RimGovernor.Brain.GameOrders.Operations.ZoneIntent? intent)
         {
             if (intent == null) return Creation;
             if (intent.Delete) return Deletion;
-            if (intent.Kind != Operations.ZoneType.Existing) return intent.Kind == Operations.ZoneType.Stockpile ? StockpilePlacement : Creation;
+            if (intent.Kind != RimGovernor.Brain.GameOrders.Operations.ZoneType.Existing) return intent.Kind == RimGovernor.Brain.GameOrders.Operations.ZoneType.Stockpile ? StockpilePlacement : Creation;
             if (intent.AddCells != null || intent.RemoveCells != null) return CellEdit;
             return Settings;
         }
 
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => Shape(action.Intent?.Zone).Validate(action, context);
+        public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Shape(action.Intent?.Zone).Validate(action, context);
 
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => Shape(action.Intent?.Zone).Apply(action, context);
+        public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Shape(action.Intent?.Zone).Apply(action, context);
     }
 }

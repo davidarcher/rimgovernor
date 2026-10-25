@@ -4,11 +4,8 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // GiveJobIntent UseItem: one player-controlled
     // colonist uses one item. Three native shapes are generic here:
@@ -27,7 +24,7 @@ namespace HomeBridge.BridgeTools
     {
         private static readonly AccessTools.FieldRef<CompTargetable, Thing> SelectedTarget = AccessTools.FieldRefAccess<CompTargetable, Thing>("selectedTarget");
 
-        private static Common.Failure Fail(Common.FailureCode code, string detail) => ProtoBoundary.Fail(code, detail);
+        private static RimGovernor.Brain.GameFacts.Common.Failure Fail(RimGovernor.Brain.GameFacts.Common.FailureCode code, string detail) => GameThread.Fail(code, detail);
 
         // The verb of an item the pawn wears or equips, when it is a target-effect verb.
         private static Verb? HeldVerb(Pawn pawn, string itemId, out Thing? item)
@@ -62,31 +59,31 @@ namespace HomeBridge.BridgeTools
                 : job.targetA.Thing == item && (pawn == target || job.targetB.Thing == target) && job.def == (item as ThingWithComps)?.TryGetComp<CompUsable>()?.Props.useJob;
         }
 
-        private static Common.Failure? Resolve(string pawnId, string itemId, string targetId, Common.ObservationContext context, out Pawn? pawn, out Thing? item, out Pawn? target, out Verb? verb, out CompUsable? usable)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(string pawnId, string itemId, string targetId, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Pawn? pawn, out Thing? item, out Pawn? target, out Verb? verb, out CompUsable? usable)
         {
             pawn = null; item = null; target = null; verb = null; usable = null;
-            if (!ProtoBoundary.IsIdentifier(pawnId) || !ProtoBoundary.IsIdentifier(itemId) || !ProtoBoundary.IsIdentifier(targetId) || itemId == pawnId || itemId == targetId)
-                return Fail(Common.FailureCode.InvalidRequest, "Use item requires pawn, item and target ids, the item distinct from both.");
-            var map = ProtoBoundary.LoadedMap(context);
+            if (!GameThread.IsIdentifier(pawnId) || !GameThread.IsIdentifier(itemId) || !GameThread.IsIdentifier(targetId) || itemId == pawnId || itemId == targetId)
+                return Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Use item requires pawn, item and target ids, the item distinct from both.");
+            var map = GameThread.LoadedMap(context);
             pawn = map.mapPawns.FreeColonistsSpawned.ById(pawnId);
-            if (pawn == null) return Fail(Common.FailureCode.NotFound, "Exact colonist is not spawned on this map.");
+            if (pawn == null) return Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact colonist is not spawned on this map.");
             if (pawn.Dead || pawn.Downed || pawn.InMentalState || !pawn.IsColonistPlayerControlled)
-                return Fail(Common.FailureCode.InvalidRequest, "Colonist is not player-controlled and able.");
+                return Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Colonist is not player-controlled and able.");
             target = map.mapPawns.AllPawnsSpawned.ById(targetId);
-            if (target == null) return Fail(Common.FailureCode.NotFound, "Exact target pawn is not spawned on this map.");
-            if (target.Dead) return Fail(Common.FailureCode.InvalidRequest, "Target is dead.");
+            if (target == null) return Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact target pawn is not spawned on this map.");
+            if (target.Dead) return Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Target is dead.");
             var self = pawn == target;
             verb = self ? null : HeldVerb(pawn, itemId, out item);
             if (verb != null)
             {
-                if (item == null) return Fail(Common.FailureCode.NativeFailure, "The held item is unavailable.");
+                if (item == null) return Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NativeFailure, "The held item is unavailable.");
                 if (Running(pawn, item, target, verb)) return null;
                 if (verb.verbProps.violent && pawn.WorkTagIsDisabled(WorkTags.Violent))
-                    return Fail(Common.FailureCode.InvalidRequest, "Colonist is incapable of violence.");
+                    return Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Colonist is incapable of violence.");
                 if (verb.caster != pawn) verb.caster = pawn;
-                if (!verb.Available()) return Fail(Common.FailureCode.InvalidRequest, "Item verb has no charge or cannot be used here.");
+                if (!verb.Available()) return Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Item verb has no charge or cannot be used here.");
                 if (!verb.verbProps.targetParams.CanTarget(target) || !ValidateOffGui(verb, target))
-                    return Fail(Common.FailureCode.InvalidRequest, "Item verb refuses this target.");
+                    return Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Item verb refuses this target.");
                 return null;
             }
             var thing = RefIndex.Thing(map, itemId)
@@ -94,29 +91,29 @@ namespace HomeBridge.BridgeTools
             item = thing;
             var targetable = (thing as ThingWithComps)?.GetComps<CompTargetable>().FirstOrDefault();
             usable = (thing as ThingWithComps)?.TryGetComp<CompUsable>();
-            if (thing == null) return Fail(Common.FailureCode.NotFound, "Exact item is not held by the colonist nor on this map.");
+            if (thing == null) return Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact item is not held by the colonist nor on this map.");
             if (self ? targetable != null || usable == null : targetable == null || usable == null)
-                return Fail(Common.FailureCode.InvalidRequest, self ? "Self use needs a usable item without a target comp." : "Item has no target verb and no targetable use.");
+                return Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, self ? "Self use needs a usable item without a target comp." : "Item has no target verb and no targetable use.");
             if (Running(pawn, thing, target, null)) return null;
             var report = usable.CanBeUsedBy(pawn, usable.Props.ignoreOtherReservations);
-            if (!report.Accepted) return Fail(Common.FailureCode.InvalidRequest, "Colonist cannot use the item: " + (report.Reason ?? ""));
-            if (!self && !(targetable ?? throw new System.InvalidOperationException("Required native value is unavailable: targetable.")).CanHitTarget(target)) return Fail(Common.FailureCode.InvalidRequest, "Item refuses this target.");
+            if (!report.Accepted) return Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Colonist cannot use the item: " + (report.Reason ?? ""));
+            if (!self && !(targetable ?? throw new System.InvalidOperationException("Required native value is unavailable: targetable.")).CanHitTarget(target)) return Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Item refuses this target.");
             return null;
         }
 
-        private static Receipts.EffectEvidence Evidence(Pawn pawn, Thing targetA, Job job, bool issued) => new Receipts.EffectEvidence
+        private static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Evidence(Pawn pawn, Thing targetA, Job job, bool issued) => new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence
         {
-            Effect = new Receipts.JobEffect
+            Effect = new RimGovernor.Brain.GameFacts.Receipts.JobEffect
             {
                 PawnId = pawn.GetUniqueLoadID(), JobDef = job.def?.defName ?? "",
-                TargetA = new Receipts.JobTarget { Target = new Receipts.JobTargetTarget.ThingIdCase(targetA.GetUniqueLoadID()) },
+                TargetA = new RimGovernor.Brain.GameFacts.Receipts.JobTarget { Target = new RimGovernor.Brain.GameFacts.Receipts.JobTargetTarget.ThingIdCase(targetA.GetUniqueLoadID()) },
                 Issued = issued,
             }
         };
 
-        internal static Common.Failure? Validate(string pawnId, string itemId, string targetId, Common.ObservationContext context) => Resolve(pawnId, itemId, targetId, context, out _, out _, out _, out _, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(string pawnId, string itemId, string targetId, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Resolve(pawnId, itemId, targetId, context, out _, out _, out _, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(string pawnId, string itemId, string targetId, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(string pawnId, string itemId, string targetId, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(pawnId, itemId, targetId, context, out var pawn, out var item, out var target, out var verb, out var usable);
             if (failure != null || pawn == null || item == null || target == null) throw new InvalidOperationException(failure?.Detail);

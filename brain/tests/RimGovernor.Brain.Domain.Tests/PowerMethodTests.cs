@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -34,7 +33,7 @@ public sealed class PowerMethodTests
     public void OutOfFuelProducerWithCapacityHoldsForRefuel()
     {
         var generator = Site("gen", "WoodFiredGenerator", new(2, 3), 1000, 0, powered: false);
-        generator = generator with { Service = generator.Service with { Fuel = new O.BuildingFuel.Refuelable { Burn = BuildingServiceWire.IdleBurn, Fuel = 0, TargetFuel = 30, OutOfFuel = true } } };
+        generator = generator with { Service = generator.Service with { Fuel = new RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable { Burn = BuildingServiceWire.IdleBurn, Fuel = 0, TargetFuel = 30, OutOfFuel = true } } };
         var stove = Site("stove", "ElectricStove", new(8, 2), -350, 0, powered: false);
         var topology = new PowerTopology { Buildings = [generator, stove], Blackout = false, Eclipse = false };
 
@@ -61,8 +60,8 @@ public sealed class PowerMethodTests
         var site = Site("gen", "WoodFiredGenerator", new(2, 3), 1000, 0, powered: false);
 
         Assert.False(site.Unfueled);
-        Assert.False((site with { Service = site.Service with { Fuel = new O.BuildingFuel.Refuelable { Burn = BuildingServiceWire.IdleBurn, Fuel = 5, TargetFuel = 30, OutOfFuel = false } } }).Unfueled);
-        Assert.True((site with { Service = site.Service with { Fuel = new O.BuildingFuel.Refuelable { Burn = BuildingServiceWire.IdleBurn, Fuel = 0, TargetFuel = 30, OutOfFuel = true } } }).Unfueled);
+        Assert.False((site with { Service = site.Service with { Fuel = new RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable { Burn = BuildingServiceWire.IdleBurn, Fuel = 5, TargetFuel = 30, OutOfFuel = false } } }).Unfueled);
+        Assert.True((site with { Service = site.Service with { Fuel = new RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable { Burn = BuildingServiceWire.IdleBurn, Fuel = 0, TargetFuel = 30, OutOfFuel = true } } }).Unfueled);
     }
 
     // #3877: a network with no consumer needs no power; a consumer the producers outrun leaves positive headroom.

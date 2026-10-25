@@ -12,7 +12,7 @@ using Verse;
 using Verse.AI;
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 public sealed partial class PawnControlFixture
 {
@@ -26,7 +26,7 @@ public sealed partial class PawnControlFixture
     private static readonly HashSet<string> thermalMethods = new(StringComparer.Ordinal);
 
     [Tool("test/portfolio_thermal_prepare", Description="UNSAFE FOR MODEL EXECUTION. Prepare the normal planner's own small room geometry with a leaky roof, powered heater and tired occupant. Installs no selected task or Method.")]
-    public async Task<object> PortfolioThermalPrepare(IRimBridgeContext ctx, CancellationToken ct,
+    public async Task<object> PortfolioThermalPrepare(INativeContext ctx, CancellationToken ct,
         int x, int z, int width, int height, int doorX, int doorZ)
         => await ctx.MainThread.InvokeAsync<object>(() =>
         {
@@ -143,6 +143,6 @@ public sealed partial class PawnControlFixture
         Powered = thermalHeater!.TryGetComp<CompPowerTrader>().PowerOn,
     });
     [Tool("test/portfolio_thermal_read", Description="UNSAFE FOR MODEL EXECUTION. Observe native roof completion and occupied room warming after normal planner work; writes nothing.")]
-    public async Task<object> PortfolioThermalRead(IRimBridgeContext ctx, CancellationToken ct)
+    public async Task<object> PortfolioThermalRead(INativeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(ThermalStatus, ct).ConfigureAwait(false);
 }

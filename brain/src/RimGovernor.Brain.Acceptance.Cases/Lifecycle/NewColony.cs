@@ -1,8 +1,5 @@
 using System.Globalization;
 using RimGovernor.Brain.Bridge;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -14,14 +11,14 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// </summary>
 internal static class LifecycleNewColony
 {
-    private static readonly Lifecycle.NewColonyPhase[] InOrder =
+    private static readonly RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase[] InOrder =
     [
-        Lifecycle.NewColonyPhase.GeneratingWorld,
-        Lifecycle.NewColonyPhase.ChoosingTile,
-        Lifecycle.NewColonyPhase.RollingColonists,
-        Lifecycle.NewColonyPhase.GeneratingMap,
-        Lifecycle.NewColonyPhase.Finishing,
-        Lifecycle.NewColonyPhase.Saving,
+        RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase.GeneratingWorld,
+        RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase.ChoosingTile,
+        RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase.RollingColonists,
+        RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase.GeneratingMap,
+        RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase.Finishing,
+        RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase.Saving,
     ];
 
     internal static TypedCase Case() => new()
@@ -67,7 +64,7 @@ internal static class LifecycleNewColony
             async () =>
             {
                 var phases = await NewColonyStart.FailsAsync(
-                    s, "timeout", NewColonyStart.Request(TypedLifecycle.Stamp("newcolony-timeout"), NewColonyStart.Spec(), timeoutMs: 1000), Common.FailureCode.DeadlineExceeded, cancellationToken).ConfigureAwait(false);
+                    s, "timeout", NewColonyStart.Request(TypedLifecycle.Stamp("newcolony-timeout"), NewColonyStart.Spec(), timeoutMs: 1000), RimGovernor.Brain.GameFacts.Common.FailureCode.DeadlineExceeded, cancellationToken).ConfigureAwait(false);
                 s.Record("timeout_phases", NewColonyStart.Strings(phases.Select(p => p.ToString())));
             },
             cancellationToken).ConfigureAwait(false);
@@ -80,7 +77,7 @@ internal static class LifecycleNewColony
         var spec = NewColonyStart.Spec();
         var (completed, phases) = await NewColonyStart.CompleteAsync(s, "first", NewColonyStart.Request(TypedLifecycle.Stamp("newcolony-first"), spec), cancellationToken).ConfigureAwait(false);
         s.Record("phases", NewColonyStart.Strings(phases.Select(p => p.ToString())));
-        if (!phases.SequenceEqual(InOrder.Where(phases.Contains)) || phases[^1] != Lifecycle.NewColonyPhase.Saving)
+        if (!phases.SequenceEqual(InOrder.Where(phases.Contains)) || phases[^1] != RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase.Saving)
         {
             throw new AcceptanceException($"phases out of order or not ending in SAVING: [{string.Join(' ', phases)}]");
         }
@@ -104,13 +101,13 @@ internal static class LifecycleNewColony
 
         // A second start over the live colony is refused without touching it.
         var again = await s.NewColonyAsync("loaded-refusal", NewColonyStart.Request(TypedLifecycle.Stamp("newcolony-again"), NewColonyStart.Spec()), cancellationToken).ConfigureAwait(false);
-        if (again.Failure?.Code != Common.FailureCode.Unavailable || again.Phases.Count > 0)
+        if (again.Failure?.Code != RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable || again.Phases.Count > 0)
         {
             throw new AcceptanceException($"start over a loaded game: want UNAVAILABLE before generation, got {(object?)again.Failure ?? again.Completed}");
         }
 
         // The save loads through lifecycle_load and restores the same colony, tick and pause.
-        _ = await TypedLifecycle.LoadAsync(s, "reload", identity, spec.SaveName!, Lifecycle.Readiness.Map, cancellationToken).ConfigureAwait(false);
+        _ = await TypedLifecycle.LoadAsync(s, "reload", identity, spec.SaveName!, RimGovernor.Brain.GameFacts.Lifecycle.Readiness.Map, cancellationToken).ConfigureAwait(false);
         var (reloaded, reloadedTick, paused) = await TypedLifecycle.IdentityAsync(s, "reloaded-identity", cancellationToken).ConfigureAwait(false);
         if (reloadedTick != tick || !paused)
         {
@@ -129,7 +126,7 @@ internal static class LifecycleNewColony
     /// </summary>
     private static async Task RefusalsAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        var bad = new (string Field, Lifecycle.NewColonySpec Spec)[]
+        var bad = new (string Field, RimGovernor.Brain.GameOrders.Lifecycle.NewColonySpec Spec)[]
         {
             ("scenario", NewColonyStart.Spec() with { Scenario = "NoSuchScenario" }),
             ("difficulty", NewColonyStart.Spec() with { Difficulty = "NoSuchDifficulty" }),
@@ -141,9 +138,9 @@ internal static class LifecycleNewColony
             await NewColonyStart.RefusedAsync(s, "refuse-" + field, NewColonyStart.Request("newcolony-bad-" + field, spec), cancellationToken).ConfigureAwait(false);
         }
 
-        var hot = NewColonyStart.Spec() with { MinTemperature = new Lifecycle.TemperatureLimit.AtCase(90), MaxTemperature = new Lifecycle.TemperatureLimit.AtCase(100) };
-        var phases = await NewColonyStart.FailsAsync(s, "unsatisfiable", NewColonyStart.Request("newcolony-hot", hot), Common.FailureCode.InvalidRequest, cancellationToken).ConfigureAwait(false);
-        if (phases.Count == 0 || phases[^1] != Lifecycle.NewColonyPhase.ChoosingTile)
+        var hot = NewColonyStart.Spec() with { MinTemperature = new RimGovernor.Brain.GameOrders.Lifecycle.TemperatureLimit.AtCase(90), MaxTemperature = new RimGovernor.Brain.GameOrders.Lifecycle.TemperatureLimit.AtCase(100) };
+        var phases = await NewColonyStart.FailsAsync(s, "unsatisfiable", NewColonyStart.Request("newcolony-hot", hot), RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, cancellationToken).ConfigureAwait(false);
+        if (phases.Count == 0 || phases[^1] != RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase.ChoosingTile)
         {
             throw new AcceptanceException($"unsatisfiable temperature band: want the refusal in CHOOSING_TILE, got phases [{string.Join(' ', phases)}]");
         }
@@ -165,8 +162,8 @@ internal static class LifecycleNewColony
                 async () =>
                 {
                     var phases = await NewColonyStart.FailsAsync(
-                        s, "savefail", NewColonyStart.Request(TypedLifecycle.Stamp("newcolony-savefail"), NewColonyStart.Spec() with { SaveName = Save }), Common.FailureCode.NativeFailure, cancellationToken).ConfigureAwait(false);
-                    if (phases.Count == 0 || phases[^1] != Lifecycle.NewColonyPhase.Saving)
+                        s, "savefail", NewColonyStart.Request(TypedLifecycle.Stamp("newcolony-savefail"), NewColonyStart.Spec() with { SaveName = Save }), RimGovernor.Brain.GameFacts.Common.FailureCode.NativeFailure, cancellationToken).ConfigureAwait(false);
+                    if (phases.Count == 0 || phases[^1] != RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase.Saving)
                     {
                         throw new AcceptanceException($"forced save failure: want NATIVE_FAILURE in SAVING, got phases [{string.Join(' ', phases)}]");
                     }
@@ -184,7 +181,7 @@ internal static class LifecycleNewColony
         }
     }
 
-    private static Common.Identity Identity(Lifecycle.NewColonyCompleted completed) =>
+    private static RimGovernor.Brain.GameFacts.Common.Identity Identity(RimGovernor.Brain.GameFacts.Lifecycle.NewColonyCompleted completed) =>
         completed.Context?.Identity ?? throw new AcceptanceException($"the completed start names no identity: {completed}");
 
     private static string SavePath(TypedSession s, string saveName) => s.ProfileSave(saveName);
@@ -193,16 +190,16 @@ internal static class LifecycleNewColony
     /// Asserts the live map matches the spec and returns a digest of what a pinned seed must reproduce: the tile, biome
     /// and hilliness, and each colonist's name and skill levels.
     /// </summary>
-    private static async Task<string> DigestAsync(TypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
+    private static async Task<string> DigestAsync(TypedSession s, string label, RimGovernor.Brain.GameFacts.Common.Identity identity, CancellationToken cancellationToken)
     {
         var scope = TypedReads.Scope(identity);
-        var facts = await s.CallAsync(label + "-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = scope }, cancellationToken).ConfigureAwait(false);
+        var facts = await s.CallAsync(label + "-facts", NativeOps.ReadColonyFacts, new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = scope }, cancellationToken).ConfigureAwait(false);
         if (facts.ColonistCount != 3 || facts.MapSize.Width != 150 || facts.MapSize.Height != 150 || !NewColonyStart.Biomes.Contains(facts.Biome, StringComparer.Ordinal))
         {
             throw new AcceptanceException($"{label}: want 3 colonists on a 150x150 map in one of [{string.Join(' ', NewColonyStart.Biomes)}], got {facts.ColonistCount} on {facts.MapSize.Width}x{facts.MapSize.Height} in {facts.Biome}");
         }
 
-        var worldReply = await s.CallAsync(label + "-world", NativeOps.ReadWorld, new Observations.WorldRequest { Scope = scope }, cancellationToken).ConfigureAwait(false);
+        var worldReply = await s.CallAsync(label + "-world", NativeOps.ReadWorld, new RimGovernor.Brain.GameOrders.Observations.WorldRequest { Scope = scope }, cancellationToken).ConfigureAwait(false);
         var tile = worldReply.Tile;
         var colonists = (await NewColonyStart.ColonistsAsync(s, label + "-pawns", identity, cancellationToken).ConfigureAwait(false))
             .Select(p => string.Create(

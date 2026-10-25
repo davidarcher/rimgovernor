@@ -10,7 +10,7 @@ using Verse;
 using Verse.AI;
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Stages spectators for the watch-sparring joy giver (#2732) on top of a ring staged
     // by test/sparring_prepare: idle colonists at joy time (a free bystander, a drafted
@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools
     public sealed class SparringWatchFixture
     {
         [Tool("test/sparring_watch_prepare", Description = "UNSAFE FOR MODEL EXECUTION. After test/sparring_prepare: stage spectators near the ring (a free bystander at joy time; optionally a drafted one and one whose schedule is all work) and a recorder of every watch job. Test builds only.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, int x, int z,
+        public async Task<object> Prepare(INativeContext ctx, CancellationToken cancellationToken, int x, int z,
             [ToolParameter(Description = "Free bystanders at joy time, all hours Joy, joy low.")] int bystanders = 1,
             [ToolParameter(Description = "Add one drafted bystander.")] bool drafted = false,
             [ToolParameter(Description = "Add one bystander whose timetable is all Work.")] bool working = false,
@@ -64,7 +64,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/sparring_watch_inspect", Description = "Read-only: everything the recorder saw of the staged spectators.")]
-        public async Task<object> Inspect(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Inspect(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;

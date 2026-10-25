@@ -6,8 +6,7 @@ using RimGovernor.Brain.Domain;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Obs = RimGovernor.Contracts.Wire.Observations;
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 internal static class NativeResearchActivities
 {
@@ -35,7 +34,7 @@ internal static class NativeResearchActivities
     /// Every free colonist's research at every bench the current project can be researched at. The walk to a bench is
     /// not read here: its cell joins the coupled route locations, so the shared leg cache prices it.
     /// </summary>
-    internal static Obs.ResearchActivityRead Read(Map map)
+    internal static RimGovernor.Brain.GameFacts.Observations.ResearchActivityRead Read(Map map)
     {
         var project = Find.ResearchManager.GetProject();
         if (project == null) return new() { Workers = [], Findings = ["research_no_current_project"] };
@@ -46,7 +45,7 @@ internal static class NativeResearchActivities
             .Where(b => b.Spawned && project.CanBeResearchedAt(b, ignoreResearchBenchPowerStatus: false))
             .OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         var difficulty = Find.Storyteller.difficulty.researchSpeedFactor;
-        var workers = new List<Obs.ResearchWorker>();
+        var workers = new List<RimGovernor.Brain.GameFacts.Observations.ResearchWorker>();
         var order = CallbackOrder();
         foreach (var pawn in map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal))
         {

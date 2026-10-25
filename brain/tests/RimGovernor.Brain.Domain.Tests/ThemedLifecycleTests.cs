@@ -1,18 +1,16 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Host;
 using RimGovernor.Brain.PlayerApi;
 using RimGovernor.Brain.Policy;
 using Xunit;
 using Journal = RimGovernor.Brain.Store.Store;
-using PbCommon = RimGovernor.Contracts.Wire.Common;
-using PbLifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>#3511: a new colony started from a theme adopts the theme into the new world's goals once it completes.</summary>
 public sealed class ThemedLifecycleTests
 {
-    private static readonly PbCommon.ObservationContext Colony = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "c", LoadToken = "l", MapId = 1 }, Tick = 0 };
+    private static readonly RimGovernor.Brain.GameFacts.Common.ObservationContext Colony = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "c", LoadToken = "l", MapId = 1 }, Tick = 0 };
 
     private sealed class Generating : ILifecycleWriter
     {
@@ -20,31 +18,31 @@ public sealed class ThemedLifecycleTests
 
         public bool Fails { get; set; }
 
-        public Task<PbLifecycle.NewColonyReply> NewColonyAsync(PbLifecycle.NewColonyRequest request, CancellationToken cancellationToken) =>
-            Task.FromResult(new PbLifecycle.NewColonyReply { Outcome = new PbLifecycle.NewColonyPending { RequestId = request.RequestId, Phase = PbLifecycle.NewColonyPhase.GeneratingWorld, ElapsedMs = 0, RerollCount = 0 } });
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.NewColonyReply> NewColonyAsync(RimGovernor.Brain.GameOrders.Lifecycle.NewColonyRequest request, CancellationToken cancellationToken) =>
+            Task.FromResult(new RimGovernor.Brain.GameFacts.Lifecycle.NewColonyReply { Outcome = new RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPending { RequestId = request.RequestId, Phase = RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase.GeneratingWorld, ElapsedMs = 0, RerollCount = 0 } });
 
-        public Task<PbLifecycle.NewColonyReply> ReadNewColonyAsync(string requestId, CancellationToken cancellationToken) =>
-            Task.FromResult(new PbLifecycle.NewColonyReply
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.NewColonyReply> ReadNewColonyAsync(string requestId, CancellationToken cancellationToken) =>
+            Task.FromResult(new RimGovernor.Brain.GameFacts.Lifecycle.NewColonyReply
             {
-                Outcome = Fails ? new PbCommon.Failure { RefusalClass = RimGovernor.Contracts.Wire.Common.RefusalClass.Unclassified, Code = PbCommon.FailureCode.NativeFailure }
-                    : Done ? new PbLifecycle.NewColonyCompleted { RequestId = requestId, Context = Colony, Paused = true, ByteLength = 0 }
-                    : new PbLifecycle.NewColonyPending { RequestId = requestId, Phase = PbLifecycle.NewColonyPhase.GeneratingWorld, ElapsedMs = 0, RerollCount = 0 },
+                Outcome = Fails ? new RimGovernor.Brain.GameFacts.Common.Failure { RefusalClass = RimGovernor.Brain.GameFacts.Common.RefusalClass.Unclassified, Code = RimGovernor.Brain.GameFacts.Common.FailureCode.NativeFailure }
+                    : Done ? new RimGovernor.Brain.GameFacts.Lifecycle.NewColonyCompleted { RequestId = requestId, Context = Colony, Paused = true, ByteLength = 0 }
+                    : new RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPending { RequestId = requestId, Phase = RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase.GeneratingWorld, ElapsedMs = 0, RerollCount = 0 },
             });
 
-        public Task<PbLifecycle.SaveReply> SaveAsync(PbLifecycle.SaveRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.SaveReply> SaveAsync(RimGovernor.Brain.GameOrders.Lifecycle.SaveRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public Task<PbLifecycle.SaveReply> ReadSaveAsync(string requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.SaveReply> ReadSaveAsync(string requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public Task<PbLifecycle.LoadReply> LoadAsync(PbLifecycle.LoadRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.LoadReply> LoadAsync(RimGovernor.Brain.GameOrders.Lifecycle.LoadRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public Task<PbLifecycle.LoadReply> ReadLoadAsync(string requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.LoadReply> ReadLoadAsync(string requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public Task<PbLifecycle.MenuReply> MenuAsync(PbLifecycle.MenuRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.MenuReply> MenuAsync(RimGovernor.Brain.GameOrders.Lifecycle.MenuRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public Task<PbLifecycle.MenuReply> ReadMenuAsync(string requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.MenuReply> ReadMenuAsync(string requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
-    private static PbLifecycle.NewColonyRequest Request(string id, string? theme) => new() { RequestId = id, TimeoutMs = 600_000, Spec = NewColonyFixtures.Spec() with { Theme = theme } };
+    private static RimGovernor.Brain.GameOrders.Lifecycle.NewColonyRequest Request(string id, string? theme) => new() { RequestId = id, TimeoutMs = 600_000, Spec = NewColonyFixtures.Spec() with { Theme = theme } };
 
     private static (ThemedLifecycle Lifecycle, Generating Inner, List<string> Adopted) Build()
     {

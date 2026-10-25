@@ -8,13 +8,14 @@
   <ItemGroup>
     <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Policy/RimGovernor.Brain.Policy.csproj" />
-    <ProjectReference Include="../RimGovernor.Brain.Contracts/RimGovernor.Brain.Contracts.csproj" />
-    <ProjectReference Include="../RimGovernor.Brain.Bridge.Contracts/RimGovernor.Brain.Bridge.Contracts.csproj" />
-    <!-- Awaiting #3053: the journal store (Rounds, RoundsResult, DefenseLayoutRecord). -->
+    <ProjectReference Include="../RimGovernor.Brain.GameFacts/RimGovernor.Brain.GameFacts.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.GameOrders/RimGovernor.Brain.GameOrders.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.GameAccess/RimGovernor.Brain.GameAccess.csproj" />
+    <!-- Awaiting #3053: the journal store (ReviewState, ReviewResult, DefenseLayoutRecord). -->
     <ProjectReference Include="../RimGovernor.Brain.Store/RimGovernor.Brain.Store.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- The host's native client (#3113) reads the frames the recorder types decode. -->
-    <InternalsVisibleTo Include="RimGovernor.Brain.BuildingRuntime" />
+    <InternalsVisibleTo Include="RimGovernor.Brain.Runtime" />
   </ItemGroup>
 </Project>

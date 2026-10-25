@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
@@ -25,10 +24,10 @@ internal static class ForecastPens
             .Select(r => new RoomGain(r.Id, "", LossPerDay(r.Roam)))];
     }
 
-    private static O.AnimalRoam RoamOf(O.ColonyAnimal animal) => animal.Roping is O.AnimalRoping.Roped roped
+    private static RimGovernor.Brain.GameFacts.Observations.AnimalRoam RoamOf(RimGovernor.Brain.GameFacts.Observations.ColonyAnimal animal) => animal.Roping is RimGovernor.Brain.GameFacts.Observations.AnimalRoping.Roped roped
         ? roped.Roam : throw new RequiredFactException("roped animal census");
 
     /// <summary>The capability-days a day a roamer's walking off the map costs: its value over its RoamMtbDays.</summary>
-    internal static double LossPerDay(O.AnimalRoam roamer) =>
+    internal static double LossPerDay(RimGovernor.Brain.GameFacts.Observations.AnimalRoam roamer) =>
         roamer.MarketValue / SilverGapRules.ValuePerWorkTick / GameTime.TicksPerDay / roamer.MtbDays;
 }

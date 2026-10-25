@@ -3,11 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The AbilityIntent arm of Actions/Apply: one pawn uses one ability
     // of one source on one target. The shared part checks the pawn and the
@@ -20,7 +17,7 @@ namespace HomeBridge.BridgeTools
         // The refusal of the first failing guard (its name leads the detail),
         // else null with the prepared use. The prepared use is the only thing
         // that changes game state, and Check changes none.
-        Common.Failure? Check(Pawn pawn, Operations.AbilityIntent intent, out Func<Receipts.EffectEvidence>? use);
+        RimGovernor.Brain.GameFacts.Common.Failure? Check(Pawn pawn, RimGovernor.Brain.GameOrders.Operations.AbilityIntent intent, out Func<RimGovernor.Brain.GameFacts.Receipts.EffectEvidence>? use);
     }
 
     internal static class NativeAbilityOperations
@@ -28,50 +25,50 @@ namespace HomeBridge.BridgeTools
         // One source per AbilityIntent.source arm, each with its own guards.
         private static readonly Dictionary<Type, IAbilitySource> Sources = new Dictionary<Type, IAbilitySource>
         {
-            [typeof(Operations.AbilityIntentSource.PermitCase)] = new PermitAbilitySource(),
-            [typeof(Operations.AbilityIntentSource.PsycastCase)] = new PsycastAbilitySource(),
+            [typeof(RimGovernor.Brain.GameOrders.Operations.AbilityIntentSource.PermitCase)] = new PermitAbilitySource(),
+            [typeof(RimGovernor.Brain.GameOrders.Operations.AbilityIntentSource.PsycastCase)] = new PsycastAbilitySource(),
         };
 
-        internal static Common.Failure Refuse(Common.FailureCode code, string guard, string detail) => ProtoBoundary.Fail(code, "Ability guard " + guard + ": " + detail);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure Refuse(RimGovernor.Brain.GameFacts.Common.FailureCode code, string guard, string detail) => GameThread.Fail(code, "Ability guard " + guard + ": " + detail);
 
         // The caller: alive, spawned, a free colonist, not downed. Drafted is allowed.
-        private static Common.Failure? Caller(Operations.AbilityIntent intent, out Pawn? pawn)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Caller(RimGovernor.Brain.GameOrders.Operations.AbilityIntent intent, out Pawn? pawn)
         {
             pawn = null;
-            if (intent.PawnId is null || !ProtoBoundary.IsIdentifier(intent.PawnId))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An ability use requires a pawn id.");
+            if (intent.PawnId is null || !GameThread.IsIdentifier(intent.PawnId))
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "An ability use requires a pawn id.");
             var found = global::Verse.Find.Maps.SelectMany(m => m.mapPawns.AllPawns).ById(intent.PawnId);
             if (found == null || !found.Spawned)
-                return Refuse(Common.FailureCode.NotFound, "pawn", "The pawn is not spawned on a map.");
+                return Refuse(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "pawn", "The pawn is not spawned on a map.");
             if (found.Dead || !found.IsFreeColonist)
-                return Refuse(Common.FailureCode.InvalidRequest, "pawn", "The pawn is not a living free colonist.");
+                return Refuse(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "pawn", "The pawn is not a living free colonist.");
             if (found.Downed)
-                return Refuse(Common.FailureCode.InvalidRequest, "pawn", "The pawn is downed.");
+                return Refuse(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "pawn", "The pawn is downed.");
             pawn = found;
             return null;
         }
 
-        private static Common.Failure? Resolve(Operations.AbilityIntent? intent, out Func<Receipts.EffectEvidence>? use)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(RimGovernor.Brain.GameOrders.Operations.AbilityIntent? intent, out Func<RimGovernor.Brain.GameFacts.Receipts.EffectEvidence>? use)
         {
             use = null;
             if (intent == null)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An ability use is required.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "An ability use is required.");
             if (intent.Source is null || !Sources.TryGetValue(intent.Source.GetType(), out var source))
-                return ProtoBoundary.Fail(Common.FailureCode.Unsupported, "This ability source is not supported.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unsupported, "This ability source is not supported.");
             if (intent.Target is null)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An ability use requires a target arm (none, cell, pawn or thing).");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "An ability use requires a target arm (none, cell, pawn or thing).");
             var failure = Caller(intent, out var pawn);
             if (failure != null || pawn == null) return failure;
             return source.Check(pawn, intent, out use);
         }
 
-        internal static Common.Failure? Validate(Operations.AbilityIntent? intent) => Resolve(intent, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.AbilityIntent? intent) => Resolve(intent, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.AbilityIntent? intent)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.AbilityIntent? intent)
         {
             var failure = Resolve(intent, out var use);
             if (failure != null || use == null)
-                throw new ApplyRefusedException(failure ?? ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Ability prerequisites changed before apply."));
+                throw new ApplyRefusedException(failure ?? GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NativeFailure, "Ability prerequisites changed before apply."));
             return use();
         }
     }
@@ -93,14 +90,14 @@ namespace HomeBridge.BridgeTools
             internal required FactionPermit Held;
             internal required Faction Faction;
             internal required RoyalTitlePermitWorker_Targeted Worker;
-            internal required Operations.AbilityIntent Intent;
+            internal required RimGovernor.Brain.GameOrders.Operations.AbilityIntent Intent;
             internal IntVec3 Cell;
         }
 
         private sealed class Guard
         {
             internal string Name = "";
-            internal required Func<Call, Common.Failure?> Check;
+            internal required Func<Call, RimGovernor.Brain.GameFacts.Common.Failure?> Check;
         }
 
         // The named guard registry of the permit source. Names lead the refusal
@@ -108,57 +105,57 @@ namespace HomeBridge.BridgeTools
         private static readonly Guard[] Guards =
         {
             new Guard { Name = "held", Check = call => call.Held.Permit != call.Def
-                ? NativeAbilityOperations.Refuse(Common.FailureCode.InvalidRequest, "held", "The pawn does not hold this permit for the faction.") : null },
+                ? NativeAbilityOperations.Refuse(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "held", "The pawn does not hold this permit for the faction.") : null },
             new Guard { Name = "cooldown", Check = call => call.Held.OnCooldown
-                ? NativeAbilityOperations.Refuse(Common.FailureCode.InvalidRequest, "cooldown", "The permit is on cooldown.") : null },
+                ? NativeAbilityOperations.Refuse(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "cooldown", "The permit is on cooldown.") : null },
             new Guard { Name = "faction", Check = call => call.Faction.defeated || call.Faction.HostileTo(Faction.OfPlayer)
-                ? NativeAbilityOperations.Refuse(Common.FailureCode.InvalidRequest, "faction", "The faction is hostile or defunct.") : null },
+                ? NativeAbilityOperations.Refuse(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "faction", "The faction is hostile or defunct.") : null },
             new Guard { Name = "favor", Check = call => call.Pawn.royalty.GetFavor(call.Faction) < call.Def.royalAid.favorCost
-                ? NativeAbilityOperations.Refuse(Common.FailureCode.InvalidRequest, "favor", "Favor is below the permit's cost.") : null },
+                ? NativeAbilityOperations.Refuse(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "favor", "Favor is below the permit's cost.") : null },
             new Guard { Name = "aid", Check = call =>
             {
                 // The worker's own options: a disabled one carries the game's reason.
                 var options = call.Worker.GetRoyalAidOptions(call.Map, call.Pawn, call.Faction)?.ToList() ?? new List<FloatMenuOption>();
                 if (options.Count == 0)
-                    return NativeAbilityOperations.Refuse(Common.FailureCode.InvalidRequest, "aid", "The permit offers no aid here.");
+                    return NativeAbilityOperations.Refuse(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "aid", "The permit offers no aid here.");
                 return options.Any(o => !o.Disabled) ? null
-                    : NativeAbilityOperations.Refuse(Common.FailureCode.InvalidRequest, "aid", options[0].Label ?? "The map cannot receive this aid.");
+                    : NativeAbilityOperations.Refuse(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "aid", options[0].Label ?? "The map cannot receive this aid.");
             } },
             new Guard { Name = "target", Check = call =>
             {
-                if (call.Intent.Target is not Operations.AbilityIntentTarget.CellCase { Value: { X: { } cellX, Z: { } cellZ } })
-                    return NativeAbilityOperations.Refuse(Common.FailureCode.InvalidRequest, "target", "This permit needs a target cell.");
+                if (call.Intent.Target is not RimGovernor.Brain.GameOrders.Operations.AbilityIntentTarget.CellCase { Value: { X: { } cellX, Z: { } cellZ } })
+                    return NativeAbilityOperations.Refuse(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "target", "This permit needs a target cell.");
                 var cell = new IntVec3(cellX, 0, cellZ);
                 if (!cell.InBounds(call.Map))
-                    return NativeAbilityOperations.Refuse(Common.FailureCode.InvalidRequest, "target", "The target cell is outside the map.");
+                    return NativeAbilityOperations.Refuse(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "target", "The target cell is outside the map.");
                 if (cell.Fogged(call.Map))
-                    return NativeAbilityOperations.Refuse(Common.FailureCode.InvalidRequest, "target", "The target cell is fogged.");
+                    return NativeAbilityOperations.Refuse(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "target", "The target cell is fogged.");
                 if (!cell.InHorDistOf(call.Pawn.Position, call.Def.royalAid.targetingRange)
                     || call.Def.royalAid.targetingRequireLOS && !GenSight.LineOfSight(call.Pawn.Position, cell, call.Map))
-                    return NativeAbilityOperations.Refuse(Common.FailureCode.InvalidRequest, "target", "The target cell is out of the permit's targeting range.");
+                    return NativeAbilityOperations.Refuse(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "target", "The target cell is out of the permit's targeting range.");
                 call.Cell = cell;
                 return null;
             } },
         };
 
-        public Common.Failure? Check(Pawn pawn, Operations.AbilityIntent intent, out Func<Receipts.EffectEvidence>? use)
+        public RimGovernor.Brain.GameFacts.Common.Failure? Check(Pawn pawn, RimGovernor.Brain.GameOrders.Operations.AbilityIntent intent, out Func<RimGovernor.Brain.GameFacts.Receipts.EffectEvidence>? use)
         {
             use = null;
             var source = intent.Source?.Permit;
-            if (source == null || source.FactionDef is not { } factionDefName || source.Permit is not { } permitName || !ProtoBoundary.IsIdentifier(factionDefName) || !ProtoBoundary.IsIdentifier(permitName))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A permit ability requires a faction def and a permit def.");
+            if (source == null || source.FactionDef is not { } factionDefName || source.Permit is not { } permitName || !GameThread.IsIdentifier(factionDefName) || !GameThread.IsIdentifier(permitName))
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "A permit ability requires a faction def and a permit def.");
             var def = DefDatabase<RoyalTitlePermitDef>.GetNamedSilentFail(permitName);
             if (def == null)
-                return NativeAbilityOperations.Refuse(Common.FailureCode.NotFound, "permit", "The permit is not defined.");
+                return NativeAbilityOperations.Refuse(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "permit", "The permit is not defined.");
             if (def.royalAid == null)
-                return NativeAbilityOperations.Refuse(Common.FailureCode.InvalidRequest, "permit", "The permit does not act (no royal aid).");
+                return NativeAbilityOperations.Refuse(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "permit", "The permit does not act (no royal aid).");
             if (!(def.Worker is RoyalTitlePermitWorker_Targeted worker))
-                return NativeAbilityOperations.Refuse(Common.FailureCode.Unsupported, "permit", "Only targeted permit workers are supported.");
+                return NativeAbilityOperations.Refuse(RimGovernor.Brain.GameFacts.Common.FailureCode.Unsupported, "permit", "Only targeted permit workers are supported.");
             if (pawn.royalty == null)
-                return NativeAbilityOperations.Refuse(Common.FailureCode.InvalidRequest, "held", "The pawn holds no royal permit.");
+                return NativeAbilityOperations.Refuse(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "held", "The pawn holds no royal permit.");
             var held = pawn.royalty.AllFactionPermits.FirstOrDefault(p => p.Permit == def && p.Faction?.def?.defName == factionDefName);
             if (held == null)
-                return NativeAbilityOperations.Refuse(Common.FailureCode.InvalidRequest, "held", "The pawn does not hold this permit for the faction.");
+                return NativeAbilityOperations.Refuse(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "held", "The pawn does not hold this permit for the faction.");
             var call = new Call { Pawn = pawn, Map = pawn.Map, Def = def, Held = held, Faction = held.Faction, Worker = worker, Intent = intent };
             foreach (var guard in Guards)
             {
@@ -173,7 +170,7 @@ namespace HomeBridge.BridgeTools
         // the worker validates the target, and OrderForceTarget runs the call
         // (spending favor and starting the cooldown). The player's targeter is
         // always stopped afterwards. The receipt is the read-back postcondition.
-        private static Receipts.EffectEvidence Use(Call call)
+        private static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Use(Call call)
         {
             var tick = Find.TickManager.TicksGame;
             var favorBefore = call.Pawn.royalty.GetFavor(call.Faction);
@@ -181,13 +178,13 @@ namespace HomeBridge.BridgeTools
             var free = call.Held.LastUsedTick < 0 || Math.Max(tick - call.Held.LastUsedTick, 0) >= call.Def.CooldownTicks;
             var option = (call.Worker.GetRoyalAidOptions(call.Map, call.Pawn, call.Faction) ?? Enumerable.Empty<FloatMenuOption>()).FirstOrDefault(o => !o.Disabled && o.action != null);
             if (option == null)
-                throw new ApplyRefusedException(Common.FailureCode.InvalidRequest, "Ability guard aid: the permit offers no enabled aid option.");
+                throw new ApplyRefusedException(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Ability guard aid: the permit offers no enabled aid option.");
             var target = new LocalTargetInfo(call.Cell);
             try
             {
                 option.action();
                 if (!call.Worker.ValidateTarget(target, false) || !call.Worker.CanHitTarget(target))
-                    throw new ApplyRefusedException(Common.FailureCode.InvalidRequest, "Ability guard target: the permit worker refuses the target cell.");
+                    throw new ApplyRefusedException(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Ability guard target: the permit worker refuses the target cell.");
                 call.Worker.OrderForceTarget(target);
             }
             finally
@@ -197,7 +194,7 @@ namespace HomeBridge.BridgeTools
             var favorAfter = call.Pawn.royalty.GetFavor(call.Faction);
             if (call.Held.LastUsedTick != tick || favorAfter != (free ? favorBefore : favorBefore - call.Def.royalAid.favorCost))
                 throw new InvalidOperationException("Permit call readback did not start the cooldown and spend the favor a non-free call costs.");
-            return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.AbilityCase() };
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.EffectEvidenceEffect.AbilityCase() };
         }
     }
 
@@ -217,7 +214,7 @@ namespace HomeBridge.BridgeTools
         {
             internal required Pawn Pawn;
             internal required Ability Ability;
-            internal required Operations.AbilityIntent Intent;
+            internal required RimGovernor.Brain.GameOrders.Operations.AbilityIntent Intent;
             internal LocalTargetInfo Target;
             internal bool SelfTarget;
         }
@@ -225,10 +222,10 @@ namespace HomeBridge.BridgeTools
         private sealed class Guard
         {
             internal string Name = "";
-            internal required Func<Cast, Common.Failure?> Check;
+            internal required Func<Cast, RimGovernor.Brain.GameFacts.Common.Failure?> Check;
         }
 
-        private static Common.Failure Refuse(string guard, string detail, Common.FailureCode code = Common.FailureCode.InvalidRequest) => NativeAbilityOperations.Refuse(code, guard, detail);
+        private static RimGovernor.Brain.GameFacts.Common.Failure Refuse(string guard, string detail, RimGovernor.Brain.GameFacts.Common.FailureCode code = RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest) => NativeAbilityOperations.Refuse(code, guard, detail);
 
         private static bool SelfOnly(TargetingParameters t) => t.canTargetSelf && !t.canTargetPawns && !t.canTargetLocations && !t.canTargetBuildings && !t.canTargetItems;
 
@@ -264,56 +261,56 @@ namespace HomeBridge.BridgeTools
             new Guard { Name = "range", Check = c => c.SelfTarget || c.Ability.verb.CanHitTarget(c.Target)
                 ? null : Refuse("range", "The target is out of range or out of sight of the caster.") },
             new Guard { Name = "confirmation", Check = c => c.Ability.ConfirmationDialog(c.Target, () => { }) != null
-                ? Refuse("confirmation", "The game asks for a confirmation for this cast.", Common.FailureCode.Unsupported) : null },
+                ? Refuse("confirmation", "The game asks for a confirmation for this cast.", RimGovernor.Brain.GameFacts.Common.FailureCode.Unsupported) : null },
         };
 
         // The arm the ability takes, resolved to the game's target; the game's
         // own CanApplyOn and ValidateTarget have the last word.
-        private static Common.Failure? ResolveTarget(Cast c)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? ResolveTarget(Cast c)
         {
             var verb = c.Ability.verb;
             var t = verb?.targetParams;
             if (verb == null || t == null)
-                return Refuse("target", "The psycast has no targeting parameters.", Common.FailureCode.Unsupported);
+                return Refuse("target", "The psycast has no targeting parameters.", RimGovernor.Brain.GameFacts.Common.FailureCode.Unsupported);
             if (c.Ability.def.targetWorldCell || c.Ability.EffectComps.Any(e => e is CompAbilityEffect_WithDest))
-                return Refuse("target", "A psycast with a destination or a world target is not supported.", Common.FailureCode.Unsupported);
+                return Refuse("target", "A psycast with a destination or a world target is not supported.", RimGovernor.Brain.GameFacts.Common.FailureCode.Unsupported);
             var map = c.Pawn.Map;
             switch (c.Intent.Target)
             {
-                case Operations.AbilityIntentTarget.NoTargetCase:
+                case RimGovernor.Brain.GameOrders.Operations.AbilityIntentTarget.NoTargetCase:
                     if (!SelfOnly(t) && c.Ability.def.targetRequired)
                         return Refuse("target", "This psycast needs a target (pawn, thing or cell).");
                     c.Target = new LocalTargetInfo(c.Pawn);
                     c.SelfTarget = true;
                     break;
-                case Operations.AbilityIntentTarget.PawnCase:
+                case RimGovernor.Brain.GameOrders.Operations.AbilityIntentTarget.PawnCase:
                 {
-                    if (!ProtoBoundary.IsIdentifier(c.Intent.Target?.Pawn))
+                    if (!GameThread.IsIdentifier(c.Intent.Target?.Pawn))
                         return Refuse("target", "The target pawn id is invalid.");
                     var pawn = map.mapPawns.AllPawnsSpawned.ById(c.Intent.Target?.Pawn);
                     if (pawn == null)
-                        return Refuse("target", "The target pawn is not spawned on the caster's map.", Common.FailureCode.NotFound);
+                        return Refuse("target", "The target pawn is not spawned on the caster's map.", RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound);
                     if (!t.canTargetPawns && !(t.canTargetSelf && pawn == c.Pawn))
                         return Refuse("target", "This psycast does not take a pawn target.");
                     c.Target = new LocalTargetInfo(pawn);
                     c.SelfTarget = pawn == c.Pawn;
                     break;
                 }
-                case Operations.AbilityIntentTarget.ThingCase:
+                case RimGovernor.Brain.GameOrders.Operations.AbilityIntentTarget.ThingCase:
                 {
-                    if (!ProtoBoundary.IsIdentifier(c.Intent.Target?.Thing))
+                    if (!GameThread.IsIdentifier(c.Intent.Target?.Thing))
                         return Refuse("target", "The target thing id is invalid.");
                     var thing = map.listerThings.AllThings.ById(c.Intent.Target?.Thing);
                     if (thing == null || !thing.Spawned)
-                        return Refuse("target", "The target thing is not spawned on the caster's map.", Common.FailureCode.NotFound);
+                        return Refuse("target", "The target thing is not spawned on the caster's map.", RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound);
                     if (thing is Pawn || !t.canTargetBuildings && !t.canTargetItems)
                         return Refuse("target", "This psycast does not take a thing target.");
                     c.Target = new LocalTargetInfo(thing);
                     break;
                 }
-                case Operations.AbilityIntentTarget.CellCase:
+                case RimGovernor.Brain.GameOrders.Operations.AbilityIntentTarget.CellCase:
                 {
-                    if (c.Intent.Target is not Operations.AbilityIntentTarget.CellCase { Value: { X: { } cellX, Z: { } cellZ } })
+                    if (c.Intent.Target is not RimGovernor.Brain.GameOrders.Operations.AbilityIntentTarget.CellCase { Value: { X: { } cellX, Z: { } cellZ } })
                         return Refuse("target", "The target cell is incomplete.");
                     if (!t.canTargetLocations)
                         return Refuse("target", "This psycast does not take a cell target.");
@@ -332,15 +329,15 @@ namespace HomeBridge.BridgeTools
                 ? null : Refuse("target", "The game refuses this target for the psycast.");
         }
 
-        public Common.Failure? Check(Pawn pawn, Operations.AbilityIntent intent, out Func<Receipts.EffectEvidence>? use)
+        public RimGovernor.Brain.GameFacts.Common.Failure? Check(Pawn pawn, RimGovernor.Brain.GameOrders.Operations.AbilityIntent intent, out Func<RimGovernor.Brain.GameFacts.Receipts.EffectEvidence>? use)
         {
             use = null;
             var source = intent.Source?.Psycast;
-            if (source == null || source.Ability is not { } abilityName || !ProtoBoundary.IsIdentifier(abilityName))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A psycast ability requires an ability def.");
+            if (source == null || source.Ability is not { } abilityName || !GameThread.IsIdentifier(abilityName))
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "A psycast ability requires an ability def.");
             var def = DefDatabase<AbilityDef>.GetNamedSilentFail(abilityName);
             if (def == null || !def.IsPsycast)
-                return Refuse("ability", "The ability is not a defined psycast.", Common.FailureCode.NotFound);
+                return Refuse("ability", "The ability is not a defined psycast.", RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound);
             var ability = pawn.abilities?.GetAbility(def, false);
             if (ability == null)
                 return Refuse("ability", "The pawn does not know this psycast.");
@@ -355,19 +352,19 @@ namespace HomeBridge.BridgeTools
         }
 
         // The player's own order; the read-back is the postcondition.
-        private static Receipts.EffectEvidence Use(Cast cast)
+        private static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Use(Cast cast)
         {
             cast.Ability.QueueCastingJob(cast.Target, LocalTargetInfo.Invalid);
             var job = cast.Pawn.jobs?.AllJobs().FirstOrDefault(j => j.ability == cast.Ability);
             if (job == null)
                 throw new InvalidOperationException("Psycast order readback found no cast job on the pawn.");
-            return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.AbilityCase() };
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.EffectEvidenceEffect.AbilityCase() };
         }
     }
 
     internal sealed class AbilityActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeAbilityOperations.Validate(action.Intent?.Ability);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeAbilityOperations.Apply(action.Intent?.Ability);
+        public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => NativeAbilityOperations.Validate(action.Intent?.Ability);
+        public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => NativeAbilityOperations.Apply(action.Intent?.Ability);
     }
 }

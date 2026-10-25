@@ -1,4 +1,4 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 
 namespace RimGovernor.Brain.Host;
 
@@ -36,7 +36,7 @@ internal sealed class PlannerSupervisor(int missLimit, HostLog log)
     private readonly Dictionary<string, int> _misses = new(StringComparer.Ordinal);
     private readonly HashSet<string> _reported = new(StringComparer.Ordinal);
 
-    public void Observe(ClockSchedulerResult result)
+    public void Observe(PlannerSchedulerResult result)
     {
         lock (_mu)
         {

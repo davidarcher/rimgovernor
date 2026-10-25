@@ -74,7 +74,7 @@ public sealed class DefenseNamedStatesTests
         var turrets = new[]
         {
             PowerBuildingFixtures.Trader("t1", "Turret", new(1, 1), -100, 0, false) with { Turret = new TurretGun(5) },
-            PowerBuildingFixtures.Trader("t2", "Turret", new(2, 2), -100, -100, true) with { Turret = new TurretGun(5), FuelDefinitions = [steel.Value], Service = BuildingServiceWire.NoService with { Power = new RimGovernor.Contracts.Wire.Observations.BuildingPower.Trader { RatedW = -100, OutputW = -100, PowerOn = true, Network = "net" }, Fuel = new RimGovernor.Contracts.Wire.Observations.BuildingFuel.Refuelable { Burn = BuildingServiceWire.IdleBurn, Fuel = 0, TargetFuel = 10, OutOfFuel = true } } },
+            PowerBuildingFixtures.Trader("t2", "Turret", new(2, 2), -100, -100, true) with { Turret = new TurretGun(5), FuelDefinitions = [steel.Value], Service = BuildingServiceWire.NoService with { Power = new RimGovernor.Brain.GameFacts.Observations.BuildingPower.Trader { RatedW = -100, OutputW = -100, PowerOn = true, Network = "net" }, Fuel = new RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable { Burn = BuildingServiceWire.IdleBurn, Fuel = 0, TargetFuel = 10, OutOfFuel = true } } },
         };
         var upkeep = DefenseRearm.DefenseRearmTurrets(turrets, [], new Dictionary<Resource, long>(), false);
         Assert.Equal([new Cell(1, 1)], upkeep.Unpowered);

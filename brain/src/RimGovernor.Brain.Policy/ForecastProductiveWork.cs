@@ -1,4 +1,5 @@
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>Learning callbacks from the same physical work, never a second reward for producing output.</summary>

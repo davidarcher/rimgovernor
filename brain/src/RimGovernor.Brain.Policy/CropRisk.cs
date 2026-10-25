@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 public sealed record CropSeason
 {
-    public required RimGovernor.Contracts.Wire.Observations.FoodClimate Calendar { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.FoodClimate Calendar { get; init; }
     public EquatableArray<DisasterCondition> Conditions { get; init; }
 }
 
@@ -15,7 +15,7 @@ public abstract record FieldExposure
     public abstract long Planted { get; }
     public abstract long Blighted { get; }
 
-    public sealed record FromZone(RimGovernor.Contracts.Wire.Observations.ZoneState.Growing Observed) : FieldExposure
+    public sealed record FromZone(RimGovernor.Brain.GameFacts.Observations.ZoneState.Growing Observed) : FieldExposure
     {
         public override long ZoneCells => Observed.ZoneCells;
         public override long UnroofedCells => Observed.UnroofedCells;
@@ -54,7 +54,7 @@ public static class CropRiskRules
 
     public static double BlightRisk(FieldExposure e) => Share(e.Blighted, e.Planted);
 
-    public static double FrostRisk(double lead, RimGovernor.Contracts.Wire.Observations.FoodClimate calendar, FieldExposure e)
+    public static double FrostRisk(double lead, RimGovernor.Brain.GameFacts.Observations.FoodClimate calendar, FieldExposure e)
     {
         if (!calendar.Valid() || !double.IsFinite(lead) || lead < 0) throw new RequiredFactException("field harvest timing");
         return lead <= calendar.GrowingDaysRemaining ? 0 : Share(e.UnroofedCells, e.ZoneCells) * Math.Min(1, calendar.NonGrowingDays / lead);

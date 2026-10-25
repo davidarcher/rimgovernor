@@ -1,7 +1,8 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Domain.Tests.Game;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -366,8 +367,8 @@ public sealed class IllnessForecastTests
         var catalog = DiseaseTableTests.Catalog(DiseaseTableTests.CoreDefs());
         var census = ColonyFactsCoreTests.Snapshot() with { Threat = new ThreatSection { Observed = ColonyFactsCoreTests.QuietThreat with { Storyteller = "Cassandra", DaysPassed = 20, Disease = Facts(20) } } };
 
-        var inputs = HarmInputs.Of(new RoundsFacts { DiseaseTable = catalog.DiseaseTable(), Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = census.Threat.Observed } } });
-        Assert.Throws<RequiredFactException>(() => HarmInputs.Of(new RoundsFacts
+        var inputs = HarmInputs.Of(new ReviewFacts { DiseaseTable = catalog.DiseaseTable(), Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = census.Threat.Observed } } });
+        Assert.Throws<RequiredFactException>(() => HarmInputs.Of(new ReviewFacts
         {
             DiseaseTable = catalog.DiseaseTable(),
             Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = census.Threat.Observed with { Disease = null! } } },
@@ -395,7 +396,7 @@ public sealed class IllnessForecastTests
         };
         var catalog = DiseaseTableTests.Catalog([.. DiseaseTableTests.CoreDefs(), modded]);
 
-        var illness = HarmInputs.Of(new RoundsFacts { DiseaseTable = catalog.DiseaseTable(), Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { Storyteller = "Modded", Disease = Facts(20) with { Storyteller = "Modded" } } } } }).Illness;
+        var illness = HarmInputs.Of(new ReviewFacts { DiseaseTable = catalog.DiseaseTable(), Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { Storyteller = "Modded", Disease = Facts(20) with { Storyteller = "Modded" } } } } }).Illness;
 
         Assert.True(illness.Assessed);
         Assert.Equal(["disease_comp_unmodelled:" + nameof(ThreatScheduleTests.StorytellerCompProperties_Test)], illness.Findings);
@@ -413,7 +414,7 @@ public sealed class IllnessForecastTests
         // #3830 the production way (#3822): the catalog's organ decay with its heart, lungs and kidneys, a colony settled today, and a
         // pawn as the native read fills it (the torso's organs open, a natural lung on the map).
         var catalog = DiseaseTableTests.Catalog(DiseaseTableTests.CoreDefs());
-        var illness = HarmInputs.Of(new RoundsFacts { DiseaseTable = catalog.DiseaseTable(), Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { Disease = Facts(0) with { Biome = "AridShrubland" } } } } }).Illness;
+        var illness = HarmInputs.Of(new ReviewFacts { DiseaseTable = catalog.DiseaseTable(), Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { Disease = Facts(0) with { Biome = "AridShrubland" } } } } }).Illness;
         Assert.True(illness.Assessed);
         var decay = Assert.Single(illness.Incidents, i => i.Incident == Decay);
         Assert.Equal(["Heart", "Lung", "Kidney"], decay.Course.Parts.Select(p => p.Part));

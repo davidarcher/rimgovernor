@@ -72,17 +72,17 @@ public sealed class RecoveryQueueTests
     [Fact]
     public void ALootStackWhoseSafetyWasNotReadHasAnUnreadRoute()
     {
-        var row = LootFixtures.Stack("Thing_Steel7", "Steel", new Cell(30, 30), true, new RimGovernor.Contracts.Wire.Observations.HaulSafety.Unreached(), 50, 0, [], null);
+        var row = LootFixtures.Stack("Thing_Steel7", "Steel", new Cell(30, 30), true, new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Unreached(), 50, 0, [], null);
         Assert.Equal(RouteSafety.Unread, RecoveryRules.RecoveryLootThing(row).Thing.Route);
-        Assert.Equal(RouteSafety.Safe, RecoveryRules.RecoveryLootThing(row with { Observed = row.Observed with { Safety = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 0 } } }).Thing.Route);
-        Assert.Equal(RouteSafety.Unsafe, RecoveryRules.RecoveryLootThing(row with { Observed = row.Observed with { Safety = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Unsafe() } }).Thing.Route);
+        Assert.Equal(RouteSafety.Safe, RecoveryRules.RecoveryLootThing(row with { Observed = row.Observed with { Safety = new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Safe { PathLength = 0 } } }).Thing.Route);
+        Assert.Equal(RouteSafety.Unsafe, RecoveryRules.RecoveryLootThing(row with { Observed = row.Observed with { Safety = new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Unsafe() } }).Thing.Route);
     }
 
     [Fact]
     public void LootStackWithCoveredStockIsAdmitted()
     {
         var row = LootFixtures.Stack("Thing_Steel7", "Steel", new Cell(30, 30), true,
-            new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 40.0 }, 50, 200, [], null);
+            new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Safe { PathLength = 40.0 }, 50, 200, [], null);
         var (thing, ok) = RecoveryRules.RecoveryLootThing(row);
         Assert.True(ok);
         Assert.Equal(RemoteWorkKind.Loot, thing.Kind);

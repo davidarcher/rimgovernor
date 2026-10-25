@@ -1,9 +1,7 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -46,7 +44,7 @@ internal static class BuildingTemperature
 
         async Task<(double Temperature, string Token)> ReadAsync(string label)
         {
-            var rows = await s.BuildingsAsync(label, new Observations.ListBuildingsRequest { Ids = [thingId] }, cancellationToken).ConfigureAwait(false);
+            var rows = await s.BuildingsAsync(label, new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest { Ids = [thingId] }, cancellationToken).ConfigureAwait(false);
             if (rows is not [{ } row] || row.Building?.Id != thingId)
             {
                 throw new AcceptanceException($"{label}: want the staged heater {thingId}, got {rows.Count} rows: {string.Join("; ", rows)}");
@@ -54,7 +52,7 @@ internal static class BuildingTemperature
 
             s.RecordWire(label, row.Settings);
             var settings = row.Settings;
-            if (settings.Control is not Observations.BuildingControl.Temperature { Snapshot: var snapshot, TargetC: var target })
+            if (settings.Control is not RimGovernor.Brain.GameFacts.Observations.BuildingControl.Temperature { Snapshot: var snapshot, TargetC: var target })
             {
                 throw new AcceptanceException($"{label}: no target temperature: {settings}");
             }
@@ -66,17 +64,17 @@ internal static class BuildingTemperature
             return (target, token);
         }
 
-        async Task<Operations.ActionResult> ApplyAsync(string key, float temperature)
+        async Task<RimGovernor.Brain.GameFacts.Operations.ActionResult> ApplyAsync(string key, float temperature)
         {
-            var reply = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
+            var reply = await s.CallAsync(key, NativeOps.Apply, new RimGovernor.Brain.GameOrders.Operations.ApplyRequest
             {
                 Identity = s.Identity,
                 Actions =
                 [
-                    new Operations.Action
+                    new RimGovernor.Brain.GameOrders.Operations.Action
                     {
                         Key = key,
-                        Intent = new Operations.BuildingPatchIntent { ThingId = thingId, Change = new Operations.BuildingPatchIntentChange.TargetTemperatureCase(temperature) },
+                        Intent = new RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntent { ThingId = thingId, Change = new RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.TargetTemperatureCase(temperature) },
                     },
                 ], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
             return reply.Results.ToList() is [{ } result]
@@ -97,7 +95,7 @@ internal static class BuildingTemperature
 
         var set = await ApplyAsync("temperature-set", target).ConfigureAwait(false);
         var fields = set is { Outcome.Applied.Outcome.Applied.Observed.Effect.Settings: { } settings } ? settings.Fields.ToList() : null;
-        if (fields is not [{ Field: Receipts.SettingsField.Temperature, Outcome: Receipts.FieldOutcome.Applied }])
+        if (fields is not [{ Field: RimGovernor.Brain.GameFacts.Receipts.SettingsField.Temperature, Outcome: RimGovernor.Brain.GameFacts.Receipts.FieldOutcome.Applied }])
         {
             throw new AcceptanceException($"temperature-set: want one applied temperature field, got {set}");
         }
@@ -114,9 +112,9 @@ internal static class BuildingTemperature
         }
 
         var replay = await ApplyAsync("temperature-set", target).ConfigureAwait(false);
-        if (WireJson.Serialize(replay) != WireJson.Serialize(set))
+        if (OrdersJson.Serialize(replay) != OrdersJson.Serialize(set))
         {
-            throw new AcceptanceException($"temperature-set: the resent key changed its result: {WireJson.Serialize(set)} then {WireJson.Serialize(replay)}");
+            throw new AcceptanceException($"temperature-set: the resent key changed its result: {OrdersJson.Serialize(set)} then {OrdersJson.Serialize(replay)}");
         }
     }
 }

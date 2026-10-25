@@ -1,15 +1,14 @@
-using ColonistDistance = RimGovernor.Contracts.Wire.Observations.ColonistDistance;
-using O = RimGovernor.Contracts.Wire.Observations;
+using ColonistDistance = RimGovernor.Brain.GameFacts.Observations.ColonistDistance;
 
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>One census pawn joined to its pawn-table row: every fact is the row's.</summary>
 public sealed record EmergencyPawn
 {
-    public required O.PawnState Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PawnState Observed { get; init; }
 
     /// <summary>The active native break; null when the pawn is in none.</summary>
-    public O.PawnMentalState? MentalState => Observed.MentalState;
+    public RimGovernor.Brain.GameFacts.Observations.PawnMentalState? MentalState => Observed.MentalState;
 
     public PawnId Id => new(Observed.Pawn.Id);
 
@@ -28,7 +27,7 @@ public sealed record EmergencyPawn
     public bool InBed => Observed.InBed;
 
     /// <summary>The pawn's cell on the census map.</summary>
-    public Cell Position => Observed.Pawn.Place is O.EntityPlace.OnMap at
+    public Cell Position => Observed.Pawn.Place is RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap at
         ? at.Cell : throw new DomainException("emergency pawn is not on a map");
 
     /// <summary>Need_Food: its level and CurCategory, or Lacks for a pawn without a food need.</summary>
@@ -85,7 +84,7 @@ public abstract record EmergencyThreat
     public abstract Cell Position { get; }
 
     /// <summary>The actual table row and independently observed status census classification evidence.</summary>
-    public sealed record PawnThreat(O.PawnState ObservedPawn, O.ThreatPawn CensusThreatPawn, ThreatKind Classification) : EmergencyThreat
+    public sealed record PawnThreat(RimGovernor.Brain.GameFacts.Observations.PawnState ObservedPawn, RimGovernor.Brain.GameFacts.Observations.ThreatPawn CensusThreatPawn, ThreatKind Classification) : EmergencyThreat
     {
         public override PawnId Id => new(ObservedPawn.Pawn.Id);
         public override ThreatKind Kind => Classification;
@@ -102,7 +101,7 @@ public abstract record EmergencyThreat
     }
 
     /// <summary>The census owns hostile-building evidence; no canonical building table contains these rows.</summary>
-    public sealed record BuildingThreat(O.ThreatBuilding ObservedBuilding) : EmergencyThreat
+    public sealed record BuildingThreat(RimGovernor.Brain.GameFacts.Observations.ThreatBuilding ObservedBuilding) : EmergencyThreat
     {
         public override PawnId Id => new(ObservedBuilding.Building.Id);
         public override ThreatKind Kind => ThreatKind.HostileBuilding;
@@ -118,7 +117,7 @@ public abstract record EmergencyThreat
         public override Cell Position => MapPosition(ObservedBuilding.Building.Place);
     }
 
-    private static Cell MapPosition(O.EntityPlace place) => place is O.EntityPlace.OnMap at
+    private static Cell MapPosition(RimGovernor.Brain.GameFacts.Observations.EntityPlace place) => place is RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap at
         ? at.Cell : throw new DomainException("emergency threat is not on a map");
 
     /// <summary>Set on HostileBuilding rows only: the catalog row of the def says a turret whose verb fires mortar shells.</summary>

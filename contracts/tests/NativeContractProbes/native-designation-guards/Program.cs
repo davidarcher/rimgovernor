@@ -1,5 +1,5 @@
 using System;
-using HomeBridge.BridgeTools;
+using RimGovernor.Native;
 
 // The guard registry contract: every named guard refuses at
 // admission when its rule fails, and its in-progress re-check cancels the

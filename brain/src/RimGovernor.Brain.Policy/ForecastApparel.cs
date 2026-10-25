@@ -1,6 +1,7 @@
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using System.Globalization;
-using Gender = RimGovernor.Contracts.Wire.Defs.Gender;
+using Gender = RimGovernor.Brain.GameFacts.Defs.Gender;
 
 namespace RimGovernor.Brain.Policy;
 

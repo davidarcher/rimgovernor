@@ -1,0 +1,1421 @@
+using RimGovernor.Brain.Policy;
+namespace RimGovernor.Brain.Runtime;
+
+/// <summary>The native reads a building planner needs: the colony reads plus the native placement preview.</summary>
+public interface IReviewBuildingSource : IColonySource
+{
+    Task<BuildingPreview> PreviewBuildingAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct);
+}
+
+public sealed record BuildingResult : IPlannerResult
+{
+    public Verdict Verdict { get; init; }
+
+    /// <summary>Absent when the building planner abstains before an admission decision.</summary>
+    public Sto.BuildingMethodDecision? Decision { get; init; }
+}
+
+/// <summary>
+/// Compiles one bounded building method under an existing reviewed player direction. It creates shared pending
+/// work, never acquires a lease, dispatches an action or advances the game.
+/// </summary>
+public sealed partial class BuildingPlanner
+{
+    internal IReadOnlyList<Pol.SiteBuilding> Paste { get; set; } = [];
+
+    internal ColonyReview Reviewer { get; set; } = null!;
+
+    internal IReviewBuildingSource Native { get; set; } = null!;
+
+    internal FilingKey Concern { get; set; }
+
+    /// <summary>
+    /// The Need that owns this planner's work (#3279): its Methods bind under the Need and are admitted by claims.
+    /// Default for a Standard-owned planner, which works its <see cref="Concern"/>'s Standard. <see cref="Concern"/>
+    /// still selects what the planner builds either way.
+    /// </summary>
+    internal NeedId Need { get; set; }
+
+    internal string Definition { get; set; } = "";
+
+    internal double RecreationPowerW { get; set; }
+
+    internal string Stuff { get; set; } = "";
+
+    internal Pol.PlacementEnvironment? Environment { get; set; }
+
+    internal IReadOnlyList<Cell> Adjacent { get; set; } = [];
+
+    internal GameClient? Excavation { get; set; }
+
+    internal Pol.PowerProposal? Power { get; set; }
+
+    internal Pol.TemperatureProposal? Temperature { get; set; }
+
+    internal Pol.RefrigerationProposal? Refrigeration { get; set; }
+
+    internal Pol.LightingProposal? Lighting { get; set; }
+
+    internal Pol.FlooringProposal? Flooring { get; set; }
+
+    /// <summary>Supplies the rooms/flooring Need's firebreak tier: the ring's pave cells still natural ground with no floor ordered.</summary>
+    internal Func<IReadOnlyList<Cell>>? FirebreakPave { get; set; }
+
+    internal Pol.RoutesProposal? Routes { get; set; }
+
+    /// <summary>
+    /// Restricts furnishing to rooms whose native role can host the function: the facility furnishes through its
+    /// planned room.
+    /// </summary>
+    internal Pol.FacilityRequirement? Facility { get; set; }
+
+    /// <summary>Further restricts furnishing to these observed cells (the sleeping planner's warm hosting rooms); null imposes no restriction.</summary>
+    internal IReadOnlyList<Cell>? Cells { get; set; }
+
+    /// <summary>Holds the resource workshop's pre-observation reads (deficit resource, bench census, recipe catalog) for this step only.</summary>
+    internal WorkshopSelection? Workshop { get; set; }
+
+    /// <summary>Holds the housing bedroom choice this step builds for.</summary>
+    internal Pol.SleepingChoice? Sleeping { get; set; }
+
+    /// <summary>
+    /// The step this planner serves: a shelter housing planner (sleeping, the stand-in spots), which its Need's
+    /// preconditions order, or, for a rooms comfort Need, which of its planners this is. Empty for every other goal.
+    /// </summary>
+    internal Pol.Phase Phase { get; set; }
+
+    /// <summary>
+    /// Marks the research step that builds the high-tech bench and then its analyzer in the planned laboratory:
+    /// whichever of the two is buildable and not yet standing is the one placed.
+    /// </summary>
+    internal bool AdvancedLab { get; set; }
+
+    /// <summary>The shared room the PartySpot step places in; empty places in any roofed indoor cell.</summary>
+    internal string PartySpotRoom { get; set; } = "";
+
+    /// <summary>
+    /// The owner the step works under, loaded fresh: the <see cref="Need"/>'s in the review's world when one owns
+    /// the planner (its family already judged it unmet); a planner without a Need has no owner.
+    /// </summary>
+    internal (Sto.NeedOwner? Owner, bool Workable) WorkOwner(Sto.ReviewState review, CancellationToken call)
+    {
+        if (Need.IsValid)
+        {
+            return (Reviewer.Player.Journal.LoadNeed(Need, review.Snapshot, call), true);
+        }
+        return (null, false);
+    }
+
+    /// <summary>A copy for a derived planner; the proposals it holds stay shared.</summary>
+    internal BuildingPlanner Copy() => (BuildingPlanner)MemberwiseClone();
+
+    /// <summary>Is also used by the scheduler already holding the same player gate.</summary>
+    internal async Task<BuildingResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
+    {
+        // The planner-step recording is deferred to the function's end.
+        IDisposable? scope = null;
+        try
+        {
+            return await StepBodyAsync(arbiter, recorded => scope = recorded, call, epoch).ConfigureAwait(false);
+        }
+        finally
+        {
+            scope?.Dispose();
+        }
+    }
+
+    private async Task<BuildingResult> StepBodyAsync(StepArbiter arbiter, Action<IDisposable> hold, CancellationToken call, CancellationToken epoch)
+    {
+        var r = this;
+        var p = r.Reviewer.Player;
+        var state = p.Session.State();
+        if (!state.Enabled)
+        {
+            return new BuildingResult { Verdict = BuildingReasonDisabled };
+        }
+        if (!state.ObservationKnown || !state.Snapshot.IsValid || state.Snapshot.Native.Value == 0)
+        {
+            throw new ControlException("step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0");
+        }
+        var review = p.Journal.LoadReview(call);
+        if (!review.Enabled || !review.Snapshot.Matches(state.Snapshot))
+        {
+            return new BuildingResult { Verdict = BuildingReasonNoReview };
+        }
+        var (goal, workable) = r.WorkOwner(review, call);
+        if (!workable || goal is null)
+        {
+            return new BuildingResult { Verdict = BuildingReasonNoDeficit };
+        }
+        // A phased planner without a Need has no owner and nothing to walk.
+        if (!r.Need.IsValid && !r.Phase.IsEmpty)
+        {
+            return new BuildingResult { Verdict = BuildingReasonNoDeficit };
+        }
+        foreach (var m in goal.OpenMethods)
+        {
+            var plan = p.Journal.LoadPlan(m.Plan, call);
+            if (r.ButcherFacility())
+            {
+                // Fields, foraging and hunts share the goal and run for days: only a pending bench is the planner's own work (the ring is its own wave).
+                foreach (var progress in plan.Progress)
+                {
+                    if (PendingFacility(progress, "TableButcher") || PendingFacility(progress, Rules.ButcherSpotDefinition))
+                    {
+                        return new BuildingResult { Verdict = BuildingReasonExistingWork };
+                    }
+                }
+                continue;
+            }
+            if (StorePackage.IsRoomShellMethod(m.Method))
+            {
+                // A planned room's open ring wave does not hold the furniture raised on its interior with it: the
+                // ring and the slot are admitted together, and ReconcileRoom leaves the ring alone while its wave is open.
+                continue;
+            }
+            if (r.Need.IsValid)
+            {
+                // A Need-owned step has no whole-owner guard: its Methods are admitted by their claims, and a
+                // MethodId already committed is re-issued only once its product is gone (MethodOnce).
+                continue;
+            }
+            if (StorePackage.PlanOpen(plan))
+            {
+                return new BuildingResult { Verdict = BuildingReasonExistingWork };
+            }
+        }
+        var identity = await r.Native.IdentityAsync(call).ConfigureAwait(false);
+        var expected = new ObservationIdentity { Context = identity.Context, Paused = identity.Paused };
+        if (!BuildingBoundary(expected, state.Snapshot, review.Tick))
+        {
+            // A bare control error reads as a lost writer gate in the diagnosis; name the boundary that actually failed.
+            throw new ControlException(string.Create(CultureInfo.InvariantCulture, $"step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick) observed tick={expected.Tick.Value} review tick={review.Tick.Value}"));
+        }
+        if (r.WorkshopLadder())
+        {
+            hold(PlannerSnapshot.RecordPlannerStep(r.Concern, state.Snapshot, review.Tick));
+            var (selection, workshopReason) = await r.PrepareWorkshopAsync(state, review, call).ConfigureAwait(false);
+            if (!workshopReason.IsZero)
+            {
+                return new BuildingResult { Verdict = workshopReason };
+            }
+            var prepared = r.Copy();
+            prepared.Workshop = selection;
+            r = prepared;
+        }
+        IReadOnlyList<string> definitions = [r.Definition];
+        if (r.Concern == FoodRules.CookingNeed.FilingKey)
+        {
+            definitions = ["Campfire", "NutrientPasteDispenser", "Hopper"];
+        }
+        if (r.ButcherFacility())
+        {
+            definitions = ["TableButcher", Rules.ButcherSpotDefinition];
+        }
+        Pol.DiningFurniture furniture = default!;
+        if (r.Phase == Pol.Phase.ComfortRanked || r.Phase == Pol.Phase.ComfortBasic)
+        {
+            IReadOnlyList<string> joy;
+            (furniture, joy) = await EquipPawn.RecreationDefinitionsAsync(r.Native, Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
+            var names = furniture.Definitions().ToList();
+            if (r.Phase != Pol.Phase.ComfortBasic)
+            {
+                joy = [];
+            }
+            foreach (var name in joy)
+            {
+                if (!names.Contains(name))
+                {
+                    names.Add(name);
+                }
+            }
+            definitions = names;
+        }
+        if (r.WorkshopLadder())
+        {
+            definitions = r.Workshop!.Candidates;
+        }
+        if (r.Concern == MedicalRules.MedicalCareNeed.FilingKey || r.Phase == Pol.Phase.HousingSleeping || r.Concern == EconomyFamily.Research.FilingKey)
+        {
+            // The beds and the research bench are the furniture rules', read with every catalog (ColonyReading.Shapes).
+            definitions = [];
+        }
+        if (r.Phase == Pol.Phase.ComfortWorkChair)
+        {
+            // The chairs the remembered plan chose; the seat itself is read from the fresh census below.
+            definitions = r.Reviewer.Census.RememberedWorkChairs();
+        }
+        IReadOnlyList<string> pendingConsumers = [];
+        if (r.Concern == PowerFamily.Basic.FilingKey)
+        {
+            // The consumers other goals' admitted plans are about to build join the census request so the budget can price their draw.
+            var held = p.Journal.BuildingReservations(state.Snapshot, call);
+            pendingConsumers = PendingBuildingDefinitions(held);
+            definitions = [.. new[] { "Wall", "Door" }, .. PowerRules.PowerFamilyDefinitions(), .. pendingConsumers];
+        }
+        if (r.Concern == ShelterFamily.Temperature.FilingKey)
+        {
+            definitions = [.. TemperatureDefinitions, "Heater"];
+        }
+        if (r.Concern == RoomsFamily.Lighting.FilingKey)
+        {
+            definitions = r.LightingDefinitions();
+        }
+        if (r.Concern == RoomsFamily.Flooring.FilingKey)
+        {
+            definitions = r.FlooringDefinitions();
+        }
+        if (r.Concern == LayoutFamily.Routes.FilingKey)
+        {
+            definitions = r.RoutesDefinitions();
+        }
+        // The read names the definitions the step may place.
+        IReadOnlyList<string> observed = definitions;
+        if (r.Concern == FoodRules.CookingNeed.FilingKey || r.ButcherFacility())
+        {
+            // The planned kitchen or butchery is shelled first.
+            observed = [.. observed, "Wall", "Door"];
+        }
+        RimGovernor.Brain.GameAccess.ColonyReading reading;
+        var reviewSource = r.Native is IReviewSource;
+        var separation = (r.ButcherFacility() || r.Concern == FoodRules.CookingNeed.FilingKey) && reviewSource;
+        if (r.Phase == Pol.Phase.ComfortSpot || r.Concern == ShelterFamily.Temperature.FilingKey || r.FacilityLadder() || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == LayoutFamily.Routes.FilingKey || separation)
+        {
+            // Cooking and butcher placements read rooms too when the source can serve them, so kitchen/butcher
+            // separation protects each other's rooms; without a census nothing is protected.
+            var full = await r.Reviewer.ObserveOwnedAsync((IReviewSource)r.Native, expected, [.. observed], call).ConfigureAwait(false);
+            reading = full.Reading;
+        }
+        else if (r.Concern == PowerFamily.Basic.FilingKey || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortWorkChair)
+        {
+            var full = await r.Reviewer.ObserveOwnedAsync((IReviewSource)r.Native, expected, [.. observed], call).ConfigureAwait(false);
+            reading = full.Reading;
+        }
+        else
+        {
+            reading = await r.Reviewer.ObserveColonyAsync(r.Native, expected, [.. observed], call).ConfigureAwait(false);
+        }
+        var facts = reading;
+        PlannerSnapshot.RecordStepRead("building", r.Concern, state.Snapshot, facts);
+        RecordRoleMismatches(facts, call);
+        if (r.Phase == Pol.Phase.ComfortSpot)
+        {
+            var (spotResult, placing) = await r.PartySpotStepAsync(state, review, goal, reading, call, epoch).ConfigureAwait(false);
+            if (placing is null)
+            {
+                return spotResult;
+            }
+            r = placing;
+        }
+        if (r.Phase == Pol.Phase.ComfortWorkChair)
+        {
+            var (seating, seatReason) = r.SelectWorkChair(facts);
+            if (seating is null)
+            {
+                return new BuildingResult { Verdict = seatReason };
+            }
+            r = seating;
+        }
+        if (r.Concern == LayoutFamily.Routes.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey)
+        {
+            var (doorResult, handled) = r.ControlRoomDoor(state, goal, facts, call, epoch);
+            if (handled)
+            {
+                return doorResult;
+            }
+        }
+        if (r.Concern == FoodRules.CookingNeed.FilingKey)
+        {
+            // A cooking campfire a stove kitchen supersedes is deconstructed first.
+            var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
+            var (campfire, owed) = CampfireRetirement(facts, claims);
+            if (owed)
+            {
+                var retired = await r.RetireCampfireAsync(state, review, goal, reading, campfire, call, epoch).ConfigureAwait(false);
+                if (!retired.Verdict.Is(Pol.Cause.MethodUsed))
+                {
+                    return retired;
+                }
+            }
+            var (resolvedPaste, pasteReason) = r.SelectPaste(facts);
+            if (!pasteReason.IsZero)
+            {
+                return new BuildingResult { Verdict = pasteReason };
+            }
+            r = resolvedPaste;
+        }
+        if (r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Concern == PowerFamily.Basic.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == LayoutFamily.Routes.FilingKey)
+        {
+            BuildingPlanner? resolved;
+            Verdict reason;
+            if (r.Concern == ShelterFamily.Temperature.FilingKey)
+            {
+                (resolved, reason) = r.SelectTemperature(facts);
+            }
+            else if (r.Concern == PowerFamily.Basic.FilingKey)
+            {
+                (resolved, reason) = r.SelectPower(facts, pendingConsumers);
+            }
+            else if (r.Concern == RoomsFamily.Lighting.FilingKey)
+            {
+                (resolved, reason) = r.SelectLighting(facts);
+            }
+            else if (r.Concern == RoomsFamily.Flooring.FilingKey)
+            {
+                (resolved, reason) = await r.SelectFlooringAsync(state.Snapshot, facts, call).ConfigureAwait(false);
+            }
+            else if (r.Concern == LayoutFamily.Routes.FilingKey)
+            {
+                (resolved, reason) = r.SelectRoutes(facts);
+            }
+            else if (r.WorkshopLadder())
+            {
+                (resolved, reason) = r.SelectWorkshop(state, review, facts, call);
+            }
+            else if (r.Concern == MedicalRules.MedicalCareNeed.FilingKey)
+            {
+                (resolved, reason) = r.SelectHospital(facts);
+            }
+            else if (r.Concern == EconomyFamily.Research.FilingKey)
+            {
+                (resolved, reason) = r.SelectResearchBench(facts);
+            }
+            else if (r.Phase == Pol.Phase.HousingSleeping)
+            {
+                (resolved, reason) = r.SelectSleeping(facts, review);
+            }
+            else if (r.Phase == Pol.Phase.ComfortBasic)
+            {
+                (resolved, reason) = r.SelectBasicComfort(facts);
+            }
+            else
+            {
+                (resolved, reason) = r.SelectComfort(facts, review.Comfort);
+            }
+            if (!reason.IsZero)
+            {
+                if (reason == BuildingReasonComfortWait || reason == AwaitingMethod(Pol.PowerMethod.WaitOutput) || reason == BuildingReasonTemperatureWait)
+                {
+                    await r.WaitFenceAsync(state, reading, facts, call, epoch).ConfigureAwait(false);
+                }
+                return new BuildingResult { Verdict = reason };
+            }
+            r = resolved!;
+            definitions = [r.Definition];
+            var (furnish, furnishResult, done) = await r.PlannedFacilityFurnishingAsync(state, review, goal, reading, facts, call, epoch).ConfigureAwait(false);
+            if (done)
+            {
+                return furnishResult;
+            }
+            r = furnish!;
+        }
+        if (r.Temperature is not null && r.Temperature.Thing != "")
+        {
+            return r.CommitCampfireRefuel(goal, () =>
+            {
+                p.Current(call, epoch);
+                if (p.Session.State() != state)
+                {
+                    throw new ControlException("step: p.session.State() != state");
+                }
+            }, call);
+        }
+        var (missing, method, selectionReason) = r.Selection(facts);
+        switch (method.Value)
+        {
+            case "butcher-spot-retire":
+            {
+                if (StandingButcherSpot(facts) is { } spot)
+                {
+                    var spotBuilding = spot.Building;
+                    return await r.RetireBuildingAsync(state, review, goal, reading, spot.Id, spotBuilding.Definition, spot.Cells[0], "butcher-spot-retire", "stand-in_butcher_spot", call, epoch).ConfigureAwait(false);
+                }
+                break;
+            }
+            case "butcher-spot":
+            {
+                // The free spot stands in the planned butchery until the table is built.
+                var spot = r.Copy();
+                spot.Definition = Rules.ButcherSpotDefinition;
+                spot.Stuff = "";
+                r = spot;
+                break;
+            }
+            case "butcher-table":
+            {
+                // The real table goes in the planned butchery once the wood is in stock.
+                var table = r.Copy();
+                table.Definition = "TableButcher";
+                table.Stuff = ColonyPlanningRules.BuildStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), table.Definition);
+                r = table;
+                break;
+            }
+        }
+        if (selectionReason == BuildingReasonExistingFacility)
+        {
+            // The ring and the furniture are independent: a campfire already standing for the kitchen does not
+            // excuse the planned room's ring.
+            var (module, moduleOk) = r.PlannedRoomModule();
+            if (moduleOk)
+            {
+                var (room, owed) = PlannedRoomOwed(facts, module);
+                if (owed)
+                {
+                    var ring = await r.ReconcileRoomAsync(state, review, goal, new ReviewReading { Reading = reading, Frame = new BridgeReviewFrame(), Emergency = new EmergencyFacts() }, null, new RoomReconcile { RingOnly = true, Room = room, Name = PlannedRoomMethod(room).Value }, call, epoch).ConfigureAwait(false);
+                    if (ring.Verdict.Is(Pol.Cause.MethodUsed))
+                    {
+                        return ring;
+                    }
+                }
+            }
+        }
+        if (!selectionReason.IsZero)
+        {
+            return new BuildingResult { Verdict = selectionReason };
+        }
+        var (plannedModule, plannedModuleOk) = r.PlannedRoomModule();
+        if (plannedModuleOk)
+        {
+            // The planned room is raised and furnished together: the ring is admitted, and the stove or bench
+            // goes onto the room's interior without waiting for the walls. A shell already tried this epoch, or
+            // refused, leaves the usual placement to go on.
+            var (room, owed) = PlannedRoomOwed(facts, plannedModule);
+            if (owed)
+            {
+                var ring = await r.ReconcileRoomAsync(state, review, goal, new ReviewReading { Reading = reading, Frame = new BridgeReviewFrame(), Emergency = new EmergencyFacts() }, null, new RoomReconcile { RingOnly = true, Room = room, Name = PlannedRoomMethod(room).Value }, call, epoch).ConfigureAwait(false);
+                // A ring the portfolio holds is no failure of the station (#3754): the stove or bench takes the usual
+                // placement, off the held room's interior, so its blueprint there does not start the room unpriced.
+                var held = ring.Verdict.PortfolioHolds;
+                if (!ring.Verdict.SkipsToPlacement && !held)
+                {
+                    return ring;
+                }
+                if (!held && HostsInPlannedRoom(plannedModule))
+                {
+                    var kitchen = r.Copy();
+                    kitchen.Cells = PlannedRoomInterior(room);
+                    kitchen.Environment = Pol.PlacementEnvironment.Anywhere;
+                    r = kitchen;
+                }
+            }
+            else if (HostsInPlannedRoom(plannedModule))
+            {
+                var cells = PlannedRoomCells(facts, plannedModule);
+                if (cells is not null)
+                {
+                    var kitchen = r.Copy();
+                    kitchen.Cells = cells;
+                    r = kitchen;
+                }
+            }
+        }
+        if (r.ButcherFacility() && r.Cells is null)
+        {
+            // The bench never falls back to a free search: it stands in the planned butchery, built or not, and
+            // waits for the plan to hold one.
+            var cells = PlannedRoomCells(facts, PlannedRole.Butchery) ?? PlannedRoomPlanCells(facts, PlannedRole.Butchery);
+            if (cells is null)
+            {
+                return new BuildingResult { Verdict = AwaitingPlan("butchery_room", "") };
+            }
+            var bench = r.Copy();
+            bench.Cells = cells;
+            bench.Environment = Pol.PlacementEnvironment.Anywhere;
+            r = bench;
+        }
+        if (r.Concern == FoodRules.CookingNeed.FilingKey && r.Definition == "Campfire" && r.Cells is null && r.Paste.Count == 0)
+        {
+            // The cooking campfire goes in the planned kitchen once it stands.
+            var cells = PlannedRoomCells(facts, PlannedRole.Kitchen);
+            if (cells is not null)
+            {
+                var fire = r.Copy();
+                fire.Cells = cells;
+                r = fire;
+            }
+        }
+        if (r.ButcherFacility())
+        {
+            definitions = [r.Definition];
+        }
+        if (r.Concern == FoodRules.CookingNeed.FilingKey)
+        {
+            var list = new List<string> { r.Definition };
+            if (r.Paste.Count > 0)
+            {
+                list.Add("Hopper");
+            }
+            definitions = list;
+        }
+        var gate = DefinitionsGate(facts, definitions);
+        if (r.Paste.Count > 0)
+        {
+            gate = default;
+            foreach (var name in definitions)
+            {
+                gate = ComfortBuilderGate(facts, name);
+                if (!gate.IsZero)
+                {
+                    break;
+                }
+            }
+        }
+        if (r.Definition == "TableButcher" || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortSpot || r.Phase == Pol.Phase.ComfortWorkChair || r.Concern == PowerFamily.Basic.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == LayoutFamily.Routes.FilingKey)
+        {
+            gate = ComfortBuilderGate(facts, r.Definition);
+            if (r.Power is { Method: Pol.PowerMethod.Generate } generator)
+            {
+                // A generator no site accepts yields to the next ranked one a builder here can raise.
+                var alternatives = new List<string>();
+                foreach (var name in generator.Alternatives)
+                {
+                    if (ComfortBuilderAvailable(facts, name))
+                    {
+                        alternatives.Add(name);
+                    }
+                }
+                r.Power = generator with { Alternatives = alternatives };
+            }
+        }
+        if (!gate.IsZero)
+        {
+            return new BuildingResult { Verdict = gate };
+        }
+        void Check()
+        {
+            p.Current(call, epoch);
+            if (p.Session.State() != state)
+            {
+                throw new ControlException("step: p.session.State() != state");
+            }
+        }
+        // A campfire the pawns let burn out leaves the cooking census empty again in the same epoch; the completed
+        // method yields to a numbered successor the same way a staged bed's does.
+        if (r.Phase == Pol.Phase.HousingSleeping || r.Concern == FoodRules.CookingNeed.FilingKey)
+        {
+            method = r.NextSleepingBedMethod(goal, method, facts.Facts.CurrentConstruction, call);
+        }
+        if (!r.MethodOnce(goal, method, call, facts.Facts.CurrentConstruction))
+        {
+            return new BuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "sleeping_method") };
+        }
+        var planId = PlanIds.MintPlanId();
+        var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };
+        var heldReservations = p.Journal.BuildingReservations(snapshot, call);
+        if (r.ButcherFacility() || r.Concern == FoodRules.CookingNeed.FilingKey || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortSpot || r.Concern == PowerFamily.Basic.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == LayoutFamily.Routes.FilingKey)
+        {
+            var pendingPlanner = r;
+            bool Pending(Progress progress)
+            {
+                if (pendingPlanner.Concern == ShelterFamily.Temperature.FilingKey)
+                {
+                    if (pendingPlanner.Temperature!.Method == Pol.TemperatureMethod.Heat || pendingPlanner.Temperature.Method == Pol.TemperatureMethod.HeatElectric)
+                    {
+                        return PendingFacility(progress, "Campfire") || PendingFacility(progress, "Heater");
+                    }
+                    return PendingFacility(progress, "PassiveCooler") || PendingFacility(progress, "Cooler");
+                }
+                if (pendingPlanner.Concern == PowerFamily.Basic.FilingKey)
+                {
+                    foreach (var name in PowerRules.PowerFamilyDefinitions())
+                    {
+                        if (PendingFacility(progress, name))
+                        {
+                            return true;
+                        }
+                    }
+                    return PendingFacility(progress, "PowerConduit") || PendingFacility(progress, "HiddenConduit") || PendingFacility(progress, "WaterproofConduit");
+                }
+                if (pendingPlanner.Concern == MedicalRules.MedicalCareNeed.FilingKey || pendingPlanner.Phase == Pol.Phase.HousingSleeping)
+                {
+                    return PendingFacility(progress, "SleepingSpot") || PendingFacility(progress, "Bed") || PendingFacility(progress, "DoubleBed") || PendingFacility(progress, "RoyalBed");
+                }
+                return PendingFacility(progress, pendingPlanner.Definition);
+            }
+            var playerPlan = p.Journal.LoadPlan(state.Snapshot.Plan, call);
+            foreach (var progress in playerPlan.Progress)
+            {
+                if (Pending(progress))
+                {
+                    return new BuildingResult { Verdict = BuildingReasonExistingWork };
+                }
+            }
+            foreach (var reservation in heldReservations)
+            {
+                if (Pending(reservation.Progress))
+                {
+                    return new BuildingResult { Verdict = BuildingReasonExistingWork };
+                }
+            }
+        }
+        var protectedCells = new List<Cell>();
+        foreach (var h in heldReservations)
+        {
+            var v = h.Progress.View;
+            if (
+                !v.Unresolved
+                && v.Effect
+                    is EffectState.Observed { Kind: Effect.Completed or Effect.Unsuccessful }
+                && v.Tick.Value <= facts.Identity.Tick.Value
+            )
+            {
+                continue;
+            }
+            protectedCells.AddRange(h.Footprint);
+        }
+        // Building intents admitted on other goals' plans but not yet applied show nothing on the map; keep off their anchors.
+        var own = new List<PlanId>();
+        foreach (var m in goal.OpenMethods)
+        {
+            own.Add(m.Plan);
+        }
+        var pendingAnchors = p.Journal.PendingBuildingAnchors(snapshot, own, call);
+        protectedCells.AddRange(pendingAnchors);
+        var excavation = new ExcavationStep { State = state, Review = review, Owner = goal, Facts = facts };
+        var (sky, skyHandled) = await r.DigSkyAsync(excavation, protectedCells, Check, call, epoch).ConfigureAwait(false);
+        if (skyHandled)
+        {
+            return sky;
+        }
+        if (r.Power is not null && r.Power.FixedSite())
+        {
+            var (geothermal, geothermalHandled) = await r.DigGeothermalAsync(excavation, protectedCells, Check, call, epoch).ConfigureAwait(false);
+            if (geothermalHandled)
+            {
+                return geothermal;
+            }
+        }
+        if (r.Paste.Count > 0)
+        {
+            var (pasteDig, pasteHandled) = await r.DigPasteAsync(excavation, protectedCells, Check, call, epoch).ConfigureAwait(false);
+            if (pasteHandled)
+            {
+                return pasteDig;
+            }
+        }
+        var (selected, stock, previewReason) = await r.PreviewMethodAsync(snapshot, facts, protectedCells, missing, Check, call).ConfigureAwait(false);
+        if (r.Routes is not null && previewReason.Is(Pol.Cause.NoSpace))
+        {
+            var (breach, breachHandled) = await r.DigBreachAsync(excavation, protectedCells, Check, call, epoch).ConfigureAwait(false);
+            if (breachHandled)
+            {
+                return breach;
+            }
+        }
+        if (!previewReason.IsZero)
+        {
+            return new BuildingResult { Verdict = previewReason };
+        }
+        // Admission never checks stock: RimWorld places the blueprints regardless and the frames hold natively for
+        // materials, which the economy/resource Need then reads as the deficit.
+        var purpose = Pol.Purpose.ReviewState;
+        if (r.Power is { Method: Pol.PowerMethod.Shelter })
+        {
+            purpose = Pol.Purpose.Shelter;
+        }
+        return await r.AdmitPreviewsAsync(new ReviewAdmission { State = state, Review = review, Owner = goal, Facts = facts, Method = method, Snapshot = snapshot, Selected = selected!, Stock = stock, Purpose = purpose }, call, epoch).ConfigureAwait(false);
+    }
+}
+
+/// <summary>What AdmitPreviews commits: the previews a method selected under one observation, bound to the goal as that method.</summary>
+internal sealed record ReviewAdmission
+{
+    public ControlState State { get; init; }
+    public Sto.ReviewState Review { get; init; } = null!;
+    public Sto.NeedOwner Owner { get; init; } = null!;
+    public RimGovernor.Brain.GameAccess.ColonyReading Facts { get; init; } = null!;
+    public MethodId Method { get; init; }
+
+    /// <summary>The planner's short why, stored with the method.</summary>
+    public string Reason { get; init; } = "";
+    public GenerationSnapshot Snapshot { get; init; }
+    public IReadOnlyList<Pol.Preview> Selected { get; init; } = [];
+    public Pol.StockObservation Stock { get; init; } = null!;
+    public Pol.Purpose Purpose { get; init; }
+}
+
+public sealed partial class BuildingPlanner
+{
+    /// <summary>
+    /// The fence a waiting verdict passes before it is reported: the session is still current and unchanged, the
+    /// native still names the step's world at or past the read, and the read is inside the review's age bound.
+    /// </summary>
+    internal async Task WaitFenceAsync(ControlState state, RimGovernor.Brain.GameAccess.ColonyReading reading, RimGovernor.Brain.GameAccess.ColonyReading facts, CancellationToken call, CancellationToken epoch)
+    {
+        var p = Reviewer.Player;
+        p.Current(call, epoch);
+        if (p.Session.State() != state)
+        {
+            throw new ControlException("step: p.session.State() != state");
+        }
+        var last = await Native.IdentityAsync(call).ConfigureAwait(false);
+        ObservationIdentity actual;
+        try
+        {
+            actual = new ObservationIdentity { Context = last.Context, Paused = last.Paused };
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new ControlException($"step: err != nil || !roundsBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick): {e.Message}");
+        }
+        if (!BuildingBoundary(actual, state.Snapshot, facts.Identity.Tick))
+        {
+            throw new ControlException("step: err != nil || !roundsBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick)");
+        }
+        var now = Reviewer.Clock.Now();
+        if (now < reading.StartedAt || now - reading.StartedAt > Reviewer.MaxAge)
+        {
+            throw new RimGovernor.Brain.GameAccess.ObservationStaleException();
+        }
+    }
+
+    /// <summary>
+    /// Admits the plan, the previews in dispatch order. Native validates each building intent when it applies it,
+    /// so the siting reads carry no boundary re-check here.
+    /// </summary>
+    internal async Task<BuildingResult> AdmitPreviewsAsync(ReviewAdmission a, CancellationToken call, CancellationToken epoch)
+    {
+        var p = Reviewer.Player;
+        var actions = new List<DomainAction>(a.Selected.Count);
+        // A shell goes out as one wave with its door first in dispatch order (the preview lists it first). The
+        // walls are not gated on the door completing: a door blueprint or frame no more seals a room than a
+        // wall's does, and gating held every wall until the door stood, or for ever when its observation came
+        // back unknown. The pen shell orders its ring the same way.
+        foreach (var v in a.Selected)
+        {
+            actions.Add(v.Action);
+        }
+        var plan = new PlanSpec(a.Snapshot.Plan, a.Snapshot.Revision, actions);
+        var decision = await AdmissionLog.AdmitMethodAsync(p.Journal, new Sto.BuildingMethodRequest
+        {
+            Owner = a.Owner,
+            Method = a.Method,
+            Reason = a.Reason,
+            Plan = plan,
+            Current = a.Snapshot,
+            Tick = a.Facts.Identity.Tick,
+            Bounds = a.Facts.Facts.MapBounds,
+            Stock = a.Stock,
+            Previews = a.Selected,
+            Purpose = a.Purpose,
+        }, call).ConfigureAwait(false);
+        var reason = AdmissionLog.AdmissionRefused(decision);
+        if (decision.Admitted)
+        {
+            reason = BuildingReasonAdmitted;
+            if (Need == ShelterFamily.Sleeping)
+            {
+                // The sleeping shelter and a bedless colonist's bed are urgent: a review binds them before vanilla work can (#3537).
+                Reviewer.UrgentBuilds.Placing(plan.Id, actions.Select(x => x.Building).OfType<Building>());
+            }
+        }
+        return new BuildingResult { Verdict = reason, Decision = decision };
+    }
+
+    internal async Task<(IReadOnlyList<Pol.Preview>? Previews, Pol.StockObservation Stock, Verdict Verdict)> PreviewMethodAsync(GenerationSnapshot snapshot, RimGovernor.Brain.GameAccess.ColonyReading facts, IReadOnlyList<Cell> protectedCells, long missing, Action check, CancellationToken call)
+    {
+        if (Power is { Method: Pol.PowerMethod.Shelter })
+        {
+            return await PreviewPowerShelterAsync(snapshot, facts, protectedCells, check, call).ConfigureAwait(false);
+        }
+        if (Power is { Method: Pol.PowerMethod.Connect })
+        {
+            return await PreviewPowerRouteAsync(snapshot, facts, protectedCells, check, call).ConfigureAwait(false);
+        }
+        if (Power is not null && Power.FixedSite())
+        {
+            return await PreviewPowerSiteAsync(snapshot, facts, protectedCells, check, call).ConfigureAwait(false);
+        }
+        var (selected, stock, reason) = await PreviewPowerOrSearchAsync(snapshot, facts, protectedCells, missing, check, call).ConfigureAwait(false);
+        if (Power is { Method: Pol.PowerMethod.Generate })
+        {
+            // A generator with no acceptable site near the consumer (a wind turbine whose every catch zone is
+            // obstructed) yields to the next ranked definition under the same method.
+            foreach (var name in Power.Alternatives)
+            {
+                if (!reason.Is(Pol.Cause.NoSpace))
+                {
+                    break;
+                }
+                var next = Copy();
+                next.Definition = name;
+                (selected, stock, reason) = await next.PreviewPowerOrSearchAsync(snapshot, facts, protectedCells, missing, check, call).ConfigureAwait(false);
+            }
+        }
+        return (selected, stock, reason);
+    }
+
+    internal async Task<(IReadOnlyList<Pol.Preview>? Previews, Pol.StockObservation Stock, Verdict Verdict)> PreviewSearchAsync(GenerationSnapshot snapshot, RimGovernor.Brain.GameAccess.ColonyReading facts, IReadOnlyList<Cell> protectedCells, long missing, Action check, CancellationToken call)
+    {
+        if (Paste.Count > 0)
+        {
+            return await PreviewPasteAsync(snapshot, facts, protectedCells, check, call).ConfigureAwait(false);
+        }
+        if (Temperature is { Method: Pol.TemperatureMethod.CoolPowered })
+        {
+            return await PreviewWallBuildingAsync(snapshot, facts, protectedCells, check, Wire.Name(Pol.TemperatureMethod.CoolPowered), Temperature.Cell, Temperature.Rotation, false, call).ConfigureAwait(false);
+        }
+        if (Lighting is not null)
+        {
+            return await PreviewLightingAsync(snapshot, facts, protectedCells, check, call).ConfigureAwait(false);
+        }
+        if (Flooring is not null)
+        {
+            return await PreviewFlooringAsync(snapshot, facts, protectedCells, check, call).ConfigureAwait(false);
+        }
+        if (Routes is not null)
+        {
+            return await PreviewRoutesAsync(snapshot, facts, protectedCells, check, call).ConfigureAwait(false);
+        }
+        // A loose sleeping spot stands only in a room planned to sleep in; the basic-comfort table and seat keep
+        // out of the rooms that must stay clear.
+        var looseSpot = Concern == ShelterFamily.Sleeping.FilingKey && Definition == "SleepingSpot" && Facility is null && Cells is null;
+        IReadOnlyList<Cell> protectedSet = protectedCells;
+        if (!looseSpot && (Concern == ShelterFamily.Sleeping.FilingKey || ((Phase == Pol.Phase.ComfortBasic || Phase == Pol.Phase.ComfortSpot) && Cells is null)) && Facility is null)
+        {
+            // Housing furniture and the basic-comfort table and seat stay out of a standing kitchen, lab, storage
+            // or other planned room: beds there make it a sleeping room and block the room's own furnishing, and
+            // furniture there carves up its warehouse zone.
+            protectedSet = [.. protectedSet, .. NonSleepingPlannedCells(facts)];
+        }
+        if (ButcherBenchDefinition(Definition) || Concern == FoodRules.CookingNeed.FilingKey)
+        {
+            protectedSet = [.. protectedSet, .. KitchenSeparationRules.SeparationProtectedCells(facts.Facts.Upkeep.Rooms, ButcherBenchDefinition(Definition))];
+        }
+        // The cooking campfire stands in the planned kitchen. It has no outdoor stand-in.
+        var cookingCampfire = Concern == FoodRules.CookingNeed.FilingKey && Definition == "Campfire" && Facility is null && Paste.Count == 0;
+        var cells = new List<Pol.SiteCell>();
+        var adjacent = new HashSet<Cell>(Adjacent);
+        var roomCells = new HashSet<Cell>();
+        var interiorRooms = new List<Pol.InteriorRoom>();
+        var restricted = Temperature is not null || Facility is not null || Cells is not null;
+        if (looseSpot)
+        {
+            restricted = true;
+            foreach (var c in SleepingPlannedCells(facts))
+            {
+                roomCells.Add(c);
+            }
+        }
+        if (cookingCampfire && Cells is null)
+        {
+            // Cooking waits for the planned kitchen.
+            return (null, new Pol.StockObservation(), BuildingReasonNoLayoutPlan);
+        }
+        if (Temperature is not null)
+        {
+            foreach (var c in Temperature.Cells)
+            {
+                roomCells.Add(c);
+            }
+        }
+        if (Facility is not null)
+        {
+            if (Cells is not null)
+            {
+                // A bed's cells are the planned bedroom's; its interior slots come from the plan room they lie in.
+                foreach (var c in Cells)
+                {
+                    roomCells.Add(c);
+                }
+                var own = Cells;
+                interiorRooms = [.. PlannedInteriorRooms(facts, plannedRoom =>
+                {
+                    var inside = plannedRoom.Region.Bounds();
+                    return own.Any(c => c.X >= inside.X && c.X < inside.X + inside.Width && c.Z >= inside.Z && c.Z < inside.Z + inside.Height);
+                })];
+            }
+            // Every other facility furnishes through its planned room, which sets Cells (PlannedFacilityFurnishing);
+            // with none planned there is no room to place in.
+            if (roomCells.Count == 0)
+            {
+                return (null, new Pol.StockObservation(), NoSpace("hosting_room"));
+            }
+        }
+        if (Cells is not null)
+        {
+            var allowed = new HashSet<Cell>();
+            foreach (var c in Cells)
+            {
+                allowed.Add(c);
+                if (Facility is null)
+                {
+                    // No facility: the cells are the room (the kitchen).
+                    roomCells.Add(c);
+                }
+            }
+            roomCells.RemoveWhere(c => !allowed.Contains(c));
+            if (roomCells.Count == 0)
+            {
+                return (null, new Pol.StockObservation(), NoSpace("layout_room_cells"));
+            }
+        }
+        foreach (var c in facts.PlanningWindow.Cells)
+        {
+            if (RecreationPowerW > 0 && !PoweredRecreationCell(facts, c.Cell, RecreationPowerW))
+            {
+                continue;
+            }
+            if (restricted && !roomCells.Contains(c.Cell))
+            {
+                continue;
+            }
+            if (ComfortFurniture(facts).IsChair(Definition) && !adjacent.Contains(c.Cell))
+            {
+                continue;
+            }
+            if (Environment == Pol.PlacementEnvironment.Anywhere || c.Roofed)
+            {
+                cells.Add(c);
+            }
+        }
+        var planCenter = facts.Facts.LayoutPlan?.Center();
+        if (planCenter is null && Cells is null && Power is null)
+        {
+            return (null, new Pol.StockObservation(), BuildingReasonNoLayoutPlan);
+        }
+        var roomBox = CellsBox(roomCells);
+        var center = planCenter ?? (Power is { } power ? power.Center : new Cell(roomBox.X + roomBox.Width / 2, roomBox.Z + roomBox.Height / 2));
+        var searchRequest = new Pol.PlacementSearchRequest
+        {
+            Snapshot = snapshot,
+            Tick = facts.Identity.Tick,
+            Bounds = facts.Facts.MapBounds,
+            Center = center,
+            Cells = cells,
+            Protected = [.. protectedSet, .. PlacementSearchRules.DoorwayAisles(facts.Facts.MapBounds, facts.PlanningWindow.Cells)],
+            Environment = Pol.PlacementEnvironment.Indoors,
+            Radius = Math.Max(facts.Facts.MapBounds.Width, facts.Facts.MapBounds.Height),
+            Limit = 64,
+            StockpileZones = StockpileZones.StockpileZoneIds(facts)?.ToDictionary(id => id, _ => true) ?? new Dictionary<string, bool>(),
+        };
+        if (Facility is not null)
+        {
+            // A facility furnishes the free room of its role nearest the colony centre; the search spans the map,
+            // so the starter shell stays a candidate until such a room stands.
+            var anchor = center;
+            var (module, moduleOk) = RoomModule();
+            if (moduleOk)
+            {
+                if (LayoutProtected.RoomAnchor(facts, module, center) is { } near)
+                {
+                    anchor = near;
+                }
+            }
+            searchRequest = searchRequest with { Center = anchor };
+        }
+        if ((Concern == FoodRules.CookingNeed.FilingKey && Definition == "Campfire") || ButcherBenchDefinition(Definition))
+        {
+            // The cooking campfire and the butcher table stand by the base, not the landing centroid.
+            if (LayoutProtected.PlanCore(facts) is { } core)
+            {
+                searchRequest = searchRequest with { Center = core };
+            }
+        }
+        if (Cells is not null)
+        {
+            // The room is fixed: search around it, wherever it stands.
+            var box = CellsBox(roomCells);
+            searchRequest = searchRequest with
+            {
+                Center = new Cell(box.X + box.Width / 2, box.Z + box.Height / 2),
+                Radius = Math.Max(box.Width, box.Height) / 2 + 1,
+            };
+        }
+        if (Power is not null)
+        {
+            searchRequest = searchRequest with { Center = Power.Center, Radius = 6 };
+            if (Definition == PowerRules.WindTurbineDefinition)
+            {
+                // A turbine wants open ground its 7x16 catch zone can lie on, which the cells right beside a consumer rarely offer.
+                searchRequest = searchRequest with { Radius = 12 };
+            }
+        }
+        if (Environment is { } environment)
+        {
+            searchRequest = searchRequest with { Environment = environment };
+        }
+        var search = new Pol.PlacementSearch(searchRequest);
+        var selected = new List<Pol.Preview>();
+        var watchBuildings = facts.Facts.RequireBasicComfort().WatchBuildings;
+        var usedCells = new HashSet<Cell>();
+        var stock = new Pol.StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
+        // A workshop bench has an interaction spot on one side, so a small room often rejects the north-facing
+        // anchor ("interaction spot is blocked by wooden wall") while another facing fits; every other definition
+        // keeps the single native-default orientation.
+        Rotation[] rotations = Workshop is not null ? [Rotation.North, Rotation.East, Rotation.South, Rotation.West] : [Rotation.North];
+        PlacementChoice? pending = null;
+        void Commit()
+        {
+            selected.Add(pending!.Choice);
+            stock = MergeReviewStock(stock, pending.Preview.Stock);
+            foreach (var c in pending.Choice.Footprint)
+            {
+                usedCells.Add(c);
+            }
+            pending = null;
+        }
+// PreviewAt previews the definition at one anchor and rotation; not ok when the native preview or the
+        // search refuses the site.
+        async Task<(PlacementChoice? Choice, bool Ok, Verdict Reason)> PreviewAtAsync(Pol.PlacementSearch siteSearch, string id, Cell c, Rotation rotation)
+        {
+            check();
+            var b = new Building(Definition, c, rotation, Stuff);
+            var a = DomainAction.NewBuildingAction(new ActionId(id), b, ConstructionTierRules.PlannerTier(Concern, Phase));
+            var preview = await Native.PreviewBuildingAsync(a, snapshot, call).ConfigureAwait(false);
+            if ((Phase == Pol.Phase.ComfortRanked || Phase == Pol.Phase.ComfortBasic) && watchBuildings.Contains(Definition))
+            {
+                if (Pol.PreviewRules.WatchUnreachable(preview.Preview))
+                {
+                    return (null, false, default);
+                }
+            }
+            if (preview.Preview.MadeFromStuff != (Stuff != ""))
+            {
+                return (null, false, SiteBlocked(Definition, "stuff_differs_from_native"));
+            }
+            if (Definition == PowerRules.WindTurbineDefinition)
+            {
+                // Only a site whose native catch zone is clear makes the turbine's nominal output; an obstructed one is no site.
+                if (!Pol.PreviewRules.ClearWindTurbine(preview.Preview))
+                {
+                    return (null, false, default);
+                }
+            }
+            if (siteSearch.SelectScored(Definition, Stuff, [preview.Preview]) is not { } scored)
+            {
+                return (null, false, default);
+            }
+            return (new PlacementChoice { Choice = scored.Selected, Preview = preview, Score = scored.Score }, true, default);
+        }
+        var occupied = new List<Cell>();
+        if (interiorRooms.Count > 0)
+        {
+            foreach (var c in facts.PlanningWindow.Cells)
+            {
+                if (c.Occupied())
+                {
+                    occupied.Add(c.Cell);
+                }
+            }
+        }
+        // Overlaps refuses a footprint on a site already chosen, or one that cuts a planned room's door-to-door aisle or strands its floor.
+        bool Overlaps(Pol.Preview candidate)
+        {
+            var footprint = candidate.Footprint;
+            foreach (var c in footprint)
+            {
+                if (usedCells.Contains(c))
+                {
+                    return true;
+                }
+            }
+            foreach (var room in interiorRooms)
+            {
+                var blocked = new HashSet<Cell>(occupied);
+                blocked.UnionWith(usedCells);
+                if (!InteriorWalkRules.InteriorPlacementWalkable(room, blocked, footprint))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+// Pass runs one search. Candidates come nearest first, and a footprint's score is its distance, so once the
+        // next candidate's distance reaches the best valid score no later candidate can beat it: the best is
+        // committed and the previews stop there.
+        async Task<Verdict> PassAsync(Pol.PlacementSearch passSearch, string tag)
+        {
+            var index = 0;
+            foreach (var c in passSearch.Candidates())
+            {
+                var i = index++;
+                if (selected.Count == missing)
+                {
+                    break;
+                }
+                if (pending is not null && passSearch.Score(c, []).Distance >= pending.Score.Score)
+                {
+                    Commit();
+                    if (selected.Count == missing)
+                    {
+                        break;
+                    }
+                }
+                foreach (var rotation in rotations)
+                {
+                    var id = string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}{tag}-{i}");
+                    if (rotation != Rotation.North)
+                    {
+                        id = string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}{tag}-{i}-{Wire.Name(rotation)}");
+                    }
+                    var (choice, ok, reason) = await PreviewAtAsync(passSearch, id, c, rotation).ConfigureAwait(false);
+                    if (!reason.IsZero)
+                    {
+                        return reason;
+                    }
+                    if (!ok)
+                    {
+                        continue;
+                    }
+                    if (!Overlaps(choice!.Choice) && (pending is null || choice.Score.Score < pending.Score.Score))
+                    {
+                        pending = choice;
+                    }
+                    break;
+                }
+            }
+            if (pending is not null && selected.Count < missing)
+            {
+                Commit();
+            }
+            return default;
+        }
+        // An indoor facility asks each room's interior template for the piece's slots first and takes any slot
+        // that can be placed, whatever its score. Only then does the scored search run, over the rooms' wall
+        // bands, centre lines and mirror positions before any other free cell.
+        if (interiorRooms.Count > 0)
+        {
+            var slots = new List<Pol.InteriorPiece>();
+            var anchors = new List<Cell>();
+            foreach (var room in interiorRooms)
+            {
+                anchors.AddRange(InteriorRules.InteriorSnapAnchors(room, occupied));
+                // A definition with no buildable row has no shape or family: the template plans its default layout for it.
+                var (piece, _) = room.Piece(Definition);
+                piece = piece with { Def = Definition };
+                var (roomPlan, planOk) = InteriorRegionRules.PlanRoomInterior(room, piece);
+                if (!planOk)
+                {
+                    continue;
+                }
+                foreach (var pc in roomPlan.Pieces)
+                {
+                    // The search drops occupied anchors, so a slot whose anchor is taken cannot be previewed.
+                    if (pc.Accepts(room.Shapes, Definition) && !occupied.Contains(pc.Anchor()))
+                    {
+                        slots.Add(pc);
+                    }
+                }
+            }
+            if (slots.Count > 0)
+            {
+                var slotAnchors = slots.Select(s => s.Anchor()).ToList();
+                var request = searchRequest with
+                {
+                    Protected = [.. protectedSet, .. PlacementSearchRules.DoorwayAisles(facts.Facts.MapBounds, facts.PlanningWindow.Cells)],
+                    Anchors = slotAnchors,
+                    Limit = Math.Min(slots.Count, 64),
+                };
+                var slotSearch = new Pol.PlacementSearch(request);
+                // The search drops anchors that are protected, occupied or off the site cells; previewing one anyway fails the whole step.
+                var proposed = new HashSet<Cell>(slotSearch.Candidates());
+                for (var i = 0; i < slots.Count; i++)
+                {
+                    var slot = slots[i];
+                    if (selected.Count == missing)
+                    {
+                        break;
+                    }
+                    if (!proposed.Contains(slot.Anchor()))
+                    {
+                        continue;
+                    }
+                    var (choice, ok, reason) = await PreviewAtAsync(slotSearch, string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-t{i}"), slot.Anchor(), slot.Rot).ConfigureAwait(false);
+                    if (!reason.IsZero)
+                    {
+                        return (null, new Pol.StockObservation(), reason);
+                    }
+                    if (ok && !Overlaps(choice!.Choice))
+                    {
+                        pending = choice;
+                        Commit();
+                    }
+                }
+            }
+            if (selected.Count < missing)
+            {
+                var snapSearch = new Pol.PlacementSearch(searchRequest with { Anchors = anchors });
+                var snapReason = await PassAsync(snapSearch, "-s").ConfigureAwait(false);
+                if (!snapReason.IsZero)
+                {
+                    return (null, new Pol.StockObservation(), snapReason);
+                }
+            }
+        }
+        if (selected.Count < missing)
+        {
+            var reason = await PassAsync(search, "").ConfigureAwait(false);
+            if (!reason.IsZero)
+            {
+                return (null, new Pol.StockObservation(), reason);
+            }
+        }
+        if (selected.Count != missing)
+        {
+            return (null, new Pol.StockObservation(), NoSpace("placement_site"));
+        }
+        return (selected, stock, default);
+    }
+
+    /// <summary>
+    /// Returns the method the next build takes. The selection names a method by the beds still owed, but that
+    /// count need not fall after a staged bed is assigned (the colonist it went to may have been counted as
+    /// housed, or another colonist's bed may have turned unsuitable), so a method whose plan is no longer open
+    /// yields to a numbered successor; only a method whose plan is still open stays the one reported used. A
+    /// building gone from the census (a campfire that burnt out, a bed that disappeared) and one never built both
+    /// mean try again.
+    /// </summary>
+    internal MethodId NextSleepingBedMethod(Sto.NeedOwner goal, MethodId method, Pol.CurrentConstruction? census, CancellationToken call)
+    {
+        var p = Reviewer.Player;
+        var baseMethod = method;
+        for (var n = 1; n < SleepingBedsPerEpoch; n++)
+        {
+            if (p.Journal.OwnerMethodPlan(goal, method, call) is not { } existing)
+            {
+                return method;
+            }
+            var plan = p.Journal.LoadPlan(existing, call);
+            if (StorePackage.PlanWorkOpen(plan, census))
+            {
+                return method;
+            }
+            method = new MethodId(string.Create(CultureInfo.InvariantCulture, $"{baseMethod.Value}-{n}"));
+        }
+        return method;
+    }
+}
+
+/// <summary>A valid previewed footprint held while nearer-scored candidates are still possible.</summary>
+internal sealed class PlacementChoice
+{
+    public Pol.Preview Choice { get; init; } = null!;
+    public BuildingPreview Preview { get; init; } = null!;
+    public Pol.PlacementScore Score { get; init; } = null!;
+}
+
+partial class BuildingPlanner
+{
+    /// <summary>
+    /// The scope every routine planner checks its own identity read against: the reviewed world and native
+    /// generation, at a tick that still describes the review's anchor (BuildingFresh).
+    /// </summary>
+    internal static bool BuildingBoundary(ObservationIdentity actual, GenerationSnapshot expected, Tick tick) =>
+        actual.NativeGeneration.IsAt(expected.Native.Value)
+        && actual.Colony == expected.Colony && actual.Load == expected.Load && actual.Map == expected.Map
+        && BuildingFresh(actual.Tick, tick);
+
+    /// <summary>
+    /// Accepts an identity read the step's fact cache may serve: seeded at the tick the step opened on, it sits
+    /// behind the review's colony anchor under a running window and is not a changed world.
+    /// </summary>
+    internal static bool BuildingFresh(Tick actual, Tick anchor) => CachedFresh(FactFamily.Identity, actual, anchor);
+
+    /// <summary>
+    /// Accepts any observation the step's fact cache may have served: a read's tick never makes it stale, only
+    /// another world does, and that is checked beside it.
+    /// </summary>
+    internal static bool CachedFresh(FactFamily family, Tick actual, Tick anchor) => true;
+
+    /// <summary>Bounds the builds one epoch may stage under the same selection: beds for one owed count, campfires after burn-outs.</summary>
+    internal const int SleepingBedsPerEpoch = 8;
+
+    /// <summary>The distinct resources the previews' costs name, sorted.</summary>
+    internal static List<Pol.Resource> PreviewResources(IReadOnlyList<Pol.Preview> previews)
+    {
+        var seen = new HashSet<Pol.Resource>();
+        var output = new List<Pol.Resource>();
+        foreach (var p in previews)
+        {
+            foreach (var c in p.Costs)
+            {
+                if (c.Count > 0 && seen.Add(c.Resource))
+                {
+                    output.Add(c.Resource);
+                }
+            }
+        }
+        output.Sort((a, b) => string.CompareOrdinal(a.Value, b.Value));
+        return output;
+    }
+
+    /// <summary>The smallest rectangle holding every cell; cells is non-empty.</summary>
+    internal static Pol.Rectangle CellsBox(IReadOnlyCollection<Cell> cells)
+    {
+        var first = true;
+        int minX = 0, minZ = 0, maxX = 0, maxZ = 0;
+        foreach (var c in cells)
+        {
+            if (first)
+            {
+                minX = maxX = c.X;
+                minZ = maxZ = c.Z;
+                first = false;
+            }
+            minX = Math.Min(minX, c.X);
+            minZ = Math.Min(minZ, c.Z);
+            maxX = Math.Max(maxX, c.X);
+            maxZ = Math.Max(maxZ, c.Z);
+        }
+        return new Pol.Rectangle { X = minX, Z = minZ, Width = maxX - minX + 1, Height = maxZ - minZ + 1 };
+    }
+
+    /// <summary>
+    /// The interior cells of the layout plan's rooms built for another use than sleeping. The sleeping rooms and
+    /// unbuilt reserve ground stay open to furniture.
+    /// </summary>
+    internal static List<Cell> NonSleepingPlannedCells(RimGovernor.Brain.GameAccess.ColonyReading facts)
+    {
+        var cells = new List<Cell>();
+        if (facts.Facts.LayoutPlan is not { } plan)
+        {
+            return cells;
+        }
+        foreach (var room in plan.Rooms)
+        {
+            switch (room.Role)
+            {
+                case Pol.PlannedRole.Kitchen:
+                case Pol.PlannedRole.Lab:
+                case Pol.PlannedRole.Hospital:
+                case Pol.PlannedRole.Prison:
+                case Pol.PlannedRole.Dining:
+                case Pol.PlannedRole.Rec:
+                case Pol.PlannedRole.Freezer:
+                case Pol.PlannedRole.Workshop:
+                case Pol.PlannedRole.MealCloset:
+                case Pol.PlannedRole.Butchery:
+                case Pol.PlannedRole.Throne:
+                case Pol.PlannedRole.Nursery:
+                case Pol.PlannedRole.Classroom:
+                case Pol.PlannedRole.DeathrestChamber:
+                case Pol.PlannedRole.Worship:
+                case Pol.PlannedRole.ContainmentCell:
+                case Pol.PlannedRole.IsolationRoom:
+                case Pol.PlannedRole.Storage:
+                    cells.AddRange(PlannedRoomInterior(room));
+                    break;
+            }
+        }
+        return cells;
+    }
+
+    /// <summary>The interior cells of the layout plan's rooms a colonist sleeps in: the bedrooms, the barracks and the suites. Loose sleeping spots stand in these and nowhere else.</summary>
+    internal static List<Cell> SleepingPlannedCells(RimGovernor.Brain.GameAccess.ColonyReading facts)
+    {
+        var cells = new List<Cell>();
+        if (facts.Facts.LayoutPlan is not { } plan)
+        {
+            return cells;
+        }
+        foreach (var room in plan.Rooms)
+        {
+            if (room.Role is Pol.PlannedRole.Bedroom or Pol.PlannedRole.Barracks or Pol.PlannedRole.Suite)
+            {
+                cells.AddRange(PlannedRoomInterior(room));
+            }
+        }
+        return cells;
+    }
+}

@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using RimWorld;
 using Verse;
 using Xunit;

@@ -8,13 +8,13 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Explicit disposable-fixture setup. Never compiled into production builds.
     public sealed class EmergencyDevelopmentFixture
     {
         [Tool("test/b04f_setup", Description = "Disposable B04f initial conditions: stocks, wound, mental state or native player-order equivalent. No completed-work injection.")]
-        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> Setup(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "stocks, combat-equipment, development-settings (Peaceful), wound, low-health, resting-patient, resting-injury, unavailable-doctor, external-order, external-draft")] string op,
             [ToolParameter(Description = "Exact colonist identity for pawn cases.", DefaultValue = "")] string pawn = "",
             [ToolParameter(Description = "Desired external-draft value.", DefaultValue = false)] bool drafted = false)

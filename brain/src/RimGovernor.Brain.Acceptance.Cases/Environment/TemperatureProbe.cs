@@ -2,7 +2,8 @@ using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -115,7 +116,7 @@ internal static class TemperatureProbe
                 ("stage", stage),
                 ("card", want),
                 ("settle_ticks", ticks),
-                ("row", row is null ? null : JsonNode.Parse(WireJson.Serialize(row)))));
+                ("row", row is null ? null : JsonNode.Parse(OrdersJson.Serialize(row)))));
             if (offset != want)
             {
                 throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"{label}: observed {thought} offset {offset} (stage {stage}) at deficit {read:F2}, the card says {want}"));

@@ -1,15 +1,14 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using RimGovernor.Brain.Domain;
-using BuildingHitPoints = RimGovernor.Contracts.Wire.Observations.BuildingHitPoints;
+using BuildingHitPoints = RimGovernor.Brain.GameFacts.Observations.BuildingHitPoints;
 
 namespace RimGovernor.Brain.Policy;
 
 public sealed record RecoverySafety
 {
-    public EquatableArray<O.RecoveryRestriction> Restrictions { get; init; }
+    public EquatableArray<RimGovernor.Brain.GameFacts.Observations.RecoveryRestriction> Restrictions { get; init; }
 }
 
 public sealed record RecoveryPlanning
@@ -18,7 +17,7 @@ public sealed record RecoveryPlanning
 
     public EquatableArray<MoodPawn> Workers { get; init; }
 
-    public EquatableArray<O.BuildingState> Buildings { get; init; }
+    public EquatableArray<RimGovernor.Brain.GameFacts.Observations.BuildingState> Buildings { get; init; }
 
     /// <summary>Throws when the planning facts are inconsistent.</summary>
     public void Validate()
@@ -89,7 +88,7 @@ public sealed record RecoveryCandidate
     public required BuildingHitPoints HitPoints { get; init; }
 
     /// <summary>The building's fuel when selected: part of the id, as the hit points are.</summary>
-    public required O.BuildingFuel Fuel { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.BuildingFuel Fuel { get; init; }
 
     public string? PriorArea { get; init; }
 
@@ -101,7 +100,7 @@ public sealed record RecoveryCandidate
             + ",\"Building\":" + GearRules.GoJsonString(Building)
             + ",\"Method\":" + GearRules.GoJsonString(Wire.Name(Method))
             + ",\"HitPoints\":" + (HitPoints is BuildingHitPoints.Tracked h ? h.Current.ToString(CultureInfo.InvariantCulture) : "null")
-            + ",\"Fuel\":" + (Fuel is O.BuildingFuel.Refuelable f ? RecoveryRules.GoJsonFloat(f.Fuel) : "null")
+            + ",\"Fuel\":" + (Fuel is RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable f ? RecoveryRules.GoJsonFloat(f.Fuel) : "null")
             + ",\"PriorArea\":" + (PriorArea is { } a ? GearRules.GoJsonString(a) : "null") + "}";
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(json));
         return new MethodId("recovery-" + Convert.ToHexStringLower(hash.AsSpan(0, 16)));
@@ -139,13 +138,13 @@ public sealed record RecoverySelection
             {
                 throw new DomainException("invalid recovery candidate identity");
             }
-            if (c.HitPoints is BuildingHitPoints.Tracked { Current: < 0 } || (c.Fuel is O.BuildingFuel.Refuelable fuel && !FoodForecastRules.FoodNumber(fuel.Fuel)))
+            if (c.HitPoints is BuildingHitPoints.Tracked { Current: < 0 } || (c.Fuel is RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable fuel && !FoodForecastRules.FoodNumber(fuel.Fuel)))
             {
                 throw new DomainException("invalid recovery candidate state");
             }
             if (c.Kind != RecoveryProposalKind.ServiceWork || !FoodForecastRules.FoodId(c.Building)
                 || (c.Method != RecoveryMethod.Refuel && c.Method != RecoveryMethod.Breakdown && c.Method != RecoveryMethod.Repair)
-                || (c.Method == RecoveryMethod.Refuel && c.Fuel is not O.BuildingFuel.Refuelable) || (c.Method == RecoveryMethod.Repair && c.HitPoints is not BuildingHitPoints.Tracked))
+                || (c.Method == RecoveryMethod.Refuel && c.Fuel is not RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable) || (c.Method == RecoveryMethod.Repair && c.HitPoints is not BuildingHitPoints.Tracked))
             {
                 throw new DomainException("invalid recovery service proposal");
             }
@@ -222,7 +221,7 @@ public static partial class RecoveryRules
     /// create a replacement while that work is still running. This is derived from the census, not a second
     /// commitment ledger. Unknown jobs/targets cannot establish that work stopped.
     /// </summary>
-    public static bool RecoveryWorkContinuing(RecoveryService service, EquatableArray<O.BuildingState> buildings, WorkPawnsRead pawns)
+    public static bool RecoveryWorkContinuing(RecoveryService service, EquatableArray<RimGovernor.Brain.GameFacts.Observations.BuildingState> buildings, WorkPawnsRead pawns)
     {
         var work = DisasterRules.RecoveryPending([.. buildings.Where(b => b.Building.Id == service.Thing)]);
         var needed = false;

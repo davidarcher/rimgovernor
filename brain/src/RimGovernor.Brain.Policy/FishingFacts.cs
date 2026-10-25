@@ -39,7 +39,7 @@ public static class FishingFactsRules
     /// flood fill from the cell nearest the colony centre (ties by x then z), at most one cell per available
     /// fisher. It is access capacity, never a population or yield multiplier.
     /// </summary>
-    public static IReadOnlyList<Cell> FishingFootprint(IReadOnlyList<RimGovernor.Contracts.Wire.Observations.FishableCell> cells, int fishers)
+    public static IReadOnlyList<Cell> FishingFootprint(IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.FishableCell> cells, int fishers)
     {
         var free = cells.Where(c => c.Reachable).ToList();
         if (free.Count == 0 || fishers <= 0)
@@ -77,13 +77,13 @@ public static class FishingFactsRules
         reaches && (zoned || footprint >= fishers);
 
     /// <summary>The observed zone state: some zone is allowed, fishes forever and has fishable cells.</summary>
-    public static bool FishingDelivering(IReadOnlyList<RimGovernor.Contracts.Wire.Observations.FishingZoneFacts> zones) => zones.Any(z => z.Allowed && z.DoForever && z.HasFishableCells);
+    public static bool FishingDelivering(IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.FishingZoneFacts> zones) => zones.Any(z => z.Allowed && z.DoForever && z.HasFishableCells);
 
     /// <summary>
     /// Researched, or pending with the remaining project cost over the fastest researcher's daily points; no
     /// progress without a researcher or when that pace is not a finite positive rate.
     /// </summary>
-    public static FishingResearch FishingResearchState(RimGovernor.Contracts.Wire.Observations.FishableWater input)
+    public static FishingResearch FishingResearchState(RimGovernor.Brain.GameFacts.Observations.FishableWater input)
     {
         if (input.FishingResearched)
         {
@@ -103,7 +103,7 @@ public static class FishingFactsRules
     /// FishingYield, at least one fish; the base duration over the lowest FishingSpeed), and per fisher a day of
     /// batches at the population's yield as raw nutrition. A fisher with zero speed does not work.
     /// </summary>
-    public static FishingCrew FishingCrewAt(IReadOnlyList<RimGovernor.Contracts.Wire.Observations.FisherFacts> fishers, double yieldCurve, double nutritionPerFish, double baseTicks)
+    public static FishingCrew FishingCrewAt(IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.FisherFacts> fishers, double yieldCurve, double nutritionPerFish, double baseTicks)
     {
         var working = fishers.Where(f => f.FishingSpeed > 0).ToList();
         if (working.Count == 0 || !(baseTicks > 0))

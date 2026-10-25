@@ -6,7 +6,7 @@ using RimWorld;
 using Verse;
 using BrainRaceFacts = RimGovernor.Brain.Bridge.RaceGameFacts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // What the game's own race code says about one race that its def fields do
     // not, computed on the game thread once per load by the definition catalog
@@ -72,6 +72,6 @@ namespace HomeBridge.BridgeTools
         }
 
         private static string Named(string defName) =>
-            ProtoBoundary.IsIdentifier(defName) ? defName : throw new InvalidOperationException($"Def name '{defName}' is not an identifier.");
+            GameThread.IsIdentifier(defName) ? defName : throw new InvalidOperationException($"Def name '{defName}' is not an identifier.");
     }
 }

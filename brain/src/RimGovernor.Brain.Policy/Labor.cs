@@ -8,9 +8,9 @@ public static class LaborRules
 {
     // Keyed by filing key (#3231 decision 22): a Need's NeedId.FilingKey at its family/kind level, so a Need keeps
     // the profile its Concern had.
-    private static readonly Lazy<IReadOnlyDictionary<ConcernId, IReadOnlyList<WorkType>>> LaborTable = new(() =>
+    private static readonly Lazy<IReadOnlyDictionary<FilingKey, IReadOnlyList<WorkType>>> LaborTable = new(() =>
     {
-        var table = new Dictionary<ConcernId, IReadOnlyList<WorkType>>();
+        var table = new Dictionary<FilingKey, IReadOnlyList<WorkType>>();
         void SetNeeds(IReadOnlyList<WorkType> profile, params NeedId[] needs)
         {
             foreach (var need in needs)
@@ -67,7 +67,7 @@ public static class LaborRules
     /// the coarse worker count. Goals not listed (emergencies, monitoring-only needs, configuration pushes) have
     /// no profile.
     /// </summary>
-    public static IReadOnlyList<WorkType> ConcernLabor(ConcernId filingKey) => LaborTable.Value.GetValueOrDefault(filingKey) ?? [];
+    public static IReadOnlyList<WorkType> ConcernLabor(FilingKey filingKey) => LaborTable.Value.GetValueOrDefault(filingKey) ?? [];
 
     /// <summary>A Need's labor profile: its family/kind filing key's, so every subject of one kind shares it.</summary>
     public static IReadOnlyList<WorkType> NeedLabor(NeedId need) => ConcernLabor(NeedId.Of(need.Family, need.Kind).FilingKey);

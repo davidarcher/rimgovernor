@@ -125,7 +125,7 @@ public sealed class BiotechCatalog
     /// Resolves the active genes of a pawn into their combined typed effects from the catalog's gene rows. A gene the
     /// catalog does not define is a contract failure, never skipped.
     /// </summary>
-    public P.GeneEffects GeneEffects(IEnumerable<RimGovernor.Contracts.Wire.Observations.PawnGene> genes)
+    public P.GeneEffects GeneEffects(IEnumerable<RimGovernor.Brain.GameFacts.Observations.PawnGene> genes)
     {
         var stats = new Dictionary<string, P.StatModifier>(StringComparer.Ordinal);
         var disabled = new HashSet<string>(StringComparer.Ordinal);

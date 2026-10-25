@@ -1,7 +1,6 @@
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
-using C = RimGovernor.Contracts.Wire.Common;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -12,11 +11,11 @@ public sealed class LootWireTests
     [Fact]
     public void PolicyRetainsTheNativeRowAndEntityUntilSelectingSupplyWork()
     {
-        var observed = Row(new O.HaulSafety.Safe { PathLength = 12.5 }, 30, "Zone_a", "Shelf_b");
-        var entity = new O.EntityRef
+        var observed = Row(new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Safe { PathLength = 12.5 }, 30, "Zone_a", "Shelf_b");
+        var entity = new RimGovernor.Brain.GameFacts.Observations.EntityRef
         {
             Id = observed.Item.Id!, DefName = "WoodLog", Label = "wood",
-            Place = new O.EntityPlace.OnMap(7, new(14, 19)),
+            Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(7, new(14, 19)),
         };
         var stack = new Policy.LootItem { Observed = observed, Entity = entity, SpawnForbidden = true };
 
@@ -32,8 +31,8 @@ public sealed class LootWireTests
 
         var moved = stack with
         {
-            Observed = observed with { Forbidden = true, Count = 12, StorageHeadroom = 0, Safety = new O.HaulSafety.Unreached() },
-            Entity = entity with { Place = new O.EntityPlace.OnMap(7, new(20, 21)) },
+            Observed = observed with { Forbidden = true, Count = 12, StorageHeadroom = 0, Safety = new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Unreached() },
+            Entity = entity with { Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(7, new(20, 21)) },
         };
         Assert.True(moved.Forbidden);
         Assert.Equal(12, moved.Count);
@@ -43,55 +42,55 @@ public sealed class LootWireTests
         Assert.False(moved.Supply.Forbid);
     }
 
-    private static O.LootItem Row(O.HaulSafety haul, long headroom, params string[] accepted) => new()
+    private static RimGovernor.Brain.GameFacts.Observations.LootItem Row(RimGovernor.Brain.GameFacts.Observations.HaulSafety haul, long headroom, params string[] accepted) => new()
     {
-        Item = new C.Ref { Id = "Thing_Wood1" },
+        Item = new RimGovernor.Brain.GameFacts.Common.Ref { Id = "Thing_Wood1" },
         Forbidden = false,
         Count = 40,
         Safety = haul,
         StorageHeadroom = headroom,
-        AcceptedBy = EquatableArray.From(accepted.Select(id => new C.Ref { Id = id })),
-        Deterioration = new O.LootDeterioration { BaseRatePerDay = 2, MaxHitPoints = 100, RatePerDay = 2, Outdoors = true },
+        AcceptedBy = EquatableArray.From(accepted.Select(id => new RimGovernor.Brain.GameFacts.Common.Ref { Id = id })),
+        Deterioration = new RimGovernor.Brain.GameFacts.Observations.LootDeterioration { BaseRatePerDay = 2, MaxHitPoints = 100, RatePerDay = 2, Outdoors = true },
     };
 
     private static void RoundTrips<T>(T payload)
     {
-        var json = WireJson.Serialize(payload);
-        var back = WireJson.Deserialize<T>(json);
+        var json = OrdersJson.Serialize(payload);
+        var back = OrdersJson.Deserialize<T>(json);
 
-        Assert.Equal(json, WireJson.Serialize(back));
+        Assert.Equal(json, OrdersJson.Serialize(back));
         Assert.Equal(payload, back);
     }
 
     [Fact]
-    public void ASafeStackRoundTripsWithItsRouteLength() => RoundTrips(Row(new O.HaulSafety.Safe { PathLength = 12.5 }, 0, "Zone_a", "Shelf_b"));
+    public void ASafeStackRoundTripsWithItsRouteLength() => RoundTrips(Row(new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Safe { PathLength = 12.5 }, 0, "Zone_a", "Shelf_b"));
 
     [Fact]
-    public void AnExposedStackRoundTrips() => RoundTrips(Row(new O.HaulSafety.Unsafe(), 30));
+    public void AnExposedStackRoundTrips() => RoundTrips(Row(new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Unsafe(), 30));
 
     [Fact]
-    public void AnUnreachedStackRoundTrips() => RoundTrips(Row(new O.HaulSafety.Unreached(), 0));
+    public void AnUnreachedStackRoundTrips() => RoundTrips(Row(new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Unreached(), 0));
 
     [Fact]
     public void TheHaulStatesAreDistinctOnTheWire()
     {
-        var safe = WireJson.Serialize(Row(new O.HaulSafety.Safe { PathLength = 1 }, 0));
-        var exposed = WireJson.Serialize(Row(new O.HaulSafety.Unsafe(), 0));
-        var unreached = WireJson.Serialize(Row(new O.HaulSafety.Unreached(), 0));
+        var safe = OrdersJson.Serialize(Row(new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Safe { PathLength = 1 }, 0));
+        var exposed = OrdersJson.Serialize(Row(new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Unsafe(), 0));
+        var unreached = OrdersJson.Serialize(Row(new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Unreached(), 0));
 
         Assert.Equal(3, new[] { safe, exposed, unreached }.Distinct().Count());
-        Assert.IsType<O.HaulSafety.Unsafe>(WireJson.Deserialize<O.LootItem>(exposed).Safety);
-        Assert.IsType<O.HaulSafety.Unreached>(WireJson.Deserialize<O.LootItem>(unreached).Safety);
-        Assert.Equal(1, Assert.IsType<O.HaulSafety.Safe>(WireJson.Deserialize<O.LootItem>(safe).Safety).PathLength);
+        Assert.IsType<RimGovernor.Brain.GameFacts.Observations.HaulSafety.Unsafe>(OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.LootItem>(exposed).Safety);
+        Assert.IsType<RimGovernor.Brain.GameFacts.Observations.HaulSafety.Unreached>(OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.LootItem>(unreached).Safety);
+        Assert.Equal(1, Assert.IsType<RimGovernor.Brain.GameFacts.Observations.HaulSafety.Safe>(OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.LootItem>(safe).Safety).PathLength);
     }
 
     [Fact]
     public void ARowWithoutASafetyVerdictOrHeadroomIsRefused()
     {
-        var json = WireJson.Serialize(Row(new O.HaulSafety.Safe { PathLength = 1 }, 0));
+        var json = OrdersJson.Serialize(Row(new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Safe { PathLength = 1 }, 0));
 
-        Assert.ThrowsAny<Exception>(() => WireJson.Deserialize<O.LootItem>(json.Replace("\"safety\"", "\"safetyX\"")));
-        Assert.ThrowsAny<Exception>(() => WireJson.Deserialize<O.LootItem>(json.Replace("\"baseRatePerDay\"", "\"baseRatePerDayX\"")));
-        Assert.ThrowsAny<Exception>(() => WireJson.Deserialize<O.LootItem>(json.Replace("\"storageHeadroom\"", "\"storageHeadroomX\"")));
+        Assert.ThrowsAny<Exception>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.LootItem>(json.Replace("\"safety\"", "\"safetyX\"")));
+        Assert.ThrowsAny<Exception>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.LootItem>(json.Replace("\"baseRatePerDay\"", "\"baseRatePerDayX\"")));
+        Assert.ThrowsAny<Exception>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.LootItem>(json.Replace("\"storageHeadroom\"", "\"storageHeadroomX\"")));
     }
 }

@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 #pragma warning disable CS0649 // Controlled native fixture fields intentionally default to zero/null.
 
-// Unified fake Verse/RimWorld/HomeBridge doubles for the in-process (no real Assembly-CSharp.dll)
+// Unified fake Verse/RimWorld/Native doubles for the in-process (no real Assembly-CSharp.dll)
 // probes: native-authority, native-authority-control, native-authority-status, native-clock-ceiling,
-// native-proto-boundary. Reconciled from what were five near-identical, independently-written
+// native-game-thread. Reconciled from what were five near-identical, independently-written
 // stub files (one per probe) before the NativeContractProbes.csproj consolidation; every field
 // and member below is required by at least one of those probes' Program.cs, and none of them
 // alter a Check()/Assert() outcome relative to the pre-consolidation per-probe stub it replaces.
@@ -14,7 +14,7 @@ namespace Verse
     public class Game
     {
         public Map? CurrentMap { get => Find.CurrentMap; set => Find.CurrentMap = value; }
-        public HomeBridge.BridgeTools.ColonyIdentity Identity = new HomeBridge.BridgeTools.ColonyIdentity();
+        public RimGovernor.Native.ColonyIdentity Identity = new RimGovernor.Native.ColonyIdentity();
         public T? GetComponent<T>() where T : class => Identity as T;
     }
     public class Map { public int uniqueID; public MapPawns mapPawns = new MapPawns(); }
@@ -82,7 +82,7 @@ namespace RimWorld
         public List<IngredientCount> ingredients = new List<IngredientCount>();
     }
 }
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     public class ColonyIdentity { public string ColonyId = "colony"; public string LoadToken = "load"; }
 

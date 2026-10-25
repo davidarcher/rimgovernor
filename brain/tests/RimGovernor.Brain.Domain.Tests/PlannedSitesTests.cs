@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using O = RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -78,16 +77,16 @@ public sealed class PlannedSitesTests
         var sites = Sites([Owed()]);
         var row = new Row("planned/room1/wall/Steel", ContainmentCellRules.ShellWallDefinition, new Cell(-1, 0), "Pawn_1", "Steel", "Thing_Steel1",
             new Cell(5, 5), 6, 75, "ConstructFinishFrames", 10d, 20d, 300d);
-        var clearing = ConstructionFixtures.Clearing("planned/room1/wall/Steel/clear/cut", O.PlannedClearingKind.Cut);
+        var clearing = ConstructionFixtures.Clearing("planned/room1/wall/Steel/clear/cut", RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Cut);
         var answered = ConstructionFixtures.NoConstruction() with
         {
             Findings = ["planned_quality_minimum_unset"],
             Planned =
             [
-                new O.PlannedSiteAnswer("planned/room1/wall/Steel")
+                new RimGovernor.Brain.GameFacts.Observations.PlannedSiteAnswer("planned/room1/wall/Steel")
                 {
                     Options = [row],
-                    Verdict = O.PlannedSiteVerdict.Feasible, Clearing = [clearing],
+                    Verdict = RimGovernor.Brain.GameFacts.Observations.PlannedSiteVerdict.Feasible, Clearing = [clearing],
                 },
             ],
         };
@@ -95,7 +94,7 @@ public sealed class PlannedSitesTests
         var wall = facts.Sites.Single(s => s.Id == "planned/room1/wall/Steel");
         Assert.Equal([row], wall.Options);
         // Feasibility once cleared, and the clearing it owes, come through the join (#3276).
-        Assert.Equal(O.PlannedSiteVerdict.Feasible, wall.Answer!.Verdict);
+        Assert.Equal(RimGovernor.Brain.GameFacts.Observations.PlannedSiteVerdict.Feasible, wall.Answer!.Verdict);
         Assert.Equal([clearing], wall.Clearing);
         // A site no answer names stays unanswered.
         Assert.Null(facts.Sites.Single(s => s.Id == "planned/room1/wall/WoodLog").Answer);
@@ -226,7 +225,7 @@ public sealed class PlannedSitesTests
     }
 
     /// <summary>A room 1 site at cells with one native row delivering from origin (count 0: no material) and the given clearing.</summary>
-    private static PlannedBuildSite Answered(string id, OpKind op, Cell[] cells, Cell origin, int count, params O.PlannedSiteClearing[] clearing) =>
+    private static PlannedBuildSite Answered(string id, OpKind op, Cell[] cells, Cell origin, int count, params RimGovernor.Brain.GameFacts.Observations.PlannedSiteClearing[] clearing) =>
         new(id, 1, op, "Wall", "WoodLog", Rotation.North, EquatableArray.From(cells))
         {
             Answer = ConstructionFixtures.Answer(id) with
@@ -245,7 +244,7 @@ public sealed class PlannedSitesTests
     [Fact]
     public void RouteProbesRunFromEachEndOfARoomToEachOtherStartAndTheRoofFromStart()
     {
-        var cut = ConstructionFixtures.Clearing("planned/room1/wall/WoodLog/clear/cut", O.PlannedClearingKind.Cut) with
+        var cut = ConstructionFixtures.Clearing("planned/room1/wall/WoodLog/clear/cut", RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Cut) with
             { Options = [new Row("planned/room1/wall/WoodLog/clear/cut", "", new Cell(0, 3), "Pawn_1", "", "", new Cell(0, 3), 0, 0, "Cut",
                 1d, default, 10d)] };
         var wall = Answered("planned/room1/wall/WoodLog", OpKind.WallIn, [new(0, 0), new(0, 1)], new Cell(9, 9), 10, cut);
@@ -301,9 +300,9 @@ public sealed class PlannedSitesTests
     [Fact]
     public void JoinedRoutesKeepTheReadsRowsAndAMissingReadAddsNone()
     {
-        EquatableArray<O.PlannedRouteProbe> asked = [new(new(0, 0), new(1, 0), [new(1, 0)]), new(new(1, 1), new(1, 1), [new(1, 1)]) { FromStart = true }];
-        var known = new O.CoupledRoute("Pawn_1", new(0, 0), new(1, 0), new O.RouteTicks.Reachable(2d)) { FromStart = false };
-        var fromStart = new O.CoupledRoute("Pawn_1", new(7, 7), new(1, 1), new O.RouteTicks.Reachable(12d)) { FromStart = true };
+        EquatableArray<RimGovernor.Brain.GameOrders.Observations.PlannedRouteProbe> asked = [new(new(0, 0), new(1, 0), [new(1, 0)]), new(new(1, 1), new(1, 1), [new(1, 1)]) { FromStart = true }];
+        var known = new RimGovernor.Brain.GameFacts.Observations.CoupledRoute("Pawn_1", new(0, 0), new(1, 0), new RimGovernor.Brain.GameFacts.Observations.RouteTicks.Reachable(2d)) { FromStart = false };
+        var fromStart = new RimGovernor.Brain.GameFacts.Observations.CoupledRoute("Pawn_1", new(7, 7), new(1, 1), new RimGovernor.Brain.GameFacts.Observations.RouteTicks.Reachable(12d)) { FromStart = true };
         var read = ConstructionFixtures.NoConstruction() with { Routes = [known, fromStart], Findings = ["planned_route_out_of_bounds"] };
         var sites = new PlannedSiteFacts { Findings = ["planned_site_read_unknown"] };
         var facts = PlannedRules.JoinPlannedRoutes(sites, asked, read);

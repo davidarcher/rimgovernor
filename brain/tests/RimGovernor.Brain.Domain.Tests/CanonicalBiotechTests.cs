@@ -1,8 +1,6 @@
 using System.Text.Json;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store.Codec;
-using O = RimGovernor.Contracts.Wire.Observations;
-using D = RimGovernor.Contracts.Wire.Defs;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -12,14 +10,14 @@ public sealed class CanonicalBiotechTests
     [Fact]
     public void BiotechCatalogViewKeepsWholeNativeRecordsThroughTheJournal()
     {
-        var observed = new O.PawnBiotech
+        var observed = new RimGovernor.Brain.GameFacts.Observations.PawnBiotech
         {
-            DevelopmentalStage = D.DevelopmentalStage.Adult,
+            DevelopmentalStage = RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Adult,
             Genes = [new() { DefName = "gene", Active = true }],
             Mechanitor = new() { UsedBandwidth = 1, TotalBandwidth = 5, UsedBandwidthFromGestation = 2,
                 ControlGroups = 1, ControlledMechs = [new() { Id = "mech" }] },
             Mech = new() { Overseer = new() { Id = "overseer" }, WorkMode = "Work",
-                Energy = new O.PawnMechEnergy.Level { Fraction = 0.6 },
+                Energy = new RimGovernor.Brain.GameFacts.Observations.PawnMechEnergy.Level { Fraction = 0.6 },
                 Group = new() { Index = 1, RechargeBelow = 0.2, RechargeAbove = 0.9 } },
             Deathrest = new() { Deathresting = true, Capacity = 3 },
         };

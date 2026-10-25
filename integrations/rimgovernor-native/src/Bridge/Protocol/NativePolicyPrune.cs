@@ -3,11 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // PolicyPruneIntent on Actions/Apply: delete outfit, drug, food
     // or reading policies, or allowed areas, by load id. Vanilla TryDelete
@@ -27,24 +24,24 @@ namespace HomeBridge.BridgeTools
             internal Func<Policy, AcceptanceReport> Delete = _ => AcceptanceReport.WasRejected;
         }
 
-        private static Database? For(Operations.PolicyDatabase db)
+        private static Database? For(RimGovernor.Brain.GameOrders.Operations.PolicyDatabase db)
         {
             var game = Current.Game;
             switch (db)
             {
-                case Operations.PolicyDatabase.Outfit:
+                case RimGovernor.Brain.GameOrders.Operations.PolicyDatabase.Outfit:
                     return new Database { All = () => game.outfitDatabase.AllOutfits, Get = p => p.outfits?.CurrentApparelPolicy,
                         Set = (p, v) => { if (p.outfits != null) p.outfits.CurrentApparelPolicy = (ApparelPolicy)v; },
                         Make = () => game.outfitDatabase.MakeNewOutfit(), Delete = v => game.outfitDatabase.TryDelete((ApparelPolicy)v) };
-                case Operations.PolicyDatabase.Drug:
+                case RimGovernor.Brain.GameOrders.Operations.PolicyDatabase.Drug:
                     return new Database { All = () => game.drugPolicyDatabase.AllPolicies, Get = p => p.drugs?.CurrentPolicy,
                         Set = (p, v) => { if (p.drugs != null) p.drugs.CurrentPolicy = (DrugPolicy)v; },
                         Make = () => game.drugPolicyDatabase.MakeNewDrugPolicy(), Delete = v => game.drugPolicyDatabase.TryDelete((DrugPolicy)v) };
-                case Operations.PolicyDatabase.Food:
+                case RimGovernor.Brain.GameOrders.Operations.PolicyDatabase.Food:
                     return new Database { All = () => game.foodRestrictionDatabase.AllFoodRestrictions, Get = p => p.foodRestriction?.CurrentFoodPolicy,
                         Set = (p, v) => { if (p.foodRestriction != null) p.foodRestriction.CurrentFoodPolicy = (FoodPolicy)v; },
                         Make = () => game.foodRestrictionDatabase.MakeNewFoodRestriction(), Delete = v => game.foodRestrictionDatabase.TryDelete((FoodPolicy)v) };
-                case Operations.PolicyDatabase.Reading:
+                case RimGovernor.Brain.GameOrders.Operations.PolicyDatabase.Reading:
                     return new Database { All = () => game.readingPolicyDatabase.AllReadingPolicies, Get = p => p.reading?.CurrentPolicy,
                         Set = (p, v) => { if (p.reading != null) p.reading.CurrentPolicy = (ReadingPolicy)v; },
                         Make = () => game.readingPolicyDatabase.MakeNewReadingPolicy(), Delete = v => game.readingPolicyDatabase.TryDelete((ReadingPolicy)v) };
@@ -53,13 +50,13 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        internal static Common.Failure? Validate(Operations.PolicyPruneIntent? intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.PolicyPruneIntent? intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             if (intent == null || !Enum.IsDefined(intent.Database))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Policy prune requires a database.");
-            if (intent.DeleteIds.Count == 0 || intent.DeleteIds.Any(id => !ProtoBoundary.IsIdentifier(id)) || intent.DeleteIds.Distinct().Count() != intent.DeleteIds.Count)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Policy prune requires distinct policy ids.");
-            if (intent.Database == Operations.PolicyDatabase.AllowedArea) ProtoBoundary.LoadedMap(context);
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Policy prune requires a database.");
+            if (intent.DeleteIds.Count == 0 || intent.DeleteIds.Any(id => !GameThread.IsIdentifier(id)) || intent.DeleteIds.Distinct().Count() != intent.DeleteIds.Count)
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Policy prune requires distinct policy ids.");
+            if (intent.Database == RimGovernor.Brain.GameOrders.Operations.PolicyDatabase.AllowedArea) GameThread.LoadedMap(context);
             return null;
         }
 
@@ -67,15 +64,15 @@ namespace HomeBridge.BridgeTools
         private static List<Pawn> Holders() =>
             PawnsFinder.AllMapsCaravansAndTravellingTransporters_Alive.OrderBy(p => p.thingIDNumber).ToList();
 
-        internal static Receipts.EffectEvidence Apply(Operations.PolicyPruneIntent intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.PolicyPruneIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Validate(intent, context);
             if (failure != null) throw new ApplyRefusedException(failure);
-            var effect = new Receipts.PolicyPruneEffect();
+            var effect = new RimGovernor.Brain.GameFacts.Receipts.PolicyPruneEffect();
             var reassigned = new SortedSet<string>(StringComparer.Ordinal);
-            if (intent.Database == Operations.PolicyDatabase.AllowedArea)
+            if (intent.Database == RimGovernor.Brain.GameOrders.Operations.PolicyDatabase.AllowedArea)
             {
-                var map = ProtoBoundary.LoadedMap(context);
+                var map = GameThread.LoadedMap(context);
                 foreach (var id in intent.DeleteIds)
                 {
                     var area = map.areaManager.AllAreas.OfType<Area_Allowed>().ById(id);
@@ -110,18 +107,18 @@ namespace HomeBridge.BridgeTools
                     }
                     var report = db.Delete(policy);
                     if (!report.Accepted)
-                        throw new ApplyRefusedException(Common.FailureCode.NativeFailure, "Policy " + id + " could not be deleted: " + (report.Reason ?? "refused") + ".");
+                        throw new ApplyRefusedException(RimGovernor.Brain.GameFacts.Common.FailureCode.NativeFailure, "Policy " + id + " could not be deleted: " + (report.Reason ?? "refused") + ".");
                     effect = effect with { DeletedIds = [.. effect.DeletedIds, id] };
                 }
             }
             effect = effect with { ReassignedPawnIds = [.. effect.ReassignedPawnIds, .. reassigned] };
-            return new Receipts.EffectEvidence { Effect = effect };
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = effect };
         }
     }
 
     internal sealed class PolicyPruneActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativePolicyPrune.Validate(action.Intent?.PolicyPrune, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativePolicyPrune.Apply(action.Intent?.PolicyPrune ?? throw new InvalidOperationException("Policy prune intent missing"), context);
+        public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => NativePolicyPrune.Validate(action.Intent?.PolicyPrune, context);
+        public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => NativePolicyPrune.Apply(action.Intent?.PolicyPrune ?? throw new InvalidOperationException("Policy prune intent missing"), context);
     }
 }

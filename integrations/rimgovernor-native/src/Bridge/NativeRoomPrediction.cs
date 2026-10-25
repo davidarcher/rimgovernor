@@ -6,9 +6,8 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 using RimGovernor.Brain.Domain;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 /// <summary>
 /// The planned room as it would stand once its ring pieces are built (#3339). Role is the game's own: every
@@ -50,9 +49,9 @@ internal static class NativeRoomPrediction
     private const float RoofedFilthBeautyFactor = 0.3f, PollutedTerrainBeauty = -1f;
 
     /// <summary>One row per shape whose ring closes a room; a shape whose interior has no passable cell closes none and has no row.</summary>
-    internal static EquatableArray<Obs.PlannedRoomPrediction> Predict(Map map, EquatableArray<Obs.PlannedRoomShape> shapes)
+    internal static EquatableArray<RimGovernor.Brain.GameFacts.Observations.PlannedRoomPrediction> Predict(Map map, EquatableArray<RimGovernor.Brain.GameOrders.Observations.PlannedRoomShape> shapes)
     {
-        var rows = new List<Obs.PlannedRoomPrediction>();
+        var rows = new List<RimGovernor.Brain.GameFacts.Observations.PlannedRoomPrediction>();
         foreach (var shape in shapes)
             if (Predict(map, shape) is { } row) rows.Add(row);
         return EquatableArray.From(rows);
@@ -62,7 +61,7 @@ internal static class NativeRoomPrediction
 
     // A piece's stuff: none for a def made from none, else its own, else the shape's (a stuff-less ring site stands in every
     // ring stuff); throws when a stuffed def names no loaded stuff.
-    private static ThingDef? StuffOf(ThingDef def, string own, Obs.PlannedRoomShape shape)
+    private static ThingDef? StuffOf(ThingDef def, string own, RimGovernor.Brain.GameOrders.Observations.PlannedRoomShape shape)
     {
         if (!def.MadeFromStuff) return null;
         var name = string.IsNullOrEmpty(own) ? shape.Stuff : own;
@@ -70,7 +69,7 @@ internal static class NativeRoomPrediction
             ?? throw new InvalidOperationException($"planned room {shape.Room}: {def.defName} needs a stuff, got '{name}'");
     }
 
-    private static Obs.PlannedRoomPrediction? Predict(Map map, Obs.PlannedRoomShape shape)
+    private static RimGovernor.Brain.GameFacts.Observations.PlannedRoomPrediction? Predict(Map map, RimGovernor.Brain.GameOrders.Observations.PlannedRoomShape shape)
     {
         var pieces = new Dictionary<IntVec3, Piece>();
         var floors = new Dictionary<IntVec3, TerrainDef>();
@@ -152,15 +151,15 @@ internal static class NativeRoomPrediction
         var beds = contained.OfType<Building_Bed>().Select(b => b.GetUniqueLoadID()).OrderBy(s => s, StringComparer.Ordinal);
         var benches = contained.Where(t => t is IBillGiver && t.def.building != null)
             .Where(_ => StatDefOf.WorkTableWorkSpeedFactor.parts?.Any(p => p is StatPart_WorkTableOutdoors) == true)
-            .Select(t => new Obs.PlannedRoomBench(t.GetUniqueLoadID(), StatPart_WorkTableOutdoors.Applies(t)))
+            .Select(t => new RimGovernor.Brain.GameFacts.Observations.PlannedRoomBench(t.GetUniqueLoadID(), StatPart_WorkTableOutdoors.Applies(t)))
             .OrderBy(b => b.Bench, StringComparer.Ordinal);
         // The closed room's terrains with the planned floors laid (RoomRequirement_TerrainWithTags reads each cell's tags, #3808).
         var terrains = cells.Select(c => floors.TryGetValue(c, out var floor) ? floor : c.GetTerrain(map)).Distinct()
             .OrderBy(t => t.defName, StringComparer.Ordinal)
-            .Select(t => new Obs.PlannedRoomTerrain(EquatableArray.From((t.tags ?? new List<string>()).OrderBy(s => s, StringComparer.Ordinal))))
+            .Select(t => new RimGovernor.Brain.GameFacts.Observations.PlannedRoomTerrain(EquatableArray.From((t.tags ?? new List<string>()).OrderBy(s => s, StringComparer.Ordinal))))
             .ToList();
         var desks = PlannedDesks(map, placed);
-        Obs.PlannedRoomPrediction Row(string role, float score, double clean) =>
+        RimGovernor.Brain.GameFacts.Observations.PlannedRoomPrediction Row(string role, float score, double clean) =>
             new(shape.Room, shape.Stuff, role, score, RoomStatDefOf.Impressiveness.GetScoreStageIndex(score), cells.Count, openRoof, edge)
                 { Beds = EquatableArray.From(beds), Benches = EquatableArray.From(benches), Cleanliness = clean, Terrains = EquatableArray.From(terrains), Desks = desks };
 
@@ -203,7 +202,7 @@ internal static class NativeRoomPrediction
     /// desk's CompAffectedByFacilities could link (CanPotentiallyLinkTo_Static), at most MaxConnectedBlackboards. A blackboard
     /// needing line of sight (which only the comp's private check reads) is a broken read; the game's needs none.
     /// </summary>
-    private static EquatableArray<Obs.PlannedRoomDesk> PlannedDesks(Map map, List<(ThingDef Def, IntVec3 Anchor, Rot4 Rot)> placed)
+    private static EquatableArray<RimGovernor.Brain.GameFacts.Observations.PlannedRoomDesk> PlannedDesks(Map map, List<(ThingDef Def, IntVec3 Anchor, Rot4 Rot)> placed)
     {
         var desk = ThingDefOf.SchoolDesk;
         var board = ThingDefOf.Blackboard;
@@ -217,7 +216,7 @@ internal static class NativeRoomPrediction
         {
             var linked = !linkable ? 0 : Math.Min(LearningUtility.MaxConnectedBlackboards,
                 boards.Count(b => CompAffectedByFacilities.CanPotentiallyLinkTo_Static(board, b.Item1, b.Item2, desk, d.Anchor, d.Rot, map)));
-            return new Obs.PlannedRoomDesk(1 + linked * LearningUtility.LearningRateBonusOffset_Blackboard);
+            return new RimGovernor.Brain.GameFacts.Observations.PlannedRoomDesk(1 + linked * LearningUtility.LearningRateBonusOffset_Blackboard);
         }));
     }
 

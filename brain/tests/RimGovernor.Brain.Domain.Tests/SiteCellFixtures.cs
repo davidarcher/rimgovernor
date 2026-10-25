@@ -1,5 +1,5 @@
 using RimGovernor.Brain.Policy;
-using NativeCellGrid = RimGovernor.Contracts.Wire.Mirror.CellGrid;
+using NativeCellGrid = RimGovernor.Brain.GameFacts.Mirror.CellGrid;
 
 namespace RimGovernor.Brain.Domain.Tests;
 

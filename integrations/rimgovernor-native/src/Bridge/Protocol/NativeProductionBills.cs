@@ -7,11 +7,11 @@ using System.Security.Cryptography;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common=RimGovernor.Contracts.Wire.Common;
-using Obs=RimGovernor.Contracts.Wire.Observations;
-using Operations=RimGovernor.Contracts.Wire.Operations;
-using Receipts=RimGovernor.Contracts.Wire.Receipts;
-namespace HomeBridge.BridgeTools {
+using Common=RimGovernor.Brain.GameFacts.Common;
+using Obs=RimGovernor.Brain.GameFacts.Observations;
+using Operations=RimGovernor.Brain.GameFacts.Operations;
+using Receipts=RimGovernor.Brain.GameFacts.Receipts;
+namespace RimGovernor.Native {
  internal static class NativeProductionBills {
   // A content digest for comparing two bills or filters (not a row token: NativeSnapshotVersions versions the bench).
   private static string Hash(Action<BinaryWriter> write){using(var bytes=new MemoryStream()){using(var writer=new BinaryWriter(bytes,Encoding.UTF8,true))write(writer);using(var hash=SHA256.Create())return "bill-"+BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-","").ToLowerInvariant();}}
@@ -30,12 +30,12 @@ namespace HomeBridge.BridgeTools {
    w.Write("ingredients.hp.min",filter.AllowedHitPointsPercents.min);w.Write("ingredients.hp.max",filter.AllowedHitPointsPercents.max);w.Write("ingredients.quality.min",(int)filter.AllowedQualityLevels.min);w.Write("ingredients.quality.max",(int)filter.AllowedQualityLevels.max);w.Write("ingredients.mentalBreak.min",filter.AllowedMentalBreakChance.min);w.Write("ingredients.mentalBreak.max",filter.AllowedMentalBreakChance.max);
    w.Group("ingredients.special",g=>{foreach(var f in DefDatabase<SpecialThingFilterDef>.AllDefsListForReading.OrderBy(d=>d.defName,StringComparer.Ordinal)){g.Write(f.defName);g.Write(filter.Allows(f));}});
   });
-  internal static Obs.SnapshotRef Snapshot(Thing bench,IBillGiver giver,Common.ObservationContext context)=>new Obs.SnapshotRef{Context=context,EntityId=bench.GetUniqueLoadID(),Token=NativeSnapshotVersions.Token("bench",context.Identity,bench.GetUniqueLoadID(),w=>{w.Write(giver.BillStack.Count);if(giver.BillStack.Count>BillStack.MaxCount)throw new InvalidOperationException("Bill stack bound");foreach(var b in giver.BillStack.Bills){w.Write(Configuration(b));w.Write(b is Bill_Production p&&p.paused);}})};
-  internal static bool Usable(Thing bench)=>bench.Spawned&&ProtoBoundary.IsLoaded(bench.Map)&&bench.Faction==Faction.OfPlayer&&!bench.IsForbidden(Faction.OfPlayer)&&!bench.Position.Fogged(bench.Map)&&!bench.IsBurning()&&bench is IBillGiver g&&g.CurrentlyUsableForBills();
+  internal static Obs.SnapshotRef Snapshot(Thing bench,IBillGiver giver,RimGovernor.Brain.GameFacts.Common.ObservationContext context)=>new Obs.SnapshotRef{Context=context,EntityId=bench.GetUniqueLoadID(),Token=NativeSnapshotVersions.Token("bench",context.Identity,bench.GetUniqueLoadID(),w=>{w.Write(giver.BillStack.Count);if(giver.BillStack.Count>BillStack.MaxCount)throw new InvalidOperationException("Bill stack bound");foreach(var b in giver.BillStack.Bills){w.Write(Configuration(b));w.Write(b is Bill_Production p&&p.paused);}})};
+  internal static bool Usable(Thing bench)=>bench.Spawned&&GameThread.IsLoaded(bench.Map)&&bench.Faction==Faction.OfPlayer&&!bench.IsForbidden(Faction.OfPlayer)&&!bench.Position.Fogged(bench.Map)&&!bench.IsBurning()&&bench is IBillGiver g&&g.CurrentlyUsableForBills();
   // Players can queue work on an empty fueled bench; haulers refuel it once a bill waits.
   // CurrentlyUsableForBills rejects an unfueled bench, so admission relaxes only that condition.
   // Every other usability check still applies.
-  internal static bool UsableForNewBill(Thing bench)=>Usable(bench)||bench.Spawned&&ProtoBoundary.IsLoaded(bench.Map)&&bench.Faction==Faction.OfPlayer&&!bench.IsForbidden(Faction.OfPlayer)&&!bench.Position.Fogged(bench.Map)&&!bench.IsBurning()&&bench is Building_WorkTable table&&table.UsableForBillsAfterFueling();
+  internal static bool UsableForNewBill(Thing bench)=>Usable(bench)||bench.Spawned&&GameThread.IsLoaded(bench.Map)&&bench.Faction==Faction.OfPlayer&&!bench.IsForbidden(Faction.OfPlayer)&&!bench.Position.Fogged(bench.Map)&&!bench.IsBurning()&&bench is Building_WorkTable table&&table.UsableForBillsAfterFueling();
   // Ordinary production: every product is a spawnable item (food, kibble,
   // blocks, weapons, apparel alike); corpse butchering keeps its special case.
   internal static bool Recipe(Thing bench,RecipeDef recipe)=>recipe.AvailableNow&&recipe.AvailableOnNow(bench)&&bench.def.AllRecipes.Contains(recipe)&&(NativeRecipeRoles.Corpse(recipe)||recipe.products.Count>0&&recipe.products.All(p=>Product(p.thingDef)));
@@ -43,23 +43,23 @@ namespace HomeBridge.BridgeTools {
   private static bool HumanlikeCorpse(ThingDef d)=>d.IsCorpse&&d.ingestible?.sourceDef?.race?.Humanlike==true;
   // The class a corpse bill takes: animal without humanlike corpses, else
   // stranger when the stranger special filter is allowed, else colonist.
-  internal static Common.CorpseClass CorpseClass(Bill bill){
-   if(!bill.ingredientFilter.AllowedThingDefs.Any(HumanlikeCorpse))return Common.CorpseClass.Animal;
+  internal static RimGovernor.Brain.GameFacts.Common.CorpseClass CorpseClass(Bill bill){
+   if(!bill.ingredientFilter.AllowedThingDefs.Any(HumanlikeCorpse))return RimGovernor.Brain.GameFacts.Common.CorpseClass.Animal;
    var stranger=DefDatabase<SpecialThingFilterDef>.GetNamedSilentFail("AllowCorpsesStranger");
-   return stranger!=null&&bill.ingredientFilter.Allows(stranger)?Common.CorpseClass.Stranger:Common.CorpseClass.Colonist;
+   return stranger!=null&&bill.ingredientFilter.Allows(stranger)?RimGovernor.Brain.GameFacts.Common.CorpseClass.Stranger:RimGovernor.Brain.GameFacts.Common.CorpseClass.Colonist;
   }
   // The one corpse filter path: corpse defs by humanlike status within the
   // recipe's own filters, then the CorpsesHumanlike special filters.
-  private static void ConfigureCorpses(Bill_Production bill,RecipeDef recipe,Common.CorpseClass of){
+  private static void ConfigureCorpses(Bill_Production bill,RecipeDef recipe,RimGovernor.Brain.GameFacts.Common.CorpseClass of){
    var fresh=DefDatabase<SpecialThingFilterDef>.GetNamedSilentFail("AllowFresh");
    if(fresh!=null)bill.ingredientFilter.SetAllow(fresh,true);
-   bool human=of!=Common.CorpseClass.Animal;
+   bool human=of!=RimGovernor.Brain.GameFacts.Common.CorpseClass.Animal;
    foreach(var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(d=>d.IsCorpse))
     bill.ingredientFilter.SetAllow(def,HumanlikeCorpse(def)==human&&(recipe.fixedIngredientFilter==null||recipe.fixedIngredientFilter.Allows(def))&&recipe.ingredients.Any(i=>i.filter.Allows(def)));
    if(!human)return;
    // Colonist covers the colony's slaves; everything else under the
    // humanlike corpse category (unnatural, future DLC rows) is refused.
-   var allowed=of==Common.CorpseClass.Colonist?new[]{"AllowCorpsesColonist","AllowCorpsesSlave"}:new[]{"AllowCorpsesStranger"};
+   var allowed=of==RimGovernor.Brain.GameFacts.Common.CorpseClass.Colonist?new[]{"AllowCorpsesColonist","AllowCorpsesSlave"}:new[]{"AllowCorpsesStranger"};
    foreach(var special in DefDatabase<SpecialThingFilterDef>.AllDefsListForReading.Where(f=>f.parentCategory?.defName=="CorpsesHumanlike"))
     bill.ingredientFilter.SetAllow(special,allowed.Contains(special.defName));
   }
@@ -71,7 +71,7 @@ namespace HomeBridge.BridgeTools {
    if(!(bill is Bill_Production p)||!(bill.billStack?.billGiver is Thing bench))throw new InvalidOperationException("bill "+bill.GetUniqueLoadID()+" is not a production bill on a bench");
    // Census defaults stay detached from native bill ids.
    var fresh=Detached(bill.recipe);
-   Operations.BillCorpseClass corpses=NativeRecipeRoles.Corpse(bill.recipe)?new Operations.BillCorpseClass.Selected(CorpseClass(bill)):new Operations.BillCorpseClass.NotApplicable();
+   RimGovernor.Brain.GameOrders.Operations.BillCorpseClass corpses=NativeRecipeRoles.Corpse(bill.recipe)?new RimGovernor.Brain.GameOrders.Operations.BillCorpseClass.Selected(CorpseClass(bill)):new RimGovernor.Brain.GameOrders.Operations.BillCorpseClass.NotApplicable();
    ConfigureIngredients(fresh,bill.recipe,null,corpses,bench.Map);
    var row=new Obs.BillState{Id=bill.GetUniqueLoadID(),Recipe=bill.recipe.defName,BillClass=bill.GetType().Name,Suspended=bill.suspended,ManagedUnchanged=NativeProductionTracking.ManagedUnchanged(bill),IngredientFilter=IngredientFilter(bill),
     Worker=bill.PawnRestriction?.GetUniqueLoadID(),
@@ -122,14 +122,14 @@ namespace HomeBridge.BridgeTools {
   // Only what a frame alone knows: whether the game offers the recipe now
   // and on this bench. The rest is the recipe's catalog row.
   internal static Obs.RecipeState RecipeRow(Thing bench,RecipeDef recipe)=>new Obs.RecipeState{Recipe=recipe.defName,AvailableNow=recipe.AvailableNow,AvailableOnBench=recipe.AvailableOnNow(bench)};
-  internal static void ConfigureIngredients(Bill_Production bill,RecipeDef recipe,Operations.BillSettings s,Map map)=>ConfigureIngredients(bill,recipe,s.Ingredients,s.Corpses,map);
-  private static void ConfigureIngredients(Bill_Production bill,RecipeDef recipe,Operations.FilterPatch? ingredients,Operations.BillCorpseClass corpses,Map map){
+  internal static void ConfigureIngredients(Bill_Production bill,RecipeDef recipe,RimGovernor.Brain.GameOrders.Operations.BillSettings s,Map map)=>ConfigureIngredients(bill,recipe,s.Ingredients,s.Corpses,map);
+  private static void ConfigureIngredients(Bill_Production bill,RecipeDef recipe,RimGovernor.Brain.GameOrders.Operations.FilterPatch? ingredients,RimGovernor.Brain.GameOrders.Operations.BillCorpseClass corpses,Map map){
      if(ingredients!=null){
       bill.ingredientFilter.SetDisallowAll();
       foreach(var selector in ingredients.Replace?.Selectors ?? default)bill.ingredientFilter.SetAllow(DefDatabase<ThingDef>.GetNamed(selector.Definition?.ThingDef),true);
      }
      if(NativeRecipeRoles.Corpse(recipe)){
-      if(corpses is not Operations.BillCorpseClass.Selected{Class:var of})throw new InvalidOperationException("Corpse bill requires its corpse class");
+      if(corpses is not RimGovernor.Brain.GameOrders.Operations.BillCorpseClass.Selected{Class:var of})throw new InvalidOperationException("Corpse bill requires its corpse class");
       ConfigureCorpses(bill,recipe,of);
      }
      else{
@@ -141,7 +141,7 @@ namespace HomeBridge.BridgeTools {
       foreach(var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(HumanFoodFacts.IsHumanMeat))bill.ingredientFilter.SetAllow(def,(feed || (trade || eligible) && ((ingredients ?? throw new System.InvalidOperationException("Required native value is unavailable: ingredients.")).Replace?.Selectors ?? default).Any(x=>x.Definition?.ThingDef==def.defName)) && recipe.ingredients.Any(i=>i.filter.Allows(def)));
      }
   }
-  internal static bool Valid(Operations.ProductionBillIntent? intent)=>NativeProductionBillSettings.Valid(intent);
+  internal static bool Valid(RimGovernor.Brain.GameOrders.Operations.ProductionBillIntent? intent)=>NativeProductionBillSettings.Valid(intent);
   // A detached bill carrying the recipe's default filter; MakeNewBill would consume a native bill id.
   // The parameterless Bill constructor leaves ingredientFilter null.
   private static Bill_Production Detached(RecipeDef recipe){
@@ -150,21 +150,21 @@ namespace HomeBridge.BridgeTools {
    return fresh;
   }
   // The ingredient filter the intent would give a new bill, as a configuration hash.
-  internal static string ExpectedFilter(RecipeDef recipe,Operations.BillSettings settings,Map map){var fresh=Detached(recipe);ConfigureIngredients(fresh,recipe,settings,map);return FilterConfiguration(fresh.ingredientFilter);}
+  internal static string ExpectedFilter(RecipeDef recipe,RimGovernor.Brain.GameOrders.Operations.BillSettings settings,Map map){var fresh=Detached(recipe);ConfigureIngredients(fresh,recipe,settings,map);return FilterConfiguration(fresh.ingredientFilter);}
   // Exact spec identity: a bench may carry several bills of one recipe. An intent
   // is a resend only when recipe, ingredient filter, worker pin, repeat mode and
   // target all equal a standing, unfinished bill; any other spec places a new bill.
-  internal static Bill? Standing(IBillGiver giver,Bill? except,Operations.ProductionBillIntent intent,string expectedFilter)=>giver.BillStack.Bills.FirstOrDefault(b=>b!=except && Matches(b,intent,expectedFilter));
+  internal static Bill? Standing(IBillGiver giver,Bill? except,RimGovernor.Brain.GameOrders.Operations.ProductionBillIntent intent,string expectedFilter)=>giver.BillStack.Bills.FirstOrDefault(b=>b!=except && Matches(b,intent,expectedFilter));
   // A finished "do X times" bill is spent, not standing: the next batch is a new bill.
-  internal static bool Matches(Bill b,Operations.ProductionBillIntent intent,string expectedFilter){
+  internal static bool Matches(Bill b,RimGovernor.Brain.GameOrders.Operations.ProductionBillIntent intent,string expectedFilter){
    if(!(b is Bill_Production p)||p.recipe.defName!=(intent.RecipeDef ?? "")||BillCommon.IsFinished(p))return false;
    var s=intent.Settings ?? throw new InvalidOperationException("Production bill settings missing");
    if((b is SocialBeerBill)!=s.BeerReserve)return false;
    if((p.PawnRestriction?.GetUniqueLoadID()??"")!=(s.Worker?.Value?.EntityId??""))return false;
    bool repetition=s.Repetition switch {
-    Operations.BillRepetition.Forever=>p.repeatMode==BillRepeatModeDefOf.Forever,
-    Operations.BillRepetition.Count{Repetitions:var count}=>p.repeatMode==BillRepeatModeDefOf.RepeatCount&&p.repeatCount==count,
-    Operations.BillRepetition.Target{Quantity:var target,UnpauseThreshold:var threshold}=>p.repeatMode==BillRepeatModeDefOf.TargetCount&&p.targetCount==target&&p.unpauseWhenYouHave==threshold&&p.pauseWhenSatisfied,
+    RimGovernor.Brain.GameOrders.Operations.BillRepetition.Forever=>p.repeatMode==BillRepeatModeDefOf.Forever,
+    RimGovernor.Brain.GameOrders.Operations.BillRepetition.Count{Repetitions:var count}=>p.repeatMode==BillRepeatModeDefOf.RepeatCount&&p.repeatCount==count,
+    RimGovernor.Brain.GameOrders.Operations.BillRepetition.Target{Quantity:var target,UnpauseThreshold:var threshold}=>p.repeatMode==BillRepeatModeDefOf.TargetCount&&p.targetCount==target&&p.unpauseWhenYouHave==threshold&&p.pauseWhenSatisfied,
     _=>throw new InvalidOperationException("Production bill repetition missing")
    };
    if(!repetition)return false;
@@ -188,10 +188,10 @@ namespace HomeBridge.BridgeTools {
   internal const string Kind="Production bill";
   internal ProductionBillActionHandler(){NativeProductionTracking.Install();}
   private sealed record Target(Thing Bench, IBillGiver Giver, RecipeDef Recipe, Bill? Replaced, Bill? Standing);
-  private static Common.Failure? Resolve(Operations.ProductionBillIntent? intent,Common.ObservationContext context,out Target? target){
+  private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(RimGovernor.Brain.GameOrders.Operations.ProductionBillIntent? intent,RimGovernor.Brain.GameFacts.Common.ObservationContext context,out Target? target){
    target=null;
-   if(intent==null||!NativeProductionBills.Valid(intent))return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Production bill requires an exact bench, recipe and supported bill settings.");
-   var map=ProtoBoundary.LoadedMap(context);var settings=intent.Settings ?? throw new InvalidOperationException("Production bill settings missing");
+   if(intent==null||!NativeProductionBills.Valid(intent))return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest,"Production bill requires an exact bench, recipe and supported bill settings.");
+   var map=GameThread.LoadedMap(context);var settings=intent.Settings ?? throw new InvalidOperationException("Production bill settings missing");
    var bench=RefIndex.Thing(map, intent.BenchId);var giver=bench as IBillGiver;
    var replaced=intent.ReplaceOwnedBill!=null&&bench!=null?NativeProductionTracking.ReplaceableBill((intent.ReplaceOwnedBill.Id ?? ""),bench,(intent.RecipeDef ?? "")):null;
    var recipe=DefDatabase<RecipeDef>.GetNamedSilentFail((intent.RecipeDef ?? ""));
@@ -223,18 +223,18 @@ namespace HomeBridge.BridgeTools {
    target=new Target(bench,giver,recipe,replaced,null);
    return null;
   }
-  private static bool Funded(Operations.BillSettings settings,RecipeDef recipe){
+  private static bool Funded(RimGovernor.Brain.GameOrders.Operations.BillSettings settings,RecipeDef recipe){
    if(settings.Ingredients==null)return true;
    var definitions=(settings.Ingredients.Replace?.Selectors ?? default).Select(s=>DefDatabase<ThingDef>.GetNamedSilentFail(s.Definition?.ThingDef)).ToArray();
    return !definitions.Any(d=>d==null||recipe.fixedIngredientFilter!=null&&!recipe.fixedIngredientFilter.Allows(d)||!recipe.ingredients.Any(i=>i.filter.Allows(d)))&&recipe.ingredients.All(i=>definitions.Any(d=>i.filter.Allows(d)));
   }
-  public Common.Failure? Validate(Operations.Action action,Common.ObservationContext context){
+  public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action,RimGovernor.Brain.GameFacts.Common.ObservationContext context){
    if(action.Intent?.ProductionBill?.Patient!=null)return NativeSurgery.Validate(action.Intent?.ProductionBill,context);
    if(action.Intent?.ProductionBill is {} mechIntent&&NativeMechBills.Handles(mechIntent))return NativeMechBills.Validate(mechIntent,context);
    var failure=Resolve(action.Intent?.ProductionBill,context,out _);
    return failure;
   }
-  public Receipts.EffectEvidence Apply(Operations.Action action,Common.ObservationContext context){
+  public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action,RimGovernor.Brain.GameFacts.Common.ObservationContext context){
    var intent=action.Intent?.ProductionBill ?? throw new InvalidOperationException("Production bill intent is missing");
    if(intent.Patient!=null)return NativeSurgery.Apply(intent,context);
    if(NativeMechBills.Handles(intent))return NativeMechBills.Apply(intent,context);
@@ -245,9 +245,9 @@ namespace HomeBridge.BridgeTools {
     var s=intent.Settings ?? throw new InvalidOperationException("Production bill settings missing");
     var bill=s.BeerReserve?new SocialBeerBill(t.Recipe):t.Recipe.MakeNewBill(null) as Bill_Production;if(bill==null)throw new InvalidOperationException("Recipe is not ordinary production");
     switch(s.Repetition){
-     case Operations.BillRepetition.Forever:bill.repeatMode=BillRepeatModeDefOf.Forever;break;
-     case Operations.BillRepetition.Count{Repetitions:var count}:bill.repeatMode=BillRepeatModeDefOf.RepeatCount;bill.repeatCount=count;break;
-     case Operations.BillRepetition.Target{Quantity:var target,UnpauseThreshold:var threshold}:bill.repeatMode=BillRepeatModeDefOf.TargetCount;bill.targetCount=target;bill.unpauseWhenYouHave=threshold;bill.pauseWhenSatisfied=true;break;
+     case RimGovernor.Brain.GameOrders.Operations.BillRepetition.Forever:bill.repeatMode=BillRepeatModeDefOf.Forever;break;
+     case RimGovernor.Brain.GameOrders.Operations.BillRepetition.Count{Repetitions:var count}:bill.repeatMode=BillRepeatModeDefOf.RepeatCount;bill.repeatCount=count;break;
+     case RimGovernor.Brain.GameOrders.Operations.BillRepetition.Target{Quantity:var target,UnpauseThreshold:var threshold}:bill.repeatMode=BillRepeatModeDefOf.TargetCount;bill.targetCount=target;bill.unpauseWhenYouHave=threshold;bill.pauseWhenSatisfied=true;break;
      default:throw new InvalidOperationException("Production bill repetition missing");
     }
     bill.suspended=false;bill.ingredientSearchRadius=40;bill.SetStoreMode(BillStoreModeDefOf.DropOnFloor,null);
@@ -259,7 +259,7 @@ namespace HomeBridge.BridgeTools {
     t.Giver.BillStack.AddBill(bill);record.Capture();
     standing=bill;
    }
-   return new Receipts.EffectEvidence{Effect=new Receipts.BillEffect{Bill=NativeRef.Of(standing.GetUniqueLoadID())}};
+   return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence{Effect=new RimGovernor.Brain.GameFacts.Receipts.BillEffect{Bill=NativeRef.Of(standing.GetUniqueLoadID())}};
   }
  }
  // Actions/Apply remove_production_bill: delete one bill from a player bench.
@@ -270,10 +270,10 @@ namespace HomeBridge.BridgeTools {
  internal sealed class RemoveProductionBillActionHandler : IActionHandler {
   internal const string Kind="Remove production bill";
   private sealed record Target(Bill Bill);
-  private static Common.Failure? Resolve(Operations.RemoveProductionBillIntent? intent,Common.ObservationContext context,out Target? target){
+  private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(RimGovernor.Brain.GameOrders.Operations.RemoveProductionBillIntent? intent,RimGovernor.Brain.GameFacts.Common.ObservationContext context,out Target? target){
    target=null;
-   if(intent==null||intent.BenchId is null||!ProtoBoundary.IsIdentifier(intent.BenchId)||intent.Bill==null||!ProtoBoundary.IsIdentifier(intent.Bill.Id))return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Remove production bill requires an exact bench and bill.");
-   var map=ProtoBoundary.LoadedMap(context);
+   if(intent==null||intent.BenchId is null||!GameThread.IsIdentifier(intent.BenchId)||intent.Bill==null||!GameThread.IsIdentifier(intent.Bill.Id))return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest,"Remove production bill requires an exact bench and bill.");
+   var map=GameThread.LoadedMap(context);
    var bench=RefIndex.Thing(map, intent.BenchId);var giver=bench as IBillGiver;
    var bill=giver?.BillStack.Bills.FirstOrDefault(b=>b.GetUniqueLoadID()==(intent.Bill.Id ?? ""));
    var rules=new ApplyPreconditions(Kind)
@@ -285,8 +285,8 @@ namespace HomeBridge.BridgeTools {
    target=new Target(bill);
    return null;
   }
-  public Common.Failure? Validate(Operations.Action action,Common.ObservationContext context)=>Resolve(action.Intent?.RemoveProductionBill,context,out _);
-  public Receipts.EffectEvidence Apply(Operations.Action action,Common.ObservationContext context){
+  public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action,RimGovernor.Brain.GameFacts.Common.ObservationContext context)=>Resolve(action.Intent?.RemoveProductionBill,context,out _);
+  public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action,RimGovernor.Brain.GameFacts.Common.ObservationContext context){
    var intent=action.Intent?.RemoveProductionBill ?? throw new InvalidOperationException("Remove production bill intent is missing");
    var failure=Resolve(intent,context,out var t);
    if(failure!=null)throw new ApplyRefusedException(failure);
@@ -297,7 +297,7 @@ namespace HomeBridge.BridgeTools {
    // orphan to be cancelled (a recipe change): Cancel returns the ingredient share.
    if(intent.CancelUnfinished&&t.Bill is Bill_ProductionWithUft uft&&uft.BoundUft!=null&&!uft.BoundUft.Destroyed)uft.BoundUft.Destroy(DestroyMode.Cancel);
    NativeProductionTracking.Retire(t.Bill);t.Bill.billStack.Delete(t.Bill);
-   return new Receipts.EffectEvidence{Effect=new Receipts.BillEffect{Bill=NativeRef.Of(id)}};
+   return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence{Effect=new RimGovernor.Brain.GameFacts.Receipts.BillEffect{Bill=NativeRef.Of(id)}};
   }
  }
 }

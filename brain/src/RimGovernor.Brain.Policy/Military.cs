@@ -39,7 +39,7 @@ public sealed record MilitaryFacts
     /// <summary>Living, conscious colonists able to fight who hold no weapon.</summary>
     public long Unarmed { get; init; }
 
-    /// <summary>The colonist count the foothold sizes for (<see cref="RoundsRules.FootholdCount"/>).</summary>
+    /// <summary>The colonist count the foothold sizes for (<see cref="Rules.FootholdCount"/>).</summary>
     public long Foothold { get; init; }
 
     /// <summary>The pests in the wild-animal census (<see cref="PestRules.PestCensus"/>).</summary>
@@ -82,12 +82,12 @@ public sealed record MilitaryFacts
     public int StrayDrafts { get; init; }
 
     /// <summary>The defense, training and equipment facts a review already holds; the pest section stays unread.</summary>
-    public static MilitaryFacts From(RoundsFacts f) => new()
+    public static MilitaryFacts From(ReviewFacts f) => new()
     {
         Hostiles = f.Hostiles,
         Armed = f.Armed,
         Unarmed = f.Unarmed,
-        Foothold = RoundsRules.FootholdCount(f),
+        Foothold = Rules.FootholdCount(f),
         Training = TrainingRules.ReviewTraining(f),
         Gear = f.Gear,
         ShellsShort = f.ShellsShort,
@@ -116,7 +116,7 @@ public sealed record MilitaryFacts
 /// <item><c>military/restore-workers</c> (SeriousHarm, #3311): no drafted colonist stands that no live plan needs
 /// while no hostile does; an unread census raises <see cref="RequiredFactException"/>. It has no Methods: its work step is the undraft
 /// sweep, which replaced the RestoreWorkers Concern and the undraft planner.</item>
-/// <item><c>military/combat</c> (SeriousHarm, #3311): one per map, <see cref="RoundsRules.CombatSituation"/> over
+/// <item><c>military/combat</c> (SeriousHarm, #3311): one per map, <see cref="Rules.CombatSituation"/> over
 /// the hostiles and the squad-hunt prey: unmet while a hostile stands or a squad hunt is open, met otherwise; an
 /// unread hostile count raises <see cref="RequiredFactException"/>. It proposes no Methods: the defense runner fights it (<c>engage-&lt;map&gt;</c>,
 /// <c>subdue-&lt;colonist&gt;</c>, <c>strip-&lt;raider&gt;</c>, <c>permit-&lt;hash&gt;</c>, its batches and the
@@ -298,7 +298,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
         new(prefix + "-" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)).AsSpan(0, 16)));
 
     /// <summary>
-    /// The basic-defense predicate: the foothold's armed fighters (<see cref="RoundsRules.ArmedTarget"/>) with
+    /// The basic-defense predicate: the foothold's armed fighters (<see cref="Rules.ArmedTarget"/>) with
     /// no hostile standing, and no fighting-capable colonist left unarmed; unknown when the facts do not say.
     /// </summary>
     public static bool DefenseMet(MilitaryFacts f)
@@ -316,7 +316,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
         if (!ok && n > 0)
         {
             // The armed shortfall's share of the target; with the target armed, the unarmed share of the fighters.
-            var target = RoundsRules.ArmedTarget(n);
+            var target = Rules.ArmedTarget(n);
             var share = Math.Max(0, (double)(target - stock) / target);
             if (f.Unarmed > 0 && share == 0)
             {
@@ -346,12 +346,12 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     }
 
     /// <summary>
-    /// The combat Need: <see cref="RoundsRules.CombatSituation"/> over the hostiles and the squad-hunt prey. Its
+    /// The combat Need: <see cref="Rules.CombatSituation"/> over the hostiles and the squad-hunt prey. Its
     /// deficit is the hostiles standing plus the prey.
     /// </summary>
     private static Need CombatNeed(MilitaryFacts f)
     {
-        var situation = RoundsRules.CombatSituation(f.Hostiles, f.HuntPrey.Count);
+        var situation = Rules.CombatSituation(f.Hostiles, f.HuntPrey.Count);
         var hostiles = f.Hostiles.ThreatCount;
         var met = situation == Situation.Clear;
         return new Need

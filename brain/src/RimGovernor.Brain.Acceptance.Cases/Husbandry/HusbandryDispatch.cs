@@ -1,9 +1,5 @@
 using RimGovernor.Brain.Bridge;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -44,37 +40,37 @@ internal static class HusbandryDispatch
         s.Record("fixture", ServedOps.Json(herd));
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 
-        async Task<Observations.PawnState> RowAsync(string label, string id)
+        async Task<RimGovernor.Brain.GameFacts.Observations.PawnState> RowAsync(string label, string id)
         {
-            var request = new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [id] } };
+            var request = new RimGovernor.Brain.GameOrders.Observations.ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [id] } };
             var reply = await s.CallAsync(label, NativeOps.ListPawns, request, cancellationToken).ConfigureAwait(false);
-            return reply.Pawns.FirstOrDefault(p => p.Pawn?.Id == id) is { AnimalState: Observations.PawnAnimalState.Animal } row
+            return reply.Pawns.FirstOrDefault(p => p.Pawn?.Id == id) is { AnimalState: RimGovernor.Brain.GameFacts.Observations.PawnAnimalState.Animal } row
                 ? row
                 : throw new AcceptanceException($"{label}: animal {id} is not read as an animal");
         }
 
-        async Task<Observations.AnimalState> AnimalAsync(string label, string id) =>
-            (await RowAsync(label, id).ConfigureAwait(false)).AnimalState is Observations.PawnAnimalState.Animal animal
+        async Task<RimGovernor.Brain.GameFacts.Observations.AnimalState> AnimalAsync(string label, string id) =>
+            (await RowAsync(label, id).ConfigureAwait(false)).AnimalState is RimGovernor.Brain.GameFacts.Observations.PawnAnimalState.Animal animal
                 ? animal.State
                 : throw new AcceptanceException($"{label}: animal {id} is not read as an animal");
 
-        async Task<Operations.ActionResultOutcome?> ApplyAsync(string key, Operations.HusbandryIntent intent)
+        async Task<RimGovernor.Brain.GameFacts.Operations.ActionResultOutcome?> ApplyAsync(string key, RimGovernor.Brain.GameOrders.Operations.HusbandryIntent intent)
         {
-            var reply = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
+            var reply = await s.CallAsync(key, NativeOps.Apply, new RimGovernor.Brain.GameOrders.Operations.ApplyRequest
             {
                 Identity = s.Identity,
-                Actions = [new Operations.Action { Key = key, Intent = intent }], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
+                Actions = [new RimGovernor.Brain.GameOrders.Operations.Action { Key = key, Intent = intent }], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
             return reply.Results.ToList() is [var result] ? result.Outcome : throw new AcceptanceException($"{key}: expected one result, got {reply.Results.Count}");
         }
 
-        async Task<Receipts.AnimalEffect> AppliedAsync(string key, Operations.HusbandryIntent intent)
+        async Task<RimGovernor.Brain.GameFacts.Receipts.AnimalEffect> AppliedAsync(string key, RimGovernor.Brain.GameOrders.Operations.HusbandryIntent intent)
         {
             var outcome = await ApplyAsync(key, intent).ConfigureAwait(false);
             return outcome?.Applied?.Outcome?.Applied?.Observed?.Effect?.Animal
                 ?? throw new AcceptanceException($"{key}: expected an applied animal effect, got {outcome}");
         }
 
-        async Task RefusedAsync(string key, Operations.HusbandryIntent intent, Common.FailureCode code)
+        async Task RefusedAsync(string key, RimGovernor.Brain.GameOrders.Operations.HusbandryIntent intent, RimGovernor.Brain.GameFacts.Common.FailureCode code)
         {
             var outcome = await ApplyAsync(key, intent).ConfigureAwait(false);
             if (outcome?.Refused is not { } refusal || refusal.Code != code)
@@ -93,21 +89,21 @@ internal static class HusbandryDispatch
             }
         }
 
-        Operations.HusbandryIntent Order(string id, Operations.HusbandryOrder order) => new() { AnimalId = id, Order = order, Follow = false };
+        RimGovernor.Brain.GameOrders.Operations.HusbandryIntent Order(string id, RimGovernor.Brain.GameOrders.Operations.HusbandryOrder order) => new() { AnimalId = id, Order = order, Follow = false };
 
         // Preconditions the fixture promises.
         var dog = await AnimalAsync("dog-before", herd.Dog).ConfigureAwait(false);
         var obedience = dog.Training.FirstOrDefault(t => t.DefName == "Obedience");
         Want(obedience is { Available: true, Learned: false, Wanted: false } && !dog.Obedient, "dog-before: want Obedience available, unlearned, unwanted and the dog not obedient", dog);
         var cow = await AnimalAsync("cow-before", herd.Cow).ConfigureAwait(false);
-        Want(cow is { SlaughterDesignatable: true, Slaughter: false } && cow is { Downed: false, InMentalState: false, Pregnancy: Observations.AnimalPregnancy.NotPregnant, ColonistBonded: false }, "cow-before: want a slaughterable, undesignated cow", cow);
+        Want(cow is { SlaughterDesignatable: true, Slaughter: false } && cow is { Downed: false, InMentalState: false, Pregnancy: RimGovernor.Brain.GameFacts.Observations.AnimalPregnancy.NotPregnant, ColonistBonded: false }, "cow-before: want a slaughterable, undesignated cow", cow);
         var mother = await AnimalAsync("mother-before", herd.Mother).ConfigureAwait(false);
-        Want(mother.Pregnancy is not Observations.AnimalPregnancy.NotPregnant, "mother-before: want the raw pregnancy", mother);
+        Want(mother.Pregnancy is not RimGovernor.Brain.GameFacts.Observations.AnimalPregnancy.NotPregnant, "mother-before: want the raw pregnancy", mother);
 
         // Train: SetWantedRecursive, read back at once; resending applies again.
-        var train = Order(herd.Dog, Operations.HusbandryOrder.Train) with { TrainableDef = "Obedience" };
+        var train = Order(herd.Dog, RimGovernor.Brain.GameOrders.Operations.HusbandryOrder.Train) with { TrainableDef = "Obedience" };
         var trained = await AppliedAsync("apply-train", train).ConfigureAwait(false);
-        Want(trained is Receipts.AnimalEffect.TrainingCase { Wanted: true, TrainableDef: "Obedience" }, "apply-train: want Obedience wanted", trained);
+        Want(trained is RimGovernor.Brain.GameFacts.Receipts.AnimalEffect.TrainingCase { Wanted: true, TrainableDef: "Obedience" }, "apply-train: want Obedience wanted", trained);
         dog = await AnimalAsync("dog-after-train", herd.Dog).ConfigureAwait(false);
         Want(dog.Training.Any(t => t is { DefName: "Obedience", Wanted: true }), "dog-after-train: want Obedience wanted", dog);
         _ = await AppliedAsync("reapply-train", train).ConfigureAwait(false);
@@ -115,15 +111,15 @@ internal static class HusbandryDispatch
         // Sterilization applies by queuing the native surgery, including a repeated order while held.
         foreach (var key in new[] { "apply-sterilize", "reapply-sterilize" })
         {
-            var effect = await AppliedAsync(key, Order(herd.Dog, Operations.HusbandryOrder.Sterilize)).ConfigureAwait(false);
-            Want(effect is Receipts.AnimalEffect.SterilizationQueuedCase, $"{key}: want the sterilization bill queued", effect);
+            var effect = await AppliedAsync(key, Order(herd.Dog, RimGovernor.Brain.GameOrders.Operations.HusbandryOrder.Sterilize)).ConfigureAwait(false);
+            Want(effect is RimGovernor.Brain.GameFacts.Receipts.AnimalEffect.SterilizationQueuedCase, $"{key}: want the sterilization bill queued", effect);
         }
 
         // Slaughter, twice.
         foreach (var key in new[] { "apply-slaughter", "reapply-slaughter" })
         {
-            var effect = await AppliedAsync(key, Order(herd.Cow, Operations.HusbandryOrder.Slaughter)).ConfigureAwait(false);
-            Want(effect is Receipts.AnimalEffect.SlaughterCase { Designated: true }, $"{key}: want a slaughter designation", effect);
+            var effect = await AppliedAsync(key, Order(herd.Cow, RimGovernor.Brain.GameOrders.Operations.HusbandryOrder.Slaughter)).ConfigureAwait(false);
+            Want(effect is RimGovernor.Brain.GameFacts.Receipts.AnimalEffect.SlaughterCase { Designated: true }, $"{key}: want a slaughter designation", effect);
         }
 
         cow = await AnimalAsync("cow-after-slaughter", herd.Cow).ConfigureAwait(false);
@@ -132,15 +128,15 @@ internal static class HusbandryDispatch
         // Tame: the factionless muffalo is only in the colony facts' wild census.
         var wild = await AnimalAsync("wild-before", herd.Wild).ConfigureAwait(false);
         Want(wild is { Tameable: true } && !wild.Tame, "wild-before: want a tameable, undesignated muffalo", wild);
-        var factsReply = await s.CallAsync("colony-facts-wild", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var factsReply = await s.CallAsync("colony-facts-wild", NativeOps.ReadColonyFacts, new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var upkeep = factsReply.Upkeep;
         Want(upkeep.WildAnimals.Any(a => a.Value == herd.Wild) && !upkeep.Animals.Any(a => a.Pawn.Value == herd.Wild), "colony-facts-wild: want the muffalo in the wild census only", herd.Wild);
 
-        await RefusedAsync("tame-player-animal", Order(herd.Cow, Operations.HusbandryOrder.Tame), Common.FailureCode.NotFound).ConfigureAwait(false);
+        await RefusedAsync("tame-player-animal", Order(herd.Cow, RimGovernor.Brain.GameOrders.Operations.HusbandryOrder.Tame), RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound).ConfigureAwait(false);
         foreach (var key in new[] { "apply-tame", "reapply-tame" })
         {
-            var effect = await AppliedAsync(key, Order(herd.Wild, Operations.HusbandryOrder.Tame)).ConfigureAwait(false);
-            Want(effect is Receipts.AnimalEffect.TameCase { Designated: true }, $"{key}: want a tame designation", effect);
+            var effect = await AppliedAsync(key, Order(herd.Wild, RimGovernor.Brain.GameOrders.Operations.HusbandryOrder.Tame)).ConfigureAwait(false);
+            Want(effect is RimGovernor.Brain.GameFacts.Receipts.AnimalEffect.TameCase { Designated: true }, $"{key}: want a tame designation", effect);
         }
 
         wild = await AnimalAsync("wild-after-tame", herd.Wild).ConfigureAwait(false);
@@ -149,50 +145,50 @@ internal static class HusbandryDispatch
         // Release on the unbonded, unmastered father.
         var father = await AnimalAsync("father-before", herd.Father).ConfigureAwait(false);
         Want(father.SafeToRelease, "father-before: want safe to release", father);
-        var released = await AppliedAsync("apply-release", Order(herd.Father, Operations.HusbandryOrder.Release)).ConfigureAwait(false);
-        Want(released is Receipts.AnimalEffect.ReleaseCase { Designated: true }, "apply-release: want a release designation", released);
+        var released = await AppliedAsync("apply-release", Order(herd.Father, RimGovernor.Brain.GameOrders.Operations.HusbandryOrder.Release)).ConfigureAwait(false);
+        Want(released is RimGovernor.Brain.GameFacts.Receipts.AnimalEffect.ReleaseCase { Designated: true }, "apply-release: want a release designation", released);
         father = await AnimalAsync("father-after-release", herd.Father).ConfigureAwait(false);
         Want(father.Release, "father-after-release: want the designation observable", father);
 
         // Animals-tab settings on the obedient guard; the untrained dog refuses master and following, a missing area refuses.
         var guardRow = await RowAsync("guard-before", herd.Guard).ConfigureAwait(false);
-        var guard = guardRow.AnimalState is Observations.PawnAnimalState.Animal { State: var guardState } ? guardState : throw new AcceptanceException("guard-before: not an animal");
+        var guard = guardRow.AnimalState is RimGovernor.Brain.GameFacts.Observations.PawnAnimalState.Animal { State: var guardState } ? guardState : throw new AcceptanceException("guard-before: not an animal");
         Want(guard is { Obedient: true, SupportsAllowedAreas: true, MasterId: "" } && guardRow.Settings.AllowedAreaId is null, "guard-before: want an obedient guard with no area or master", guardRow);
-        await RefusedAsync("master-untrained", Order(herd.Dog, Operations.HusbandryOrder.Master) with { TargetId = herd.Handler }, Common.FailureCode.InvalidRequest).ConfigureAwait(false);
-        await RefusedAsync("follow-untrained", Order(herd.Dog, Operations.HusbandryOrder.FollowDrafted) with { Follow = true }, Common.FailureCode.InvalidRequest).ConfigureAwait(false);
-        await RefusedAsync("area-missing", Order(herd.Guard, Operations.HusbandryOrder.AllowedArea) with { TargetId = "Area_Allowed_999999" }, Common.FailureCode.NotFound).ConfigureAwait(false);
+        await RefusedAsync("master-untrained", Order(herd.Dog, RimGovernor.Brain.GameOrders.Operations.HusbandryOrder.Master) with { TargetId = herd.Handler }, RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest).ConfigureAwait(false);
+        await RefusedAsync("follow-untrained", Order(herd.Dog, RimGovernor.Brain.GameOrders.Operations.HusbandryOrder.FollowDrafted) with { Follow = true }, RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest).ConfigureAwait(false);
+        await RefusedAsync("area-missing", Order(herd.Guard, RimGovernor.Brain.GameOrders.Operations.HusbandryOrder.AllowedArea) with { TargetId = "Area_Allowed_999999" }, RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound).ConfigureAwait(false);
 
-        var area = await AppliedAsync("apply-area", Order(herd.Guard, Operations.HusbandryOrder.AllowedArea) with { TargetId = herd.Area }).ConfigureAwait(false);
-        Want(area is Receipts.AnimalEffect.AreaCase { AreaId: var areaId } && areaId == herd.Area, "apply-area: want the area in the effect", area);
+        var area = await AppliedAsync("apply-area", Order(herd.Guard, RimGovernor.Brain.GameOrders.Operations.HusbandryOrder.AllowedArea) with { TargetId = herd.Area }).ConfigureAwait(false);
+        Want(area is RimGovernor.Brain.GameFacts.Receipts.AnimalEffect.AreaCase { AreaId: var areaId } && areaId == herd.Area, "apply-area: want the area in the effect", area);
         guardRow = await RowAsync("guard-after-area", herd.Guard).ConfigureAwait(false);
         Want(guardRow.Settings.AllowedAreaId == herd.Area, "guard-after-area: want the area observable", guardRow);
-        var cleared = await AppliedAsync("apply-area-clear", Order(herd.Guard, Operations.HusbandryOrder.AllowedArea)).ConfigureAwait(false);
-        Want(cleared is Receipts.AnimalEffect.AreaCase { AreaId: "" }, "apply-area-clear: want an empty area in the effect", cleared);
+        var cleared = await AppliedAsync("apply-area-clear", Order(herd.Guard, RimGovernor.Brain.GameOrders.Operations.HusbandryOrder.AllowedArea)).ConfigureAwait(false);
+        Want(cleared is RimGovernor.Brain.GameFacts.Receipts.AnimalEffect.AreaCase { AreaId: "" }, "apply-area-clear: want an empty area in the effect", cleared);
         guardRow = await RowAsync("guard-after-area-clear", herd.Guard).ConfigureAwait(false);
         Want(guardRow.Settings.AllowedAreaId is null, "guard-after-area-clear: want no area", guardRow);
 
-        var master = await AppliedAsync("apply-master", Order(herd.Guard, Operations.HusbandryOrder.Master) with { TargetId = herd.Handler }).ConfigureAwait(false);
-        Want(master is Receipts.AnimalEffect.MasterCase { MasterId: var masterId } && masterId == herd.Handler, "apply-master: want the handler in the effect", master);
+        var master = await AppliedAsync("apply-master", Order(herd.Guard, RimGovernor.Brain.GameOrders.Operations.HusbandryOrder.Master) with { TargetId = herd.Handler }).ConfigureAwait(false);
+        Want(master is RimGovernor.Brain.GameFacts.Receipts.AnimalEffect.MasterCase { MasterId: var masterId } && masterId == herd.Handler, "apply-master: want the handler in the effect", master);
         guard = await AnimalAsync("guard-after-master", herd.Guard).ConfigureAwait(false);
         Want(guard.MasterId == herd.Handler, "guard-after-master: want the master observable", guard);
 
         // Each follow flag is written on its own and leaves the other.
-        var drafted = await AppliedAsync("apply-follow-drafted", Order(herd.Guard, Operations.HusbandryOrder.FollowDrafted) with { Follow = true }).ConfigureAwait(false);
-        Want(drafted is Receipts.AnimalEffect.FollowDraftedCase { Follow: true }, "apply-follow-drafted: want followDrafted in the effect", drafted);
+        var drafted = await AppliedAsync("apply-follow-drafted", Order(herd.Guard, RimGovernor.Brain.GameOrders.Operations.HusbandryOrder.FollowDrafted) with { Follow = true }).ConfigureAwait(false);
+        Want(drafted is RimGovernor.Brain.GameFacts.Receipts.AnimalEffect.FollowDraftedCase { Follow: true }, "apply-follow-drafted: want followDrafted in the effect", drafted);
         guard = await AnimalAsync("guard-after-follow-drafted", herd.Guard).ConfigureAwait(false);
         Want(guard is { FollowDrafted: true, FollowFieldwork: false }, "guard-after-follow-drafted: want followDrafted only", guard);
-        var fieldwork = await AppliedAsync("apply-follow-fieldwork", Order(herd.Guard, Operations.HusbandryOrder.FollowFieldwork) with { Follow = true }).ConfigureAwait(false);
-        Want(fieldwork is Receipts.AnimalEffect.FollowFieldworkCase { Follow: true }, "apply-follow-fieldwork: want followFieldwork in the effect", fieldwork);
+        var fieldwork = await AppliedAsync("apply-follow-fieldwork", Order(herd.Guard, RimGovernor.Brain.GameOrders.Operations.HusbandryOrder.FollowFieldwork) with { Follow = true }).ConfigureAwait(false);
+        Want(fieldwork is RimGovernor.Brain.GameFacts.Receipts.AnimalEffect.FollowFieldworkCase { Follow: true }, "apply-follow-fieldwork: want followFieldwork in the effect", fieldwork);
         guard = await AnimalAsync("guard-after-follow-fieldwork", herd.Guard).ConfigureAwait(false);
         Want(guard is { FollowDrafted: true, FollowFieldwork: true }, "guard-after-follow-fieldwork: want both flags", guard);
 
         // The standing removals cancel, read back, and cancel again as they stand.
-        foreach (var (id, order, slaughter) in new[] { (herd.Cow, Operations.HusbandryOrder.CancelSlaughter, true), (herd.Father, Operations.HusbandryOrder.CancelRelease, false) })
+        foreach (var (id, order, slaughter) in new[] { (herd.Cow, RimGovernor.Brain.GameOrders.Operations.HusbandryOrder.CancelSlaughter, true), (herd.Father, RimGovernor.Brain.GameOrders.Operations.HusbandryOrder.CancelRelease, false) })
         {
             foreach (var key in new[] { $"cancel-{order}", $"recancel-{order}" })
             {
                 var effect = await AppliedAsync(key, Order(id, order)).ConfigureAwait(false);
-                Want(slaughter ? effect is Receipts.AnimalEffect.SlaughterCase { Designated: false } : effect is Receipts.AnimalEffect.ReleaseCase { Designated: false }, $"{key}: want the designation cleared in the effect", effect);
+                Want(slaughter ? effect is RimGovernor.Brain.GameFacts.Receipts.AnimalEffect.SlaughterCase { Designated: false } : effect is RimGovernor.Brain.GameFacts.Receipts.AnimalEffect.ReleaseCase { Designated: false }, $"{key}: want the designation cleared in the effect", effect);
             }
 
             var animal = await AnimalAsync($"after-{order}", id).ConfigureAwait(false);

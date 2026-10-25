@@ -13,14 +13,14 @@ internal static class CareFixtures
         Operations = EquatableArray.From(operations ?? []),
     };
 
-    public static RimGovernor.Contracts.Wire.Observations.PawnState NativePatient(string id, IEnumerable<Hediff>? conditions = null)
+    public static RimGovernor.Brain.GameFacts.Observations.PawnState NativePatient(string id, IEnumerable<Hediff>? conditions = null)
     {
         var pawn = PawnFixtures.Row(id);
         return pawn with
         {
-            Settings = pawn.Settings with { Care = new RimGovernor.Contracts.Wire.Observations.PawnCare.Configured(
-                RimGovernor.Contracts.Wire.Operations.MedicalCare.Best, false,
-                RimGovernor.Contracts.Wire.Operations.HostilityResponse.Flee) },
+            Settings = pawn.Settings with { Care = new RimGovernor.Brain.GameFacts.Observations.PawnCare.Configured(
+                RimGovernor.Brain.GameFacts.Operations.MedicalCare.Best, false,
+                RimGovernor.Brain.GameFacts.Operations.HostilityResponse.Flee) },
             Health = pawn.Health with { Hediffs = EquatableArray.From(conditions ?? []) },
         };
     }

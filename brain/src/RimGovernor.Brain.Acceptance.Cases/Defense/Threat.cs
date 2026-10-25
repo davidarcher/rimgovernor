@@ -1,7 +1,6 @@
 using System.Globalization;
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -57,9 +56,9 @@ internal static class DefenseThreat
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        async Task<Observations.ThreatFacts> ReadAsync(string label)
+        async Task<RimGovernor.Brain.GameFacts.Observations.ThreatFacts> ReadAsync(string label)
         {
-            var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+            var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
             var threat = facts.Threat.Observed;
             s.RecordWire(label, threat);
             return threat;

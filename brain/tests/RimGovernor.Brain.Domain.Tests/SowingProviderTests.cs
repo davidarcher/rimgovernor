@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -70,7 +71,7 @@ public sealed class SowingProviderTests
         Assert.Throws<DomainException>(() => Batch(new PawnActivityStep(sow.Kind, sow.Target, sow.WorkGiver, sow.Job, sow.Count, sow.Deadline)).Validate());
         Assert.Throws<DomainException>(() => Batch(sow with { Count = 0 }).Validate());
         Assert.Throws<DomainException>(() => Batch(sow with { Target = "" }).Validate());
-        var wire = RimGovernor.Contracts.Wire.WireJson.Deserialize<SowingActivityRead>(RimGovernor.Contracts.Wire.WireJson.Serialize(
+        var wire = RimGovernor.Brain.GameOrders.OrdersJson.Deserialize<SowingActivityRead>(RimGovernor.Brain.GameOrders.OrdersJson.Serialize(
             CoupledFixtures.NoSowing with { Workers = [Worker("pawn", 2)], Findings = ["sowing_zone_without_crop:Zone_Growing14"] }));
         Assert.Equal(Worker("pawn", 2), Assert.Single(wire!.Workers));
     }

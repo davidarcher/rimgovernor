@@ -1,6 +1,6 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -107,13 +107,13 @@ public sealed class TrainingRangeCreditTests
     [Fact]
     public void TheCoupledContextCarriesEveryCapableShooterTheRoundsRead()
     {
-        // The production path (#3822): RoundsWork fills each work pawn's Skills (the native SkillLearning, its SkillPractice.Range
+        // The production path (#3822): Work fills each work pawn's Skills (the native SkillLearning, its SkillPractice.Range
         // the one practice eligibility rule and RangeTraining.DailyXpBudget) and SkillStatCurves (the biography's
         // RangedDefenseDps curve); GenerateCoupledActivities builds the context's range trainees from the review's facts.
         var facts = ForecastCoupledTests.ConstructionReview();
         var pawns = ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns;
         WorkPawn Capable(WorkPawn pawn, string id, bool capable = true) => pawn with
-        { Observed = pawn.Observed with { Pawn = pawn.Observed.Pawn with { Id = id }, Health = pawn.Observed.Health with { SummaryFraction = 0.5 }, Biography = pawn.Observed.Biography with { Skills = [new O.Skill { Passion = O.Passion.None, DefName = "Shooting", Level = 0, Learning = Shooting() with { Practice = new SkillPractice.Range(capable, true, 2, 3000, 3000) } }], SkillStatCurves = [RangedDps] } } };
+        { Observed = pawn.Observed with { Pawn = pawn.Observed.Pawn with { Id = id }, Health = pawn.Observed.Health with { SummaryFraction = 0.5 }, Biography = pawn.Observed.Biography with { Skills = [new RimGovernor.Brain.GameFacts.Observations.Skill { Passion = RimGovernor.Brain.GameFacts.Observations.Passion.None, DefName = "Shooting", Level = 0, Learning = Shooting() with { Practice = new SkillPractice.Range(capable, true, 2, 3000, 3000) } }], SkillStatCurves = [RangedDps] } } };
         WorkPawn[] colony = [Capable(pawns[0], "a"), Capable(pawns[0], "b", capable: false)];
         var review = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead(EquatableArray.From(colony)) } };
         var context = ForecastCoupledCandidates.GenerateCoupledActivities(review)!.Context;
@@ -129,7 +129,7 @@ public sealed class TrainingRangeCreditTests
         Assert.Empty(generated.Context.Range!.Trainees);
         Assert.Contains("training_range_shooting_not_modelled:a", generated.Findings);
         // A fresh colony (its colonist's skills read, none capable of Shooting practice) credits its planned range nothing and throws nothing.
-        var brawler = pawns[0] with { Observed = (pawns[0]).Observed with { Biography = (pawns[0]).Observed.Biography with { Skills = [new O.Skill { Passion = O.Passion.None, DefName = "Shooting", Level = 3, Learning = Shooting() with { Practice = new SkillPractice.Range(false, true, 2, 3000, 3000) } }] } } };
+        var brawler = pawns[0] with { Observed = (pawns[0]).Observed with { Biography = (pawns[0]).Observed.Biography with { Skills = [new RimGovernor.Brain.GameFacts.Observations.Skill { Passion = RimGovernor.Brain.GameFacts.Observations.Passion.None, DefName = "Shooting", Level = 3, Learning = Shooting() with { Practice = new SkillPractice.Range(false, true, 2, 3000, 3000) } }] } } };
         var fresh = ForecastCoupledCandidates.GenerateCoupledActivities(facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead(EquatableArray.From<WorkPawn>([brawler])) } })!.Context;
         Assert.Empty(fresh.Range!.Trainees);
         Assert.Empty(ForecastTrainingRange.RangeCredit(new(1, "", 0), Stub(), [], fresh with { PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.TrainingRange } }, Day));

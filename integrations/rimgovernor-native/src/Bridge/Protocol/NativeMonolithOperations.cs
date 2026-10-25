@@ -2,10 +2,8 @@ using System;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // GiveJobIntent jobs InvestigateMonolith and ActivateMonolith: order
     // one colonist to the void monolith with the job the game's own float menu
@@ -16,31 +14,31 @@ namespace HomeBridge.BridgeTools
     // and are answered as dialogs.
     internal static class NativeMonolithOperations
     {
-        private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Building_VoidMonolith? monolith, out bool running)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Pawn? pawn, out Building_VoidMonolith? monolith, out bool running)
         {
             monolith = null; running = false;
             if (!NativeGiveJob.TryPawn(intent, context, out pawn, out var snapshot, out var failure)) return failure;
-            if (snapshot.Drafted || !snapshot.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A monolith order requires an eligible undrafted pawn.");
-            var map = ProtoBoundary.LoadedMap(context);
+            if (snapshot.Drafted || !snapshot.Eligible) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "A monolith order requires an eligible undrafted pawn.");
+            var map = GameThread.LoadedMap(context);
             monolith = RefIndex.Thing(map, intent.TargetId) as Building_VoidMonolith;
             if (monolith == null || !monolith.Spawned || monolith.Destroyed || !ReferenceEquals(monolith, Find.Anomaly.monolith))
-                return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact void monolith is not spawned on this map.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact void monolith is not spawned on this map.");
             var investigate = intent.Kind == JobOrderKind.InvestigateMonolith;
             var current = pawn.CurJob;
             running = current != null && current.def == (investigate ? JobDefOf.InvestigateMonolith : JobDefOf.ActivateMonolith) && current.targetA.Thing == monolith;
             if (running) return null;
             if (investigate != (Find.Anomaly.Level == 0))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, investigate ? "The monolith is no longer inactive." : "An inactive monolith is investigated, not activated.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, investigate ? "The monolith is no longer inactive." : "An inactive monolith is investigated, not activated.");
             if (!monolith.CanActivate(out var reason, out _))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The monolith cannot be activated now" + (reason.NullOrEmpty() ? "." : ": " + reason));
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The monolith cannot be activated now" + (reason.NullOrEmpty() ? "." : ": " + reason));
             if (!monolith.ValidateTarget(pawn, showMessages: false))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The pawn cannot take the monolith job now.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The pawn cannot take the monolith job now.");
             return null;
         }
 
-        internal static Common.Failure? Validate(JobOrder intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var monolith, out var running);
             if (failure != null || pawn == null || monolith == null) throw new InvalidOperationException(failure?.Detail);

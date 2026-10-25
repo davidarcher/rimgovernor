@@ -2,8 +2,6 @@ using System.Globalization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -60,17 +58,17 @@ internal static class ClearanceForeignIds
         var own = staged.Buildings["own"].Ids.Single();
 
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
-        _ = await TypedApply.AppliedAsync(s, "foreign-claim", new Operations.BuildingPatchIntent
+        _ = await TypedApply.AppliedAsync(s, "foreign-claim", new RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntent
         {
             ThingId = ruin,
-            Change = new Operations.BuildingPatchIntentChange.ClaimCase(),
+            Change = new RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.ClaimCase(),
         }, cancellationToken).ConfigureAwait(false);
-        _ = await TypedApply.AppliedAsync(s, "foreign-cut", new Operations.DesignateIntent
-        { Location = new Operations.DesignationLocation.ByTarget(),
-            Designation = Operations.ThingDesignation.CutPlant,
-            Target = new() { Id = bush }, ReplaceWithWall = false, Withdraw = false, Guard = Operations.DesignationGuard.NoGuard }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "foreign-cut", new RimGovernor.Brain.GameOrders.Operations.DesignateIntent
+        { Location = new RimGovernor.Brain.GameOrders.Operations.DesignationLocation.ByTarget(),
+            Designation = RimGovernor.Brain.GameOrders.Operations.ThingDesignation.CutPlant,
+            Target = new() { Id = bush }, ReplaceWithWall = false, Withdraw = false, Guard = RimGovernor.Brain.GameOrders.Operations.DesignationGuard.NoGuard }, cancellationToken).ConfigureAwait(false);
 
-        var rows = await s.BuildingsAsync("claimed", new Observations.ListBuildingsRequest { Ids = [ruin, own], AnyFaction = true }, cancellationToken).ConfigureAwait(false);
+        var rows = await s.BuildingsAsync("claimed", new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest { Ids = [ruin, own], AnyFaction = true }, cancellationToken).ConfigureAwait(false);
         var faction = rows.FirstOrDefault(r => r.Building.Id == own)?.Faction?.Id;
         var claimed = rows.FirstOrDefault(r => r.Building.Id == ruin);
         if (faction is null || claimed?.Faction?.Id != faction)

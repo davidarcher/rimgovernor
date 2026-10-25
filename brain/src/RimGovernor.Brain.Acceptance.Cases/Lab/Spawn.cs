@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -41,7 +40,7 @@ internal static class LabSpawn
         var staged = s.Staged!;
         var wall = staged.Buildings["wall"].Ids.Single();
         var animal = staged.Pawns["muffalo"].Id;
-        var walls = await s.BuildingsAsync("wall", new Observations.ListBuildingsRequest { Ids = [wall] }, cancellationToken).ConfigureAwait(false);
+        var walls = await s.BuildingsAsync("wall", new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest { Ids = [wall] }, cancellationToken).ConfigureAwait(false);
         if (walls is not [{ Stuff: "WoodLog" } row])
         {
             throw new AcceptanceException($"list_buildings {wall}: want one WoodLog wall, got {walls.Count} rows: {string.Join("; ", walls)}");
@@ -50,7 +49,7 @@ internal static class LabSpawn
         var pawns = await s.CallAsync(
             "animal",
             NativeOps.ListPawns,
-            new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [animal] } },
+            new RimGovernor.Brain.GameOrders.Observations.ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [animal] } },
             cancellationToken).ConfigureAwait(false);
         var observed = pawns;
         var rows = observed.Pawns.ToList();

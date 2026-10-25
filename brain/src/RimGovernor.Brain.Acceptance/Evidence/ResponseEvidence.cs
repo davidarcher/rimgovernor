@@ -85,7 +85,7 @@ public sealed class ResponseEvidence
             }
 
             var fields = row.Fields();
-            if (row.Kind == TelemetryKinds.ClockStep.Name)
+            if (row.Kind == TelemetryKinds.SchedulerStep.Name)
             {
                 if (fields.TryGetValue("critical_wave_ms", out var wave))
                 {

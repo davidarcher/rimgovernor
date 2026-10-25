@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 public static partial class ColonyPlanningRules
 {
     /// <summary>Name's resolved planning row.</summary>
-    public static bool TryDefinition(RoundsFacts facts, string name, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out PlanningDefinition? definition)
+    public static bool TryDefinition(ReviewFacts facts, string name, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out PlanningDefinition? definition)
     {
         foreach (var d in facts.Definitions)
         {
@@ -23,7 +23,7 @@ public static partial class ColonyPlanningRules
     /// natively for material). A def not made from stuff and a def the rows cannot choose for yield
     /// the empty stuff.
     /// </summary>
-    public static string BuildStuff(RoundsFacts facts, IReadOnlyDictionary<Resource, long> stock, string name)
+    public static string BuildStuff(ReviewFacts facts, IReadOnlyDictionary<Resource, long> stock, string name)
     {
         if (TryStockedBuildStuff(facts, stock, name, out var stocked))
         {
@@ -44,7 +44,7 @@ public static partial class ColonyPlanningRules
     }
 
     /// <summary>BuildStuff over the stuffs the colony stocks to build the def once; false when none is stocked or the def has no stuff to choose.</summary>
-    public static bool TryStockedBuildStuff(RoundsFacts facts, IReadOnlyDictionary<Resource, long> stock, string name, out string stuff)
+    public static bool TryStockedBuildStuff(ReviewFacts facts, IReadOnlyDictionary<Resource, long> stock, string name, out string stuff)
     {
         stuff = "";
         if (!TryDefinition(facts, name, out var d) || d.StuffOptions.Count == 0)
@@ -64,7 +64,7 @@ public static partial class ColonyPlanningRules
     }
 
     /// <summary>BuildStuff for a def raised in bulk (a shell's walls).</summary>
-    public static string BulkBuildStuff(RoundsFacts facts, IReadOnlyDictionary<Resource, long> stock, string name, long units) => BulkBuildStuffExcept(facts, stock, name, units, null);
+    public static string BulkBuildStuff(ReviewFacts facts, IReadOnlyDictionary<Resource, long> stock, string name, long units) => BulkBuildStuffExcept(facts, stock, name, units, null);
 
     /// <summary>
     /// BuildStuff for a def raised in bulk (a shell's walls): a stuff competes only when the stock covers
@@ -75,7 +75,7 @@ public static partial class ColonyPlanningRules
     /// given and no remaining stuff is covered, the fallback is the best ranked remaining stuff the colony holds any
     /// of, so a ring never waits on a stuff the map cannot supply.
     /// </summary>
-    public static string BulkBuildStuffExcept(RoundsFacts facts, IReadOnlyDictionary<Resource, long> stock, string name, long units, Func<string, bool>? excluded)
+    public static string BulkBuildStuffExcept(ReviewFacts facts, IReadOnlyDictionary<Resource, long> stock, string name, long units, Func<string, bool>? excluded)
     {
         if (!TryDefinition(facts, name, out var d) || d.StuffOptions.Count == 0)
         {

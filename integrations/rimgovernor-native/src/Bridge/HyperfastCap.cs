@@ -1,5 +1,5 @@
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Hyperfast's hard cap (#3604, #3605). Hyperfast is TimeSpeed.Ultrafast with
     // TickManager.UltraSpeedBoost on, and vanilla's boosted multiplier is 20000x,

@@ -43,11 +43,11 @@ Evidence S3, S5. Some forecast handoffs have separately tracked gaps (S6).
 
 ## Evidence and inspection coverage
 
-- **S1 — Demand into production.** [RoundsResourceOrders](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsResourceOrders.cs)
+- **S1 — Demand into production.** [ResourceOrders](../../brain/src/RimGovernor.Brain.Runtime/Review/ResourcePlanner.Orders.cs)
   converts reviewed resource targets into floors and declares production using
   observed stock, benches and craft facts under the resource need. The extraction
   contract describes source selection, pending yield and fresh-stock completion.
-  RoundsResourcePlanner.StepRecordedAsync rereads stock, rejects stale context,
+  ResourcePlanner.StepRecordedAsync rereads stock, rejects stale context,
   checks deep drilling, then ranks deficits against ResourceSupplyAsync's sources.
   Acquisitions hold their promised yield until native stock can close the deficit.
 - **S2 — Exact mining work.** Registered OnDemand
@@ -64,8 +64,8 @@ Evidence S3, S5. Some forecast handoffs have separately tracked gaps (S6).
 
 ### S4 — Material commitments, depletion and production
 
-[RoundsResourceSupply](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsResourceSupply.cs)
-connects selected sources to acquisitions; [RoundsDeepDrill](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsDeepDrill.cs)
+[ResourceSupply](../../brain/src/RimGovernor.Brain.Runtime/Review/ColonyReview.ResourceSupply.cs)
+connects selected sources to acquisitions; [DeepDrill](../../brain/src/RimGovernor.Brain.Runtime/Review/ResourcePlanner.DeepDrill.cs)
 handles exhausted drills and replacement locations. Resource orders connect
 manufacturing floors to available recipes and benches.
 [ProductionPromisesTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/ProductionPromisesTests.cs)
@@ -84,9 +84,9 @@ drill-to-delivered-component chain.
 
 [TradeAcquisitionTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/TradeAcquisitionTests.cs)
 checks route, carrying mass, provisions, rot, reserves and deadlines when choosing
-a mission. [RoundsTrade](../../brain/src/RimGovernor.Brain.BuildingRuntime/RoundsTrade.cs)
+a mission. [Trade](../../brain/src/RimGovernor.Brain.Runtime/TradePlanner.cs)
 opens a current sheet, stages lines and accepts its signature or cancels.
-[TradeMissionDriver](../../brain/src/RimGovernor.Brain.BuildingRuntime/TradeMissionDriver.cs)
+[TradeMissionDriver](../../brain/src/RimGovernor.Brain.Runtime/TradePlanner.MissionDriver.cs)
 requires the crew home with the actual purchased cargo before reporting delivery.
 [world-session cases](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Trade/TradeWorldSession.cs)
 check settlement and orbital purchases and cancellation against native inventory.

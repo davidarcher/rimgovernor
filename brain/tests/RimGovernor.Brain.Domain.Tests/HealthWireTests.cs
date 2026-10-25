@@ -1,5 +1,7 @@
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -8,7 +10,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// A pawn's health read is total (#3770): a hediff's part is a <see cref="BodyPartRef"/> or whole-body, its tend
 /// is untended or tended at a quality, an immunizable hediff carries its immunity and <see cref="ImmunityGain"/>,
 /// the blood-loss death is a <see cref="BleedOut"/> and an operation's chance a <see cref="SurgeryChance"/>. It
-/// round-trips through <c>WireJsonContext</c> exactly.
+/// round-trips through <c>OrdersJsonContext</c> exactly.
 /// </summary>
 public sealed class HealthWireTests
 {
@@ -68,7 +70,7 @@ public sealed class HealthWireTests
     [Fact]
     public void AHealthReadRoundTripsExactly()
     {
-        var json = WireJson.Serialize(Health);
+        var json = OrdersJson.Serialize(Health);
 
         Assert.Contains("""{"defName":"Cut","part":{"index":7,"defName":"Leg"},"severity":3,"visible":true,"tend":{"type":"tended","quality":0.75},"immunizable":null}""", json);
         Assert.Contains("""{"defName":"Flu","part":null,"severity":0.2,"visible":true,"tend":{"type":"untended"},"immunizable":{"immunity":0.1,"severityPerDay":0.5,"gain":{"type":"per_day","value":0.3}}}""", json);
@@ -85,25 +87,25 @@ public sealed class HealthWireTests
         Assert.Contains("""{"recipe":"HarvestKidney","part":{"index":12,"defName":"Kidney"},"kind":"harvest",""", json);
         Assert.Contains("\"eligibleDoctors\":0,\"ingredientsOnMap\":false,\"violation\":true,\"lethal\":false,", json);
         Assert.Contains("\"medicineMarketValue\":0,\"medicineCareLimited\":false}", json);
-        Assert.Equal(json, WireJson.Serialize(WireJson.Deserialize<PawnHealth>(json)));
+        Assert.Equal(json, OrdersJson.Serialize(OrdersJson.Deserialize<PawnHealth>(json)));
     }
 
     [Fact]
     public void AHardenedSurgeryRowWithoutItsFieldsDoesNotDecode()
     {
         // #3788: a missing part names its part, and an operation its doctors and medicine value; neither may be absent.
-        var json = WireJson.Serialize(Health);
+        var json = OrdersJson.Serialize(Health);
 
-        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<PawnHealth>(json.Replace("""{"part":{"index":7,"defName":"Leg"}}""", "{}", StringComparison.Ordinal)));
-        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<PawnHealth>(json.Replace("\"eligibleDoctors\":0,", "", StringComparison.Ordinal)));
-        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<PawnHealth>(json.Replace("\"medicineMarketValue\":0,", "\"medicineMarketValue\":null,", StringComparison.Ordinal)));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => OrdersJson.Deserialize<PawnHealth>(json.Replace("""{"part":{"index":7,"defName":"Leg"}}""", "{}", StringComparison.Ordinal)));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => OrdersJson.Deserialize<PawnHealth>(json.Replace("\"eligibleDoctors\":0,", "", StringComparison.Ordinal)));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => OrdersJson.Deserialize<PawnHealth>(json.Replace("\"medicineMarketValue\":0,", "\"medicineMarketValue\":null,", StringComparison.Ordinal)));
     }
 
     [Fact]
     public void AnUnspecifiedSurgeryKindDoesNotDecode()
     {
-        var json = WireJson.Serialize(Health).Replace("\"kind\":\"restore\"", "\"kind\":\"SURGERY_KIND_UNSPECIFIED\"", StringComparison.Ordinal);
+        var json = OrdersJson.Serialize(Health).Replace("\"kind\":\"restore\"", "\"kind\":\"SURGERY_KIND_UNSPECIFIED\"", StringComparison.Ordinal);
 
-        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<PawnHealth>(json));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => OrdersJson.Deserialize<PawnHealth>(json));
     }
 }

@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -79,7 +80,7 @@ public sealed class PenCreditTests
     [Fact]
     public void TheCoupledContextCarriesThePensAndRoamersTheRoundsRead()
     {
-        // The production path (#3822): ColonyPlanningReads fills AnimalUpkeep.Roamers from the census rows' Roam; Rounder fills
+        // The production path (#3822): ColonyPlanningReads fills AnimalUpkeep.Roamers from the census rows' Roam; ColonyReview fills
         // PlannedPens from the layout plan; GenerateCoupledActivities builds the context from the review's facts.
         var cow = Cow("cow1");
         var roamers = AnimalUpkeepReads.ColonyRoamers(Census(cow, Feed("chicken1")));

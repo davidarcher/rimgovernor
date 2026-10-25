@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Why colony stock was spent. The numeric values are saved: append
     // only. Wire names are Names[(int)reason].

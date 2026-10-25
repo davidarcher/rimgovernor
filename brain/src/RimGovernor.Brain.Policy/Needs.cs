@@ -31,10 +31,10 @@ public readonly record struct NeedId(string Value) : IComparable<NeedId>
     }
 
     /// <summary>
-    /// The key a ConcernId-keyed reader files this Need under (planner reasons, need_transitions, explain): its
+    /// The key a FilingKey-keyed reader files this Need under (planner reasons, need_transitions, explain): its
     /// value. A NeedId always holds a '/', which no Concern id does, so the two key spaces never collide.
     /// </summary>
-    public ConcernId FilingKey => new(Value);
+    public FilingKey FilingKey => new(Value);
 
     /// <summary>The id of <paramref name="family"/>'s <paramref name="kind"/> Need, about <paramref name="subject"/> when given; throws for an invalid result.</summary>
     public static NeedId Of(string family, string kind, string subject = "")
@@ -101,7 +101,7 @@ public enum Satisfaction
 
 /// <summary>
 /// A Need (#3250): derived fresh from facts on every review, never stored. It replaces the Concern registry row,
-/// the Rounds assessment and the Standard episode. A Standard's target, an Incident's occurrence and a Once outcome
+/// the ReviewState assessment and the Standard episode. A Standard's target, an Incident's occurrence and a Once outcome
 /// are all a predicate over what stands.
 /// </summary>
 public sealed record Need

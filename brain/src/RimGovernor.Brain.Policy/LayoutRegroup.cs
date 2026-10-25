@@ -428,7 +428,7 @@ public static partial class LayoutRegroupRules
 
     // The search budget, as SiteSearchTop / SiteSearchIters bound the embedding's: moves tried a round and rounds, each trial one clustering and one embedding.
     internal const int RegroupProposals = LayoutSiteGroundRules.SiteSearchTop;
-    internal const int RegroupRounds = LayoutSiteGroundRules.SiteSearchTop / 2;
+    internal const int RegroupReview = LayoutSiteGroundRules.SiteSearchTop / 2;
 
     /// <summary>Prices a colonist's time from the station facts: the lamp price's own work-day and the walk of a cell at the game's ticks a second and a colonist's move speed. Invalid while the work-day has no price (StationWorkDayOf) or the game's tick rate is unknown.</summary>
     public static WorkPrice StationWorkPrice(StationFacts f)
@@ -462,7 +462,7 @@ public static partial class LayoutRegroupRules
         }
         var rng = new SearchRand(cur.Embedding.Seed);
         var refused = new Dictionary<(string, string), RegroupDecision>(); // filth merges priced higher than the closet, by pair
-        for (var round = 0; round < RegroupRounds; round++)
+        for (var round = 0; round < RegroupReview; round++)
         {
             var cands = r.Candidates(cur);
             RegroupTrial? best = null;

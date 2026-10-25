@@ -7,7 +7,7 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Private disposable acceptance only: a colony
     // survives a horror incident. test/horror_incident fires the game's own
@@ -23,7 +23,7 @@ namespace HomeBridge.BridgeTools
     public sealed class HorrorIncidentFixture
     {
         [Tool("test/horror_incident", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture (#1748): fire one Anomaly threat incident whose arrivals are a melee entity pack through the game's own incident worker and reply the arrived pawns. Requires Anomaly and a paused lab map.")]
-        public async Task<object> Fire(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Fire(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -79,7 +79,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/horror_inspect", Description = "Read-only postcondition for the horror incident fixture: each colonist's and each threat's state on the live map.")]
-        public async Task<object> Inspect(IRimBridgeContext ctx, CancellationToken cancellationToken, string colonistIds, string threatIds)
+        public async Task<object> Inspect(INativeContext ctx, CancellationToken cancellationToken, string colonistIds, string threatIds)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 if (Current.Game == null) return Refuse("A running game is required.");
@@ -99,7 +99,7 @@ namespace HomeBridge.BridgeTools
         // with no offensive ability and that the player can see.
         private static bool MeleeEntity(Pawn pawn)
         {
-            return NativeAnomalyFacts.State(pawn) is RimGovernor.Contracts.Wire.Observations.PawnAnomalyState.Active { Facts: var a } && (a.Entity == true || a.Mutant == true) && a.MeleeOnly == true && a.HiddenFromPlayer != true;
+            return NativeAnomalyFacts.State(pawn) is RimGovernor.Brain.GameFacts.Observations.PawnAnomalyState.Active { Facts: var a } && (a.Entity == true || a.Mutant == true) && a.MeleeOnly == true && a.HiddenFromPlayer != true;
         }
 
         private static IEnumerable<string> SplitIds(string ids) =>

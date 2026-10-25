@@ -76,7 +76,7 @@ Rooms and corridors are excavated through a separate contract that never relaxes
 above. An excavation is keyed by cell and rock definition, never by ThingID, and completes when the
 cell no longer holds a mineable; yield is incidental.
 
-- **Site read** (`rimgovernor/observations_read_excavation_site`): for up to 64 cells, fog, rock,
+- **Site read** (`observations_read_excavation_site`): for up to 64 cells, fog, rock,
   roof, designation and per-cell eligibility, plus a site-level counterfactual roof-support verdict
   for removing the whole set, a pending-collapse flag, miner availability and reachability of the
   access cell (a standing cell beside it a mobile colonist can path to; a walled-off mouth is

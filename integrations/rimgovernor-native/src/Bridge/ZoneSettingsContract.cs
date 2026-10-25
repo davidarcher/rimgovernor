@@ -5,7 +5,7 @@ using System.Linq;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class ZoneSettingsContract
     {

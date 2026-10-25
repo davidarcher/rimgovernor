@@ -7,11 +7,10 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 using PawnId = RimGovernor.Brain.Domain.PawnId;
 using Tick = RimGovernor.Brain.Domain.Tick;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Cumulative delivery counters for the player's own production, latched at
     // the production site from the produced stack (plant harvest, fish catch,
@@ -29,9 +28,9 @@ namespace HomeBridge.BridgeTools
         private sealed class State
         {
             internal readonly string LoadToken = Guid.NewGuid().ToString("N");
-            internal readonly Dictionary<(Obs.DeliveryKind Kind, string Source, string Def), Counter> Counts = new Dictionary<(Obs.DeliveryKind, string, string), Counter>();
-            internal readonly List<Obs.Kill> Kills = new List<Obs.Kill>();
-            internal readonly List<Obs.Butcher> Butchers = new List<Obs.Butcher>();
+            internal readonly Dictionary<(RimGovernor.Brain.GameFacts.Observations.DeliveryKind Kind, string Source, string Def), Counter> Counts = new Dictionary<(RimGovernor.Brain.GameFacts.Observations.DeliveryKind, string, string), Counter>();
+            internal readonly List<RimGovernor.Brain.GameFacts.Observations.Kill> Kills = new List<RimGovernor.Brain.GameFacts.Observations.Kill>();
+            internal readonly List<RimGovernor.Brain.GameFacts.Observations.Butcher> Butchers = new List<RimGovernor.Brain.GameFacts.Observations.Butcher>();
         }
 
         private static readonly ConditionalWeakTable<Game, State> States = new ConditionalWeakTable<Game, State>();
@@ -39,15 +38,15 @@ namespace HomeBridge.BridgeTools
         // Things placed inside one Gathered call; the stack at placement is the produced amount.
         [ThreadStatic] private static List<(Thing Thing, ThingDef Def, int Count)>? gathering;
 
-        internal static Obs.DeliveryLedger Read()
+        internal static RimGovernor.Brain.GameFacts.Observations.DeliveryLedger Read()
         {
             Install();
             var state = States.GetOrCreateValue(Current.Game ?? throw new InvalidOperationException("No game is loaded."));
-            return new Obs.DeliveryLedger
+            return new RimGovernor.Brain.GameFacts.Observations.DeliveryLedger
             {
                 LoadToken = state.LoadToken,
                 Counts = [.. state.Counts.OrderBy(r => r.Key.Kind).ThenBy(r => r.Key.Source, StringComparer.Ordinal).ThenBy(r => r.Key.Def, StringComparer.Ordinal)
-                    .Select(r => new Obs.DeliveryCount { Kind = r.Key.Kind, Source = r.Key.Source, Def = r.Key.Def, Units = r.Value.Units, Nutrition = r.Value.Nutrition })],
+                    .Select(r => new RimGovernor.Brain.GameFacts.Observations.DeliveryCount { Kind = r.Key.Kind, Source = r.Key.Source, Def = r.Key.Def, Units = r.Value.Units, Nutrition = r.Value.Nutrition })],
                 Kills = [.. state.Kills],
                 Butchers = [.. state.Butchers],
             };
@@ -77,9 +76,9 @@ namespace HomeBridge.BridgeTools
 
         private static bool PlayerWork(Pawn? pawn) => pawn != null && pawn.Faction == Faction.OfPlayerSilentFail;
 
-        private static void Count(Obs.DeliveryKind kind, string source, Thing? produced, Pawn? worker = null) { if (produced != null) Count(kind, source, produced.def, produced.stackCount, worker); }
+        private static void Count(RimGovernor.Brain.GameFacts.Observations.DeliveryKind kind, string source, Thing? produced, Pawn? worker = null) { if (produced != null) Count(kind, source, produced.def, produced.stackCount, worker); }
 
-        private static void Count(Obs.DeliveryKind kind, string source, ThingDef def, int units, Pawn? worker = null)
+        private static void Count(RimGovernor.Brain.GameFacts.Observations.DeliveryKind kind, string source, ThingDef def, int units, Pawn? worker = null)
         {
             if (Current.Game == null || def == null || units <= 0) return;
             var state = States.GetOrCreateValue(Current.Game);
@@ -99,8 +98,8 @@ namespace HomeBridge.BridgeTools
             var grower = plant == null || plant.Map == null ? null
                 : (ILoadReferenceable?)(plant.Map.zoneManager.ZoneAt(plant.Position) as Zone_Growing)
                     ?? plant.Position.GetThingList(plant.Map).OfType<Building_PlantGrower>().FirstOrDefault();
-            if (grower != null) Count(Obs.DeliveryKind.Crop, grower.GetUniqueLoadID(), __1, __0);
-            else if (__1?.def != null && NativeFoodPolicy.IsFood(__1.def)) Count(Obs.DeliveryKind.Forage, plant?.def.defName ?? __1.def.defName, __1, __0);
+            if (grower != null) Count(RimGovernor.Brain.GameFacts.Observations.DeliveryKind.Crop, grower.GetUniqueLoadID(), __1, __0);
+            else if (__1?.def != null && NativeFoodPolicy.IsFood(__1.def)) Count(RimGovernor.Brain.GameFacts.Observations.DeliveryKind.Forage, plant?.def.defName ?? __1.def.defName, __1, __0);
         }
 
         // FishingUtility.GetCatchesFor is the catch roll of one completed fishing job. A catch is
@@ -112,12 +111,12 @@ namespace HomeBridge.BridgeTools
             var body = __0.Map?.waterBodyTracker.WaterBodyAt(__1);
             if (body == null) return;
             var source = body.rootCell.x + "," + body.rootCell.z;
-            foreach (var thing in __result) Count(Obs.DeliveryKind.Fish, source, thing, __0);
+            foreach (var thing in __result) Count(RimGovernor.Brain.GameFacts.Observations.DeliveryKind.Fish, source, thing, __0);
         }
 
         private static void Laid(CompEggLayer __instance, Thing __result)
         {
-            if (__result != null && PlayerWork(__instance.parent as Pawn)) Count(Obs.DeliveryKind.AnimalProduct, __instance.parent.def.defName, __result);
+            if (__result != null && PlayerWork(__instance.parent as Pawn)) Count(RimGovernor.Brain.GameFacts.Observations.DeliveryKind.AnimalProduct, __instance.parent.def.defName, __result);
         }
 
         // Gathered makes and places the stacks itself, so its placements are the production.
@@ -131,7 +130,7 @@ namespace HomeBridge.BridgeTools
             var placed = gathering;
             gathering = null;
             if (placed == null || !PlayerWork(__instance.parent as Pawn)) return;
-            foreach (var (_, def, count) in placed) Count(Obs.DeliveryKind.AnimalProduct, __instance.parent.def.defName, def, count);
+            foreach (var (_, def, count) in placed) Count(RimGovernor.Brain.GameFacts.Observations.DeliveryKind.AnimalProduct, __instance.parent.def.defName, def, count);
         }
 
         // Pawn.Kill leaves the corpse on the pawn once it ran. An animal of the wild or the
@@ -145,7 +144,7 @@ namespace HomeBridge.BridgeTools
                     || (__instance.Faction != null && !__instance.Faction.IsPlayer)) return;
                 var state = States.GetOrCreateValue(Current.Game);
                 var meat = __instance.RaceProps.meatDef;
-                state.Kills.Add(new Obs.Kill { CorpseId = corpse.GetUniqueLoadID(), Pawn = new PawnId(__instance.GetUniqueLoadID()),
+                state.Kills.Add(new RimGovernor.Brain.GameFacts.Observations.Kill { CorpseId = corpse.GetUniqueLoadID(), Pawn = new PawnId(__instance.GetUniqueLoadID()),
                     Race = __instance.def.defName, BodySize = __instance.BodySize,
                     PotentialNutrition = meat == null ? 0 : Math.Max(0, __instance.GetStatValue(StatDefOf.MeatAmount)) * meat.GetStatValueAbstract(StatDefOf.Nutrition),
                     Tick = new Tick(Find.TickManager.TicksGame) });
@@ -171,7 +170,7 @@ namespace HomeBridge.BridgeTools
                 yield return (product ?? throw new System.InvalidOperationException("Required native value is unavailable: product."));
             }
             if (corpseId == null || Current.Game == null) yield break;
-            States.GetOrCreateValue(Current.Game).Butchers.Add(new Obs.Butcher { CorpseId = corpseId, MeatUnits = meat, MeatNutrition = nutrition, LeatherUnits = leather });
+            States.GetOrCreateValue(Current.Game).Butchers.Add(new RimGovernor.Brain.GameFacts.Observations.Butcher { CorpseId = corpseId, MeatUnits = meat, MeatNutrition = nutrition, LeatherUnits = leather });
         }
     }
 }

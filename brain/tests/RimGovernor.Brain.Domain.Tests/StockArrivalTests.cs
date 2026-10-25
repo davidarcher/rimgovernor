@@ -1,5 +1,6 @@
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -167,7 +168,7 @@ public sealed class StockArrivalTests
         var pawn = Crafter("Anna", 10, 1);
         BillStackRow[] benches = [StockArrivalTestFacts.Bench("FabricationBench", true, 1)];
         Assert.Single(StockArrivalRules.Craft([Recipe(Arm)], benches, [pawn], Stock).Sources);
-        var disabled = pawn with { Settings = pawn.Settings with { Work = new PawnWork.Works(true, [new RimGovernor.Contracts.Wire.Observations.WorkSetting { DefName = "Crafting", Priority = 1, Disabled = true }]) } };
+        var disabled = pawn with { Settings = pawn.Settings with { Work = new PawnWork.Works(true, [new RimGovernor.Brain.GameFacts.Observations.WorkSetting { DefName = "Crafting", Priority = 1, Disabled = true }]) } };
         Assert.Empty(StockArrivalRules.Craft([Recipe(Arm)], benches, [disabled], Stock).Sources);
         var missingSchedule = pawn with { Settings = pawn.Settings with { Schedule = [] } };
         Assert.Equal("stock_arrival_schedule:Anna", StockArrivalRules.Craft([Recipe(Arm)], benches, [missingSchedule], Stock).Unread);

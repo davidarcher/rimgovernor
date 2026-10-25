@@ -69,7 +69,8 @@ pushes), or edit the main checkout. Details: [landing](docs/developers/developme
   Amend that table before adding a store or second copy. Game intent lives in the
   save, the session journal in SQLite, derived state in memory, telemetry in
   the OTLP files.
-- Wire changes edit the records in `brain/src/RimGovernor.Brain.Contracts` (the C# source of truth since #3100);
+- Boundary changes edit observed records in `brain/src/RimGovernor.Brain.GameFacts` and requests or intent in
+  `brain/src/RimGovernor.Brain.GameOrders` (the C# source of truth since #3100);
   Delete removed fields outright:
   no `reserved` fields/names and no compatibility shims. Shims kept only for older
   saves are deletable without asking; regenerate the affected saves and fixtures.
@@ -82,7 +83,7 @@ pushes), or edit the main checkout. Details: [landing](docs/developers/developme
   over set-once geometry.
 - Use current vocabulary: a Family derives Needs (met or unmet, each with a
   tier) and proposes Methods for them; a Method holds Claims; Safeguards veto
-  admission. Rounds, Concerns, Departments and the Standard, Project and Incident
+  admission. ReviewState, Concerns, Departments and the Standard, Project and Incident
   types are retired. See the [glossary](docs/developers/glossary.md).
 
 ## Evidence and diagnostics

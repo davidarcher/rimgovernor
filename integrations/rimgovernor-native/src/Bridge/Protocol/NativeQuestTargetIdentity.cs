@@ -1,4 +1,4 @@
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class NativeQuestTargetIdentity
     {

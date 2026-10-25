@@ -1,5 +1,5 @@
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
@@ -8,38 +8,38 @@ namespace RimGovernor.Brain.Host;
 
 // The ledger's OrderDeclarer is satisfied implicitly through a DeclareOrders method. Five of the C# planners
 // carry the method but not the IOrderDeclarer interface (or, for gear and resource, a method of another shape), so the
-// composition adapts them, each adapter named Rounds<Name>Declarer after the planner it wraps.
+// composition adapts them, each adapter named ReviewState<Name>Declarer after the planner it wraps.
 
 /// <summary>Declares the armory's orders to the work ledger.</summary>
-internal sealed class RoundsArmoryDeclarer(RoundsArmoryPlanner planner) : IOrderDeclarer
+internal sealed class ArmoryDeclarer(ArmoryPlanner planner) : IOrderDeclarer
 {
     public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
         planner.DeclareOrdersAsync(snapshot, projection, benches, ct);
 }
 
 /// <summary>Declares the gear planner's orders to the work ledger (the planner's declaration needs no instance state).</summary>
-internal sealed class RoundsGearDeclarer : IOrderDeclarer
+internal sealed class GearDeclarer : IOrderDeclarer
 {
     public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
-        Task.FromResult(RoundsGearPlanner.DeclareOrders(snapshot, projection, benches, ct));
+        Task.FromResult(GearPlanner.DeclareOrders(snapshot, projection, benches, ct));
 }
 
 /// <summary>Declares the food stores family's meal order to the work ledger.</summary>
-internal sealed class FoodStoresDeclarer(FoodStoresRounds planner) : IOrderDeclarer
+internal sealed class FoodStoresDeclarer(FoodStoresReview planner) : IOrderDeclarer
 {
     public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
         planner.DeclareOrdersAsync(snapshot, projection, benches, ct);
 }
 
 /// <summary>Declares the joiners family's decree orders to the work ledger.</summary>
-internal sealed class JoinersDeclarer(JoinersRounds planner) : IOrderDeclarer
+internal sealed class JoinersDeclarer(JoinersReview planner) : IOrderDeclarer
 {
     public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
         planner.DeclareOrdersAsync(snapshot, projection, benches, ct);
 }
 
 /// <summary>Declares the resource planner's orders to the work ledger.</summary>
-internal sealed class RoundsResourceDeclarer(RoundsResourcePlanner planner) : IOrderDeclarer
+internal sealed class ResourceDeclarer(ResourcePlanner planner) : IOrderDeclarer
 {
     public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
         Task.FromResult(planner.DeclareOrders(snapshot, projection, benches, ct));

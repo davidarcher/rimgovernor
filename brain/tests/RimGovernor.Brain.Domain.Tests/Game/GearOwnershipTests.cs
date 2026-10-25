@@ -1,11 +1,9 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Policy;
 using RimWorld;
 using Verse;
 using Xunit;
-using D = RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests.Game;
 
@@ -14,7 +12,7 @@ public sealed class GearOwnershipTests
     [Fact]
     public void CandidateValuationRetainsNativeEvidenceWhenModelOverridesGain()
     {
-        var observed = new O.GearCandidate { Item = GearFixtures.Item("shirt", new O.ItemQuality.Qualityless()), Gain = .2 };
+        var observed = new RimGovernor.Brain.GameFacts.Observations.GearCandidate { Item = GearFixtures.Item("shirt", new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Qualityless()), Gain = .2 };
         var native = new RimGovernor.Brain.Policy.GearCandidate(observed, new("Shirt"));
         var modeled = native with { Valuation = new GearCandidateValuation.Modeled(.7) };
 
@@ -33,7 +31,7 @@ public sealed class GearOwnershipTests
     {
         var catalog = Catalog();
         var pawn = PawnFixtures.Row("pawn");
-        var skill = new O.Skill { DefName = "Crafting", Level = 12, StoredLevel = 12, Passion = O.Passion.Minor };
+        var skill = new RimGovernor.Brain.GameFacts.Observations.Skill { DefName = "Crafting", Level = 12, StoredLevel = 12, Passion = RimGovernor.Brain.GameFacts.Observations.Passion.Minor };
         pawn = pawn with
         {
             Drafted = true,
@@ -41,7 +39,7 @@ public sealed class GearOwnershipTests
             Settings = pawn.Settings with
             {
                 Body = pawn.Settings.Body with { ComfortableMinC = -17, ComfortableMaxC = 41 },
-                PolicyInputs = pawn.Settings.PolicyInputs with { Ideo = new O.PawnIdeo.Member("ideo", ["Nudism_Preferred"], null, 1) },
+                PolicyInputs = pawn.Settings.PolicyInputs with { Ideo = new RimGovernor.Brain.GameFacts.Observations.PawnIdeo.Member("ideo", ["Nudism_Preferred"], null, 1) },
             },
         };
         var observed = GearFixtures.Loadout("pawn") with { ApparelPolicy = PoliciesTests.EmptyOutfit };
@@ -68,10 +66,10 @@ public sealed class GearOwnershipTests
     {
         var observed = GearFixtures.Option("shirt", "Apparel_Shirt", "Cloth", GearSource.Stored) with
         {
-            Quality = new O.ItemQuality.Qualityless(), Condition = .65, Tainted = true,
+            Quality = new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Qualityless(), Condition = .65, Tainted = true,
         };
         var item = new GearOption { Origin = new GearOptionOrigin.Observed(observed) };
-        var bill = new O.GearLockedBill { DefName = "Apparel_Shirt", Craftable = true, Crafters = [new(12, false, 0)] };
+        var bill = new RimGovernor.Brain.GameFacts.Observations.GearLockedBill { DefName = "Apparel_Shirt", Craftable = true, Crafters = [new(12, false, 0)] };
         var product = new GearOption { Origin = new GearOptionOrigin.Catalog(bill, "Cloth", false) };
 
         Assert.Same(observed, Assert.IsType<GearOptionOrigin.Observed>(item.Origin).Value);
@@ -88,9 +86,9 @@ public sealed class GearOwnershipTests
     [Fact]
     public void AllocatingStoredApparelPreservesTheObservedStockCount()
     {
-        var native = new O.GearStock
+        var native = new RimGovernor.Brain.GameFacts.Observations.GearStock
         {
-            DefName = "Apparel_Shirt", Stuff = "Cloth", Quality = new O.ItemQuality.Graded(D.QualityCategory.Normal), HpBand = 9, Count = 2,
+            DefName = "Apparel_Shirt", Stuff = "Cloth", Quality = new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded(RimGovernor.Brain.GameFacts.Defs.QualityCategory.Normal), HpBand = 9, Count = 2,
         };
         var wanted = new GearOption { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("shirt", native.DefName, native.Stuff, GearSource.Stored)) };
         var planned = new GearLoadout { Role = GearRole.Worker, Gaps = [new GearGap { Wanted = wanted, Source = GearSource.Stored, Floor = true }] };

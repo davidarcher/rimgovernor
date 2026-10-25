@@ -8,7 +8,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Remote construction pickup on vanilla's own delivery (#2517, #3046): a controlled colonist with no committed order runs
     // vanilla job selection (#3669), so its construction delivery is sized here by the rule the brain's Supply step uses
@@ -39,7 +39,7 @@ namespace HomeBridge.BridgeTools
             // A carried resource (vanilla's first choice) is not a pickup.
             if (!(__result.targetA.Thing is Thing first) || !first.Spawned || !(__result.targetC.Thing is Thing site) || !site.Spawned) return;
             var distance = (double)(first.Position - site.Position).LengthHorizontal;
-            if (NativeConstructionActivity.StackStorageOf(pawn.Map, first) is not RimGovernor.Contracts.Wire.Observations.StackStorage.Accepted { Distance: var storage } || !RemotePickup.IsRemote(distance, storage)) return;
+            if (NativeConstructionActivity.StackStorageOf(pawn.Map, first) is not RimGovernor.Brain.GameFacts.Observations.StackStorage.Accepted { Distance: var storage } || !RemotePickup.IsRemote(distance, storage)) return;
             var capacity = pawn.carryTracker.MaxStackSpaceEver(first.def);
             var queue = __result.targetQueueA ?? new List<LocalTargetInfo>();
             var queued = new HashSet<Thing>(queue.Select(q => q.Thing));

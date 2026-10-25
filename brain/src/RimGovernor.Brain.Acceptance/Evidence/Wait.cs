@@ -30,7 +30,7 @@ public sealed class WaitError : AcceptanceException
         Signature = signature;
         Quiet = quiet;
         Elapsed = elapsed;
-        Rounds = rounds;
+        ProbeCount = rounds;
         Cause = cause;
         TicksElapsed = ticksElapsed;
     }
@@ -47,7 +47,7 @@ public sealed class WaitError : AcceptanceException
     public TimeSpan Elapsed { get; }
 
     /// <summary>The probes made.</summary>
-    public int Rounds { get; }
+    public int ProbeCount { get; }
 
     /// <summary>The Terminal check's error for <see cref="WaitOutcome.Terminal"/>.</summary>
     public Exception? Cause { get; }

@@ -164,13 +164,13 @@ public sealed record FlooringObservation
 
 public sealed record FloorRoom
 {
-    public required RimGovernor.Contracts.Wire.Observations.FloorRoom Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.FloorRoom Observed { get; init; }
 
     public string Id => Observed.Room;
 
     public RoomRole Role => Observed.Role;
 
-    public EquatableArray<RimGovernor.Contracts.Wire.Observations.FloorCell> Cells => Observed.Cells;
+    public EquatableArray<RimGovernor.Brain.GameFacts.Observations.FloorCell> Cells => Observed.Cells;
 
     /// <summary>
     /// When set, terrain tags every cell's floor must carry one of: the throne room's flooring requirement, read

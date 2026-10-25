@@ -10,7 +10,7 @@ forbidden state and corpse classification; it does not duplicate food evidence.
 The native colony frame always includes human food supply, cooking benches and
 butchering benches, including empty censuses. Their wire members are required;
 missing sections fail the required contract. The combined supply belongs to the required
-forecast section. Its consumer, stock and larder records are the same Contracts records
+forecast section. Its consumer, stock and larder records are the same GameFacts records
 Policy reads. Native records the physical stock facts once; no thing-table or
 catalog join reconstructs them in the brain. The forecast view retains references
 to those rows and classifies barred stocks and reserve IDs. Reserve selections

@@ -1,6 +1,5 @@
 using System;
-using HomeBridge.BridgeTools;
-using Common = RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Native;
 
 // A plant's acquisition token is the version of what eligibility reads:
 // resource, cell, harvestability and designation. Growth is not an input,
@@ -14,7 +13,7 @@ internal static class NativeAcquisitionTokenProbe
 
     internal static void Invoke()
     {
-        var identity = new Common.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 };
+        var identity = new RimGovernor.Brain.GameFacts.Common.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 };
         string Plant(string resource = "MedicineHerbal", int x = 10, int z = 12, bool harvestable = true, bool designated = false, string id = "Plant_Healroot1") =>
             NativeAcquisitionToken.Plant(identity, id, resource, x, z, harvestable, designated);
         var read = Plant();
@@ -32,7 +31,7 @@ internal static class NativeAcquisitionTokenProbe
         var settled = Plant();
         Check(settled == Plant(), "a settled row keeps its token again");
         Check(Plant(id: "Plant_Healroot2") != settled, "another entity has its own token");
-        Check(NativeAcquisitionToken.Plant(new Common.Identity { ColonyId = "colony", LoadToken = "other", MapId = 0 }, "Plant_Healroot1", "MedicineHerbal", 10, 12, true, false) != settled,
+        Check(NativeAcquisitionToken.Plant(new RimGovernor.Brain.GameFacts.Common.Identity { ColonyId = "colony", LoadToken = "other", MapId = 0 }, "Plant_Healroot1", "MedicineHerbal", 10, 12, true, false) != settled,
             "another load has its own token");
         Check(settled == Plant(), "another entity's or load's read leaves this row's token");
         var hunt = NativeAcquisitionToken.Hunt(identity, "Plant_Healroot1", "Corpse_Hare", false);

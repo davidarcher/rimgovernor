@@ -1,8 +1,9 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 using Journal = RimGovernor.Brain.Store.Store;
 
@@ -14,7 +15,7 @@ public sealed class SharedStackRemainderTests
 {
     private const string Stack = "rice-stack";
     private static readonly GenerationSnapshot Root = new(new("colony"), new(1), new("load"), new("root"), new(1), new(1));
-    private static readonly RoundsPolicy Policy = RoundsRules.DefaultRoundsPolicy();
+    private static readonly PlannerSettings Policy = Rules.DefaultPlannerSettings();
 
     private static PawnActivityStep Eat(int count) => new(PawnActivityKind.Eat, Stack, "", "", count, 20000);
     private static SelectedActivityTask EatTask(string id, string pawn, int count, long depart) => new(id, pawn, [], Eat(count), new(2, 2), depart)
@@ -27,7 +28,7 @@ public sealed class SharedStackRemainderTests
         [new("helper", "coupled-helper/helper", "coupled-helper", 0, 1, false, [Eat(count)]) { Task = "helper-eat" }])
         { Tasks = [EatTask("helper-eat", "helper", count, 200)] });
 
-    private static RoundsFacts Facts(double stock, long tick = 100, params WorkResourcePawn[] native)
+    private static ReviewFacts Facts(double stock, long tick = 100, params WorkResourcePawn[] native)
     {
         var facts = ForecastCoupledSelectionTests.Review(level: .2, fall: .003);
         var roster = WorkResourceTestFacts.Create("pawn", "helper");
@@ -41,7 +42,7 @@ public sealed class SharedStackRemainderTests
         {
             Tick = new(tick),
 
-            Census = (facts.Census with { WorkResources = native.Length == 0 ? roster.Census.WorkResources : EquatableArray.From(native) }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = (long)stock }] },
+            Census = (facts.Census with { WorkResources = native.Length == 0 ? roster.Census.WorkResources : EquatableArray.From(native) }) with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Rice", Units = (long)stock }] },
             CoupledAlternatives = null,
             ForecastObserved = facts.ForecastObserved with
             {
@@ -55,17 +56,17 @@ public sealed class SharedStackRemainderTests
             },
         };
     }
-    private static RoundsFacts Held(RoundsFacts facts, params PawnActivities[] batches) => WorkRules.ReviewWorkResources(facts,
+    private static ReviewFacts Held(ReviewFacts facts, params PawnActivities[] batches) => WorkRules.ReviewWorkResources(facts,
         new ProductionBatchCensus.Read([]), new(EquatableArray.From(batches.Select((b, i) => new WorkAction(new("held-" + i),
             DomainAction.NewPawnActivitiesAction(new("held-" + i), b), new() { Action = new("held-" + i), Stage = Stage.Pending })))));
-    private static ForecastNeedTask[] StackTasks(RoundsFacts reviewed, string pawn) =>
+    private static ForecastNeedTask[] StackTasks(ReviewFacts reviewed, string pawn) =>
         ForecastCoupledCandidates.GenerateCoupledActivities(reviewed, GameTime.TicksPerDay)!.Context.NeedTasks.Where(n => n.Target == Stack && n.Pawn == pawn).ToArray();
     private static int Owed(WorkResourceView view, string? owner = null) =>
         view.Claims.Shared.Where(s => s.Target == Stack && (owner is null || s.Owner == owner)).Sum(s => s.Count);
 
     private static ActivityTaskRead Observe(PawnActivities batch, string state, long tick, params ActivityTaskBinding[] bindings) => ConstructionFixtures.NoTasks() with
     {
-        Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = tick },
+        Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = tick },
         Bindings = EquatableArray.From(bindings),
         Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
             new(o.Assignment, o.Method, o.Revision, o.Preparing ? 1 : 0, state, "", tick)))),
@@ -83,10 +84,10 @@ public sealed class SharedStackRemainderTests
     private static string Open() => Path.Combine(Path.GetTempPath(), "rg-shared-stack-" + Guid.NewGuid().ToString("N") + ".db");
 
     /// <summary>Installs the first Method, observes its first bite completed and continues to the owed later bite.</summary>
-    private static (PlanSpec First, PlanSpec Second, PawnActivities Batch, PawnActivities Next, Rounds Review) Install(Journal journal, CancellationToken ct, Receipt continuation = Receipt.Accepted)
+    private static (PlanSpec First, PlanSpec Second, PawnActivities Batch, PawnActivities Next, ReviewState Review) Install(Journal journal, CancellationToken ct, Receipt continuation = Receipt.Accepted)
     {
         IntentActionRules.RegisterIntentKinds();
-        var reviewed = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true, Policy = Policy, Facts = Facts(20) }, ct);
+        var reviewed = journal.Review(new ReviewRequest { Current = Root, Tick = new(100), Enabled = true, Policy = Policy, Facts = Facts(20) }, ct);
         var batch = EatNowAndLater();
         var first = Plan("first", batch);
         TestNeed.Commit(journal, Root, new("coupled"), first, ct);
@@ -100,7 +101,7 @@ public sealed class SharedStackRemainderTests
         Assert.Equal("eat-later", Assert.Single(next.Tasks).Id);
         var second = Plan("second", next);
         Assert.Equal(ActivityContinuationAdmission.Admitted, journal.ContinueActivityMethod(first.Id, Root, new(200), Owners(batch, "completed"), second, ct));
-        journal.AuthorizeRoundsPlan(Root, Root with { Plan = second.Id }, ct);
+        journal.AuthorizeReviewPlan(Root, Root with { Plan = second.Id }, ct);
         Send(journal, second, 200, ct, continuation);
         return (first, second, batch, next, reviewed.Review);
     }
@@ -115,7 +116,7 @@ public sealed class SharedStackRemainderTests
         // Nineteen observed units less the fifteen still owed leave four units and nine claimant slots.
         var facts = Facts(19, 200, new WorkResourcePawn("pawn", holding.Assignment, holding.Revision, "holding", "", "", 0) { LocalHour = 12 },
             new WorkResourcePawn("helper", "", 0, "", "", "", 0) { LocalHour = 12 }) with { CoupledWorkActive = true };
-        journal.ReviewRounds(new RoundsRequest { Revision = review.Revision, Current = Root, Tick = new(200), Enabled = true, Policy = Policy, Facts = facts }, ct);
+        journal.Review(new ReviewRequest { Revision = review.Revision, Current = Root, Tick = new(200), Enabled = true, Policy = Policy, Facts = facts }, ct);
         var view = journal.WorkResources(Root, ct);
         Assert.Equal(15, Owed(view));
         var reviewed = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), journal.WorkActions(Root, ct));

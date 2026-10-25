@@ -1,5 +1,5 @@
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Facts;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.PlayerApi;
@@ -118,7 +118,7 @@ public sealed class BrainHost : IAsyncDisposable
     private async Task StartCoreAsync(CancellationToken startup)
     {
         var options = _options;
-        var facade = options.Facade ?? NativeFacadeRegistry.Require();
+        var facade = options.Facade ?? GameApiRegistry.Require();
         StartTelemetry();
         // Explicit registration: no kind is intent-mode until this runs, and it must precede any progress.
         IntentActionRules.RegisterIntentKinds();
@@ -136,7 +136,7 @@ public sealed class BrainHost : IAsyncDisposable
         var session = await Session.CreateAsync(
             new SessionConfig
             {
-                RoundsMethods = options.RoundsMethods,
+                ReviewMethods = options.ReviewMethods,
                 Control = new ControlConfig { CallTimeout = timings.CallTimeout, StopWrites = static _ => Task.CompletedTask, Worlds = worlds },
                 Executor = timings.Executor,
                 Clock = parts.Clock,
@@ -164,7 +164,7 @@ public sealed class BrainHost : IAsyncDisposable
         var flusher = new StateFlusher(governorState, worlds, journal, rebuild);
         // Every save (the player's and the autosave's) flushes the governor state first.
         var lifecycle = parts.Player?.Lifecycle is { } rawLifecycle ? new FlushedLifecycle(rawLifecycle, flusher.FlushAsync) : null;
-        Func<RimGovernor.Contracts.Wire.Common.Identity, long, CancellationToken, Task>? autosave = null;
+        Func<RimGovernor.Brain.GameFacts.Common.Identity, long, CancellationToken, Task>? autosave = null;
         if (lifecycle is not null)
         {
             var autosaver = new Autosaver(lifecycle.SaveAsync, new HostLog(_emitter, "autosave"));
@@ -198,7 +198,7 @@ public sealed class BrainHost : IAsyncDisposable
                 BreakSource = planners.BreakSource,
                 Pawns = planners.Pawns,
                 Moves = planners.Moves,
-                RoundsMethods = options.RoundsMethods,
+                ReviewMethods = options.ReviewMethods,
                 StepInterval = timings.WorkerStepInterval,
                 MaxBackoff = timings.WorkerMaxBackoff,
                 StepTimeout = timings.WorkerStepTimeout,
@@ -239,7 +239,7 @@ public sealed class BrainHost : IAsyncDisposable
                 snapshots = new HostSnapshots(Guid.NewGuid().ToString("N"), source, SystemClock.Instance, maxAge, player, new HostLog(_emitter, "snapshots")) { Journal = journal };
                 _routes.Add(snapshots);
                 var colony = natives.Colony is { } colonyNative ? new HostColonyStatus(new ColonyStatus(player, colonyNative, sections)) : null;
-                _routes.Add(ReadRoutes.Register(routes, snapshots, snapshots, planners.Rounds, colony));
+                _routes.Add(ReadRoutes.Register(routes, snapshots, snapshots, planners.ReviewState, colony));
                 _routes.Add(PresentationRoutes.Register(routes, snapshots, natives.Presentation, natives.Media, natives.Notifications));
                 if (lifecycle is not null)
                 {

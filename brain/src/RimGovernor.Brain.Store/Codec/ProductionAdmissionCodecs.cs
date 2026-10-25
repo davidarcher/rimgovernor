@@ -19,7 +19,7 @@ internal sealed class WorkAdmissionEvidenceConverter : ObjectCodec<WorkAdmission
         Buildings = e.Get<EquatableArray<WorkBuildingCost>>("Buildings", o),
         Standing = e.Has("Standing") ? new(e.Get<EquatableArray<Building>>("Standing", o), e.Get<IReadOnlyDictionary<Resource, long>>("Construction", o)) : null,
         Pawns = e.Get<EquatableArray<WorkPawnAvailability>>("Pawns", o),
-        WorkResources = e.Get<EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>>("WorkResources", o),
+        WorkResources = e.Get<EquatableArray<RimGovernor.Brain.GameFacts.Observations.WorkResourcePawn>>("WorkResources", o),
         Stock = e.Get<EquatableArray<Amount>>("Stock", o),
         Reservations = e.Get<EquatableArray<IngredientReservation>>("Reservations", o),
         Recipes = e.Get<EquatableArray<ProductionRecipeInput>>("Recipes", o),
@@ -65,11 +65,11 @@ internal sealed class WorkPawnAvailabilityConverter : ObjectCodec<WorkPawnAvaila
     { w.WriteString("Pawn", v.Pawn); w.Put("Available", v.Available, o); w.Put("Applies", v.Applies, o); w.WriteBoolean("Occupied", v.Occupied); w.Put("Target", v.Target, o); w.Put("Schedule", v.Schedule, o); w.Put("LocalHour", v.LocalHour, o); w.WriteBoolean("Preemptible", v.Preemptible); }
 }
 
-internal sealed class WorkResourcePawnConverter : ObjectCodec<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>
+internal sealed class WorkResourcePawnConverter : ObjectCodec<RimGovernor.Brain.GameFacts.Observations.WorkResourcePawn>
 {
-    protected override RimGovernor.Contracts.Wire.Observations.WorkResourcePawn Read(JsonElement e, Codecs o) =>
+    protected override RimGovernor.Brain.GameFacts.Observations.WorkResourcePawn Read(JsonElement e, Codecs o) =>
         new(e.Str("Pawn"), e.Str("Assignment"), e.I64("Revision"), e.Str("State"), e.Str("CarriedThing"), e.Str("CarriedResource"), e.I32("CarriedCount")) { LocalHour = e.Dbl("LocalHour"), Bill = e.Str("Bill"), Target = e.Str("Target"), Unfinished = e.Str("Unfinished") };
-    protected override void WriteFields(Utf8JsonWriter w, RimGovernor.Contracts.Wire.Observations.WorkResourcePawn v, Codecs o)
+    protected override void WriteFields(Utf8JsonWriter w, RimGovernor.Brain.GameFacts.Observations.WorkResourcePawn v, Codecs o)
     { w.WriteString("Pawn", v.Pawn); w.WriteString("Assignment", v.Assignment); w.WriteNum("Revision", v.Revision);
       w.WriteString("State", v.State); w.WriteString("CarriedThing", v.CarriedThing); w.WriteString("CarriedResource", v.CarriedResource); w.WriteNum("CarriedCount", v.CarriedCount); w.WriteNum("LocalHour", v.LocalHour); w.WriteString("Bill", v.Bill); w.WriteString("Target", v.Target); w.WriteString("Unfinished", v.Unfinished); }
 }
@@ -130,10 +130,10 @@ internal sealed class ForecastMaterialClaimConverter : ObjectCodec<ForecastMater
 internal sealed class IngredientReservationConverter : ObjectCodec<IngredientReservation>
 {
     protected override IngredientReservation Read(JsonElement e, Codecs o) => new()
-    { Bill = e.Str("Bill"), Observed = new RimGovernor.Contracts.Wire.Observations.IngredientReservation
+    { Bill = e.Str("Bill"), Observed = new RimGovernor.Brain.GameFacts.Observations.IngredientReservation
         { PawnId = e.Get<RimGovernor.Brain.Domain.PawnId>("Pawn", o).Value,
           Items = EquatableArray.From(e.Get<IReadOnlyList<Amount>>("Items", o).Select(a =>
-              new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = a.Resource.Value, Units = a.Count })) } };
+              new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = a.Resource.Value, Units = a.Count })) } };
     protected override void WriteFields(Utf8JsonWriter w, IngredientReservation v, Codecs o)
     { w.WriteString("Bill", v.Bill); w.Put("Pawn", v.Pawn, o); w.Put("Items", v.Items, o); }
 }

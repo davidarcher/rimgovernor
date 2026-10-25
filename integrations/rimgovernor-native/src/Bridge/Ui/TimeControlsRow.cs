@@ -7,9 +7,8 @@ using UnityEngine;
 using Verse;
 using Verse.Sound;
 using Verse.Steam;
-using Clock = RimGovernor.Contracts.Wire.Clock;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// The in-game time controls with six buttons, Pause through Hyperfast, for every player (#3608). A Harmony prefix
@@ -21,7 +20,7 @@ namespace HomeBridge.BridgeTools
     /// ExternalPause hold is the take-over. Without the bot a click sets the game's speed
     /// (<see cref="Supervisor.SetGameSpeed"/>). The decisions are <see cref="TimeControlsPolicy"/>'s. Installed from
     /// <see cref="NativeStartup"/> and skipped in the headless acceptance build; <see cref="Press"/> also serves the
-    /// host's <c>rimgovernor/press_time_speed</c> tool, which reaches it by name.
+    /// host's <c>press_time_speed</c> tool, which reaches it by name.
     /// </summary>
     internal static class TimeControlsRow
     {
@@ -117,7 +116,7 @@ namespace HomeBridge.BridgeTools
             if (Event.current.type == EventType.KeyDown) DoKeys(connected, TimeControlsPolicy.Chosen(connected, pending, run, tickManager.CurTimeSpeed, boost));
         }
 
-        private static void DoKeys(bool connected, Clock.Speed? chosen)
+        private static void DoKeys(bool connected, RimGovernor.Brain.GameFacts.Clock.Speed? chosen)
         {
             var tickManager = Find.TickManager;
             if (KeyBindingDefOf.TogglePause.KeyDownEvent)
@@ -146,7 +145,7 @@ namespace HomeBridge.BridgeTools
 
         // The slower/faster keys. Without the bot they are vanilla's: one TimeSpeed down (Normal's is a pause) or up to
         // Superfast. With it they ask the brain for the chosen speed's neighbour.
-        private static void Step(bool connected, Clock.Speed? chosen, bool faster)
+        private static void Step(bool connected, RimGovernor.Brain.GameFacts.Clock.Speed? chosen, bool faster)
         {
             var tickManager = Find.TickManager;
             if (TimeControlsPolicy.Requests(connected))

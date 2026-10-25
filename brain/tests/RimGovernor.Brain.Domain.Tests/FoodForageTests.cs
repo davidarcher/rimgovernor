@@ -1,5 +1,4 @@
-using O = RimGovernor.Contracts.Wire.Observations;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -11,15 +10,15 @@ public sealed class FoodForageTests
 {
     private static readonly AcquisitionSource Berries = new()
     {
-        Observed = new() { Source = new() { Id = "Plant_Berry1" }, Token = "Plant_Berry1", Resource = "RawBerries", Yield = 10, Designation = new O.AcquisitionDesignation.Open(), Taken = false, Kind = new O.AcquisitionKind.Plant(true, 1, false) },
-        Entity = new() { Id = "Plant_Berry1", DefName = "Plant_Berry", Label = "berry bush", Place = new O.EntityPlace.OnMap(1, new Cell(10, 10)) },
+        Observed = new() { Source = new() { Id = "Plant_Berry1" }, Token = "Plant_Berry1", Resource = "RawBerries", Yield = 10, Designation = new RimGovernor.Brain.GameFacts.Observations.AcquisitionDesignation.Open(), Taken = false, Kind = new RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Plant(true, 1, false) },
+        Entity = new() { Id = "Plant_Berry1", DefName = "Plant_Berry", Label = "berry bush", Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(1, new Cell(10, 10)) },
         NutritionYield = 0.5,
     };
 
     private static readonly AcquisitionSource Deer = new()
     {
-        Observed = new() { Source = new() { Id = "Deer1" }, Token = "Deer1", Resource = "Deer", Yield = 1, Designation = new O.AcquisitionDesignation.Open(), Taken = false, Kind = new O.AcquisitionKind.Hunt(82, 1, false, false, false, false) },
-        Entity = new() { Id = "Deer1", DefName = "Deer", Label = "deer", Place = new O.EntityPlace.OnMap(1, new Cell(30, 30)) },
+        Observed = new() { Source = new() { Id = "Deer1" }, Token = "Deer1", Resource = "Deer", Yield = 1, Designation = new RimGovernor.Brain.GameFacts.Observations.AcquisitionDesignation.Open(), Taken = false, Kind = new RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Hunt(82, 1, false, false, false, false) },
+        Entity = new() { Id = "Deer1", DefName = "Deer", Label = "deer", Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(1, new Cell(30, 30)) },
         NutritionYield = 4.1,
     };
 
@@ -35,8 +34,8 @@ public sealed class FoodForageTests
 
     private static IReadOnlyList<AcquisitionSource> Select(bool huntOnly, int slots)
     {
-        var (sources, deficit) = RoundsAcquisitionPlanner.FoodPlanAcquisition(Plan, EquatableArray.From([Berries, Deer]));
-        return RoundsAcquisitionPlanner.GoalSelection(sources, huntOnly, deficit, 0.0, food: true, new Dictionary<string, bool>(), slots);
+        var (sources, deficit) = AcquisitionPlanner.FoodPlanAcquisition(Plan, EquatableArray.From([Berries, Deer]));
+        return AcquisitionPlanner.GoalSelection(sources, huntOnly, deficit, 0.0, food: true, new Dictionary<string, bool>(), slots);
     }
 
     [Fact]

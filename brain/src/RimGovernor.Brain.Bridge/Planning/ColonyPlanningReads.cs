@@ -1,14 +1,12 @@
-using Identity = RimGovernor.Brain.Bridge.Contracts.ObservationIdentity;
+using Identity = RimGovernor.Brain.GameAccess.ObservationIdentity;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using DefinitionCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
-using C = RimGovernor.Contracts.Wire.Common;
-using O = RimGovernor.Contracts.Wire.Observations;
 using Cell = RimGovernor.Brain.Domain.Cell;
 using PawnId = RimGovernor.Brain.Domain.PawnId;
-using ControlledEnvironment = RimGovernor.Contracts.Wire.Observations.ControlledEnvironment;
-using PowerHeadroom = RimGovernor.Contracts.Wire.Observations.PowerHeadroom;
-using PenGrazing = RimGovernor.Contracts.Wire.Observations.PenGrazing;
+using ControlledEnvironment = RimGovernor.Brain.GameFacts.Observations.ControlledEnvironment;
+using PowerHeadroom = RimGovernor.Brain.GameFacts.Observations.PowerHeadroom;
+using PenGrazing = RimGovernor.Brain.GameFacts.Observations.PenGrazing;
 using System.Diagnostics.CodeAnalysis;
 using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Bridge;
@@ -23,7 +21,7 @@ public static partial class ColonyPlanningReads
     }
 
     /// <summary>The total seasonal climate shared by direct and routine colony reads.</summary>
-    internal static EquatableArray<double> OutdoorCurveOf(O.ColonyFactsSnapshot v)
+    internal static EquatableArray<double> OutdoorCurveOf(RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot v)
     {
         var gear = v.Gear ?? throw new BridgeContractException("missing total gear census");
         var climate = gear.Climate ?? throw new BridgeContractException("missing total gear climate");
@@ -36,7 +34,7 @@ public static partial class ColonyPlanningReads
     }
 
     /// <summary>The load id of the allowed area labelled <paramref name="label"/>, "" when the map has none.</summary>
-    internal static string AllowedAreaID(O.Policies policies, string label)
+    internal static string AllowedAreaID(RimGovernor.Brain.GameFacts.Observations.Policies policies, string label)
     {
         foreach (var a in policies.AllowedAreas)
         {
@@ -53,7 +51,7 @@ public static partial class ColonyPlanningReads
     /// resolved against the catalog, an animal with the foods its race can ever eat. An animal whose pawn row or
     /// race the frame does not hold is dropped, so no diet is written for it.
     /// </summary>
-    internal static IReadOnlyList<FoodEaterDiet> FoodEaters(IEnumerable<O.FoodEater> eaters, Pawns pawns, AnimalRaceCatalog races, DefinitionCatalog? catalog)
+    internal static IReadOnlyList<FoodEaterDiet> FoodEaters(IEnumerable<RimGovernor.Brain.GameFacts.Observations.FoodEater> eaters, Pawns pawns, AnimalRaceCatalog races, DefinitionCatalog? catalog)
     {
         var output = new List<FoodEaterDiet>();
         foreach (var e in eaters)
@@ -61,10 +59,10 @@ public static partial class ColonyPlanningReads
             var traits = new List<PawnTrait>(e.Traits.Count);
             foreach (var t in e.Traits)
             {
-                traits.Add(RoundsWorkReads.ResolveTrait(catalog, t));
+                traits.Add(WorkReads.ResolveTrait(catalog, t));
             }
             var eater = new FoodEaterDiet { Observed = e, Traits = traits };
-            if (e.Kind == O.FoodEaterKind.Animal)
+            if (e.Kind == RimGovernor.Brain.GameFacts.Observations.FoodEaterKind.Animal)
             {
                 if (!pawns.TryGetValue(e.Pawn.Value, out var row) || row is null || !races.Race(new Resource(row.Pawn.DefName ?? ""), out var race))
                 {
@@ -84,7 +82,7 @@ public static partial class ColonyPlanningReads
     /// <paramref name="tables"/> are the frame's keyed tables every building and pawn reference resolves
     /// against; a family with a reference they do not hold is unknown until a later frame.
     /// </summary>
-    public static ColonyReading Compose(O.ColonyFactsSnapshot v, Identity expected, Tables tables, DefinitionCatalog? catalog)
+    public static ColonyReading Compose(RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot v, Identity expected, Tables tables, DefinitionCatalog? catalog)
     {
         if (v.Upkeep is not { Lighting: not null, Flooring: not null, Routes: not null })
             throw new BridgeContractException("missing total upkeep census");
@@ -96,7 +94,7 @@ public static partial class ColonyPlanningReads
         _ = OutdoorCurveOf(v);
         expected.Validate();
         var identity = new ObservationIdentity { Context = v.Context };
-        if (expected.NativeGeneration is C.ObservedGeneration.AtCase generation && !identity.NativeGeneration.IsAt(generation.Value))
+        if (expected.NativeGeneration is RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase generation && !identity.NativeGeneration.IsAt(generation.Value))
             throw new ObservationChangedException();
         var buildings = tables.Buildings;
         // The race rows are static for a load and come from the catalog; an unbuildable race table fails the reading.
@@ -107,7 +105,7 @@ public static partial class ColonyPlanningReads
         var defs = RequireCatalog(catalog);
         var definitions = new DefinitionFacts { Catalog = defs, Finished = DefinitionsReads.FinishedSet(tables.FinishedResearch), Crops = DefinitionsReads.CropRows(v.Crops) };
         var observedRooms = RoomsOf(tables, defs);
-        var f = new RoundsFacts
+        var f = new ReviewFacts
         {
             EssentialInputs = new() { Benches = productionBenches },
             Definitions = definitions.AppendDefinitions([], DefinitionsReads.StarterDefinitions.Concat(defs.SowableCrops())),
@@ -163,16 +161,16 @@ public static partial class ColonyPlanningReads
         };
         f = f with { PenGrazing = f.FoodChannels.Grazing, Pasture = f.FoodChannels.Pasture };
         {
-            var power = buildings.Table.Sorted().Where(row => row.Status == O.BuildingStatus.Built && row.Service.Power is not O.BuildingPower.NoPower).ToList();
+            var power = buildings.Table.Sorted().Where(row => row.Status == RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Built && row.Service.Power is not RimGovernor.Brain.GameFacts.Observations.BuildingPower.NoPower).ToList();
             var topology = new PowerTopology
             {
                 Blackout = conditions.Any(condition => condition.DisablesPower),
                 Eclipse = conditions.Any(condition => condition.Definition == DisasterRules.ConditionEclipse),
                 Buildings = power,
             };
-            var fuel = power.Where(site => site.Service.Fuel is O.BuildingFuel.Refuelable);
-            var conduits = buildings.Table.Sorted().Where(row => row.Status == O.BuildingStatus.Built && row.Conduit != O.ConduitKind.None).Select(row => row.Cell).ToList();
-            var unsafeConduits = buildings.Table.Sorted().Where(row => row.Status == O.BuildingStatus.Built && row.Conduit == O.ConduitKind.Exposed).Select(row => row.Cell).ToList();
+            var fuel = power.Where(site => site.Service.Fuel is RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable);
+            var conduits = buildings.Table.Sorted().Where(row => row.Status == RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Built && row.Conduit != RimGovernor.Brain.GameFacts.Observations.ConduitKind.None).Select(row => row.Cell).ToList();
+            var unsafeConduits = buildings.Table.Sorted().Where(row => row.Status == RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Built && row.Conduit == RimGovernor.Brain.GameFacts.Observations.ConduitKind.Exposed).Select(row => row.Cell).ToList();
             topology = topology with { Conduits = conduits, UnsafeConduits = unsafeConduits, Networks = development.Networks, Geysers = development.Geysers };
             f = f with { EssentialInputs = f.EssentialInputs with { Power = topology } };
             var coverage = PowerRules.PowerCoverageOf(power);
@@ -184,7 +182,7 @@ public static partial class ColonyPlanningReads
                 DisabledConsumers = coverage.Disabled,
                 PowerWeatherSafe = unsafeConduits.Count == 0 && PowerRules.PowerWeatherSafe(power),
             };
-            f = f with { ShortCircuit = development.ShortCircuit is O.ObservedShortCircuit.Seen shorted ? new DisasterShortCircuit.Seen(new Tick(shorted.Tick)) : new DisasterShortCircuit.NoneSeen() };
+            f = f with { ShortCircuit = development.ShortCircuit is RimGovernor.Brain.GameFacts.Observations.ObservedShortCircuit.Seen shorted ? new DisasterShortCircuit.Seen(new Tick(shorted.Tick)) : new DisasterShortCircuit.NoneSeen() };
         }
         f = f with
         {
@@ -274,19 +272,19 @@ public static partial class ColonyPlanningReads
 /// <summary>Null-tolerant row lookups over the bridge tables, which take a non-null reference.</summary>
 internal static class TableLookups
 {
-    public static bool TryGetRow(this Buildings buildings, C.Ref? reference, [NotNullWhen(true)] out O.BuildingState? row)
+    public static bool TryGetRow(this Buildings buildings, RimGovernor.Brain.GameFacts.Common.Ref? reference, [NotNullWhen(true)] out RimGovernor.Brain.GameFacts.Observations.BuildingState? row)
     {
         row = null;
         return reference is not null && buildings.TryRow(reference, out row);
     }
 
-    public static bool TryGetRow(this Things things, C.Ref? reference, [NotNullWhen(true)] out O.Thing? row)
+    public static bool TryGetRow(this Things things, RimGovernor.Brain.GameFacts.Common.Ref? reference, [NotNullWhen(true)] out RimGovernor.Brain.GameFacts.Observations.Thing? row)
     {
         row = null;
         return reference is not null && things.TryRow(reference, out row);
     }
 
-    public static bool TryGetRow(this Pawns pawns, C.Ref? reference, [NotNullWhen(true)] out O.PawnState? row)
+    public static bool TryGetRow(this Pawns pawns, RimGovernor.Brain.GameFacts.Common.Ref? reference, [NotNullWhen(true)] out RimGovernor.Brain.GameFacts.Observations.PawnState? row)
     {
         row = null;
         return reference is not null && pawns.TryRow(reference, out row);

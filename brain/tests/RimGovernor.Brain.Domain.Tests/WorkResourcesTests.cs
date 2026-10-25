@@ -1,8 +1,7 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
-using WorkResourcePawn = RimGovernor.Contracts.Wire.Observations.WorkResourcePawn;
+using WorkResourcePawn = RimGovernor.Brain.GameFacts.Observations.WorkResourcePawn;
 using Xunit;
 using Journal = RimGovernor.Brain.Store.Store;
 
@@ -26,15 +25,15 @@ internal static class TestNeed
 
     /// <summary>Files the Need's progress: unmet working <paramref name="method"/>, or met (no row).</summary>
     internal static void File(Journal journal, bool met, MethodId method, CancellationToken ct) =>
-        journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(),
+        journal.RecordPlannerReasons(new Dictionary<FilingKey, PlannerNote>(),
             [new FamilyProgress(AdminFamily.FamilyId, true, met ? [] : [new NeedProgress(Id, false, default, method)])], ct);
 }
 
 internal static class WorkResourceTestFacts
 {
-    internal static RoundsFacts Create(params string[] pawns) => new()
+    internal static ReviewFacts Create(params string[] pawns) => new()
     {
-        Census = (ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat }, WorkResources = EquatableArray.From(pawns.Select(p => new WorkResourcePawn(p, "", 0, "", "", "", 0) { LocalHour = 12 })) }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 10 }] },
+        Census = (ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat }, WorkResources = EquatableArray.From(pawns.Select(p => new WorkResourcePawn(p, "", 0, "", "", "", 0) { LocalHour = 12 })) }) with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Rice", Units = 10 }] },
         Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } },
         Research = ResearchTestFacts.Read(),
         Comfort = ComfortTests.NoComfortObservation,
@@ -43,14 +42,14 @@ internal static class WorkResourceTestFacts
         Tick = new(100),
         AvailableNeeds = [AdminFamily.WorkAssignments, FoodRules.FoodSupplyNeed, ShelterFamily.Sleeping, ShelterFamily.SafeArea, ShelterFamily.Temperature, MilitaryFamily.Equipment, EconomyFamily.Research],
         WorkProfiles = [new() { Observed = PawnFixtures.Row("artist") with { Biography = PawnFixtures.Row("artist").Biography with
-            { Skills = [new() { DefName = "Art", Passion = O.Passion.None, Level = 8 }] } },
+            { Skills = [new() { DefName = "Art", Passion = RimGovernor.Brain.GameFacts.Observations.Passion.None, Level = 8 }] } },
             WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "Art" },
         }],
 
         Gear = ColonyModelFixtures.NoGear(), CurrentConstruction = CurrentConstruction.Empty,
         BillReservations = [],
         ForecastObserved = new() { WorkPawns = new WorkPawnsRead(EquatableArray.From(pawns.Select(p => PawnFixtures.Worker(p) with
-        { Observed = PawnFixtures.Row(p) with { Settings = PawnFixtures.Row(p).Settings with { Schedule = EquatableArray.From((EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24))).Select((assignment, hour) => new O.TimetableSlot { Hour = (uint)hour, AssignmentDefName = assignment })) } } }))) },
+        { Observed = PawnFixtures.Row(p) with { Settings = PawnFixtures.Row(p).Settings with { Schedule = EquatableArray.From((EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24))).Select((assignment, hour) => new RimGovernor.Brain.GameFacts.Observations.TimetableSlot { Hour = (uint)hour, AssignmentDefName = assignment })) } } }))) },
         WorkAdmission = new()
         {
             Buildings = [new("TestWall", "Rice", [new(new("Rice"), 6)]) { Size = new(1, 1) }],
@@ -70,7 +69,7 @@ public sealed class WorkResourcesTests
     private static DomainAction Building(string id) => DomainAction.NewBuildingAction(new(id), new("TestWall", new(3, 3), Rotation.North, "Rice"), ConstructionTier.Survive);
     private static DomainAction Craft(string id) => DomainAction.NewProductionBillAction(new(id), new("bench", "TestRecipe", BillMode.GearBatch, 1, "Rice"));
     private static PlanSpec Plan(string id, params DomainAction[] actions) => new(new(id), new(1), EquatableArray.From(actions));
-    private static WorkResourceView View(RoundsFacts facts, params WorkAction[] actions) => WorkRules.WorkResourcesOf(
+    private static WorkResourceView View(ReviewFacts facts, params WorkAction[] actions) => WorkRules.WorkResourcesOf(
         ProductionRules.WorkAdmissionEvidenceOf(facts, new ProductionBatchCensus.Read([])), new ProductionBatchCensus.Read([]), actions);
     private static WorkAction Pending(DomainAction action) => new(new("owner"), action, new() { Action = action.Id, Stage = Stage.Pending });
 
@@ -84,7 +83,7 @@ public sealed class WorkResourcesTests
             [new("helper", "helper-assignment", "harvest-method", 0, 1, false,
                 [new(PawnActivityKind.Hold, "", "", "", 0, 500)]) { Task = "deliver", Preparing = true }]) { Tasks = [task] });
         var facts = WorkResourceTestFacts.Create("helper", "eater") with
-        { Census = (WorkResourceTestFacts.Create("helper", "eater")).Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 7 }] }};
+        { Census = (WorkResourceTestFacts.Create("helper", "eater")).Census with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Rice", Units = 7 }] }};
         var held = View(facts, Pending(action));
         Assert.Equal(1, held.Materials.AssessedBalances()[new("Rice")].ExactCount());
         Assert.False(WorkRules.WorkResourcesFit(held, Plan("hungry", Eat(7))));
@@ -93,7 +92,7 @@ public sealed class WorkResourcesTests
             new(PawnActivityKind.Work, "plant", "Harvest", "Harvest", 0, 500), new(1, 1), 100);
         var beforeHarvest = DomainAction.NewPawnActivitiesAction(action.Id, action.PawnActivities! with { Tasks = [producer, task] });
         Assert.Equal(7, View(facts, Pending(beforeHarvest)).Materials.AssessedBalances()[new("Rice")].ExactCount());
-        var noStock = facts with { Census = facts.Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 0 }] }};
+        var noStock = facts with { Census = facts.Census with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Rice", Units = 0 }] }};
         Assert.True(View(noStock, Pending(action)).Materials.AssessedBalances()[new("Rice")].ExactCount() <= 0);
 
         static DomainAction Eat(int count)
@@ -124,7 +123,7 @@ public sealed class WorkResourcesTests
 
             Census = ((WorkResourceTestFacts.Create("helper", "eater")).Census with { WorkResources = [
                 new("helper", "helper-assignment", 2, "holding", "", "", 0) { LocalHour = 12 },
-                new("eater", "", 0, "", "", "", 0) { LocalHour = 12 }] }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 19 }] }};
+                new("eater", "", 0, "", "", "", 0) { LocalHour = 12 }] }) with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Rice", Units = 19 }] }};
         var row = Pending(heldAction) with { Progress = new() { Action = heldAction.Id, Stage = Stage.Completed,
             Attempt = new(1), Receipt = new ReceiptState.Received(Receipt.Accepted), Tick = new(99) } };
         var held = View(facts, row);
@@ -181,13 +180,13 @@ public sealed class WorkResourcesTests
     {
         // A naked start owns no wood: the shelter and the storage room blueprints were refused materials_short, so
         // nothing was ever placed for the colony to gather toward. A blueprint spends nothing until delivery.
-        var facts = WorkResourceTestFacts.Create("cook-builder") with { Census = (WorkResourceTestFacts.Create("cook-builder")).Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 0 }] }};
+        var facts = WorkResourceTestFacts.Create("cook-builder") with { Census = (WorkResourceTestFacts.Create("cook-builder")).Census with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Rice", Units = 0 }] }};
         Assert.Null(WorkRules.WorkResourcesRefusal(View(facts), Plan("build", Building("wall"))));
         var held = View(facts, Pending(Building("wall")));
         var other = DomainAction.NewBuildingAction(new("other"), new("TestWall", new(7, 7), Rotation.North, "Rice"), ConstructionTier.Survive);
         Assert.Null(WorkRules.WorkResourcesRefusal(held, Plan("other", other)));
         Assert.StartsWith("materials_short:Rice", WorkRules.WorkResourcesRefusal(
-            View(facts with { Census = facts.Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 6 }] }}, Pending(Building("wall"))), Plan("craft", Craft("bill"))));
+            View(facts with { Census = facts.Census with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Rice", Units = 6 }] }}, Pending(Building("wall"))), Plan("craft", Craft("bill"))));
     }
 
     [Fact]
@@ -225,12 +224,12 @@ public sealed class WorkResourcesTests
     [Fact]
     public void PreemptibleVanillaJobIsFreeButStillShowsItsTargetToClaims()
     {
-        RoundsFacts Holding(bool preemptible)
+        ReviewFacts Holding(bool preemptible)
         {
             var facts = WorkResourceTestFacts.Create("cook-builder", "helper");
             return facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead(EquatableArray.From(((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns
-                .Select(p => p.Id.Value != "helper" ? p : p with { Observed = (p).Observed with { Job = new O.JobEvidence { DefName = "HaulToCell", WorkTypeDefName = "Hauling",
-                    TargetA = new() { Target = new O.TargetRefTarget.EntityCase(new RimGovernor.Contracts.Wire.Common.Ref { Id = "stack" }, new O.EntityPlace.OnMap(0, new Cell(1, 1))) }, Preemptible = preemptible } } }))) } };
+                .Select(p => p.Id.Value != "helper" ? p : p with { Observed = (p).Observed with { Job = new RimGovernor.Brain.GameFacts.Observations.JobEvidence { DefName = "HaulToCell", WorkTypeDefName = "Hauling",
+                    TargetA = new() { Target = new RimGovernor.Brain.GameFacts.Observations.TargetRefTarget.EntityCase(new RimGovernor.Brain.GameFacts.Common.Ref { Id = "stack" }, new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(0, new Cell(1, 1))) }, Preemptible = preemptible } } }))) } };
         }
         PlanSpec Approach(string target) => Plan("approach", DomainAction.NewPawnActivitiesAction(new("approach-0"), new(1,
             [new("cook-builder", "m/cook-builder", "m", 0, 1, false,
@@ -279,7 +278,7 @@ public sealed class WorkResourcesTests
     {
         var facts = WorkResourceTestFacts.Create("cook-builder", "helper");
         facts = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead(EquatableArray.From(
-            ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p.Id.Value == "cook-builder" ? p with { Observed = (p).Observed with { Job = new O.JobEvidence { DefName = "DoBill", TargetA = new() { Target = new RimGovernor.Contracts.Wire.Common.Unavailable { Reason = RimGovernor.Contracts.Wire.Common.UnavailableReason.NotApplicable } } } } } : p))) } };
+            ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p.Id.Value == "cook-builder" ? p with { Observed = (p).Observed with { Job = new RimGovernor.Brain.GameFacts.Observations.JobEvidence { DefName = "DoBill", TargetA = new() { Target = new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.NotApplicable } } } } } : p))) } };
         var view = View(facts);
         Assert.Contains("unknown_current_job_remaining", view.Capacity["cook-builder"].Findings);
         Assert.IsType<ForecastCapacityWindows.Read>(view.Capacity["helper"].Capacity.Windows);
@@ -293,8 +292,8 @@ public sealed class WorkResourcesTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-shared-work-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
-            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("cook-builder", "helper") }, ct);
+        var review = journal.Review(new() { Current = World, Tick = new(100), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("cook-builder", "helper") }, ct);
         TestNeed.Commit(journal, World, new("method"), Plan("food", Delivery("food")), ct);
         // The craft bill is the admin/work-ledger Need's.
         var refused = journal.CommitClaimedMethod(AdminFamily.WorkLedger, World, new("craft"), "", Plan("craft", Craft("bill")), ct);
@@ -309,8 +308,8 @@ public sealed class WorkResourcesTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-contested-proposal-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
-            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("cook-builder", "helper") }, ct);
+        var review = journal.Review(new() { Current = World, Tick = new(100), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("cook-builder", "helper") }, ct);
         Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(FoodRules.FoodSupplyNeed, World, new("method"), "", Plan("held", Delivery("held")), ct).Outcome);
         var proposed = Delivery("proposed", "helper").PawnActivities!;
         proposed = proposed with { Orders = proposed.Orders.Select(o => o with { Method = "proposal" }).ToArray() };
@@ -327,7 +326,7 @@ public sealed class WorkResourcesTests
     {
         var facts = WorkResourceTestFacts.Create("cook-builder") with
         {
-            Census = (WorkResourceTestFacts.Create("cook-builder")).Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 10 }, new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Steel", Units = 10 }] },
+            Census = (WorkResourceTestFacts.Create("cook-builder")).Census with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Rice", Units = 10 }, new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Steel", Units = 10 }] },
             BillReservations =
                 [BillWire.Reservation("player-bill", "player", new Amount(new("Rice"), 2))],
             WorkAdmission = WorkResourceTestFacts.Create().WorkAdmission with
@@ -349,10 +348,10 @@ public sealed class WorkResourcesTests
     [Fact]
     public void SameBenchCannotBeHiddenInsideOnePlanOrUsedThroughPlayerWork()
     {
-        var facts = WorkResourceTestFacts.Create("cook-builder") with { Census = (WorkResourceTestFacts.Create("cook-builder")).Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 100 }] }};
+        var facts = WorkResourceTestFacts.Create("cook-builder") with { Census = (WorkResourceTestFacts.Create("cook-builder")).Census with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Rice", Units = 100 }] }};
         Assert.False(WorkRules.WorkResourcesFit(View(facts), Plan("double-bench", Craft("first"), Craft("second"))));
         var worker = ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns[0];
-        var busy = worker with { Observed = worker.Observed with { Job = new O.JobEvidence { DefName = "DoBill", TargetA = new() { Target = new O.TargetRefTarget.EntityCase(new RimGovernor.Contracts.Wire.Common.Ref { Id = "bench" }, new O.EntityPlace.OnMap(0, new Cell(1, 1))) } } } };
+        var busy = worker with { Observed = worker.Observed with { Job = new RimGovernor.Brain.GameFacts.Observations.JobEvidence { DefName = "DoBill", TargetA = new() { Target = new RimGovernor.Brain.GameFacts.Observations.TargetRefTarget.EntityCase(new RimGovernor.Brain.GameFacts.Common.Ref { Id = "bench" }, new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(0, new Cell(1, 1))) } } } };
         facts = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead([busy]) } };
         Assert.False(WorkRules.WorkResourcesFit(View(facts), Plan("busy-bench", Craft("first"))));
         Assert.True(WorkRules.WorkResourcesFit(View(facts), Plan("other-work", Building("wall"))));

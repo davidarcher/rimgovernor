@@ -4,9 +4,8 @@ using RimWorld;
 using RimWorld.Planet;
 using RimWorld.QuestGen;
 using Verse;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class NativeSiteSecurity
     {
@@ -56,18 +55,18 @@ namespace HomeBridge.BridgeTools
         /// complex explosives; an unreadable complex trigger leaves the explosives out, and the site's budget is then
         /// unbounded.
         /// </summary>
-        internal static Obs.SiteThreat Threat(Map map)
+        internal static RimGovernor.Brain.GameFacts.Observations.SiteThreat Threat(Map map)
         {
-            if (GenHostility.AnyHostileActiveThreatToPlayer(map, countDormantPawnsAsHostile: false, canBeFogged: true)) return new Obs.SiteThreat.Active();
+            if (GenHostility.AnyHostileActiveThreatToPlayer(map, countDormantPawnsAsHostile: false, canBeFogged: true)) return new RimGovernor.Brain.GameFacts.Observations.SiteThreat.Active();
             if (GenHostility.AnyHostileActiveThreatToPlayer(map, countDormantPawnsAsHostile: true, canBeFogged: true)
                 || map.listerThings.AllThings.Any(t => t.HostileTo(Faction.OfPlayer) && t.TryGetComp<CompCanBeDormant>()?.Awake == false))
-                return new Obs.SiteThreat.Dormant();
+                return new RimGovernor.Brain.GameFacts.Observations.SiteThreat.Dormant();
             var traps = map.listerThings.AllThings.OfType<Building_Trap>().Count(t => t.Faction != Faction.OfPlayer);
             if (NativeComplexSecurity.Latent(map, out _, out var explosives)) traps += explosives;
-            return traps > 0 ? new Obs.SiteThreat.Trapped() : new Obs.SiteThreat.Clear();
+            return traps > 0 ? new RimGovernor.Brain.GameFacts.Observations.SiteThreat.Trapped() : new RimGovernor.Brain.GameFacts.Observations.SiteThreat.Clear();
         }
 
-        internal static Obs.SiteThreatBudget Budget(Site site, Quest[] quests)
+        internal static RimGovernor.Brain.GameFacts.Observations.SiteThreatBudget Budget(Site site, Quest[] quests)
         {
             var visible = site.sitePartsKnown && site.parts.All(p => !p.hidden);
             double initial = visible ? site.ActualThreatPoints : 0;
@@ -121,8 +120,8 @@ namespace HomeBridge.BridgeTools
                 }
             }
             if (!closed || double.IsNaN(initial) || double.IsInfinity(initial) || initial < 0 || double.IsNaN(pending) || double.IsInfinity(pending) || pending < 0)
-                return new Obs.SiteThreatBudget.Unbounded();
-            return new Obs.SiteThreatBudget.Bounded(initial, pending);
+                return new RimGovernor.Brain.GameFacts.Observations.SiteThreatBudget.Unbounded();
+            return new RimGovernor.Brain.GameFacts.Observations.SiteThreatBudget.Bounded(initial, pending);
         }
     }
 }

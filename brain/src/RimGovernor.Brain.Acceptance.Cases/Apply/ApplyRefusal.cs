@@ -1,10 +1,7 @@
 using RimGovernor.Brain.Bridge;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
 using FilterBase = RimGovernor.Brain.Domain.FilterBase;
 using StockpilePriority = RimGovernor.Brain.Domain.StockpilePriority;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Placement = RimGovernor.Contracts.Wire.Placement;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -55,7 +52,7 @@ internal static class ApplyRefusal
         Task MoveAsync(string label, string action, string id = "", RimGovernor.Brain.Domain.Cell? cell = null) =>
             s.FixtureAsync(label, Move, (action, id, cell), cancellationToken);
 
-        async Task RefusedAsync(string label, Operations.ActionIntent intent, Common.FailureCode code, string reason)
+        async Task RefusedAsync(string label, RimGovernor.Brain.GameOrders.Operations.ActionIntent intent, RimGovernor.Brain.GameFacts.Common.FailureCode code, string reason)
         {
             var refusal = await TypedApply.RefusedAsync(s, "refusal-" + label, intent, cancellationToken).ConfigureAwait(false);
             if (refusal.Code != code || refusal.Reason?.Contains(reason, StringComparison.Ordinal) != true)
@@ -69,11 +66,11 @@ internal static class ApplyRefusal
         // Build: the open build cell is walled over after the placement preview accepted it; the building intent is
         // refused with the re-planned placement's own reason. A Campfire, not a wall: the fixture's player wall would
         // otherwise be applied as it stands.
-        var placement = new Placement.PlacementCandidate { DefName = "Campfire", Stuff = "", X = buildCell.X, Z = buildCell.Z, Rotation = Placement.Rotation.North, IgnoreNaturalRock = false };
+        var placement = new RimGovernor.Brain.GameOrders.Placement.PlacementCandidate { DefName = "Campfire", Stuff = "", X = buildCell.X, Z = buildCell.Z, Rotation = RimGovernor.Brain.GameFacts.Placement.Rotation.North, IgnoreNaturalRock = false };
 
         async Task<bool> CanPlaceAsync(string label)
         {
-            var reply = await s.CallAsync("placement-" + label, NativeOps.PreviewPlacement, new Placement.PlacementRequest { Identity = s.Identity, Placements = [placement] }, cancellationToken).ConfigureAwait(false);
+            var reply = await s.CallAsync("placement-" + label, NativeOps.PreviewPlacement, new RimGovernor.Brain.GameOrders.Placement.PlacementRequest { Identity = s.Identity, Placements = [placement] }, cancellationToken).ConfigureAwait(false);
             return reply.Outcome?.Batch?.Results.ToList() is [{ Outcome.Evaluated: { } evaluated }]
                 ? evaluated.CanPlace == true
                 : throw new AcceptanceException($"{label}: expected one evaluated placement, got {reply.Outcome}");
@@ -90,8 +87,8 @@ internal static class ApplyRefusal
             throw new AcceptanceException("build-blocked: expected the walled build cell to be unplaceable");
         }
 
-        var build = await TypedApply.RefusedAsync(s, "apply-refusal-build", new Operations.BuildingIntent { Placement = placement, ReplaceWall = false, Tier = new Operations.ConstructionTierChange.Preserve(), MinimumFinishingSkill = new Operations.FinishingSkillChange.Preserve() }, cancellationToken).ConfigureAwait(false);
-        if (build.Code != Common.FailureCode.InvalidRequest || string.IsNullOrEmpty(build.Reason))
+        var build = await TypedApply.RefusedAsync(s, "apply-refusal-build", new RimGovernor.Brain.GameOrders.Operations.BuildingIntent { Placement = placement, ReplaceWall = false, Tier = new RimGovernor.Brain.GameOrders.Operations.ConstructionTierChange.Preserve(), MinimumFinishingSkill = new RimGovernor.Brain.GameOrders.Operations.FinishingSkillChange.Preserve() }, cancellationToken).ConfigureAwait(false);
+        if (build.Code != RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest || string.IsNullOrEmpty(build.Reason))
         {
             throw new AcceptanceException($"build: expected an INVALID_REQUEST refusal with a reason, got {build}");
         }
@@ -99,22 +96,22 @@ internal static class ApplyRefusal
         s.Record("build", build.Reason);
 
         // Zone cell edit and zone creation: the free roofed cell is walled over after the read.
-        var zone = new Common.Ref { Id = prepared.ZoneId };
+        var zone = new RimGovernor.Brain.GameFacts.Common.Ref { Id = prepared.ZoneId };
         await MoveAsync("fill-free-cell", "fill_cell", cell: free).ConfigureAwait(false);
         await RefusedAsync(
             "zone-edit-add",
-            new Operations.ZoneIntent { Zone = zone, AddCells = new Operations.Cells { Selection = new Operations.CellList { Cells = [free] } }, Delete = false, RequireCoveredEmpty = false, Kind = Operations.ZoneType.Existing },
-            Common.FailureCode.InvalidRequest,
+            new RimGovernor.Brain.GameOrders.Operations.ZoneIntent { Zone = zone, AddCells = new RimGovernor.Brain.GameOrders.Operations.Cells { Selection = new RimGovernor.Brain.GameFacts.Operations.CellList { Cells = [free] } }, Delete = false, RequireCoveredEmpty = false, Kind = RimGovernor.Brain.GameOrders.Operations.ZoneType.Existing },
+            RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest,
             $"Zone cell edit refused: cell ({free.X}, {free.Z}) is not free zoneable ground").ConfigureAwait(false);
         await RefusedAsync(
             "zone-create",
-            new Operations.ZoneIntent
+            new RimGovernor.Brain.GameOrders.Operations.ZoneIntent
             {
                 Label = "RimGovernor apply refusal",
-                Kind = Operations.ZoneType.Stockpile,
-                AddCells = new Operations.Cells { Selection = new Operations.Rectangle { Origin = free, Width = 1, Height = 1 } },
-                Stockpile = new Operations.StockpileSettings { Priority = new Operations.StockpilePriorityChange.Selected(StockpilePriority.Normal), Preset = new Operations.StockpilePresetChange.Selected(FilterBase.Nothing)}, Delete = false, RequireCoveredEmpty = false },
-            Common.FailureCode.InvalidRequest,
+                Kind = RimGovernor.Brain.GameOrders.Operations.ZoneType.Stockpile,
+                AddCells = new RimGovernor.Brain.GameOrders.Operations.Cells { Selection = new RimGovernor.Brain.GameOrders.Operations.Rectangle { Origin = free, Width = 1, Height = 1 } },
+                Stockpile = new RimGovernor.Brain.GameOrders.Operations.StockpileSettings { Priority = new RimGovernor.Brain.GameOrders.Operations.StockpilePriorityChange.Selected(StockpilePriority.Normal), Preset = new RimGovernor.Brain.GameOrders.Operations.StockpilePresetChange.Selected(FilterBase.Nothing)}, Delete = false, RequireCoveredEmpty = false },
+            RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest,
             "Rectangle has no free vanilla-zoneable stockpile cells").ConfigureAwait(false);
 
         // Stockpile patch and a cell removal: the zone is gone. (A deletion of the gone zone is its effect already
@@ -122,43 +119,43 @@ internal static class ApplyRefusal
         await MoveAsync("delete-zone", "delete_zone", prepared.ZoneId).ConfigureAwait(false);
         await RefusedAsync(
             "stockpile-patch",
-            new Operations.ZoneIntent { Zone = zone, Stockpile = new Operations.StockpileSettings { Priority = new Operations.StockpilePriorityChange.Selected(StockpilePriority.Important), Preset = new Operations.StockpilePresetChange.Preserve() }, Delete = false, RequireCoveredEmpty = false, Kind = Operations.ZoneType.Existing },
-            Common.FailureCode.NotFound,
+            new RimGovernor.Brain.GameOrders.Operations.ZoneIntent { Zone = zone, Stockpile = new RimGovernor.Brain.GameOrders.Operations.StockpileSettings { Priority = new RimGovernor.Brain.GameOrders.Operations.StockpilePriorityChange.Selected(StockpilePriority.Important), Preset = new RimGovernor.Brain.GameOrders.Operations.StockpilePresetChange.Preserve() }, Delete = false, RequireCoveredEmpty = false, Kind = RimGovernor.Brain.GameOrders.Operations.ZoneType.Existing },
+            RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound,
             "Stockpile patch refused: the exact stockpile zone or storage building no longer exists on this map").ConfigureAwait(false);
         await RefusedAsync(
             "zone-edit-remove",
-            new Operations.ZoneIntent { Zone = zone, RemoveCells = new Operations.Cells { Selection = new Operations.CellList { Cells = [zoneCell] } }, Delete = false, RequireCoveredEmpty = false, Kind = Operations.ZoneType.Existing },
-            Common.FailureCode.NotFound,
+            new RimGovernor.Brain.GameOrders.Operations.ZoneIntent { Zone = zone, RemoveCells = new RimGovernor.Brain.GameOrders.Operations.Cells { Selection = new RimGovernor.Brain.GameFacts.Operations.CellList { Cells = [zoneCell] } }, Delete = false, RequireCoveredEmpty = false, Kind = RimGovernor.Brain.GameOrders.Operations.ZoneType.Existing },
+            RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound,
             "Zone cell edit refused: the exact zone no longer exists on this map").ConfigureAwait(false);
 
         // Haul and work settings: the colonist was drafted after the read.
         await MoveAsync("draft-pawn", "draft_pawn", prepared.PawnId).ConfigureAwait(false);
         await RefusedAsync(
             "haul",
-            new Operations.HaulIntent { PawnId = prepared.PawnId, ThingId = prepared.HaulItemId },
-            Common.FailureCode.InvalidRequest,
+            new RimGovernor.Brain.GameOrders.Operations.HaulIntent { PawnId = prepared.PawnId, ThingId = prepared.HaulItemId },
+            RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest,
             "Haul refused: the pawn is drafted").ConfigureAwait(false);
         await RefusedAsync(
             "work-settings",
-            new Operations.WorkSettingsIntent { PawnId = prepared.PawnId, Work = [new Operations.WorkPriority { WorkTypeDef = "Hauling", Priority = 1 }] },
-            Common.FailureCode.InvalidRequest,
+            new RimGovernor.Brain.GameOrders.Operations.WorkSettingsIntent { PawnId = prepared.PawnId, Work = [new RimGovernor.Brain.GameOrders.Operations.WorkPriority { WorkTypeDef = "Hauling", Priority = 1 }] },
+            RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest,
             "Work settings refused: the pawn is drafted").ConfigureAwait(false);
         await MoveAsync("undraft-pawn", "undraft_pawn", prepared.PawnId).ConfigureAwait(false);
 
         // Bills: a bill on a bench that is not on the map.
         await RefusedAsync(
             "bill",
-            new Operations.ProductionBillIntent
+            new RimGovernor.Brain.GameOrders.Operations.ProductionBillIntent
             {
                 BenchId = "Building_missing_bench",
                 RecipeDef = "ButcherCorpseFlesh",
-                Settings = new Operations.BillSettings
+                Settings = new RimGovernor.Brain.GameOrders.Operations.BillSettings
                 {
-                    Repetition = new Operations.BillRepetition.Forever(),
+                    Repetition = new RimGovernor.Brain.GameOrders.Operations.BillRepetition.Forever(),
                     BeerReserve = false,
-                    Corpses = new Operations.BillCorpseClass.Selected(Common.CorpseClass.Animal),
-                }, AcknowledgeViolation = false, PartIndex = new Operations.SurgeryTarget.WholeBody() },
-            Common.FailureCode.NotFound,
+                    Corpses = new RimGovernor.Brain.GameOrders.Operations.BillCorpseClass.Selected(RimGovernor.Brain.GameFacts.Common.CorpseClass.Animal),
+                }, AcknowledgeViolation = false, PartIndex = new RimGovernor.Brain.GameOrders.Operations.SurgeryTarget.WholeBody() },
+            RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound,
             "Production bill refused: bench Building_missing_bench is not a loaded bill giver").ConfigureAwait(false);
 
         // Tame: the hare was designated for hunting after the read; native tame eligibility refuses it. (A tame
@@ -166,16 +163,16 @@ internal static class ApplyRefusal
         await MoveAsync("designate-tame-prey", "designate_hunt", prepared.TameId).ConfigureAwait(false);
         await RefusedAsync(
             "tame",
-            new Operations.HusbandryIntent { AnimalId = prepared.TameId, Order = Operations.HusbandryOrder.Tame, Follow = false },
-            Common.FailureCode.InvalidRequest,
+            new RimGovernor.Brain.GameOrders.Operations.HusbandryIntent { AnimalId = prepared.TameId, Order = RimGovernor.Brain.GameOrders.Operations.HusbandryOrder.Tame, Follow = false },
+            RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest,
             "Husbandry refused: native tame eligibility refused the animal or it is designated for hunting").ConfigureAwait(false);
 
         // Grower crop: the plant pot is gone.
         await MoveAsync("destroy-grower", "destroy_thing", prepared.GrowerId).ConfigureAwait(false);
         await RefusedAsync(
             "grower-crop",
-            new Operations.BuildingPatchIntent { ThingId = prepared.GrowerId, Change = new Operations.BuildingPatchIntentChange.PlantDefCase(prepared.GrowerCrop) },
-            Common.FailureCode.NotFound,
+            new RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntent { ThingId = prepared.GrowerId, Change = new RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.PlantDefCase(prepared.GrowerCrop) },
+            RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound,
             "Exact plant grower is unavailable.").ConfigureAwait(false);
     }
 }

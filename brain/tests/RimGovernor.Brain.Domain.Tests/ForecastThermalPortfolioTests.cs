@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -8,7 +9,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class ForecastThermalPortfolioTests
 {
     private const double Horizon = 1000;
-    internal static RoundsFacts Review(double ambient, bool demand = true, bool occupiedInside = true, bool restDemand = true)
+    internal static ReviewFacts Review(double ambient, bool demand = true, bool occupiedInside = true, bool restDemand = true)
     {
         var facts = ForecastCoupledTests.ConstructionReview(stock: 100);
         var cells = Enumerable.Range(0, 3).SelectMany(x => Enumerable.Range(0, 3).Select(z => new Cell(x, z))).ToArray();
@@ -52,7 +53,7 @@ public sealed class ForecastThermalPortfolioTests
         facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
     }
-    internal static ForecastCoupledSelection Select(RoundsFacts facts) => ForecastCoupledSelection.CompareActivityOutcomes(
+    internal static ForecastCoupledSelection Select(ReviewFacts facts) => ForecastCoupledSelection.CompareActivityOutcomes(
         ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay, facts, 
             new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), facts.CoupledAlternatives!);
 
@@ -97,7 +98,7 @@ public sealed class ForecastThermalPortfolioTests
 
     /// <summary>A standing room at <paramref name="ambient"/> with an unfinished heater frame inside, a bed beside it and a door
     /// east of the heater; the pawn's rest reaches its threshold at <paramref name="sleepAt"/>.</summary>
-    internal static RoundsFacts StandingRoomWithHeaterFrame(double ambient, double sleepAt, bool doorHeldOpen)
+    internal static ReviewFacts StandingRoomWithHeaterFrame(double ambient, double sleepAt, bool doorHeldOpen)
     {
         var facts = ForecastCoupledTests.ConstructionReview(stock: 100);
         var cells = Enumerable.Range(0, 4).SelectMany(x => Enumerable.Range(0, 3).Select(z => new Cell(x, z))).ToArray();

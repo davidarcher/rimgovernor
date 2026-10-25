@@ -1,8 +1,8 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using BleedOut = RimGovernor.Contracts.Wire.Observations.BleedOut;
+using BleedOut = RimGovernor.Brain.GameFacts.Observations.BleedOut;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -60,9 +60,9 @@ public sealed class MedicalFamilyTests
     [Fact]
     public void TheFamilyIsOneScheduleEntryWhoseImmediateProtectionIsTheCareOrders()
     {
-        Assert.Equal([ActionKind.Tend, ActionKind.Rescue], MedicalRounds.Schedule.ProtectionKinds);
-        Assert.Contains(ActionKind.Surgery, MedicalRounds.Schedule.Kinds);
-        Assert.Contains(ActionKind.BedUse, MedicalRounds.Schedule.Kinds);
+        Assert.Equal([ActionKind.Tend, ActionKind.Rescue], MedicalReview.Schedule.ProtectionKinds);
+        Assert.Contains(ActionKind.Surgery, MedicalReview.Schedule.Kinds);
+        Assert.Contains(ActionKind.BedUse, MedicalReview.Schedule.Kinds);
         Assert.Equal([FactFamily.Emergency, FactFamily.Pawns], new MedicalFamily(true, false, false, false).SeriousHarmReads);
         Assert.Empty(new MedicalFamily(false, true, true, true).SeriousHarmReads);
     }
@@ -180,16 +180,16 @@ public sealed class MedicalFamilyTests
     {
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-medical-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("d1", "d2", "r1") }, ct);
+        journal.Review(new() { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("d1", "d2", "r1") }, ct);
         Colony? colony = null;
         var runner = new FamilyRunner<MedicalFacts>(new MedicalFamily(true, true, true, true), (_, _) => Task.FromResult(colony!.Facts),
-            MedicalRounds.Schedule,
+            MedicalReview.Schedule,
             (work, _, call) =>
             {
                 colony!.Worked.Add(work.Need.Id);
                 if (MedicalRules.IsCriticalNeed(work.Need.Id, out var patient) && colony.Orders.TryGetValue(patient, out var order))
                 {
-                    return Task.FromResult(RoundsBuildingPlanner.OwnerCommitVerdict(journal.CommitOwnerWork(work.Owner, new MethodId(order.Method), "", Plan(order.Action), call)));
+                    return Task.FromResult(BuildingPlanner.OwnerCommitVerdict(journal.CommitOwnerWork(work.Owner, new MethodId(order.Method), "", Plan(order.Action), call)));
                 }
                 return Task.FromResult(Verdict.AwaitingPlan(work.Need.Id.Value, "no_method"));
             });
@@ -253,13 +253,13 @@ public sealed class MedicalFamilyTests
     [Fact]
     public void TheForecastMedicalRowsAreTheFamilysNeeds()
     {
-        var facts = new RoundsFacts { MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } }, Tick = new(100), Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 2 }, Fuel = [], CriticalPatients = 1L };
-        var review = EssentialServicesRules.ReviewEssentialServices(facts, RoundsRules.DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick } });
+        var facts = new ReviewFacts { MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } }, Tick = new(100), Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 2 }, Fuel = [], CriticalPatients = 1L };
+        var review = EssentialServicesRules.ReviewEssentialServices(facts, Rules.DefaultPlannerSettings(), new() { Work = new() { Tick = facts.Tick } });
         var medical = review.Coverage.Where(c => c.Service == EssentialService.Medical).ToArray();
         Assert.Contains(medical, c => c.Target.Owner == MedicalRules.CriticalCensusNeed.FilingKey && c.Coverage == ServiceCoverage.Shortfall);
         Assert.Contains(medical, c => c.Target.Owner == MedicalRules.SurgeryNeed.FilingKey);
         Assert.Contains(medical, c => c.Target.Owner == MedicalRules.MedicalReservesNeed.FilingKey);
-        var calm = EssentialServicesRules.ReviewEssentialServices(facts with { CriticalPatients = 0L }, RoundsRules.DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick } });
+        var calm = EssentialServicesRules.ReviewEssentialServices(facts with { CriticalPatients = 0L }, Rules.DefaultPlannerSettings(), new() { Work = new() { Tick = facts.Tick } });
         Assert.Contains(calm.Coverage, c => c.Target.Owner == MedicalRules.CriticalCensusNeed.FilingKey && c.Coverage == ServiceCoverage.Adequate);
     }
 

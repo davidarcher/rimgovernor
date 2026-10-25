@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
 using Microsoft.Data.Sqlite;
 using RimGovernor.Brain.Acceptance;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.RemoteAccept;
 using RimGovernor.Brain.Store;
@@ -218,8 +218,8 @@ public sealed class CaseEvidenceTests : IDisposable
         using (var journal = RimGovernor.Brain.Store.Store.Open(path, ct))
         {
             IntentActionRules.RegisterIntentKinds();
-            _ = journal.ReviewRounds(new RoundsRequest { Current = world, Tick = new(100), Enabled = true,
-                Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn") }, ct);
+            _ = journal.Review(new ReviewRequest { Current = world, Tick = new(100), Enabled = true,
+                Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("pawn") }, ct);
             _ = TestNeed.Commit(journal, world, new("method"), plan, ct);
             var scope = world with { Plan = plan.Id };
             var action = plan.Actions[0].Id;

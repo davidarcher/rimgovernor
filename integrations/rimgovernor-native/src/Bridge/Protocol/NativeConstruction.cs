@@ -6,11 +6,8 @@ using System.Runtime.CompilerServices;
 using HarmonyLib;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Placement = RimGovernor.Contracts.Wire.Placement;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal sealed class NativeConstructionPlan
     {
@@ -30,45 +27,45 @@ namespace HomeBridge.BridgeTools
             Instant = definition.GetStatValueAbstract(StatDefOf.WorkToBuild, stuff) == 0f;
         }
 
-        internal static bool Prepare(Map map, Placement.PlacementCandidate? candidate, Common.ObservationContext context,
-            [NotNullWhen(true)] out NativeConstructionPlan? plan, [NotNullWhen(true)] out Placement.PlacementEvaluated? preview, [NotNullWhen(false)] out Common.Failure? failure)
+        internal static bool Prepare(Map map, RimGovernor.Brain.GameOrders.Placement.PlacementCandidate? candidate, RimGovernor.Brain.GameFacts.Common.ObservationContext context,
+            [NotNullWhen(true)] out NativeConstructionPlan? plan, [NotNullWhen(true)] out RimGovernor.Brain.GameFacts.Placement.PlacementEvaluated? preview, [NotNullWhen(false)] out RimGovernor.Brain.GameFacts.Common.Failure? failure)
         {
             plan = null; preview = null;
-            var validation = new Placement.PlacementRequest { Identity = context.Identity, Placements = [] };
+            var validation = new RimGovernor.Brain.GameOrders.Placement.PlacementRequest { Identity = context.Identity, Placements = [] };
             if (candidate != null) validation = validation with { Placements = [.. validation.Placements, candidate] };
             if (!PlacementProtocol.Validate(validation, out failure)) return false;
-            if (candidate == null) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Construction requires one placement candidate."); return false; }
+            if (candidate == null) { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Construction requires one placement candidate."); return false; }
             var query = new PlacementQuery(candidate.DefName, candidate.X, candidate.Z,
                 PlacementProtocol.RotationName(candidate.Rotation), candidate.Stuff);
             var result = PlacementProtocol.Map(PlacementPreviewOperation.Evaluate(map, query), context);
             if (result.Outcome?.Failure is { } placementFailure) { failure = placementFailure; return false; }
             preview = result.Outcome?.Evaluated;
-            if (preview is null) { failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Placement preview unavailable."); return false; }
-            if (candidate.Rotation == Placement.Rotation.All)
+            if (preview is null) { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "Placement preview unavailable."); return false; }
+            if (candidate.Rotation == RimGovernor.Brain.GameFacts.Placement.Rotation.All)
             {
-                failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Construction requires one cardinal rotation.");
+                failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Construction requires one cardinal rotation.");
                 return false;
             }
             if (!PlacementPreviewOperation.TryResolveBuildable(candidate.DefName, out var definition, out _) || definition == null)
             {
-                failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "This construction adapter requires a ThingDef building or a TerrainDef floor.");
+                failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unsupported, "This construction adapter requires a ThingDef building or a TerrainDef floor.");
                 return false;
             }
             if (definition is TerrainDef && definition.GetStatValueAbstract(StatDefOf.WorkToBuild) == 0f)
             {
-                failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "This construction adapter lays floors through an ordinary blueprint and frame only.");
+                failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unsupported, "This construction adapter lays floors through an ordinary blueprint and frame only.");
                 return false;
             }
             if (!preview.CanPlace)
             {
-                failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
+                failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest,
                     PlacementPreviewOperation.Diagnostic(preview.Rotations[0].Reason));
                 return false;
             }
             var player = Faction.OfPlayerSilentFail;
             if (player == null)
             {
-                failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "No player faction is available.");
+                failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "No player faction is available.");
                 return false;
             }
             var stuff = preview.MadeFromStuff ? (candidate.Stuff.Length == 0 ? GenStuff.DefaultStuffFor(definition)

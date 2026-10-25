@@ -1,5 +1,4 @@
 using Fx = RimGovernor.Fixtures.Contracts;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -46,7 +45,7 @@ internal static class DraftIntent
         await ExpectDraftAsync(s, "auto-undraft", id, drafted: false, issued: true, cancellationToken).ConfigureAwait(false);
         await ExpectDraftAsync(s, "draft", id, drafted: true, issued: true, cancellationToken).ConfigureAwait(false);
         await ExpectDraftAsync(s, "draft-again", id, drafted: true, issued: false, cancellationToken).ConfigureAwait(false);
-        var unknown = await TypedPawns.ApplyAsync(s, "draft-unknown", new Operations.DraftIntent { PawnId = "NoSuchPawn0", Drafted = true }, cancellationToken).ConfigureAwait(false);
+        var unknown = await TypedPawns.ApplyAsync(s, "draft-unknown", new RimGovernor.Brain.GameOrders.Operations.DraftIntent { PawnId = "NoSuchPawn0", Drafted = true }, cancellationToken).ConfigureAwait(false);
         if (unknown.Outcome?.Refused is null && unknown.Outcome?.Failed is null)
         {
             throw new AcceptanceException($"draft-unknown: an unknown pawn was not refused: {unknown.Outcome}");
@@ -58,7 +57,7 @@ internal static class DraftIntent
 
     private static async Task ExpectDraftAsync(TypedSession s, string key, string id, bool drafted, bool issued, CancellationToken cancellationToken)
     {
-        var effect = await TypedPawns.AppliedAsync(s, key, new Operations.DraftIntent { PawnId = id, Drafted = drafted }, cancellationToken).ConfigureAwait(false);
+        var effect = await TypedPawns.AppliedAsync(s, key, new RimGovernor.Brain.GameOrders.Operations.DraftIntent { PawnId = id, Drafted = drafted }, cancellationToken).ConfigureAwait(false);
         if (effect?.Job?.Issued != issued)
         {
             throw new AcceptanceException($"{key}: issued={effect?.Job?.Issued}, want {issued}: {effect}");

@@ -1,5 +1,5 @@
-using O = RimGovernor.Contracts.Wire.Observations;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -308,10 +308,10 @@ public static class StockArrivalRules
     /// no crafter, bench or ingredient serves is no source. A crafter without the recipe's speed stat read leaves the model unread
     /// (<see cref="StockArrival.Unread"/>).
     /// </summary>
-    public static StockArrival Craft(IReadOnlyList<StockRecipe> recipes, IReadOnlyList<O.BillStackRow> benches, IReadOnlyList<O.PawnState> crafters,
+    public static StockArrival Craft(IReadOnlyList<StockRecipe> recipes, IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.BillStackRow> benches, IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.PawnState> crafters,
         IReadOnlyDictionary<Resource, long> stock)
     {
-        var workers = new List<(O.PawnState Pawn, int Hours)>();
+        var workers = new List<(RimGovernor.Brain.GameFacts.Observations.PawnState Pawn, int Hours)>();
         foreach (var pawn in crafters)
         {
             if (PawnRules.WorkHours([.. pawn.Settings.Schedule.Select(slot => slot.AssignmentDefName)]) is not { } hours)
@@ -363,12 +363,12 @@ public static class StockArrivalRules
     }
 
     // SkillRequirement.PawnSatisfies reads the skill's level; a skill the pawn lacks is at 0.
-    private static int Level(O.PawnState crafter, string skill) => crafter.Biography.Skills.FirstOrDefault(s => s.DefName == skill)?.Level ?? 0;
+    private static int Level(RimGovernor.Brain.GameFacts.Observations.PawnState crafter, string skill) => crafter.Biography.Skills.FirstOrDefault(s => s.DefName == skill)?.Level ?? 0;
 
-    private static double? Speed(O.PawnState crafter, string stat) => stat.Length == 0 ? 1 : crafter.Biography.WorkSpeeds.FirstOrDefault(s => s.Stat == stat)?.Value;
+    private static double? Speed(RimGovernor.Brain.GameFacts.Observations.PawnState crafter, string stat) => stat.Length == 0 ? 1 : crafter.Biography.WorkSpeeds.FirstOrDefault(s => s.Stat == stat)?.Value;
 
-    private static bool DoesWork(O.PawnState pawn, WorkType work) =>
-        pawn.Settings.Work is O.PawnWork.Works working
+    private static bool DoesWork(RimGovernor.Brain.GameFacts.Observations.PawnState pawn, WorkType work) =>
+        pawn.Settings.Work is RimGovernor.Brain.GameFacts.Observations.PawnWork.Works working
         && working.Rows.Any(row => row.Priority > 0 && !row.Disabled && WorkRules.WorkTypeOf(row.DefName) == work);
 
     // The iterations the stock pays for: each slot by its best-stocked alternative, the scarcest slot bounding them.

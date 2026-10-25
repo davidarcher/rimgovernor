@@ -102,7 +102,7 @@ public static partial class WeaponAssignmentRules
                 score *= .35;
             }
         }
-        if (p.RaidArmor is RimGovernor.Contracts.Wire.Observations.RaidArmor.Rated { Mean: var armor } && double.IsFinite(armor))
+        if (p.RaidArmor is RimGovernor.Brain.GameFacts.Observations.RaidArmor.Rated { Mean: var armor } && double.IsFinite(armor))
         {
             score *= 1 - (.75 * Math.Min(1, Math.Max(0, armor - profile.AP)));
         }

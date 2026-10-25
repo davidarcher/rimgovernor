@@ -14,9 +14,9 @@ public sealed class CombatNeedTests
 {
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
 
-    private static RoundsResult Reviewed(Journal journal, GenerationSnapshot world, long hostiles, long tick, CancellationToken ct, FoodPlan? foodPlan = null) => journal.ReviewRounds(new()
+    private static ReviewResult Reviewed(Journal journal, GenerationSnapshot world, long hostiles, long tick, CancellationToken ct, FoodPlan? foodPlan = null) => journal.Review(new()
     {
-        Current = world, Tick = new(tick), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Revision = journal.LoadRounds(ct).Revision,
+        Current = world, Tick = new(tick), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Revision = journal.LoadReview(ct).Revision,
         Facts = WorkResourceTestFacts.Create("a", "b") with { Census = (WorkResourceTestFacts.Create("a", "b")).Census with { ColonistCount = 2, Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat } }, Items = ItemFactsFixtureRules.CoreItemFacts(),  Hostiles = HostileCensus.Of(hostiles), Tick = new(tick), FoodPlan = foodPlan },
     }, ct);
 
@@ -112,7 +112,7 @@ public sealed class CombatNeedTests
         Assert.Contains(Journal.GovernorCombatRestorationKey, saved.Keys);
         journal.RebuildOwners(null, ct);
         journal.RebuildFamilies(saved, ct);
-        journal.ResetRounds(ct);
+        journal.ResetReview(ct);
 
         Assert.False(journal.LoadCombatFight(plan.Id, ct)!.Open);
         Assert.Empty(journal.OpenCombatFights(ct));

@@ -1,6 +1,3 @@
-using Common = RimGovernor.Contracts.Wire.Common;
-using Mirror = RimGovernor.Contracts.Wire.Mirror;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -62,9 +59,9 @@ internal static class CombatLabRescue
             s,
             "rescue",
             cancellationToken,
-            CombatLabKit.Order(null, new Operations.CombatOrderOrder.DoorCase(new Operations.CombatDoor { Cell = door, Mode = Operations.CombatDoorMode.Forbid })),
-            CombatLabKit.Order(colonists[0], new Operations.CombatOrderOrder.RescueCase(new Operations.CombatRescue { Bed = new Operations.RescueBed.Search(), Downed = CombatLabKit.Pawn(colonists[2]) })),
-            CombatLabKit.Order(colonists[1], new Operations.CombatOrderOrder.RescueCase(new Operations.CombatRescue { Bed = new Operations.RescueBed.Search(), Downed = CombatLabKit.Pawn(hostiles[0]) }))).ConfigureAwait(false);
+            CombatLabKit.Order(null, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DoorCase(new RimGovernor.Brain.GameOrders.Operations.CombatDoor { Cell = door, Mode = RimGovernor.Brain.GameOrders.Operations.CombatDoorMode.Forbid })),
+            CombatLabKit.Order(colonists[0], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.RescueCase(new RimGovernor.Brain.GameOrders.Operations.CombatRescue { Bed = new RimGovernor.Brain.GameOrders.Operations.RescueBed.Search(), Downed = CombatLabKit.Pawn(colonists[2]) })),
+            CombatLabKit.Order(colonists[1], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.RescueCase(new RimGovernor.Brain.GameOrders.Operations.CombatRescue { Bed = new RimGovernor.Brain.GameOrders.Operations.RescueBed.Search(), Downed = CombatLabKit.Pawn(hostiles[0]) }))).ConfigureAwait(false);
         CombatLabKit.Applied("forbid", results[0]);
         CombatLabKit.Applied("rescue", results[1], "Rescue");
         CombatLabKit.Refused("rescue raider", results[2], "cannot_rescue");
@@ -76,7 +73,7 @@ internal static class CombatLabRescue
         }
 
         await ForbiddenAsync(s, door, true, cancellationToken).ConfigureAwait(false);
-        CombatLabKit.Applied("allow", await CombatLabKit.OrderAsync(s, "allow", null, new Operations.CombatOrderOrder.DoorCase(new Operations.CombatDoor { Cell = door, Mode = Operations.CombatDoorMode.Allow }), cancellationToken).ConfigureAwait(false));
+        CombatLabKit.Applied("allow", await CombatLabKit.OrderAsync(s, "allow", null, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DoorCase(new RimGovernor.Brain.GameOrders.Operations.CombatDoor { Cell = door, Mode = RimGovernor.Brain.GameOrders.Operations.CombatDoorMode.Allow }), cancellationToken).ConfigureAwait(false));
         await ForbiddenAsync(s, door, false, cancellationToken).ConfigureAwait(false);
     }
 
@@ -93,12 +90,12 @@ internal static class CombatLabRescue
     // line-of-fire flag is the OR of its lines; the second (warm) read fits the main-thread budget.
     private static async Task RescuePathAsync(TypedSession s, string rescuer, RimGovernor.Brain.Domain.Cell downed, IReadOnlyList<string> hostiles, CancellationToken cancellationToken)
     {
-        var request = new Mirror.CombatGeometryRequest
+        var request = new RimGovernor.Brain.GameOrders.Mirror.CombatGeometryRequest
         {
             Identity = s.Identity,
             Cells = [],
             HostileIds = CombatLabKit.PawnIds(hostiles),
-            Propose = new Mirror.CombatGeometryPropose.RescuePath { Pawn = new RimGovernor.Brain.Domain.PawnId(rescuer), To = downed },
+            Propose = new RimGovernor.Brain.GameFacts.Mirror.CombatGeometryPropose.RescuePath { Pawn = new RimGovernor.Brain.Domain.PawnId(rescuer), To = downed },
         };
 
         // The first read on a fresh game pays one-time costs; the second, warm, must fit the budget.

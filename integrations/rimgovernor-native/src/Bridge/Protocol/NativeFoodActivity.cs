@@ -7,33 +7,32 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 using RimGovernor.Brain.Domain;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 /// <summary>Native legality and route observations. No orders, demand or economic selection.</summary>
 internal static class NativeFoodActivity
 {
     /// <summary>One native-internal food read: the asked plants.</summary>
-    internal sealed record Request(RimGovernor.Contracts.Wire.Common.Identity Identity, EquatableArray<string> Plants);
+    internal sealed record Request(RimGovernor.Brain.GameFacts.Common.Identity Identity, EquatableArray<string> Plants);
 
     internal static bool Available(Pawn pawn) => pawn.CurJob == null || NativePawnActivities.Standing(pawn) || pawn.CurJob.def == JobDefOf.Wait || pawn.CurJob.def == JobDefOf.Wait_Wander || pawn.CurJob.def == JobDefOf.GotoWander;
     /// <summary>
     /// Every free colonist's harvest and haul rows for the asked plants, one per accepting storage group: its cheapest
     /// flood-nearest exact cell (#3341). A source's route to a cell is searched once for every colonist (NativePathLegs).
     /// </summary>
-    internal static Obs.FoodActivityRead Read(Request request, NativePathLegs? legs = null)
+    internal static RimGovernor.Brain.GameFacts.Observations.FoodActivityRead Read(Request request, NativePathLegs? legs = null)
     {
-        if (!ProtoBoundary.ValidateIdentity(request.Identity, out var map, out _, out _)) throw new InvalidOperationException("food_activity_identity_invalid");
+        if (!GameThread.ValidateIdentity(request.Identity, out var map, out _, out _)) throw new InvalidOperationException("food_activity_identity_invalid");
         legs ??= new(map);
         // Every pawn's approach legs start at its own cell, so a read searches them anew once the pawn has moved: the
         // read runs batched (NativePathLegs.Batched), its legs searched together on the path job workers (#3556).
         return legs.Batched(() => ReadOnce(request, map, legs));
     }
 
-    private static Obs.FoodActivityRead ReadOnce(Request request, Map map, NativePathLegs legs)
+    private static RimGovernor.Brain.GameFacts.Observations.FoodActivityRead ReadOnce(Request request, Map map, NativePathLegs legs)
     {
-        var options = new List<Obs.FoodActivityOption>();
+        var options = new List<RimGovernor.Brain.GameFacts.Observations.FoodActivityOption>();
         var storage = new Dictionary<Thing, List<List<IntVec3>>>(); // Per source: its accepting groups' cells, flood-nearest first.
         var pawns = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         var plants = request.Plants.Select(id => RefIndex.Thing(map, id))

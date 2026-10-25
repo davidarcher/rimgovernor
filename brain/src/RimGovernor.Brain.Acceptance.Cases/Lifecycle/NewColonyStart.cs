@@ -1,10 +1,8 @@
 using System.Text.Json.Nodes;
 using System.Xml.Linq;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Contracts.Wire;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
-using Observations = RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -22,7 +20,7 @@ internal static class NewColonyStart
     internal static readonly string[] Biomes = ["TemperateForest", "BorealForest", "AridShrubland"];
 
     /// <summary>The small pinned spec (150 map, 0.05 coverage) the start claims begin from.</summary>
-    internal static Lifecycle.NewColonySpec Spec() => new()
+    internal static RimGovernor.Brain.GameOrders.Lifecycle.NewColonySpec Spec() => new()
     {
         Scenario = "Crashlanded",
         ColonistCount = 3,
@@ -34,15 +32,15 @@ internal static class NewColonyStart
         MapSize = 150,
         PlanetCoverage = 0.05f,
         SaveName = "newcolony-accept",
-        MinTemperature = new Lifecycle.TemperatureLimit.OpenCase(),
-        MaxTemperature = new Lifecycle.TemperatureLimit.OpenCase(),
+        MinTemperature = new RimGovernor.Brain.GameOrders.Lifecycle.TemperatureLimit.OpenCase(),
+        MaxTemperature = new RimGovernor.Brain.GameOrders.Lifecycle.TemperatureLimit.OpenCase(),
         GovernorIdeoligion = false,
-        PlayerFaction = Lifecycle.ScenarioPlayerFaction.Base,
-        ArrivalMethod = Lifecycle.ScenarioArrivalMethod.Base,
+        PlayerFaction = RimGovernor.Brain.GameOrders.Lifecycle.ScenarioPlayerFaction.Base,
+        ArrivalMethod = RimGovernor.Brain.GameOrders.Lifecycle.ScenarioArrivalMethod.Base,
     };
 
     /// <summary>A <c>lifecycle_new_colony</c> request over <paramref name="spec"/>.</summary>
-    internal static Lifecycle.NewColonyRequest Request(string id, Lifecycle.NewColonySpec spec, uint timeoutMs = TimeoutMs) =>
+    internal static RimGovernor.Brain.GameOrders.Lifecycle.NewColonyRequest Request(string id, RimGovernor.Brain.GameOrders.Lifecycle.NewColonySpec spec, uint timeoutMs = TimeoutMs) =>
         new() { RequestId = id, Spec = spec, TimeoutMs = timeoutMs };
 
     /// <summary>Launches a game at the main menu, runs <paramref name="body"/> against it and retires it; retiring is best effort and the body's result stands.</summary>
@@ -78,8 +76,8 @@ internal static class NewColonyStart
     /// spec the brain resolves needs) and requires it to complete; a failed start fails <paramref name="label"/> with its
     /// code and phases.
     /// </summary>
-    internal static async Task<(Lifecycle.NewColonyCompleted Completed, IReadOnlyList<Lifecycle.NewColonyPhase> Phases)> CompleteAsync(
-        TypedSession s, string label, Lifecycle.NewColonyRequest request, CancellationToken cancellationToken, bool throughBrain = false)
+    internal static async Task<(RimGovernor.Brain.GameFacts.Lifecycle.NewColonyCompleted Completed, IReadOnlyList<RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase> Phases)> CompleteAsync(
+        TypedSession s, string label, RimGovernor.Brain.GameOrders.Lifecycle.NewColonyRequest request, CancellationToken cancellationToken, bool throughBrain = false)
     {
         var result = throughBrain
             ? await s.NewColonyThroughBrainAsync(label, request, cancellationToken).ConfigureAwait(false)
@@ -90,8 +88,8 @@ internal static class NewColonyStart
     }
 
     /// <summary>Starts <paramref name="request"/> and requires a failure with code <paramref name="want"/>; returns the phases reported before it.</summary>
-    internal static async Task<IReadOnlyList<Lifecycle.NewColonyPhase>> FailsAsync(
-        TypedSession s, string label, Lifecycle.NewColonyRequest request, Common.FailureCode want, CancellationToken cancellationToken)
+    internal static async Task<IReadOnlyList<RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase>> FailsAsync(
+        TypedSession s, string label, RimGovernor.Brain.GameOrders.Lifecycle.NewColonyRequest request, RimGovernor.Brain.GameFacts.Common.FailureCode want, CancellationToken cancellationToken)
     {
         var result = await s.NewColonyAsync(label, request, cancellationToken).ConfigureAwait(false);
         return result.Failure?.Code == want
@@ -100,9 +98,9 @@ internal static class NewColonyStart
     }
 
     /// <summary>Requires <paramref name="request"/> refused with INVALID_REQUEST before generation: no phase reported.</summary>
-    internal static async Task RefusedAsync(TypedSession s, string label, Lifecycle.NewColonyRequest request, CancellationToken cancellationToken)
+    internal static async Task RefusedAsync(TypedSession s, string label, RimGovernor.Brain.GameOrders.Lifecycle.NewColonyRequest request, CancellationToken cancellationToken)
     {
-        var phases = await FailsAsync(s, label, request, Common.FailureCode.InvalidRequest, cancellationToken).ConfigureAwait(false);
+        var phases = await FailsAsync(s, label, request, RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, cancellationToken).ConfigureAwait(false);
         if (phases.Count > 0)
         {
             throw new AcceptanceException($"{label}: refused only after generation began (phases [{string.Join(' ', phases)}])");
@@ -110,15 +108,15 @@ internal static class NewColonyStart
     }
 
     /// <summary>The colonists <c>observations_list_pawns</c> reports for <paramref name="identity"/>, with biography.</summary>
-    internal static async Task<IReadOnlyList<Observations.PawnState>> ColonistsAsync(TypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
+    internal static async Task<IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.PawnState>> ColonistsAsync(TypedSession s, string label, RimGovernor.Brain.GameFacts.Common.Identity identity, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(
             label,
             NativeOps.ListPawns,
-            new Observations.ListPawnsRequest
+            new RimGovernor.Brain.GameOrders.Observations.ListPawnsRequest
             {
                 Scope = TypedReads.Scope(identity),
-                Filter = new Observations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only },
+                Filter = new RimGovernor.Brain.GameFacts.Observations.PawnFilter { Colonist = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Only },
             },
             cancellationToken).ConfigureAwait(false);
         return [.. reply.Pawns];

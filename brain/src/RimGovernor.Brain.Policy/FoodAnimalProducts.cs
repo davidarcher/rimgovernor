@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
@@ -12,28 +11,28 @@ public abstract record AnimalProduct
     public abstract string Pawn { get; }
     public abstract string Race { get; }
     public abstract bool Reachable { get; }
-    protected abstract O.AnimalYield Yield { get; }
-    private O.AnimalYield.Producing Production => Yield as O.AnimalYield.Producing
+    protected abstract RimGovernor.Brain.GameFacts.Observations.AnimalYield Yield { get; }
+    private RimGovernor.Brain.GameFacts.Observations.AnimalYield.Producing Production => Yield as RimGovernor.Brain.GameFacts.Observations.AnimalYield.Producing
         ?? throw new RequiredFactException("producing animal yield");
     public double NutritionPerDay => Production.NutritionPerDay;
     public double WorkPerDay => Production.WorkPerDay;
     public double LeadDays => Production.LeadDays;
     public AnimalFeed Feed { get; init; } = new AnimalFeed.NoPlants();
 
-    public sealed record Gatherable(O.GatherableAnimal Observed) : AnimalProduct
+    public sealed record Gatherable(RimGovernor.Brain.GameFacts.Observations.GatherableAnimal Observed) : AnimalProduct
     {
         public override string Pawn => Observed.PawnId;
         public override string Race => Observed.Race;
         public override bool Reachable => Observed.HandlerReachable;
-        protected override O.AnimalYield Yield => Observed.Yield;
+        protected override RimGovernor.Brain.GameFacts.Observations.AnimalYield Yield => Observed.Yield;
     }
 
-    public sealed record EggLayer(O.EggLayerAnimal Observed) : AnimalProduct
+    public sealed record EggLayer(RimGovernor.Brain.GameFacts.Observations.EggLayerAnimal Observed) : AnimalProduct
     {
         public override string Pawn => Observed.PawnId;
         public override string Race => Observed.Race;
         public override bool Reachable => true;
-        protected override O.AnimalYield Yield => Observed.Yield;
+        protected override RimGovernor.Brain.GameFacts.Observations.AnimalYield Yield => Observed.Yield;
     }
 }
 public static class FoodAnimalProductsRules

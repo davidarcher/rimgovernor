@@ -1,9 +1,8 @@
 using System;
 using System.Linq;
-using HomeBridge.BridgeTools;
-using RimGovernor.Contracts.Wire;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
+using RimGovernor.Native;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 
 // A work settings write skips a row the pawn can no longer do instead of refusing the request (#3678): a same-step
 // ideology role (ProductionSpecialist: ManualDumb, Cooking, PlantWork, Mining...) disabled types the review's request
@@ -13,7 +12,7 @@ internal static class NativeWorkRowsProbe
     internal static void Invoke()
     {
         Func<string, bool> disabled = name => name is "Cooking" or "Hauling";
-        Operations.WorkPriority Row(string def, int priority) => new() { WorkTypeDef = def, Priority = priority };
+        RimGovernor.Brain.GameOrders.Operations.WorkPriority Row(string def, int priority) => new() { WorkTypeDef = def, Priority = priority };
 
         Require(DisabledWorkRows.Skipped(Row("Cooking", 2), disabled), "a nonzero priority on a disabled type is skipped");
         Require(!DisabledWorkRows.Skipped(Row("Cooking", 0), disabled), "a zero on a disabled type is still written");
@@ -24,10 +23,10 @@ internal static class NativeWorkRowsProbe
         Require(skipped.SequenceEqual(new[] { "Cooking", "Hauling" }), "the skipped rows are named in request order");
         Require(DisabledWorkRows.SkippedNames(request, _ => false).Count == 0, "nothing is skipped for a pawn that can do every type");
 
-        var effect = new Receipts.SettingsEffect { SkippedWork = [.. skipped] };
-        var back = WireJson.Deserialize<Receipts.SettingsEffect>(WireJson.Serialize(effect));
+        var effect = new RimGovernor.Brain.GameFacts.Receipts.SettingsEffect { SkippedWork = [.. skipped] };
+        var back = OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Receipts.SettingsEffect>(OrdersJson.Serialize(effect));
         Require(back.SkippedWork.SequenceEqual(new[] { "Cooking", "Hauling" }), "the skipped rows survive the wire");
-        Require(WireJson.Deserialize<Receipts.SettingsEffect>("{}").SkippedWork.Count == 0, "a receipt without skips names none");
+        Require(OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Receipts.SettingsEffect>("{}").SkippedWork.Count == 0, "a receipt without skips names none");
         Console.WriteLine("native-work-rows: disabled-row skipping and the receipt field passed");
     }
 

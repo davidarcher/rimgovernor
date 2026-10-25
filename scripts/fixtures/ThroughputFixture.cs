@@ -9,7 +9,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Test-only speed-matrix stage. No pawn stats, simulation ticks or resources are edited.
     public sealed class ThroughputFixture
@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools
         // no blueprint is placed. Needs are frozen by test/freeze_needs after
         // each reload (it is per game).
         [Tool("test/throughput_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: clear rock-chunk debris, register a legal roofed Cloth stockpile, spawn unforbidden Cloth stacks outside it and put every capable colonist on Construct/Haul with a Work timetable. No spawned resources beyond the Cloth, no skill or tick changes, no placement.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, int itemCount = 4)
+        public async Task<object> Prepare(INativeContext ctx, CancellationToken cancellationToken, int itemCount = 4)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;

@@ -1,11 +1,7 @@
 using System.Text.Json.Nodes;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Domain;
-using Clock = RimGovernor.Contracts.Wire.Clock;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -70,7 +66,7 @@ internal static class WallKit
     /// <summary>The ids among <paramref name="ids"/> the building census still lists, any faction.</summary>
     internal static async Task<HashSet<string>> PresentAsync(TypedSession s, string label, IReadOnlyList<string> ids, CancellationToken cancellationToken)
     {
-        var rows = await s.BuildingsAsync(label, new Observations.ListBuildingsRequest { Ids = [.. ids], AnyFaction = true }, cancellationToken).ConfigureAwait(false);
+        var rows = await s.BuildingsAsync(label, new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest { Ids = [.. ids], AnyFaction = true }, cancellationToken).ConfigureAwait(false);
         return [.. rows.Select(r => r.Building.Id).Where(ids.Contains)];
     }
 
@@ -81,8 +77,8 @@ internal static class WallKit
     internal static ClockRunPlan ClockRun(ulong generation) => new()
     {
         ExpectedGeneration = generation,
-        Speed = Clock.Speed.Ultrafast,
-        Policy = new Clock.WatchPolicy
+        Speed = RimGovernor.Brain.GameFacts.Clock.Speed.Ultrafast,
+        Policy = new RimGovernor.Brain.GameOrders.Clock.WatchPolicy
         {
             SeriousSingleHitDamage = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSingleHitDamage,
             SeriousSummaryHealthFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSummaryHealthFloor,
@@ -92,7 +88,7 @@ internal static class WallKit
             MeleeReachCells = RimGovernor.Brain.Policy.HazardThresholdsRules.MeleeReachCells,
             InjurySeverityFloorTicks = RimGovernor.Brain.Policy.HazardThresholdsRules.InjurySeverityFloorTicks,
             HungerHoldCategory = RimGovernor.Brain.Policy.HazardThresholdsRules.HungerHoldCategory,
-            Mode = Clock.WatchMode.Colony,
+            Mode = RimGovernor.Brain.GameOrders.Clock.WatchMode.Colony,
             HealthDropFraction = .1f,
             MinHealthFraction = .5f,
             HostileWithin = 20f,
@@ -122,7 +118,7 @@ internal static class WallKit
         }, cancellationToken).ConfigureAwait(false);
         if (!gone)
         {
-            throw new AcceptanceException($"{label}: {id} still stands when the clock held ({(status.Hold as Clock.HoldState.HeldCase)?.Reason}): {status.Hold}");
+            throw new AcceptanceException($"{label}: {id} still stands when the clock held ({(status.Hold as RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase)?.Reason}): {status.Hold}");
         }
 
         s.Record(label + "_after_ticks", tick - (start ?? tick));
@@ -135,16 +131,16 @@ internal static class WallKit
     internal static int WithTerrain(MapCellGrid grid, IEnumerable<Cell> cells, string terrain) => cells.Count(c => grid.At(c) is { } g && g.Terrain == terrain);
 
     /// <summary>The enclosure-guarded DECONSTRUCT Designate of one building.</summary>
-    internal static Operations.DesignateIntent Deconstruct(string id, bool replaceWithWall = false) => new()
+    internal static RimGovernor.Brain.GameOrders.Operations.DesignateIntent Deconstruct(string id, bool replaceWithWall = false) => new()
     {
-        Designation = Operations.ThingDesignation.Deconstruct,
-        Location = new Operations.DesignationLocation.ByTarget(),
+        Designation = RimGovernor.Brain.GameOrders.Operations.ThingDesignation.Deconstruct,
+        Location = new RimGovernor.Brain.GameOrders.Operations.DesignationLocation.ByTarget(),
         Target = new() { Id = id },
-        Guard = Operations.DesignationGuard.Enclosure,
+        Guard = RimGovernor.Brain.GameOrders.Operations.DesignationGuard.Enclosure,
         ReplaceWithWall = replaceWithWall, Withdraw = false,
     };
 
     /// <summary>The observed effect of an applied receipt, or null.</summary>
-    internal static Receipts.EffectEvidenceEffect? Effect(this Operations.ActionResultOutcome outcome) =>
+    internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidenceEffect? Effect(this RimGovernor.Brain.GameFacts.Operations.ActionResultOutcome outcome) =>
         outcome.Applied?.Outcome?.Applied?.Observed?.Effect;
 }

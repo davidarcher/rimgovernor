@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -20,7 +19,7 @@ public sealed record CreepJoinerDownsides
     /// Measures whether a creepjoiner's downside has shown: the game fired it (the tracker's triggered flag),
     /// or the pawn carries a trait or a visible hediff a downside def adds. A pawn that is no creepjoiner has none.
     /// </summary>
-    public bool Revealed(O.PawnState p) =>
+    public bool Revealed(RimGovernor.Brain.GameFacts.Observations.PawnState p) =>
         p.Anomaly is PawnAnomalyState.Active { Facts.Creepjoiner: { } joiner }
         && (joiner.DownsideTriggered || p.Biography.Traits.Any(trait => Traits.Contains(trait.DefName))
             || p.Health.Hediffs.Any(hediff => hediff.Visible && Hediffs.Contains(hediff.DefName)));
@@ -29,13 +28,13 @@ public sealed record CreepJoinerDownsides
     /// Whether the pawn is a creepjoiner whose downside has not shown. A pawn that is no creepjoiner is not: the
     /// gear census flags only a creepjoiner (GearRoleInput.UnrevealedCreepjoiner).
     /// </summary>
-    public bool Unrevealed(O.PawnState p) => p.Anomaly is PawnAnomalyState.Active { Facts.Creepjoiner: not null } && !Revealed(p);
+    public bool Unrevealed(RimGovernor.Brain.GameFacts.Observations.PawnState p) => p.Anomaly is PawnAnomalyState.Active { Facts.Creepjoiner: not null } && !Revealed(p);
 
     /// <summary>
     /// The plain-English reason a colonist must not hold a weapon yet, empty when nothing holds it back: a
     /// creepjoiner whose downside has not shown. A pawn that is no creepjoiner is never held.
     /// </summary>
-    public string ArmsHold(O.PawnState p) =>
+    public string ArmsHold(RimGovernor.Brain.GameFacts.Observations.PawnState p) =>
         Unrevealed(p) ? "it is a creepjoiner whose downside is not revealed yet, so it is not armed" : "";
 
     /// <summary>
@@ -153,7 +152,7 @@ public sealed record CreepJoinerDownsides
 /// <summary>One colonist's canonical native row for weapon drops, isolation and inspection.</summary>
 public sealed record CreepJoinerHand
 {
-    public required O.PawnState Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PawnState Observed { get; init; }
 
     public PawnId Pawn => new(Observed.Pawn.Id);
 
@@ -165,7 +164,7 @@ public sealed record CreepJoinerHand
         : null;
 
     /// <summary>A dead pawn may have no surgery block; a living pawn must have one.</summary>
-    public O.PawnSurgery? Surgery => Observed.Health.Surgery
+    public RimGovernor.Brain.GameFacts.Observations.PawnSurgery? Surgery => Observed.Health.Surgery
         ?? (Observed.Dead ? null : throw new RequiredFactException($"living colonist {Pawn} surgery facts"));
 
     public EquatableArray<SurgeryOperation> Operations => Surgery is { } surgery ? surgery.Operations : [];
@@ -175,7 +174,7 @@ public sealed record CreepJoinerHand
 
     /// <summary>A pawn without a food need is never hungry.</summary>
     public bool Hungry => Observed.Needs.Food is FoodNeed.Has food
-        && food.Hunger != RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed;
+        && food.Hunger != RimGovernor.Brain.GameFacts.Defs.HungerCategory.Fed;
 
     /// <summary>Whether the pawn has no inspection bill queued.</summary>
     internal bool InspectionEnded(IReadOnlySet<string> recipes) =>

@@ -43,8 +43,8 @@ public sealed class IncidentVoluntaryAdmissionTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-mood-voluntary-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
-            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn") }, ct);
+        journal.Review(new() { Current = World, Tick = new(100), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("pawn") }, ct);
         var mood = PeopleFamily.Mood(new("pawn"));
         var ability = new Ability(new("pawn"), AbilitySource.PsycastSource("WordOfJoy"), AbilityTarget.AbilityPawnTarget(new("target")));
         var plan = new PlanSpec(new("plan"), new(1), [DomainAction.NewAbilityAction(new("action"), ability)]);
@@ -60,8 +60,8 @@ public sealed class IncidentVoluntaryAdmissionTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-combat-voluntary-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
-            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn") }, ct);
+        journal.Review(new() { Current = World, Tick = new(100), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("pawn") }, ct);
         var ability = new Ability(new("pawn"), AbilitySource.PsycastSource("Stun"), AbilityTarget.AbilityPawnTarget(new("target")));
         var plan = new PlanSpec(new("plan"), new(1), [DomainAction.NewAbilityAction(new("action"), ability)]);
         var committed = journal.CommitCombatMethod(World, new("permit-cast"), plan, ct);
@@ -73,8 +73,8 @@ public sealed class IncidentVoluntaryAdmissionTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-caravan-admission-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
-            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn") }, ct);
+        journal.Review(new() { Current = World, Tick = new(100), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("pawn") }, ct);
         var plan = new PlanSpec(new("plan"), new(1), [action]);
         if (allowed)
         {

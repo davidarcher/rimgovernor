@@ -85,7 +85,7 @@ public sealed record ClockWatchFacts
     public EquatableArray<PawnId> AcknowledgedHungry { get; init; }
 
     /// <summary>
-    /// The fact the colony's first layout plan waits for (the last review's RoundsResult.FirstPlanUnread, #3652): the
+    /// The fact the colony's first layout plan waits for (the last review's ReviewResult.FirstPlanUnread, #3652): the
     /// clock stays held while it is not empty, so no game time passes before the plan exists.
     /// </summary>
     public string FirstPlanUnread { get; init; } = "";

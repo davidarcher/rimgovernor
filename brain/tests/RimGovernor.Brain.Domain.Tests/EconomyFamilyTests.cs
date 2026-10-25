@@ -1,9 +1,8 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using Journal = RimGovernor.Brain.Store.Store;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -20,7 +19,7 @@ public sealed class EconomyFamilyTests
     private static KeyValuePair<string, ResearchProjectFacts> Project(string name, string[]? prerequisites = null, string[]? locks = null, string category = "", double cost = 1) => new(name, new()
     {
         Definition = new() { KnowledgeCategory = category, Prerequisites = EquatableArray.From((prerequisites ?? []).Select(p => new ResearchProjectId(p))), Cost = cost },
-        Observation = new ResearchProjectObservation.Listed(new Obs.ResearchProject
+        Observation = new ResearchProjectObservation.Listed(new RimGovernor.Brain.GameFacts.Observations.ResearchProject
         {
             Project = new() { DefName = name }, Current = false, Finished = false, ProgressFraction = 0, LockReasons = [.. locks ?? []],
         }),
@@ -29,7 +28,7 @@ public sealed class EconomyFamilyTests
     private static EconomyFacts Facts(string[] needs, string current = "", string[]? finished = null, KnowledgeSlot[]? slots = null, params KeyValuePair<string, ResearchProjectFacts>[] projects) => new()
     {
         ResearchNeeds = EquatableArray.From(needs),
-        Research = EconomyRules.ResearchCensusOf(new Obs.ResearchSnapshot
+        Research = EconomyRules.ResearchCensusOf(new RimGovernor.Brain.GameFacts.Observations.ResearchSnapshot
         {
             Context = NoResearch.Context,
             Projects = [.. projects.Select(p => ((ResearchProjectObservation.Listed)p.Value.Observation).Project with { Current = p.Key == current })],
@@ -120,7 +119,7 @@ public sealed class EconomyFamilyTests
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-economy-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
         var economy = Facts(["Smithing"], projects: [Project("Smithing", ["Stonecutting"]), Project("Stonecutting")]);
         var runner = new FamilyRunner<EconomyFacts>(new EconomyFamily(), (_, _) => Task.FromResult(economy));
         FamilyRun Run() => runner.RunAsync(new FamilyStep { Journal = journal, World = World }, ct).GetAwaiter().GetResult();
@@ -146,7 +145,7 @@ public sealed class EconomyFamilyTests
     private static ResourceFacts Stock(long steel, params ResourceRunway[] runways) => new()
     {
         Targets = new Dictionary<Resource, long> { [Steel] = 100 },
-        Census = ColonyFactsCoreTests.Snapshot() with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = Steel.Value, Units = steel }] },
+        Census = ColonyFactsCoreTests.Snapshot() with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = Steel.Value, Units = steel }] },
         Runways = EquatableArray.From(runways),
     };
 
@@ -202,17 +201,17 @@ public sealed class EconomyFamilyTests
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-economy-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
         var methods = new List<(string Method, DomainAction Action)>
         {
             ("fields-hay", Zone("z1", (10, 10), (10, 11))),
             ("fields-social", Zone("z2", (12, 10), (12, 11))),
         };
         var economy = new EconomyFacts { Resource = Stock(25) };
-        var runner = new FamilyRunner<EconomyFacts>(new EconomyFamily(false, true), (_, _) => Task.FromResult(economy), EconomyRounds.Schedule,
+        var runner = new FamilyRunner<EconomyFacts>(new EconomyFamily(false, true), (_, _) => Task.FromResult(economy), EconomyReview.Schedule,
             (work, _, call) =>
             {
-                var verdicts = methods.Select(m => RoundsBuildingPlanner.OwnerCommitVerdict(journal.CommitOwnerWork(work.Owner, new MethodId(m.Method), "", Plan(m.Action), call))).ToList();
+                var verdicts = methods.Select(m => BuildingPlanner.OwnerCommitVerdict(journal.CommitOwnerWork(work.Owner, new MethodId(m.Method), "", Plan(m.Action), call))).ToList();
                 return Task.FromResult(verdicts.Count == 0 ? Verdict.AwaitingPlan(work.Need.Id.Value, "no_method") : verdicts[^1]);
             });
         FamilyRun Run() => runner.RunAsync(new FamilyStep { Journal = journal, World = World }, ct).GetAwaiter().GetResult();
@@ -237,7 +236,7 @@ public sealed class EconomyFamilyTests
     [Fact]
     public void ATradeReviewBeforeTheFoodPlanCannotCertifyEitherNeed()
     {
-        var review = RoundsRules.TradeReviewOf(new RoundsFacts(), RoundsRules.DefaultRoundsPolicy(), new MedicalReserveReview(), new DerivedDemand());
+        var review = Rules.TradeReviewOf(new ReviewFacts(), Rules.DefaultPlannerSettings(), new MedicalReserveReview(), new DerivedDemand());
         Assert.IsType<TradeReview.AwaitingFoodPlan>(review);
         Assert.Throws<RequiredFactException>(() => EconomyFamily.TradeNeed(review));
         Assert.Throws<RequiredFactException>(() => EconomyFamily.CaravanNeed(review));
@@ -274,7 +273,7 @@ public sealed class EconomyFamilyTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-caravan-claim-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
+        journal.Review(new() { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
         var participant = new TradeParticipant(TradeParticipantKind.Settlement, "settlement", "caravan");
         PlanSpec Open(string plan, string pawn) => new(new(plan), new(1), [DomainAction.NewTradeAction(new(plan + "-trade"),
             Trade.NewTradeOpen(participant.Key(), new(pawn), false).WithParticipant(participant))]);
@@ -289,9 +288,9 @@ public sealed class EconomyFamilyTests
     }
 
     /// <summary>A research read with no project listed, nothing finished and both slots empty.</summary>
-    private static Obs.ResearchSnapshot NoResearch => new()
+    private static RimGovernor.Brain.GameFacts.Observations.ResearchSnapshot NoResearch => new()
     {
-        Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 1 },
+        Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 1 },
         Slots = [new() { Category = "", CurrentProject = "" }],
         Projects = [],
         Finished = [],
@@ -306,7 +305,7 @@ public sealed class EconomyFamilyTests
             Projects = [new() { Project = new() { DefName = "Smithing" }, ProgressFraction = .25, Finished = false, Current = true, LockReasons = ["hidden"] }],
             Finished = ["Stonecutting"],
         };
-        Assert.Equal(read, RimGovernor.Contracts.Wire.WireJson.Deserialize<Obs.ResearchSnapshot>(RimGovernor.Contracts.Wire.WireJson.Serialize(read)));
+        Assert.Equal(read, RimGovernor.Brain.GameOrders.OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.ResearchSnapshot>(RimGovernor.Brain.GameOrders.OrdersJson.Serialize(read)));
         var catalog = new Dictionary<string, ResearchProjectDefinition>(StringComparer.Ordinal)
         {
             ["Smithing"] = new() { Cost = 700 }, ["Stonecutting"] = new() { Cost = 300 }, ["Brewing"] = new() { Cost = 500 },
@@ -334,7 +333,7 @@ public sealed class EconomyFamilyTests
     }
 
     /// <summary>A world read of the home tile with no settlement in range.</summary>
-    private static Obs.WorldSnapshot NoWorld => new()
+    private static RimGovernor.Brain.GameFacts.Observations.WorldSnapshot NoWorld => new()
     {
         Tile = new() { Tile = 7, Hilliness = "Flat" },
         Settlements = [],
@@ -345,12 +344,12 @@ public sealed class EconomyFamilyTests
     {
         var read = NoWorld with
         {
-            Settlements = [new() { Id = "Settlement_1", Tile = 9, Relation = Obs.SettlementRelation.Neutral, CanTrade = true, TraderKind = "Base_Outlander_Standard" },
-                new() { Id = "Settlement_2", Tile = 7, Relation = Obs.SettlementRelation.Player, CanTrade = false, TraderKind = "" }],
+            Settlements = [new() { Id = "Settlement_1", Tile = 9, Relation = RimGovernor.Brain.GameFacts.Observations.SettlementRelation.Neutral, CanTrade = true, TraderKind = "Base_Outlander_Standard" },
+                new() { Id = "Settlement_2", Tile = 7, Relation = RimGovernor.Brain.GameFacts.Observations.SettlementRelation.Player, CanTrade = false, TraderKind = "" }],
         };
-        var json = RimGovernor.Contracts.Wire.WireJson.Serialize(read);
+        var json = RimGovernor.Brain.GameOrders.OrdersJson.Serialize(read);
         Assert.Contains("\"relation\":\"neutral\"", json, StringComparison.Ordinal);
-        Assert.Equal(read, RimGovernor.Contracts.Wire.WireJson.Deserialize<Obs.WorldSnapshot>(json));
-        Assert.Equal(NoWorld, RimGovernor.Contracts.Wire.WireJson.Deserialize<Obs.WorldSnapshot>(RimGovernor.Contracts.Wire.WireJson.Serialize(NoWorld)));
+        Assert.Equal(read, RimGovernor.Brain.GameOrders.OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.WorldSnapshot>(json));
+        Assert.Equal(NoWorld, RimGovernor.Brain.GameOrders.OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.WorldSnapshot>(RimGovernor.Brain.GameOrders.OrdersJson.Serialize(NoWorld)));
     }
 }

@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Policy;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -10,24 +9,24 @@ namespace RimGovernor.Brain.Domain.Tests;
 internal static class PawnFixtures
 {
     /// <summary>Full health: no hediffs, no bleeding, in no bed, no surgery bills, missing parts or operations.</summary>
-    public static readonly O.PawnHealth Healthy = new()
+    public static readonly RimGovernor.Brain.GameFacts.Observations.PawnHealth Healthy = new()
     {
         SummaryFraction = 1,
         NeedsTend = false,
         Bleeding = false,
         BleedRatePerDay = 0,
         BloodLoss = 0,
-        BleedOut = new O.BleedOut.NotBleedingOut(),
+        BleedOut = new RimGovernor.Brain.GameFacts.Observations.BleedOut.NotBleedingOut(),
         LifeThreatening = false,
         Hediffs = [],
         ShouldSeekMedicalRest = false,
         BedId = null,
-        Snapshot = new O.SnapshotRef(),
-        Surgery = new O.PawnSurgery { SurgeryBills = [], MissingParts = [], Operations = [] },
+        Snapshot = new RimGovernor.Brain.GameFacts.Observations.SnapshotRef(),
+        Surgery = new RimGovernor.Brain.GameFacts.Observations.PawnSurgery { SurgeryBills = [], MissingParts = [], Operations = [] },
     };
 
     /// <summary>A body at 21 C inside a 16-26 C comfort range, walking at 4.6 cells a second, with no hypothermia.</summary>
-    public static readonly O.PawnBodyStats Body = new() { ComfortableMinC = 16, ComfortableMaxC = 26, MoveSpeed = 4.6, CellTemperatureC = 21, Hypothermia = 0 };
+    public static readonly RimGovernor.Brain.GameFacts.Observations.PawnBodyStats Body = new() { ComfortableMinC = 16, ComfortableMaxC = 26, MoveSpeed = 4.6, CellTemperatureC = 21, Hypothermia = 0 };
 
     /// <summary>
     /// A planner pawn: an available adult colonist in manual-priorities mode with no work rows, skills, traits, job,
@@ -49,12 +48,12 @@ internal static class PawnFixtures
 
     /// <summary>A native work table and the catalog views over exactly its observed rows.</summary>
     public static PawnWorkTable.Works WorkTable(bool manual, EquatableArray<WorkPriority> rows) =>
-        new(new O.PawnWork.Works(manual, EquatableArray.From(rows.Select(row => row.Observed))), rows);
+        new(new RimGovernor.Brain.GameFacts.Observations.PawnWork.Works(manual, EquatableArray.From(rows.Select(row => row.Observed))), rows);
 
     /// <summary>A live, standing colonist with nothing else read into it: no job, needs, conditions, gear or ideoligion.</summary>
-    public static O.PawnState Row(string id) => new()
+    public static RimGovernor.Brain.GameFacts.Observations.PawnState Row(string id) => new()
     {
-        Pawn = new O.EntityRef { Id = id, DefName = "Human", Label = id, Place = new O.EntityPlace.Unplaced() },
+        Pawn = new RimGovernor.Brain.GameFacts.Observations.EntityRef { Id = id, DefName = "Human", Label = id, Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.Unplaced() },
         KindDefName = "Colonist",
         Colonist = true,
         FreeColonist = true,
@@ -69,11 +68,11 @@ internal static class PawnFixtures
         MentalState = null,
         InBed = false,
         ActivityExecution = null,
-        Job = new O.JobEvidence(),
+        Job = new RimGovernor.Brain.GameFacts.Observations.JobEvidence(),
         Needs = PawnNeedsTests.NoNeeds,
         Health = Healthy,
         Equipment = GearFixtures.NoEquipment,
-        Biography = new O.PawnBiography
+        Biography = new RimGovernor.Brain.GameFacts.Observations.PawnBiography
         {
             BiologicalAgeYears = 30,
             Skills = [],
@@ -84,46 +83,46 @@ internal static class PawnFixtures
             WorkSpeeds = [],
             SkillStatFindings = [],
         },
-        Settings = new O.PawnSettings
+        Settings = new RimGovernor.Brain.GameFacts.Observations.PawnSettings
         {
-            Care = new O.PawnCare.None(),
+            Care = new RimGovernor.Brain.GameFacts.Observations.PawnCare.None(),
             AllowedAreaId = null,
             Schedule = [],
             FoodPolicyRespected = false,
             PolicyInputs = Inputs(),
             Body = Body,
-            Work = new O.PawnWork.Works(true, []),
+            Work = new RimGovernor.Brain.GameFacts.Observations.PawnWork.Works(true, []),
         },
-        Social = new O.PawnSocial { HighExpectations = false, ExpectationDefName = "", Memories = [], Situational = [], SituationalCacheStale = false },
-        AnimalState = new O.PawnAnimalState.NotAnimal(),
-        NearestColonist = new O.NearestColonist.None(),
+        Social = new RimGovernor.Brain.GameFacts.Observations.PawnSocial { HighExpectations = false, ExpectationDefName = "", Memories = [], Situational = [], SituationalCacheStale = false },
+        AnimalState = new RimGovernor.Brain.GameFacts.Observations.PawnAnimalState.NotAnimal(),
+        NearestColonist = new RimGovernor.Brain.GameFacts.Observations.NearestColonist.None(),
         OwnedBed = null,
         LordJobClass = null,
         LordToilClass = null,
-        RaidArmor = new O.RaidArmor.NoHostiles(),
+        RaidArmor = new RimGovernor.Brain.GameFacts.Observations.RaidArmor.NoHostiles(),
         Fogged = false,
         ConstructionCapable = true,
         Inspiration = null,
         PawnSnapshot = null,
-        Biotech = new O.PawnBiotechState.Inactive(),
-        Anomaly = new O.PawnAnomalyState.Inactive(),
-        Royalty = new O.PawnRoyaltyState.Inactive(),
+        Biotech = new RimGovernor.Brain.GameFacts.Observations.PawnBiotechState.Inactive(),
+        Anomaly = new RimGovernor.Brain.GameFacts.Observations.PawnAnomalyState.Inactive(),
+        Royalty = new RimGovernor.Brain.GameFacts.Observations.PawnRoyaltyState.Inactive(),
         FactionDefName = null,
     };
 
     /// <summary>The policy inputs of a pawn: an ideoligion member when <paramref name="ideo"/> names one, a guest when <paramref name="guest"/> is set.</summary>
-    public static O.PawnPolicyInputs Inputs(
+    public static RimGovernor.Brain.GameFacts.Observations.PawnPolicyInputs Inputs(
         string? ideo = null,
         double certainty = 0,
         IEnumerable<string>? precepts = null,
         string? role = null,
-        RimGovernor.Contracts.Wire.Defs.GuestStatus? guest = null,
+        RimGovernor.Brain.GameFacts.Defs.GuestStatus? guest = null,
         string? readingPolicyId = null,
-        IEnumerable<O.InventoryStockSetting>? stock = null) => new()
+        IEnumerable<RimGovernor.Brain.GameFacts.Observations.InventoryStockSetting>? stock = null) => new()
     {
         ReadingPolicyId = readingPolicyId,
         InventoryStock = [.. stock ?? []],
-        Ideo = ideo is null ? new O.PawnIdeo.None() : new O.PawnIdeo.Member(ideo, [.. precepts ?? []], role, certainty),
-        Guest = guest is { } status ? new O.GuestState.Hosted(status) : new O.GuestState.Free(),
+        Ideo = ideo is null ? new RimGovernor.Brain.GameFacts.Observations.PawnIdeo.None() : new RimGovernor.Brain.GameFacts.Observations.PawnIdeo.Member(ideo, [.. precepts ?? []], role, certainty),
+        Guest = guest is { } status ? new RimGovernor.Brain.GameFacts.Observations.GuestState.Hosted(status) : new RimGovernor.Brain.GameFacts.Observations.GuestState.Free(),
     };
 }

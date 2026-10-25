@@ -124,7 +124,7 @@ public static partial class ResourceRules
     /// observed rate over the horizon.
     /// </summary>
     public static Dictionary<Resource, long> RunwayReserves(
-        this RoundsPolicy p, ItemFacts items, long colonists, ResourceConsumption? consumption)
+        this PlannerSettings p, ItemFacts items, long colonists, ResourceConsumption? consumption)
     {
         var materials = MaterialRunwayKeys(items, consumption);
         var output = new Dictionary<Resource, long>();

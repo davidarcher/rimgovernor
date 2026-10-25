@@ -1,6 +1,5 @@
-using O = RimGovernor.Contracts.Wire.Observations;
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
@@ -18,7 +17,7 @@ public sealed class JoinersAnomalyFamilyTests
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
 
     /// <summary>Room for one more colonist: nobody hosted, twenty days of food and a spare unowned bed.</summary>
-    private static RoundsFacts Room(RoundsFacts f) => f with
+    private static ReviewFacts Room(ReviewFacts f) => f with
     {
         Population = PopulationFixtures.Census(),
         FoodDays = new FoodRunway.Days(20.0),
@@ -28,16 +27,16 @@ public sealed class JoinersAnomalyFamilyTests
         },
     };
 
-    private static RimGovernor.Contracts.Wire.Observations.JoinerLetter Letter(int id) => new() { Id = id, Token = "t" + id, Label = "Accept", CanAccept = true };
+    private static RimGovernor.Brain.GameFacts.Observations.JoinerLetter Letter(int id) => new() { Id = id, Token = "t" + id, Label = "Accept", CanAccept = true };
 
-    private static RoundsFacts Census(params RimGovernor.Contracts.Wire.Observations.JoinerLetter[] letters) => Room(new RoundsFacts
+    private static ReviewFacts Census(params RimGovernor.Brain.GameFacts.Observations.JoinerLetter[] letters) => Room(new ReviewFacts
     {
         QuestOffers = [],
         JoinerLetters = [.. letters],
         Royalty = new RoyaltyState.Active(new RoyaltyFacts()),
     });
 
-    private static Need Joiner(RoundsFacts f, NeedId id) => Assert.Single(new JoinersFamily().Derive(JoinersFacts.From(f)), n => n.Id == id);
+    private static Need Joiner(ReviewFacts f, NeedId id) => Assert.Single(new JoinersFamily().Derive(JoinersFacts.From(f)), n => n.Id == id);
 
     [Fact]
     public void JoinerNeedsAreMetUnmetOrUnknownByTheirCensus()
@@ -72,7 +71,7 @@ public sealed class JoinersAnomalyFamilyTests
 
     private static readonly ResearchFacts Researched = ResearchTestFacts.Read(finished: [EntityBioferriteRules.ResearchBioferriteExtraction.Value]);
 
-    private static O.EntityHolderState Holder(string pawn, int x, bool holdOpen) => new()
+    private static RimGovernor.Brain.GameFacts.Observations.EntityHolderState Holder(string pawn, int x, bool holdOpen) => new()
     {
         ContainmentStrength = 0,
         Available = false,
@@ -87,17 +86,17 @@ public sealed class JoinersAnomalyFamilyTests
     {
         Observed = PawnFixtures.Row(pawn) with
         {
-            Anomaly = new O.PawnAnomalyState.Active(new O.PawnAnomaly
+            Anomaly = new RimGovernor.Brain.GameFacts.Observations.PawnAnomalyState.Active(new RimGovernor.Brain.GameFacts.Observations.PawnAnomaly
             {
                 Entity = true, Mutant = false, MinContainmentStrength = 10,
                 Study = null, HiddenFromPlayer = false, PsychicRitualInvoker = false,
                 MeleeOnly = false, Creepjoiner = null,
-                Held = new O.HeldState
+                Held = new RimGovernor.Brain.GameFacts.Observations.HeldState
                 {
                     CanBeCaptured = true, Held = true, NeedsTend = false, Bleeding = false,
                     Escaping = false, Mode = EntityContainmentModeKind.Study,
                     ExtractBioferrite = flag, HarvesterAttached = false, BioferritePerDay = 1,
-                    Escape = new O.EntityEscapeState
+                    Escape = new RimGovernor.Brain.GameFacts.Observations.EntityEscapeState
                     {
                         BaseMtbDays = 60, MovingFactor = 1, DaysInCaptivity = 2,
                         ColdFactor = 1, CombatPower = 100, CanEscape = true,
@@ -106,7 +105,7 @@ public sealed class JoinersAnomalyFamilyTests
             }),
         },
     };
-    private static RoundsFacts Containment(O.EntityHolderState[] holders, params CapturableEntity[] entities) => new()
+    private static ReviewFacts Containment(RimGovernor.Brain.GameFacts.Observations.EntityHolderState[] holders, params CapturableEntity[] entities) => new()
     {
         Anomaly = NoMonolith,
         Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat } },
@@ -119,13 +118,13 @@ public sealed class JoinersAnomalyFamilyTests
         Gear = ColonyModelFixtures.NoGear(),
     };
 
-    private static Need Anomaly(RoundsFacts f, NeedId id) => Assert.Single(new AnomalyFamily().Derive(AnomalyFacts.From(f)), n => n.Id == id);
+    private static Need Anomaly(ReviewFacts f, NeedId id) => Assert.Single(new AnomalyFamily().Derive(AnomalyFacts.From(f)), n => n.Id == id);
 
     [Fact]
     public void EntityPolicyReadsTheActualNativeHoldingState()
     {
         var entity = Held("entity", flag: true);
-        var anomaly = Assert.IsType<O.PawnAnomalyState.Active>(entity.Observed.Anomaly).Facts;
+        var anomaly = Assert.IsType<RimGovernor.Brain.GameFacts.Observations.PawnAnomalyState.Active>(entity.Observed.Anomaly).Facts;
         Assert.Same(anomaly.Held, entity.Target);
         Assert.True(entity.Held);
         Assert.True(entity.CanBeCaptured);
@@ -161,13 +160,13 @@ public sealed class JoinersAnomalyFamilyTests
     }
 
     /// <summary>The Anomaly read of a colony with the expansion and no monolith spawned.</summary>
-    private static readonly AnomalyState NoMonolith = new AnomalyState.Active(new O.AnomalyColonyFacts { Incidents = new() { AmbientHorrorMode = false, Level = 0, MonolithSpawned = false }, Monolith = null });
+    private static readonly AnomalyState NoMonolith = new AnomalyState.Active(new RimGovernor.Brain.GameFacts.Observations.AnomalyColonyFacts { Incidents = new() { AmbientHorrorMode = false, Level = 0, MonolithSpawned = false }, Monolith = null });
 
     [Fact]
     public void TheAnomalyReadIsInactiveWithoutTheSectionAndActiveWithTheMonolith()
     {
         Assert.IsType<AnomalyState.Inactive>(RimGovernor.Brain.Bridge.AnomalyColonyReads.AnomalyOf(AnomalySectionTests.NoAnomaly));
-        Assert.IsType<AnomalyState.Inactive>(new RoundsFacts().Anomaly);
+        Assert.IsType<AnomalyState.Inactive>(new ReviewFacts().Anomaly);
         Assert.IsType<ContainmentDefsRead.Inactive>(new ContainmentPlanning().Defs);
         Assert.Empty(new ContainmentPlanning().Holders);
         Assert.Equal(0, new ContainmentPlanning().Demand.Entities);
@@ -211,9 +210,9 @@ public sealed class JoinersAnomalyFamilyTests
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-anomaly-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
         facts = facts with { Census = facts.Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 },   FieldCoverage = 1.0};
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
         Colony? colony = null;
-        var runner = new FamilyRunner<AnomalyFacts>(new AnomalyFamily(), (_, _) => Task.FromResult(colony!.Facts), AnomalyRounds.Schedule);
+        var runner = new FamilyRunner<AnomalyFacts>(new AnomalyFamily(), (_, _) => Task.FromResult(colony!.Facts), AnomalyReview.Schedule);
         colony = new Colony { Journal = journal, Runner = runner };
         return colony;
     }
@@ -258,16 +257,16 @@ public sealed class JoinersAnomalyFamilyTests
     [Fact]
     public void EachFamilyIsOneDueQueueEntryWakingOnItsMethodKinds()
     {
-        var anomaly = ClockPlannerCatalog.FamilyEntry(new FamilyRunner<AnomalyFacts>(new AnomalyFamily(), (_, _) => Task.FromResult(new AnomalyFacts()), AnomalyRounds.Schedule));
+        var anomaly = PlannerCatalog.FamilyEntry(new FamilyRunner<AnomalyFacts>(new AnomalyFamily(), (_, _) => Task.FromResult(new AnomalyFacts()), AnomalyReview.Schedule));
         Assert.Equal(AnomalyFamily.FamilyId, anomaly.Name);
         Assert.Contains(ActionKind.DoorControl, anomaly.Kinds);
         Assert.Contains(ActionKind.PawnSettings, anomaly.Kinds);
 
-        var joiners = ClockPlannerCatalog.FamilyEntry(new FamilyRunner<JoinersFacts>(new JoinersFamily(), (_, _) => Task.FromResult(new JoinersFacts()), JoinersRounds.Schedule));
+        var joiners = PlannerCatalog.FamilyEntry(new FamilyRunner<JoinersFacts>(new JoinersFamily(), (_, _) => Task.FromResult(new JoinersFacts()), JoinersReview.Schedule));
         Assert.Equal(JoinersFamily.FamilyId, joiners.Name);
         Assert.Contains(ActionKind.QuestAccept, joiners.Kinds);
         Assert.Contains(ActionKind.DialogAnswer, joiners.Kinds);
-        Assert.DoesNotContain(ClockPlannerCatalog.Entries, e => e.Name is "populationJoiner" or "populationCustody");
+        Assert.DoesNotContain(PlannerCatalog.Entries, e => e.Name is "populationJoiner" or "populationCustody");
         Assert.False(joiners.Immediate);
     }
 }

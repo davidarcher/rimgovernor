@@ -6,7 +6,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Material delivery by construction tier (#2523). Gates the delivery job, not
     // labor: a frame needs every material before work starts. See

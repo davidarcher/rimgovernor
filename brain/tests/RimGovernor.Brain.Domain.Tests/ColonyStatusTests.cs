@@ -1,12 +1,11 @@
 using System.Text.Json;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.PlayerApi;
 using RimGovernor.Brain.Store;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 using JournalStore = RimGovernor.Brain.Store.Store;
-using PbCommon = RimGovernor.Contracts.Wire.Common;
-using PbLifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -16,9 +15,9 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class ColonyStatusTests
 {
-    private static readonly PbCommon.Identity WorldIdentity = new() { ColonyId = "colony-1", LoadToken = "load-1", MapId = 1 };
+    private static readonly RimGovernor.Brain.GameFacts.Common.Identity WorldIdentity = new() { ColonyId = "colony-1", LoadToken = "load-1", MapId = 1 };
 
-    private static readonly PbCommon.ObservationContext Context = new() { Identity = WorldIdentity, Tick = 74338, NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase(7) };
+    private static readonly RimGovernor.Brain.GameFacts.Common.ObservationContext Context = new() { Identity = WorldIdentity, Tick = 74338, NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase(7) };
 
     private sealed class Worlds : IWorldSource
     {
@@ -46,18 +45,18 @@ public sealed class ColonyStatusTests
 
     private sealed class Native(params PawnState[] roster) : IColonyStatusNative
     {
-        public PbCommon.ObservationContext RosterContext { get; init; } = Context;
+        public RimGovernor.Brain.GameFacts.Common.ObservationContext RosterContext { get; init; } = Context;
 
-        public Task<PbLifecycle.LoadedIdentity> IdentityAsync(CancellationToken ct) =>
-            Task.FromResult(new PbLifecycle.LoadedIdentity { Context = Context, Paused = false });
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.LoadedIdentity> IdentityAsync(CancellationToken ct) =>
+            Task.FromResult(new RimGovernor.Brain.GameFacts.Lifecycle.LoadedIdentity { Context = Context, Paused = false });
 
-        public Task<ColonyFactsSnapshot> ReadColonyFactsAsync(PbCommon.Identity identity, CancellationToken ct) =>
+        public Task<ColonyFactsSnapshot> ReadColonyFactsAsync(RimGovernor.Brain.GameFacts.Common.Identity identity, CancellationToken ct) =>
             Task.FromResult(ColonyFactsCoreTests.Snapshot() with { Context = Context, ColonistCount = (uint)roster.Count(r => r.Dead != true) });
 
-        public Task<ResearchSnapshot> ReadResearchAsync(PbCommon.Identity identity, CancellationToken ct) =>
+        public Task<ResearchSnapshot> ReadResearchAsync(RimGovernor.Brain.GameFacts.Common.Identity identity, CancellationToken ct) =>
             Task.FromResult(new ResearchSnapshot { Context = Context, Finished = [], Slots = [], Projects = [] });
 
-        public Task<PawnSnapshot> ReadHomeColonistsAsync(PbCommon.Identity identity, CancellationToken ct) =>
+        public Task<PawnSnapshot> ReadHomeColonistsAsync(RimGovernor.Brain.GameFacts.Common.Identity identity, CancellationToken ct) =>
             Task.FromResult(new PawnSnapshot { Context = RosterContext, Pawns = [.. roster] });
     }
 
@@ -80,9 +79,9 @@ public sealed class ColonyStatusTests
     {
         var native = new Native(Colonist("pawn-1"))
         {
-            RosterContext = Context with { NativeGeneration = new PbCommon.ObservedGeneration.AtCase(8) },
+            RosterContext = Context with { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase(8) },
         };
-        await Assert.ThrowsAsync<RimGovernor.Brain.Bridge.Contracts.ObservationChangedException>(() => ReadNativeAsync(native));
+        await Assert.ThrowsAsync<RimGovernor.Brain.GameAccess.ObservationChangedException>(() => ReadNativeAsync(native));
     }
 
     [Fact]
@@ -121,7 +120,7 @@ public sealed class ColonyStatusTests
     public async Task ObservedNeedLevelsIncludingZeroSurviveProjection()
     {
         var row = Colonist("pawn-1");
-        row = row with { Needs = row.Needs with { Mood = new NeedLevel.Has(0), Food = new FoodNeed.Has(0, RimGovernor.Contracts.Wire.Defs.HungerCategory.Starving) }, Downed = true };
+        row = row with { Needs = row.Needs with { Mood = new NeedLevel.Has(0), Food = new FoodNeed.Has(0, RimGovernor.Brain.GameFacts.Defs.HungerCategory.Starving) }, Downed = true };
         var report = await ReadAsync(row);
         var dto = ReadProjections.Colony(report);
         Assert.Equal(0, Assert.IsType<NeedLevel.Has>(report.Pawns[0].Mood).Level);

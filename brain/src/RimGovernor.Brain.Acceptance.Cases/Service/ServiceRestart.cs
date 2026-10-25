@@ -13,7 +13,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 internal static class ServiceRestart
 {
     // Each controller's game-tick budget for persisting an enabled review: several review rounds.
-    private const int RoundsTicks = 10000;
+    private const int Ticks = 10000;
 
     internal static TypedCase Case() => new()
     {
@@ -21,10 +21,10 @@ internal static class ServiceRestart
         Scope = "Kill-and-restart: serve --resume runs the bot for the observed world with no HTTP write and persists an enabled review; it is stopped, "
             + "and a restarted controller on the same state resumes autonomous play for the same world and root plan and advances the review past "
             + "the stopped one's, again with no player step. A unit test cannot prove the in-mod brain re-attaching to a live game.",
-        Ticks = 2 * RoundsTicks,
+        Ticks = 2 * Ticks,
         Tier = CaseTier.OnDemand,
 
-        // "work" is the lightest family that still produces a Rounds pass with a bound goal; the point is autonomy, not
+        // "work" is the lightest family that still produces a ReviewState pass with a bound goal; the point is autonomy, not
         // any particular planner.
         Serve = new ServeSpec { Families = ["work"], Resume = true, Prefix = "restart" },
         Crew = new Crew { Size = 3 },
@@ -36,10 +36,10 @@ internal static class ServiceRestart
         var world = new GenerationSnapshot(new ColonyId(s.Identity.ColonyId), new MapId(s.Identity.MapId), new LoadId(s.Identity.LoadToken), default, default, default);
 
         // The first controller: an enabled review of the observed world.
-        Store.Rounds? first = null;
+        Store.ReviewState? first = null;
         _ = await s.ServeUntilAsync(
             "first",
-            RoundsTicks,
+            Ticks,
             async ct =>
             {
                 first = await s.ReviewAsync(ct).ConfigureAwait(false);
@@ -50,10 +50,10 @@ internal static class ServiceRestart
         s.Record("first_review", Evidence(before));
 
         // The restart: a fresh controller on the same journal must review again, later, for the same world and plan.
-        Store.Rounds? second = null;
+        Store.ReviewState? second = null;
         _ = await s.ServeUntilAsync(
             "restarted",
-            RoundsTicks,
+            Ticks,
             async ct =>
             {
                 second = await s.ReviewAsync(ct).ConfigureAwait(false);
@@ -76,10 +76,10 @@ internal static class ServiceRestart
         }
     }
 
-    private static string Signature(Store.Rounds? review) =>
+    private static string Signature(Store.ReviewState? review) =>
         review is null ? "none" : string.Create(CultureInfo.InvariantCulture, $"{review.Revision}/{review.Tick.Value}/{review.Enabled}");
 
-    private static JsonObject Evidence(Store.Rounds review) => new(
+    private static JsonObject Evidence(Store.ReviewState review) => new(
     [
         new KeyValuePair<string, JsonNode?>("revision", review.Revision),
         new KeyValuePair<string, JsonNode?>("tick", review.Tick.Value),

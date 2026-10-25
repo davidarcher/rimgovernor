@@ -1,6 +1,6 @@
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire;
-using O = RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -10,15 +10,15 @@ public sealed class ProductionBenchFactsTests
     [Fact]
     public void CookingAndButcheringUseOneNativeBenchWithoutLosingDistinctLegality()
     {
-        var input = new O.ProductionBenchFacts
+        var input = new RimGovernor.Brain.GameFacts.Observations.ProductionBenchFacts
         {
             Bench = ProductionBenchFixtures.Observed("bench", "CombinedWorkbench", "native-token", true, "kitchen"),
-            Cooking = new O.CookingProduction.Supported { Usable = false, Recipes = [], Production = [] },
-            Butchering = new O.ButcheringProduction.Supported { Usable = true, Recipes = [], HumanButchers = [], HumanCorpseMeat = [] },
+            Cooking = new RimGovernor.Brain.GameFacts.Observations.CookingProduction.Supported { Usable = false, Recipes = [], Production = [] },
+            Butchering = new RimGovernor.Brain.GameFacts.Observations.ButcheringProduction.Supported { Usable = true, Recipes = [], HumanButchers = [], HumanCorpseMeat = [] },
         };
-        var back = WireJson.Deserialize<O.ProductionBenchFacts>(WireJson.Serialize(input));
-        var cooking = new ProductionBench { Observed = back.Bench, Use = new ProductionUse.Cooking(Assert.IsType<O.CookingProduction.Supported>(back.Cooking)) };
-        var butchering = new ProductionBench { Observed = back.Bench, Use = new ProductionUse.Butchering(Assert.IsType<O.ButcheringProduction.Supported>(back.Butchering)) };
+        var back = OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.ProductionBenchFacts>(OrdersJson.Serialize(input));
+        var cooking = new ProductionBench { Observed = back.Bench, Use = new ProductionUse.Cooking(Assert.IsType<RimGovernor.Brain.GameFacts.Observations.CookingProduction.Supported>(back.Cooking)) };
+        var butchering = new ProductionBench { Observed = back.Bench, Use = new ProductionUse.Butchering(Assert.IsType<RimGovernor.Brain.GameFacts.Observations.ButcheringProduction.Supported>(back.Butchering)) };
         Assert.Same(cooking.Observed, butchering.Observed);
         Assert.Equal(("bench", "CombinedWorkbench", "native-token", "kitchen"), (cooking.Id, cooking.Definition, cooking.Token, cooking.Room));
         Assert.False(cooking.Usable);
@@ -55,7 +55,7 @@ public sealed class ProductionBenchFactsTests
         var native = BillWire.Bill("bill") with
         {
             Recipe = "Sculpture", Finished = true,
-            RepeatMode = RimGovernor.Contracts.Wire.Operations.RepeatMode.Target, TargetCount = 7,
+            RepeatMode = RimGovernor.Brain.GameFacts.Operations.RepeatMode.Target, TargetCount = 7,
         };
         var cooking = new ExistingProductionBill { Observed = native };
         Assert.Same(native, cooking.Observed);

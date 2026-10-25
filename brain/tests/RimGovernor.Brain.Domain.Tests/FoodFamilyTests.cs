@@ -1,4 +1,4 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
@@ -46,8 +46,8 @@ public sealed class FoodFamilyTests
     [Fact]
     public void TheForecastFoodRowReadsTheSupplyNeedWithTheSameAssessmentForTheSameFacts()
     {
-        var policy = RoundsRules.DefaultRoundsPolicy();
-        var facts = new RoundsFacts { MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } }, Tick = new(100), Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 2 }, FoodDays = new FoodRunway.Days(0), Fuel = [] };
+        var policy = Rules.DefaultPlannerSettings();
+        var facts = new ReviewFacts { MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } }, Tick = new(100), Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 2 }, FoodDays = new FoodRunway.Days(0), Fuel = [] };
         var met = facts with
         {
             FoodDays = new FoodRunway.Days(1000.0), GrowingCells = 10_000L, FieldCoverage = 1.0,
@@ -107,9 +107,9 @@ public sealed class FoodFamilyTests
     [Fact]
     public void TheForecastCookingRowReadsTheNeedWithTheSameAssessmentForTheSameFacts()
     {
-        var facts = new RoundsFacts { MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } }, Tick = new(100), Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 2 }, FoodDays = new FoodRunway.Days(0), Fuel = [] };
-        ServiceCoverage Coverage(RoundsFacts f) => Assert.Single(
-            EssentialServicesRules.ReviewEssentialServices(f, RoundsRules.DefaultRoundsPolicy(), new() { Work = new() { Tick = f.Tick } }).Coverage,
+        var facts = new ReviewFacts { MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } }, Tick = new(100), Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 2 }, FoodDays = new FoodRunway.Days(0), Fuel = [] };
+        ServiceCoverage Coverage(ReviewFacts f) => Assert.Single(
+            EssentialServicesRules.ReviewEssentialServices(f, Rules.DefaultPlannerSettings(), new() { Work = new() { Tick = f.Tick } }).Coverage,
             c => c.Service == EssentialService.Cooking && c.Target == ServiceTarget.ForNeed(FoodRules.CookingNeed)).Coverage;
         Assert.Equal(ServiceCoverage.Adequate, Coverage(facts with { Cooking = true, CampfireRetireOwed = false }));
         Assert.Equal(ServiceCoverage.Shortfall, Coverage(facts with { Cooking = false }));
@@ -162,7 +162,7 @@ public sealed class FoodFamilyTests
         var journal = Reviewed();
         Colony? colony = null;
         var runner = new FamilyRunner<FoodFacts>(new FoodFamily(true, true), (_, _) => Task.FromResult(colony!.Facts),
-            FoodRounds.Schedule,
+            FoodReview.Schedule,
             (work, _, call) =>
             {
                 var verdicts = new List<Verdict>();
@@ -170,14 +170,14 @@ public sealed class FoodFamilyTests
                 {
                     foreach (var (method, cell) in colony!.Builds)
                     {
-                        verdicts.Add(RoundsBuildingPlanner.OwnerCommitVerdict(journal.CommitOwnerWork(work.Owner, new MethodId(method), "", Build("Campfire", cell), call)));
+                        verdicts.Add(BuildingPlanner.OwnerCommitVerdict(journal.CommitOwnerWork(work.Owner, new MethodId(method), "", Build("Campfire", cell), call)));
                     }
                 }
                 else
                 {
                     foreach (var (method, action) in colony!.Supplies)
                     {
-                        verdicts.Add(RoundsBuildingPlanner.OwnerCommitVerdict(journal.CommitOwnerWork(work.Owner, new MethodId(method), "", Plan(action), call)));
+                        verdicts.Add(BuildingPlanner.OwnerCommitVerdict(journal.CommitOwnerWork(work.Owner, new MethodId(method), "", Plan(action), call)));
                     }
                 }
                 return Task.FromResult(verdicts.Count == 0 ? Verdict.AwaitingPlan(work.Need.Id.Value, "no_method") : verdicts[^1]);
@@ -195,7 +195,7 @@ public sealed class FoodFamilyTests
         facts = facts with
         {
 
-            Census = (facts.Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "WoodLog", Units = 1000 }] },   FieldCoverage = 1.0,
+            Census = (facts.Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 }) with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "WoodLog", Units = 1000 }] },   FieldCoverage = 1.0,
             WorkAdmission = facts.WorkAdmission with
             {
                 Buildings = [
@@ -203,7 +203,7 @@ public sealed class FoodFamilyTests
                     new("Cooler", "", [new(new("WoodLog"), 10)]) { Size = new Cell(1, 1) }],
             },
         };
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.Review(new() { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
         return journal;
     }
 
@@ -256,10 +256,10 @@ public sealed class FoodFamilyTests
     }
 
     private static void File(Colony colony, FamilyRun run) =>
-        colony.Journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(), [PlannerWave.NeedProgressOf(FoodRules.FoodFamilyId, run)!], TestContext.Current.CancellationToken);
+        colony.Journal.RecordPlannerReasons(new Dictionary<FilingKey, PlannerNote>(), [PlannerWave.NeedProgressOf(FoodRules.FoodFamilyId, run)!], TestContext.Current.CancellationToken);
 
     private static ConcernProgress? Row(Colony colony) =>
-        colony.Journal.LoadRounds(TestContext.Current.CancellationToken).Progress.SingleOrDefault(p => p.Concern == FoodRules.CookingNeed.FilingKey);
+        colony.Journal.LoadReview(TestContext.Current.CancellationToken).Progress.SingleOrDefault(p => p.Concern == FoodRules.CookingNeed.FilingKey);
 
     [Fact]
     public void SupplyFieldsAndForageAreAdmittedSideBySideAndAFieldOnTheSameCellsIsAClaimConflict()
@@ -293,11 +293,11 @@ public sealed class FoodFamilyTests
         colony.Facts = colony.Facts with { Cooking = true } with { ReserveCovered = false };
         colony.Supplies.Add(("acquire-berries", Forage("f1", "berry-1")));
         File(colony, colony.Run());
-        var review = colony.Journal.LoadRounds(ct);
+        var review = colony.Journal.LoadReview(ct);
         colony.Journal.RecordProgressCooldown(review.Revision, FoodRules.FoodSupplyNeed.FilingKey, "acquire/berry-2", new(review.Tick.Value + 1000), ct);
 
         File(colony, colony.Run());
-        var row = Assert.Single(colony.Journal.LoadRounds(ct).Progress, p => p.Concern == FoodRules.FoodSupplyNeed.FilingKey);
+        var row = Assert.Single(colony.Journal.LoadReview(ct).Progress, p => p.Concern == FoodRules.FoodSupplyNeed.FilingKey);
         Assert.True(row.Cooled("acquire/berry-2", review.Tick));
     }
 
@@ -306,7 +306,7 @@ public sealed class FoodFamilyTests
     private static Need BlightOf(FoodFacts facts) => Assert.Single(new FoodFamily(false, false, blight: true).Derive(facts));
 
     private static BlightedPlant Blighted(string id, int x, bool designated = false) =>
-        new() { Observed = new() { Thing = new() { Id = id }, Designated = designated }, Entity = new() { Id = id, DefName = "Plant_Rice", Label = "rice", Place = new RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap(1, new Cell(x, 3)) } };
+        new() { Observed = new() { Thing = new() { Id = id }, Designated = designated }, Entity = new() { Id = id, DefName = "Plant_Rice", Label = "rice", Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(1, new Cell(x, 3)) } };
 
     private static FoodFacts Census(params BlightedPlant[] plants) => new() { Blight = [.. plants] };
 
@@ -383,7 +383,7 @@ public sealed class FoodFamilyTests
         var journal = Reviewed();
         FoodFacts facts = Census(Blighted("plant-1", 1), Blighted("plant-2", 2));
         var runner = new FamilyRunner<FoodFacts>(new FoodFamily(false, false, blight: true), (_, _) => Task.FromResult(facts),
-            FoodRounds.Schedule, (work, _, _) => Task.FromResult(Verdict.AwaitingPlan(work.Need.Id.Value, "no_method")));
+            FoodReview.Schedule, (work, _, _) => Task.FromResult(Verdict.AwaitingPlan(work.Need.Id.Value, "no_method")));
         using var colony = new Colony { Journal = journal, Runner = runner };
 
         var first = colony.Run();
@@ -417,7 +417,7 @@ public sealed class FoodFamilyTests
         var family = new FoodFamily(false, false, blight: true);
         var batch = Assert.Single(family.Propose([.. family.Derive(facts)], facts)).Method;
         var runner = new FamilyRunner<FoodFacts>(family, (_, _) => Task.FromResult(facts),
-            FoodRounds.Schedule, (work, _, _) => Task.FromResult(Verdict.AwaitingPlan(work.Need.Id.Value, "no_method")));
+            FoodReview.Schedule, (work, _, _) => Task.FromResult(Verdict.AwaitingPlan(work.Need.Id.Value, "no_method")));
         using var colony = new Colony { Journal = journal, Runner = runner };
 
         // 300 attempts committed and released under the Need: every third the batch's MethodId again, the rest each
@@ -485,9 +485,9 @@ public sealed class FoodFamilyTests
         if (i % 100 == 99)
         {
             var tick = new Tick(200 + i);
-            journal.ReviewRounds(new()
+            journal.Review(new()
             {
-                Revision = journal.LoadRounds(ct).Revision, Current = World, Tick = tick, Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(),
+                Revision = journal.LoadReview(ct).Revision, Current = World, Tick = tick, Enabled = true, Policy = Rules.DefaultPlannerSettings(),
                 Facts = WorkResourceTestFacts.Create("a", "b", "c") with { Tick = tick },
             }, ct);
         }
@@ -495,5 +495,5 @@ public sealed class FoodFamilyTests
     }
 
     private static EquatableArray<string> BlightRefusedOf(Journal journal) =>
-        FoodRounds.BlightRefused(journal, World, TestContext.Current.CancellationToken);
+        FoodReview.BlightRefused(journal, World, TestContext.Current.CancellationToken);
 }

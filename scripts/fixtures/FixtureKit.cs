@@ -6,7 +6,7 @@ using RimWorld;
 using RimWorld.Planet;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The fixture primitives every fixture build carries (#3393), implemented once: the current and paused map
     // guards, "x,z;x,z" cell lists, site search, area clearing, cell writes, wall rooms, pawn generation, work and

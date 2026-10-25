@@ -35,7 +35,7 @@ public sealed partial class DefinitionCatalog
             {
                 KnowledgeCategory = category,
                 Cost = cost,
-                TechLevel = (RimGovernor.Contracts.Wire.Defs.TechLevel)(int)row.techLevel, // RimWorld.TechLevel, value for value
+                TechLevel = (RimGovernor.Brain.GameFacts.Defs.TechLevel)(int)row.techLevel, // RimWorld.TechLevel, value for value
                 Prerequisites = ProjectIds(row.prerequisites),
                 HiddenPrerequisites = ProjectIds(row.hiddenPrerequisites),
                 Unlocks = unlocks.TryGetValue(name, out var unlocked) ? new([.. unlocked]) : default,

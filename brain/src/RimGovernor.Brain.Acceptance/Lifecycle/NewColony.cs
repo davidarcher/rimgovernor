@@ -1,7 +1,7 @@
 using System.Globalization;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Contracts.Wire;
-using Wl = RimGovernor.Contracts.Wire.Lifecycle;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -9,10 +9,10 @@ namespace RimGovernor.Brain.Acceptance;
 public sealed record NewColonyRun
 {
     /// <summary>The phases seen in wire order, each once.</summary>
-    public IReadOnlyList<Wl.NewColonyPhase> Phases { get; init; } = [];
+    public IReadOnlyList<RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase> Phases { get; init; } = [];
 
     /// <summary>The completed reply: saveName, seed, paused, byteLength, context.</summary>
-    public required Wl.NewColonyCompleted Completed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Lifecycle.NewColonyCompleted Completed { get; init; }
 
     /// <summary>The last rerollCount a pending reply carried (completed replies carry none), 0 when the first roll was accepted.</summary>
     public int Rerolls { get; init; }
@@ -29,18 +29,18 @@ public static class NewColony
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(250);
 
     /// <summary>The order a start's phases must follow.</summary>
-    private static readonly Wl.NewColonyPhase[] PhaseOrder =
+    private static readonly RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase[] PhaseOrder =
     [
-        Wl.NewColonyPhase.GeneratingWorld,
-        Wl.NewColonyPhase.ChoosingTile,
-        Wl.NewColonyPhase.RollingColonists,
-        Wl.NewColonyPhase.GeneratingMap,
-        Wl.NewColonyPhase.Finishing,
-        Wl.NewColonyPhase.Saving,
+        RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase.GeneratingWorld,
+        RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase.ChoosingTile,
+        RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase.RollingColonists,
+        RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase.GeneratingMap,
+        RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase.Finishing,
+        RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase.Saving,
     ];
 
     /// <summary>Wraps a spec in a <c>lifecycle_new_colony</c> request; a zero timeout is <see cref="NewColonyTimeout"/>.</summary>
-    public static Wl.NewColonyRequest NewColonyRequest(string id, Wl.NewColonySpec spec, TimeSpan timeout)
+    public static RimGovernor.Brain.GameOrders.Lifecycle.NewColonyRequest NewColonyRequest(string id, RimGovernor.Brain.GameOrders.Lifecycle.NewColonySpec spec, TimeSpan timeout)
     {
         ArgumentNullException.ThrowIfNull(spec);
         if (timeout <= TimeSpan.Zero)
@@ -48,7 +48,7 @@ public static class NewColony
             timeout = NewColonyTimeout;
         }
 
-        return new Wl.NewColonyRequest { RequestId = id, Spec = spec, TimeoutMs = (uint)timeout.TotalMilliseconds };
+        return new RimGovernor.Brain.GameOrders.Lifecycle.NewColonyRequest { RequestId = id, Spec = spec, TimeoutMs = (uint)timeout.TotalMilliseconds };
     }
 
     /// <summary>
@@ -57,11 +57,11 @@ public static class NewColony
     /// failure is an error (a failed start can leave game state behind: restart the game before retrying); phases
     /// must follow <see cref="PhaseOrder"/> without going back.
     /// </summary>
-    public static async Task<NewColonyRun> RunNewColonyAsync(Harness harness, Wl.NewColonyRequest request, string label, CancellationToken cancellationToken)
+    public static async Task<NewColonyRun> RunNewColonyAsync(Harness harness, RimGovernor.Brain.GameOrders.Lifecycle.NewColonyRequest request, string label, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(harness);
         ArgumentNullException.ThrowIfNull(request);
-        var phases = new List<Wl.NewColonyPhase>();
+        var phases = new List<RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase>();
         var rerolls = 0;
         var reply = await harness.CallAsync(label + "-start", NativeOps.StartNewColony, request, cancellationToken).ConfigureAwait(false);
         var last = -1;
@@ -75,7 +75,7 @@ public static class NewColony
 
             if (reply.Outcome?.Completed is { } completed)
             {
-                if (!phases.Contains(Wl.NewColonyPhase.Saving))
+                if (!phases.Contains(RimGovernor.Brain.GameFacts.Lifecycle.NewColonyPhase.Saving))
                 {
                     throw new AcceptanceException($"{label}: completed without reporting Saving (phases [{string.Join(' ', phases)}])");
                 }
@@ -85,7 +85,7 @@ public static class NewColony
 
             if (reply.Outcome?.Pending is not { } pending)
             {
-                throw new AcceptanceException($"{label}: unexpected reply: {WireJson.Serialize(reply)}");
+                throw new AcceptanceException($"{label}: unexpected reply: {OrdersJson.Serialize(reply)}");
             }
 
             var phase = pending.Phase;
@@ -111,7 +111,7 @@ public static class NewColony
             reply = await harness.CallAsync(
                 string.Create(CultureInfo.InvariantCulture, $"{label}-poll-{attempt}"),
                 NativeOps.PollNewColony,
-                new Wl.RequestStatus { RequestId = request.RequestId },
+                new RimGovernor.Brain.GameFacts.Lifecycle.RequestStatus { RequestId = request.RequestId },
                 cancellationToken).ConfigureAwait(false);
         }
 

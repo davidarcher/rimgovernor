@@ -1,5 +1,5 @@
 using System;
-using HomeBridge.BridgeTools;
+using RimGovernor.Native;
 
 internal static class NativeConstructionCausalityProbe
 {

@@ -1,17 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI.Group;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Defs = RimGovernor.Contracts.Wire.Defs;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 using PawnId = RimGovernor.Brain.Domain.PawnId;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Typed, read-only trade census behind the ReadScope boundary: the map
     // traders a session could open with, the eligible negotiators, and
@@ -30,9 +27,9 @@ namespace HomeBridge.BridgeTools
 
         private static string FactionId(Faction? faction) => faction?.GetUniqueLoadID() ?? "";
 
-        internal static Obs.TradersSnapshot Traders(Map map, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Observations.TradersSnapshot Traders(Map map, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
-            var traders = new List<Obs.Trader>();
+            var traders = new List<RimGovernor.Brain.GameFacts.Observations.Trader>();
             foreach (var pawn in map.mapPawns.AllPawnsSpawned.ToList())
             {
                 var tracker = pawn.trader;
@@ -42,7 +39,7 @@ namespace HomeBridge.BridgeTools
                 // routine's escort can stand beside: its trader moves every
                 // tick until the lord's travel toil ends.
                 var travelling = pawn.GetLord()?.CurLordToil is LordToil_Travel;
-                traders.Add(new Obs.Trader
+                traders.Add(new RimGovernor.Brain.GameFacts.Observations.Trader
                 {
                     Id = pawn.GetUniqueLoadID(), Orbital = false, Kind = tracker.traderKind.defName, FactionId = FactionId(pawn.Faction),
                     CanTrade = pawn.CanTradeNow && !dismissed && !travelling, Travelling = travelling, GoodsStacks = tracker.Goods.Count(),
@@ -53,7 +50,7 @@ namespace HomeBridge.BridgeTools
                 var usable = ship.CanTradeNow && Building_OrbitalTradeBeacon.AllPowered(map).Any()
                     && map.mapPawns.FreeColonistsSpawned.Any(p => p.CanTradeWith(ship.Faction, ship.TraderKind).Accepted
                         && map.listerBuildings.allBuildingsColonist.OfType<Building_CommsConsole>().Any(c => NativeTradeAcquisition.ConsoleNegotiator(c, p)));
-                traders.Add(new Obs.Trader
+                traders.Add(new RimGovernor.Brain.GameFacts.Observations.Trader
                 {
                     Id = ship.GetUniqueLoadID(), Orbital = true, Kind = ship.TraderKind.defName, FactionId = FactionId(ship.Faction),
                     CanTrade = usable, Travelling = false, GoodsStacks = ship.Goods.Count(),
@@ -66,7 +63,7 @@ namespace HomeBridge.BridgeTools
                 var c = y.GetStatValue(StatDefOf.TradePriceImprovement).CompareTo(x.GetStatValue(StatDefOf.TradePriceImprovement));
                 return c != 0 ? c : string.CompareOrdinal(x.GetUniqueLoadID(), y.GetUniqueLoadID());
             });
-            return new Obs.TradersSnapshot
+            return new RimGovernor.Brain.GameFacts.Observations.TradersSnapshot
             {
                 Context = context, Traders = [.. traders], Negotiators = [.. negotiators.Select(p => new PawnId(p.GetUniqueLoadID()))],
             };
@@ -78,29 +75,29 @@ namespace HomeBridge.BridgeTools
         /// MemberSold goodwill with the extra home or host faction and what
         /// AllSellableColonyPawns lists on.
         /// </summary>
-        private static Obs.TradePawn TradePawn(Pawn p) => new Obs.TradePawn
+        private static RimGovernor.Brain.GameFacts.Observations.TradePawn TradePawn(Pawn p) => new RimGovernor.Brain.GameFacts.Observations.TradePawn
         {
             Id = p.GetUniqueLoadID(),
-            Gender = (Defs.Gender)(int)p.gender,
-            Skills = p.skills == null ? [] : [.. p.skills.skills.Select(s => new Obs.Skill { DefName = s.def.defName, Level = s.Level, StoredLevel = s.levelInt, Passion = NativeEnums.Passion(s.passion), Disabled = s.TotallyDisabled })],
+            Gender = (RimGovernor.Brain.GameFacts.Defs.Gender)(int)p.gender,
+            Skills = p.skills == null ? [] : [.. p.skills.skills.Select(s => new RimGovernor.Brain.GameFacts.Observations.Skill { DefName = s.def.defName, Level = s.Level, StoredLevel = s.levelInt, Passion = NativeEnums.Passion(s.passion), Disabled = s.TotallyDisabled })],
             ViolenceCapable = !p.WorkTagIsDisabled(WorkTags.Violent),
             Guest = p.guest != null
-                ? new Obs.TradePawnGuest.Tracked((Defs.GuestStatus)(int)p.guest.GuestStatus, p.guest.PrisonerIsSecure)
-                : new Obs.TradePawnGuest.NoGuestTracker(),
+                ? new RimGovernor.Brain.GameFacts.Observations.TradePawnGuest.Tracked((RimGovernor.Brain.GameFacts.Defs.GuestStatus)(int)p.guest.GuestStatus, p.guest.PrisonerIsSecure)
+                : new RimGovernor.Brain.GameFacts.Observations.TradePawnGuest.NoGuestTracker(),
             Downed = p.Downed,
             ExtraHomeFactionId = FactionId(p.GetExtraHomeFaction()),
             ExtraHostFactionId = FactionId(p.GetExtraHostFaction()),
         };
 
         // A line thing's quality and hit-point fraction, what a gear sale ranks.
-        private static Obs.TradeThingGrade Grade(Thing thing)
+        private static RimGovernor.Brain.GameFacts.Observations.TradeThingGrade Grade(Thing thing)
         {
             if (!thing.GetInnerIfMinified().TryGetQuality(out var quality) || !thing.def.useHitPoints || thing.MaxHitPoints <= 0)
-                return new Obs.TradeThingGrade.Ungraded();
-            return new Obs.TradeThingGrade.Graded((int)quality, (double)thing.HitPoints / thing.MaxHitPoints);
+                return new RimGovernor.Brain.GameFacts.Observations.TradeThingGrade.Ungraded();
+            return new RimGovernor.Brain.GameFacts.Observations.TradeThingGrade.Graded((int)quality, (double)thing.HitPoints / thing.MaxHitPoints);
         }
 
-        private static Obs.TradeLine Line(Tradeable t, int index)
+        private static RimGovernor.Brain.GameFacts.Observations.TradeLine Line(Tradeable t, int index)
         {
             var pawn = t.AnyThing as Pawn;
             // One colony thing of a non-pawn line, its stockpile and grade: a
@@ -108,7 +105,7 @@ namespace HomeBridge.BridgeTools
             // the controller sells only the worn dump's gear above its caps.
             var thing = pawn == null ? t.FirstThingColony : null;
             var zone = thing != null && thing.Spawned ? thing.Map.zoneManager.ZoneAt(thing.Position) as Zone_Stockpile : null;
-            return new Obs.TradeLine
+            return new RimGovernor.Brain.GameFacts.Observations.TradeLine
             {
                 LineId = "#" + index,
                 DefName = t.ThingDef?.defName ?? "",
@@ -122,38 +119,38 @@ namespace HomeBridge.BridgeTools
                 Pawn = pawn != null ? TradePawn(pawn) : null,
                 TransferCount = t.CountToTransfer, MinimumCount = t.GetMinimumToTransfer(), MaximumCount = t.GetMaximumToTransfer(),
                 ThingId = thing?.GetUniqueLoadID() ?? "",
-                Grade = thing != null ? Grade(thing) : new Obs.TradeThingGrade.Ungraded(),
+                Grade = thing != null ? Grade(thing) : new RimGovernor.Brain.GameFacts.Observations.TradeThingGrade.Ungraded(),
                 ZoneId = zone?.GetUniqueLoadID() ?? "",
             };
         }
 
-        internal static Obs.TradeSession Session(Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Observations.TradeSession Session(RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var engaged = NativeTradeOperations.LiveTarget(context.Identity, out var target, out var negotiator, out var open) && target != null && negotiator != null;
-            return new Obs.TradeSession
+            return new RimGovernor.Brain.GameFacts.Observations.TradeSession
             {
                 Context = context,
                 Engagement = engaged
-                    ? new Obs.TradeEngagement.Engaged((target ?? throw new System.InvalidOperationException("Required native value is unavailable: target.")), new PawnId((negotiator ?? throw new System.InvalidOperationException("Required native value is unavailable: negotiator.")).GetUniqueLoadID()), open)
-                    : new Obs.TradeEngagement.Idle(),
+                    ? new RimGovernor.Brain.GameFacts.Observations.TradeEngagement.Engaged((target ?? throw new System.InvalidOperationException("Required native value is unavailable: target.")), new PawnId((negotiator ?? throw new System.InvalidOperationException("Required native value is unavailable: negotiator.")).GetUniqueLoadID()), open)
+                    : new RimGovernor.Brain.GameFacts.Observations.TradeEngagement.Idle(),
             };
         }
 
-        internal static bool Sheet(Common.ObservationContext context, string? sessionId, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Obs.TradeSheet? sheet, out Common.Failure failure)
+        internal static bool Sheet(RimGovernor.Brain.GameFacts.Common.ObservationContext context, string? sessionId, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out RimGovernor.Brain.GameFacts.Observations.TradeSheet? sheet, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
             sheet = null;
             if (!NativeTradeOperations.SessionSheet(context.Identity, out var session, out failure)) return false;
             if (!string.IsNullOrEmpty(sessionId) && sessionId != session.SessionId)
             {
-                failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "The requested trade session is not the open one.");
+                failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.StaleIdentity, "The requested trade session is not the open one.");
                 return false;
             }
             var deal = session.Deal;
             var all = deal.AllTradeables.ToList();
             var currency = deal.CurrencyTradeable;
-            var lines = new List<Obs.TradeLine>();
+            var lines = new List<RimGovernor.Brain.GameFacts.Observations.TradeLine>();
             for (var i = 0; i < all.Count; i++) if (all[i] != null) lines.Add(Line(all[i], i));
-            sheet = new Obs.TradeSheet
+            sheet = new RimGovernor.Brain.GameFacts.Observations.TradeSheet
             {
                 Context = context,
                 SessionId = session.SessionId,
@@ -164,12 +161,12 @@ namespace HomeBridge.BridgeTools
                 // Negative when the colony pays, exactly the currency row's
                 // own signed transfer count.
                 Balance = currency != null
-                    ? new Obs.TradeBalance.Counted(currency.CountToTransfer, currency.CountPostDealFor(Transactor.Colony) >= 0)
-                    : new Obs.TradeBalance.NoCurrencyLine(),
+                    ? new RimGovernor.Brain.GameFacts.Observations.TradeBalance.Counted(currency.CountToTransfer, currency.CountPostDealFor(Transactor.Colony) >= 0)
+                    : new RimGovernor.Brain.GameFacts.Observations.TradeBalance.NoCurrencyLine(),
                 TraderHasEnoughSilver = deal.DoesTraderHaveEnoughSilver(),
                 Lines = [.. lines],
                 DealSignature = session.DealSignature,
-                CurrencyKind = NativeTradeOperations.IsFavorSession() ? Defs.TradeCurrency.Favor : Defs.TradeCurrency.Silver,
+                CurrencyKind = NativeTradeOperations.IsFavorSession() ? RimGovernor.Brain.GameFacts.Defs.TradeCurrency.Favor : RimGovernor.Brain.GameFacts.Defs.TradeCurrency.Silver,
             };
             return true;
         }
@@ -177,9 +174,9 @@ namespace HomeBridge.BridgeTools
 
     internal static class NativeTradeObservationTools
     {
-        private static void RequireIdentity([System.Diagnostics.CodeAnalysis.NotNull] Obs.ReadScope? scope)
+        private static void RequireIdentity([System.Diagnostics.CodeAnalysis.NotNull] RimGovernor.Brain.GameFacts.Observations.ReadScope? scope)
         {
-            if (scope?.ExpectedIdentity == null) throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity is required."));
+            if (scope?.ExpectedIdentity == null) throw NativeFaults.Refused(GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Identity is required."));
         }
 
         // The read's result, or the logged ReadFailed unavailability a read that could not complete throws.
@@ -189,28 +186,28 @@ namespace HomeBridge.BridgeTools
             catch (Exception thrown) when (thrown is not NativeFailureException)
             {
                 ModLog.Error("observe", "Native " + what + " read failed: " + thrown);
-                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native " + what + " could not be read completely." });
+                throw NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed, Detail = "Native " + what + " could not be read completely." });
             }
         }
 
-        internal static Obs.TradersSnapshot HandleListTraders(Obs.TradersRequest request)
+        internal static RimGovernor.Brain.GameFacts.Observations.TradersSnapshot HandleListTraders(RimGovernor.Brain.GameOrders.Observations.TradersRequest request)
         {
             RequireIdentity(request.Scope);
-            if (!ProtoBoundary.ValidateIdentity(request.Scope.ExpectedIdentity, out var map, out var context, out var failure)) throw NativeFaults.Refused(failure);
+            if (!GameThread.ValidateIdentity(request.Scope.ExpectedIdentity, out var map, out var context, out var failure)) throw NativeFaults.Refused(failure);
             return Complete("trader census", () => NativeTradeObservation.Traders(map, context));
         }
 
-        internal static Obs.TradeSession HandleReadTradeSession(Obs.TradeSessionRequest request)
+        internal static RimGovernor.Brain.GameFacts.Observations.TradeSession HandleReadTradeSession(RimGovernor.Brain.GameOrders.Observations.TradeSessionRequest request)
         {
             RequireIdentity(request.Scope);
-            if (!ProtoBoundary.ValidateIdentity(request.Scope.ExpectedIdentity, out var context, out var failure)) throw NativeFaults.Refused(failure);
+            if (!GameThread.ValidateIdentity(request.Scope.ExpectedIdentity, out var context, out var failure)) throw NativeFaults.Refused(failure);
             return Complete("trade session", () => NativeTradeObservation.Session(context));
         }
 
-        internal static Obs.TradeSheet HandleReadTradeSheet(Obs.TradeSheetRequest request)
+        internal static RimGovernor.Brain.GameFacts.Observations.TradeSheet HandleReadTradeSheet(RimGovernor.Brain.GameOrders.Observations.TradeSheetRequest request)
         {
             RequireIdentity(request.Scope);
-            if (!ProtoBoundary.ValidateIdentity(request.Scope.ExpectedIdentity, out var context, out var failure)) throw NativeFaults.Refused(failure);
+            if (!GameThread.ValidateIdentity(request.Scope.ExpectedIdentity, out var context, out var failure)) throw NativeFaults.Refused(failure);
             return Complete("trade sheet", () => NativeTradeObservation.Sheet(context, request.SessionId, out var sheet, out var refused)
                 ? sheet
                 : throw NativeFaults.Refused(refused));

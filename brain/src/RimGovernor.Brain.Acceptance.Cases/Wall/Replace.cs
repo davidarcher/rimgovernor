@@ -1,8 +1,5 @@
 using System.Text.Json.Nodes;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Placement = RimGovernor.Contracts.Wire.Placement;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -49,17 +46,17 @@ internal static class WallReplace
         var pillar = (X: cx + 20, Z: cz);
         var empty = (X: cx + 12, Z: cz + 8);
 
-        static Operations.BuildingIntent Wall(string def, (int X, int Z) at, bool replace) => new()
+        static RimGovernor.Brain.GameOrders.Operations.BuildingIntent Wall(string def, (int X, int Z) at, bool replace) => new()
         {
-            Placement = new Placement.PlacementCandidate { DefName = def, Stuff = "WoodLog", X = at.X, Z = at.Z, Rotation = Placement.Rotation.North, IgnoreNaturalRock = false },
-            ReplaceWall = replace, MinimumFinishingSkill = new Operations.FinishingSkillChange.Preserve(), Tier = new Operations.ConstructionTierChange.Preserve(),
+            Placement = new RimGovernor.Brain.GameOrders.Placement.PlacementCandidate { DefName = def, Stuff = "WoodLog", X = at.X, Z = at.Z, Rotation = RimGovernor.Brain.GameFacts.Placement.Rotation.North, IgnoreNaturalRock = false },
+            ReplaceWall = replace, MinimumFinishingSkill = new RimGovernor.Brain.GameOrders.Operations.FinishingSkillChange.Preserve(), Tier = new RimGovernor.Brain.GameOrders.Operations.ConstructionTierChange.Preserve(),
         };
 
         foreach (var (label, def, at, code) in new[]
         {
-            ("replace-no-wall", "Wall", empty, Common.FailureCode.NoWallToReplace),
-            ("replace-not-a-wall", "Door", target, Common.FailureCode.WallReplacementRefused),
-            ("replace-last-roof-holder", "Wall", pillar, Common.FailureCode.WallReplacementStrandsRoof),
+            ("replace-no-wall", "Wall", empty, RimGovernor.Brain.GameFacts.Common.FailureCode.NoWallToReplace),
+            ("replace-not-a-wall", "Door", target, RimGovernor.Brain.GameFacts.Common.FailureCode.WallReplacementRefused),
+            ("replace-last-roof-holder", "Wall", pillar, RimGovernor.Brain.GameFacts.Common.FailureCode.WallReplacementStrandsRoof),
         })
         {
             var refusal = await TypedApply.RefusedAsync(s, label, Wall(def, at, true), cancellationToken).ConfigureAwait(false);

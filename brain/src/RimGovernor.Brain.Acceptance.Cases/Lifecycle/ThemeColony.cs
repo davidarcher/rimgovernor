@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
-using RimGovernor.Contracts.Wire;
-using Common = RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -54,7 +54,7 @@ internal static class LifecycleThemeColony
                 };
                 _ = await NewColonyStart.CompleteAsync(s, "theme", NewColonyStart.Request("theme-create", spec), cancellationToken, throughBrain: true).ConfigureAwait(false);
                 var read = await s.FixtureAsync("created-design", Inspect, true, cancellationToken).ConfigureAwait(false);
-                var design = WireJson.Deserialize<Common.IdeoligionDesign>(read.Design);
+                var design = OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Common.IdeoligionDesign>(read.Design);
                 s.RecordWire("design", design);
                 var missing = Memes.Except(design.Memes).Concat(Precepts.Except(design.Precepts)).Concat(new[] { Animal }.Except(design.VeneratedAnimals)).ToList();
                 if (missing.Count > 0)

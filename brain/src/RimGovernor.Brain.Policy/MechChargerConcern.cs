@@ -25,7 +25,7 @@ public static partial class MechRules
     /// The biotech/mech-charger Need's verdict over the Biotech section's chargers and the review's mech fleet
     /// (MechChargerOwed); the common colony decoder supplies the fleet even when it is empty.
     /// </summary>
-    public static bool MechChargerOwed(MechFleet fleet, RimGovernor.Contracts.Wire.Observations.BiotechColonyFacts biotech) =>
+    public static bool MechChargerOwed(MechFleet fleet, RimGovernor.Brain.GameFacts.Observations.BiotechColonyFacts biotech) =>
         MechChargerOwed(fleet.Mechanitors.Count, biotech.Chargers);
 
     /// <summary>

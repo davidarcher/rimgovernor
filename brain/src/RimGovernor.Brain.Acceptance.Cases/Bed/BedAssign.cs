@@ -1,5 +1,4 @@
 using Fx = RimGovernor.Fixtures.Contracts;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -72,11 +71,11 @@ internal static class BedAssign
             }
         }
 
-        static Operations.ActionIntent Assign(string pawn, string bed, string expected, bool swap) => new Operations.AssignIntent
+        static RimGovernor.Brain.GameOrders.Operations.ActionIntent Assign(string pawn, string bed, string expected, bool swap) => new RimGovernor.Brain.GameOrders.Operations.AssignIntent
         {
             PawnId = pawn,
             ThingId = bed,
-            ExpectedPrevious = new Operations.Assignment { Value = new Operations.AssignmentValue.EntityIdCase(expected) },
+            ExpectedPrevious = new RimGovernor.Brain.GameOrders.Operations.Assignment { Value = new RimGovernor.Brain.GameOrders.Operations.AssignmentValue.EntityIdCase(expected) },
             Swap = swap,
         };
 

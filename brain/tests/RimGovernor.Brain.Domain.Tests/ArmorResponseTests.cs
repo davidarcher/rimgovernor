@@ -1,5 +1,3 @@
-using D = RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -88,7 +86,7 @@ public sealed class ArmorResponseTests
     public void PenetrationAboveTheArmorPassesTheHitAndQualityAndConditionScaleTheRating()
     {
         Assert.Equal(10, Of([Garment(0.5)], Torso, Sharp(10, 0.5)).ExpectedDamage, 9);
-        var worn = Garment(0.5) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Garment(0.5)).Origin).Value) with { Quality = new O.ItemQuality.Graded(D.QualityCategory.Legendary), Condition = 0.5 }) };
+        var worn = Garment(0.5) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Garment(0.5)).Origin).Value) with { Quality = new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded(RimGovernor.Brain.GameFacts.Defs.QualityCategory.Legendary), Condition = 0.5 }) };
 
         // 0.5 x 1.8 x 0.5 = 0.45.
         Assert.Equal(0.225, Of([worn], Torso, Sharp(10, 0)).DeflectChance, 9);

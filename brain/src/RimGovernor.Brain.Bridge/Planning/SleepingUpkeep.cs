@@ -1,10 +1,9 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using DefinitionCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
 using CatalogStats = RimGovernor.Brain.Bridge.CatalogStats;
-using O = RimGovernor.Contracts.Wire.Observations;
-using RoomRole = RimGovernor.Contracts.Wire.Observations.RoomRole;
+using RoomRole = RimGovernor.Brain.GameFacts.Observations.RoomRole;
 namespace RimGovernor.Brain.Bridge;
 
 public static class SleepingUpkeepReads
@@ -15,10 +14,10 @@ public static class SleepingUpkeepReads
     /// The sleeping census: the upkeep people, slaves, guests and beds, each bed joined to its building table row and
     /// its def's catalog rows. A bed the building table does not hold, or a def the catalog cannot answer for, throws.
     /// </summary>
-    internal static SleepingObservation ColonySleeping(O.ColonyFactsSnapshot v, Buildings buildings, Pawns pawns, DefinitionCatalog? catalog)
+    internal static SleepingObservation ColonySleeping(RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot v, Buildings buildings, Pawns pawns, DefinitionCatalog? catalog)
     {
         var u = v.Upkeep;
-        EquatableArray<SleepingPerson> People(IEnumerable<O.UpkeepPerson> rows)
+        EquatableArray<SleepingPerson> People(IEnumerable<RimGovernor.Brain.GameFacts.Observations.UpkeepPerson> rows)
         {
             var output = new List<SleepingPerson>();
             foreach (var p in rows)
@@ -29,7 +28,7 @@ public static class SleepingUpkeepReads
                 {
                     Native = p,
                     Pawn = pawn,
-                    Title = p.Title is O.RoyalStanding.Titled t ? ColonyPlanningReads.RequireCatalog(catalog).RoyalTitleOf(t.Title, t.Ascetic, t.Precepts) : null,
+                    Title = p.Title is RimGovernor.Brain.GameFacts.Observations.RoyalStanding.Titled t ? ColonyPlanningReads.RequireCatalog(catalog).RoyalTitleOf(t.Title, t.Ascetic, t.Precepts) : null,
                 });
             }
             return EquatableArray.From(output);
@@ -53,7 +52,7 @@ public static class SleepingUpkeepReads
                 throw new ObservationContractException($"sleeping bed {b.Id} has no building row");
             }
             var head = row.Building;
-            if (head.Place is not O.EntityPlace.OnMap)
+            if (head.Place is not RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap)
                 throw new ObservationContractException("sleeping building is not on the map");
             if (catalog is null)
             {
@@ -89,7 +88,7 @@ public static class SleepingUpkeepReads
     /// medical, not for prisoners) or carrying a common role (dining, rec room) and not fogged, with its native
     /// stats.
     /// </summary>
-    internal static EquatableArray<UpkeepRoom> UpkeepRooms(O.RoomsSnapshot census, EquatableArray<SleepingBed> beds)
+    internal static EquatableArray<UpkeepRoom> UpkeepRooms(RimGovernor.Brain.GameFacts.Observations.RoomsSnapshot census, EquatableArray<SleepingBed> beds)
     {
         var owned = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         foreach (var b in beds)

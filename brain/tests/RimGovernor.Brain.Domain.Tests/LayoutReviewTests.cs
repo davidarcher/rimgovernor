@@ -5,9 +5,7 @@ using RimGovernor.Brain.Telemetry;
 using RimGovernor.Brain.Telemetry.Otlp;
 using RimGovernor.Tools.Commands.ColonyReview;
 using Xunit;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Decision = RimGovernor.Brain.Telemetry.Decision;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -161,8 +159,8 @@ public sealed class LayoutReviewTests
     [Fact]
     public void HousingCountsLiveColonistsOwningABedInAnEnclosedBedroomOrBarracks()
     {
-        Observations.RoomState Rooms(RoomRole role, string bed, uint openRoof = 0) => RoomFixtures.State(bed + "-room", role, beds: [bed]) with { OpenRoofCount = openRoof };
-        Observations.PawnState Pawn(string? bed, bool dead = false) => PawnFixtures.Row("pawn") with { Dead = dead, OwnedBed = bed is null ? null : new Common.Ref { Id = bed } };
+        RimGovernor.Brain.GameFacts.Observations.RoomState Rooms(RoomRole role, string bed, uint openRoof = 0) => RoomFixtures.State(bed + "-room", role, beds: [bed]) with { OpenRoofCount = openRoof };
+        RimGovernor.Brain.GameFacts.Observations.PawnState Pawn(string? bed, bool dead = false) => PawnFixtures.Row("pawn") with { Dead = dead, OwnedBed = bed is null ? null : new RimGovernor.Brain.GameFacts.Common.Ref { Id = bed } };
         var rooms = new[]
         {
             Rooms(RoomRole.Bedroom, "b1"),

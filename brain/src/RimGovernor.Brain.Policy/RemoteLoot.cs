@@ -87,14 +87,14 @@ public static partial class RemoteRules
     /// The remote request the loot filter runs against: safety and the derived extent from the review facts,
     /// and the urgent work competing for the colonists.
     /// </summary>
-    public static RemoteWorkRequest LootContext(RoundsFacts f)
+    public static RemoteWorkRequest LootContext(ReviewFacts f)
     {
         var extent = ColonyExtentRules.DeriveColonyExtent(f.MapBounds, f.CurrentConstruction, f.ConstructionClaims, f.HomeCoverage);
         return new RemoteWorkRequest { Safety = LootSafety(f), Extent = extent, Competition = RemoteCompetition(f) };
     }
 
     /// <summary>Assembles outdoor safety from the required hostile census.</summary>
-    public static RemoteSafety LootSafety(RoundsFacts f)
+    public static RemoteSafety LootSafety(ReviewFacts f)
     {
         return new RemoteSafety { Threat = f.Hostiles, Hazard = OutdoorHazardRules.OutdoorHazardsOf(f), DashOpen = f.DashOpen() };
     }

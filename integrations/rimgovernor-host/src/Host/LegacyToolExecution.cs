@@ -10,7 +10,7 @@ namespace RimGovernor.Host;
 
 internal static class LegacyToolExecution
 {
-    private static readonly Dictionary<string, string> ToolIdsByMemberName = typeof(RimBridgeTools)
+    private static readonly Dictionary<string, string> ToolIdsByMemberName = typeof(NativeTools)
         .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
         .Select(method => new { Method = method, Attribute = method.GetCustomAttribute<ToolAttribute>() })
         .Where(entry => entry.Attribute != null)

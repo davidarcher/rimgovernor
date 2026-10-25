@@ -1,4 +1,4 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
@@ -156,7 +156,7 @@ public sealed class FoodStoresFamilyTests
             FoodStorageUpkeep = census,
             FoodReserve = new FoodReserveState.Reviewed(Reserve("pem-1")),
         };
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.Review(new() { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
         Colony? colony = null;
         var runner = new FamilyRunner<FoodStoresFacts>(new FoodStoresFamily(Policy, true, false), (_, _) => Task.FromResult(colony!.Facts),
             new FamilySchedule { Kinds = [ActionKind.Haul, ActionKind.SupplyAllow, ActionKind.SupplyForbid] });
@@ -207,18 +207,18 @@ public sealed class FoodStoresFamilyTests
         Assert.Equal(("food-reserve", true), (row.Method, row.Open));
 
         // The review rebuild keeps the row; a complete run that no longer derives the Need prunes it.
-        colony.Journal.ReviewRounds(new() { Current = World, Tick = new(200), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Revision = colony.Journal.LoadRounds(ct).Revision,
+        colony.Journal.Review(new() { Current = World, Tick = new(200), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Revision = colony.Journal.LoadReview(ct).Revision,
             Facts = WorkResourceTestFacts.Create("a", "b", "c") with { Census = (WorkResourceTestFacts.Create("a", "b", "c")).Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 },   FieldCoverage = 1.0} }, ct);
         Assert.Equal(row, Row(colony));
-        colony.Journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(), [new FamilyProgress("food-stores", true, [])], ct);
+        colony.Journal.RecordPlannerReasons(new Dictionary<FilingKey, PlannerNote>(), [new FamilyProgress("food-stores", true, [])], ct);
         Assert.Null(Row(colony));
     }
 
     private static void File(Colony colony, FamilyRun run) =>
-        colony.Journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(), [PlannerWave.NeedProgressOf("food-stores", run)!], TestContext.Current.CancellationToken);
+        colony.Journal.RecordPlannerReasons(new Dictionary<FilingKey, PlannerNote>(), [PlannerWave.NeedProgressOf("food-stores", run)!], TestContext.Current.CancellationToken);
 
     private static ConcernProgress? Row(Colony colony) =>
-        colony.Journal.LoadRounds(TestContext.Current.CancellationToken).Progress.SingleOrDefault(p => p.Concern == FoodStoresRules.FoodStorageNeed.FilingKey);
+        colony.Journal.LoadReview(TestContext.Current.CancellationToken).Progress.SingleOrDefault(p => p.Concern == FoodStoresRules.FoodStorageNeed.FilingKey);
 
     [Fact]
     public void TheLarderMethodIsAdmittedBesideAnOpenReservePlan()

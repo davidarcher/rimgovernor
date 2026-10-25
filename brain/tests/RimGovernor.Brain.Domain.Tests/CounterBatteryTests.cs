@@ -1,6 +1,6 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using NearestColonist = RimGovernor.Contracts.Wire.Observations.NearestColonist;
+using NearestColonist = RimGovernor.Brain.GameFacts.Observations.NearestColonist;
 
 namespace RimGovernor.Brain.Domain.Tests;
 

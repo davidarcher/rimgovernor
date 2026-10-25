@@ -13,14 +13,14 @@ internal static class NativeProtoBuildingsProbe
     private const BindingFlags Flags = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
     private static int checks;
     private static void Check(bool value, string label) { if (!value) throw new Exception(label); checks++; }
-    private static object Wire(string name, string json)
+    private static object Wire(Type type, string json)
     {
-        var type = typeof(RimGovernor.Contracts.Wire.Common.Ref).Assembly.GetType("RimGovernor.Contracts.Wire.Observations." + name, true)!;
-        return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize", new[] { typeof(string) })!.MakeGenericMethod(type).Invoke(null, new object[] { json })!;
+
+        return typeof(RimGovernor.Brain.GameOrders.OrdersJson).GetMethod(nameof(RimGovernor.Brain.GameOrders.OrdersJson.Deserialize), new[] { typeof(string) })!.MakeGenericMethod(type).Invoke(null, new object[] { json })!;
     }
     private static object Get(object value, string property) => value.GetType().GetProperty(property)!.GetValue(value)!;
     private static bool Valid(string json) => (bool)tools.GetMethod("Validate", Flags)!.Invoke(null,
-        new object?[] { Wire("ListBuildingsRequest", json), null })!;
+        new object?[] { Wire(typeof(RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest),  json), null })!;
     internal static int Invoke(string[] args)
     {
         var directories = args.Skip(1).Concat(new[] { Path.GetDirectoryName(Path.GetFullPath(args[0]))! }).ToArray();
@@ -30,7 +30,7 @@ internal static class NativeProtoBuildingsProbe
         };
         bridge = Assembly.LoadFrom(Path.GetFullPath(args[0]));
         foreach (var reference in bridge.GetReferencedAssemblies()) Assembly.Load(reference);
-        tools = bridge.GetType("HomeBridge.BridgeTools.NativeBuildingObservationTools", true)!;
+        tools = bridge.GetType("RimGovernor.Native.NativeBuildingObservationTools", true)!;
         const string scope = "\"scope\":{\"expectedIdentity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0}}";
         Func<string, string> request = fields => "{" + scope + (fields.Length == 0 ? "" : "," + fields) + "}";
         foreach (var fields in new[] { "", "\"anyFaction\":true",
@@ -47,14 +47,14 @@ internal static class NativeProtoBuildingsProbe
         Func<string, string> buildings = row => "{" + context + ",\"buildings\":[{\"building\":{\"id\":\"Wall17\"},\"rotation\":\"ROTATION_NORTH\",\"stuff\":null,"
             + "\"faction\":null,\"status\":\"frame\",\"hitPoints\":{\"type\":\"tracked\",\"current\":5,\"maximum\":10},\"service\":{},\"settings\":{},"
             + "\"occupied\":{\"minimum\":{\"x\":1,\"z\":1},\"maximum\":{\"x\":1,\"z\":1}},\"anomaly\":null,\"door\":null" + row + "}]}";
-        var snapshot = Wire("BuildingsSnapshot", buildings(",\"burning\":false,\"construction\":" + build));
+        var snapshot = Wire(typeof(RimGovernor.Brain.GameFacts.Observations.BuildingsSnapshot),  buildings(",\"burning\":false,\"construction\":" + build));
         var construction = Get(((IList)Get(snapshot, "Buildings"))[0]!, "Construction");
         Check(construction.GetType().Name == "Build" && Get(construction, "Definition") is "Wall", "A frame row carries its build state");
         Check(Get(Get(construction, "Gate"), "Tier").ToString() == "Survive", "A tiered gate names its tier");
         foreach (var (missing, row) in new[] { ("burning", ",\"construction\":" + build), ("construction", ",\"burning\":false") })
         {
             var refused = false;
-            try { Wire("BuildingsSnapshot", buildings(row)); }
+            try { Wire(typeof(RimGovernor.Brain.GameFacts.Observations.BuildingsSnapshot),  buildings(row)); }
             catch (TargetInvocationException) { refused = true; }
             Check(refused, "A row missing its " + missing + " is refused");
         }

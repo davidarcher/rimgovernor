@@ -1,8 +1,6 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
-using Common = RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Brain.GameAccess;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -46,7 +44,7 @@ internal static class BillsCensus
     {
         var id = s.Staged!.Buildings[Bench].Ids.Single();
         var problems = new List<string>();
-        var census = await s.CallAsync("bills", NativeOps.ReadBills, new Observations.BillsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var census = await s.CallAsync("bills", NativeOps.ReadBills, new RimGovernor.Brain.GameOrders.Observations.BillsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var rows = census.Benches.Where(b => b.Bench == id).ToList();
         if (rows is not [{ Snapshot: { Token.Length: > 0 } snapshot } row] || snapshot.EntityId != id)
         {
@@ -59,14 +57,14 @@ internal static class BillsCensus
             problems.Add($"bench ids missing or duplicated: {string.Join(' ', duplicated)}");
         }
 
-        var facts = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
-        var cooking = facts.ProductionBenches.FirstOrDefault(c => c.Bench.Bench == id && c.Cooking is Observations.CookingProduction.Supported);
+        var facts = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var cooking = facts.ProductionBenches.FirstOrDefault(c => c.Bench.Bench == id && c.Cooking is RimGovernor.Brain.GameFacts.Observations.CookingProduction.Supported);
         if (cooking?.Bench.Snapshot.Token != snapshot.Token)
         {
             problems.Add($"census token {snapshot.Token} disagrees with the colony-facts cooking row {cooking?.Bench.Snapshot.Token}");
         }
 
-        var catalog = await s.CallAsync("recipes", NativeOps.ReadRecipes, new Observations.RecipesRequest { Scope = s.Scope, BenchId = id }, cancellationToken).ConfigureAwait(false);
+        var catalog = await s.CallAsync("recipes", NativeOps.ReadRecipes, new RimGovernor.Brain.GameOrders.Observations.RecipesRequest { Scope = s.Scope, BenchId = id }, cancellationToken).ConfigureAwait(false);
         if (catalog.Snapshot.Token != snapshot.Token || catalog.Snapshot.EntityId != id)
         {
             problems.Add($"recipe catalog snapshot {catalog.Snapshot} disagrees with the census {snapshot}");
@@ -83,20 +81,20 @@ internal static class BillsCensus
 
         try
         {
-            var blank = await s.CallAsync("blank-bench", NativeOps.ReadBills, new Observations.BillsRequest { Scope = s.Scope, BenchId = " " }, cancellationToken).ConfigureAwait(false);
+            var blank = await s.CallAsync("blank-bench", NativeOps.ReadBills, new RimGovernor.Brain.GameOrders.Observations.BillsRequest { Scope = s.Scope, BenchId = " " }, cancellationToken).ConfigureAwait(false);
             problems.Add($"blank bench id: want INVALID_REQUEST, got {blank.Benches.Count} benches");
         }
-        catch (NativeFailureException refused) when (refused.Value.Code == Common.FailureCode.InvalidRequest)
+        catch (NativeFailureException refused) when (refused.Value.Code == RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest)
         {
             s.Record("blank-bench", refused.Message);
         }
 
         try
         {
-            var unknown = await s.CallAsync("unknown-bench", NativeOps.ReadRecipes, new Observations.RecipesRequest { Scope = s.Scope, BenchId = "Thing_NoSuchBench0" }, cancellationToken).ConfigureAwait(false);
+            var unknown = await s.CallAsync("unknown-bench", NativeOps.ReadRecipes, new RimGovernor.Brain.GameOrders.Observations.RecipesRequest { Scope = s.Scope, BenchId = "Thing_NoSuchBench0" }, cancellationToken).ConfigureAwait(false);
             problems.Add($"unknown bench id: want NOT_FOUND, got {unknown.Recipes.Count} recipes");
         }
-        catch (NativeFailureException refused) when (refused.Value.Code == Common.FailureCode.NotFound)
+        catch (NativeFailureException refused) when (refused.Value.Code == RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound)
         {
             s.Record("unknown-bench", refused.Message);
         }

@@ -14,13 +14,13 @@ using RimGovernor.Host.Extensions.Abstractions;
 
 namespace RimGovernor.Host;
 
-internal sealed class BuiltInCapabilityModuleProvider : IRimBridgeCapabilityProvider
+internal sealed class BuiltInCapabilityModuleProvider : INativeCapabilityProvider
 {
     private readonly string _category;
     private readonly object _module;
     private readonly OperationRunner _runner;
     private readonly CapabilitySourceKind _source;
-    private readonly List<RimBridgeCapabilityRegistration> _registrations;
+    private readonly List<NativeCapabilityRegistration> _registrations;
 
     public BuiltInCapabilityModuleProvider(string providerId, string category, object module, Type aliasMetadataType, CapabilitySourceKind source)
     {
@@ -34,12 +34,12 @@ internal sealed class BuiltInCapabilityModuleProvider : IRimBridgeCapabilityProv
 
     public string ProviderId { get; }
 
-    public IEnumerable<RimBridgeCapabilityRegistration> GetCapabilities()
+    public IEnumerable<NativeCapabilityRegistration> GetCapabilities()
     {
         return _registrations;
     }
 
-    private List<RimBridgeCapabilityRegistration> BuildRegistrations(Type aliasMetadataType)
+    private List<NativeCapabilityRegistration> BuildRegistrations(Type aliasMetadataType)
     {
         var metadataByMethodName = aliasMetadataType
             .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
@@ -55,7 +55,7 @@ internal sealed class BuiltInCapabilityModuleProvider : IRimBridgeCapabilityProv
             {
                 var metadata = metadataByMethodName[method.Name];
                 var descriptor = CreateDescriptor(method, metadata.Method, metadata.Attribute);
-                return new RimBridgeCapabilityRegistration(descriptor, (invocation, cancellationToken) => InvokeAsync(method, descriptor, invocation, cancellationToken));
+                return new NativeCapabilityRegistration(descriptor, (invocation, cancellationToken) => InvokeAsync(method, descriptor, invocation, cancellationToken));
             })
             .ToList();
     }
@@ -283,11 +283,11 @@ internal sealed class BuiltInCapabilityModuleProvider : IRimBridgeCapabilityProv
     {
         return toolName switch
         {
-            "rimgovernor/get_bridge_status" => CapabilityExecutionKind.Immediate,
-            "rimgovernor/list_logs" => CapabilityExecutionKind.Immediate,
-            "rimgovernor/load_game_ready" => CapabilityExecutionKind.BackgroundObserved,
-            "rimgovernor/play_for" => CapabilityExecutionKind.BackgroundObserved,
-            "rimgovernor/step_game_ticks" => CapabilityExecutionKind.BackgroundObserved,
+            "get_bridge_status" => CapabilityExecutionKind.Immediate,
+            "list_logs" => CapabilityExecutionKind.Immediate,
+            "load_game_ready" => CapabilityExecutionKind.BackgroundObserved,
+            "play_for" => CapabilityExecutionKind.BackgroundObserved,
+            "step_game_ticks" => CapabilityExecutionKind.BackgroundObserved,
             _ => CapabilityExecutionKind.MainThread
         };
     }

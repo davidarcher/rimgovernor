@@ -1,7 +1,4 @@
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Placement = RimGovernor.Contracts.Wire.Placement;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -49,7 +46,7 @@ internal static class FloorKitchen
         var interior = s.Staged!.Rooms["kitchen"].Interior.ToHashSet();
         var target = new Fx.StageCell(interior.Min(c => c.X), interior.Min(c => c.Z));
 
-        async Task<List<Observations.FloorCell>> ReadAsync(string label)
+        async Task<List<RimGovernor.Brain.GameFacts.Observations.FloorCell>> ReadAsync(string label)
         {
             var upkeep = await TypedApply.UpkeepAsync(s, label, cancellationToken).ConfigureAwait(false);
             var flooring = upkeep.Flooring;
@@ -57,7 +54,7 @@ internal static class FloorKitchen
                 ?? throw new AcceptanceException($"{label}: no flooring row holds the staged kitchen");
             s.RecordWire(label, room);
             var cells = room.Cells.Where(c => interior.Contains(Of(c))).ToList();
-            return room.Role == Observations.RoomRole.Kitchen && cells.Count == interior.Count
+            return room.Role == RimGovernor.Brain.GameFacts.Observations.RoomRole.Kitchen && cells.Count == interior.Count
                 ? cells
                 : throw new AcceptanceException($"{label}: want a Kitchen row over the {interior.Count} interior cells, got {room.Role} over {cells.Count}");
         }
@@ -69,9 +66,9 @@ internal static class FloorKitchen
         }
 
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
-        _ = await TypedApply.AppliedAsync(s, "floor-blueprint", new Operations.BuildingIntent
+        _ = await TypedApply.AppliedAsync(s, "floor-blueprint", new RimGovernor.Brain.GameOrders.Operations.BuildingIntent
         {
-            Placement = new Placement.PlacementCandidate { DefName = Floor, Stuff = "", X = target.X, Z = target.Z, Rotation = Placement.Rotation.North, IgnoreNaturalRock = false }, ReplaceWall = false, Tier = new Operations.ConstructionTierChange.Preserve(), MinimumFinishingSkill = new Operations.FinishingSkillChange.Preserve() }, cancellationToken).ConfigureAwait(false);
+            Placement = new RimGovernor.Brain.GameOrders.Placement.PlacementCandidate { DefName = Floor, Stuff = "", X = target.X, Z = target.Z, Rotation = RimGovernor.Brain.GameFacts.Placement.Rotation.North, IgnoreNaturalRock = false }, ReplaceWall = false, Tier = new RimGovernor.Brain.GameOrders.Operations.ConstructionTierChange.Preserve(), MinimumFinishingSkill = new RimGovernor.Brain.GameOrders.Operations.FinishingSkillChange.Preserve() }, cancellationToken).ConfigureAwait(false);
 
         var after = await ReadAsync("flooring-after").ConfigureAwait(false);
         var pending = after.Where(c => !string.IsNullOrEmpty(c.Pending)).ToList();
@@ -81,5 +78,5 @@ internal static class FloorKitchen
         }
     }
 
-    private static Fx.StageCell Of(Observations.FloorCell cell) => new(cell.Cell.X, cell.Cell.Z);
+    private static Fx.StageCell Of(RimGovernor.Brain.GameFacts.Observations.FloorCell cell) => new(cell.Cell.X, cell.Cell.Z);
 }

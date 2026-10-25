@@ -10,7 +10,7 @@ internal static class NativePawnControlStateProbe
     private static Assembly bridge = null!, game = null!, runtime = null!;
     private static int count;
     private static object identity = null!, pawn = null!, drafter = null!;
-    private static Type Type(string name) => bridge.GetType("HomeBridge.BridgeTools." + name,true)!;
+    private static Type Type(string name) => bridge.GetType("RimGovernor.Native." + name,true)!;
     private static object New(string name, params object?[] args) => Activator.CreateInstance(Type(name),Flags,null,args,null)!;
     private static object? Get(object value,string name) => value.GetType().GetProperty(name,Flags)?.GetValue(value) ?? value.GetType().GetField(name,Flags)?.GetValue(value);
     private static void Set(object value,string name,object data) => value.GetType().GetField(name,Flags)!.SetValue(value,data);
@@ -39,7 +39,7 @@ internal static class NativePawnControlStateProbe
         var map=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(game.GetType("Verse.Map",true)!);
         pawn=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(game.GetType("Verse.Pawn",true)!);
         drafter=System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(game.GetType("RimWorld.Pawn_DraftController",true)!);
-        identity=Activator.CreateInstance(runtime.GetType("HomeBridge.BridgeTools.NativeControlIdentity",true)!,nativeGame,map,"colony","load")!;
+        identity=Activator.CreateInstance(runtime.GetType("RimGovernor.Native.NativeControlIdentity",true)!,nativeGame,map,"colony","load")!;
         Check(!(bool)Type("NativePawnControlState").GetProperty("IsReady",Flags)!.GetValue(null)!,"read readiness does not install hooks");
         Check(!(bool)Type("DraftOwnership").GetProperty("Healthy",Flags)!.GetValue(null)!,"legacy draft hook remains uninstalled after typed readiness read");
         pawn.GetType().GetField("drafter",Flags)!.SetValue(pawn,drafter);

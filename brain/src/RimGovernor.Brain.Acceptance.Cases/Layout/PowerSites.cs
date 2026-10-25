@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Placement = RimGovernor.Contracts.Wire.Placement;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -15,9 +14,9 @@ internal static class LayoutPowerSites
 {
     // Each planned convention: the def, its centre and rotation on the site, and the area the plan books for it.
     // A solar site's centre is its area's corner plus (1, 1).
-    private static readonly (string Def, Fx.StageCell Cell, Placement.Rotation Rotation, Fx.StageRect Area)[] Sites =
+    private static readonly (string Def, Fx.StageCell Cell, RimGovernor.Brain.GameFacts.Placement.Rotation Rotation, Fx.StageRect Area)[] Sites =
     [
-        (LayoutUtilityRules.SolarDefinition, new(7, 3), Placement.Rotation.North, new(6, 2, 4, 4)),
+        (LayoutUtilityRules.SolarDefinition, new(7, 3), RimGovernor.Brain.GameFacts.Placement.Rotation.North, new(6, 2, 4, 4)),
     ];
 
     internal static TypedCase Case() => new()
@@ -52,10 +51,10 @@ internal static class LayoutPowerSites
         foreach (var (def, cell, rotation, area) in Sites)
         {
             var label = $"preview-{def}-{rotation}";
-            var reply = await s.CallAsync(label, NativeOps.PreviewPlacement, new Placement.PlacementRequest
+            var reply = await s.CallAsync(label, NativeOps.PreviewPlacement, new RimGovernor.Brain.GameOrders.Placement.PlacementRequest
             {
                 Identity = s.Identity,
-                Placements = [new Placement.PlacementCandidate { DefName = def, Stuff = "", X = site.X + cell.X, Z = site.Z + cell.Z, Rotation = rotation, IgnoreNaturalRock = false }],
+                Placements = [new RimGovernor.Brain.GameOrders.Placement.PlacementCandidate { DefName = def, Stuff = "", X = site.X + cell.X, Z = site.Z + cell.Z, Rotation = rotation, IgnoreNaturalRock = false }],
             }, cancellationToken).ConfigureAwait(false);
             var rotations = reply.Outcome?.Batch?.Results.ToList() is [{ Outcome.Evaluated: { } evaluated }] ? evaluated.Rotations.ToList() : [];
             if (rotations is not [var row])

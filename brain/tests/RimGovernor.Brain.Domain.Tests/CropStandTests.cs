@@ -1,14 +1,13 @@
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>A growing zone's stand (#3949): plants with their means, or fallow. A fallow zone has no harvest to wait for.</summary>
 public sealed class CropStandTests
 {
-    private static readonly O.FoodClimate Summer = new()
+    private static readonly RimGovernor.Brain.GameFacts.Observations.FoodClimate Summer = new()
     {
         GrowingYear = EquatableArray.From(Enumerable.Range(0, CalendarRules.YearDays).Select(day => day < 30 || day >= 50)),
         SowingNow = true,
@@ -20,7 +19,7 @@ public sealed class CropStandTests
         NonGrowingDays = 20,
     };
 
-    private static CropGrowth Growth(O.ZoneState.Growing observed) => new()
+    private static CropGrowth Growth(RimGovernor.Brain.GameFacts.Observations.ZoneState.Growing observed) => new()
     {
         Observed = observed,
         MinGrowth = 6.0,
@@ -29,11 +28,11 @@ public sealed class CropStandTests
         MaxGrowth = 42.0,
     };
 
-    private static O.ZoneState.Growing Farm(uint planted, double temperature = 20) => new()
+    private static RimGovernor.Brain.GameFacts.Observations.ZoneState.Growing Farm(uint planted, double temperature = 20) => new()
     {
         Id = "zone",
         Label = "Rice",
-        Bounds = new O.CellExtents { Minimum = new Cell(0, 0), Maximum = new Cell(2, 2) },
+        Bounds = new RimGovernor.Brain.GameFacts.Observations.CellExtents { Minimum = new Cell(0, 0), Maximum = new Cell(2, 2) },
         Crop = "Plant_Rice",
         ZoneCells = 10, UnroofedCells = 10,
         UsableCells = 10,

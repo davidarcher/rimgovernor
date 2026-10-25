@@ -1,5 +1,5 @@
-using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.Runtime;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Store;
 using JournalStore = RimGovernor.Brain.Store.Store;
 using Xunit;

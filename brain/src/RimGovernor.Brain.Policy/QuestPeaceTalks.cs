@@ -1,25 +1,24 @@
 using RimGovernor.Brain.Domain;
-using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
 public static class QuestPeaceTalksPolicy
 {
-    public static QuestSkipReason PeaceTalksAdmission(QuestState offer, RoundsFacts f)
+    public static QuestSkipReason PeaceTalksAdmission(QuestState offer, ReviewFacts f)
     {
         if (!QuestExpedition.QuestExpeditionSite(offer, f, out var site))
         {
             return "site_unknown";
         }
-        return PlanPeaceTalks(offer, site, f, f.AnimalUpkeep.Food, RoundsRules.DefaultRoundsPolicy()).Reason;
+        return PlanPeaceTalks(offer, site, f, f.AnimalUpkeep.Food, Rules.DefaultPlannerSettings()).Reason;
     }
 
-    public static ExpeditionPlan PlanPeaceTalks(QuestState offer, ExpeditionSite site, RoundsFacts f, FoodSupply food, RoundsPolicy p)
+    public static ExpeditionPlan PlanPeaceTalks(QuestState offer, ExpeditionSite site, ReviewFacts f, FoodSupply food, PlannerSettings p)
     {
         ExpeditionPlan Fail(QuestSkipReason reason) => new() { Quest = offer.Id, Site = site.Id, Reason = reason };
 
         var sites = f.QuestSites;
-        Pb.QuestPeaceTalks? risk = null;
+        RimGovernor.Brain.GameFacts.Observations.QuestPeaceTalks? risk = null;
         foreach (var row in sites)
         {
             if (row.Id == site.Id)
@@ -45,7 +44,7 @@ public static class QuestPeaceTalksPolicy
         var pawns = new List<PeaceTalksPawn>(departures.Count);
         foreach (var row in departures)
         {
-            if (row.Negotiation is Pb.QuestNegotiation.Able able)
+            if (row.Negotiation is RimGovernor.Brain.GameFacts.Observations.QuestNegotiation.Able able)
             {
                 pawns.Add(new PeaceTalksPawn { Id = row.Id, Social = able.Social, Leader = row.FactionLeader });
             }
@@ -58,7 +57,7 @@ public static class QuestPeaceTalksPolicy
         return QuestExpedition.PlanExpeditionCrew(offer, site, f, food, p, [diplomat]);
     }
 
-    public static QuestSkipReason PeaceTalksDownside(Pb.QuestPeaceTalks risk)
+    public static QuestSkipReason PeaceTalksDownside(RimGovernor.Brain.GameFacts.Observations.QuestPeaceTalks risk)
     {
         if (risk.WorstGoodwillLoss < 0 || risk.BestGoodwillGain < 0)
         {
@@ -76,7 +75,7 @@ public static class QuestPeaceTalksPolicy
     /// eligible; otherwise Social ranks candidates. Vanilla still chooses its diplomat by NegotiationAbility
     /// when the caravan arrives.
     /// </summary>
-    public static (PawnId Pawn, QuestSkipReason Reason) PeaceTalksNegotiator(QuestState offer, RoundsFacts f, IReadOnlyList<PeaceTalksPawn> pawns, bool ideo)
+    public static (PawnId Pawn, QuestSkipReason Reason) PeaceTalksNegotiator(QuestState offer, ReviewFacts f, IReadOnlyList<PeaceTalksPawn> pawns, bool ideo)
     {
         var rows = pawns.ToList();
         if (rows.Count == 0)

@@ -22,7 +22,7 @@ public sealed record DisasterFacts
     /// The family's facts from one reading of the colony and the review's <paramref name="history"/>; a shelter
     /// trigger not known clear raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static DisasterFacts From(RoundsFacts f, DisasterHistory? history)
+    public static DisasterFacts From(ReviewFacts f, DisasterHistory? history)
     {
         var trigger = ShelterRules.ShelterTriggerOf(f);
         if (trigger is ShelterTrigger.AwaitingEmergency or ShelterTrigger.NoIndoorBed)

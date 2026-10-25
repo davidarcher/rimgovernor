@@ -62,8 +62,8 @@ public sealed record HeatCampfire
     public required bool AutoRefuel { get; init; }
 
     /// <summary>The campfire with its native room and toggle; no room heat source outdoors or before the toggle is read.</summary>
-    public static HeatCampfire? Of(string id, string? room, RimGovernor.Contracts.Wire.Observations.BenchAutoRefuel autoRefuel) =>
-        room is { } r && autoRefuel is RimGovernor.Contracts.Wire.Observations.BenchAutoRefuel.Refuelable { Allowed: var on } ? new HeatCampfire { Id = id, Room = r, AutoRefuel = on } : null;
+    public static HeatCampfire? Of(string id, string? room, RimGovernor.Brain.GameFacts.Observations.BenchAutoRefuel autoRefuel) =>
+        room is { } r && autoRefuel is RimGovernor.Brain.GameFacts.Observations.BenchAutoRefuel.Refuelable { Allowed: var on } ? new HeatCampfire { Id = id, Room = r, AutoRefuel = on } : null;
 }
 
 public sealed record TemperatureProposal
@@ -416,7 +416,7 @@ public static partial class TemperatureMethodRules
     /// through a vented wall when cooling reports the research done and a network with spare capacity for its
     /// draw, otherwise a passive cooler inside the room. Native temperature proves recovery.
     /// </summary>
-    public static TemperatureProposal SelectTemperatureMethod(RoomObservation v, EquatableArray<string> eligible, TemperatureCooling cooling, RoundsPolicy limits)
+    public static TemperatureProposal SelectTemperatureMethod(RoomObservation v, EquatableArray<string> eligible, TemperatureCooling cooling, PlannerSettings limits)
     {
         limits.Validate();
         v.Validate();

@@ -1,5 +1,4 @@
 using System.Text.Json.Nodes;
-using Mirror = RimGovernor.Contracts.Wire.Mirror;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -34,7 +33,7 @@ internal static class CombatLabBreach
         var raiders = lab.Hostiles().ToHashSet(StringComparer.Ordinal);
         var centre = lab.Cell(0, 0);
         var jobs = new SortedDictionary<string, int>(StringComparer.Ordinal);
-        Mirror.CombatPawn? miner = null;
+        RimGovernor.Brain.GameFacts.Mirror.CombatPawn? miner = null;
         _ = await new LabFrames(s).UntilAsync("dig", DigTicks, 0, frame =>
         {
             foreach (var row in frame.CombatPawns.Where(r => raiders.Contains(r.Id.Value)))

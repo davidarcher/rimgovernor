@@ -1,10 +1,8 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Cell = RimGovernor.Brain.Domain.Cell;
-using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Executor;
 
 /// <summary>
@@ -20,7 +18,7 @@ public sealed class SnapshotStep
 
     public Tick Tick { get; set; }
 
-    public ConcernId Concern { get; set; }
+    public FilingKey Concern { get; set; }
 
     /// <summary>"building", "bill", "hospital" or "deepdrill".</summary>
     public string Planner { get; set; } = "";
@@ -30,7 +28,7 @@ public sealed class SnapshotStep
 }
 
 /// <summary>Names one step read in a stream: step-&lt;planner&gt;-&lt;goal&gt;-&lt;tick&gt;-&lt;seq&gt;.</summary>
-public readonly record struct StepRead(string Planner, ConcernId Concern, Tick Tick, int Seq)
+public readonly record struct StepRead(string Planner, FilingKey Concern, Tick Tick, int Seq)
 {
     public override string ToString() => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"step-{Planner}-{Concern.Value}-{Tick.Value}-{Seq}");
 }
@@ -41,7 +39,7 @@ public static class SnapshotStepReplay
     private static readonly Dictionary<string, int> StepSeq = new(StringComparer.Ordinal);
 
     /// <summary>Appends goal's step read to this process's stream in dir, numbered from 1 per planner, goal and tick.</summary>
-    public static void RecordStep(string dir, string planner, ConcernId goal, GenerationSnapshot current, ColonyReading reading)
+    public static void RecordStep(string dir, string planner, FilingKey goal, GenerationSnapshot current, ColonyReading reading)
     {
         var tick = reading.Identity.Tick;
         var step = new SnapshotStep

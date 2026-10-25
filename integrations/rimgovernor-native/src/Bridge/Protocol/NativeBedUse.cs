@@ -4,12 +4,8 @@ using System.Linq;
 using System.Text;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // BuildingPatchIntent's medical, for_prisoners and for_slaves arms. Any bed may be
     // flagged medical (an animal bed or sleeping spot included); prisoner and
@@ -24,57 +20,57 @@ namespace HomeBridge.BridgeTools
         // Prisoners reports a for_prisoners write: only true, and
         // through ForOwnerType, never ForPrisoners, whose false arm is a
         // Log.Error (see BuildingConfigTool.cs). It drops every owner.
-        internal static bool Prisoners(Operations.BuildingPatchIntent intent) => intent.Change is Operations.BuildingPatchIntentChange.ForPrisonersCase;
+        internal static bool Prisoners(RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntent intent) => intent.Change is RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.ForPrisonersCase;
 
         // Slaves reports a for_slaves write: ForOwnerType = Slave,
         // which the game's setter accepts only under Ideology. It drops
         // every owner.
-        internal static bool Slaves(Operations.BuildingPatchIntent intent) => intent.Change is Operations.BuildingPatchIntentChange.ForSlavesCase;
+        internal static bool Slaves(RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntent intent) => intent.Change is RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.ForSlavesCase;
 
-        private static bool Matches(Building_Bed bed, Operations.BuildingPatchIntent intent) =>
-            Prisoners(intent) ? bed.ForPrisoners : Slaves(intent) ? bed.ForSlaves : intent.Change is Operations.BuildingPatchIntentChange.MedicalCase { Value: var medical } && bed.Medical == medical;
+        private static bool Matches(Building_Bed bed, RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntent intent) =>
+            Prisoners(intent) ? bed.ForPrisoners : Slaves(intent) ? bed.ForSlaves : intent.Change is RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.MedicalCase { Value: var medical } && bed.Medical == medical;
 
         internal static bool Eligible(Thing thing) => thing is Building_Bed bed && !bed.Destroyed && bed.Spawned
-            && ProtoBoundary.IsLoaded(bed.Map) && bed.def?.building != null;
+            && GameThread.IsLoaded(bed.Map) && bed.def?.building != null;
 
         // Control carries the bed's writable medical state on the building
         // listing row; the settable flag itself is only implied (a refused
         // preview names the gate).
-        internal static Obs.BuildingControl.Bed Control(Building_Bed bed) =>
+        internal static RimGovernor.Brain.GameFacts.Observations.BuildingControl.Bed Control(Building_Bed bed) =>
             new(bed.Medical, bed.ForPrisoners);
 
-        private static Common.Failure? Resolve(Operations.BuildingPatchIntent intent, Common.ObservationContext context, out Building_Bed? bed)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Building_Bed? bed)
         {
             bed = null;
-            if (!ProtoBoundary.IsIdentifier(intent.ThingId)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A bed patch requires an exact bed.");
-            var thing = RefIndex.Thing(ProtoBoundary.LoadedMap(context), intent.ThingId);
-            if (thing == null || !Eligible(thing)) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact bed is unavailable.");
+            if (!GameThread.IsIdentifier(intent.ThingId)) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "A bed patch requires an exact bed.");
+            var thing = RefIndex.Thing(GameThread.LoadedMap(context), intent.ThingId);
+            if (thing == null || !Eligible(thing)) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact bed is unavailable.");
             bed = (Building_Bed)thing;
             if ((Prisoners(intent) || Slaves(intent)) && !bed.def.building.bed_humanlike)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Only a humanlike bed can be for prisoners or slaves.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Only a humanlike bed can be for prisoners or slaves.");
             if (Prisoners(intent) && (bed.ForHumanBabies || !(bed.GetRoom() is Room room) || !Building_Bed.RoomCanBePrisonCell(room)))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Bed cannot hold a prisoner: a crib, or its room cannot be a prison cell.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Bed cannot hold a prisoner: a crib, or its room cannot be a prison cell.");
             if (Slaves(intent) && (!ModsConfig.IdeologyActive || bed.ForHumanBabies || bed.Medical))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Bed cannot be for slaves: Ideology inactive, a crib, or a medical bed.");
-            if (!Prisoners(intent) && !Slaves(intent) && intent.Change is Operations.BuildingPatchIntentChange.MedicalCase { Value: true } && !bed.def.building.bed_canBeMedical)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Bed definition cannot be medical; the game's setter would ignore the write.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Bed cannot be for slaves: Ideology inactive, a crib, or a medical bed.");
+            if (!Prisoners(intent) && !Slaves(intent) && intent.Change is RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.MedicalCase { Value: true } && !bed.def.building.bed_canBeMedical)
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Bed definition cannot be medical; the game's setter would ignore the write.");
             return null;
         }
 
-        private static Receipts.EffectEvidence Evidence(Operations.BuildingPatchIntent intent) =>
-            new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
-                Fields = [new Receipts.FieldResult { Field = Prisoners(intent) ? Receipts.SettingsField.PrisonerBed : Slaves(intent) ? Receipts.SettingsField.SlaveBed : Receipts.SettingsField.MedicalBed,
-                    Outcome = Receipts.FieldOutcome.Applied }] } };
+        private static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Evidence(RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntent intent) =>
+            new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.SettingsEffect {
+                Fields = [new RimGovernor.Brain.GameFacts.Receipts.FieldResult { Field = Prisoners(intent) ? RimGovernor.Brain.GameFacts.Receipts.SettingsField.PrisonerBed : Slaves(intent) ? RimGovernor.Brain.GameFacts.Receipts.SettingsField.SlaveBed : RimGovernor.Brain.GameFacts.Receipts.SettingsField.MedicalBed,
+                    Outcome = RimGovernor.Brain.GameFacts.Receipts.FieldOutcome.Applied }] } };
 
-        internal static Common.Failure? Validate(Operations.BuildingPatchIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Resolve(intent, context, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.BuildingPatchIntent intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var bed);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
             if (Prisoners(intent)) { if (!(bed ?? throw new System.InvalidOperationException("Required native value is unavailable: bed.")).ForPrisoners) bed.ForOwnerType = BedOwnerType.Prisoner; }
             else if (Slaves(intent)) { if (!(bed ?? throw new System.InvalidOperationException("Required native value is unavailable: bed.")).ForSlaves) bed.ForOwnerType = BedOwnerType.Slave; }
-            else if (intent.Change is Operations.BuildingPatchIntentChange.MedicalCase { Value: var medical }) (bed ?? throw new System.InvalidOperationException("Required native value is unavailable: bed.")).Medical = medical;
+            else if (intent.Change is RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.MedicalCase { Value: var medical }) (bed ?? throw new System.InvalidOperationException("Required native value is unavailable: bed.")).Medical = medical;
             else throw new InvalidOperationException("Bed use setting missing");
             if (!Matches(bed, intent)) throw new InvalidOperationException("Native bed use requires readback.");
             return Evidence(intent);

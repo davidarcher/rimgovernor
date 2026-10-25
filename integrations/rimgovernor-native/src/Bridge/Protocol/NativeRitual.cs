@@ -5,11 +5,8 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 using Verse.AI.Group;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The RitualIntent arm of Actions/Apply: the player
     // command that starts a ritual whose lord waits for it. "bestowing"/"start"
@@ -50,43 +47,43 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        private static Common.Failure? Resolve(Operations.RitualIntent? command, out Pawn? pawn, out Target? target)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(RimGovernor.Brain.GameOrders.Operations.RitualIntent? command, out Pawn? pawn, out Target? target)
         {
             pawn = null; target = null;
-            if (command == null || command.PawnId is null || !ProtoBoundary.IsIdentifier(command.PawnId) || command.Ritual is null || command.Verb is null)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A ritual command requires a pawn, a ritual and a verb.");
+            if (command == null || command.PawnId is null || !GameThread.IsIdentifier(command.PawnId) || command.Ritual is null || command.Verb is null)
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "A ritual command requires a pawn, a ritual and a verb.");
             if ((command.Ritual ?? "") != Bestowing)
-                return ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Unsupported ritual.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unsupported, "Unsupported ritual.");
             if ((command.Verb ?? "") != Start)
-                return ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Unsupported ritual verb.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unsupported, "Unsupported ritual verb.");
             pawn = PawnsFinder.AllMaps_FreeColonists.ById(command.PawnId);
             if (pawn == null || pawn.royalty == null)
-                return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact colonist with royalty is unavailable.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact colonist with royalty is unavailable.");
             target = Find(pawn);
             if (target == null)
-                return ProtoBoundary.Fail(Common.FailureCode.NotFound, "No accepted bestowing ceremony with a bestower lord for this colonist.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "No accepted bestowing ceremony with a bestower lord for this colonist.");
             if (target.Started) return null;
             if (!target.Bestower.Spawned || !(target.Lord.CurLordToil is LordToil_BestowingCeremony_Wait toil))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The bestower is not waiting for the ceremony command.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The bestower is not waiting for the ceremony command.");
             target.Command = toil.GetPawnGizmos(target.Bestower)?.OfType<Command_BestowerCeremony>().FirstOrDefault();
             if (target.Command == null)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The game offers no ceremony command; the throne room must stand.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The game offers no ceremony command; the throne room must stand.");
             if (target.Command.Disabled)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, target.Command.disabledReason ?? "The game disables the ceremony command.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, target.Command.disabledReason ?? "The game disables the ceremony command.");
             return null;
         }
 
-        private static Receipts.EffectEvidence Evidence(Operations.RitualIntent command, Target target) => new Receipts.EffectEvidence
+        private static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Evidence(RimGovernor.Brain.GameOrders.Operations.RitualIntent command, Target target) => new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence
         {
-            Effect = new Receipts.RitualEffect { Ritual = command.Ritual }
+            Effect = new RimGovernor.Brain.GameFacts.Receipts.RitualEffect { Ritual = command.Ritual }
         };
 
         private static bool Started(Target target) => target.Job.ceremonyStarted || !(target.Lord.CurLordToil is LordToil_BestowingCeremony_Wait);
 
-        internal static Common.Failure? Validate(Operations.RitualIntent command) =>
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.RitualIntent command) =>
             command.Verb is not null && (command.Verb ?? "") == NativeRitualBegin.Begin ? NativeRitualBegin.Validate(command) : Resolve(command, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.RitualIntent command)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.RitualIntent command)
         {
             if (command.Verb is not null && (command.Verb ?? "") == NativeRitualBegin.Begin) return NativeRitualBegin.Apply(command);
             var failure = Resolve(command, out _, out var target);
@@ -130,13 +127,13 @@ namespace HomeBridge.BridgeTools
         internal static bool Running(Precept_Ritual ritual) =>
             Verse.Find.Maps.Any(map => map.lordManager.lords.Any(lord => lord.LordJob is LordJob_Ritual job && job.Ritual == ritual));
 
-        private static Common.Failure Invalid(string detail) => ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, detail);
-        private static Common.Failure Missing(string detail) => ProtoBoundary.Fail(Common.FailureCode.NotFound, detail);
+        private static RimGovernor.Brain.GameFacts.Common.Failure Invalid(string detail) => GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, detail);
+        private static RimGovernor.Brain.GameFacts.Common.Failure Missing(string detail) => GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, detail);
 
-        private static Common.Failure? Resolve(Operations.RitualIntent command, out Plan? plan)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(RimGovernor.Brain.GameOrders.Operations.RitualIntent command, out Plan? plan)
         {
             plan = null;
-            if (command.PawnId is null || !ProtoBoundary.IsIdentifier(command.PawnId) || command.Ritual is null || !ProtoBoundary.IsIdentifier(command.Ritual) || command.Location is not Operations.RitualLocation.At location)
+            if (command.PawnId is null || !GameThread.IsIdentifier(command.PawnId) || command.Ritual is null || !GameThread.IsIdentifier(command.Ritual) || command.Location is not RimGovernor.Brain.GameOrders.Operations.RitualLocation.At location)
                 return Invalid("A ritual begin requires an organizer, a ritual precept and a spot.");
             var organizer = PawnsFinder.AllMaps_FreeColonists.ById(command.PawnId);
             if (organizer == null) return Missing("Exact colonist organizer is unavailable.");
@@ -214,14 +211,14 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        private static Receipts.EffectEvidence Evidence(Operations.RitualIntent command, Plan plan) => new Receipts.EffectEvidence
+        private static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Evidence(RimGovernor.Brain.GameOrders.Operations.RitualIntent command, Plan plan) => new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence
         {
-            Effect = new Receipts.RitualEffect { Ritual = command.Ritual }
+            Effect = new RimGovernor.Brain.GameFacts.Receipts.RitualEffect { Ritual = command.Ritual }
         };
 
-        internal static Common.Failure? Validate(Operations.RitualIntent command) => Resolve(command, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.RitualIntent command) => Resolve(command, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.RitualIntent command)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.RitualIntent command)
         {
             var failure = Resolve(command, out var plan);
             if (failure != null || plan == null) throw new InvalidOperationException("Ritual begin prerequisites changed before apply: " + (failure?.Detail ?? ""));
@@ -236,7 +233,7 @@ namespace HomeBridge.BridgeTools
 
     internal sealed class RitualActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeRitual.Validate(action.Intent?.Ritual ?? throw new InvalidOperationException("Action carries no ritual intent."));
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeRitual.Apply(action.Intent?.Ritual ?? throw new InvalidOperationException("Action carries no ritual intent."));
+        public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => NativeRitual.Validate(action.Intent?.Ritual ?? throw new InvalidOperationException("Action carries no ritual intent."));
+        public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => NativeRitual.Apply(action.Intent?.Ritual ?? throw new InvalidOperationException("Action carries no ritual intent."));
     }
 }

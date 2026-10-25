@@ -1,11 +1,10 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
-using C = RimGovernor.Contracts.Wire.Common;
-using Pl = RimGovernor.Contracts.Wire.Placement;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -16,16 +15,16 @@ public sealed class PlacementPreviewWholeTests
     [Fact]
     public void NativePreviewKeepsItsActualEvaluationOrientationAndBlockers()
     {
-        var blocker = new Pl.PlacementBlocker
+        var blocker = new RimGovernor.Brain.GameFacts.Placement.PlacementBlocker
         {
             DefName = "Wall", Category = "Building", IsBlueprint = false, IsFrame = false,
             WouldBeWiped = true, FrameWouldBeCancelled = false,
         };
         var wind = new BuildingWind.WindTurbine { BlockedCells = 5000 };
-        var evaluation = Evaluated(Pl.WatchAccess.Reachable, wind);
+        var evaluation = Evaluated(RimGovernor.Brain.GameFacts.Placement.WatchAccess.Reachable, wind);
         evaluation = evaluation with { Rotations = [evaluation.Rotations[0] with { BlockingThings = [blocker] }] };
         var (action, snapshot) = Subject("Wall");
-        var preview = FacadeNativeClient.PlacementRequests.BuildingPreviewRow(action, snapshot, new(10), evaluation).Preview;
+        var preview = GameClient.PlacementRequests.BuildingPreviewRow(action, snapshot, new(10), evaluation).Preview;
         var native = Assert.IsType<PreviewSource.Native>(preview.Source);
         Assert.Same(evaluation, native.Observed);
         Assert.Same(evaluation.Rotations[0], native.Orientation);
@@ -33,12 +32,12 @@ public sealed class PlacementPreviewWholeTests
         Assert.Same(wind, preview.Wind);
         Assert.False(preview.SafeToPlace);
         Assert.False(PreviewRules.ClearWindTurbine(preview));
-        Assert.Equal(Pl.WatchAccess.Reachable, preview.WatchCells);
+        Assert.Equal(RimGovernor.Brain.GameFacts.Placement.WatchAccess.Reachable, preview.WatchCells);
     }
 
-    private static readonly C.ObservationContext Context = new() { NativeGeneration = new C.ObservedGeneration.UnclaimedCase(), Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 10 };
+    private static readonly RimGovernor.Brain.GameFacts.Common.ObservationContext Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new RimGovernor.Brain.GameFacts.Common.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 10 };
 
-    private static Pl.PlacementRotation Rotation(Pl.WatchAccess watch, BuildingWind wind) => new()
+    private static RimGovernor.Brain.GameFacts.Placement.PlacementRotation Rotation(RimGovernor.Brain.GameFacts.Placement.WatchAccess watch, BuildingWind wind) => new()
     {
         Accepted = true,
         Reason = "",
@@ -49,14 +48,14 @@ public sealed class PlacementPreviewWholeTests
         Wind = wind,
     };
 
-    private static Pl.PlacementEvaluated Evaluated(Pl.WatchAccess watch, BuildingWind wind) => new()
+    private static RimGovernor.Brain.GameFacts.Placement.PlacementEvaluated Evaluated(RimGovernor.Brain.GameFacts.Placement.WatchAccess watch, BuildingWind wind) => new()
     {
         CanPlace = true,
         MadeFromStuff = false,
         ResearchFinished = true,
         BuildableByPlayer = true,
-        CostList = [new Pl.PlacementCost { DefName = "Steel", Count = 20 }],
-        Materials = new Pl.PlacementMaterials { Rows = [new Pl.PlacementMaterialStock { DefName = "Steel", Available = 0 }] },
+        CostList = [new RimGovernor.Brain.GameFacts.Placement.PlacementCost { DefName = "Steel", Count = 20 }],
+        Materials = new RimGovernor.Brain.GameFacts.Placement.PlacementMaterials { Rows = [new RimGovernor.Brain.GameFacts.Placement.PlacementMaterialStock { DefName = "Steel", Available = 0 }] },
         Rotations = [Rotation(watch, wind)],
     };
 
@@ -70,15 +69,15 @@ public sealed class PlacementPreviewWholeTests
     [Fact]
     public void AnEvaluatedCandidateRoundTripsEveryWatchAndWindState()
     {
-        foreach (var watch in new[] { Pl.WatchAccess.NotWatched, Pl.WatchAccess.Reachable, Pl.WatchAccess.Unreachable })
+        foreach (var watch in new[] { RimGovernor.Brain.GameFacts.Placement.WatchAccess.NotWatched, RimGovernor.Brain.GameFacts.Placement.WatchAccess.Reachable, RimGovernor.Brain.GameFacts.Placement.WatchAccess.Unreachable })
         {
             foreach (BuildingWind wind in new BuildingWind[] { new BuildingWind.NotWindTurbine(), new BuildingWind.WindTurbine { BlockedCells = 0 }, new BuildingWind.WindTurbine { BlockedCells = 7 } })
             {
-                var batch = new Pl.PlacementBatch { Context = Context, Results = [new Pl.CandidateReply { Outcome = Evaluated(watch, wind) }] };
-                var json = WireJson.Serialize(batch);
-                var back = WireJson.Deserialize<Pl.PlacementBatch>(json);
+                var batch = new RimGovernor.Brain.GameFacts.Placement.PlacementBatch { Context = Context, Results = [new RimGovernor.Brain.GameFacts.Placement.CandidateReply { Outcome = Evaluated(watch, wind) }] };
+                var json = OrdersJson.Serialize(batch);
+                var back = OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Placement.PlacementBatch>(json);
 
-                Assert.Equal(json, WireJson.Serialize(back));
+                Assert.Equal(json, OrdersJson.Serialize(back));
                 Assert.Equal(batch, back);
             }
         }
@@ -87,7 +86,7 @@ public sealed class PlacementPreviewWholeTests
     [Fact]
     public void TheWatchStatesTravelByWireName()
     {
-        var json = WireJson.Serialize(Rotation(Pl.WatchAccess.Unreachable, new BuildingWind.NotWindTurbine()));
+        var json = OrdersJson.Serialize(Rotation(RimGovernor.Brain.GameFacts.Placement.WatchAccess.Unreachable, new BuildingWind.NotWindTurbine()));
 
         Assert.Contains("\"watchCells\":\"unreachable\"", json);
         Assert.Contains("\"type\":\"not_wind_turbine\"", json);
@@ -103,10 +102,10 @@ public sealed class PlacementPreviewWholeTests
     [InlineData("wind")]
     public void ARotationMissingAMemberDoesNotDecode(string member)
     {
-        var node = JsonNode.Parse(WireJson.Serialize(Rotation(Pl.WatchAccess.Reachable, new BuildingWind.NotWindTurbine())))!.AsObject();
+        var node = JsonNode.Parse(OrdersJson.Serialize(Rotation(RimGovernor.Brain.GameFacts.Placement.WatchAccess.Reachable, new BuildingWind.NotWindTurbine())))!.AsObject();
         Assert.True(node.Remove(member));
 
-        Assert.ThrowsAny<JsonException>(() => WireJson.Deserialize<Pl.PlacementRotation>(node.ToJsonString()));
+        Assert.ThrowsAny<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Placement.PlacementRotation>(node.ToJsonString()));
     }
 
     [Theory]
@@ -115,30 +114,30 @@ public sealed class PlacementPreviewWholeTests
     [InlineData("rotation")]
     public void ACandidateMissingAMemberDoesNotDecode(string member)
     {
-        var candidate = new Pl.PlacementCandidate { DefName = "Wall", X = 1, Z = 2, Rotation = Pl.Rotation.North, Stuff = "", IgnoreNaturalRock = false };
-        var node = JsonNode.Parse(WireJson.Serialize(candidate))!.AsObject();
+        var candidate = new RimGovernor.Brain.GameOrders.Placement.PlacementCandidate { DefName = "Wall", X = 1, Z = 2, Rotation = RimGovernor.Brain.GameFacts.Placement.Rotation.North, Stuff = "", IgnoreNaturalRock = false };
+        var node = JsonNode.Parse(OrdersJson.Serialize(candidate))!.AsObject();
         Assert.True(node.Remove(member));
 
-        Assert.ThrowsAny<JsonException>(() => WireJson.Deserialize<Pl.PlacementCandidate>(node.ToJsonString()));
+        Assert.ThrowsAny<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Placement.PlacementCandidate>(node.ToJsonString()));
     }
 
     [Fact]
     public void AnUnspecifiedRotationDoesNotDecode()
     {
-        var candidate = new Pl.PlacementCandidate { DefName = "Wall", X = 1, Z = 2, Rotation = Pl.Rotation.North, Stuff = "", IgnoreNaturalRock = false };
-        var json = WireJson.Serialize(candidate).Replace("ROTATION_NORTH", "ROTATION_UNSPECIFIED");
+        var candidate = new RimGovernor.Brain.GameOrders.Placement.PlacementCandidate { DefName = "Wall", X = 1, Z = 2, Rotation = RimGovernor.Brain.GameFacts.Placement.Rotation.North, Stuff = "", IgnoreNaturalRock = false };
+        var json = OrdersJson.Serialize(candidate).Replace("ROTATION_NORTH", "ROTATION_UNSPECIFIED");
 
-        Assert.ThrowsAny<JsonException>(() => WireJson.Deserialize<Pl.PlacementCandidate>(json));
+        Assert.ThrowsAny<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Placement.PlacementCandidate>(json));
     }
 
     [Theory]
-    [InlineData(Pl.WatchAccess.NotWatched, false)]
-    [InlineData(Pl.WatchAccess.Reachable, false)]
-    [InlineData(Pl.WatchAccess.Unreachable, true)]
-    public void OnlyAnUnreachableWatchBuildingIsRefused(Pl.WatchAccess watch, bool unreachable)
+    [InlineData(RimGovernor.Brain.GameFacts.Placement.WatchAccess.NotWatched, false)]
+    [InlineData(RimGovernor.Brain.GameFacts.Placement.WatchAccess.Reachable, false)]
+    [InlineData(RimGovernor.Brain.GameFacts.Placement.WatchAccess.Unreachable, true)]
+    public void OnlyAnUnreachableWatchBuildingIsRefused(RimGovernor.Brain.GameFacts.Placement.WatchAccess watch, bool unreachable)
     {
         var (action, snapshot) = Subject("HorseshoesPin");
-        var row = FacadeNativeClient.PlacementRequests.BuildingPreviewRow(action, snapshot, new Tick(10), Evaluated(watch, new BuildingWind.NotWindTurbine()));
+        var row = GameClient.PlacementRequests.BuildingPreviewRow(action, snapshot, new Tick(10), Evaluated(watch, new BuildingWind.NotWindTurbine()));
 
         Assert.Equal(watch, row.Preview.WatchCells);
         Assert.Equal(unreachable, PreviewRules.WatchUnreachable(row.Preview));
@@ -149,9 +148,9 @@ public sealed class PlacementPreviewWholeTests
     {
         var (action, snapshot) = Subject("WindTurbine");
 
-        var clear = FacadeNativeClient.PlacementRequests.BuildingPreviewRow(action, snapshot, new Tick(10), Evaluated(Pl.WatchAccess.NotWatched, new BuildingWind.WindTurbine { BlockedCells = 0 }));
-        var blocked = FacadeNativeClient.PlacementRequests.BuildingPreviewRow(action, snapshot, new Tick(10), Evaluated(Pl.WatchAccess.NotWatched, new BuildingWind.WindTurbine { BlockedCells = 5 }));
-        var other = FacadeNativeClient.PlacementRequests.BuildingPreviewRow(action, snapshot, new Tick(10), Evaluated(Pl.WatchAccess.NotWatched, new BuildingWind.NotWindTurbine()));
+        var clear = GameClient.PlacementRequests.BuildingPreviewRow(action, snapshot, new Tick(10), Evaluated(RimGovernor.Brain.GameFacts.Placement.WatchAccess.NotWatched, new BuildingWind.WindTurbine { BlockedCells = 0 }));
+        var blocked = GameClient.PlacementRequests.BuildingPreviewRow(action, snapshot, new Tick(10), Evaluated(RimGovernor.Brain.GameFacts.Placement.WatchAccess.NotWatched, new BuildingWind.WindTurbine { BlockedCells = 5 }));
+        var other = GameClient.PlacementRequests.BuildingPreviewRow(action, snapshot, new Tick(10), Evaluated(RimGovernor.Brain.GameFacts.Placement.WatchAccess.NotWatched, new BuildingWind.NotWindTurbine()));
 
         Assert.True(PreviewRules.ClearWindTurbine(clear.Preview));
         Assert.False(PreviewRules.ClearWindTurbine(blocked.Preview));
@@ -162,7 +161,7 @@ public sealed class PlacementPreviewWholeTests
     public void ABuildingRowCarriesTheWholeEvaluation()
     {
         var (action, snapshot) = Subject("Wall");
-        var row = FacadeNativeClient.PlacementRequests.BuildingPreviewRow(action, snapshot, new Tick(10), Evaluated(Pl.WatchAccess.NotWatched, new BuildingWind.NotWindTurbine()));
+        var row = GameClient.PlacementRequests.BuildingPreviewRow(action, snapshot, new Tick(10), Evaluated(RimGovernor.Brain.GameFacts.Placement.WatchAccess.NotWatched, new BuildingWind.NotWindTurbine()));
 
         Assert.True(row.Preview.CanPlace);
         Assert.True(row.Preview.SafeToPlace);
@@ -183,7 +182,7 @@ public sealed class PlacementPreviewWholeTests
         Assert.True(preview.CanPlace);
         Assert.True(preview.SafeToPlace);
         Assert.False(preview.MadeFromStuff);
-        Assert.Equal(Pl.WatchAccess.NotWatched, preview.WatchCells);
+        Assert.Equal(RimGovernor.Brain.GameFacts.Placement.WatchAccess.NotWatched, preview.WatchCells);
         Assert.IsType<BuildingWind.NotWindTurbine>(preview.Wind);
         Assert.Empty(preview.Costs);
         Assert.Empty(preview.Blockers);

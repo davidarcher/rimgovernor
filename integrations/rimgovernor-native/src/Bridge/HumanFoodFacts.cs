@@ -3,10 +3,10 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Obs=RimGovernor.Contracts.Wire.Observations;
-using Common=RimGovernor.Contracts.Wire.Common;
+using Obs=RimGovernor.Brain.GameFacts.Observations;
+using Common=RimGovernor.Brain.GameFacts.Common;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Disposition is a read of the pawn's active precepts and native thought
     // nullifiers. Butchery never removes another pawn's history memories.

@@ -5,9 +5,8 @@ using System.Reflection;
 using RimWorld;
 using Verse;
 using Cell = RimGovernor.Brain.Domain.Cell;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class NativeDeepResources
     {
@@ -16,9 +15,9 @@ namespace HomeBridge.BridgeTools
         private static readonly FieldInfo? LastScan = BridgeCommon.PrivateInstanceField(typeof(CompScanner), "lastScanTick");
 
         // The map's discovered lumps, its player scanners and drills; throws on anything it cannot read.
-        internal static Obs.DeepResources Read(Map map)
+        internal static RimGovernor.Brain.GameFacts.Observations.DeepResources Read(Map map)
         {
-            var lumps = new List<Obs.DeepResourceLump>();
+            var lumps = new List<RimGovernor.Brain.GameFacts.Observations.DeepResourceLump>();
             // Grid entries are discoveries, not unscanned underground potential.
             var seen = new HashSet<IntVec3>();
             foreach (var start in map.AllCells) {
@@ -38,26 +37,26 @@ namespace HomeBridge.BridgeTools
                 var meanX = (double)x / cells.Count; var meanZ = (double)z / cells.Count;
                 var centre = cells.OrderBy(c => (c.x - meanX) * (c.x - meanX) + (c.z - meanZ) * (c.z - meanZ))
                     .ThenBy(c => c.x).ThenBy(c => c.z).First();
-                lumps.Add(new Obs.DeepResourceLump { Definition = def.defName, Count = count, Centre = new Cell(centre.x, centre.z), CellCount = cells.Count });
+                lumps.Add(new RimGovernor.Brain.GameFacts.Observations.DeepResourceLump { Definition = def.defName, Count = count, Centre = new Cell(centre.x, centre.z), CellCount = cells.Count });
             }
-            var drills = new List<Obs.DeepDrill>();
-            var ground = new List<Obs.MineralScanner>();
-            var longRange = new List<Obs.MineralScanner>();
+            var drills = new List<RimGovernor.Brain.GameFacts.Observations.DeepDrill>();
+            var ground = new List<RimGovernor.Brain.GameFacts.Observations.MineralScanner>();
+            var longRange = new List<RimGovernor.Brain.GameFacts.Observations.MineralScanner>();
             foreach (var building in map.listerBuildings.allBuildingsColonist.OrderBy(b => b.thingIDNumber)) {
                 if (building.Spawned && building.TryGetComp<CompDeepDrill>() != null)
-                    drills.Add(new Obs.DeepDrill {
+                    drills.Add(new RimGovernor.Brain.GameFacts.Observations.DeepDrill {
                         Id = building.GetUniqueLoadID(),
                         Definition = building.def.defName,
                         Position = new Cell(building.Position.x, building.Position.z),
                         // GetNextResource is the drill's own deposit lookup: false with no
                         // valuable deposit in radius, when vanilla drills stone chunks only.
                         Deposit = DeepDrillUtility.GetNextResource(building.Position, map, out var resource, out var remaining, out _) && resource != null && remaining > 0
-                            ? new Obs.DrillDeposit { Resource = resource.defName, Remaining = remaining } : null,
+                            ? new RimGovernor.Brain.GameFacts.Observations.DrillDeposit { Resource = resource.defName, Remaining = remaining } : null,
                         Designated = map.designationManager.DesignationOn(building, DesignationDefOf.Deconstruct) != null,
                     });
                 foreach (var scanner in building.AllComps.OfType<CompScanner>()) {
                     if (!(scanner is CompDeepScanner) && !(scanner is CompLongRangeMineralScanner)) continue;
-                    var row = new Obs.MineralScanner {
+                    var row = new RimGovernor.Brain.GameFacts.Observations.MineralScanner {
                         Definition = building.def.defName,
                         Position = new Cell(building.Position.x, building.Position.z),
                         Powered = building.GetComp<CompPowerTrader>()?.PowerOn ?? false,
@@ -67,7 +66,7 @@ namespace HomeBridge.BridgeTools
                     (scanner is CompLongRangeMineralScanner ? longRange : ground).Add(row);
                 }
             }
-            return new Obs.DeepResources { Lumps = [.. lumps], GroundScanners = [.. ground], LongRangeScanners = [.. longRange], Drills = [.. drills] };
+            return new RimGovernor.Brain.GameFacts.Observations.DeepResources { Lumps = [.. lumps], GroundScanners = [.. ground], LongRangeScanners = [.. longRange], Drills = [.. drills] };
         }
 
         // Usable and used within the last 30 ticks (lastScanTick starts at -1, never used).

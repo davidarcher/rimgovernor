@@ -1,4 +1,3 @@
-using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -38,8 +37,8 @@ internal static class LifecycleScenarioStartParts
         SaveName = Save,
         Parts = new StartParts
         {
-            ForcedTraits = [new Lifecycle.ForcedTrait { Trait = "Jogger", Degree = 0, Chance = 1, Context = Lifecycle.ScenarioPawnContext.PlayerStarter }],
-            StartingThings = [new Lifecycle.StartingThing { Placement = Lifecycle.StartingThingPlacement.Scattered, ThingDef = ThingDef, Count = ThingCount }],
+            ForcedTraits = [new RimGovernor.Brain.GameOrders.Lifecycle.ForcedTrait { Trait = "Jogger", Degree = 0, Chance = 1, Context = RimGovernor.Brain.GameOrders.Lifecycle.ScenarioPawnContext.PlayerStarter }],
+            StartingThings = [new RimGovernor.Brain.GameOrders.Lifecycle.StartingThing { Placement = RimGovernor.Brain.GameOrders.Lifecycle.StartingThingPlacement.Scattered, ThingDef = ThingDef, Count = ThingCount }],
         },
     };
 

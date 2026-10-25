@@ -4,7 +4,7 @@ using System;
 using HarmonyLib;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// Orderly end of the game: a process exit (Root.Shutdown) or a

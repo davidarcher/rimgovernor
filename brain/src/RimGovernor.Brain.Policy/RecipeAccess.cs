@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -11,7 +10,7 @@ public abstract record RecipeAccess
     public abstract bool HostReady { get; }
 
     /// <summary>Food is present only for a cooking capability whose native product gates were read.</summary>
-    public sealed record OnBench(O.RecipeState Observed, O.FoodProduction? Food = null) : RecipeAccess
+    public sealed record OnBench(RimGovernor.Brain.GameFacts.Observations.RecipeState Observed, RimGovernor.Brain.GameFacts.Observations.FoodProduction? Food = null) : RecipeAccess
     {
         public override string Definition => Observed.Recipe;
         public override bool ResearchReady => Observed.AvailableNow && (Food is null || Food.Available);

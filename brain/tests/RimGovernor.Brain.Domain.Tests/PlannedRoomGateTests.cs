@@ -1,6 +1,6 @@
 using System.Reflection;
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
@@ -12,7 +12,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>
 /// The room reconcile's portfolio gate (#3278, #3754): an unstarted ringed planned room is held unless the latest
 /// comparison selected some of the room's sites, which are placed exactly, in their stuff; one no comparison assessed is
-/// held too; a started room is placed as before. The record is the Rounder's in-memory RoomSelection, set here as the
+/// held too; a started room is placed as before. The record is the ColonyReview's in-memory RoomSelection, set here as the
 /// review would set it. Each reconcile records whether the room is done (DoneRooms).
 /// </summary>
 public sealed class PlannedRoomGateTests
@@ -43,7 +43,7 @@ public sealed class PlannedRoomGateTests
 
     private static readonly LayoutPlan Plan = new() { Rooms = [Room, Next], NextRoomId = 3 };
 
-    public interface ITestNative : IRoundsSource, IRoundsWorkBenchSource, IRoundsBuildingSource;
+    public interface ITestNative : IReviewSource, IReviewWorkBenchSource, IReviewBuildingSource;
 
 #pragma warning disable CA1852 // DispatchProxy derives the proxy from its base, so the base cannot be sealed
     private class Native : DispatchProxy
@@ -53,7 +53,7 @@ public sealed class PlannedRoomGateTests
 
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
-            if (targetMethod?.Name != nameof(IRoundsBuildingSource.PreviewBuildingAsync))
+            if (targetMethod?.Name != nameof(IReviewBuildingSource.PreviewBuildingAsync))
             {
                 throw new NotSupportedException(targetMethod?.Name + " is outside the building rig");
             }
@@ -66,7 +66,7 @@ public sealed class PlannedRoomGateTests
                 Preview = new Preview
                 {
                     Action = action, Snapshot = snapshot, CanPlace = !own, SafeToPlace = true, Footprint = [building.Cell], Costs = [],
-                    Source = PreviewTestFacts.Source(building.Cell, own ? [new RimGovernor.Contracts.Wire.Placement.PlacementBlocker
+                    Source = PreviewTestFacts.Source(building.Cell, own ? [new RimGovernor.Brain.GameFacts.Placement.PlacementBlocker
                     {
                         DefName = "Blueprint_" + building.Definition, Category = "Building", IsBlueprint = true, IsFrame = false,
                         WouldBeWiped = false, FrameWouldBeCancelled = false,
@@ -122,7 +122,7 @@ public sealed class PlannedRoomGateTests
     {
         public required Journal Journal { get; init; }
         public required Player Player { get; init; }
-        public required RoundsBuildingPlanner Planner { get; init; }
+        public required BuildingPlanner Planner { get; init; }
         public required HashSet<Cell> Blueprints { get; init; }
         public required FamilyRunner<bool> Runner { get; init; }
 
@@ -158,7 +158,7 @@ public sealed class PlannedRoomGateTests
     }
 
     /// <summary>The rig; with <paramref name="owed"/> the step walks those rooms as the bedroom step does (FirstUnheldRoomAsync).</summary>
-    private static Colony Open(Func<RoundsFacts, RoundsFacts>? review = null, IReadOnlyList<PlannedRoom>? owed = null)
+    private static Colony Open(Func<ReviewFacts, ReviewFacts>? review = null, IReadOnlyList<PlannedRoom>? owed = null)
     {
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-planned-gate-" + Guid.NewGuid().ToString("N") + ".db"), ct);
@@ -166,7 +166,7 @@ public sealed class PlannedRoomGateTests
         facts = facts with
         {
 
-            Census = (facts.Census with { ColonistCount = 1, IndoorSleepingCapacity = 1, BedCapacity = 1 }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "WoodLog", Units = 1000 }, new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "BlocksGranite", Units = 1000 }] },   FieldCoverage = 1.0,
+            Census = (facts.Census with { ColonistCount = 1, IndoorSleepingCapacity = 1, BedCapacity = 1 }) with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "WoodLog", Units = 1000 }, new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "BlocksGranite", Units = 1000 }] },   FieldCoverage = 1.0,
             WorkAdmission = facts.WorkAdmission with
             {
                 Buildings = [
@@ -176,13 +176,13 @@ public sealed class PlannedRoomGateTests
                     new(ContainmentCellRules.ShellDoorDefinition, "BlocksGranite", [new(new("BlocksGranite"), 25)]) { Size = new Cell(1, 1) }],
             },
         };
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = review is null ? facts : review(facts) }, ct);
+        journal.Review(new() { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = review is null ? facts : review(facts) }, ct);
         var timeout = TimeSpan.FromSeconds(10);
         var player = Player.Create(new PlayerConfig(timeout, timeout), journal, new Session(), new Worlds(), ct);
         var native = DispatchProxy.Create<ITestNative, Native>();
-        var planner = new RoundsBuildingPlanner
+        var planner = new BuildingPlanner
         {
-            Reviewer = new Rounder(player, native, new Clock(), RoundsRules.DefaultRoundsPolicy(), TimeSpan.FromSeconds(30)),
+            Reviewer = new ColonyReview(player, native, new Clock(), Rules.DefaultPlannerSettings(), TimeSpan.FromSeconds(30)),
             Native = native,
         };
         var projection = ColonyFactsCoreTests.Reading(new()
@@ -225,8 +225,8 @@ public sealed class PlannedRoomGateTests
         Colony? colony = null;
         var runner = new FamilyRunner<bool>(new RoomsFamily(), (_, _) => Task.FromResult(false), null, async (work, _, call) =>
         {
-            var review = await journal.LoadRoundsAsync(call);
-            var read = new RoundsReading
+            var review = await journal.LoadReviewAsync(call);
+            var read = new ReviewReading
             {
                 Emergency = new(),
                 Frame = new(),
@@ -242,7 +242,7 @@ public sealed class PlannedRoomGateTests
             var rr = new RoomReconcile { RingOnly = true, Room = Room, Name = "test-bedroom", Reason = "test room", Stuff = (_, _) => ("WoodLog", "WoodLog", default, true) };
             var verdict = owed is null
                 ? (await planner.ReconcileRoomAsync(work.State, review, work.Owner, read, null, rr, call, work.Epoch)).Verdict
-                : (await RoundsSleepingUpkeepPlanner.FirstUnheldRoomAsync(owed, room => planner.ReconcileRoomAsync(work.State, review, work.Owner, read, null,
+                : (await SleepingUpkeepPlanner.FirstUnheldRoomAsync(owed, room => planner.ReconcileRoomAsync(work.State, review, work.Owner, read, null,
                     rr with { Room = room, Name = "test-bedroom" + room.Id }, call, work.Epoch))).Verdict;
             colony.Reconciled = verdict;
             return verdict;
@@ -274,7 +274,7 @@ public sealed class PlannedRoomGateTests
         Assert.Empty(held.Methods);
         var verdict = Assert.IsType<Verdict>(colony.Reconciled);
         Assert.True(verdict.PortfolioHolds, verdict.ToString());
-        Assert.Equal(RoundsBuildingPlanner.PortfolioUnassessed, verdict.Refusal.Subject);
+        Assert.Equal(BuildingPlanner.PortfolioUnassessed, verdict.Refusal.Subject);
 
         // The first comparison selects the room's whole ring: it is placed.
         Select(colony, Site(OpKind.WallIn, "WoodLog", [.. Room.WallRing().Cells().Where(c => c != Room.Door)]), Site(OpKind.DoorIn, "WoodLog", Room.Door));
@@ -317,7 +317,7 @@ public sealed class PlannedRoomGateTests
         var bed = new WantedPiece { DefName = "Bed", Minimum = new(5, 5), Maximum = new(5, 6), Size = new(1, 2), Rot = Rotation.North };
         IReadOnlyList<Operation> owed = [new Operation { Kind = OpKind.Build, Pieces = [bed] }];
         IReadOnlyList<Operation> walled = [new Operation { Kind = OpKind.WallIn, Cells = [new(4, 6)] }, .. owed];
-        RoundsReading Reading(long wood, params string[] finished)
+        ReviewReading Reading(long wood, params string[] finished)
         {
             var projection = ColonyFactsCoreTests.Reading() with
             {
@@ -325,7 +325,7 @@ public sealed class PlannedRoomGateTests
                 {
                 Census = ColonyFactsCoreTests.Reading().Snapshot with
                 {
-                    Resources = EquatableArray.From((new Dictionary<Resource, long> { [new("WoodLog")] = wood }).Select(pair => new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = pair.Key.Value, Units = pair.Value }))
+                    Resources = EquatableArray.From((new Dictionary<Resource, long> { [new("WoodLog")] = wood }).Select(pair => new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = pair.Key.Value, Units = pair.Value }))
                 },
                     Definitions = [new PlanningDefinition
                     {
@@ -351,13 +351,13 @@ public sealed class PlannedRoomGateTests
                     Research = ResearchTestFacts.Read(finished: finished)
                 },
             };
-            return new RoundsReading { Emergency = new(), Frame = new(), Reading = projection };
+            return new ReviewReading { Emergency = new(), Frame = new(), Reading = projection };
         }
 
-        Assert.True(PlannedRules.PlannedRoomDone(owed, RoundsBuildingPlanner.PieceBlockedOf(Reading(100))));
-        Assert.False(PlannedRules.PlannedRoomDone(walled, RoundsBuildingPlanner.PieceBlockedOf(Reading(100))));
-        Assert.False(PlannedRules.PlannedRoomDone(owed, RoundsBuildingPlanner.PieceBlockedOf(Reading(100, "ComplexFurniture"))));
-        Assert.True(PlannedRules.PlannedRoomDone(owed, RoundsBuildingPlanner.PieceBlockedOf(Reading(0, "ComplexFurniture"))));
+        Assert.True(PlannedRules.PlannedRoomDone(owed, BuildingPlanner.PieceBlockedOf(Reading(100))));
+        Assert.False(PlannedRules.PlannedRoomDone(walled, BuildingPlanner.PieceBlockedOf(Reading(100))));
+        Assert.False(PlannedRules.PlannedRoomDone(owed, BuildingPlanner.PieceBlockedOf(Reading(100, "ComplexFurniture"))));
+        Assert.True(PlannedRules.PlannedRoomDone(owed, BuildingPlanner.PieceBlockedOf(Reading(0, "ComplexFurniture"))));
     }
 
     /// <summary>A projection describing a bed (ComplexFurniture, wood) and a stuff-less FueledStove (no prerequisite), <paramref name="wood"/> stocked and no ring sources on the map.</summary>
@@ -369,7 +369,7 @@ public sealed class PlannedRoomGateTests
             {
                 Census = ColonyFactsCoreTests.Reading().Snapshot with
                 {
-                    Resources = EquatableArray.From((new Dictionary<Resource, long> { [new("WoodLog")] = wood }).Select(pair => new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = pair.Key.Value, Units = pair.Value }))
+                    Resources = EquatableArray.From((new Dictionary<Resource, long> { [new("WoodLog")] = wood }).Select(pair => new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = pair.Key.Value, Units = pair.Value }))
                 },
                 Definitions = [new PlanningDefinition
                 {
@@ -412,8 +412,8 @@ public sealed class PlannedRoomGateTests
     {
         var bed = new WantedPiece { DefName = "Bed", Minimum = new(5, 5), Maximum = new(5, 6), Size = new(1, 2), Rot = Rotation.North };
         IReadOnlyList<Operation> owed = [new Operation { Kind = OpKind.Build, Pieces = [bed] }];
-        RoundsReading Reading(ColonyReading projection) => new() { Emergency = new(), Frame = new(), Reading = projection };
-        bool Done(ColonyReading projection) => PlannedRules.PlannedRoomDone(owed, RoundsBuildingPlanner.PieceBlockedOf(Reading(projection)));
+        ReviewReading Reading(ColonyReading projection) => new() { Emergency = new(), Frame = new(), Reading = projection };
+        bool Done(ColonyReading projection) => PlannedRules.PlannedRoomDone(owed, BuildingPlanner.PieceBlockedOf(Reading(projection)));
 
         Assert.Throws<RequiredFactException>(() => Done(BlockedFacts(true, researchRead: false)));
         Assert.Throws<RequiredFactException>(() => Done(BlockedFacts(false, researchRead: false)));
@@ -441,7 +441,7 @@ public sealed class PlannedRoomGateTests
             Site("planned/room1/build/Bed/5/5", OpKind.Build, "Bed"),
             Site("planned/room1/build/FueledStove/6/6", OpKind.Build, "FueledStove"),
         ];
-        string[] Blocked(ColonyReading projection) => [.. Rounder.BlockedPiecesOf(projection, sites).Where(s => s.Blocked).Select(s => s.Id)];
+        string[] Blocked(ColonyReading projection) => [.. ColonyReview.BlockedPiecesOf(projection, sites).Where(s => s.Blocked).Select(s => s.Id)];
         Assert.Equal(["planned/room1/build/Bed/5/5"], Blocked(BlockedFacts(true, researchRead: true)));
         Assert.Throws<RequiredFactException>(() => Blocked(BlockedFacts(true, researchRead: false)));
     }
@@ -460,7 +460,7 @@ public sealed class PlannedRoomGateTests
             {
                 Census = ColonyFactsCoreTests.Reading().Snapshot with
                 {
-                    Resources = EquatableArray.From((new Dictionary<Resource, long> { [new("WoodLog")] = 300, [new("Steel")] = steel }).Select(pair => new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = pair.Key.Value, Units = pair.Value }))
+                    Resources = EquatableArray.From((new Dictionary<Resource, long> { [new("WoodLog")] = 300, [new("Steel")] = steel }).Select(pair => new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = pair.Key.Value, Units = pair.Value }))
                 },
                 Definitions = [new PlanningDefinition
                 {
@@ -511,12 +511,12 @@ public sealed class PlannedRoomGateTests
     public void AStovesSteelIsReadFromTheStockAndWhatTheMapOffers()
     {
         var offered = SteelOffered;
-        DefinitionReadiness Stove(ColonyReading projection) => RoundsBuildingPlanner.PieceReadinessOf(projection)("FueledStove");
-        DefinitionReadiness Bench(ColonyReading projection) => RoundsBuildingPlanner.PieceReadinessOf(projection)("SimpleResearchBench");
+        DefinitionReadiness Stove(ColonyReading projection) => BuildingPlanner.PieceReadinessOf(projection)("FueledStove");
+        DefinitionReadiness Bench(ColonyReading projection) => BuildingPlanner.PieceReadinessOf(projection)("SimpleResearchBench");
 
         Assert.Equal(DefinitionReadiness.Blocked, Stove(StoveFacts()));
         Assert.Equal(DefinitionReadiness.Blocked, Bench(StoveFacts()));
-        Assert.Equal(DefinitionReadiness.Available, RoundsBuildingPlanner.PieceReadinessOf(StoveFacts())("Bed"));
+        Assert.Equal(DefinitionReadiness.Available, BuildingPlanner.PieceReadinessOf(StoveFacts())("Bed"));
         Assert.Equal(DefinitionReadiness.Available, Stove(StoveFacts(steel: 80)));
         Assert.Equal(DefinitionReadiness.Available, Bench(StoveFacts(steel: 80)));
         Assert.Equal(DefinitionReadiness.Available, Stove(StoveFacts(sources: new RingStuffSources { Items = offered })));
@@ -531,7 +531,7 @@ public sealed class PlannedRoomGateTests
         var stove = new WantedPiece { DefName = "FueledStove", Minimum = new(6, 7), Maximum = new(6, 7), Size = new(1, 1), Rot = Rotation.North };
         IReadOnlyList<Operation> owed = [new Operation { Kind = OpKind.Build, Pieces = [stove] }];
         bool Done(ColonyReading projection) => PlannedRules.PlannedRoomDone(owed,
-            RoundsBuildingPlanner.PieceBlockedOf(new RoundsReading { Emergency = new(), Frame = new(), Reading = projection }));
+            BuildingPlanner.PieceBlockedOf(new ReviewReading { Emergency = new(), Frame = new(), Reading = projection }));
         Assert.True(Done(StoveFacts()));
         Assert.False(Done(StoveFacts(sourcesRead: false)));
     }

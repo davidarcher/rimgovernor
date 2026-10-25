@@ -14,7 +14,7 @@ one-open-Method gate they used were deleted in #3265.
 ## Target model: Needs, Families and claimed Methods
 
 Four layers used to sit between "what does the colony need" and "what work is
-admitted": the Concern registry, Rounds, durable Standards and per-Concern
+admitted": the Concern registry, Colony review, durable Standards and per-Concern
 planners. The model keeps what carries weight (observation, per-family policy,
 selection, the Method journal, Hands, explain and telemetry keys) and replaces the
 rest with three things: Needs derived fresh from facts, Families that propose work
@@ -38,7 +38,7 @@ flowchart LR
 
 A Need is derived fresh on every review from current facts. Nothing about it is
 stored: not its finding, not an episode, not a settled flag. It replaced the
-retired Concern registry row, Rounds assessment and Standard episode.
+retired Concern registry row, Colony review assessment and Standard episode.
 
 | Field | Meaning |
 | --- | --- |
@@ -108,9 +108,9 @@ is refused while one is open or held (`CombatOpenWork`,
 and `IFamily<TFacts>` (`Reads`, `SeriousHarmReads`, `Derive`, `DeriveSeriousHarm`,
 `Propose`); `NeedStandings` resolves preconditions within one family: a met Need
 is Met, an unmet one Waiting while a precondition is not met, else Ready. Store `NeedOwner` and `Store.CommitClaimedMethod(NeedId, ...)`
-admit a Method (Admitted, Continued or Conflict on a held claim). BuildingRuntime
+admit a Method (Admitted, Continued or Conflict on a held claim). Runtime
 `FamilyRunner<TFacts>` runs a family as a planner entry
-(`ClockPlannerCatalog.WithFamilies`, from `ClockSchedulerConfig.Families`): one
+(`PlannerCatalog.WithFamilies`, from `PlannerSchedulerConfig.Families`): one
 `planner_step` row and one ledger report per Need, and a family with
 SeriousHarm reads also runs in the immediate pass on those reads only, deriving
 through `DeriveSeriousHarm` (Medical, Military, Shelter and Disaster implement it;
@@ -119,7 +119,7 @@ raise there. Each
 migrating slice adds its family (food stores, #3251, home upkeep, #3253, and animals and ideology, #3260, are wired).
 
 **Need progress (#3231 decision 18).** A Need reaches launcher progress
-(`/api/routines`) as a row in `Rounds.Progress` keyed by `NeedId.FilingKey`; there
+(`/api/routines`) as a row in `ReviewState.Progress` keyed by `NeedId.FilingKey`; there
 is no second progress source. After each wave `PlannerWave.NeedProgress` turns
 every returned family run into a `FamilyProgress` (each Need's filed planner note
 and the Method it works, from `NeedReport.Method`), and
@@ -128,7 +128,7 @@ inserted or updated (the Method label with `Open`, or with no Method the note as
 its blocker), a met Need's row is pruned, and a complete run (`FamilyRun.Complete`,
 the full pass) prunes its family's rows for Needs it no longer derives. The
 immediate pass and a run that judged nothing prune nothing. The review rebuild
-(`Store.RoundsProgress`) keeps NeedId rows as they stand. Need rows carry no
+(`Store.ReviewProgress`) keeps NeedId rows as they stand. Need rows carry no
 deadline or deficit fraction: the family owns rotation through its refusal budget.
 A new family needs no progress code.
 
@@ -151,7 +151,7 @@ on the run. A shell records no material shortfall dependency: the dependency
 records went with Standards (#3265).
 
 **Re-issue when the product is gone (decision 19, #3301).** The planner's
-once-check (`RoundsBuildingPlanner.MethodOnce`) holds a Need's MethodId only
+once-check (`BuildingPlanner.MethodOnce`) holds a Need's MethodId only
 while its latest attempt is open work (`StorePackage.PlanWorkOpen`, a placed
 blueprint or frame included) or while what that attempt built still stands.
 The family says what stands by passing the construction census of its read;
@@ -230,7 +230,7 @@ action kinds and cadence like a planner entry does today, and wakes on:
   narrows to zone ids dirties that section alone, #3556); a sectionless family
   (world) by name;
 - outcomes of its own Methods;
-- its cadence: the rounder's unless its schedule sets one (#3556).
+- its cadence: the review coordinator's unless its schedule sets one (#3556).
 
 The **immediate pass** runs the `SeriousHarm` Needs of registered families,
 reading only their declared narrow facts: it calls each family's
@@ -271,7 +271,7 @@ The model landed as a strangler, one family at a time: claim admission (#3249),
 the Need owner and family scheduling (#3250), then one slice per family. The
 deletion slice (#3265) removed the Concern registry, Standards (with Episodes,
 Settle and Once), Incidents, `standard_methods`, the open-work gate and its
-exemptions. The review (`Rounds`) still carries what families read: the
+exemptions. The review (`ReviewState`) still carries what families read: the
 progress rows, the combat standing, the recovery selection and the latches the
 silver gap and housing labor read. MaintainFireSafety was deleted outright, not
 migrated: pawns fight fires natively, firefighter work stays assigned through
@@ -280,7 +280,7 @@ below record what each family took over.
 
 **Food stores, storage (#3251).** `MaintainFoodStorage` is now the
 `food-stores/storage` Need (`FoodStores.cs`, `FoodStorageNeedOf`), a Wellbeing
-Need run by the `food-stores` catalog entry (`FoodStoresRounds.Runner`). It is a
+Need run by the `food-stores` catalog entry (`FoodStoresReview.Runner`). It is a
 plain threshold with no latch: unmet while reserve access is pending, the reserve
 is short outside an emergency, a food stockpile is known missing, a larder corpse
 change is due, or less than `TargetStoredFraction` (0.9) of at-risk perishable
@@ -302,19 +302,19 @@ warm, or while the planned meal closet waits for its shell; an unread census
 raises `RequiredFactException`; otherwise met. The `Refrigeration` and `RefrigerationSince` latches and
 the native cooling time they lent are gone: the cooling window runs only over
 coolers the Need itself recently committed in its world (`OwnerMethodHistory`). Its building
-work is the family runner's `work` step (`FoodStoresRounds.WorkAsync` calling
-`RoundsBuildingPlanner.RefrigerationStepAsync` with the Need owner): the meal
+work is the family runner's `work` step (`FoodStoresReview.WorkAsync` calling
+`BuildingPlanner.RefrigerationStepAsync` with the Need owner): the meal
 closet ring, a cooler setpoint, the freezer ring and the cooler,
 each committed once under the Need while its attempt is open or what it built
 stands (a destroyed cooler or ring is committed again, decision 19), and held
 apart by claims, not by a whole-owner guard. With refrigeration on, the family reads the room census and
 wakes on Building and BuildingTemperature outcomes. The review reads the cooler
-and room definitions when `RoundsCapabilities.Needs` lists the Need. The CookAheadFood bill declares
+and room definitions when `Capabilities.Needs` lists the Need. The CookAheadFood bill declares
 under the Need's filing key and reports the Need's standing.
 
 **Layout family (#3256).** MaintainHomeCoverage, MaintainFirebreak,
 MaintainClimateEnvelope and MaintainStoneShell are the `layout` entry's Needs
-(`Layout.cs`, `LayoutRounds`), each composed by its own toggle. The layout plan is
+(`Layout.cs`, `LayoutReview`), each composed by its own toggle. The layout plan is
 unchanged. `layout/home-coverage` (Wellbeing) is unmet while `PlanHomeArea`
 leaves a Home diff; its pure Method is the diff's own `MethodId` (AutoHomeArea off
 when needed, then the Area set/clear). `layout/firebreak` (Wellbeing) is unmet
@@ -351,7 +351,7 @@ are deleted.
 EnsureDefensiveLayout, composed by the `defensive-layout` toggle. It is met while
 the stored layout (`family/defense_layout`) was verified complete in this
 process and world, at the map's latest fight and within the re-verify window
-(the verification and the siting probe's tick are the Rounder's in-memory
+(the verification and the siting probe's tick are the ColonyReview's in-memory
 `DefenseVerification`, never saved, #3008: a restart re-verifies), and no open fight
 waits in rooms to harden. Otherwise it is unmet; its deficit is 0 while every
 tier stands and 1 while a tier is owed. Unread journal facts
@@ -369,8 +369,8 @@ MethodId, and a tier's refusal budget reads only its latest attempt. Combat
 fights from the saved layout once its firing-line tier, and its
 trap corridor when it has one, stood in the last census; it reads no
 verification. An older save's `Standard` and `Episode` record fields are read and
-ignored. The ConcernId, its inspection and detector, `RoundsPolicy.DefensiveLayout`,
-`RoundsFacts.DefensiveLayoutStanding`, the deficit branch and the clock slot are
+ignored. The FilingKey, its inspection and detector, `PlannerSettings.DefensiveLayout`,
+`ReviewFacts.DefensiveLayoutStanding`, the deficit branch and the clock slot are
 deleted.
 
 **Economy family, research (#3263).** `economy/research` (Development) replaced
@@ -428,7 +428,7 @@ The trade export bills are filed under `economy/trade` and the workshop resource
 
 **Food, cooking (#3254).** EnsureCooking (a Once) is now the `food/cooking` Need
 (`Food.cs`, `CookingNeedOf`), a Wellbeing Need of the `food` family entry
-(`FoodRounds.Runner`), composed by the cooking or bill toggle. It is a plain
+(`FoodReview.Runner`), composed by the cooking or bill toggle. It is a plain
 threshold: unmet while no meal of the tier the meal policy picks can be made (an
 active bill of the tier's recipe, or a stocked, powered paste dispenser) or a
 cooking campfire a stove kitchen supersedes waits to be taken down; an unread
@@ -465,7 +465,7 @@ FieldBlockingWork, the butcher and hunt exemptions) are deleted. The hay, social
 and supply-plan fields are the economy/resource Need's (#3303). Its stall cooldowns live on the Need's progress row and outlive
 the run that rebuilds it. The ButcherFood bill reports the Need's standing under
 `food/supply/bills`, and the forecast Food owner row and food-plan-gap rows are
-keyed to the Need; the coupled-candidate gate reads `RoundsFacts.AvailableNeeds`.
+keyed to the Need; the coupled-candidate gate reads `ReviewFacts.AvailableNeeds`.
 
 **Food, baby feeding and blight (#3254).** MaintainBabyFeeding and RemoveBlight
 are the `food/baby-feeding` and `food/blight` Needs (`BabyFeedingNeedOf`,
@@ -482,13 +482,13 @@ raises `RequiredFactException`. Its Method is the family's pure proposal of the 
 eight eligible, undesignated plants not refused to an open cut,
 `cut-<hash of the plants>`, each plant a claim, so batches run side by side and
 the same batch continues; with nothing eligible and nothing designated the Need
-is held (`no_eligible_plant`). The `blight` clock slot and `RoundsBlightPlanner`
+is held (`no_eligible_plant`). The `blight` clock slot and `BlightPlanner`
 are deleted; the cuts run under the food entry, which wakes on CutPlant outcomes.
 
 **Military, first part (#3259).** `EnsureBasicDefense`, `ClearPests` and
 `MaintainTraining` are the `military/defense`, `military/pests` and
 `military/training` Needs (`Military.cs`), run by the `military` catalog entry
-(`MilitaryRounds.Runner`), which replaces the `equip`, `pestAcquisition` and
+(`MilitaryReview.Runner`), which replaces the `equip`, `pestAcquisition` and
 `training` planners. Defense (Wellbeing) is met with no hostile standing, the
 foothold's armed fighters armed and nobody fighting-capable unarmed; while arming
 has no forecast adapter an unmet Need is held as `unsupported_forecast_equipment`.
@@ -499,7 +499,7 @@ a claim (`AdmitAcquisitionMethod`), so hunts of other animals run side by side; 
 work step cancels hunts whose animal is gone. Training (Development) is unmet
 while an assigned combat-capability holder is forecast below requirement; its
 work step builds the range and ring rooms under the Need (the review reads their
-definitions when `RoundsCapabilities.Needs` lists it). Equipment (Wellbeing)
+definitions when `Capabilities.Needs` lists it). Equipment (Wellbeing)
 replaces MaintainEquipment: it is unmet while the gear review finds gear not
 recovered, a crafting spot is owed retirement or a mortar is short of shells. Each
 unblocked pawn's wanted apparel policy is its own Method claimed by `gear/<pawn>`,
@@ -518,8 +518,8 @@ watch only on its own SeriousHarm plans.
 incident: a SeriousHarm Need, one per map, unmet while a hostile stands or the held
 food plan requests a roster hunt (deficit hostiles plus prey), met when neither does;
 an unread hostile census raises `RequiredFactException`. One policy function,
-`RoundsRules.CombatSituation`, gives Active, Clear or Unclear for the review's
-combat standing (`Rounds.Combat`), the Need's predicate and `CombatCleared`. The
+`Rules.CombatSituation`, gives Active, Clear or Unclear for the review's
+combat standing (`ReviewState.Combat`), the Need's predicate and `CombatCleared`. The
 review files the standing while it is active or the Need still holds open work; a
 clear cancels the Need's undispatched Methods, and the executor refuses a combat plan
 other than the restoration while the standing is not active. The `defense` runner
@@ -531,7 +531,7 @@ to the retired incident) and keeps `family/combat_restoration`, which the next
 defense step restores under the Need.
 
 **Colony admin, creep joiners (#3264).** `ManageCreepJoiners` is now the
-`admin/creep-joiners` Need (`ColonyAdmin.cs`, `AdminRounds`), a Wellbeing Need of
+`admin/creep-joiners` Need (`ColonyAdmin.cs`, `AdminReview`), a Wellbeing Need of
 the `admin` family entry. Its Standard `Record` moved to the
 `family/admin/creep_joiners` record, keyed by colony and map, so the inspection
 record is read after a reload. The family's step commits one Method per pawn and
@@ -545,7 +545,7 @@ forecast outcome.
 while a coupled activity runs, is selected or is deferred, while a hostility
 response, nickname, medicine carry or medical care cap is owed, or while a work
 type is uncovered or a cleanup pawn idles; unread coverage raises `RequiredFactException`. Its
-step (`RoundsWorkPlanner`) commits the work priorities, pawn settings and the
+step (`WorkPlanner`) commits the work priorities, pawn settings and the
 reading, food and drug policies as one Method under the Need owner; each pawn's
 settings claim `settings/<pawn>` and each written policy
 `policy/{reading,food,drug}/<name>`. Coupled activities commit under the same
@@ -564,7 +564,7 @@ holds as `unsupported_forecast_mood_cast`; otherwise it waits on the shared need
 The thought table's owner column names NeedIds only.
 
 **Prisoners (#3262).** The prisoner half of the old population Concern is the `prisoners`
-family (`Prisoners.cs`, runtime `PrisonersRounds`), an Optional entry woken by
+family (`Prisoners.cs`, runtime `PrisonersReview`), an Optional entry woken by
 PrisonerInteraction, Building and BedUse outcomes. `prisoners/recruit`
 (Development) is unmet while any living prisoner is owed an interaction change
 (recruit, convert, enslave or release); an unread census or any unread
@@ -579,7 +579,7 @@ owed a rescue or capture; both are held (`dependent_rescue_incident_owner`,
 
 **Joiners and anomaly (#3302).** The rest of the population Concern is two
 families, and MaintainPopulation is deleted. `joiners` (`Joiners.cs`, runtime
-`JoinersRounds`) is an Optional entry with Development Needs, each of which
+`JoinersReview`) is an Optional entry with Development Needs, each of which
 raises `RequiredFactException` while its census is unread: `joiners/offers` and `joiners/letters` accept the
 lowest-id joiner offer (`joiner-accept-<quest>`) or letter
 (`joiner-letter-<id>`) while the colony has room; `joiners/ceremony` is held
@@ -590,7 +590,7 @@ hospitality work, refugees folding into its predicate; `joiners/decrees`,
 quest work in the step under the Need owner, with stable MethodIds per quest
 and target. The decree ledger declares under `joiners/decrees`, and
 `MethodAdmission` admits that Need's harvest zones and hunts. `anomaly`
-(`AnomalyFamily.cs`, runtime `AnomalyRounds`) is a Critical entry woken by
+(`AnomalyFamily.cs`, runtime `AnomalyReview`) is a Critical entry woken by
 DoorControl and PawnSettings outcomes: `anomaly/doors` closes each held-open
 cell door as its own Method (`entity-door-<x>-<z>`), `anomaly/bioferrite` sets
 each owed extract flag (`entity-bioferrite-<pawn>`, claiming
@@ -601,16 +601,16 @@ only once the runtime's combat read finds an able wearer. The
 gate these families.
 
 **Animals and ideology (#3260).** `MaintainHerd` and `MaintainAnimalContainment`
-are the `animals` family (`AnimalsFamily.cs`, `RoundsAnimals.cs`): `animals/herd`
+are the `animals` family (`AnimalsFamily.cs`, `Animals.cs`): `animals/herd`
 (the one husbandry write the choice chain picks, MethodId
 `<method>-<animal>[-<trainable>]`; the always-held MethodUnavailable flag is gone),
 `animals/containment` (pens, built by the work step through `ReconcileRoomAsync`;
 once they stand it waits on native delivery), `animals/ward` (the hospital's animal
 beds, built the same way and flagged medical by a `herd-medical-<bed>` BedUse
 Method) and `animals/sterilize`, whose precondition is `animals/ward`. The
-containment latch (`RoundsLatches.Animals`) is deleted. `MaintainIdeoRoles`,
+containment latch (`Latches.Animals`) is deleted. `MaintainIdeoRoles`,
 `MaintainRituals` and `ImproveIdeoligion` are the `ideology` family
-(`IdeologyFamily.cs`, `RoundsIdeology.cs`): one `ideorole-<pawn>-<role>` Method per
+(`IdeologyFamily.cs`, `Ideology.cs`): one `ideorole-<pawn>-<role>` Method per
 owed role, rituals held as `unsupported_forecast_ritual`, and the reform Method
 `ideoligion-<reform count>`. The pending reform moved from the ImproveIdeoligion
 Standard's `Record` to the `family/ideology/reform` record: the work step saves the
@@ -620,13 +620,13 @@ record is read once at load when the blob is absent.
 
 **Shelter and power (#3257).** MaintainHousing, MaintainShelter and
 EnsureTemperatureSafety are the `shelter` family (`Shelter.cs`, runtime
-`ShelterRounds`), one entry (Critical while the sleeping toggle composes it) whose
+`ShelterReview`), one entry (Critical while the sleeping toggle composes it) whose
 Needs are derived only for their composed toggles. There is no starter shelter
 (#3659): the first room is a planned room. `shelter/sleeping` (bed ownership,
 bedrooms and upgrades) waits on nothing and, while a sleeping and an indoor place do
 not stand for everyone, first places the missing stand-in sleeping spots in the first
 selected sleeping room at Survive tier (`ShelterRules.StandInsOwed`,
-`RoundsSleepingStandIn`). The Housing phase latch and the cold, hot and sleeping
+`SleepingStandIn`). The Housing phase latch and the cold, hot and sleeping
 latches are deleted, and no Need keeps a spare indoor place (#3749): the stand-ins
 cover a colonist the beds do not yet house. `shelter/temperature` is a plain threshold at the
 season's exit bars, unmet too while a heat refuel switch or a venting door is
@@ -636,13 +636,13 @@ any work owner. `shelter/safe-area` (the Safe-area edit, SeriousHarm) keeps its
 own Need and runs in the immediate pass reading only the review's planned area
 edits (`SafeAreaMemory.Owed`), committing them as the `safe-area` Method; it left
 the immediate Concern set. No housing Need holds the Construction labor. EnsureBasicPower
-is the `power` family (`PowerFamily.cs`, runtime `PowerRounds`): `power/basic` is
+is the `power` family (`PowerFamily.cs`, runtime `PowerReview`): `power/basic` is
 met while the grid covers its draw; a solar flare holds it (`power_outage`) without
 a Method. Essential-service targets and forecast owners re-key to the Need filing
 keys. Known gap: roof actions claim no cells.
 
 **Medical (#3258).** `CriticalMedical`, `MaintainMedicalReserves` and
-`MaintainSurgery` are the `medical` family (`Medical.cs`, runtime `MedicalRounds`),
+`MaintainSurgery` are the `medical` family (`Medical.cs`, runtime `MedicalReview`),
 one Critical catalog entry that replaces the `tend`, `rescue`, `hospital`,
 `medical` and `surgery` planners. `medical/critical/<pawn>` (SeriousHarm) stands
 per critical patient and runs in the immediate pass on the emergency census and the
@@ -657,7 +657,7 @@ In the ordinary pass a patient's Need first queues a life-saving amputation.
 is the hospital bed, built through the shared building planner or flagged medical
 once per bed) and `medical/reserves` (unmet below the medicine target, no entry
 bar; healroot withdrawals and harvests, the ledger's stock bill) are independent
-Wellbeing Needs: the Medical phase latch (`RoundsLatches.Medical`, `Phase.MedicalCare`,
+Wellbeing Needs: the Medical phase latch (`Latches.Medical`, `Phase.MedicalCare`,
 `Phase.MedicalReserves`, `Restocks`) is deleted with no precondition in its place,
 since the medicine stock never waited on the sick. `medical/surgery` (Wellbeing) is
 unmet while an owed restore, an actionable elective, an organ sale harvest or a part
@@ -807,7 +807,7 @@ the loss of its authority or hooks, and the review tick the last `Run` named, an
 else. The brain holds it for a coupled order, an autosave or a review when the bot stops acting,
 and for nothing else. Progress is never a hold and never an invalidation: a pawn
 activity completing or failing, or a controlled pawn with no activity, is an attempt outcome the next review
-reads (#3556); a colonist left without an activity Method, or a coupled worker that finished a task with a recipe left, makes that review step run the rounds review (#3599, #3624). A zone turning ripe or any other observed fact change is an `ObservationInvalidated` event
+reads (#3556); a colonist left without an activity Method, or a coupled worker that finished a task with a recipe left, makes that review step run the colony review (#3599, #3624). A zone turning ripe or any other observed fact change is an `ObservationInvalidated` event
 that marks planners for the next review while the game keeps running.
 
 The cadence is the clock's (#3556). Every `Run` carries the tick native holds the clock at for
@@ -819,10 +819,10 @@ the clock runs except an authority change or a loss on the event queue; nothing 
 for progress; there is no wall-time step interval and no back-off. A review that finds nothing
 dirty or due is a clock read and a `Run`.
 
-The rounds review has a cadence of its own, the second and last number (#3556):
-`ClockSchedulerConfig.RoundsEveryTicks` (2500, one in-game hour, the planners' own default
-cadence). A review step whose planners are dirty or due runs the rounder first only when the last
-committed rounds review has stood an hour; otherwise its planners read the last committed review
+The colony review has a cadence of its own, the second and last number (#3556):
+`PlannerSchedulerConfig.ReviewEveryTicks` (2500, one in-game hour, the planners' own default
+cadence). A review step whose planners are dirty or due runs the review coordinator first only when the last
+committed colony review has stood an hour; otherwise its planners read the last committed review
 from the journal, as every family step already does, and the step reports `rounds` `last` on its
 `clock_step` row. An early review (any hold but the review tick) and a step that runs every
 planner (a full step, an authority change) review first regardless. A colonist that lost its
@@ -833,29 +833,29 @@ The first review step after a coupled Method's worker finished a task while the 
 recipe left reviews too (`task`, #3624): the worker reads native `completed` at its order's
 revision, records the finished task once (`TaskReviews`) and wakes the step loop at once
 (`WakeSignal.NotifyTaskReview`, a quiet Review step with the clock running, like a speed request),
-and the Method binds that worker no next task until a rounds review has committed. The review
+and the Method binds that worker no next task until a colony review has committed. The review
 may hand that worker's next task to a faster free cook while the Method's other participants
 keep working ([incumbent reconsideration](../contracts/essential-services.md)). A scheduler
-without a rounder clears the wait at its next step.
+without a review coordinator clears the wait at its next step.
 While the colony's first layout plan holds the clock (`first_plan`, #3652) every step reviews
 again: a held clock advances no tick to make the review due, and only a review reads the station
 fact the plan waits for ([clock recovery](../contracts/clock-recovery.md)). An urgent build
 (`urgent_build`, #3537) does the same: once the placement the sleeping shelter's step admitted has
 settled, the held clock waits for the review that compares its placed sites, and that review leaves
 routine construction out of the comparison.
-It is an event, not a timer: a Method whose workers finish nothing raises none. The rounds review derives
+It is an event, not a timer: a Method whose workers finish nothing raises none. The colony review derives
 the colony model, the stock, the planned sites and the coupled search from facts that rarely
 change in 600 ticks, and it was the cost of the common review; a need that first appears
-between two rounds reviews waits at most an hour for its ranking, while the planners that
+between two colony reviews waits at most an hour for its ranking, while the planners that
 already hold a ranking keep acting on it every 600 ticks.
 
-The family entries are due when the rounder is (`PlannerEntry.RoundsCadence`, #3556): an entry
+The family entries are due when the review coordinator is (`PlannerEntry.Cadence`, #3556): an entry
 without a cadence of its own derives its Needs from the committed review and the census that
 review observed, so the due queue sets its next review tick to the tick the last committed
-review stands until (`_lastRoundsTick + RoundsEveryTicks`), whatever tick the entry itself
-last ran at, and moves every such entry when the rounder commits a review early (a wake). A
+review stands until (`_lastReviewTick + ReviewEveryTicks`), whatever tick the entry itself
+last ran at, and moves every such entry when the review coordinator commits a review early (a wake). A
 dirty step between two reviews runs its marked entries on the last review and leaves their due
-tick where it was, so no entry runs alone on its own hourly clock off the rounder's phase. A
+tick where it was, so no entry runs alone on its own hourly clock off the review coordinator's phase. A
 catalog planner (defense) and a family whose schedule sets `Every` keep their own cadence.
 
 An entry selected `due` alone, on a step whose rounds word is `last` or `due`, runs for its
@@ -871,7 +871,7 @@ pass and another world run the work again. The `planner_step` row of a kept Need
 A family read validates its facts against the observation scope (world, tick, generation) and
 used to read it itself, one `lifecycle_read_tick` hop to the game thread per entry per wave,
 queued behind the other entries' hops. The clock step reads that scope with its clock status
-before any wave, so it decodes it once (`ClockScheduler.StepIdentity`) and hands it to every
+before any wave, so it decodes it once (`PlannerScheduler.StepIdentity`) and hands it to every
 family step (`FamilyStep.Scope`, `FamilyReadScope.Scope`, #3556); `StepScope.StepScopeAsync`
 returns it to the read instead of hopping. The scope is fixed for the step, so the read sees
 the tick the hop would have returned. Outside a clock step the scope is null and a read hops
@@ -894,8 +894,8 @@ stateDiagram-v2
 | Piece | Owns |
 | --- | --- |
 | Native clock (`NativeClockRuntime`, the supervisor) | The game's speed, the hazard probe, the colony event queue, the hold itself and the one ceiling. Hazard holds happen on a tick boundary within the [declared bounds](hazard-detection-bounds.md). |
-| `ClockScheduler` step | Planning only: one coherent bundle read, the planner wave and the result. It starts and stops nothing. |
-| `ClockRunDriver` | The hold state machine, run after every step. It sends `Run`, takes the brain's own holds, keeps the heartbeat and consumes the colony events native pushes. |
+| `PlannerScheduler` step | Planning only: one coherent bundle read, the planner wave and the result. It starts and stops nothing. |
+| `PlannerRunDriver` | The hold state machine, run after every step. It sends `Run`, takes the brain's own holds, keeps the heartbeat and consumes the colony events native pushes. |
 | Hands and the Worker | Order dispatch under the running clock. |
 
 The brain only ever asks for a speed. It does not manage a rate, a frame budget
@@ -927,7 +927,7 @@ After each planning step the driver reads the clock status and decides:
   a held clock, no unknown threat. A refused decision leaves the clock held and the next step
   retries (`HeldException`).
 - The `Run` quotes the hold serial of the step's own read
-  (`ClockSchedulerResult.HoldSerial`), never the driver's later status read.
+  (`PlannerSchedulerResult.HoldSerial`), never the driver's later status read.
   Native bumps the serial on every hold entry, the brain's own included, and
   refuses a resume whose serial is stale, on the game thread inside `Run`. A
   hold that landed after the step read (a hazard between the step and the
@@ -1033,9 +1033,9 @@ table in [brain host](brain-host.md#live-clock-baseline).
 | Combat fallback speed | Normal | `ClockCombatStops.FallbackSpeed` |
 | Autosave cadence | one in-game day | `ClockRunConfig.DefaultAutosaveEveryTicks` |
 | Review cadence | 600 ticks from the step's read to the review hold the `Run` names | `ClockRunConfig.DefaultReviewEveryTicks` |
-| Rounds cadence | 2500 ticks (one in-game hour) a committed rounds review stands before a review step runs the rounder again | `ClockSchedulerConfig.DefaultRoundsEveryTicks` |
+| Colony review cadence | 2500 ticks (one in-game hour) a committed colony review stands before a review step runs the review coordinator again | `PlannerSchedulerConfig.DefaultReviewEveryTicks` |
 
-The review cadence and the rounds cadence are the two chosen numbers of the control loop; the
+The review cadence and the review cadence are the two chosen numbers of the control loop; the
 budget they serve is under 2 wall minutes of brain time per in-game day (about 100 reviews,
 0.65 s each on average, a no-op review tens of milliseconds). Their measurement is in
 [brain host](brain-host.md#live-clock-baseline).
@@ -1075,7 +1075,7 @@ Native pushes each colony event onto a bounded queue it owns
 (`ColonyEventChannel`, 1024 events) with a non-blocking `TryWrite` on the game
 thread. A full queue drops the event and counts it; any change in the loss
 counter makes the next step plan `full`. The brain's consumer opens the queue
-through `INativeFacade.OpenColonyEventsAsync`, which swaps in an empty queue,
+through `IGameApi.OpenColonyEventsAsync`, which swaps in an empty queue,
 completes the previous reader (its consumer stops) and clears the counter, so a started or reloaded brain replays no backlog and plans `full`
 first. There is no ring, cursor or poll. Each batch is read against the current
 world's context: another world's event is ignored, and a context that does not
@@ -1117,10 +1117,10 @@ sequenceDiagram
 
 | Trigger | Work |
 | --- | --- |
-| `review`: the review tick the last `Run` named held the clock, and nothing else woke the step | Dirty planners (the invalidations since the last review) and due entries, against the last committed rounds review unless it has stood the rounds cadence; with none, the driver tail alone |
-| `wake`: any other hold (a hazard, a letter, a game pause, a brain hold), or an authority change or a loss under a running clock | An early review of everything: the rounder, then every planner not waiting on a dependency; a hold with evidence selects its consumers; authority changes expand to all |
+| `review`: the review tick the last `Run` named held the clock, and nothing else woke the step | Dirty planners (the invalidations since the last review) and due entries, against the last committed colony review unless it has stood the review cadence; with none, the driver tail alone |
+| `wake`: any other hold (a hazard, a letter, a game pause, a brain hold), or an authority change or a loss under a running clock | An early review of everything: the review coordinator, then every planner not waiting on a dependency; a hold with evidence selects its consumers; authority changes expand to all |
 | `retry`: the step after one that did not complete, deferred, or left the clock held | Dirty and due planners, as a review |
-| `full`: the first step, a step after idle, a loss on the event queue, or a `review` or `retry` step promoted by the two-minute safety net | The rounder, then every planner |
+| `full`: the first step, a step after idle, a loss on the event queue, or a `review` or `retry` step promoted by the two-minute safety net | The review coordinator, then every planner |
 
 `clock_step` records why a step ran. `stop_latency_ms` measures native-hold-to-step
 time, not hazard onset to protective effect. `clock_run` records each `Run` (with the

@@ -1,10 +1,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// One snapshot stream frame: every state family, plus the
@@ -23,11 +21,11 @@ namespace HomeBridge.BridgeTools
         // family plus the subscription's and the whole-map cell grid
         // (absent when its read failed), or null when the map has no
         // readable context.
-        internal static Obs.BundleSnapshot? Capture(Map map, Obs.SnapshotStreamRequest request)
+        internal static RimGovernor.Brain.GameFacts.Observations.BundleSnapshot? Capture(Map map, RimGovernor.Brain.GameOrders.Observations.SnapshotStreamRequest request)
         {
-            if (!ProtoBoundary.TryReadContext(map, out var context, out _)) return null;
-            var observed = new Obs.BundleSnapshot { Context = context };
-            Obs.BundleSnapshot? sections = null;
+            if (!GameThread.TryReadContext(map, out var context, out _)) return null;
+            var observed = new RimGovernor.Brain.GameFacts.Observations.BundleSnapshot { Context = context };
+            RimGovernor.Brain.GameFacts.Observations.BundleSnapshot? sections = null;
             var referenced = NativeRef.Collect(() => sections = ReadSections(map, request, context, observed));
             if (sections == null) return null;
             observed = sections;
@@ -43,10 +41,10 @@ namespace HomeBridge.BridgeTools
         // On the main thread: every section of the frame but its things
         // table and grid, false when the status census fails. The things
         // the sections reference become the things table.
-        private static Obs.BundleSnapshot? ReadSections(Map map, Obs.SnapshotStreamRequest request, Common.ObservationContext context, Obs.BundleSnapshot observed)
+        private static RimGovernor.Brain.GameFacts.Observations.BundleSnapshot? ReadSections(Map map, RimGovernor.Brain.GameOrders.Observations.SnapshotStreamRequest request, RimGovernor.Brain.GameFacts.Common.ObservationContext context, RimGovernor.Brain.GameFacts.Observations.BundleSnapshot observed)
         {
             var statusBegan = Now();
-            var emergency = SnapshotSectionException.Read(nameof(Obs.BundleSnapshot.Emergency), () => NativeObservationTools.Status(map, context));
+            var emergency = SnapshotSectionException.Read(nameof(RimGovernor.Brain.GameFacts.Observations.BundleSnapshot.Emergency), () => NativeObservationTools.Status(map, context));
             ObservationWork.Captured("emergency", Now() - statusBegan, 0);
             observed = observed with { Emergency = emergency };
             ReadFamilies(map, context, ref observed, request);
@@ -61,7 +59,7 @@ namespace HomeBridge.BridgeTools
             return observed;
         }
 
-        private static bool Engaged(Obs.ThreatPawn row) => row.MentalState is not null || row.FactionHostile || row.PrisonBreak || row.PredatorHunt;
+        private static bool Engaged(RimGovernor.Brain.GameFacts.Observations.ThreatPawn row) => row.MentalState is not null || row.FactionHostile || row.PrisonBreak || row.PredatorHunt;
 
         // On the main thread. The defense planner's other combat inputs
         //, the pawn detail being the pawn table's: the hive
@@ -69,7 +67,7 @@ namespace HomeBridge.BridgeTools
         // ranged colonists to hostile buildings, while the census lists a
         // threat or a colonist in a mental state. Each is omitted when it
         // fails to read.
-        private static void CombatInputs(Map map, Common.ObservationContext context, ref Obs.BundleSnapshot observed, Obs.SnapshotStreamRequest request)
+        private static void CombatInputs(Map map, RimGovernor.Brain.GameFacts.Common.ObservationContext context, ref RimGovernor.Brain.GameFacts.Observations.BundleSnapshot observed, RimGovernor.Brain.GameOrders.Observations.SnapshotStreamRequest request)
         {
             var census = observed.Emergency;
             var threats = census?.Threats;
@@ -80,20 +78,20 @@ namespace HomeBridge.BridgeTools
             if (!threats.Pawns.Any(Engaged) && threats.HostileBuildings.Count == 0
                 && !colonists.Any(p => p.MentalState is not null)) return;
             // The damaged player doors, for a fight's door repair.
-            var doors = new List<RimGovernor.Contracts.Wire.Mirror.CombatDoorRow>(observed.CombatDoors);
+            var doors = new List<RimGovernor.Brain.GameFacts.Mirror.CombatDoorRow>(observed.CombatDoors);
             foreach (var door in map.listerBuildings.AllBuildingsColonistOfClass<RimWorld.Building_Door>())
             {
                 if (!door.Spawned || !door.def.useHitPoints || door.HitPoints >= door.MaxHitPoints) continue;
-                doors.Add(new RimGovernor.Contracts.Wire.Mirror.CombatDoorRow { Cell = new RimGovernor.Brain.Domain.Cell { X = door.Position.x, Z = door.Position.z } });
+                doors.Add(new RimGovernor.Brain.GameFacts.Mirror.CombatDoorRow { Cell = new RimGovernor.Brain.Domain.Cell { X = door.Position.x, Z = door.Position.z } });
             }
             // The unroofed player mortars, for counter-battery.
-            var mortars = new List<RimGovernor.Contracts.Wire.Mirror.CombatMortarRow>(observed.CombatMortars);
+            var mortars = new List<RimGovernor.Brain.GameFacts.Mirror.CombatMortarRow>(observed.CombatMortars);
             foreach (var mortar in map.listerBuildings.AllBuildingsColonistOfClass<RimWorld.Building_TurretGun>())
             {
                 if (!mortar.Spawned || mortar.def.building?.IsMortar != true || mortar.AttackVerb == null || map.roofGrid.Roofed(mortar.Position)) continue;
                 // The loaded shell, for the shell the fight asks for.
                 var loaded = mortar.gun?.TryGetComp<RimWorld.CompChangeableProjectile>()?.LoadedShell;
-                mortars.Add(new RimGovernor.Contracts.Wire.Mirror.CombatMortarRow { Id = mortar.GetUniqueLoadID(),
+                mortars.Add(new RimGovernor.Brain.GameFacts.Mirror.CombatMortarRow { Id = mortar.GetUniqueLoadID(),
                     Cell = new RimGovernor.Brain.Domain.Cell { X = mortar.Position.x, Z = mortar.Position.z },
                     MinRange = mortar.AttackVerb.verbProps.minRange, MaxRange = mortar.AttackVerb.verbProps.range,
                     LoadedShell = loaded?.defName });
@@ -102,7 +100,7 @@ namespace HomeBridge.BridgeTools
             var firing = new List<IntVec3>();
             foreach (var row in colonists)
             {
-                if (row.Pawn is not { Place: Obs.EntityPlace.OnMap { Cell: var position } } pawnRef || row.Equipment is not { PrimaryId: { } primaryId }) continue;
+                if (row.Pawn is not { Place: RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap { Cell: var position } } pawnRef || row.Equipment is not { PrimaryId: { } primaryId }) continue;
                 // The shooter's primary weapon is the live one: the wire rows no
                 // longer carry its class or range, the catalog does.
                 var shooter = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == (pawnRef.Id ?? ""));
@@ -125,32 +123,32 @@ namespace HomeBridge.BridgeTools
                     }
             }
             if (firing.Count == 0 || approach.Count == 0 || firing.Concat(approach).Any(c => !c.InBounds(map))) return;
-            try { observed = observed with { CombatLinesOfFire = NativeDefenseObservationTools.Lines(map, firing, approach, context, request.LinesOfFireBudget is Obs.FrameBudget.Millis lines ? lines.Value : uint.MaxValue) }; }
+            try { observed = observed with { CombatLinesOfFire = NativeDefenseObservationTools.Lines(map, firing, approach, context, request.LinesOfFireBudget is RimGovernor.Brain.GameFacts.Observations.FrameBudget.Millis lines ? lines.Value : uint.MaxValue) }; }
             catch (System.Exception ex) { ObservationWork.Failed("combatLinesOfFire", ex); }
         }
 
         // The frame's colony facts request: the planning form.
-        private static Obs.ColonyFactsRequest ColonyRequest(Obs.ReadScope scope) => new Obs.ColonyFactsRequest { Scope = scope };
+        private static RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest ColonyRequest(RimGovernor.Brain.GameFacts.Observations.ReadScope scope) => new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = scope };
 
         // On the main thread. Adds the census families to observed, each
         // keyed as its dedicated read. A section that throws fails the frame
         // (SnapshotSectionException); none is omitted.
-        private static void ReadFamilies(Map map, Common.ObservationContext context, ref Obs.BundleSnapshot observed, Obs.SnapshotStreamRequest request)
+        private static void ReadFamilies(Map map, RimGovernor.Brain.GameFacts.Common.ObservationContext context, ref RimGovernor.Brain.GameFacts.Observations.BundleSnapshot observed, RimGovernor.Brain.GameOrders.Observations.SnapshotStreamRequest request)
         {
-            Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity };
+            RimGovernor.Brain.GameFacts.Observations.ReadScope Scope() => new RimGovernor.Brain.GameFacts.Observations.ReadScope { ExpectedIdentity = context.Identity };
             {
                 var began = Now();
-                observed = observed with { ColonyFacts = SnapshotSectionException.Read("colonyFacts", () => NativeColonyObservationTools.Read(map, ColonyRequest(Scope()), context, request.RoutePathBudget is Obs.FrameBudget.Millis route ? route.Value : (uint?)null)) };
+                observed = observed with { ColonyFacts = SnapshotSectionException.Read("colonyFacts", () => NativeColonyObservationTools.Read(map, ColonyRequest(Scope()), context, request.RoutePathBudget is RimGovernor.Brain.GameFacts.Observations.FrameBudget.Millis route ? route.Value : (uint?)null)) };
                 ObservationWork.Captured("colonyFacts", Now() - began, observed.ColonyFacts?.Resources.Count ?? 0);
             }
             {
                 var began = Now();
-                observed = observed with { Population = SnapshotSectionException.Read("population", () => NativePopulationObservation.Population(map, new Obs.PopulationRequest { Scope = Scope() })) };
+                observed = observed with { Population = SnapshotSectionException.Read("population", () => NativePopulationObservation.Population(map, new RimGovernor.Brain.GameOrders.Observations.PopulationRequest { Scope = Scope() })) };
                 ObservationWork.Captured("population", Now() - began, observed.Population?.Persons.Count ?? 0);
             }
             {
                 var began = Now();
-                observed = observed with { Research = SnapshotSectionException.Read("research", () => NativeResearchObservationTools.Section(map, new Obs.ResearchRequest { Scope = Scope(), ProgressOnly = true }, context)) };
+                observed = observed with { Research = SnapshotSectionException.Read("research", () => NativeResearchObservationTools.Section(map, new RimGovernor.Brain.GameOrders.Observations.ResearchRequest { Scope = Scope(), ProgressOnly = true }, context)) };
                 ObservationWork.Captured("research", Now() - began, observed.Research?.Projects.Count ?? 0);
             }
             {
@@ -163,24 +161,24 @@ namespace HomeBridge.BridgeTools
         // On the main thread. Adds the step families, each the exact
         // read its dedicated tool answers for the request shape the
         // controller issues, omitting any that fails or is not observed.
-        private static void ReadStepFamilies(Map map, Common.ObservationContext context, ref Obs.BundleSnapshot observed)
+        private static void ReadStepFamilies(Map map, RimGovernor.Brain.GameFacts.Common.ObservationContext context, ref RimGovernor.Brain.GameFacts.Observations.BundleSnapshot observed)
         {
-            Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity };
+            RimGovernor.Brain.GameFacts.Observations.ReadScope Scope() => new RimGovernor.Brain.GameFacts.Observations.ReadScope { ExpectedIdentity = context.Identity };
             {
                 var began = Now();
-                var buildings = SnapshotSectionException.Read(nameof(Obs.BundleSnapshot.Buildings), () => NativeBuildingObservationTools.Read(map, new Obs.ListBuildingsRequest { Scope = Scope() }, context));
+                var buildings = SnapshotSectionException.Read(nameof(RimGovernor.Brain.GameFacts.Observations.BundleSnapshot.Buildings), () => NativeBuildingObservationTools.Read(map, new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest { Scope = Scope() }, context));
                 ObservationWork.Captured("buildings", Now() - began, buildings.Buildings.Count);
                 observed = observed with { Buildings = buildings };
             }
             {
                 var began = Now();
-                var bills = SnapshotSectionException.Read(nameof(Obs.BundleSnapshot.Bills), () => NativeBillsObservationTools.Read(map, new Obs.BillsRequest { Scope = Scope() }, context));
+                var bills = SnapshotSectionException.Read(nameof(RimGovernor.Brain.GameFacts.Observations.BundleSnapshot.Bills), () => NativeBillsObservationTools.Read(map, new RimGovernor.Brain.GameOrders.Observations.BillsRequest { Scope = Scope() }, context));
                 ObservationWork.Captured("bills", Now() - began, bills.Benches.Count);
                 observed = observed with { Bills = bills };
             }
             {
                 var began = Now();
-                observed = observed with { Zones = SnapshotSectionException.Read("zones", () => NativeZoneObservationTools.Read(map, new Obs.ListZonesRequest { Scope = Scope() }, context)) };
+                observed = observed with { Zones = SnapshotSectionException.Read("zones", () => NativeZoneObservationTools.Read(map, new RimGovernor.Brain.GameOrders.Observations.ListZonesRequest { Scope = Scope() }, context)) };
                 ObservationWork.Captured("zones", Now() - began, observed.Zones?.Zones.Count ?? 0);
             }
             {
@@ -197,12 +195,12 @@ namespace HomeBridge.BridgeTools
                 var began = Now();
                 // Build is null only without the expansion; with it, a missing primary ideoligion throws inside it.
                 observed = observed with { Ideology = SnapshotSectionException.Read("ideology", () => NativeIdeologyObservation.Build(map) is { } snapshot
-                    ? (Obs.IdeologyFrame)new Obs.IdeologyFrame.Installed { Snapshot = snapshot }
-                    : new Obs.IdeologyFrame.NotInstalled()) };
-                ObservationWork.Captured("ideology", Now() - began, observed.Ideology is Obs.IdeologyFrame.Installed installed ? installed.Snapshot.Precepts.Count : 0);
+                    ? (RimGovernor.Brain.GameFacts.Observations.IdeologyFrame)new RimGovernor.Brain.GameFacts.Observations.IdeologyFrame.Installed { Snapshot = snapshot }
+                    : new RimGovernor.Brain.GameFacts.Observations.IdeologyFrame.NotInstalled()) };
+                ObservationWork.Captured("ideology", Now() - began, observed.Ideology is RimGovernor.Brain.GameFacts.Observations.IdeologyFrame.Installed installed ? installed.Snapshot.Precepts.Count : 0);
             }
             {
-                var rooms = new Obs.ListRoomsRequest { Scope = Scope() };
+                var rooms = new RimGovernor.Brain.GameOrders.Observations.ListRoomsRequest { Scope = Scope() };
                 var began = Now();
                 observed = observed with { Rooms = SnapshotSectionException.Read("rooms", () => NativeRoomObservationTools.Read(map, rooms, context)) };
                 ObservationWork.Captured("rooms", Now() - began, observed.Rooms?.Rooms.Count ?? 0);

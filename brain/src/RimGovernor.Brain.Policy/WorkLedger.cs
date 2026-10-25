@@ -160,10 +160,10 @@ public sealed record LedgerPlacement(string Bench, OrderSpec Spec);
 public static partial class WorkRules
 {
     /// <summary>
-    /// How many consecutive Rounds a bill that no planner declared must stay undeclared before Reconcile removes it.
+    /// How many consecutive ReviewState a bill that no planner declared must stay undeclared before Reconcile removes it.
     /// The counters are memory only: a restart empties them and only delays removal.
     /// </summary>
-    public const int OrphanGraceRounds = 3;
+    public const int OrphanGraceReview = 3;
 
     /// <summary>The vanilla bill stack cap of one bench.</summary>
     public const int LedgerBenchSlots = 15;
@@ -211,7 +211,7 @@ public static partial class WorkRules
     /// A wanted spec with no actual bill is placed. An actual bill matching a wanted spec is kept, once per spec; any
     /// further bill of that spec is an orphan, as is a bill no planner declared. If any planner abstained nothing is
     /// removed and the counters do not advance; otherwise an orphan is removed once it has been an orphan for
-    /// OrphanGraceRounds consecutive Rounds. Excluded kinds are always kept. copies is the wanted bill count per spec
+    /// OrphanGraceReview consecutive ReviewState. Excluded kinds are always kept. copies is the wanted bill count per spec
     /// Key (the dispatcher's split across benches); a spec absent from it, or below one, wants one bill.
     /// </summary>
     public static LedgerPlan ReconcileLedger(
@@ -253,7 +253,7 @@ public static partial class WorkRules
             else
             {
                 var n = orphans.GetValueOrDefault(b.Id) + 1;
-                if (n >= OrphanGraceRounds)
+                if (n >= OrphanGraceReview)
                 {
                     remove.Add(b);
                     continue;

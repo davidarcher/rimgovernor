@@ -44,7 +44,7 @@ Evidence C2–C3, C5.
 - **C1 — Load request.** [LauncherSaveLoaderTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/LauncherSaveLoaderTests.cs)
   checks the request sequence through unavailable routes, accepted loading and
   completion using a fake game service. It supplies no game-generation evidence.
-- **C2 — Authority path.** [Control](../../brain/src/RimGovernor.Brain.BuildingRuntime/Control.cs)
+- **C2 — Authority path.** [Control](../../brain/src/RimGovernor.Brain.Runtime/Control.cs)
   owns authority and invalidation. [NativeAuthorityControlTools](../../integrations/rimgovernor-native/src/Bridge/Protocol/NativeAuthorityControlTools.cs)
   validates mode, identity and generation before changing native control. The
   return path reports active or revoked authority. This sample covers control

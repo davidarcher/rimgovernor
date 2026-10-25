@@ -25,7 +25,7 @@ public sealed partial record ForecastCoupledSelection(ForecastActivityOutcomeCom
     public EquatableArray<ForecastServiceInvestment> ServiceInvestments { get; init; }
     /// <summary>The eligible colonists the selection left unassigned while their needs stand above every threshold: they run vanilla work
     /// (#3669), and a later review reconsiders them. While any stands, the admin/work-assignments Need is
-    /// owed (<see cref="RoundsRules.WorkAssignmentsOwed"/>).</summary>
+    /// owed (<see cref="Rules.WorkAssignmentsOwed"/>).</summary>
     public EquatableArray<string> Deferred { get; init; }
     /// <summary>The search's spend per phase it reached (#3563): baseline, warm, seed, unserved, extend, confirm, sweep; after a
     /// planned-unplaced reselection (#3557) the second comparison's phases follow as <c>reselect/&lt;phase&gt;</c>. The phases'

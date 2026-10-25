@@ -4,9 +4,8 @@ using System.Linq;
 using RimGovernor.Brain.Domain;
 using RimWorld;
 using Verse;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 internal static class NativeDependentPatients
 {
@@ -38,9 +37,9 @@ internal static class NativeDependentPatients
         return result;
     }
 
-    internal static Obs.DependentPatientCensus Observe(Map map) => new()
+    internal static RimGovernor.Brain.GameFacts.Observations.DependentPatientCensus Observe(Map map) => new()
     {
-        Patients = EquatableArray.From(Read(map).Select(p => new Obs.DependentPatientObservation
+        Patients = EquatableArray.From(Read(map).Select(p => new RimGovernor.Brain.GameFacts.Observations.DependentPatientObservation
         { Pawn = NativePawnObservationTools.Ref(p.Pawn), Group = p.Group, Rescue = p.Rescue, Tend = p.Tend }))
     };
 }

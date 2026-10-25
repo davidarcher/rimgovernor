@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
@@ -26,8 +25,8 @@ public sealed record CustodyFacts
 
     public bool WillJoinIfRescued => Person.WillJoinIfRescued;
 
-    public required O.PopulationPerson Person { get; init; }
-    public required O.PawnState Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PopulationPerson Person { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PawnState Observed { get; init; }
     public PawnId Pawn => Person.Pawn;
 
     public bool Dead => Observed.Dead;

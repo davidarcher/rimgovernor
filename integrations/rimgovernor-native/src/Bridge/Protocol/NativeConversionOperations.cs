@@ -3,11 +3,8 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The ConversionIntent arm of Actions/Apply: the moral guide's Convert ability, ordered on one colonist of
     // another ideoligion. The ability is the one the guide's role grants (the effect comp is the game's
@@ -31,7 +28,7 @@ namespace HomeBridge.BridgeTools
         // The ability is charged: held, off cooldown and not already ordered.
         internal static bool Charged(Pawn pawn) => ConvertAbility(pawn) is { } ability && !ability.OnCooldown && !Ordered(pawn, ability);
 
-        private static Common.Failure Refuse(string guard, string detail, Common.FailureCode code = Common.FailureCode.InvalidRequest) =>
+        private static RimGovernor.Brain.GameFacts.Common.Failure Refuse(string guard, string detail, RimGovernor.Brain.GameFacts.Common.FailureCode code = RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest) =>
             NativeAbilityOperations.Refuse(code, guard, detail);
 
         private sealed class Cast
@@ -42,21 +39,21 @@ namespace HomeBridge.BridgeTools
         }
 
         private static Pawn? Colonist(string? id) =>
-            ProtoBoundary.IsIdentifier(id) ? global::Verse.Find.Maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned).ById(id) : null;
+            GameThread.IsIdentifier(id) ? global::Verse.Find.Maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned).ById(id) : null;
 
-        private static Common.Failure? Resolve(Operations.ConversionIntent? intent, out Cast? cast)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(RimGovernor.Brain.GameOrders.Operations.ConversionIntent? intent, out Cast? cast)
         {
             cast = null;
-            if (intent == null || !ProtoBoundary.IsIdentifier(intent.GuideId) || !ProtoBoundary.IsIdentifier(intent.TargetId))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A conversion requires a guide and a target pawn id.");
+            if (intent == null || !GameThread.IsIdentifier(intent.GuideId) || !GameThread.IsIdentifier(intent.TargetId))
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "A conversion requires a guide and a target pawn id.");
             if (!ModsConfig.IdeologyActive)
-                return Refuse("ideology", "Ideology is not active.", Common.FailureCode.Unavailable);
+                return Refuse("ideology", "Ideology is not active.", RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable);
             var guide = Colonist(intent.GuideId);
             if (guide == null || guide.Dead || guide.Downed)
-                return Refuse("guide", "The guide is not a standing free colonist on a map.", Common.FailureCode.NotFound);
+                return Refuse("guide", "The guide is not a standing free colonist on a map.", RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound);
             var target = Colonist(intent.TargetId);
             if (target == null || target.Dead)
-                return Refuse("target", "The target is not a living free colonist on a map.", Common.FailureCode.NotFound);
+                return Refuse("target", "The target is not a living free colonist on a map.", RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound);
             var ability = ConvertAbility(guide);
             if (ability == null)
                 return Refuse("ability", "The guide holds no Convert ability.");
@@ -79,29 +76,29 @@ namespace HomeBridge.BridgeTools
             if (!guide.CanReach(target, PathEndMode.Touch, Danger.Deadly))
                 return Refuse("range", "The guide cannot reach the target.");
             if (ability.ConfirmationDialog(info, () => { }) != null)
-                return Refuse("confirmation", "The game asks for a confirmation for this cast.", Common.FailureCode.Unsupported);
+                return Refuse("confirmation", "The game asks for a confirmation for this cast.", RimGovernor.Brain.GameFacts.Common.FailureCode.Unsupported);
             cast = new Cast { Guide = guide, Target = target, Ability = ability };
             return null;
         }
 
-        internal static Common.Failure? Validate(Operations.ConversionIntent? intent) => Resolve(intent, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.ConversionIntent? intent) => Resolve(intent, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.ConversionIntent? intent)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.ConversionIntent? intent)
         {
             var failure = Resolve(intent, out var cast);
             if (failure != null || cast == null)
-                throw new ApplyRefusedException(failure ?? ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Conversion prerequisites changed before apply."));
+                throw new ApplyRefusedException(failure ?? GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NativeFailure, "Conversion prerequisites changed before apply."));
             cast.Ability.QueueCastingJob(new LocalTargetInfo(cast.Target), LocalTargetInfo.Invalid);
             if (!Ordered(cast.Guide, cast.Ability))
                 throw new InvalidOperationException("Conversion order readback found no cast job on the guide.");
-            return new Receipts.EffectEvidence();
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence();
         }
     }
 
     internal sealed class ConversionActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeConversionOperations.Validate(action.Intent?.Conversion);
+        public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => NativeConversionOperations.Validate(action.Intent?.Conversion);
 
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeConversionOperations.Apply(action.Intent?.Conversion);
+        public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => NativeConversionOperations.Apply(action.Intent?.Conversion);
     }
 }

@@ -2,7 +2,6 @@ using System.Globalization;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Domain;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -84,9 +83,9 @@ internal static class ConstructionRouteLegsCase
         var plans = new[] { At(11, 1), At(11, 3), At(11, 5) };
         var open = At(12, 3);
         var walledIn = At(6, 1);
-        var request = new Observations.ConstructionActivityRequest(s.Identity, EquatableArray.From(plans.Select(c => new Building(Wall, c, Rotation.North, Stuff))))
+        var request = new RimGovernor.Brain.GameOrders.Observations.ConstructionActivityRequest(s.Identity, EquatableArray.From(plans.Select(c => new Building(Wall, c, Rotation.North, Stuff))))
         {
-            Routes = EquatableArray.From(new Observations.PlannedRouteProbe[]
+            Routes = EquatableArray.From(new RimGovernor.Brain.GameOrders.Observations.PlannedRouteProbe[]
             {
                 new(default, open, default) { FromStart = true },
                 new(default, walledIn, default) { FromStart = true },
@@ -133,20 +132,20 @@ internal static class ConstructionRouteLegsCase
     // What the read gets wrong about the site. Paused, the builder's: every blueprint's row priced in full, the open
     // route priced and the walled-in route unknown. Ticking (builder null), every free colonist's open route priced and
     // walled-in route unknown; the game's own job search may be delivering to the blueprints by then.
-    private static List<string> Problems(Observations.ConstructionActivityRead read, string? builder, Cell[] plans, Cell open, Cell walledIn)
+    private static List<string> Problems(RimGovernor.Brain.GameFacts.Observations.ConstructionActivityRead read, string? builder, Cell[] plans, Cell open, Cell walledIn)
     {
         var problems = new List<string>();
         if (builder == null)
         {
             // A colonist that wandered next to the open cell is priced 0.
             var openRoutes = read.Routes.Where(r => r.To == open).ToList();
-            if (openRoutes.Count == 0 || openRoutes.Any(r => r.Ticks is not Observations.RouteTicks.Reachable))
+            if (openRoutes.Count == 0 || openRoutes.Any(r => r.Ticks is not RimGovernor.Brain.GameFacts.Observations.RouteTicks.Reachable))
             {
                 problems.Add($"open route to {open.X},{open.Z}: {Describe(openRoutes)}");
             }
 
             var walledRoutes = read.Routes.Where(r => r.To == walledIn).ToList();
-            if (walledRoutes.Count != openRoutes.Count || walledRoutes.Any(r => r.Ticks is not Observations.RouteTicks.Unreachable))
+            if (walledRoutes.Count != openRoutes.Count || walledRoutes.Any(r => r.Ticks is not RimGovernor.Brain.GameFacts.Observations.RouteTicks.Unreachable))
             {
                 problems.Add($"walled-in route to {walledIn.X},{walledIn.Z}: {Describe(walledRoutes)}");
             }
@@ -164,7 +163,7 @@ internal static class ConstructionRouteLegsCase
             }
 
             var row = rows[0];
-            if (row.Resource != Stuff || !(row.SiteApproachTicks > 0) || row.Delivery is not Observations.ConstructionDelivery.Carried { ApproachTicks: > 0, DeliveryTicks: > 0 })
+            if (row.Resource != Stuff || !(row.SiteApproachTicks > 0) || row.Delivery is not RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery.Carried { ApproachTicks: > 0, DeliveryTicks: > 0 })
             {
                 problems.Add(string.Create(CultureInfo.InvariantCulture,
                     $"blueprint {plan.X},{plan.Z}: resource {row.Resource}, site approach {row.SiteApproachTicks}, delivery {row.Delivery}"));
@@ -178,7 +177,7 @@ internal static class ConstructionRouteLegsCase
         }
 
         var walledRows = read.Routes.Where(r => r.To == walledIn && r.Pawn == builder).ToList();
-        if (walledRows.Count != 1 || walledRows[0].Ticks is not Observations.RouteTicks.Unreachable)
+        if (walledRows.Count != 1 || walledRows[0].Ticks is not RimGovernor.Brain.GameFacts.Observations.RouteTicks.Unreachable)
         {
             problems.Add($"walled-in route to {walledIn.X},{walledIn.Z}: {Describe(walledRows)}");
         }
@@ -186,8 +185,8 @@ internal static class ConstructionRouteLegsCase
         return problems;
     }
 
-    private static bool Priced(Observations.RouteTicks ticks) => ticks is Observations.RouteTicks.Reachable(> 0);
+    private static bool Priced(RimGovernor.Brain.GameFacts.Observations.RouteTicks ticks) => ticks is RimGovernor.Brain.GameFacts.Observations.RouteTicks.Reachable(> 0);
 
-    private static string Describe(List<Observations.CoupledRoute> rows) =>
+    private static string Describe(List<RimGovernor.Brain.GameFacts.Observations.CoupledRoute> rows) =>
         rows.Count == 0 ? "no row" : string.Join(", ", rows.Select(r => string.Create(CultureInfo.InvariantCulture, $"{r.Pawn} {r.Ticks}")));
 }

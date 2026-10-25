@@ -1,0 +1,95 @@
+using System.Globalization;
+using System.Text;
+
+namespace RimGovernor.Brain.Runtime;
+
+public sealed partial class DefensePlanner
+{
+    /// <summary>
+    /// Commits the permit and psycast calls of a combat step as one <c>military/combat</c> Method,
+    /// <c>permit-&lt;hash of the calls&gt;</c>: the same calls continue their open Method.
+    /// </summary>
+    internal void CommitPermitCalls(GenerationSnapshot snapshot, IReadOnlyList<CombatOrder> calls, CancellationToken call, CancellationToken epoch)
+    {
+        if (calls.Count == 0)
+        {
+            return;
+        }
+        var id = PlanIds.MintPlanId();
+        var actions = PermitCallActions(id, calls);
+        var spec = new PlanSpec(id, new PlanRevision(1), actions);
+        var hash = new StringBuilder();
+        foreach (var c in calls)
+        {
+            hash.Append(CultureInfo.InvariantCulture, $"{c.Pawn.Value}/{c.Faction}/{c.Permit}/{c.Target.Value}/{c.Cell.X},{c.Cell.Z}\n");
+        }
+        var method = DefenseMethodId("permit", hash);
+        var p = _reviewer.Player;
+        p.Current(call, epoch);
+        p.Journal.CommitCombatMethod(snapshot, method, spec, call);
+    }
+}
+
+partial class DefensePlanner
+{
+    /// <summary>Splits the permit and psycast calls from the other orders of a combat decision.</summary>
+    internal static (List<CombatOrder> Others, List<CombatOrder> Calls) SplitPermitCalls(IReadOnlyList<CombatOrder> orders)
+    {
+        var rest = new List<CombatOrder>();
+        var calls = new List<CombatOrder>();
+        foreach (var order in orders)
+        {
+            if (order.Kind == Pol.CombatOrderKind.Permit || order.Kind == Pol.CombatOrderKind.Cast)
+            {
+                calls.Add(order);
+            }
+            else
+            {
+                rest.Add(order);
+            }
+        }
+        return (rest, calls);
+    }
+
+    internal static List<DomainAction> PermitCallActions(PlanId plan, IReadOnlyList<CombatOrder> calls)
+    {
+        var actions = new List<DomainAction>(calls.Count);
+        for (var i = 0; i < calls.Count; i++)
+        {
+            var (source, target) = CallAbility(calls[i]);
+            var ability = new Ability((Domain.PawnId)calls[i].Pawn, source, target);
+            actions.Add(DomainAction.NewAbilityAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{plan}-p{i}")), ability));
+        }
+        return actions;
+    }
+
+    internal static (AbilitySource Source, AbilityTarget Target) CallAbility(CombatOrder call)
+    {
+        if (call.Kind != Pol.CombatOrderKind.Cast)
+        {
+            return (AbilitySource.PermitSource(call.Faction, call.Permit), AbilityTarget.AbilityCellTarget(call.Cell));
+        }
+        var source = AbilitySource.PsycastSource(call.Permit);
+        if (call.Arm == Pol.PsycastTarget.Self)
+        {
+            return (source, AbilityTarget.NoAbilityTarget());
+        }
+        if (call.Arm == Pol.PsycastTarget.Pawn)
+        {
+            return (source, AbilityTarget.AbilityPawnTarget((Domain.PawnId)call.Target));
+        }
+        if (call.Arm == Pol.PsycastTarget.Cell)
+        {
+            return (source, AbilityTarget.AbilityCellTarget(call.Cell));
+        }
+        throw new DomainException($"psycast cast of {call.Permit} has no target arm");
+    }
+
+    /// <summary>The memory the decision produced with the permit and cast marks of the memory it started from.</summary>
+    internal static CombatMemory WithoutPermitMarks(CombatMemory next, CombatMemory memory)
+    {
+        next.Permitted = [.. memory.Permitted];
+        next.Casts = [.. memory.Casts];
+        return next;
+    }
+}

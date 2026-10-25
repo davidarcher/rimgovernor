@@ -22,7 +22,7 @@ public static class ReadRoutes
     private static readonly RouteOptions Bounded = new() { MaxBodyBytes = StrictJson.Limit };
 
     /// <summary>Registers the state and plan routes, and the routines and colony routes when their providers are given; dispose the result to remove them all.</summary>
-    public static IDisposable Register(RouteTable routes, ISnapshotProvider snapshots, IPlanReader plans, IRoundsProvider? rounds, IColonyStatusReader? colony)
+    public static IDisposable Register(RouteTable routes, ISnapshotProvider snapshots, IPlanReader plans, IReviewProvider? rounds, IColonyStatusReader? colony)
     {
         var registrations = new List<IDisposable>
         {
@@ -61,7 +61,7 @@ public static class ReadRoutes
         }
     }
 
-    private static async Task<ChannelResponse> RoutinesAsync(IRoundsProvider rounds, ChannelRequest request, CancellationToken ct)
+    private static async Task<ChannelResponse> RoutinesAsync(IReviewProvider rounds, ChannelRequest request, CancellationToken ct)
     {
         if (request.Query.Length != 0)
         {
@@ -70,9 +70,9 @@ public static class ReadRoutes
 
         try
         {
-            var status = await rounds.RoundsStatusAsync(ct).ConfigureAwait(false);
+            var status = await rounds.ReviewStatusAsync(ct).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
-            return ChannelResponse.Json(200, PlayerJson.Serialize(ReadProjections.Rounds(status)));
+            return ChannelResponse.Json(200, PlayerJson.Serialize(ReadProjections.ReviewState(status)));
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

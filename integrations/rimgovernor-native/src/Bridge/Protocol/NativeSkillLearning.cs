@@ -5,9 +5,8 @@ using RimWorld;
 using Verse;
 using RimGovernor.Runtime;
 using RimGovernor.Brain.Domain;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 internal static class NativeSkillLearning
 {
@@ -23,7 +22,7 @@ internal static class NativeSkillLearning
     internal static int Cadence(Pawn pawn) => Math.Max(1, Math.Min(15, pawn.UpdateRateTicks));
     internal static int Phase(Pawn pawn) => (Cadence(pawn) - pawn.HashOffsetTicks() % Cadence(pawn)) % Cadence(pawn);
 
-    internal static Obs.SkillLearning Read(Pawn pawn, SkillRecord skill)
+    internal static RimGovernor.Brain.GameFacts.Observations.SkillLearning Read(Pawn pawn, SkillRecord skill)
     {
         if (pawn.story?.traits == null) throw new InvalidOperationException("skill learning " + pawn.GetUniqueLoadID() + ": the pawn has no traits");
         var allowed = !(ModsConfig.AnomalyActive && pawn.IsMutant && !pawn.mutant.Def.canGainXP);
@@ -34,7 +33,7 @@ internal static class NativeSkillLearning
             // This reads native decay (including traits), rather than copying its level/trait table.
             var probe = new SkillRecord(pawn, skill.def) { levelInt = level, xpSinceLastLevel = 0 };
             if (allowed) probe.Interval();
-            return new Obs.SkillLevelMechanics(level, SkillRecord.XpRequiredToLevelUpFrom(level), -probe.xpSinceLastLevel);
+            return new RimGovernor.Brain.GameFacts.Observations.SkillLevelMechanics(level, SkillRecord.XpRequiredToLevelUpFrom(level), -probe.xpSinceLastLevel);
         });
         var interval = SkillRecord.IntervalTicks;
         var next = interval - ((pawn.HashOffsetTicks() % interval + interval) % interval);
@@ -72,11 +71,11 @@ internal static class NativeSkillLearning
             ValidForTicks = Math.Min(localRemaining, globalRemaining), NextMidnightReset = nextReset,
             TrackerIntervalTicks = cadence, TrackerPhase = phase, TrackerElapsedTicks = elapsed, Levels = EquatableArray.From(levels),
             Practice = skill.def == SkillDefOf.Shooting
-                ? new Obs.SkillPractice.Range(RangeTraining.CanTrain(pawn, skill.def), RangeTraining.Eligible(pawn, skill.def),
+                ? new RimGovernor.Brain.GameFacts.Observations.SkillPractice.Range(RangeTraining.CanTrain(pawn, skill.def), RangeTraining.Eligible(pawn, skill.def),
                     RangeTraining.CeilingFor(skill.def), RangeTraining.Remaining(pawn), RangeTraining.DailyXpBudget)
                 : skill.def == SkillDefOf.Melee
-                    ? new Obs.SkillPractice.Sparring(RangeTraining.CanTrain(pawn, skill.def), SparringBouts.Eligible(pawn), RangeTraining.CeilingFor(skill.def))
-                    : new Obs.SkillPractice.None(),
+                    ? new RimGovernor.Brain.GameFacts.Observations.SkillPractice.Sparring(RangeTraining.CanTrain(pawn, skill.def), SparringBouts.Eligible(pawn), RangeTraining.CeilingFor(skill.def))
+                    : new RimGovernor.Brain.GameFacts.Observations.SkillPractice.None(),
         };
     }
 }

@@ -1,12 +1,11 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
-using Wl = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// Starts a programmatic scenario from the main menu through the production new-colony op
-/// (<c>rimgovernor/lifecycle_new_colony</c>); the value type is
+/// (<c>lifecycle_new_colony</c>); the value type is
 /// <see cref="ScenarioSpec"/>. It is how a save variant is generated rather than hand-played. The seed is required
 /// and pins the world; the team policy's rerolls make a colony differ from one a different build generated.
 /// </summary>
@@ -24,7 +23,7 @@ public static class ScenarioStarts
     /// The op's spec for <paramref name="spec"/>: its parts with the base members set. The spec's Storyteller wins; empty
     /// takes <paramref name="defaultStoryteller"/>. A temperature band of 0..0 or the unconstrained -100..100 is left out.
     /// </summary>
-    public static Wl.NewColonySpec Spec(ScenarioSpec spec, string defaultStoryteller)
+    public static RimGovernor.Brain.GameOrders.Lifecycle.NewColonySpec Spec(ScenarioSpec spec, string defaultStoryteller)
     {
         ArgumentNullException.ThrowIfNull(spec);
         if (spec.Seed.Length == 0)
@@ -34,15 +33,15 @@ public static class ScenarioStarts
 
         var size = spec.Size.WithDefaults();
         var constrained = (spec.MinTemperature != 0 || spec.MaxTemperature != 0) && (spec.MinTemperature != -100 || spec.MaxTemperature != 100);
-        return new Wl.NewColonySpec
+        return new RimGovernor.Brain.GameOrders.Lifecycle.NewColonySpec
         {
             StartingThings = [.. spec.Parts.StartingThings],
             ForcedTraits = [.. spec.Parts.ForcedTraits],
             ForcedHediffs = [.. spec.Parts.ForcedHediffs],
             Naked = [.. spec.Parts.Naked],
             SetNeedLevels = [.. spec.Parts.SetNeedLevels],
-            PlayerFaction = Wl.ScenarioPlayerFaction.Base,
-            ArrivalMethod = Wl.ScenarioArrivalMethod.Base,
+            PlayerFaction = RimGovernor.Brain.GameOrders.Lifecycle.ScenarioPlayerFaction.Base,
+            ArrivalMethod = RimGovernor.Brain.GameOrders.Lifecycle.ScenarioArrivalMethod.Base,
             GovernorIdeoligion = false,
             Scenario = spec.Scenario,
             ColonistCount = (uint)spec.Count,
@@ -55,8 +54,8 @@ public static class ScenarioStarts
             Biomes = [.. SplitBiomes(spec.Biome)],
             FlatTile = spec.Flat,
             WorldTemperature = spec.WorldTemperature.Length > 0 ? spec.WorldTemperature : null,
-            MinTemperature = constrained ? new Wl.TemperatureLimit.AtCase((float)spec.MinTemperature) : new Wl.TemperatureLimit.OpenCase(),
-            MaxTemperature = constrained ? new Wl.TemperatureLimit.AtCase((float)spec.MaxTemperature) : new Wl.TemperatureLimit.OpenCase(),
+            MinTemperature = constrained ? new RimGovernor.Brain.GameOrders.Lifecycle.TemperatureLimit.AtCase((float)spec.MinTemperature) : new RimGovernor.Brain.GameOrders.Lifecycle.TemperatureLimit.OpenCase(),
+            MaxTemperature = constrained ? new RimGovernor.Brain.GameOrders.Lifecycle.TemperatureLimit.AtCase((float)spec.MaxTemperature) : new RimGovernor.Brain.GameOrders.Lifecycle.TemperatureLimit.OpenCase(),
         };
     }
 

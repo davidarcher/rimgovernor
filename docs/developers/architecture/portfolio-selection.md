@@ -2,7 +2,7 @@
 
 [Architecture](overview.md) · [ColonyForecast](colony-forecast.md) · [Activity contract](../contracts/pawn-activities.md)
 
-Normal Rounds generates alternatives from one native frame, compares their
+Normal Colony review generates alternatives from one native frame, compares their
 coupled ColonyForecast consequences, then binds the selected graph through
 the WorkAssignments Concern and existing Method journal. Hands remains the
 only order writer. The path is enabled for observed food, needs, existing
@@ -84,14 +84,14 @@ priced), since its credit already counts them. Its sites are still emitted and e
   it: what the credit leaves out (the hospital's, #3804), or a part it could not price (`ContainmentCell`'s, #3811).
 - `context.Priced(room)` is the derived priced test, `PlannedRoomCredits.PricedRelief(context)`
   the relief needs a priced room takes out of the development count. Material charges,
-  Selection's placed-ring roots and the Rounder's wall swaps read the same derived set.
+  Selection's placed-ring roots and the ColonyReview's wall swaps read the same derived set.
 - `PlannedRoomCredits.ServiceDays(context, finishedAt, horizon)` gives each room its service day:
   the day its one reconcile owes nothing (sites, placed ring pieces, floors and removals on its
   cells, all one job). Inside the schedule it is the last item's finish; left owing, it is the
   cumulative owed work (`Context.OwedWork`: finished work first, then started rooms, then the
   rest, each by its remaining work) over `PlannedBuilders`, never before the horizon.
   A blocked piece it owes (#3827: `Context.BlockedItems`, the round's read of the one predicate
-  `PlannedRoomDone` uses, `RoundsBuildingPlanner.DefinitionBlockedOf`) delays nothing: the room
+  `PlannedRoomDone` uses, `BuildingPlanner.DefinitionBlockedOf`) delays nothing: the room
   serves from the day the rest is finished. A piece with no row for any other reason still leaves
   the room unassessed.
 - Connectors (#3815, P4) have no credit: a circulation corridor and an airlock are prerequisites
@@ -232,7 +232,7 @@ which the chosen subset first led (`selected_phase`) and whether the previous se
 the search (`warm_start`) ([signals](../contracts/otel-signals.md#kinds)). A tiled replan
 hands an unbuilt planned room a new id, so a previous id naming a room no longer in the plan is pointed at the
 current room of the same role whose floor overlaps the remembered one before the search
-(`RoundsRules.WarmStartOf`, the rooms remembered with the selection; `warm_translated` counts them, #3556). See
+(`Rules.WarmStartOf`, the rooms remembered with the selection; `warm_translated` counts them, #3556). See
 [the measured cost](../testing/portfolio-allocations.md#fixpoint-extension-with-screened-evaluation-3215)
 and the [first extension](../testing/portfolio-allocations.md#incumbent-seeded-extension-3197).
 
@@ -329,7 +329,7 @@ allocations and unselected-pawn defers join the selection (finding
 `planned_unplaced_reselected`): the record places the planned sites while the
 orders start the startable work, and vanilla work is the fallback only when nothing
 startable is worth selecting (#3557, #3669). Each review keeps the latest known comparison's planned-room selection
-in memory (`Rounder.RoomSelection`, a `ReviewMemory<PlannedSelection>`): the
+in memory (`ColonyReview.RoomSelection`, a `ReviewMemory<PlannedSelection>`): the
 rooms it assessed (a valued alternative in `Context.PlannedRooms`) and the
 selected sites with their op, def, stuff and cells. A review that compared
 nothing keeps the record; a room observed started drops its sites. An unstarted
@@ -370,7 +370,7 @@ unresearched, or whose stuff options, stock and map sources are read and offer
 none (`PieceBlockedOf`; an unread fact blocks nothing, #3819), so a bed waiting on
 ComplexFurniture does not keep its builders on the room, while an owed wall,
 door, floor or roof does. Each room reconcile records its room's answer
-(`Rounder.DoneRooms`, latest wins, envelope calls excluded); a started room with
+(`ColonyReview.DoneRooms`, latest wins, envelope calls excluded); a started room with
 no answer yet is open. The open rooms are the forecast's `OpenRooms`.
 
 `ReconcileRoomAsync` gates an unstarted planned room on that record
@@ -413,7 +413,7 @@ A room's closure and roof are valued through their consequences, not only as
 requested development (#3339,
 [roof and room consequences](colony-forecast.md#roof-and-room-consequences)): the
 owner's bed thought from the room's predicted role and stage, the outdoors need,
-undergrounder and weather thoughts, food deterioration under the roof, and the
+undergreview coordinator and weather thoughts, food deterioration under the roof, and the
 x0.8 bench speed lifted by closure. These move the mood (`BreakRisk`) and food
 tiers; the tier ordering is unchanged. Closing a walls-only room can therefore win
 on mood alone, and an awful barracks honestly loses to sleeping outside. A bench's

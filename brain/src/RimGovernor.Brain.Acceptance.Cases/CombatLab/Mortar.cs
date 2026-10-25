@@ -1,5 +1,3 @@
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -46,8 +44,8 @@ internal static class CombatLabMortar
         var mortar = lab.Cell(0, -15);
         var chunk = lab.Cell(-3, -9);
         var target = lab.Cell(0, 20);
-        static Operations.CombatOrderOrder.MortarFireCase Fire(RimGovernor.Brain.Domain.Cell mortar, RimGovernor.Brain.Domain.Cell? target) =>
-            new(new Operations.CombatMortarFire { Mortar = mortar, Aim = target is {} at ? new Operations.MortarAim.At(at) : new Operations.MortarAim.Cleared() });
+        static RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.MortarFireCase Fire(RimGovernor.Brain.Domain.Cell mortar, RimGovernor.Brain.Domain.Cell? target) =>
+            new(new RimGovernor.Brain.GameOrders.Operations.CombatMortarFire { Mortar = mortar, Aim = target is {} at ? new RimGovernor.Brain.GameOrders.Operations.MortarAim.At(at) : new RimGovernor.Brain.GameOrders.Operations.MortarAim.Cleared() });
 
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
         await CombatLabKit.DraftAsync(s, colonists, cancellationToken).ConfigureAwait(false);
@@ -55,11 +53,11 @@ internal static class CombatLabMortar
             s,
             "mortar",
             cancellationToken,
-            CombatLabKit.Order(colonists[0], new Operations.CombatOrderOrder.AttackCase(CombatLabKit.Pawn(part))),
+            CombatLabKit.Order(colonists[0], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AttackCase(CombatLabKit.Pawn(part))),
             CombatLabKit.Order(null, Fire(mortar, target)),
-            CombatLabKit.Order(colonists[1], new Operations.CombatOrderOrder.ManMortarCase(mortar)),
+            CombatLabKit.Order(colonists[1], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.ManMortarCase(mortar)),
             CombatLabKit.Order(null, Fire(chunk, target)),
-            CombatLabKit.Order(colonists[2], new Operations.CombatOrderOrder.ManMortarCase(chunk))).ConfigureAwait(false);
+            CombatLabKit.Order(colonists[2], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.ManMortarCase(chunk))).ConfigureAwait(false);
         CombatLabKit.Applied("attack part", results[0], "AttackStatic");
         CombatLabKit.Applied("mortar_fire", results[1]);
         CombatLabKit.Applied("man_mortar", results[2], "ManTurret");

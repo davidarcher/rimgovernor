@@ -69,7 +69,7 @@ public static partial class ReadingPolicyRules
             }
             foreach (var s in pawn.Skills)
             {
-                if (!s.Disabled && s.Passion != RimGovernor.Contracts.Wire.Observations.Passion.None)
+                if (!s.Disabled && s.Passion != RimGovernor.Brain.GameFacts.Observations.Passion.None)
                 {
                     want.Add(BookKind.Textbook);
                 }

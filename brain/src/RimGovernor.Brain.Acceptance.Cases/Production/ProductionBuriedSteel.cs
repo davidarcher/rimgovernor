@@ -1,8 +1,5 @@
 using RimGovernor.Brain.Bridge;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -92,9 +89,9 @@ internal static class ProductionBuriedSteel
         var site = staged.Site ?? throw new AcceptanceException("stage: no site");
         var access = new RimGovernor.Brain.Domain.Cell { X = site.X, Z = site.Z + Face[0].Z };
 
-        async Task<Observations.ExcavationSiteSnapshot> ReadAsync(string label, IEnumerable<Fx.StageCell> cells)
+        async Task<RimGovernor.Brain.GameFacts.Observations.ExcavationSiteSnapshot> ReadAsync(string label, IEnumerable<Fx.StageCell> cells)
         {
-            var snapshot = await s.CallAsync(label, NativeOps.ReadExcavationSite, new Observations.ExcavationSiteRequest
+            var snapshot = await s.CallAsync(label, NativeOps.ReadExcavationSite, new RimGovernor.Brain.GameOrders.Observations.ExcavationSiteRequest
             {
                 Scope = s.Scope,
                 Cells = [.. cells.Select(c => new RimGovernor.Brain.Domain.Cell { X = c.X, Z = c.Z })],
@@ -105,9 +102,9 @@ internal static class ProductionBuriedSteel
         }
 
         var problems = new List<string>();
-        void Deposit(string name, Observations.ExcavationSiteSnapshot read, bool fogged)
+        void Deposit(string name, RimGovernor.Brain.GameFacts.Observations.ExcavationSiteSnapshot read, bool fogged)
         {
-            if (read.Support != Observations.ExcavationSupport.Supported)
+            if (read.Support != RimGovernor.Brain.GameFacts.Observations.ExcavationSupport.Supported)
             {
                 problems.Add($"{name}: want SUPPORTED, got {read.Support} ({read.SupportBlocker})");
             }
@@ -124,7 +121,7 @@ internal static class ProductionBuriedSteel
         var hollow = await ReadAsync("hollow", from x in Enumerable.Range(site.X + BlockX + 1, BlockSide - 2)
                                                from z in Enumerable.Range(site.Z + 1, BlockSide - 2)
                                                select new Fx.StageCell(x, z)).ConfigureAwait(false);
-        if (hollow.Support != Observations.ExcavationSupport.Unsupported)
+        if (hollow.Support != RimGovernor.Brain.GameFacts.Observations.ExcavationSupport.Unsupported)
         {
             problems.Add($"hollowed block: want UNSUPPORTED, got {hollow.Support}");
         }
@@ -182,20 +179,20 @@ internal static class ProductionBuriedSteel
         var at = ore.Cells.Single();
         var cell = new RimGovernor.Brain.Domain.Cell { X = at.X, Z = at.Z };
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
-        var apply = await s.CallAsync("designate", NativeOps.Apply, new Operations.ApplyRequest
+        var apply = await s.CallAsync("designate", NativeOps.Apply, new RimGovernor.Brain.GameOrders.Operations.ApplyRequest
         {
             Identity = s.Identity,
             Actions =
             [
-                new Operations.Action
+                new RimGovernor.Brain.GameOrders.Operations.Action
                 {
                     Key = "mine-ore",
-                    Intent = new Operations.DesignateIntent
+                    Intent = new RimGovernor.Brain.GameOrders.Operations.DesignateIntent
                     {
-                        Designation = Operations.ThingDesignation.Mine,
-                        Target = new Common.Ref { Id = ore.Ids.Single() },
-                        Location = new Operations.DesignationLocation.At(cell),
-                        Guard = Operations.DesignationGuard.Acquisition,
+                        Designation = RimGovernor.Brain.GameOrders.Operations.ThingDesignation.Mine,
+                        Target = new RimGovernor.Brain.GameFacts.Common.Ref { Id = ore.Ids.Single() },
+                        Location = new RimGovernor.Brain.GameOrders.Operations.DesignationLocation.At(cell),
+                        Guard = RimGovernor.Brain.GameOrders.Operations.DesignationGuard.Acquisition,
                         ExpectedDef = "Steel", ReplaceWithWall = false, Withdraw = false },
                 },
             ], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
@@ -204,20 +201,20 @@ internal static class ProductionBuriedSteel
             throw new AcceptanceException($"designate: want one applied mine, got {apply.BatchFailure} {string.Join("; ", apply.Results)}");
         }
 
-        Observations.ExcavationCell? row = null;
-        Observations.BuildingState? wall = null;
+        RimGovernor.Brain.GameFacts.Observations.ExcavationCell? row = null;
+        RimGovernor.Brain.GameFacts.Observations.BuildingState? wall = null;
         _ = await s.RunUntilAsync("mined", 15000, async ct =>
         {
-            var site = await s.CallAsync("ore-cell", NativeOps.ReadExcavationSite, new Observations.ExcavationSiteRequest
+            var site = await s.CallAsync("ore-cell", NativeOps.ReadExcavationSite, new RimGovernor.Brain.GameOrders.Observations.ExcavationSiteRequest
             {
                 Scope = s.Scope,
                 Cells = [cell],
                 AccessCell = cell,
             }, ct).ConfigureAwait(false);
             row = site.Cells.Single();
-            var buildings = await s.BuildingsAsync("blueprints", new Observations.ListBuildingsRequest(), ct).ConfigureAwait(false);
-            wall = buildings.FirstOrDefault(b => b is { Status: Observations.BuildingStatus.Blueprint, Construction: Observations.ConstructionState.Build { Definition: "Wall" } }
-                && b.Building.Place is Observations.EntityPlace.OnMap { Cell: var cell } && cell.X == at.X && cell.Z == at.Z);
+            var buildings = await s.BuildingsAsync("blueprints", new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest(), ct).ConfigureAwait(false);
+            wall = buildings.FirstOrDefault(b => b is { Status: RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Blueprint, Construction: RimGovernor.Brain.GameFacts.Observations.ConstructionState.Build { Definition: "Wall" } }
+                && b.Building.Place is RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap { Cell: var cell } && cell.X == at.X && cell.Z == at.Z);
             var mined = row.Definition is null;
             return (Wait.Signature(row.MineDesignated, row.Definition, wall?.Building?.Id), mined && wall is not null);
         }, cancellationToken).ConfigureAwait(false);

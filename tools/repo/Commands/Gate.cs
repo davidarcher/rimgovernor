@@ -24,7 +24,7 @@ internal static class Gate
         "native-roof-support", "native-designation-guards", "native-home-coverage", "native-construction-tier-gate",
         "native-time-controls", "native-clock-face", "native-clock-ceiling", "native-clock-speed", "native-clock-hold-serial", "native-clock-speed-request", "native-team-policy", "native-traffic-counts", "native-sighting-log",
         "native-production-bill-settings", "native-observation-work", "native-idle-exit", "native-shutdown", "native-work-rows", "native-daylight-hours",
-        "native-threat-classifier", "native-acquisition-token", "native-ref-index", "native-proto-boundary",
+        "native-threat-classifier", "native-acquisition-token", "native-ref-index", "native-game-thread",
     ];
 
     private sealed record Paths(string Repo)
@@ -73,7 +73,7 @@ internal static class Gate
             probes,
             "build native contract probes",
             ["build", "NativeContractProbes.csproj", .. Strict, $"-p:OutputPath={p.Probes}/bin/", $"-p:BaseIntermediateOutputPath={p.Probes}/obj/",
-                $"-p:BrainBinDir={p.Bin("RimGovernor.Brain.Contracts")}", $"-p:ChannelBinDir={p.Bin("RimGovernor.Brain.HttpChannel")}"],
+                $"-p:BrainBinDir={p.Bin("RimGovernor.Brain.GameFacts")}", $"-p:OrdersBinDir={p.Bin("RimGovernor.Brain.GameOrders")}", $"-p:ChannelBinDir={p.Bin("RimGovernor.Brain.HttpChannel")}"],
             ct).ConfigureAwait(false);
         if (!File.Exists(p.Harmony))
         {
@@ -208,7 +208,7 @@ internal static class Gate
             var native = Directory.EnumerateFiles(Path.Combine(p.Mod, "RimGovernor"), "RimGovernor.*.dll", SearchOption.AllDirectories)
                 .Where(f => !Path.GetFileName(f).StartsWith("RimGovernor.Brain.", StringComparison.Ordinal))
                 .ToList();
-            foreach (var (target, project) in new[] { (ContractOrphans.Wire, "RimGovernor.Brain.Contracts"), (ContractOrphans.PolicyRecords, "RimGovernor.Brain.Policy") })
+            foreach (var (target, project) in new[] { (ContractOrphans.Facts, "RimGovernor.Brain.GameFacts"), (ContractOrphans.Orders, "RimGovernor.Brain.GameOrders"), (ContractOrphans.PolicyRecords, "RimGovernor.Brain.Policy") })
             {
                 var declaring = Path.Combine(p.Bin(project), project + ".dll");
                 found.AddRange(ContractOrphans.Find(

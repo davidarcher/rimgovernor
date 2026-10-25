@@ -39,14 +39,14 @@ public static partial class LayoutRoofRules
     /// <summary>Whether a seasonal outdoor temperature curve peaks above the temperature planner's HotEnter. An empty curve is not hot.</summary>
     public static bool HotMapCurve(IEnumerable<double> curve)
     {
-        var hot = RoundsRules.DefaultRoundsPolicy().HotEnter;
+        var hot = Rules.DefaultPlannerSettings().HotEnter;
         return curve.Any(t => t > hot);
     }
 
     /// <summary>The temperature range pawns are comfortable in: the temperature planner's cold and hot limits.</summary>
     public static Band ComfortBand()
     {
-        var p = RoundsRules.DefaultRoundsPolicy();
+        var p = Rules.DefaultPlannerSettings();
         return new Band { MinC = p.ColdEnter, MaxC = p.HotEnter };
     }
 

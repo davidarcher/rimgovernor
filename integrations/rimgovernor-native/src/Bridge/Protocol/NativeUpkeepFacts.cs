@@ -4,15 +4,12 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Defs = RimGovernor.Contracts.Wire.Defs;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 using DomainCell = RimGovernor.Brain.Domain.Cell;
 using DomainWire = RimGovernor.Brain.Domain.Wire;
 using PawnId = RimGovernor.Brain.Domain.PawnId;
-using static HomeBridge.BridgeTools.NativePawnObservationTools;
+using static RimGovernor.Native.NativePawnObservationTools;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Complete censuses read whole: a census that cannot be read throws and fails the
     // colony read. The enclosing colony boundary still enforces its one-MiB limit.
@@ -50,15 +47,15 @@ namespace HomeBridge.BridgeTools
         }
 
         // The Home census, read whole: a failed read throws and the upkeep section fails with it (#3771).
-        internal static Obs.HomeCoverageFacts ReadHomeCoverage(Map map)
+        internal static RimGovernor.Brain.GameFacts.Observations.HomeCoverageFacts ReadHomeCoverage(Map map)
         {
             var home = map.areaManager.Home;
             var state = HomeCoverage.State(map);
-            var targets = new List<Obs.HomeCoverageTarget>();
+            var targets = new List<RimGovernor.Brain.GameFacts.Observations.HomeCoverageTarget>();
             foreach (var target in HomeCoverage.Targets(map).OrderBy(id => id, StringComparer.Ordinal)) {
                 var full = HomeCoverage.FullScope(map, target);
                 if (full == null) {
-                    targets.Add(new Obs.HomeCoverageTarget.Unscoped(Id(target)));
+                    targets.Add(new RimGovernor.Brain.GameFacts.Observations.HomeCoverageTarget.Unscoped(Id(target)));
                     continue;
                 }
                 var corridor = new List<DomainCell>();
@@ -76,10 +73,10 @@ namespace HomeBridge.BridgeTools
                     // A stockpile's whole footprint, unbatched: colony extent takes every census stockpile.
                     zone.AddRange(full.OrderBy(c => c.x).ThenBy(c => c.z).Select(Spot));
                 }
-                targets.Add(new Obs.HomeCoverageTarget.Scoped(Id(target), new Obs.HomeExtentGeometry([.. enclosedInterior], [.. corridor], [.. zone])));
+                targets.Add(new RimGovernor.Brain.GameFacts.Observations.HomeCoverageTarget.Scoped(Id(target), new RimGovernor.Brain.GameFacts.Observations.HomeExtentGeometry([.. enclosedInterior], [.. corridor], [.. zone])));
             }
             var settings = Find.PlaySettings ?? throw new InvalidOperationException("Find.PlaySettings is unavailable");
-            return new Obs.HomeCoverageFacts {
+            return new RimGovernor.Brain.GameFacts.Observations.HomeCoverageFacts {
                 Revision = state.Revision, AutoHomeArea = settings.autoHomeArea,
                 HomeCells = [.. home.ActiveCells.Select(Spot)], Targets = [.. targets]
             };
@@ -88,17 +85,17 @@ namespace HomeBridge.BridgeTools
         // The lighting census, read whole: a failed read throws and the upkeep section fails with it (#3831).
         // Work cells are the interaction cells of colonist benches (work tables and research benches): the cell a
         // pawn stands on while working, which is what RimWorld's darkness penalties measure.
-        internal static Obs.LightingFacts ReadLighting(Map map, ThingSets sets)
+        internal static RimGovernor.Brain.GameFacts.Observations.LightingFacts ReadLighting(Map map, ThingSets sets)
         {
             var benches = sets.PlayerBuildings.Where(b => b.def.hasInteractionCell
                 && (b is Building_WorkTable || b is Building_ResearchBench)).OrderBy(b => b.thingIDNumber);
             var lamps = sets.PlayerBuildings.Where(b => b.TryGetComp<CompGlower>() != null).OrderBy(b => b.thingIDNumber);
-            return new Obs.LightingFacts {
+            return new RimGovernor.Brain.GameFacts.Observations.LightingFacts {
                 WorkCells = [.. benches.Select(b => {
                     var cell = b.InteractionCell;
-                    return new Obs.WorkLightCell(Id(b.GetUniqueLoadID()), Spot(cell), Number(map.glowGrid.GroundGlowAt(cell)), cell.Roofed(map), [.. PlantDefs(map, cell)]);
+                    return new RimGovernor.Brain.GameFacts.Observations.WorkLightCell(Id(b.GetUniqueLoadID()), Spot(cell), Number(map.glowGrid.GroundGlowAt(cell)), cell.Roofed(map), [.. PlantDefs(map, cell)]);
                 })],
-                Lamps = [.. lamps.Select(b => new Obs.LampState(Id(b.GetUniqueLoadID()), b.TryGetComp<CompGlower>().Glows))]
+                Lamps = [.. lamps.Select(b => new RimGovernor.Brain.GameFacts.Observations.LampState(Id(b.GetUniqueLoadID()), b.TryGetComp<CompGlower>().Glows))]
             };
         }
 
@@ -116,10 +113,10 @@ namespace HomeBridge.BridgeTools
 
         // The upkeep censuses, read whole (#3832): a census native cannot read throws and fails the colony read. Routes
         // stays a section a failed read leaves null (#3782).
-        internal static Obs.UpkeepFacts Read(Map map, ThingSets sets, Obs.HomeCoverageFacts home, Obs.ComfortFacts comfort, Obs.LightingFacts lighting, uint? routePathBudgetMs = null)
+        internal static RimGovernor.Brain.GameFacts.Observations.UpkeepFacts Read(Map map, ThingSets sets, RimGovernor.Brain.GameFacts.Observations.HomeCoverageFacts home, RimGovernor.Brain.GameFacts.Observations.ComfortFacts comfort, RimGovernor.Brain.GameFacts.Observations.LightingFacts lighting, uint? routePathBudgetMs = null)
         {
             var colony = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead).OrderBy(p => p.thingIDNumber).ToList();
-            return new Obs.UpkeepFacts {
+            return new RimGovernor.Brain.GameFacts.Observations.UpkeepFacts {
                 Comfort = comfort, HomeCoverage = home, Lighting = lighting,
                 Items = Timed("items", () => Items(map, sets)),
                 Structures = Timed("structures", () => Structures(map, sets)),
@@ -157,7 +154,7 @@ namespace HomeBridge.BridgeTools
         // would otherwise keep the SecureSupplies deficit open forever. A settled stored stack (roofed, or not
         // deteriorating) is no target of any upkeep concern: only unstored rows and deteriorating unroofed ones are
         // selected. Medicine stays for the reserve count.
-        private static RimGovernor.Brain.Domain.EquatableArray<Obs.UpkeepItem> Items(Map map, ThingSets sets)
+        private static RimGovernor.Brain.Domain.EquatableArray<RimGovernor.Brain.GameFacts.Observations.UpkeepItem> Items(Map map, ThingSets sets)
         {
             var rows = sets.Items.Where(t => !t.def.IsCorpse
                 && (t.Faction == null || t.Faction == Faction.OfPlayerSilentFail)
@@ -169,17 +166,17 @@ namespace HomeBridge.BridgeTools
                 .OrderBy(t => t.thingIDNumber);
             return [.. rows.Select(t => {
                 var rot = t.TryGetComp<CompRottable>();
-                return new Obs.UpkeepItem {
+                return new RimGovernor.Brain.GameFacts.Observations.UpkeepItem {
                     Id = Id(t.GetUniqueLoadID()), Definition = Id(t.def.defName), Count = t.stackCount,
-                    Rot = rot != null && rot.Active ? new Obs.ItemRot.Rotting(Math.Max(0, rot.TicksUntilRotAtCurrentTemp)) : new Obs.ItemRot.Never(),
+                    Rot = rot != null && rot.Active ? new RimGovernor.Brain.GameFacts.Observations.ItemRot.Rotting(Math.Max(0, rot.TicksUntilRotAtCurrentTemp)) : new RimGovernor.Brain.GameFacts.Observations.ItemRot.Never(),
                     Forbidden = t.IsForbidden(Faction.OfPlayerSilentFail)
                 };
             })];
         }
 
         // Non-damageable markers (including sleeping spots) have a native -1 sentinel and cannot be repair targets.
-        private static RimGovernor.Brain.Domain.EquatableArray<Obs.UpkeepStructure> Structures(Map map, ThingSets sets) =>
-            [.. sets.PlayerBuildings.Where(b => b.def.useHitPoints).OrderBy(b => b.thingIDNumber).Select(b => new Obs.UpkeepStructure {
+        private static RimGovernor.Brain.Domain.EquatableArray<RimGovernor.Brain.GameFacts.Observations.UpkeepStructure> Structures(Map map, ThingSets sets) =>
+            [.. sets.PlayerBuildings.Where(b => b.def.useHitPoints).OrderBy(b => b.thingIDNumber).Select(b => new RimGovernor.Brain.GameFacts.Observations.UpkeepStructure {
                 Id = Id(b.GetUniqueLoadID()),
                 Home = b.OccupiedRect().All(c => map.areaManager.Home[c])
             })];
@@ -187,15 +184,15 @@ namespace HomeBridge.BridgeTools
         // Every proper indoor room the colony lives in (any cell in the home area, not psychologically outdoors) with the
         // terrain under each cell; the catalog's terrain rows carry the stats the rooms/flooring Need scores. A floor
         // blueprint or frame on a cell is reported as its pending terrain so the planner never doubles an open order.
-        private static Obs.FlooringFacts Flooring(Map map)
+        private static RimGovernor.Brain.GameFacts.Observations.FlooringFacts Flooring(Map map)
         {
             var rooms = map.regionGrid.AllRooms.Where(r => r.ProperRoom && !r.PsychologicallyOutdoors && !r.TouchesMapEdge
                 && !r.Fogged && r.Cells.Any(c => map.areaManager.Home[c])).OrderBy(r => r.ID);
-            return new Obs.FlooringFacts {
-                Rooms = [.. rooms.Select(r => new Obs.FloorRoom {
+            return new RimGovernor.Brain.GameFacts.Observations.FlooringFacts {
+                Rooms = [.. rooms.Select(r => new RimGovernor.Brain.GameFacts.Observations.FloorRoom {
                     Room = Id(r.ID.ToString(System.Globalization.CultureInfo.InvariantCulture)),
                     Role = RoleOf(r),
-                    Cells = [.. r.Cells.OrderBy(c => c.z).ThenBy(c => c.x).Select(c => new Obs.FloorCell {
+                    Cells = [.. r.Cells.OrderBy(c => c.z).ThenBy(c => c.x).Select(c => new RimGovernor.Brain.GameFacts.Observations.FloorCell {
                         Cell = Spot(c), Terrain = Id(c.GetTerrain(map).defName),
                         Pending = c.GetThingList(map).FirstOrDefault(t => (t is Blueprint || t is Frame) && t.def.entityDefToBuild is TerrainDef)?.def.entityDefToBuild.defName
                     })]
@@ -204,21 +201,21 @@ namespace HomeBridge.BridgeTools
         }
 
         // The room's role as the rooms census names it: a role def the wire enum does not list is Unrecognized.
-        private static Obs.RoomRole RoleOf(Room room)
+        private static RimGovernor.Brain.GameFacts.Observations.RoomRole RoleOf(Room room)
         {
             var role = room.Role ?? throw new InvalidOperationException("Native room has no role.");
-            return DomainWire.TryParse<Obs.RoomRole>(Id(role.defName), out var parsed) ? parsed : Obs.RoomRole.Unrecognized;
+            return DomainWire.TryParse<RimGovernor.Brain.GameFacts.Observations.RoomRole>(Id(role.defName), out var parsed) ? parsed : RimGovernor.Brain.GameFacts.Observations.RoomRole.Unrecognized;
         }
 
         // The routes census: a read native cannot make fails the colony read, like every other upkeep census (#3782).
-        private static Obs.RoutesFacts Routes(Map map, ThingSets sets, uint? routePathBudgetMs)
+        private static RimGovernor.Brain.GameFacts.Observations.RoutesFacts Routes(Map map, ThingSets sets, uint? routePathBudgetMs)
         {
             var began = System.Diagnostics.Stopwatch.GetTimestamp();
             try { return RoutesFacts(map, sets, routePathBudgetMs); }
             finally { ObservationWork.Detail("cf.upkeep.routes", System.Diagnostics.Stopwatch.GetTimestamp() - began); }
         }
 
-        private static Obs.RoutesFacts RoutesFacts(Map map, ThingSets sets, uint? routePathBudgetMs)
+        private static RimGovernor.Brain.GameFacts.Observations.RoutesFacts RoutesFacts(Map map, ThingSets sets, uint? routePathBudgetMs)
         {
             // Every facility a colonist must reach, with each mobile
             // colonist's native reachability from where they stand and
@@ -230,22 +227,22 @@ namespace HomeBridge.BridgeTools
             // border whose outer neighbour some colonist can stand on.
             var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && p.Spawned).OrderBy(p => p.thingIDNumber).ToList();
             var player = Faction.OfPlayerSilentFail;
-            var facilities = new List<(Thing thing, Obs.RouteFacilityKind kind, IntVec3 cell)>();
+            var facilities = new List<(Thing thing, RimGovernor.Brain.GameFacts.Observations.RouteFacilityKind kind, IntVec3 cell)>();
             foreach (var b in sets.PlayerBuildings.OfType<Building_Bed>().Where(b => b.def.building.bed_humanlike && !b.ForPrisoners).OrderBy(b => b.thingIDNumber))
-                facilities.Add((b, Obs.RouteFacilityKind.Bed, b.Position));
+                facilities.Add((b, RimGovernor.Brain.GameFacts.Observations.RouteFacilityKind.Bed, b.Position));
             foreach (var b in sets.PlayerBuildings.OfType<Building_WorkTable>().OrderBy(b => b.thingIDNumber))
-                facilities.Add((b, Obs.RouteFacilityKind.Bench, b.InteractionCell));
+                facilities.Add((b, RimGovernor.Brain.GameFacts.Observations.RouteFacilityKind.Bench, b.InteractionCell));
             foreach (var b in sets.PlayerBuildings.OfType<Building_Storage>().OrderBy(b => b.thingIDNumber))
-                facilities.Add((b, Obs.RouteFacilityKind.Storage, b.Position));
+                facilities.Add((b, RimGovernor.Brain.GameFacts.Observations.RouteFacilityKind.Storage, b.Position));
             foreach (var b in sets.PlayerBuildings.Where(b => b.def.surfaceType == SurfaceType.Eat).OrderBy(b => b.thingIDNumber))
-                facilities.Add((b, Obs.RouteFacilityKind.Dining, b.Position));
+                facilities.Add((b, RimGovernor.Brain.GameFacts.Observations.RouteFacilityKind.Dining, b.Position));
             foreach (var b in sets.PlayerBuildings.OfType<Building_Turret>().OrderBy(b => b.thingIDNumber))
-                facilities.Add((b, Obs.RouteFacilityKind.Defense, b.Position));
-            var rows = new List<Obs.RouteFacility>();
+                facilities.Add((b, RimGovernor.Brain.GameFacts.Observations.RouteFacilityKind.Defense, b.Position));
+            var rows = new List<RimGovernor.Brain.GameFacts.Observations.RouteFacility>();
             var measured = 0; long pathTicks = 0, reachTicks = 0;
             var skipped = 0;
             var pathBudgetTicks = routePathBudgetMs.HasValue ? routePathBudgetMs.Value * System.Diagnostics.Stopwatch.Frequency / 1000 : long.MaxValue;
-            Obs.RouteFacility Facility(string id, Obs.RouteFacilityKind kind, IntVec3 cell, Func<Pawn, bool> reaches, Func<Pawn, LocalTargetInfo> target, PathEndMode mode)
+            RimGovernor.Brain.GameFacts.Observations.RouteFacility Facility(string id, RimGovernor.Brain.GameFacts.Observations.RouteFacilityKind kind, IntVec3 cell, Func<Pawn, bool> reaches, Func<Pawn, LocalTargetInfo> target, PathEndMode mode)
             {
                 var room = cell.GetRoom(map);
                 // A door frame is walkable before the door stands, so a
@@ -255,7 +252,7 @@ namespace HomeBridge.BridgeTools
                 // instead of releasing on a half-built wall.
                 Thing? PendingDoor(IntVec3 c) => c.GetThingList(map).FirstOrDefault(t => (t is Blueprint || t is Frame) && t.def.entityDefToBuild is ThingDef td && td.IsDoor);
                 var crossed = new SortedDictionary<int, (IntVec3 cell, Thing door)>();
-                var travel = new List<Obs.RouteTravel>();
+                var travel = new List<RimGovernor.Brain.GameFacts.Observations.RouteTravel>();
                 foreach (var p in people)
                 {
                     var pawn = Id(p.GetUniqueLoadID());
@@ -264,13 +261,13 @@ namespace HomeBridge.BridgeTools
                     reachTicks += System.Diagnostics.Stopwatch.GetTimestamp() - rf0;
                     if (!reachable)
                     {
-                        travel.Add(new Obs.RouteTravel.Unreachable { Pawn = pawn });
+                        travel.Add(new RimGovernor.Brain.GameFacts.Observations.RouteTravel.Unreachable { Pawn = pawn });
                         continue;
                     }
                     if (pathTicks >= pathBudgetTicks)
                     {
                         skipped++;
-                        travel.Add(new Obs.RouteTravel.Skipped { Pawn = pawn });
+                        travel.Add(new RimGovernor.Brain.GameFacts.Observations.RouteTravel.Skipped { Pawn = pawn });
                         continue;
                     }
                     measured++;
@@ -279,7 +276,7 @@ namespace HomeBridge.BridgeTools
                     {
                         if (path.Found)
                         {
-                            travel.Add(new Obs.RouteTravel.Measured { Pawn = pawn, Cost = checked((int)Math.Min(path.TotalCost, int.MaxValue)), Cells = path.NodesLeftCount });
+                            travel.Add(new RimGovernor.Brain.GameFacts.Observations.RouteTravel.Measured { Pawn = pawn, Cost = checked((int)Math.Min(path.TotalCost, int.MaxValue)), Cells = path.NodesLeftCount });
                             foreach (var node in path.NodesReversed)
                             {
                                 var door = PendingDoor(node);
@@ -288,16 +285,16 @@ namespace HomeBridge.BridgeTools
                         }
                         else
                         {
-                            travel.Add(new Obs.RouteTravel.Unpathed { Pawn = pawn });
+                            travel.Add(new RimGovernor.Brain.GameFacts.Observations.RouteTravel.Unpathed { Pawn = pawn });
                         }
                     }
                     pathTicks += System.Diagnostics.Stopwatch.GetTimestamp() - pf0;
                 }
-                var breaches = new List<Obs.RouteBreach>();
-                if (travel.Any(t => t is not Obs.RouteTravel.Unreachable))
+                var breaches = new List<RimGovernor.Brain.GameFacts.Observations.RouteBreach>();
+                if (travel.Any(t => t is not RimGovernor.Brain.GameFacts.Observations.RouteTravel.Unreachable))
                 {
                     foreach (var (bc, door) in crossed.Values)
-                        breaches.Add(new Obs.RouteBreach { Cell = Spot(bc), Edifice = Id(door.def.defName), Pending = Id(door.def.entityDefToBuild.defName), Distance = 0 });
+                        breaches.Add(new RimGovernor.Brain.GameFacts.Observations.RouteBreach { Cell = Spot(bc), Edifice = Id(door.def.defName), Pending = Id(door.def.entityDefToBuild.defName), Distance = 0 });
                 }
                 else if (people.Count > 0 && room != null && room.ProperRoom && !room.TouchesMapEdge)
                 {
@@ -328,9 +325,9 @@ namespace HomeBridge.BridgeTools
                         candidates.Add((edge, edifice, pendingDoor?.def.entityDefToBuild.defName, best == int.MaxValue ? 0 : best));
                     }
                     foreach (var (bc, edifice, pending, distance) in candidates.OrderBy(b => b.distance).ThenBy(b => b.cell.z).ThenBy(b => b.cell.x))
-                        breaches.Add(new Obs.RouteBreach { Cell = Spot(bc), Edifice = Id(edifice), Pending = pending != null ? Id(pending) : null, Distance = distance });
+                        breaches.Add(new RimGovernor.Brain.GameFacts.Observations.RouteBreach { Cell = Spot(bc), Edifice = Id(edifice), Pending = pending != null ? Id(pending) : null, Distance = distance });
                 }
-                return new Obs.RouteFacility
+                return new RimGovernor.Brain.GameFacts.Observations.RouteFacility
                 {
                     Id = id,
                     Kind = kind,
@@ -351,22 +348,22 @@ namespace HomeBridge.BridgeTools
                 var cell = zone.Cells.OrderBy(c => c.z).ThenBy(c => c.x).FirstOrDefault(c => c.Standable(map));
                 if (cell == default) continue;
                 var id = Id("zone-" + zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture));
-                rows.Add(Facility(id, Obs.RouteFacilityKind.Stockpile, cell, p => p.CanReach(cell, PathEndMode.OnCell, Danger.Some), p => cell, PathEndMode.OnCell));
+                rows.Add(Facility(id, RimGovernor.Brain.GameFacts.Observations.RouteFacilityKind.Stockpile, cell, p => p.CanReach(cell, PathEndMode.OnCell, Danger.Some), p => cell, PathEndMode.OnCell));
             }
             // The game builds every MapComponent on every map, so a map without its traffic counter is a broken read.
             var counter = map.GetComponent<TrafficState>() ?? throw new InvalidOperationException("Map " + map.uniqueID + " has no TrafficState component.");
             // Every nonzero cell of each layer, busiest first;
             // TrafficSamples is the colonist layer's decayed total.
-            var traffic = new List<Obs.TrafficCell>();
+            var traffic = new List<RimGovernor.Brain.GameFacts.Observations.TrafficCell>();
             for (int layer = 0; layer < TrafficCounts.Layers; layer++)
                 foreach (var index in counter.Counts.Nonzero(layer))
                 {
                     var at = map.cellIndices.IndexToCell(index);
                     var pending = at.GetThingList(map).FirstOrDefault(t => (t is Blueprint || t is Frame) && t.def.entityDefToBuild is TerrainDef);
-                    traffic.Add(new Obs.TrafficCell
+                    traffic.Add(new RimGovernor.Brain.GameFacts.Observations.TrafficCell
                     {
                         Cell = Spot(at),
-                        Layer = (Obs.TrafficLayer)(layer + 1),
+                        Layer = (RimGovernor.Brain.GameFacts.Observations.TrafficLayer)(layer + 1),
                         Samples = counter.Counts[layer, index],
                         Terrain = Id(at.GetTerrain(map).defName),
                         Home = map.areaManager.Home[at],
@@ -375,7 +372,7 @@ namespace HomeBridge.BridgeTools
                 }
             ObservationWork.Detail("cf.upkeep.routes.path", pathTicks, measured + skipped);
             ObservationWork.Detail("cf.upkeep.routes.reach", reachTicks);
-            return new Obs.RoutesFacts
+            return new RimGovernor.Brain.GameFacts.Observations.RoutesFacts
             {
                 Facilities = [.. rows],
                 PawnIds = [.. people.Select(p => Id(p.GetUniqueLoadID()))],
@@ -384,22 +381,22 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static RimGovernor.Brain.Domain.EquatableArray<Obs.UpkeepPerson> People(IEnumerable<Pawn> people) =>
-            [.. people.Select(p => new Obs.UpkeepPerson {
+        private static RimGovernor.Brain.Domain.EquatableArray<RimGovernor.Brain.GameFacts.Observations.UpkeepPerson> People(IEnumerable<Pawn> people) =>
+            [.. people.Select(p => new RimGovernor.Brain.GameFacts.Observations.UpkeepPerson {
                 Pawn = PawnIdOf(p),
                 Partners = Ids(Partners(p)),
                 BedSharingAllowed = BedSharingAllowed(p),
                 Title = Title(p)
             })];
 
-        private static RimGovernor.Brain.Domain.EquatableArray<Obs.UpkeepBed> Beds(ThingSets sets, List<Pawn> people) =>
-            [.. sets.PlayerBuildings.OfType<Building_Bed>().OrderBy(b => b.thingIDNumber).Select(b => new Obs.UpkeepBed {
+        private static RimGovernor.Brain.Domain.EquatableArray<RimGovernor.Brain.GameFacts.Observations.UpkeepBed> Beds(ThingSets sets, List<Pawn> people) =>
+            [.. sets.PlayerBuildings.OfType<Building_Bed>().OrderBy(b => b.thingIDNumber).Select(b => new RimGovernor.Brain.GameFacts.Observations.UpkeepBed {
                 Id = Id(b.GetUniqueLoadID()),
                 Medical = b.Medical, Prisoners = b.ForPrisoners, ForSlaves = b.ForSlaves,
                 TemperatureC = Number(b.AmbientTemperature),
                 // Every spawned bed stands in a room (outdoors is one); none is a broken read.
                 Room = (b.GetRoom() ?? throw new InvalidOperationException("Bed " + b.GetUniqueLoadID() + " stands in no room.")).ID.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                Quality = b.TryGetQuality(out var quality) ? new Obs.BedQuality.Graded((Defs.QualityCategory)(int)quality) : new Obs.BedQuality.Ungraded(),
+                Quality = b.TryGetQuality(out var quality) ? new RimGovernor.Brain.GameFacts.Observations.BedQuality.Graded((RimGovernor.Brain.GameFacts.Defs.QualityCategory)(int)quality) : new RimGovernor.Brain.GameFacts.Observations.BedQuality.Ungraded(),
                 Owners = [.. b.OwnersForReading.Select(p => Id(p.GetUniqueLoadID())).OrderBy(id => id, StringComparer.Ordinal).Select(id => new PawnId(id))],
                 Users = Ids(people.Where(p => p.CurrentBed() == b)),
                 AccessibleTo = Ids(people.Where(p => !b.IsForbidden(p) && p.CanReach(b, PathEndMode.OnCell, Danger.None)))
@@ -408,16 +405,16 @@ namespace HomeBridge.BridgeTools
         // A player animal: whether native manages it by rope (NeedsToBeManagedByRope tests Pawn.Roamer, so a roped
         // animal's RoamMtbDays is set) and, for a roped one, the closest pen that suits it. The herd facts (pen,
         // training, area, care) ride the pawn table row's animal state.
-        private static RimGovernor.Brain.Domain.EquatableArray<Obs.ColonyAnimal> Animals(IEnumerable<Pawn> animals) =>
-            [.. animals.Select(p => new Obs.ColonyAnimal {
+        private static RimGovernor.Brain.Domain.EquatableArray<RimGovernor.Brain.GameFacts.Observations.ColonyAnimal> Animals(IEnumerable<Pawn> animals) =>
+            [.. animals.Select(p => new RimGovernor.Brain.GameFacts.Observations.ColonyAnimal {
                 Pawn = PawnIdOf(p),
                 Roping = AnimalPenUtility.NeedsToBeManagedByRope(p)
-                    ? new Obs.AnimalRoping.Roped(new Obs.AnimalRoam {
+                    ? new RimGovernor.Brain.GameFacts.Observations.AnimalRoping.Roped(new RimGovernor.Brain.GameFacts.Observations.AnimalRoam {
                         Race = Id(p.def.defName),
                         MtbDays = Number(p.RoamMtbDays ?? throw new InvalidOperationException("A rope-managed animal has no RoamMtbDays.")),
                         MarketValue = Number(p.MarketValue), ReachesMapEdge = p.CanReachMapEdge()
                     }, AnimalPenUtility.ClosestSuitablePen(p, false) is { } pen ? Id(pen.parent.GetUniqueLoadID()) : null)
-                    : new Obs.AnimalRoping.Unroped()
+                    : new RimGovernor.Brain.GameFacts.Observations.AnimalRoping.Unroped()
             })];
 
         // A hosted guest: a humanlike the player faction holds as a guest
@@ -441,11 +438,11 @@ namespace HomeBridge.BridgeTools
 
         // The most senior royal title and what the pawn waives of its requirements: the title's requirements are its
         // RoyalTitleDef row; the Ascetic trait drops them all and an ideoligion precept can disable one.
-        private static Obs.RoyalStanding Title(Pawn p)
+        private static RimGovernor.Brain.GameFacts.Observations.RoyalStanding Title(Pawn p)
         {
             var title = ModsConfig.RoyaltyActive ? p.royalty?.MostSeniorTitle?.def : null;
-            if (title == null) return new Obs.RoyalStanding.Untitled();
-            return new Obs.RoyalStanding.Titled(Id(title.defName), p.story?.traits?.HasTrait(TraitDefOf.Ascetic) == true,
+            if (title == null) return new RimGovernor.Brain.GameFacts.Observations.RoyalStanding.Untitled();
+            return new RimGovernor.Brain.GameFacts.Observations.RoyalStanding.Titled(Id(title.defName), p.story?.traits?.HasTrait(TraitDefOf.Ascetic) == true,
                 p.Ideo == null ? [] : [.. p.Ideo.PreceptsListForReading.Select(x => Id(x.def.defName)).Distinct().OrderBy(d => d, StringComparer.Ordinal)]);
         }
     }

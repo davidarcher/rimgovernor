@@ -1,15 +1,10 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Telemetry;
-using Clock = RimGovernor.Contracts.Wire.Clock;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 using FilterBase = RimGovernor.Brain.Domain.FilterBase;
 using StockpilePriority = RimGovernor.Brain.Domain.StockpilePriority;
 using Quality = RimGovernor.Brain.Domain.Quality;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -25,7 +20,7 @@ internal static class ZoneDelete
     private const int ProbeTicks = 300;
 
     // The colony watch policy with the brain's hazard thresholds, which native requires of every clock run.
-    private static readonly Clock.WatchPolicy Policy = new Clock.WatchPolicy
+    private static readonly RimGovernor.Brain.GameOrders.Clock.WatchPolicy Policy = new RimGovernor.Brain.GameOrders.Clock.WatchPolicy
     {
         SeriousSingleHitDamage = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSingleHitDamage,
         SeriousSummaryHealthFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSummaryHealthFloor,
@@ -35,7 +30,7 @@ internal static class ZoneDelete
         MeleeReachCells = RimGovernor.Brain.Policy.HazardThresholdsRules.MeleeReachCells,
         InjurySeverityFloorTicks = RimGovernor.Brain.Policy.HazardThresholdsRules.InjurySeverityFloorTicks,
         HungerHoldCategory = RimGovernor.Brain.Policy.HazardThresholdsRules.HungerHoldCategory,
-        Mode = Clock.WatchMode.Colony,
+        Mode = RimGovernor.Brain.GameOrders.Clock.WatchMode.Colony,
         HealthDropFraction = .1f,
         MinHealthFraction = .5f,
         HostileWithin = 20f,
@@ -70,7 +65,7 @@ internal static class ZoneDelete
         Run = RunAsync,
     };
 
-    private static Operations.FilterSelector Def(string def) => new() { Definition = new Operations.FilterSelectorDefinition.ThingDefCase(def) };
+    private static RimGovernor.Brain.GameOrders.Operations.FilterSelector Def(string def) => new() { Definition = new RimGovernor.Brain.GameOrders.Operations.FilterSelectorDefinition.ThingDefCase(def) };
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
@@ -79,9 +74,9 @@ internal static class ZoneDelete
         var footprint = new Fx.StageRect(corner.X, corner.Z, 2, 2);
         var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
 
-        async Task<Observations.ZoneState?> RowAsync(string label, string zoneId)
+        async Task<RimGovernor.Brain.GameFacts.Observations.ZoneState?> RowAsync(string label, string zoneId)
         {
-            var reply = await s.CallAsync(label, NativeOps.ListZones, new Observations.ListZonesRequest { Scope = s.Scope, Ids = [zoneId], IncludeFilter = true }, cancellationToken).ConfigureAwait(false);
+            var reply = await s.CallAsync(label, NativeOps.ListZones, new RimGovernor.Brain.GameOrders.Observations.ListZonesRequest { Scope = s.Scope, Ids = [zoneId], IncludeFilter = true }, cancellationToken).ConfigureAwait(false);
             var rows = reply.Zones.ToList();
             return rows switch
             {
@@ -92,7 +87,7 @@ internal static class ZoneDelete
         }
 
         // The zone's row and grid cells: a token that shows whether a refused or resent intent touched the zone.
-        async Task<(Observations.ZoneState? Row, string Cells)> StateAsync(string label, string zoneId)
+        async Task<(RimGovernor.Brain.GameFacts.Observations.ZoneState? Row, string Cells)> StateAsync(string label, string zoneId)
         {
             var row = await RowAsync(label, zoneId).ConfigureAwait(false);
             var grid = await TypedApply.CellsAsync(s, label + "-cells", footprint, cancellationToken).ConfigureAwait(false);
@@ -102,14 +97,14 @@ internal static class ZoneDelete
         async Task FilterAsync(string label, string zoneId, string priority, string[] allowed, double hpMin, double hpMax)
         {
             var row = await RowAsync(label, zoneId).ConfigureAwait(false) ?? throw new AcceptanceException($"{label}: zone not listed");
-            if (row is not Observations.ZoneState.Stockpile stockpile || stockpile.Priority != priority || stockpile.Filter is not { } filter || !filter.AllowedDefNames.SequenceEqual(allowed)
+            if (row is not RimGovernor.Brain.GameFacts.Observations.ZoneState.Stockpile stockpile || stockpile.Priority != priority || stockpile.Filter is not { } filter || !filter.AllowedDefNames.SequenceEqual(allowed)
                 || filter.HitPointsMin != hpMin || filter.HitPointsMax != hpMax || filter.QualityMin != Quality.Normal || filter.QualityMax != Quality.Legendary)
             {
                 throw new AcceptanceException($"{label}: want {priority} [{string.Join(' ', allowed)}] hp [{hpMin}, {hpMax}] quality [Normal, Legendary], got {row}");
             }
         }
 
-        async Task<Receipts.ZoneEffect> AppliedEffectAsync(string key, Operations.ZoneIntent intent)
+        async Task<RimGovernor.Brain.GameFacts.Receipts.ZoneEffect> AppliedEffectAsync(string key, RimGovernor.Brain.GameOrders.Operations.ZoneIntent intent)
         {
             var outcome = await TypedApply.AppliedAsync(s, key, intent, cancellationToken).ConfigureAwait(false);
             var effect = outcome.Applied?.Outcome?.Applied?.Observed?.Effect?.Zone ?? throw new AcceptanceException($"{key}: no zone evidence: {outcome}");
@@ -117,11 +112,11 @@ internal static class ZoneDelete
             return effect;
         }
 
-        async Task<Receipts.ZoneEffect.ZoneCase> AppliedAsync(string key, Operations.ZoneIntent intent) =>
-            await AppliedEffectAsync(key, intent).ConfigureAwait(false) as Receipts.ZoneEffect.ZoneCase
+        async Task<RimGovernor.Brain.GameFacts.Receipts.ZoneEffect.ZoneCase> AppliedAsync(string key, RimGovernor.Brain.GameOrders.Operations.ZoneIntent intent) =>
+            await AppliedEffectAsync(key, intent).ConfigureAwait(false) as RimGovernor.Brain.GameFacts.Receipts.ZoneEffect.ZoneCase
                 ?? throw new AcceptanceException($"{key}: no edited-zone evidence");
 
-        async Task RefusedAsync(string key, Operations.ZoneIntent intent, Common.FailureCode code)
+        async Task RefusedAsync(string key, RimGovernor.Brain.GameOrders.Operations.ZoneIntent intent, RimGovernor.Brain.GameFacts.Common.FailureCode code)
         {
             var refusal = await TypedApply.RefusedAsync(s, key, intent, cancellationToken).ConfigureAwait(false);
             if (refusal.Code != code)
@@ -131,19 +126,19 @@ internal static class ZoneDelete
         }
 
         // --- create ---
-        var create = new Operations.ZoneIntent
+        var create = new RimGovernor.Brain.GameOrders.Operations.ZoneIntent
         {
             Label = "Steel, WoodLog",
-            Kind = Operations.ZoneType.Stockpile,
-            AddCells = new Operations.Cells { Selection = new Operations.Rectangle { Origin = corner, Width = 2, Height = 2 } },
-            Stockpile = new Operations.StockpileSettings
+            Kind = RimGovernor.Brain.GameOrders.Operations.ZoneType.Stockpile,
+            AddCells = new RimGovernor.Brain.GameOrders.Operations.Cells { Selection = new RimGovernor.Brain.GameOrders.Operations.Rectangle { Origin = corner, Width = 2, Height = 2 } },
+            Stockpile = new RimGovernor.Brain.GameOrders.Operations.StockpileSettings
             {
-                Priority = new Operations.StockpilePriorityChange.Selected(StockpilePriority.Important),
-                Preset = new Operations.StockpilePresetChange.Selected(FilterBase.Nothing),
-                Filter = new Operations.FilterPatch { Allow = [Def("Steel"), Def("WoodLog")], HitPoints = new Operations.HitPointRange.Selected(0.5, 1), QualityMin = "Normal", QualityMax = "Legendary" },
+                Priority = new RimGovernor.Brain.GameOrders.Operations.StockpilePriorityChange.Selected(StockpilePriority.Important),
+                Preset = new RimGovernor.Brain.GameOrders.Operations.StockpilePresetChange.Selected(FilterBase.Nothing),
+                Filter = new RimGovernor.Brain.GameOrders.Operations.FilterPatch { Allow = [Def("Steel"), Def("WoodLog")], HitPoints = new RimGovernor.Brain.GameOrders.Operations.HitPointRange.Selected(0.5, 1), QualityMin = "Normal", QualityMax = "Legendary" },
             }, Delete = false, RequireCoveredEmpty = false };
         var created = await AppliedEffectAsync("zone-create", create).ConfigureAwait(false);
-        if (created is not Receipts.ZoneEffect.CreatedCase parts || parts.Zones.ToList() is not [{ ZoneId: { Length: > 0 } zoneId } component] || component.Cells.Count != interior.Count)
+        if (created is not RimGovernor.Brain.GameFacts.Receipts.ZoneEffect.CreatedCase parts || parts.Zones.ToList() is not [{ ZoneId: { Length: > 0 } zoneId } component] || component.Cells.Count != interior.Count)
         {
             throw new AcceptanceException($"zone-create: want one {interior.Count}-cell component, got {created}");
         }
@@ -158,30 +153,30 @@ internal static class ZoneDelete
 
         // Native keeps no receipt replay (the in-process hop loses no reply): a second create over the zoned
         // rectangle finds no free cell, refuses, and does not adopt the standing zone.
-        await RefusedAsync("zone-create-again", create, Common.FailureCode.InvalidRequest).ConfigureAwait(false);
+        await RefusedAsync("zone-create-again", create, RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest).ConfigureAwait(false);
         if (await StateAsync("after-create-again", zoneId).ConfigureAwait(false) != afterCreate)
         {
             throw new AcceptanceException("zone-create-again: a refused create changed the zone");
         }
 
         // --- settings ---
-        var zone = new Common.Ref { Id = zoneId };
-        await RefusedAsync("stockpile-unresolved", new Operations.ZoneIntent
+        var zone = new RimGovernor.Brain.GameFacts.Common.Ref { Id = zoneId };
+        await RefusedAsync("stockpile-unresolved", new RimGovernor.Brain.GameOrders.Operations.ZoneIntent
         {
             Zone = zone,
-            Stockpile = new Operations.StockpileSettings { Filter = new Operations.FilterPatch { Allow = [Def("NoSuchThingDefForZoneAccept")], HitPoints = new Operations.HitPointRange.Preserve() }, Priority = new Operations.StockpilePriorityChange.Preserve(), Preset = new Operations.StockpilePresetChange.Preserve() }, Delete = false, RequireCoveredEmpty = false, Kind = Operations.ZoneType.Existing }, Common.FailureCode.InvalidRequest).ConfigureAwait(false);
+            Stockpile = new RimGovernor.Brain.GameOrders.Operations.StockpileSettings { Filter = new RimGovernor.Brain.GameOrders.Operations.FilterPatch { Allow = [Def("NoSuchThingDefForZoneAccept")], HitPoints = new RimGovernor.Brain.GameOrders.Operations.HitPointRange.Preserve() }, Priority = new RimGovernor.Brain.GameOrders.Operations.StockpilePriorityChange.Preserve(), Preset = new RimGovernor.Brain.GameOrders.Operations.StockpilePresetChange.Preserve() }, Delete = false, RequireCoveredEmpty = false, Kind = RimGovernor.Brain.GameOrders.Operations.ZoneType.Existing }, RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest).ConfigureAwait(false);
         if (await StateAsync("after-unresolved", zoneId).ConfigureAwait(false) != afterCreate)
         {
             throw new AcceptanceException("stockpile-unresolved: a refused body changed the zone");
         }
 
-        var patch = new Operations.ZoneIntent
+        var patch = new RimGovernor.Brain.GameOrders.Operations.ZoneIntent
         {
             Zone = zone,
-            Stockpile = new Operations.StockpileSettings
+            Stockpile = new RimGovernor.Brain.GameOrders.Operations.StockpileSettings
             {
-                Priority = new Operations.StockpilePriorityChange.Selected(StockpilePriority.Normal),
-                Filter = new Operations.FilterPatch { HitPoints = new Operations.HitPointRange.Selected(0.25, 0.75)}, Preset = new Operations.StockpilePresetChange.Preserve() }, Delete = false, RequireCoveredEmpty = false, Kind = Operations.ZoneType.Existing };
+                Priority = new RimGovernor.Brain.GameOrders.Operations.StockpilePriorityChange.Selected(StockpilePriority.Normal),
+                Filter = new RimGovernor.Brain.GameOrders.Operations.FilterPatch { HitPoints = new RimGovernor.Brain.GameOrders.Operations.HitPointRange.Selected(0.25, 0.75)}, Preset = new RimGovernor.Brain.GameOrders.Operations.StockpilePresetChange.Preserve() }, Delete = false, RequireCoveredEmpty = false, Kind = RimGovernor.Brain.GameOrders.Operations.ZoneType.Existing };
         if ((await AppliedAsync("stockpile-patch", patch).ConfigureAwait(false)).ZoneId != zoneId)
         {
             throw new AcceptanceException("stockpile-patch: the effect names another zone");
@@ -196,11 +191,11 @@ internal static class ZoneDelete
         }
 
         // --- presets ---
-        async Task<(HashSet<string> Defs, Observations.StockpileFilter? Filter)> PresetAsync(FilterBase preset)
+        async Task<(HashSet<string> Defs, RimGovernor.Brain.GameFacts.Observations.StockpileFilter? Filter)> PresetAsync(FilterBase preset)
         {
             var key = "preset-" + preset;
-            _ = await AppliedAsync(key, new Operations.ZoneIntent { Zone = zone, Stockpile = new Operations.StockpileSettings { Preset = new Operations.StockpilePresetChange.Selected(preset), Priority = new Operations.StockpilePriorityChange.Preserve() }, Delete = false, RequireCoveredEmpty = false, Kind = Operations.ZoneType.Existing }).ConfigureAwait(false);
-            var filter = (await RowAsync(key + "-readback", zoneId).ConfigureAwait(false) as Observations.ZoneState.Stockpile)?.Filter;
+            _ = await AppliedAsync(key, new RimGovernor.Brain.GameOrders.Operations.ZoneIntent { Zone = zone, Stockpile = new RimGovernor.Brain.GameOrders.Operations.StockpileSettings { Preset = new RimGovernor.Brain.GameOrders.Operations.StockpilePresetChange.Selected(preset), Priority = new RimGovernor.Brain.GameOrders.Operations.StockpilePriorityChange.Preserve() }, Delete = false, RequireCoveredEmpty = false, Kind = RimGovernor.Brain.GameOrders.Operations.ZoneType.Existing }).ConfigureAwait(false);
+            var filter = (await RowAsync(key + "-readback", zoneId).ConfigureAwait(false) as RimGovernor.Brain.GameFacts.Observations.ZoneState.Stockpile)?.Filter;
             return (filter?.AllowedDefNames.ToHashSet(StringComparer.Ordinal) ?? [], filter);
         }
 
@@ -228,13 +223,13 @@ internal static class ZoneDelete
 
         // --- cells ---
         // Removing one corner leaves a contiguous L and frees the cell; re-adding that cell is the one add the site allows.
-        Operations.ZoneIntent Edit(Common.Ref target, bool remove)
+        RimGovernor.Brain.GameOrders.Operations.ZoneIntent Edit(RimGovernor.Brain.GameFacts.Common.Ref target, bool remove)
         {
-            var cells = new Operations.Cells { Selection = new Operations.CellList { Cells = [corner] } };
-            return remove ? new Operations.ZoneIntent { Zone = target, RemoveCells = cells, Delete = false, RequireCoveredEmpty = false, Kind = Operations.ZoneType.Existing } : new Operations.ZoneIntent { Zone = target, AddCells = cells, Delete = false, RequireCoveredEmpty = false, Kind = Operations.ZoneType.Existing };
+            var cells = new RimGovernor.Brain.GameOrders.Operations.Cells { Selection = new RimGovernor.Brain.GameFacts.Operations.CellList { Cells = [corner] } };
+            return remove ? new RimGovernor.Brain.GameOrders.Operations.ZoneIntent { Zone = target, RemoveCells = cells, Delete = false, RequireCoveredEmpty = false, Kind = RimGovernor.Brain.GameOrders.Operations.ZoneType.Existing } : new RimGovernor.Brain.GameOrders.Operations.ZoneIntent { Zone = target, AddCells = cells, Delete = false, RequireCoveredEmpty = false, Kind = RimGovernor.Brain.GameOrders.Operations.ZoneType.Existing };
         }
 
-        await RefusedAsync("zone-edit-missing", Edit(new Common.Ref { Id = "Zone_999999" }, remove: true), Common.FailureCode.NotFound).ConfigureAwait(false);
+        await RefusedAsync("zone-edit-missing", Edit(new RimGovernor.Brain.GameFacts.Common.Ref { Id = "Zone_999999" }, remove: true), RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound).ConfigureAwait(false);
         var removed = await AppliedAsync("zone-edit-remove", Edit(zone, remove: true)).ConfigureAwait(false);
         if (removed.Present != true || removed.ListedCellCount != interior.Count - 1)
         {
@@ -255,8 +250,8 @@ internal static class ZoneDelete
 
         // The re-add lands under a running native clock: only the supervised run digests zones, and its first digest
         // baselines, so an edit made while paused never reaches a row. The run ends on the zone's clock_invalidation row.
-        var request = new ClockRunPlan { ExpectedGeneration = generation, Speed = Clock.Speed.Normal, Policy = Policy };
-        Receipts.ZoneEffect.ZoneCase? added = null;
+        var request = new ClockRunPlan { ExpectedGeneration = generation, Speed = RimGovernor.Brain.GameFacts.Clock.Speed.Normal, Policy = Policy };
+        RimGovernor.Brain.GameFacts.Receipts.ZoneEffect.ZoneCase? added = null;
         long addedSince = 0;
         LogRow? invalidated = null;
         var status = await s.RunClockUntilHeldAsync(
@@ -283,8 +278,8 @@ internal static class ZoneDelete
         if (invalidated is null)
         {
             throw new AcceptanceException(added is null
-                ? $"probe: the clock held before the re-add ({(status.Hold as Clock.HoldState.HeldCase)?.Reason}): {status.Hold}"
-                : $"probe: the clock held ({(status.Hold as Clock.HoldState.HeldCase)?.Reason}) before native named zone {zoneId}: {status.Hold}");
+                ? $"probe: the clock held before the re-add ({(status.Hold as RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase)?.Reason}): {status.Hold}"
+                : $"probe: the clock held ({(status.Hold as RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase)?.Reason}) before native named zone {zoneId}: {status.Hold}");
         }
 
         var families = ClockRows.Strings(invalidated, "families");
@@ -293,7 +288,7 @@ internal static class ZoneDelete
         long? Edge(string key) => ClockRows.Whole(rect.GetValueOrDefault(key));
         var shown = $"families [{string.Join(' ', families)}] ids [{string.Join(' ', ids)}] cells ({Edge("min_x")},{Edge("min_z")})-({Edge("max_x")},{Edge("max_z")})";
         s.Record("zone_invalidation", shown);
-        if (families is not [nameof(Clock.FactFamily.Colony)] || ids is not [_]
+        if (families is not [nameof(RimGovernor.Brain.GameFacts.Clock.FactFamily.Colony)] || ids is not [_]
             || Edge("min_x") != footprint.X || Edge("min_z") != footprint.Z || Edge("max_x") != footprint.X + 1 || Edge("max_z") != footprint.Z + 1)
         {
             throw new AcceptanceException($"probe: want the colony family naming only {zoneId} over the footprint {footprint}, got {shown}");
@@ -305,7 +300,7 @@ internal static class ZoneDelete
         }
 
         // --- delete ---
-        var delete = new Operations.ZoneIntent { Zone = zone, Delete = true, RequireCoveredEmpty = false, Kind = Operations.ZoneType.Existing };
+        var delete = new RimGovernor.Brain.GameOrders.Operations.ZoneIntent { Zone = zone, Delete = true, RequireCoveredEmpty = false, Kind = RimGovernor.Brain.GameOrders.Operations.ZoneType.Existing };
         var deleted = await AppliedAsync("zone-delete", delete).ConfigureAwait(false);
         if (deleted.ZoneId != zoneId || deleted.Present == true)
         {

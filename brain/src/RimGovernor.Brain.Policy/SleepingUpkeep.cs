@@ -1,12 +1,11 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>The observed person and the title requirements derived from the definition catalog.</summary>
 public sealed record SleepingPerson
 {
-    public required O.UpkeepPerson Native { get; init; }
-    public required O.PawnState Pawn { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.UpkeepPerson Native { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PawnState Pawn { get; init; }
     public PawnId Id => Native.Pawn;
     public string? OwnedBed => Pawn.OwnedBed?.Id;
     public double ComfortableMin => Pawn.Settings.Body.ComfortableMinC;
@@ -19,8 +18,8 @@ public sealed record SleepingPerson
 /// <summary>The actual upkeep and building rows, joined with catalog bed properties.</summary>
 public sealed record SleepingBed
 {
-    public required O.UpkeepBed Native { get; init; }
-    public required O.BuildingState Building { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.UpkeepBed Native { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.BuildingState Building { get; init; }
     public string Id => Native.Id;
     public Resource Definition => new(Building.Building.DefName);
     public bool Humanlike { get; init; }
@@ -35,9 +34,9 @@ public sealed record SleepingBed
     public EquatableArray<PawnId> Users => Native.Users;
     public EquatableArray<PawnId> AccessibleTo => Native.AccessibleTo;
     public string Room => Native.Room;
-    public O.BedQuality Quality => Native.Quality;
+    public RimGovernor.Brain.GameFacts.Observations.BedQuality Quality => Native.Quality;
     public string? Stuff => Building.Stuff;
-    public Cell Cell => Building.Building.Place is O.EntityPlace.OnMap at ? at.Cell
+    public Cell Cell => Building.Building.Place is RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap at ? at.Cell
         : throw new DomainException("sleeping building is not on the map");
 }
 

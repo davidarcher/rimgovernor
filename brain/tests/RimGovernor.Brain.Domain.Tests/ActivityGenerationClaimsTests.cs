@@ -1,6 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using Xunit;
 using Journal = RimGovernor.Brain.Store.Store;
 
@@ -19,9 +19,9 @@ public sealed class ActivityGenerationClaimsTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-generation-claims-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("pawn") with
         {
-            Census = ((WorkResourceTestFacts.Create("pawn")).Census with { ColonistCount = 1, IndoorSleepingCapacity = 0, BedCapacity = 0 }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 20 }] }, };
-        var review = journal.ReviewRounds(new() { Current = world, Tick = new(100), Enabled = true,
-            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+            Census = ((WorkResourceTestFacts.Create("pawn")).Census with { ColonistCount = 1, IndoorSleepingCapacity = 0, BedCapacity = 0 }) with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Rice", Units = 20 }] }, };
+        var review = journal.Review(new() { Current = world, Tick = new(100), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
         var activity = DomainAction.NewPawnActivitiesAction(new("delivery"), new(1,
             [new("pawn", "assignment", "method", 0, 1, false,
                 [new PawnActivityStep(PawnActivityKind.Deliver, "rice-stack", "", "", 6, 500).At(new(2, 2))])
@@ -42,8 +42,8 @@ public sealed class ActivityGenerationClaimsTests
         Assert.Contains("pawn", journal.WorkResources(world, ct).Claims.Pawns);
         Assert.Equal(8, journal.WorkResources(world, ct).Materials.AssessedBalances()[new("Rice")].ExactCount());
         var changed = world with { Native = new(2) };
-        journal.ReviewRounds(new() { Revision = review.Review.Revision, Current = changed, Tick = new(110), Enabled = true,
-            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts with { Tick = new(110) } }, ct);
+        journal.Review(new() { Revision = review.Review.Revision, Current = changed, Tick = new(110), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = facts with { Tick = new(110) } }, ct);
         var remaining = journal.WorkResources(changed, ct);
         Assert.Empty(remaining.Claims.Pawns);
         Assert.DoesNotContain("rice-stack", remaining.Claims.Targets);
@@ -88,9 +88,9 @@ public sealed class ActivityGenerationClaimsTests
         var journal = Journal.Open(path, ct);
         var facts = WorkResourceTestFacts.Create("pawn") with
         {
-            Census = ((WorkResourceTestFacts.Create("pawn")).Census with { ColonistCount = 1, IndoorSleepingCapacity = 0, BedCapacity = 0 }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 20 }] }, };
-        journal.ReviewRounds(new() { Current = world, Tick = new(100), Enabled = true,
-            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+            Census = ((WorkResourceTestFacts.Create("pawn")).Census with { ColonistCount = 1, IndoorSleepingCapacity = 0, BedCapacity = 0 }) with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Rice", Units = 20 }] }, };
+        journal.Review(new() { Current = world, Tick = new(100), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
         var activity = DomainAction.NewPawnActivitiesAction(new("delivery"), new(1,
             [new("pawn", "assignment", "method", 0, 1, false,
                 [new PawnActivityStep(PawnActivityKind.Deliver, "rice-stack", "", "", 6, 500).At(new(2, 2))])

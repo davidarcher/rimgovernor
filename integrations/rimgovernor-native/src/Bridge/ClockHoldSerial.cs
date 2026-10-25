@@ -1,5 +1,5 @@
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The hold serial (#3414): bumped on every hold entry, the brain's own holds
     // included, and reported on Status. A Run quotes the serial its step read, and

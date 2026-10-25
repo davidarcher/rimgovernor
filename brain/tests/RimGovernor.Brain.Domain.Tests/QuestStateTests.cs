@@ -1,16 +1,17 @@
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
-using WireObjective = RimGovernor.Contracts.Wire.Observations.QuestObjective;
+using WireObjective = RimGovernor.Brain.GameFacts.Observations.QuestObjective;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
 /// The quest state row is total (#3862): acceptance, expiry, place, threat, decree asker and every objective's goal,
 /// timing and mood floor are named states; the rewards are one row per option of the quest's reward choice and the
-/// favor granted whatever is taken is quest-level. On the wire it round-trips through <c>WireJsonContext</c> exactly.
+/// favor granted whatever is taken is quest-level. On the wire it round-trips through <c>OrdersJsonContext</c> exactly.
 /// </summary>
 public sealed class QuestStateTests
 {
@@ -21,7 +22,7 @@ public sealed class QuestStateTests
     internal static readonly QuestState NoQuest = new()
     {
         Id = new("Quest1"),
-        State = Receipts.QuestStatus.NotYetAccepted,
+        State = RimGovernor.Brain.GameFacts.Receipts.QuestStatus.NotYetAccepted,
         Acceptance = new QuestAcceptance.NotAccepted(),
         Expiry = new QuestExpiry.NoExpiry(),
         RequiresAccepter = false,
@@ -61,7 +62,7 @@ public sealed class QuestStateTests
     /// f with the quest census quests read: every root roots does not name is classified by its family table row
     /// (QuestFamilyForRoot), as the catalog does for a known root.
     /// </summary>
-    internal static RoundsFacts WithQuests(RoundsFacts f, IEnumerable<QuestState> quests, params QuestRoot[] roots)
+    internal static ReviewFacts WithQuests(ReviewFacts f, IEnumerable<QuestState> quests, params QuestRoot[] roots)
     {
         var rows = quests.ToList();
         var all = roots.ToList();
@@ -80,7 +81,7 @@ public sealed class QuestStateTests
     {
         var quest = NoQuest with
         {
-            State = Receipts.QuestStatus.Ongoing,
+            State = RimGovernor.Brain.GameFacts.Receipts.QuestStatus.Ongoing,
             Acceptance = new QuestAcceptance.Accepted(1200),
             Expiry = new QuestExpiry.ExpiresIn(60000),
             EligiblePawns = [new PawnId("Thing_Human1")],
@@ -117,12 +118,12 @@ public sealed class QuestStateTests
             DeparturePawnIds = [new PawnId("Thing_Human1")],
         };
 
-        var json = WireJson.Serialize(quest);
+        var json = OrdersJson.Serialize(quest);
 
         Assert.Equal(
             """{"id":"Quest1","state":"QUEST_STATUS_ONGOING","acceptance":{"type":"accepted","tick":1200},"expiry":{"type":"expires_in","ticks":60000},"requiresAccepter":false,"canAccept":true,"eligiblePawns":["Thing_Human1"],"rewards":[{"items":[{"defName":"Silver","units":500}],"favor":4,"goodwill":10,"psylink":1,"permitPoints":2,"permits":["SteelDrop"]},{"items":[],"favor":0,"goodwill":0,"psylink":0,"permitPoints":0,"permits":[]}],"favor":3,"scriptDef":"OpportunitySite_ItemStash","faction":{"type":"involved","hostile":false},"place":{"type":"on_map","mapId":0},"objectives":[{"kind":"produce_item","goal":{"type":"things","def":"Gun_Revolver","stuff":null,"count":3,"done":1},"timing":{"type":"deadline","tick":90000},"pawnIds":[],"active":true,"monument":null,"minimumMood":{"type":"no_floor"},"lodgerMoods":[],"workload":null,"gravEngine":null,"surveyScanner":null,"hackTargets":[],"giftRequest":null,"hackRisk":null},{"kind":"host_lodgers","goal":{"type":"pawns","count":1},"timing":{"type":"duration","ticks":30000},"pawnIds":["Thing_Human2"],"active":false,"monument":null,"minimumMood":{"type":"floor","mood":0.25},"lodgerMoods":[{"mood":0.5}],"workload":null,"gravEngine":null,"surveyScanner":null,"hackTargets":[],"giftRequest":null,"hackRisk":null}],"choicePartCount":1,"asker":"player_faction","violentQuestsAllowed":true,"shuttles":[],"threat":{"type":"points","value":350.5},"departurePawnIds":["Thing_Human1"]}""",
             json);
-        Assert.Equal(quest, WireJson.Deserialize<QuestState>(json));
+        Assert.Equal(quest, OrdersJson.Deserialize<QuestState>(json));
     }
 
     private static QuestState Offer(params QuestReward[] rewards) => NoQuest with
@@ -132,7 +133,7 @@ public sealed class QuestStateTests
         Rewards = [.. rewards],
     };
 
-    private static RoundsFacts Calm(params QuestState[] offers) => WithQuests(new RoundsFacts
+    private static ReviewFacts Calm(params QuestState[] offers) => WithQuests(new ReviewFacts
     {
         Census = ColonyFactsCoreTests.Snapshot(),
         CurrentConstruction = CurrentConstruction.Empty,
@@ -184,7 +185,7 @@ public sealed class QuestStateTests
         };
         var decree = Offer() with
         {
-            State = Receipts.QuestStatus.Ongoing,
+            State = RimGovernor.Brain.GameFacts.Receipts.QuestStatus.Ongoing,
             ScriptDef = "Decree_ProduceItem",
             Objectives = [produce],
         };

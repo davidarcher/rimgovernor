@@ -1,6 +1,6 @@
 using System.Text.Json;
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Host;
 using RimGovernor.Brain.HttpChannel;
 using RimGovernor.Brain.PlayerApi;
@@ -8,9 +8,6 @@ using RimGovernor.Brain.Store;
 using Xunit;
 using ExecAuthority = RimGovernor.Brain.Executor.Authority;
 using JournalStore = RimGovernor.Brain.Store.Store;
-using PbClock = RimGovernor.Contracts.Wire.Clock;
-using PbCommon = RimGovernor.Contracts.Wire.Common;
-using PbLifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -28,9 +25,9 @@ public sealed class ResumePauseClockOwnerTests
     private const ulong Generation = 7;
     private const long Tick = 100;
 
-    private static readonly PbCommon.Identity WorldIdentity = new() { ColonyId = Colony, LoadToken = Load, MapId = Map };
+    private static readonly RimGovernor.Brain.GameFacts.Common.Identity WorldIdentity = new() { ColonyId = Colony, LoadToken = Load, MapId = Map };
 
-    private static readonly PbCommon.ObservationContext Context = new() { Identity = WorldIdentity, Tick = Tick, NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase(Generation) };
+    private static readonly RimGovernor.Brain.GameFacts.Common.ObservationContext Context = new() { Identity = WorldIdentity, Tick = Tick, NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase(Generation) };
 
     private sealed class Worlds : IWorldSource
     {
@@ -45,21 +42,21 @@ public sealed class ResumePauseClockOwnerTests
         /// <summary>The holds that took effect: a hold of an already held clock does not count.</summary>
         public int Holds { get; private set; }
 
-        public PbClock.HoldReason Reason { get; private set; } = PbClock.HoldReason.NeverRun;
+        public RimGovernor.Brain.GameFacts.Clock.HoldReason Reason { get; private set; } = RimGovernor.Brain.GameFacts.Clock.HoldReason.NeverRun;
 
         public bool Held { get; private set; } = true;
 
-        public Task<PbLifecycle.LoadedIdentity> IdentityAsync(CancellationToken ct) =>
-            Task.FromResult(new PbLifecycle.LoadedIdentity { Context = Context, Paused = Held });
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.LoadedIdentity> IdentityAsync(CancellationToken ct) =>
+            Task.FromResult(new RimGovernor.Brain.GameFacts.Lifecycle.LoadedIdentity { Context = Context, Paused = Held });
 
-        public Task<PbClock.Status> RunAsync(PbClock.RunRequest request, CancellationToken ct)
+        public Task<RimGovernor.Brain.GameFacts.Clock.Status> RunAsync(RimGovernor.Brain.GameOrders.Clock.RunRequest request, CancellationToken ct)
         {
             Runs++;
             Held = false;
             return Task.FromResult(Status());
         }
 
-        public Task<PbClock.Status> HoldAsync(PbClock.HoldRequest request, CancellationToken ct)
+        public Task<RimGovernor.Brain.GameFacts.Clock.Status> HoldAsync(RimGovernor.Brain.GameOrders.Clock.HoldRequest request, CancellationToken ct)
         {
             if (!Held)
             {
@@ -70,16 +67,16 @@ public sealed class ResumePauseClockOwnerTests
             return Task.FromResult(Status());
         }
 
-        public Task<PbClock.HeartbeatAck> HeartbeatAsync(PbClock.HeartbeatRequest request, CancellationToken ct) =>
-            Task.FromResult(new PbClock.HeartbeatAck());
+        public Task<RimGovernor.Brain.GameFacts.Clock.HeartbeatAck> HeartbeatAsync(RimGovernor.Brain.GameOrders.Clock.HeartbeatRequest request, CancellationToken ct) =>
+            Task.FromResult(new RimGovernor.Brain.GameFacts.Clock.HeartbeatAck());
 
-        private PbClock.Status Status() => new()
+        private RimGovernor.Brain.GameFacts.Clock.Status Status() => new()
         {
             Context = Context,
-            State = Held ? PbClock.ClockState.Held : PbClock.ClockState.Running,
-            Hold = Held ? new PbClock.HoldState.HeldCase(Reason, 1, new PbClock.HoldTrigger.OrdinaryCase()) : new PbClock.HoldState.RunningCase(),
-            LastRun = new PbClock.RunHistory.NeverRunCase(), Pacing = new PbClock.Pacing.StoppedCase(),
-            PlayerRequest = new PbClock.PlayerSpeedRequest.NoneCase(), EffectiveTicksPerSecond = 0,
+            State = Held ? RimGovernor.Brain.GameFacts.Clock.ClockState.Held : RimGovernor.Brain.GameFacts.Clock.ClockState.Running,
+            Hold = Held ? new RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase(Reason, 1, new RimGovernor.Brain.GameFacts.Clock.HoldTrigger.OrdinaryCase()) : new RimGovernor.Brain.GameFacts.Clock.HoldState.RunningCase(),
+            LastRun = new RimGovernor.Brain.GameFacts.Clock.RunHistory.NeverRunCase(), Pacing = new RimGovernor.Brain.GameFacts.Clock.Pacing.StoppedCase(),
+            PlayerRequest = new RimGovernor.Brain.GameFacts.Clock.PlayerSpeedRequest.NoneCase(), EffectiveTicksPerSecond = 0,
             NativeTickBoundary = true,
             HoldSerial = 0,
             ActualPaused = Held,
@@ -112,7 +109,7 @@ public sealed class ResumePauseClockOwnerTests
         public Task ManualAsync(CancellationToken ct)
         {
             Disable();
-            return clock.HoldAsync(PbClock.HoldReason.Review, "bot_off", ct);
+            return clock.HoldAsync(RimGovernor.Brain.GameFacts.Clock.HoldReason.Review, "bot_off", ct);
         }
 
         public Task ManualForResumeAsync(CancellationToken ct) => ManualAsync(ct);
@@ -178,7 +175,7 @@ public sealed class ResumePauseClockOwnerTests
         public async Task RunClockAsync()
         {
             Assert.True(_player.State().Enabled);
-            var policy = new PbClock.WatchPolicy
+            var policy = new RimGovernor.Brain.GameOrders.Clock.WatchPolicy
             {
                 SeriousSingleHitDamage = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSingleHitDamage,
                 SeriousSummaryHealthFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSummaryHealthFloor,
@@ -188,13 +185,13 @@ public sealed class ResumePauseClockOwnerTests
                 MeleeReachCells = RimGovernor.Brain.Policy.HazardThresholdsRules.MeleeReachCells,
                 InjurySeverityFloorTicks = RimGovernor.Brain.Policy.HazardThresholdsRules.InjurySeverityFloorTicks,
                 HungerHoldCategory = RimGovernor.Brain.Policy.HazardThresholdsRules.HungerHoldCategory,
-                Mode = PbClock.WatchMode.Colony,
+                Mode = RimGovernor.Brain.GameOrders.Clock.WatchMode.Colony,
                 HealthDropFraction = .1f,
                 MinHealthFraction = .5f,
                 HostileWithin = 20f,
                 InjuryStopCooldownMs = 0,
             };
-            _ = await Clock.RunAsync(new PbClock.RunRequest { Identity = WorldIdentity, ExpectedGeneration = Generation, Speed = PbClock.Speed.Ultrafast, Policy = policy, PlannedHoldSerial = 0, HoldAtTick = 2500 }, _lifetime.Token);
+            _ = await Clock.RunAsync(new RimGovernor.Brain.GameOrders.Clock.RunRequest { Identity = WorldIdentity, ExpectedGeneration = Generation, Speed = RimGovernor.Brain.GameFacts.Clock.Speed.Ultrafast, Policy = policy, PlannedHoldSerial = 0, HoldAtTick = 2500 }, _lifetime.Token);
         }
 
         public void Dispose()
@@ -233,7 +230,7 @@ public sealed class ResumePauseClockOwnerTests
         // Pause holds the clock exactly once, for review.
         Assert.Equal(1, rig.Clock.Holds);
         Assert.True(rig.Clock.Held);
-        Assert.Equal(PbClock.HoldReason.Review, rig.Clock.Reason);
+        Assert.Equal(RimGovernor.Brain.GameFacts.Clock.HoldReason.Review, rig.Clock.Reason);
 
         // A second Pause finds the clock held and keeps the first hold.
         _ = await rig.PostAsync(PlayerRoutes.PausePath, "pause-2");
@@ -250,7 +247,7 @@ public sealed class ResumePauseClockOwnerTests
         _ = await rig.PostAsync(PlayerRoutes.PausePath, "pause-1");
         Assert.Equal(0, rig.Clock.Runs);
         Assert.Equal(0, rig.Clock.Holds);
-        Assert.Equal(PbClock.HoldReason.NeverRun, rig.Clock.Reason);
+        Assert.Equal(RimGovernor.Brain.GameFacts.Clock.HoldReason.NeverRun, rig.Clock.Reason);
     }
 
     // #3549: an uncertain resume's 503 names the step that threw and its exception, not only "unresolved".

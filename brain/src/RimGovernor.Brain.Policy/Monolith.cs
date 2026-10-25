@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using System.Globalization;
 
 namespace RimGovernor.Brain.Policy;
@@ -15,7 +14,7 @@ public abstract record AnomalyState
     public sealed record Inactive : AnomalyState;
 
     /// <summary>The Anomaly expansion is active: GameComponent_Anomaly's monolith state.</summary>
-    public sealed record Active(O.AnomalyColonyFacts Monolith) : AnomalyState;
+    public sealed record Active(RimGovernor.Brain.GameFacts.Observations.AnomalyColonyFacts Monolith) : AnomalyState;
 }
 
 /// <summary>Policy for the spawned native monolith and its endgame interactions.</summary>
@@ -26,7 +25,7 @@ public static partial class MonolithRules
     /// monolith, then a void structure. Nothing is owed (no interaction, no hold) outside the quest. A node nobody
     /// on its map can touch is a hold.
     /// </summary>
-    internal static (bool Interact, string Hold) Endgame(this O.MonolithState thing)
+    internal static (bool Interact, string Hold) Endgame(this RimGovernor.Brain.GameFacts.Observations.MonolithState thing)
     {
         if (thing.VoidNodeId is not null)
         {
@@ -47,7 +46,7 @@ public static partial class MonolithRules
         return (false, "");
     }
 
-    internal static string CannotActivate(this O.MonolithState thing)
+    internal static string CannotActivate(this RimGovernor.Brain.GameFacts.Observations.MonolithState thing)
     {
         if (thing.CodexShortfall is var shortfall and > 0)
         {
@@ -80,7 +79,7 @@ public sealed record AwakenGate
     public double Capacity { get; init; }
 
     /// <summary>The native threat census used to price the awakening waves.</summary>
-    public required RimGovernor.Contracts.Wire.Observations.ThreatFacts Threat { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.ThreatFacts Threat { get; init; }
 
     public HostileCensus Hostiles { get; init; } = new HostileCensus.AwaitingEmergency();
     public ContainmentPlanning Containment { get; init; } = new();
@@ -116,7 +115,7 @@ public static partial class MonolithRules
     public const double AwakenStrengthFactor = 1.25;
 
     /// <summary>Decides the monolith's next step.</summary>
-    public static MonolithAdvance MonolithAdvanceOwed(O.AnomalyColonyFacts f, AwakenGate gate)
+    public static MonolithAdvance MonolithAdvanceOwed(RimGovernor.Brain.GameFacts.Observations.AnomalyColonyFacts f, AwakenGate gate)
     {
         if (f.Monolith is { CodexShortfall: < 0 })
         {
@@ -229,10 +228,10 @@ public static partial class MonolithRules
     }
 
     /// <summary>Whether the monolith is spawned and its questline runs (not Ambient Horror mode): the only time the rule reads anything further.</summary>
-    public static bool MonolithInPlay(O.AnomalyColonyFacts f) => f.Incidents.MonolithSpawned && !f.Incidents.AmbientHorrorMode;
+    public static bool MonolithInPlay(RimGovernor.Brain.GameFacts.Observations.AnomalyColonyFacts f) => f.Incidents.MonolithSpawned && !f.Incidents.AmbientHorrorMode;
 
     /// <summary>The advance gate the facts give.</summary>
-    public static AwakenGate MonolithGate(RoundsFacts f) =>
+    public static AwakenGate MonolithGate(ReviewFacts f) =>
         new()
         {
             Capacity = f.DefenseCapacity,

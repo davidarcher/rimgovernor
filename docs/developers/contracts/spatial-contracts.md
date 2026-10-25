@@ -393,7 +393,7 @@ furniture to remove), and `OpRoofIn` roofs the room's `Roofed` cells that the mi
 open to the sky (`ReconcileInput.Unroofed`), with its airlock children's vestibules, once
 the ring stands. An airlock's walls and outer door are the parent ring's. An owner
 reconciles only while its own predicate holds, so the plan-wide `layout/climate-envelope`
-Need (layout family, `LayoutRounds`) asks the plan itself: it diffs every
+Need (layout family, `LayoutReview`) asks the plan itself: it diffs every
 top-level planned room ring-only, keeps just its `OpVentIn` and `OpRoofIn`
 (`policy.EnvelopeOps`) and commits them through the same `reconcileRoom` path with
 `climateOnly`, whatever the owner is doing, and designates any roofed-set cell outside
@@ -450,7 +450,7 @@ met. Each owed room's wave is its own Method, admitted beside the others by clai
   success, partial glow beyond the reach, and the lamps' power wiring (they are in
   `TileResult.Lamps`, not pieces, so the conduit net does not route to them yet).
   The `rooms/lighting` Need is the runtime reconciler: its round builds the plan's `Lamps`
-  (`Lighting.cs`, `RoundsLighting.cs`; see [upkeep](upkeep-contracts.md)).
+  (`Lighting.cs`, `Lighting.cs`; see [upkeep](upkeep-contracts.md)).
   **Comfort and beauty (#2975).** Furniture buys mood through two seeker needs the game
   keeps as one shape (`Need_Seeker`: every 150 ticks the level moves toward an instant level
   at `seekerRisePerHour` x 0.06 up or `seekerFallPerHour` x 0.06 down, frozen while asleep
@@ -541,7 +541,7 @@ met. Each owed room's wave is its own Method, admitted beside the others by clai
   planned turbine, solar plot and geothermal enclosure (`PowerSiteNodes`,
   `LayoutPowerNodes.cs`); the sites land in the tiled plan and `PlannedPowerSites`,
   `TurbinePlacement` and `TurbineCatchZone` are the read API the power rounds use
-  (`RoundsPower.cs`). A turbine is a 7x2 footprint with four turns and a wind lane; a geothermal
+  (`Power.cs`). A turbine is a 7x2 footprint with four turns and a wind lane; a geothermal
   node is anchored on its enclosure. The lane is
   priced only as the game prices it (`windGround`; constants in
   `LayoutPowerNodesRules`, read from `CompPowerPlantWind`): a path cell that is off the map, under thick
@@ -660,7 +660,7 @@ cells, over net inflow) is shorter than a further yard's lead time; an unknown r
 stranded stock asks nothing ([storage](../architecture/storage.md#headroom)). Storage rooms are sized from held stock. A role-less legacy claim
 stands as created. A source answers nothing while the fact it judges by is unknown.
 
-`RoundsStockpilePlanner` commits the edits as one plan per cycle, each action under
+`StockpilePlanner` commits the edits as one plan per cycle, each action under
 its target's fresh CAS token: `stockpile_patch` (zone or shelf), `zone_cell_edit` or `zone_delete`; a
 create is a native zone preview and a `zone_create` method. Each is a
 `layout`/`stockpiles` colony event.
@@ -695,7 +695,7 @@ orders.
 
 A planned room whose footprint holds natural rock is dug before it is walled.
 `plan.RoomRock(room, cells).Dig` lists the rock cells of the interior and door
-(`LayoutMining.cs`), and `digPlannedRoom` (`RoundsPlanDig.cs`) admits them through the
+(`LayoutMining.cs`), and `digPlannedRoom` (`PlanDig.cs`) admits them through the
 shared `admitRockStep` as the method `plan-dig-room-<role>-<x>-<z>`, reached from
 outside the room's door. A building that needs open sky also has its roof removed
 (`digPlannedSky`). Each wave designates only the cells with an open walkable cardinal
@@ -709,7 +709,7 @@ not hold the shell planner (`isRoomDigMethod`).
 
 The staged machinery is now corridor-only. `policy.CorridorExcavationSites`
 (`TunnelSite.cs`) proposes a one-wide corridor from a known walkable access cell into a
-visible rock face toward an ore cell, and `RoundsResourceTunnel.cs` drives it; the
+visible rock face toward an ore cell, and `ResourceTunnel.cs` drives it; the
 code states that dug rooms are the layout plan's and this only reaches ore. The
 planned rooms are not staged excavations. The rules that still hold:
 
@@ -932,7 +932,7 @@ Where a tier stands depends on live cover, trees and standing buildings, so the 
 a function of the plan and a census, not of the survey: they are re-sited from the defense
 round's census and recorded in the plan (`LayoutPlan.WithDefenseTiers`). The plan's
 DefFiring and DefLane nodes are the one home of the firing line and the trap lane:
-combat (`RoundsDefensePlanner.CombatLayoutOf`: the firing cells, their retreat cells and
+combat (`DefensePlanner.CombatLayoutOf`: the firing cells, their retreat cells and
 the choke, the lane's last cell), the turret replacement, the cover census and the pins
 read them there (`LayoutPlan.DefenseTierGeometry`); the defense record keeps none. A
 replan keeps the saved plan's tier nodes while its killbox is the same node over the same
@@ -947,7 +947,7 @@ reads its standing buildings as the ground under them so the same census sites t
 cells, and the tiers still to build are sited around it (a building of theirs on a pinned
 cell is dropped, `tier_displaced_by_built`). A census the layout planner refuses leaves the
 pinned tiers as the nodes (`tier_layout_failed`). The defense round reads the nodes:
-`RoundsDefenseLayoutPlanner.SiteTiersAsync` cuts them after each tier census, once per reverify
+`DefenseLayoutPlanner.SiteTiersAsync` cuts them after each tier census, once per reverify
 interval, sets the record's unstarted killbox tiers to what the nodes site and, when the
 record takes the siting (a firing line sited, no refusal) and the nodes changed, records
 the plan with them; it journals them as `layout_plan` rows with target `defense_tiers`. The proposal records
@@ -981,7 +981,7 @@ regions. A missing census, incomplete footprint, invalid membership or failed
 room stat read fails the observation. Room cells come from the same frame's
 visible cell grid; fully fogged rooms legitimately have no visible cells.
 
-`RoundsFacts.Upkeep.Rooms` is required. Routine and standalone colony reads join
+`ReviewFacts.Upkeep.Rooms` is required. Routine and standalone colony reads join
 the census and its cell map through the shared frame tables, so room policy never
 uses an absent census as an empty map. Room consumers (shelter, upkeep, goals,
 hospital and mech siting) read that same total observation. Party-spot, work-chair

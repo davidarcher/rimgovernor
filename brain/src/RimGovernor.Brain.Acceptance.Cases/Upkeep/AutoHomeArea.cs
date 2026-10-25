@@ -1,7 +1,4 @@
 using RimGovernor.Brain.Bridge;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -24,20 +21,20 @@ internal static class UpkeepAutoHomeArea
 
         async Task<bool> ReadAsync(string label)
         {
-            var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+            var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
             var upkeep = facts.Upkeep;
             return upkeep.HomeCoverage.AutoHomeArea;
         }
 
-        async Task ApplyAsync(string key, bool enabled, Receipts.FieldOutcome outcome)
+        async Task ApplyAsync(string key, bool enabled, RimGovernor.Brain.GameFacts.Receipts.FieldOutcome outcome)
         {
-            var reply = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
+            var reply = await s.CallAsync(key, NativeOps.Apply, new RimGovernor.Brain.GameOrders.Operations.ApplyRequest
             {
                 Identity = s.Identity,
-                Actions = [new Operations.Action { Key = key, Intent = new Operations.AutoHomeAreaIntent { Enabled = enabled } }], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
+                Actions = [new RimGovernor.Brain.GameOrders.Operations.Action { Key = key, Intent = new RimGovernor.Brain.GameOrders.Operations.AutoHomeAreaIntent { Enabled = enabled } }], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
             var results = reply.Results.ToList();
             var fields = results is [{ Outcome.Applied.Outcome.Applied.Observed.Effect.Settings: { } settings }] ? settings.Fields.ToList() : null;
-            if (fields is not [{ Field: Receipts.SettingsField.AutoHomeArea } field] || field.Outcome != outcome)
+            if (fields is not [{ Field: RimGovernor.Brain.GameFacts.Receipts.SettingsField.AutoHomeArea } field] || field.Outcome != outcome)
             {
                 throw new AcceptanceException($"{key}: expected one auto-home-area field {outcome}, got {string.Join("; ", results)}");
             }
@@ -51,8 +48,8 @@ internal static class UpkeepAutoHomeArea
 
         var initial = await ReadAsync("initial").ConfigureAwait(false);
         s.Record("initial", initial);
-        await ApplyAsync("auto-home-flip", !initial, Receipts.FieldOutcome.Applied).ConfigureAwait(false);
-        await ApplyAsync("auto-home-again", !initial, Receipts.FieldOutcome.Unchanged).ConfigureAwait(false);
-        await ApplyAsync("auto-home-restore", initial, Receipts.FieldOutcome.Applied).ConfigureAwait(false);
+        await ApplyAsync("auto-home-flip", !initial, RimGovernor.Brain.GameFacts.Receipts.FieldOutcome.Applied).ConfigureAwait(false);
+        await ApplyAsync("auto-home-again", !initial, RimGovernor.Brain.GameFacts.Receipts.FieldOutcome.Unchanged).ConfigureAwait(false);
+        await ApplyAsync("auto-home-restore", initial, RimGovernor.Brain.GameFacts.Receipts.FieldOutcome.Applied).ConfigureAwait(false);
     }
 }

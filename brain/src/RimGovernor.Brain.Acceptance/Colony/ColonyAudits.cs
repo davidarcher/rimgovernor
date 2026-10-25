@@ -4,8 +4,8 @@ using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Telemetry;
-using RimGovernor.Contracts.Wire;
-using Observations = RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -61,10 +61,10 @@ public static class ColonyAudits
         var reply = await harness.CallAsync(
             "audit-nutrition",
             NativeOps.ListPawns,
-            new Observations.ListPawnsRequest
+            new RimGovernor.Brain.GameOrders.Observations.ListPawnsRequest
             {
                 Scope = TypedReads.Scope(identity),
-                Filter = new Observations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only },
+                Filter = new RimGovernor.Brain.GameFacts.Observations.PawnFilter { Colonist = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Only },
             },
             cancellationToken).ConfigureAwait(false);
         var rows = new JsonArray();
@@ -117,11 +117,11 @@ public static class ColonyAudits
     internal static async Task AuditStockpilesAsync(Harness harness, JsonObject identity, string output, Report report, CancellationToken cancellationToken)
     {
         var scope = TypedReads.Scope(Harness.IdentityOf(identity));
-        var zones = await harness.CallAsync("audit-zones", NativeOps.ListZones, new Observations.ListZonesRequest { Scope = scope, IncludeFilter = true }, cancellationToken).ConfigureAwait(false);
+        var zones = await harness.CallAsync("audit-zones", NativeOps.ListZones, new RimGovernor.Brain.GameOrders.Observations.ListZonesRequest { Scope = scope, IncludeFilter = true }, cancellationToken).ConfigureAwait(false);
         var stockpiles = 0;
         var food = 0;
         var rows = new JsonArray();
-        foreach (var zone in zones.Zones.OfType<Observations.ZoneState.Stockpile>())
+        foreach (var zone in zones.Zones.OfType<RimGovernor.Brain.GameFacts.Observations.ZoneState.Stockpile>())
         {
             stockpiles++;
             var isFood = zone.FoodStorage;
@@ -136,7 +136,7 @@ public static class ColonyAudits
                 { "id", zone.Id },
                 { "label", zone.Label },
                 { "priority", zone.Priority },
-                { "bounds", JsonNode.Parse(WireJson.Serialize(zone.Bounds)) },
+                { "bounds", JsonNode.Parse(OrdersJson.Serialize(zone.Bounds)) },
                 { "food_storage", isFood },
             });
         }
@@ -144,7 +144,7 @@ public static class ColonyAudits
         var supplies = await harness.CallAsync(
             "audit-supplies",
             NativeOps.ListSupplies,
-            new Observations.ListSuppliesRequest { Scope = scope, Filter = new Observations.StockFilter { DefNames = [PemmicanDef, WoodLogDef], Category = Observations.StockCategory.Haulable, Ownership = Observations.StockOwnership.Ours, IncludeHeld = true } },
+            new RimGovernor.Brain.GameOrders.Observations.ListSuppliesRequest { Scope = scope, Filter = new RimGovernor.Brain.GameFacts.Observations.StockFilter { DefNames = [PemmicanDef, WoodLogDef], Category = RimGovernor.Brain.GameFacts.Observations.StockCategory.Haulable, Ownership = RimGovernor.Brain.GameFacts.Observations.StockOwnership.Ours, IncludeHeld = true } },
             cancellationToken).ConfigureAwait(false);
         var forbidden = new List<string>();
         var stocks = new JsonArray();

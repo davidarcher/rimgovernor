@@ -12,7 +12,7 @@ using Verse;
 using Verse.AI;
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 public sealed partial class PawnControlFixture
 {
@@ -22,7 +22,7 @@ public sealed partial class PawnControlFixture
     private static readonly HashSet<string> portfolioMethods = new(StringComparer.Ordinal);
 
     [Tool("test/portfolio_needs_prepare", Description="UNSAFE FOR MODEL EXECUTION. Bind the staged worker and ripe rice and leave them the colony's only food: no loose, carried or other growing food. Install no chosen task, bill, Method or assignment.")]
-    public async Task<object> PortfolioNeedsPrepare(IRimBridgeContext ctx, CancellationToken ct,
+    public async Task<object> PortfolioNeedsPrepare(INativeContext ctx, CancellationToken ct,
         [ToolParameter(Description="The worker's load id.")] string worker = "",
         [ToolParameter(Description="The ripe rice's load id.")] string crop = "")
         => await ctx.MainThread.InvokeAsync<object>(() =>
@@ -86,7 +86,7 @@ public sealed partial class PawnControlFixture
         if (owned && ___pawn.CurJobDef?.defName == "Play_Horseshoes" && ___pawn.needs.joy.CurLevelPercentage > .2f) portfolioPlayed = true;
     }
     [Tool("test/portfolio_needs_repeat", Description="UNSAFE FOR MODEL EXECUTION. Once the first cycle's meal and sleep were observed, introduce new hunger and independent observed rice lots for the crew. Install no selected task, Method or order.")]
-    public async Task<object> PortfolioNeedsRepeat(IRimBridgeContext ctx, CancellationToken ct)
+    public async Task<object> PortfolioNeedsRepeat(INativeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             if (!portfolioAte || !portfolioSlept)
@@ -110,7 +110,7 @@ public sealed partial class PawnControlFixture
             return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
     [Tool("test/portfolio_needs_read", Description="UNSAFE FOR MODEL EXECUTION. Observe actual normal-planner coupled batches, harvested output rebinding, ingestion and sleep/wake; writes no orders.")]
-    public async Task<object> PortfolioNeedsRead(IRimBridgeContext ctx, CancellationToken ct)
+    public async Task<object> PortfolioNeedsRead(INativeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() => FixtureKit.Reply(new Fx.PortfolioNeedsRead
         {
             Tick = Find.TickManager.TicksGame, Methods = portfolioMethods.OrderBy(x => x).ToArray(), Rebound = portfolioRebound,

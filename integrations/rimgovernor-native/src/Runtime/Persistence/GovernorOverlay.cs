@@ -10,7 +10,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// One colored region of an overlay layer: filled quads, or the outline

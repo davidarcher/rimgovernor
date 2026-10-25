@@ -1,11 +1,7 @@
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using DefinitionCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
 using CatalogStats = RimGovernor.Brain.Bridge.CatalogStats;
-using C = RimGovernor.Contracts.Wire.Common;
-using D = RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
-using Ops = RimGovernor.Contracts.Wire.Operations;
 using PawnId = RimGovernor.Brain.Domain.PawnId;
 using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Bridge;
@@ -13,7 +9,7 @@ namespace RimGovernor.Brain.Bridge;
 public static class ColonyProductionReads
 {
     /// <summary>The nutrition of the fresh humanlike corpses near a bench: each race's live MeatAmount sum times the Nutrition of that race's meat def; a race whose meat shows no nutrition adds none.</summary>
-    private static double HumanCorpseNutrition(IEnumerable<O.HumanCorpseMeat> meat, DefinitionCatalog? catalog)
+    private static double HumanCorpseNutrition(IEnumerable<RimGovernor.Brain.GameFacts.Observations.HumanCorpseMeat> meat, DefinitionCatalog? catalog)
     {
         var defs = ColonyPlanningReads.RequireCatalog(catalog);
         var total = 0.0;
@@ -25,7 +21,7 @@ public static class ColonyProductionReads
     }
 
     /// <summary>A growing zone's raw crop facts for policy: the planted plants' means are their totals over the planted count, and an unplanted zone has none.</summary>
-    internal static CropGrowth FarmGrowth(O.ZoneState.Growing farm, IEnumerable<PlanningDefinition> definitions)
+    internal static CropGrowth FarmGrowth(RimGovernor.Brain.GameFacts.Observations.ZoneState.Growing farm, IEnumerable<PlanningDefinition> definitions)
     {
         var plant = definitions.FirstOrDefault(d => d.Name == farm.Crop)?.Plant ?? throw new RequiredFactException("zone crop definition:" + farm.Crop);
         if (!double.IsFinite(farm.Temperature))
@@ -47,7 +43,7 @@ public static class ColonyProductionReads
     /// calendar. Fallow and dormant fields offer no arrival. A planted field is future capacity, not an observed
     /// delivery of edible stock. Exposure uses the native whole-zone roof and plant counts.
     /// </summary>
-    internal static EquatableArray<FoodField> ColonyFoodFields(IReadOnlyList<O.ZoneState.Growing> farms, IReadOnlyList<PlanningDefinition> definitions, RimGovernor.Contracts.Wire.Observations.FoodClimate calendar)
+    internal static EquatableArray<FoodField> ColonyFoodFields(IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.ZoneState.Growing> farms, IReadOnlyList<PlanningDefinition> definitions, RimGovernor.Brain.GameFacts.Observations.FoodClimate calendar)
     {
         var rows = new List<FoodField>();
         foreach (var farm in farms)
@@ -69,7 +65,7 @@ public static class ColonyProductionReads
         }
         return EquatableArray.From(rows);
     }
-    internal static EquatableArray<FieldCrop> ColonyFieldCrops(IReadOnlyList<O.ZoneState.Growing> farms, IReadOnlyList<PlanningDefinition> definitions, bool usable = false)
+    internal static EquatableArray<FieldCrop> ColonyFieldCrops(IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.ZoneState.Growing> farms, IReadOnlyList<PlanningDefinition> definitions, bool usable = false)
     {
         var rows = new List<FieldCrop>();
         foreach (var farm in farms)
@@ -83,12 +79,12 @@ public static class ColonyProductionReads
         }
         return EquatableArray.From(rows);
     }
-    internal static RoundsFacts ColonyProduction(O.ColonyFactsSnapshot v, RoundsFacts facts)
+    internal static ReviewFacts ColonyProduction(RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot v, ReviewFacts facts)
     {
         var ready = false;
         foreach (var bench in v.ProductionBenches)
         {
-            if (bench.Cooking is not O.CookingProduction.Supported cooking || !cooking.Usable)
+            if (bench.Cooking is not RimGovernor.Brain.GameFacts.Observations.CookingProduction.Supported cooking || !cooking.Usable)
             {
                 continue;
             }
@@ -113,7 +109,7 @@ public static class ColonyProductionReads
     /// says (food kind, the Nutrition the game shows, rot, baby edibility). A def the catalog gives no food kind is
     /// no food; the game shows no Nutrition stat for a def that gives none, so its nutrition is 0.
     /// </summary>
-    private static ProductionProduct ProductionProductOf(O.FoodProduct product, DefinitionCatalog? catalog)
+    private static ProductionProduct ProductionProductOf(RimGovernor.Brain.GameFacts.Observations.FoodProduct product, DefinitionCatalog? catalog)
     {
         var name = product.DefName;
         var defs = ColonyPlanningReads.RequireCatalog(catalog);
@@ -128,10 +124,10 @@ public static class ColonyProductionReads
         };
     }
 
-    internal static EquatableArray<ProductionBench> ColonyProductionBenches(O.ColonyFactsSnapshot v, Pawns pawns, DefinitionCatalog? catalog)
+    internal static EquatableArray<ProductionBench> ColonyProductionBenches(RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot v, Pawns pawns, DefinitionCatalog? catalog)
     {
         var rows = new List<ProductionBench>();
-        ProductionBench Add(O.BillStackRow bench, ProductionUse use, IEnumerable<O.RecipeState> recipes, IEnumerable<O.BillState> bills, IEnumerable<O.FoodProduction> production, bool butcher)
+        ProductionBench Add(RimGovernor.Brain.GameFacts.Observations.BillStackRow bench, ProductionUse use, IEnumerable<RimGovernor.Brain.GameFacts.Observations.RecipeState> recipes, IEnumerable<RimGovernor.Brain.GameFacts.Observations.BillState> bills, IEnumerable<RimGovernor.Brain.GameFacts.Observations.FoodProduction> production, bool butcher)
         {
             var row = new ProductionBench
             {
@@ -170,9 +166,9 @@ public static class ColonyProductionReads
         }
         foreach (var bench in v.ProductionBenches)
         {
-            if (bench.Cooking is O.CookingProduction.Supported cooking)
+            if (bench.Cooking is RimGovernor.Brain.GameFacts.Observations.CookingProduction.Supported cooking)
                 rows.Add(Add(bench.Bench, new ProductionUse.Cooking(cooking), cooking.Recipes, bench.Bench.Bills, cooking.Production, false));
-            if (bench.Butchering is not O.ButcheringProduction.Supported b) continue;
+            if (bench.Butchering is not RimGovernor.Brain.GameFacts.Observations.ButcheringProduction.Supported b) continue;
             var row = Add(bench.Bench, new ProductionUse.Butchering(b), b.Recipes, bench.Bench.Bills, [], true);
             var butchers = new List<HumanButcherCandidate>();
             foreach (var candidate in b.HumanButchers)
@@ -182,7 +178,7 @@ public static class ColonyProductionReads
                 var traits = new List<PawnTrait>();
                 foreach (var t in candidate.PawnTraits)
                 {
-                    traits.Add(RoundsWorkReads.ResolveTrait(catalog, t));
+                    traits.Add(WorkReads.ResolveTrait(catalog, t));
                 }
                 butchers.Add(new HumanButcherCandidate
                 {
@@ -196,7 +192,7 @@ public static class ColonyProductionReads
         return EquatableArray.From(rows);
     }
 
-    internal static RoundsFacts ZoneProduction(IReadOnlyList<O.ZoneState.Growing> farms, IReadOnlyList<PlanningDefinition> definitions, RoundsFacts facts)
+    internal static ReviewFacts ZoneProduction(IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.ZoneState.Growing> farms, IReadOnlyList<PlanningDefinition> definitions, ReviewFacts facts)
     {
         var growing = farms.Where(farm => farm.EdibleCrop).Sum(farm => FarmGrowth(farm, definitions).GrowingCells());
         return facts with { GrowingCells = growing };

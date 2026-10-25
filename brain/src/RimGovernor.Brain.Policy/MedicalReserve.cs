@@ -1,11 +1,11 @@
-using ItemRot = RimGovernor.Contracts.Wire.Observations.ItemRot;
+using ItemRot = RimGovernor.Brain.GameFacts.Observations.ItemRot;
 namespace RimGovernor.Brain.Policy;
 
 public sealed record MedicalReserveObservation
 {
-    private RimGovernor.Contracts.Wire.Observations.ColonyFactsSnapshot? census;
-    public RimGovernor.Contracts.Wire.Observations.ColonyFactsSnapshot Census { get => census ?? throw new RequiredFactException("colony census"); init => census = value; }
-    public EquatableArray<RimGovernor.Contracts.Wire.Observations.UpkeepItem> Items { get; init; }
+    private RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot? census;
+    public RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot Census { get => census ?? throw new RequiredFactException("colony census"); init => census = value; }
+    public EquatableArray<RimGovernor.Brain.GameFacts.Observations.UpkeepItem> Items { get; init; }
 
 
     /// <summary>Ranks the medicines: the best one is no reserve.</summary>

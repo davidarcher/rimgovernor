@@ -1,8 +1,5 @@
 using System.Globalization;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -36,7 +33,7 @@ internal static class WallRemoval
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         // A straight site with three open backup cells on one of the room's walls.
-        (string Wall, Observations.WallUpgradeSite Row)? found = null;
+        (string Wall, RimGovernor.Brain.GameFacts.Observations.WallUpgradeSite Row)? found = null;
         foreach (var wall in s.Staged!.Rooms["room"].Walls)
         {
             var row = (await WallUpgrade.CensusAsync(s, "candidates-" + wall, wall, cancellationToken).ConfigureAwait(false)).Sites
@@ -53,15 +50,15 @@ internal static class WallRemoval
         var cell = await CellAsync(s, "site-cell", target, cancellationToken).ConfigureAwait(false);
         s.Record("site_wall", target);
 
-        Operations.DesignateIntent Guarded(RimGovernor.Brain.Domain.Cell at, string expected) => new()
+        RimGovernor.Brain.GameOrders.Operations.DesignateIntent Guarded(RimGovernor.Brain.Domain.Cell at, string expected) => new()
         {
-            Designation = Operations.ThingDesignation.Deconstruct,
-            Location = new Operations.DesignationLocation.At(at),
-            Guard = Operations.DesignationGuard.WallUpgrade, ReplaceWithWall = false, Withdraw = false,
+            Designation = RimGovernor.Brain.GameOrders.Operations.ThingDesignation.Deconstruct,
+            Location = new RimGovernor.Brain.GameOrders.Operations.DesignationLocation.At(at),
+            Guard = RimGovernor.Brain.GameOrders.Operations.DesignationGuard.WallUpgrade, ReplaceWithWall = false, Withdraw = false,
             Target = new() { Id = expected },
         };
 
-        async Task<Observations.WallUpgradeSite> RowAsync(string label, string? of)
+        async Task<RimGovernor.Brain.GameFacts.Observations.WallUpgradeSite> RowAsync(string label, string? of)
         {
             var rows = (await WallUpgrade.CensusAsync(s, label, of, cancellationToken).ConfigureAwait(false)).Sites.Where(r => r.Normal == normal).ToList();
             return rows is [var row] ? row : throw new AcceptanceException($"{label}: want one row with normal {normal}, got {rows.Count}");
@@ -70,7 +67,7 @@ internal static class WallRemoval
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
         var early = await TypedApply.RefusedAsync(s, "wall-early", Guarded(cell, target), cancellationToken).ConfigureAwait(false);
         var other = await TypedApply.RefusedAsync(s, "wall-other", Guarded(cell, "Thing_NoSuchWall0"), cancellationToken).ConfigureAwait(false);
-        if (early.Code != Common.FailureCode.InvalidRequest || other.Code != Common.FailureCode.StaleIdentity)
+        if (early.Code != RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest || other.Code != RimGovernor.Brain.GameFacts.Common.FailureCode.StaleIdentity)
         {
             throw new AcceptanceException($"refusals: want INVALID_REQUEST without backups and STALE_IDENTITY for another wall, got {early} and {other}");
         }
@@ -129,7 +126,7 @@ internal static class WallRemoval
     }
 
     /// <summary>Applies one guarded removal and checks its admission evidence: target, removal id, site tokens, nothing demolished yet.</summary>
-    private static async Task<Operations.ActionResultOutcome> ExecuteAsync(TypedSession s, string key, string wall, Operations.DesignateIntent intent, CancellationToken cancellationToken)
+    private static async Task<RimGovernor.Brain.GameFacts.Operations.ActionResultOutcome> ExecuteAsync(TypedSession s, string key, string wall, RimGovernor.Brain.GameOrders.Operations.DesignateIntent intent, CancellationToken cancellationToken)
     {
         var outcome = await TypedApply.AppliedAsync(s, key, intent, cancellationToken).ConfigureAwait(false);
         var effect = outcome.Effect()?.Wall;
@@ -145,8 +142,8 @@ internal static class WallRemoval
     /// <summary>The cell a building stands on, from the building census.</summary>
     private static async Task<RimGovernor.Brain.Domain.Cell> CellAsync(TypedSession s, string label, string id, CancellationToken cancellationToken)
     {
-        var rows = await s.BuildingsAsync(label, new Observations.ListBuildingsRequest { Ids = [id] }, cancellationToken).ConfigureAwait(false);
-        return rows.FirstOrDefault(r => r.Building.Id == id)?.Building.Place is Observations.EntityPlace.OnMap { Cell: var at } ? at : throw new AcceptanceException($"{label}: {id} is not on the building census");
+        var rows = await s.BuildingsAsync(label, new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest { Ids = [id] }, cancellationToken).ConfigureAwait(false);
+        return rows.FirstOrDefault(r => r.Building.Id == id)?.Building.Place is RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap { Cell: var at } ? at : throw new AcceptanceException($"{label}: {id} is not on the building census");
     }
 
     /// <summary>Stages finished player granite walls at absolute cells (clearing the leftovers there) and returns their ids in order.</summary>

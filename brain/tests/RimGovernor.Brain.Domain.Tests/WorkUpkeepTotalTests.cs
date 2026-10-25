@@ -1,8 +1,9 @@
 using RimGovernor.Brain.Domain;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -34,9 +35,9 @@ public sealed class WorkUpkeepTotalTests
     [InlineData("routes")]
     public void MissingTotalSectionRefusesWireDecoder(string section)
     {
-        var node = System.Text.Json.Nodes.JsonNode.Parse(WireJson.Serialize(ColonyFactsCoreTests.Snapshot()))!;
+        var node = System.Text.Json.Nodes.JsonNode.Parse(OrdersJson.Serialize(ColonyFactsCoreTests.Snapshot()))!;
         Assert.True(node["upkeep"]!.AsObject().Remove(section));
-        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ColonyFactsSnapshot>(node.ToJsonString()));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot>(node.ToJsonString()));
     }
 
     [Fact]

@@ -100,7 +100,7 @@ records. Do not suppress a missing-value warning with `!`.
 | methods on a defined string type | extension methods on the enum |
 | build tags | `#if` only for genuine platform splits; none exist in `domain` |
 | struct comparison `a == b` | record value equality; sequence fields use `EquatableArray<T>` |
-| JSON tags | dropped; the wire is plain records serialised by the source-generated `WireJsonContext` (#3100). Brain assemblies must not use reflection-based `System.Text.Json`: its static caches keep the serialized `Type`s alive, which pins a collectible load context (#3294). Use source generation |
+| JSON tags | dropped; the wire is plain records serialised by the source-generated `OrdersJsonContext` (#3100). Brain assemblies must not use reflection-based `System.Text.Json`: its static caches keep the serialized `Type`s alive, which pins a collectible load context (#3294). Use source generation |
 
 ### Naming
 
@@ -154,7 +154,7 @@ game data comes from the snapshot frames and the load's def stat table (the Go `
 There is no unknown ([rule 9](rules.md#review-items), #3753). A planner input is a read value
 or a named state; a fact that cannot be read raises `RequiredFactException`. Never turn a
 missing read into `null`, a default, a zero or a sentinel. The `Fact<T>` and `Unknown`
-wrappers are removed. Read the native Contracts record directly; retain a separate policy
+wrappers are removed. Read the native GameFacts record directly; retain a separate policy
 view only for derived calculations or named review lifecycle states.
 
 ## Per-package port checklist
@@ -192,12 +192,12 @@ A port child works through this in order. `internal/domain` is the worked exampl
 `RimGovernor.cmd test` builds `RimGovernor.slnx` (restore in locked mode, warnings as
 errors), then runs its tests.
 
-`RimGovernor.Brain.Policy` (Domain + Contracts) hosts the policy ports.
+`RimGovernor.Brain.Policy` (Domain + GameFacts + GameOrders) hosts the policy ports.
 
-## Wire records (`RimGovernor.Brain.Contracts`, #3100)
+## Wire records (`RimGovernor.Brain.GameFacts`, #3100)
 
-The wire contracts are plain C# records in `RimGovernor.Brain.Contracts` (namespace
-`RimGovernor.Contracts.Wire.<Package>`, one file per former `.proto`), referenced by the brain and the native
+The wire contracts are plain C# records in `RimGovernor.Brain.GameFacts` (namespace
+`RimGovernor.Brain.GameFacts.<Package>`, one file per former `.proto`), referenced by the brain and the native
 mod. They were generated once from `contracts/proto` and are now owned by hand; the schemas in
 `contracts/proto` are no longer the source of truth for C#. Shape rules:
 
@@ -209,11 +209,11 @@ mod. They were generated once from `contracts/proto` and are now owned by hand; 
 - A `oneof` is an abstract record `<Message><Oneof>` with one `<Case>Case(T Value)` record per arm, discriminated by
   `type` through `[JsonPolymorphic]`, and an implicit conversion from each message-typed payload. The message holds
   it in a nullable property named after the oneof (`reply.Outcome is ...Outcome.FailureCase { Value: var failure }`).
-- JSON is source-generated `System.Text.Json` (`WireJsonContext`, entry point `WireJson`): camelCase property names
+- JSON is source-generated `System.Text.Json` (`OrdersJsonContext`, entry point `OrdersJson`): camelCase property names
   (the names ProtoJSON emits), enums as strings, 64-bit integers as numbers, every member written (zeros and falses
   included), `required` members enforced on read, unknown members
   refused, `type` accepted anywhere in an object. Changing the casing is the single
-  `PropertyNamingPolicy` in `WireJsonContext`.
+  `PropertyNamingPolicy` in `OrdersJsonContext`.
 - The def mirror (`defs.proto`) is not a wire contract here: only the six game enums the observations carry
   (`Defs.cs`) exist; the catalog replies drop `defs`, `thing_defs`, `terrain_defs` and `game_constants` (the brain
   reads Def data directly). Type names changed to satisfy analyzers:

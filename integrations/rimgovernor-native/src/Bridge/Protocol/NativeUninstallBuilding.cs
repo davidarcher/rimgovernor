@@ -2,12 +2,8 @@ using System;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Placement = RimGovernor.Contracts.Wire.Placement;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The uninstall half of RelocateIntent: the game's
     // Uninstall designation on one exact installed player building, the
@@ -21,14 +17,14 @@ namespace HomeBridge.BridgeTools
     {
         internal const string Kind = "Uninstall building";
 
-        private static Common.Failure? Resolve(Operations.RelocateIntent intent, Common.ObservationContext context, out Building? building)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(RimGovernor.Brain.GameOrders.Operations.RelocateIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Building? building)
         {
             building = null;
-            if (!ProtoBoundary.IsIdentifier(intent.ThingId)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Uninstall requires an exact building.");
-            var map = ProtoBoundary.LoadedMap(context);
+            if (!GameThread.IsIdentifier(intent.ThingId)) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Uninstall requires an exact building.");
+            var map = GameThread.LoadedMap(context);
             var found = NativeMoveBuilding.Find(map, (intent.ThingId ?? ""));
             var rules = new ApplyPreconditions(Kind)
-                .Present(() => found != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact building is not installed on this map")
+                .Present(() => found != null && !found.Destroyed && found.Spawned && GameThread.IsLoaded(found.Map), "the exact building is not installed on this map")
                 .Require(() => found != null && (found.Faction == Faction.OfPlayer), "the building is not the player's")
                 .Require(() => found != null && (found.def.Minifiable), "the building cannot be uninstalled")
                 .Require(() => InstallBlueprintUtility.ExistingBlueprintFor(found) == null, "the building has a reinstall blueprint")
@@ -38,9 +34,9 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        internal static Common.Failure? Validate(Operations.RelocateIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.RelocateIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Resolve(intent, context, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.RelocateIntent intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.RelocateIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var building);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
@@ -48,7 +44,7 @@ namespace HomeBridge.BridgeTools
             if (designations.DesignationOn(building, DesignationDefOf.Uninstall) == null)
                 designations.AddDesignation(new Designation(building, DesignationDefOf.Uninstall));
             if (designations.DesignationOn(building, DesignationDefOf.Uninstall) == null) throw new InvalidOperationException("Native uninstall designation was not observed.");
-            return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.InstallationCase() };
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.EffectEvidenceEffect.InstallationCase() };
         }
     }
 }

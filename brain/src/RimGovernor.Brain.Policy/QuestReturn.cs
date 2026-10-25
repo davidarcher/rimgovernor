@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -18,7 +17,7 @@ public static class QuestReturn
     /// </summary>
     public static CaravanDeparture? PlanStoppedExpeditionReturn(ExpeditionTrip trip, IReadOnlyList<PawnId> departed)
     {
-        if (trip is not ExpeditionTrip.OnWorld { Course: Pb.CaravanCourse.Stopped } stopped || stopped.PawnIds.Count == 0)
+        if (trip is not ExpeditionTrip.OnWorld { Course: RimGovernor.Brain.GameFacts.Observations.CaravanCourse.Stopped } stopped || stopped.PawnIds.Count == 0)
         {
             return null;
         }
@@ -31,8 +30,8 @@ public static class QuestReturn
         }
         // An unreachable home sorts after every reachable one; the stopped caravan already home holds.
         var routes = stopped.HomeRoutes
-            .OrderBy(r => r.Route is Pb.PackRoute.Unreachable)
-            .ThenBy(r => r.Route is Pb.PackRoute.Reachable { EstimatedTicks: var t } ? t : 0L)
+            .OrderBy(r => r.Route is RimGovernor.Brain.GameFacts.Observations.PackRoute.Unreachable)
+            .ThenBy(r => r.Route is RimGovernor.Brain.GameFacts.Observations.PackRoute.Reachable { EstimatedTicks: var t } ? t : 0L)
             .ThenBy(r => r.Destination)
             .ToList();
         foreach (var route in routes)
@@ -41,7 +40,7 @@ public static class QuestReturn
             {
                 return null;
             }
-            if (route.Route is not Pb.PackRoute.Reachable { EstimatedTicks: >= 0 })
+            if (route.Route is not RimGovernor.Brain.GameFacts.Observations.PackRoute.Reachable { EstimatedTicks: >= 0 })
             {
                 continue;
             }
@@ -62,15 +61,15 @@ public static class QuestReturn
         var result = new SiteReturnPlan();
         SiteReturnPlan Fail(QuestSkipReason reason) => result with { Reason = reason };
 
-        if (site.Place is not Pb.SitePlace.Loaded { Map: var map } || map.Extraction is not Pb.QuestSiteExtraction.Crew { Value: var extraction })
+        if (site.Place is not RimGovernor.Brain.GameFacts.Observations.SitePlace.Loaded { Map: var map } || map.Extraction is not RimGovernor.Brain.GameFacts.Observations.QuestSiteExtraction.Crew { Value: var extraction })
         {
             return Fail("extraction_unknown");
         }
-        Pb.QuestSiteHomeRoute? route = null;
+        RimGovernor.Brain.GameFacts.Observations.QuestSiteHomeRoute? route = null;
         long travel = 0;
         foreach (var candidate in extraction.HomeRoutes)
         {
-            if (candidate.Travel is Pb.SiteTravel.Reachable { TravelTicks: var ticks } && ticks >= 0
+            if (candidate.Travel is RimGovernor.Brain.GameFacts.Observations.SiteTravel.Reachable { TravelTicks: var ticks } && ticks >= 0
                 && (route is null || ticks < travel || (ticks == travel && candidate.Map.CompareTo(route.Map) < 0)))
             {
                 route = candidate;
@@ -85,15 +84,15 @@ public static class QuestReturn
         {
             return Fail("site_fight_pending");
         }
-        if (site.Security is not Pb.SiteThreatBudget.Bounded)
+        if (site.Security is not RimGovernor.Brain.GameFacts.Observations.SiteThreatBudget.Bounded)
         {
             return Fail("security_unknown");
         }
-        if (map.Threat is Pb.SiteThreat.Active or Pb.SiteThreat.Dormant)
+        if (map.Threat is RimGovernor.Brain.GameFacts.Observations.SiteThreat.Active or RimGovernor.Brain.GameFacts.Observations.SiteThreat.Dormant)
         {
             return Fail("site_fight_pending");
         }
-        if (map.Threat is Pb.SiteThreat.Trapped)
+        if (map.Threat is RimGovernor.Brain.GameFacts.Observations.SiteThreat.Trapped)
         {
             return Fail("site_hazards_pending");
         }
@@ -110,7 +109,7 @@ public static class QuestReturn
         return result with { Departure = departure with { Mode = CaravanDepartureMode.SiteReform } };
     }
 
-    private static (IReadOnlyList<CargoItem> Cargo, QuestSkipReason Reason) SiteReturnCargo(Pb.ExtractionCrew extraction, double days)
+    private static (IReadOnlyList<CargoItem> Cargo, QuestSkipReason Reason) SiteReturnCargo(RimGovernor.Brain.GameFacts.Observations.ExtractionCrew extraction, double days)
     {
         IReadOnlyList<CargoItem> none = [];
         var capacity = extraction.CarryCapacity;

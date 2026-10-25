@@ -48,7 +48,7 @@ public abstract record TradeOffer
 
     public sealed record Pawn : TradeOffer
     {
-        public required RimGovernor.Contracts.Wire.Defs.Gender Gender { get; init; }
+        public required RimGovernor.Brain.GameFacts.Defs.Gender Gender { get; init; }
     }
 }
 

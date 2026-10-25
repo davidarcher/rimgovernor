@@ -223,7 +223,7 @@ corpse's `everBuriedInSarcophagus` false, because `Notify_HauledTo` returns unle
 The probe for `DeadMansApparel` is `apparel/dead_mans` (#3283). The fixture op `test/deadmans_wear` dresses the first
 colonist in five fresh, compatible garments, marks the first n `WornByCorpse` and adds or removes `Bloodlust`. For each
 step the case reads the pawn's situational thought rows once the cache is clean, lifts them as the brain's mood thoughts
-do (`RoundsMoodReads.MoodThoughts`), and compares the thought's offset with `CardStageOffset` for the same pawn and
+do (`MoodReads.MoodThoughts`), and compares the thought's offset with `CardStageOffset` for the same pawn and
 outfit: none for n = 0, -5/-8/-11/-14 for n = 1-4 and none with Bloodlust at n = 2. For n = 5 it requires the thought
 and records the observed stage against the card's clamp. With Bloodlust the situational row stays in the cache at
 offset 0 (`ThoughtUtility.ThoughtNullified` zeroes `MoodOffset`), so the lifted mood thoughts omit it. It is a typed case, whose waits run the game through RunAt.
@@ -265,7 +265,7 @@ work facts and its hediff def names from the medical read's `CareConditions`; a 
 listed unread, so it gets `effect_source_offset_unread` and no candidate; an unread Ideology state raises `RequiredFactException`). After the review, `GearChoices` reads the
 comparator's outcome per pawn: a selected pair gives its filter and floor; a rejected assessed pair that removed a
 tainted item keeps the worn outfit (tainted allowed, worn floor); absent or never assessed keeps the default (tainted
-disallowed, worn insulation floor). The Rounder keeps that outcome in derived memory for the review's world (a review
+disallowed, worn insulation floor). The ColonyReview keeps that outcome in derived memory for the review's world (a review
 with no coupled selection leaves it standing) and the rounds census read stamps it onto `GearPawn.AllowTainted`,
 `ColdFloor` and `HeatFloor` (a `GearChoice` carries an `InsulationFloor`, `Worn` or `Chosen`) for every gear reader, which drives the outfit filter and the planner's floor ([tainted apparel](equipment-upkeep.md#tainted-apparel-and-warmth)). Nothing else decides tainted apparel or warmth: the
 gear planner's thermal scalar (#3329), its hand mood curve, its constraint-mode mood tier, the `TaintFree` trait flag and the always-exclude rule
@@ -290,8 +290,8 @@ comparator's break-risk and cold-exposure ranking and the apparel policy write.
 An expectation level off the vanilla ladder or a def without facts never drops or zeroes a loss: the observed
 row counts and the source's `Unverified` count rises.
 
-Every Round builds the ledger in `RoundsMood.cs` and publishes it as
-`RoundsFacts.MoodLedger` (unknown whenever the mood census is). Inputs: the census thought
+Every Round builds the ledger in `Mood.cs` and publishes it as
+`ReviewFacts.MoodLedger` (unknown whenever the mood census is). Inputs: the census thought
 rows, `AllThoughtFacts()` from the load's catalog (none without a catalog, so every source
 is unverified), each pawn's biography traits and the ideology precepts from its policy
 inputs; a census pawn without its pawn row is a missing read.

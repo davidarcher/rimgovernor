@@ -18,7 +18,7 @@ public sealed record PrisonersFacts
     public EquatableArray<CustodyFacts> Custody { get; init; } = [];
 
     /// <summary>The facts a review already holds.</summary>
-    public static PrisonersFacts From(RoundsFacts f) => new() { Prisoners = f.Population.Prisoners, Colony = f.Population.Colony, FoodDays = f.FoodDays, Custody = f.Population.Custody };
+    public static PrisonersFacts From(ReviewFacts f) => new() { Prisoners = f.Population.Prisoners, Colony = f.Population.Colony, FoodDays = f.FoodDays, Custody = f.Population.Custody };
 }
 
 /// <summary>

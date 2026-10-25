@@ -1,4 +1,3 @@
-using Mirror = RimGovernor.Contracts.Wire.Mirror;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -30,10 +29,10 @@ internal static class CombatLabPods
     {
         var raiders = new StagedLab(Fixture, s.Staged!).Hostiles();
         var frames = new LabFrames(s);
-        Mirror.CombatEventRow? arrival = null;
+        RimGovernor.Brain.GameFacts.Mirror.CombatEventRow? arrival = null;
         _ = await frames.UntilAsync("arrival", CombatLabKit.ProbeTicks, 0, _ =>
         {
-            arrival = frames.Events.FirstOrDefault(e => e.Kind == Mirror.CombatLogKind.HostileArrived && e.RaidStrategy == PodsStrategy);
+            arrival = frames.Events.FirstOrDefault(e => e.Kind == RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.HostileArrived && e.RaidStrategy == PodsStrategy);
             return arrival is not null;
         }, cancellationToken).ConfigureAwait(false);
         s.RecordWire("arrival", arrival);
@@ -43,7 +42,7 @@ internal static class CombatLabPods
         }
 
         // Past the open tick every raider is out: a row in the frame, or (shot by the riflemen meanwhile) a logged downing or death.
-        var gone = new[] { Mirror.CombatLogKind.Downed, Mirror.CombatLogKind.Killed };
+        var gone = new[] { RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.Downed, RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.Killed };
         var frame = await frames.UntilAsync("opened", 2 * CombatLabKit.ProbeTicks, open + 1, _ => true, cancellationToken).ConfigureAwait(false);
         var inPod = raiders.Where(id => LabFrames.Row(frame, id) is null && !frames.Events.Any(e => e.ThingId == id && gone.Contains(e.Kind))).ToList();
         if (inPod.Count != 0)

@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// A loadId to object map over one live source. A hit is trusted only while the entry

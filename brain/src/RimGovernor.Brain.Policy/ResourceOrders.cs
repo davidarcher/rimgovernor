@@ -27,7 +27,7 @@ public sealed record ResourceOrderRequest
 
     public EquatableArray<GearBench> Benches { get; init; }
 
-    /// <summary>The catalog's craft recipes (RoundsFacts.Crafts), ordered with no bench kind when no standing bench makes a floor (#3659).</summary>
+    /// <summary>The catalog's craft recipes (ReviewFacts.Crafts), ordered with no bench kind when no standing bench makes a floor (#3659).</summary>
     public EquatableArray<GearRecipe> Crafts { get; init; }
 }
 

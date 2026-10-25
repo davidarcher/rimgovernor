@@ -9,7 +9,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal enum NativePawnControlResult { Ready, Unavailable, StaleIdentity, StaleSnapshot }
     internal sealed class NativePawnSnapshot
@@ -179,7 +179,7 @@ namespace HomeBridge.BridgeTools
                     Faction = pawn.Faction, Position = pawn.Position, Drafted = pawn.drafter?.Drafted == true, Dead = pawn.Dead, Downed = pawn.Downed,
                     Spawned = pawn.Spawned, PlayerControlled = pawn.IsColonistPlayerControlled, Mental = pawn.InMentalState, MentalState = pawn.MentalState,
                     DraftRevision = revision.Value, OrderRevision = record.OrderRevision, ContextRevision = checked((ulong)Volatile.Read(ref game.ContextRevision)) };
-                if (!ProtoBoundary.IsIdentifier(facts.PawnId)) return NativePawnControlResult.Unavailable;
+                if (!GameThread.IsIdentifier(facts.PawnId)) return NativePawnControlResult.Unavailable;
                 snapshot = record.Observe(facts);
                 return NativePawnControlResult.Ready;
             }

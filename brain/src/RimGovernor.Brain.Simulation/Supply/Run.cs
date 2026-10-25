@@ -180,8 +180,7 @@ internal sealed class RunState
     }
 
     /// <summary>
-    /// Updates each floor's latch from the stock: on below Min, off above Target (the policy wood latch,
-    /// rounds.go latchValue).
+    /// Updates each floor's latch from the stock: on below Min, off above Target.
     /// </summary>
     public void Latch(World w)
     {

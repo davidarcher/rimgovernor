@@ -2,7 +2,8 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -90,7 +91,7 @@ public static class Baselines
     private static string StartStamp(ScenarioSpec start)
     {
         var spec = ScenarioStarts.Spec(start, ScenarioStarts.QuietStorytellerDef);
-        var ordered = JsonNode.Parse(Dyn.Canonical(JsonNode.Parse(WireJson.Serialize(spec))));
+        var ordered = JsonNode.Parse(Dyn.Canonical(JsonNode.Parse(OrdersJson.Serialize(spec))));
         return (ordered?.ToJsonString(StampOptions) ?? "null").Replace("\r\n", "\n", StringComparison.Ordinal);
     }
 

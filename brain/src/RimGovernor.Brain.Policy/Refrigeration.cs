@@ -29,12 +29,12 @@ public sealed record RefrigerationReview
 /// </summary>
 public sealed record RefrigerationCooler
 {
-    public required RimGovernor.Contracts.Wire.Observations.BuildingState Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.BuildingState Observed { get; init; }
 
     public string Id => Observed.Building.Id;
     public Cell Position => Observed.Cell;
     public Rotation Rotation => ConstructionOwnershipRules.BuildingOf(Observed, Observed.Building.DefName).Rotation;
-    public double Target => Observed.Settings.Control is RimGovernor.Contracts.Wire.Observations.BuildingControl.Temperature temperature
+    public double Target => Observed.Settings.Control is RimGovernor.Brain.GameFacts.Observations.BuildingControl.Temperature temperature
         ? temperature.TargetC
         : throw new RequiredFactException($"cooler {Id}: temperature control");
     public bool Connected => Observed.Connected;

@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 using HarmonyLib;
 using RimWorld;
 using Verse;
-namespace HomeBridge.BridgeTools {
+namespace RimGovernor.Native {
  // One bill a production bill intent placed: the configuration it was
  // written with, so the bill census can say whether it still reads as
  // placed (ManagedUnchanged), and whether its products need trade protection.

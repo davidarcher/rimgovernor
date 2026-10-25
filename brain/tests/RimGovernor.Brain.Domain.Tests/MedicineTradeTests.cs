@@ -20,8 +20,8 @@ public sealed class MedicineTradeTests
         MedicalReserveReview Review(long herbal, bool active) => MedicalRules.ReviewMedicalReserve(new MedicalReserveObservation
         {
             Catalog = items,
-            Items = EquatableArray.From(new[] { new RimGovernor.Contracts.Wire.Observations.UpkeepItem { Id = "h", Definition = Herbal.Value, Count = herbal, Forbidden = false, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Never() } }),
-            Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 3, Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = Herbal.Value, Units = herbal }] },
+            Items = EquatableArray.From(new[] { new RimGovernor.Brain.GameFacts.Observations.UpkeepItem { Id = "h", Definition = Herbal.Value, Count = herbal, Forbidden = false, Rot = new RimGovernor.Brain.GameFacts.Observations.ItemRot.Never() } }),
+            Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 3, Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = Herbal.Value, Units = herbal }] },
         }, active, policy);
 
         Assert.True(Review(8, true).Active);
@@ -112,11 +112,11 @@ public sealed class MedicineTradeTests
         {
 
             Catalog = ItemFactsFixtureRules.CoreItemFacts(),
-            Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 1, Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = Herbal.Value, Units = 20 }] },
+            Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 1, Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = Herbal.Value, Units = 20 }] },
             Items = [
-                new() { Id = "lasting", Definition = Herbal.Value, Count = 1, Forbidden = false, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Never() },
-                new() { Id = "fresh", Definition = Herbal.Value, Count = 1, Forbidden = false, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Rotting(1) },
-                new() { Id = "expired", Definition = Herbal.Value, Count = 10, Forbidden = false, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Rotting(0) }],
+                new() { Id = "lasting", Definition = Herbal.Value, Count = 1, Forbidden = false, Rot = new RimGovernor.Brain.GameFacts.Observations.ItemRot.Never() },
+                new() { Id = "fresh", Definition = Herbal.Value, Count = 1, Forbidden = false, Rot = new RimGovernor.Brain.GameFacts.Observations.ItemRot.Rotting(1) },
+                new() { Id = "expired", Definition = Herbal.Value, Count = 10, Forbidden = false, Rot = new RimGovernor.Brain.GameFacts.Observations.ItemRot.Rotting(0) }],
         };
         var result = MedicalRules.ReviewMedicalReserve(observation, true, MedicalReservePolicy.Default());
         Assert.Equal(2, result.Stock);

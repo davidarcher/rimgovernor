@@ -2,7 +2,7 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Executor;
 
-// Port of internal/executor haul.go, movement.go, trade.go and comms_trade_request.go: the kinds with their own
+// Action kinds with their own
 // flow. A (Result, error) pair is kept: a step that fails returns the progress reached so far with the error.
 
 public sealed partial class Executor
@@ -43,7 +43,7 @@ public sealed partial class Executor
         if (expected.Plan != v.Plan || expected.Revision != v.Revision)
         {
             // A routine method plan runs under the root authority; guard re-authorizes it before every native call.
-            if (_roundsScope is null)
+            if (_reviewScope is null)
             {
                 throw new AuthorityException();
             }
@@ -320,7 +320,7 @@ public sealed partial class Executor
             var snapshot = authority.Snapshot;
             if (snapshot.Plan != view.Plan || snapshot.Revision != view.Revision)
             {
-                if (_roundsScope is null)
+                if (_reviewScope is null)
                 {
                     throw new AuthorityException();
                 }

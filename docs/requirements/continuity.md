@@ -45,7 +45,7 @@ an arbitrary native write has no executed evidence here. Evidence R3–R4.
 
 ## Evidence and inspection coverage
 
-- **R1 — Checkpoint boundary.** [SaveBoundary](../../brain/src/RimGovernor.Brain.BuildingRuntime/SaveBoundary.cs)
+- **R1 — Checkpoint boundary.** [SaveBoundary](../../brain/src/RimGovernor.Brain.Runtime/Control.SaveBoundary.cs)
   drains owned writers, checks expected world identity, calls the native save
   operation and requires a completed reply. An unavailable service, invalid
   request or uncertain result raises `CheckpointException`. This establishes

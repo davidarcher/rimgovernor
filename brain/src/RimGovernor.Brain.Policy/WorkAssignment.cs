@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy;
 
 
@@ -101,7 +100,7 @@ public enum WorkType
 
 public sealed record WorkPriority
 {
-    public required O.WorkSetting Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.WorkSetting Observed { get; init; }
     public WorkType Work => WorkRules.WorkTypeOf(Observed.DefName);
     public int Priority => Observed.Priority;
     public bool Disabled => Observed.Disabled;
@@ -135,7 +134,7 @@ public abstract record PawnWorkTable
 
     public sealed record Uninitialized : PawnWorkTable;
 
-    public sealed record Works(O.PawnWork.Works Observed, EquatableArray<WorkPriority> Rows) : PawnWorkTable
+    public sealed record Works(RimGovernor.Brain.GameFacts.Observations.PawnWork.Works Observed, EquatableArray<WorkPriority> Rows) : PawnWorkTable
     {
         public bool Manual => Observed.ManualPriorities;
     }
@@ -163,7 +162,7 @@ public sealed record WorkPawnsRead(EquatableArray<WorkPawn> Pawns);
 
 public sealed record WorkPawn
 {
-    public required RimGovernor.Contracts.Wire.Observations.PawnState Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PawnState Observed { get; init; }
     public PawnId Id => new(Observed.Pawn.Id ?? throw new RequiredFactException("work pawn id"));
     public bool ConstructionAble => Observed.ConstructionCapable;
     public bool Available => !Observed.Dead && !Observed.Downed && !Observed.Drafted && Observed.MentalState is null
@@ -172,9 +171,9 @@ public sealed record WorkPawn
     public bool Applies => Work is not PawnWorkTable.NeverWorks;
     public required bool Ranged { get; init; }
     public required bool Hunts { get; init; }
-    public EquatableArray<RimGovernor.Contracts.Wire.Observations.Skill> Skills => Observed.Biography.Skills;
-    public EquatableArray<RimGovernor.Contracts.Wire.Observations.SkillStatCurve> SkillStatCurves => Observed.Biography.SkillStatCurves;
-    public EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkSpeedRead> WorkSpeeds => Observed.Biography.WorkSpeeds;
+    public EquatableArray<RimGovernor.Brain.GameFacts.Observations.Skill> Skills => Observed.Biography.Skills;
+    public EquatableArray<RimGovernor.Brain.GameFacts.Observations.SkillStatCurve> SkillStatCurves => Observed.Biography.SkillStatCurves;
+    public EquatableArray<RimGovernor.Brain.GameFacts.Observations.WorkSpeedRead> WorkSpeeds => Observed.Biography.WorkSpeeds;
     public required EquatableArray<PawnTrait> Traits { get; init; }
     public EquatableArray<WorkType> Incapable => EquatableArray.From(Observed.Biography.IncapableWorkTypes.Select(WorkRules.WorkTypeOf));
     public double Age => Observed.Biography.BiologicalAgeYears;
@@ -236,21 +235,21 @@ public abstract record JobTarget
 /// </summary>
 public sealed record PawnJob
 {
-    public required O.JobEvidence Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.JobEvidence Observed { get; init; }
     public string Def => Observed.DefName ?? "";
     public WorkType Work => WorkRules.WorkTypeOf(Observed.WorkTypeDefName);
     public bool Preemptible => Observed.Preemptible;
     public JobTarget Target => Observed.DefName is null ? new JobTarget.None() : TargetOf(Observed);
 
-    private static JobTarget TargetOf(O.JobEvidence job)
+    private static JobTarget TargetOf(RimGovernor.Brain.GameFacts.Observations.JobEvidence job)
     {
         var target = job.TargetA?.Target ?? throw new RequiredFactException($"job {job.DefName}: targetA");
         return target switch
         {
-            O.TargetRefTarget.EntityCase { Value.Id: { Length: > 0 } id, Place: O.EntityPlace.OnMap at } => new JobTarget.Spawned(id, at.Cell),
-            O.TargetRefTarget.EntityCase { Value.Id: { Length: > 0 } id, Place: O.EntityPlace.Unplaced } => new JobTarget.Held(id),
-            O.TargetRefTarget.CellCase cell => new JobTarget.Ground(cell.Value),
-            O.TargetRefTarget.UnavailableCase => new JobTarget.None(),
+            RimGovernor.Brain.GameFacts.Observations.TargetRefTarget.EntityCase { Value.Id: { Length: > 0 } id, Place: RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap at } => new JobTarget.Spawned(id, at.Cell),
+            RimGovernor.Brain.GameFacts.Observations.TargetRefTarget.EntityCase { Value.Id: { Length: > 0 } id, Place: RimGovernor.Brain.GameFacts.Observations.EntityPlace.Unplaced } => new JobTarget.Held(id),
+            RimGovernor.Brain.GameFacts.Observations.TargetRefTarget.CellCase cell => new JobTarget.Ground(cell.Value),
+            RimGovernor.Brain.GameFacts.Observations.TargetRefTarget.UnavailableCase => new JobTarget.None(),
             var invalid => throw new RequiredFactException($"job {job.DefName}: invalid targetA {invalid}"),
         };
     }
@@ -311,7 +310,7 @@ public abstract record WorkRosterRead
 }
 
 /// <summary>
-/// What a Rounds pass records of the roster planner for presentation: the coverage census and
+/// What a ReviewState pass records of the roster planner for presentation: the coverage census and
 /// every work pawn's typed profile as of Tick. Presentation only; no planner reads it back.
 /// </summary>
 public sealed record WorkRosterReport
@@ -925,34 +924,34 @@ public static partial class WorkRules
     }
 
     /// <summary>The planner's hostility response of a configured pawn's wire response; native always names one.</summary>
-    public static HostilityResponse HostilityOf(RimGovernor.Contracts.Wire.Operations.HostilityResponse response)
+    public static HostilityResponse HostilityOf(RimGovernor.Brain.GameFacts.Operations.HostilityResponse response)
     {
         switch (response)
         {
-            case RimGovernor.Contracts.Wire.Operations.HostilityResponse.Ignore:
+            case RimGovernor.Brain.GameFacts.Operations.HostilityResponse.Ignore:
                 return HostilityResponse.Ignore;
-            case RimGovernor.Contracts.Wire.Operations.HostilityResponse.Attack:
+            case RimGovernor.Brain.GameFacts.Operations.HostilityResponse.Attack:
                 return HostilityResponse.Attack;
-            case RimGovernor.Contracts.Wire.Operations.HostilityResponse.Flee:
+            case RimGovernor.Brain.GameFacts.Operations.HostilityResponse.Flee:
                 return HostilityResponse.Flee;
         }
         throw new DomainException($"hostility response {response} names no mode");
     }
 
     /// <summary>The care tier of a configured pawn's wire medical care; native always names one.</summary>
-    public static MedicalCare MedicalCareOf(RimGovernor.Contracts.Wire.Operations.MedicalCare care)
+    public static MedicalCare MedicalCareOf(RimGovernor.Brain.GameFacts.Operations.MedicalCare care)
     {
         switch (care)
         {
-            case RimGovernor.Contracts.Wire.Operations.MedicalCare.NoCare:
+            case RimGovernor.Brain.GameFacts.Operations.MedicalCare.NoCare:
                 return MedicalCare.None;
-            case RimGovernor.Contracts.Wire.Operations.MedicalCare.NoMedicine:
+            case RimGovernor.Brain.GameFacts.Operations.MedicalCare.NoMedicine:
                 return MedicalCare.NoMeds;
-            case RimGovernor.Contracts.Wire.Operations.MedicalCare.HerbalOrWorse:
+            case RimGovernor.Brain.GameFacts.Operations.MedicalCare.HerbalOrWorse:
                 return MedicalCare.Herbal;
-            case RimGovernor.Contracts.Wire.Operations.MedicalCare.NormalOrWorse:
+            case RimGovernor.Brain.GameFacts.Operations.MedicalCare.NormalOrWorse:
                 return MedicalCare.Normal;
-            case RimGovernor.Contracts.Wire.Operations.MedicalCare.Best:
+            case RimGovernor.Brain.GameFacts.Operations.MedicalCare.Best:
                 return MedicalCare.Best;
         }
         throw new DomainException($"medical care {care} names no tier");
@@ -965,7 +964,7 @@ public static partial class WorkRules
     /// (the definitions the review is building) want a second constructor and a prisoner wants a warden. Unknown
     /// facts fall back to the baseline.
     /// </summary>
-    public static WorkDemand RoundsWorkDemand(RoundsFacts facts, bool building)
+    public static WorkDemand WorkDemand(ReviewFacts facts, bool building)
     {
         var jobs = HerdPlanRules.PlanHerd(facts.HerdPlanInput()).Jobs;
         var demand = new WorkDemand

@@ -1,6 +1,6 @@
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -44,7 +44,7 @@ internal static class IdeologyConvert
         s.Record("fixture", ServedOps.Json(prepared));
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 
-        var result = await TradeKit.ApplyAsync(s, "convert-colonist", new Operations.ConversionIntent
+        var result = await TradeKit.ApplyAsync(s, "convert-colonist", new RimGovernor.Brain.GameOrders.Operations.ConversionIntent
         {
             GuideId = prepared.GuideId,
             TargetId = prepared.TargetId,

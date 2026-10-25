@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Store.Codec;
-using O = RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -11,9 +10,9 @@ public sealed class CanonicalProfileSkillTests
     [Fact]
     public void NativeSkillIdentityAndLearningSurviveProfileJournal()
     {
-        var observed = new O.Skill
+        var observed = new RimGovernor.Brain.GameFacts.Observations.Skill
         {
-            DefName = "Shooting", Level = 3, StoredLevel = 1, Passion = O.Passion.Major,
+            DefName = "Shooting", Level = 3, StoredLevel = 1, Passion = RimGovernor.Brain.GameFacts.Observations.Passion.Major,
             Learning = CapabilityMaintenanceTests.Learning(),
         };
         var pawn = PawnFixtures.Row("pawn");
@@ -42,16 +41,16 @@ public sealed class CanonicalProfileSkillTests
         {
             Inspiration = "Inspired_Creativity",
             Biography = pawn.Biography with { BiologicalAgeYears = 9, IncapableWorkTypes = ["Cooking"] },
-            Settings = pawn.Settings with { Schedule = EquatableArray.From(Enumerable.Range(0, 24).Select(hour => new O.TimetableSlot
+            Settings = pawn.Settings with { Schedule = EquatableArray.From(Enumerable.Range(0, 24).Select(hour => new RimGovernor.Brain.GameFacts.Observations.TimetableSlot
             { Hour = (uint)hour, AssignmentDefName = hour < 8 ? PawnRules.ScheduleWork : PawnRules.ScheduleSleep })) },
         };
-        var biotech = new PawnBiotech { Observed = new O.PawnBiotech
+        var biotech = new PawnBiotech { Observed = new RimGovernor.Brain.GameFacts.Observations.PawnBiotech
         {
-            DevelopmentalStage = RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Child,
+            DevelopmentalStage = RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Child,
             Genes = [], Mechanitor = null, Mech = null, Deathrest = null,
         }, WorkMinAges = new Dictionary<WorkType, int> { [WorkType.Cooking] = 12 } };
         PawnBiotechStatus status = active ? new PawnBiotechStatus.Active(biotech) : new PawnBiotechStatus.Inactive();
-        pawn = pawn with { Biotech = active ? new O.PawnBiotechState.Active(biotech.Observed) : new O.PawnBiotechState.Inactive() };
+        pawn = pawn with { Biotech = active ? new RimGovernor.Brain.GameFacts.Observations.PawnBiotechState.Active(biotech.Observed) : new RimGovernor.Brain.GameFacts.Observations.PawnBiotechState.Inactive() };
         var profile = PawnRules.BuildProfile(PawnFixtures.Worker("profile") with { Observed = pawn, Biotech = status });
         var restored = StoreJson.Deserialize<PawnProfile>(StoreJson.Serialize(profile));
         Assert.Equal(pawn, restored.Observed);

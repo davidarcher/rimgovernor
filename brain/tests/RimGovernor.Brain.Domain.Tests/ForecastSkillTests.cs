@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -146,10 +147,10 @@ public sealed class ForecastSkillTests
     [Fact]
     public void NativeWireRoundTripsTheLearningAndEveryPracticeState()
     {
-        var info = RimGovernor.Contracts.Wire.WireJsonContext.Default.GetTypeInfo(typeof(Skill))!;
+        var info = RimGovernor.Brain.GameOrders.OrdersJsonContext.Default.GetTypeInfo(typeof(Skill))!;
         foreach (var practice in new SkillPractice[] { new SkillPractice.None(), new SkillPractice.Sparring(true, false, 13), new SkillPractice.Range(false, true, 12, 4.5, 30d) })
         {
-            var skill = new Skill { Passion = RimGovernor.Contracts.Wire.Observations.Passion.None, Learning = Evidence() with { DirectFactor = 0d, Practice = practice } };
+            var skill = new Skill { Passion = RimGovernor.Brain.GameFacts.Observations.Passion.None, Learning = Evidence() with { DirectFactor = 0d, Practice = practice } };
             var json = System.Text.Json.JsonSerializer.Serialize(skill, info);
             var copy = (Skill)System.Text.Json.JsonSerializer.Deserialize(json, info)!;
             Assert.Equal(skill.Learning, copy.Learning);

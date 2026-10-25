@@ -1,6 +1,6 @@
 using RimGovernor.Brain.Acceptance;
 using RimGovernor.Brain.Acceptance.Cases;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Telemetry;
@@ -60,7 +60,7 @@ public sealed class CoupledSelectionReaderTests
     }
 
     /// <summary>#3722: the search's accounting travels under its own names, on <c>coupled_selection</c> (read back by the acceptance reader)
-    /// and on <c>rounds_review</c> (keys in <see cref="RoundsReviewTelemetry"/>), the profile's schedule searches and outcome evaluations apart.</summary>
+    /// and on <c>rounds_review</c> (keys in <see cref="ReviewTelemetry"/>), the profile's schedule searches and outcome evaluations apart.</summary>
     [Fact]
     public void SearchAccountingIsWrittenAndReadUnderItsOwnNames()
     {
@@ -70,7 +70,7 @@ public sealed class CoupledSelectionReaderTests
         var selection = ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, new(1, Traversal: 500));
         Assert.Equal(1, selection.OutcomeEvaluations - selection.BaselineEvaluations);
 
-        var row = CoupledSelections.Row(new LogRow { Payload = Rounder.CoupledSelectionAttrs(selection, 100, false, null) });
+        var row = CoupledSelections.Row(new LogRow { Payload = ColonyReview.CoupledSelectionAttrs(selection, 100, false, null) });
         Assert.Equal(selection.Selection.Expansions, row.Search.Expansions);
         Assert.Equal(selection.OutcomeEvaluations, row.Search.Evaluations);
         Assert.Equal(selection.BaselineEvaluations, row.Search.BaselineEvaluations);
@@ -84,18 +84,18 @@ public sealed class CoupledSelectionReaderTests
         Assert.Null(empty.Evaluations);
         Assert.Null(empty.Pruned);
         Assert.Null(empty.BoundsUnavailable);
-        var withBounds = Rounder.CoupledSelectionAttrs(selection with { BoundsUnavailable = ["urgent_zero_unserved:goal_routes"] }, 100, false, null);
+        var withBounds = ColonyReview.CoupledSelectionAttrs(selection with { BoundsUnavailable = ["urgent_zero_unserved:goal_routes"] }, 100, false, null);
         Assert.Equal(["urgent_zero_unserved:goal_routes"], CoupledSelections.Row(new LogRow { Payload = withBounds }).Search.BoundsUnavailable);
 
-        var review = Rounder.ReviewSearchAttrs(selection).ToDictionary(a => a.Key, a => a.Value);
-        Assert.Equal(selection.Selection.Expansions, review[RoundsReviewTelemetry.CoupledSearchExpansionsKey]);
-        Assert.Equal(selection.OutcomeEvaluations, review[RoundsReviewTelemetry.CoupledSearchEvaluationsKey]);
-        Assert.Equal(selection.BaselineEvaluations, review[RoundsReviewTelemetry.CoupledBaselineEvaluationsKey]);
-        Assert.Equal(selection.BaselineExpansions, review[RoundsReviewTelemetry.CoupledBaselineExpansionsKey]);
-        Assert.Equal(1, review[RoundsReviewTelemetry.CoupledEvaluationBudgetKey]);
-        Assert.Equal(500, review[RoundsReviewTelemetry.CoupledTraversalBoundKey]);
-        var phases = Assert.IsType<Dictionary<string, object?>>(review[RoundsReviewTelemetry.SearchPhasesKey]);
-        var profile = Assert.IsType<Dictionary<string, object?>>(review[RoundsReviewTelemetry.SearchProfileKey]);
+        var review = ColonyReview.ReviewSearchAttrs(selection).ToDictionary(a => a.Key, a => a.Value);
+        Assert.Equal(selection.Selection.Expansions, review[ReviewTelemetry.CoupledSearchExpansionsKey]);
+        Assert.Equal(selection.OutcomeEvaluations, review[ReviewTelemetry.CoupledSearchEvaluationsKey]);
+        Assert.Equal(selection.BaselineEvaluations, review[ReviewTelemetry.CoupledBaselineEvaluationsKey]);
+        Assert.Equal(selection.BaselineExpansions, review[ReviewTelemetry.CoupledBaselineExpansionsKey]);
+        Assert.Equal(1, review[ReviewTelemetry.CoupledEvaluationBudgetKey]);
+        Assert.Equal(500, review[ReviewTelemetry.CoupledTraversalBoundKey]);
+        var phases = Assert.IsType<Dictionary<string, object?>>(review[ReviewTelemetry.SearchPhasesKey]);
+        var profile = Assert.IsType<Dictionary<string, object?>>(review[ReviewTelemetry.SearchProfileKey]);
         Assert.Equal(selection.SearchPhases.Select(p => p.Phase), phases.Keys);
         Assert.Equal(selection.SearchPhases.Select(p => p.Phase), profile.Keys);
         foreach (var phase in selection.SearchPhases)
@@ -110,11 +110,11 @@ public sealed class CoupledSelectionReaderTests
         }
         Assert.Equal(selection.BaselineEvaluations, Assert.IsType<Dictionary<string, object?>>(profile["baseline"])["outcome_evaluations"]);
 
-        var none = Rounder.ReviewSearchAttrs(null).ToDictionary(a => a.Key, a => a.Value);
-        Assert.Equal(-1, none[RoundsReviewTelemetry.CoupledSearchExpansionsKey]);
-        Assert.Equal(-1, none[RoundsReviewTelemetry.CoupledSearchEvaluationsKey]);
-        Assert.Equal(-1, none[RoundsReviewTelemetry.CoupledEvaluationBudgetKey]);
-        Assert.Equal(-1, none[RoundsReviewTelemetry.CoupledTraversalBoundKey]);
-        Assert.Null(none[RoundsReviewTelemetry.SearchProfileKey]);
+        var none = ColonyReview.ReviewSearchAttrs(null).ToDictionary(a => a.Key, a => a.Value);
+        Assert.Equal(-1, none[ReviewTelemetry.CoupledSearchExpansionsKey]);
+        Assert.Equal(-1, none[ReviewTelemetry.CoupledSearchEvaluationsKey]);
+        Assert.Equal(-1, none[ReviewTelemetry.CoupledEvaluationBudgetKey]);
+        Assert.Equal(-1, none[ReviewTelemetry.CoupledTraversalBoundKey]);
+        Assert.Null(none[ReviewTelemetry.SearchProfileKey]);
     }
 }

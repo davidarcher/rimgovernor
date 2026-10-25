@@ -1,10 +1,10 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using DefinitionCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
 using CatalogStat = RimGovernor.Brain.Bridge.CatalogStat;
 using CatalogStats = RimGovernor.Brain.Bridge.CatalogStats;
-using GrowerFertility = RimGovernor.Contracts.Wire.Observations.GrowerFertility;
+using GrowerFertility = RimGovernor.Brain.GameFacts.Observations.GrowerFertility;
 namespace RimGovernor.Brain.Bridge;
 // The planning rows are views over the catalog's generated def rows and stat table: nothing here is read from a
 // native planning writer. A row a view needs and the catalog lacks is an error, never a default.

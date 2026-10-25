@@ -1,10 +1,10 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -68,7 +68,7 @@ public sealed class ColonyModelWiringTests
     {
         var frame = ColonyFactsCoreTests.Reading() with { Window = new Held<PlanningCells> { Value = new() { Cells = [] } } };
 
-        var review = RoundsColonyModel.Review(frame, Context(ForecastValueTests.RaidDay()), null);
+        var review = ReviewColonyModel.Review(frame, Context(ForecastValueTests.RaidDay()), null);
 
         Assert.Null(review.Basis);
         Assert.Contains("colony_model_input_unready", review.Marginals.Findings);
@@ -79,7 +79,7 @@ public sealed class ColonyModelWiringTests
     [Fact]
     public void AReviewBuildsTheResearchGateTheCropChainAndTheCraftNodeAndPricesThemByTheHarmLedger()
     {
-        var review = RoundsColonyModel.Review(Frame(), Context(ForecastValueTests.RaidDay()), null);
+        var review = ReviewColonyModel.Review(Frame(), Context(ForecastValueTests.RaidDay()), null);
         var ids = review.Marginals.Trajectory.Events.Where(e => e.Kind is ModelEventKind.ProjectCompletion or ModelEventKind.Harvest).Select(e => e.Id).ToArray();
 
         Assert.Equal(["research:Devilstrand", "sow:zone1", "grow:zone1", "harvest:zone1", Garment], ids);
@@ -112,12 +112,12 @@ public sealed class ColonyModelWiringTests
                 },
                 ForecastObserved = frame.Facts.ForecastObserved with
                 {
-                    WorkPawns = new WorkPawnsRead(EquatableArray.From(new[] { anna with { Observed = anna.Observed with { Biography = anna.Observed.Biography with { Skills = EquatableArray.From(anna.Skills.Append(new O.Skill { Passion = O.Passion.None, DefName = "Medicine", Level = 3, Learning = SkillStockTests.Mechanics(3, 0) })), SkillStatCurves = EquatableArray.From(new[] { tend }) } } }, }))
+                    WorkPawns = new WorkPawnsRead(EquatableArray.From(new[] { anna with { Observed = anna.Observed with { Biography = anna.Observed.Biography with { Skills = EquatableArray.From(anna.Skills.Append(new RimGovernor.Brain.GameFacts.Observations.Skill { Passion = RimGovernor.Brain.GameFacts.Observations.Passion.None, DefName = "Medicine", Level = 3, Learning = SkillStockTests.Mechanics(3, 0) })), SkillStatCurves = EquatableArray.From(new[] { tend }) } } }, }))
                 }
             }
         };
 
-        var review = RoundsColonyModel.Review(frame, Context(ForecastValueTests.RaidDay()), null);
+        var review = ReviewColonyModel.Review(frame, Context(ForecastValueTests.RaidDay()), null);
 
         Assert.DoesNotContain(review.Marginals.Findings, f => f.StartsWith(ColonyValue.MedicineSkillValueUnassessed, StringComparison.Ordinal));
         Assert.True(review.Marginals.PerUnit[ProjectGraph.MedicineKey(new Resource("MedicineHerbal"))] > 0, string.Join(',', review.Marginals.Findings));
@@ -127,7 +127,7 @@ public sealed class ColonyModelWiringTests
     public void MissingRaidTreatmentFactsFailTheReview()
     {
         Assert.Equal(HarmLedger.ThreatScheduleUnknown, Assert.Throws<RequiredFactException>(() =>
-            RoundsColonyModel.Review(Frame(), Context(new HarmInputs()), null)).Fact);
+            ReviewColonyModel.Review(Frame(), Context(new HarmInputs()), null)).Fact);
     }
 
     [Fact]

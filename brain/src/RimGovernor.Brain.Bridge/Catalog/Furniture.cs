@@ -2,7 +2,7 @@ using RimGovernor.Brain.Domain;
 using RimWorld;
 using Verse;
 using P = RimGovernor.Brain.Policy;
-using RoomRole = RimGovernor.Contracts.Wire.Observations.RoomRole;
+using RoomRole = RimGovernor.Brain.GameFacts.Observations.RoomRole;
 
 namespace RimGovernor.Brain.Bridge;
 

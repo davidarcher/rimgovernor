@@ -6,12 +6,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using RimWorld;
 using Verse;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Domain;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The definition catalog: the static planning facts of every
     // buildable or sowable definition and every research project. They hold
@@ -22,26 +20,26 @@ namespace HomeBridge.BridgeTools
 
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         // A refused or unavailable prepare throws (NativeFaults).
-        internal static Obs.DefinitionCatalogAck HandleReadDefinitionCatalog(Obs.DefinitionCatalogRequest parsed)
+        internal static RimGovernor.Brain.GameFacts.Observations.DefinitionCatalogAck HandleReadDefinitionCatalog(RimGovernor.Brain.GameOrders.Observations.DefinitionCatalogRequest parsed)
         {
             if (parsed.Scope.ExpectedIdentity == null)
-                throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Expected identity required."));
-            if (!ProtoBoundary.ValidateIdentity(parsed.Scope.ExpectedIdentity, out _, out var context, out var error))
+                throw NativeFaults.Refused(GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Expected identity required."));
+            if (!GameThread.ValidateIdentity(parsed.Scope.ExpectedIdentity, out _, out var context, out var error))
                 throw NativeFaults.Refused(error);
             var player = Faction.OfPlayerSilentFail;
             if (player?.def == null)
-                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.NativeComponentMissing, Detail = "Player faction is unavailable." });
+                throw NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.NativeComponentMissing, Detail = "Player faction is unavailable." });
             try
             {
                 // The brain builds its catalog over the load's def stat table right after this read, off the game thread.
                 NativeStatTable.EnsureForLoad(context.Identity.LoadToken);
                 NativeRaceFacts.EnsureForLoad(context.Identity.LoadToken);
-                return new Obs.DefinitionCatalogAck();
+                return new RimGovernor.Brain.GameFacts.Observations.DefinitionCatalogAck();
             }
             catch (Exception ex)
             {
                 ObservationWork.Failed("definitionCatalog", ex);
-                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic("The definition catalog could not be read completely: " + ex.GetType().Name + ": " + ex.Message) });
+                throw NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic("The definition catalog could not be read completely: " + ex.GetType().Name + ": " + ex.Message) });
             }
         }
 

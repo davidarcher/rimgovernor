@@ -1,8 +1,8 @@
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using System.Diagnostics;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
-using Clock = RimGovernor.Contracts.Wire.Clock;
+using RimGovernor.Brain.GameAccess;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -36,8 +36,8 @@ internal static class SmokeClockStall
         var request = new ClockRunPlan
         {
             ExpectedGeneration = generation,
-            Speed = Clock.Speed.Hyperfast,
-            Policy = new Clock.WatchPolicy
+            Speed = RimGovernor.Brain.GameFacts.Clock.Speed.Hyperfast,
+            Policy = new RimGovernor.Brain.GameOrders.Clock.WatchPolicy
             {
                 SeriousSingleHitDamage = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSingleHitDamage,
                 SeriousSummaryHealthFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSummaryHealthFloor,
@@ -47,7 +47,7 @@ internal static class SmokeClockStall
                 MeleeReachCells = RimGovernor.Brain.Policy.HazardThresholdsRules.MeleeReachCells,
                 InjurySeverityFloorTicks = RimGovernor.Brain.Policy.HazardThresholdsRules.InjurySeverityFloorTicks,
                 HungerHoldCategory = RimGovernor.Brain.Policy.HazardThresholdsRules.HungerHoldCategory,
-                Mode = Clock.WatchMode.Colony,
+                Mode = RimGovernor.Brain.GameOrders.Clock.WatchMode.Colony,
                 HealthDropFraction = 0.5f,
                 MinHealthFraction = 0.2f,
                 HostileWithin = 40,
@@ -75,19 +75,19 @@ internal static class SmokeClockStall
                     var reply = await s.CallAsync(
                         "slow",
                         NativeOps.RunClock,
-                        new Clock.RunRequest
+                        new RimGovernor.Brain.GameOrders.Clock.RunRequest
                         {
                             Identity = s.Identity,
                             ExpectedGeneration = request.ExpectedGeneration,
                             Policy = request.Policy,
-                            Speed = Clock.Speed.Normal,
+                            Speed = RimGovernor.Brain.GameFacts.Clock.Speed.Normal,
                             PlannedHoldSerial = running.HoldSerial,
                             HoldAtTick = (ulong)(Math.Max(running.Context?.Tick ?? 0, 0) + s.TicksLeft),
                         },
                         token).ConfigureAwait(false);
-                    var status = reply is { State: Clock.ClockState.Running, LastRun: Clock.RunHistory.RanCase { Speed: Clock.Speed.Normal } }
+                    var status = reply is { State: RimGovernor.Brain.GameFacts.Clock.ClockState.Running, LastRun: RimGovernor.Brain.GameFacts.Clock.RunHistory.RanCase { Speed: RimGovernor.Brain.GameFacts.Clock.Speed.Normal } }
                         ? reply
-                        : throw new AcceptanceException($"slow: want a running clock at Normal, got {WireJson.Serialize(reply)}");
+                        : throw new AcceptanceException($"slow: want a running clock at Normal, got {OrdersJson.Serialize(reply)}");
                     s.RecordWire("slowed", status);
                     slowed = true;
                     clock.Restart();

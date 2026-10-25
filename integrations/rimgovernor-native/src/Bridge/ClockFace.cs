@@ -1,4 +1,4 @@
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The clock face the date readout shows in place of vanilla's hour, in the game's
     // 12-hour ("3:45:12 PM") or 24-hour ("15:45:12") form. No Verse types, so the

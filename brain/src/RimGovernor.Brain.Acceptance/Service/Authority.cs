@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Contracts.Wire;
-using Wa = RimGovernor.Contracts.Wire.Authority;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -22,15 +22,15 @@ public static class Authority
         ArgumentNullException.ThrowIfNull(harness);
         ArgumentNullException.ThrowIfNull(identity);
         var wire = Harness.IdentityOf(identity);
-        var status = await harness.CallAsync("release-authority-status", NativeOps.ReadAuthorityStatus, new Wa.StatusRequest { Identity = wire }, cancellationToken).ConfigureAwait(false);
+        var status = await harness.CallAsync("release-authority-status", NativeOps.ReadAuthorityStatus, new RimGovernor.Brain.GameOrders.Authority.StatusRequest { Identity = wire }, cancellationToken).ConfigureAwait(false);
         if (status.State?.Active is null)
         {
             return null;
         }
 
-        var revoke = new Wa.Revoke { Identity = wire, ExpectedGeneration = status.Context?.NativeGeneration is RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase { Value: var generation } ? generation : throw new AcceptanceException("release-authority: the status named no generation"), Reason = Wa.RevocationReason.Manual };
-        var control = await harness.CallAsync("release-authority", NativeOps.ControlAuthority, new Wa.ControlRequest { Operation = revoke }, cancellationToken).ConfigureAwait(false);
-        var revoked = control.Outcome?.Revoked ?? throw new AcceptanceException($"release-authority: {WireJson.Serialize(control)}");
-        return JsonNode.Parse(WireJson.Serialize(revoked))!.AsObject();
+        var revoke = new RimGovernor.Brain.GameOrders.Authority.Revoke { Identity = wire, ExpectedGeneration = status.Context?.NativeGeneration is RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase { Value: var generation } ? generation : throw new AcceptanceException("release-authority: the status named no generation"), Reason = RimGovernor.Brain.GameFacts.Authority.RevocationReason.Manual };
+        var control = await harness.CallAsync("release-authority", NativeOps.ControlAuthority, new RimGovernor.Brain.GameOrders.Authority.ControlRequest { Operation = revoke }, cancellationToken).ConfigureAwait(false);
+        var revoked = control.Outcome?.Revoked ?? throw new AcceptanceException($"release-authority: {OrdersJson.Serialize(control)}");
+        return JsonNode.Parse(OrdersJson.Serialize(revoked))!.AsObject();
     }
 }

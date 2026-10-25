@@ -62,7 +62,7 @@ public sealed record MedicalFacts
     /// gap reads (the economy's trade need), which only the organ sale harvest consults. The critical patients are
     /// the family read's own (<see cref="EmergencyNeedsRules.CriticalPatientIds"/>).
     /// </summary>
-    public static MedicalFacts From(RoundsFacts f, RoundsPolicy policy, bool medicineActive)
+    public static MedicalFacts From(ReviewFacts f, PlannerSettings policy, bool medicineActive)
     {
         var p = policy.Seasonal(f.Calendar, f.DisasterConditions);
         var reserve = MedicalRules.MedicalReserveAtTarget(f.MedicalReserve with { Census = f.Census }, p.MedicalReserve);
@@ -213,10 +213,10 @@ public static partial class MedicalRules
     /// Whether no operation the surgery work serves stands: no owed restore, no actionable elective upgrade, and no
     /// organ sale harvest (while the silver runway is short) or part recovery wanted.
     /// </summary>
-    public static bool SurgeryNeedRecovered(RoundsFacts f, RoundsPolicy p, bool medicineActive)
+    public static bool SurgeryNeedRecovered(ReviewFacts f, PlannerSettings p, bool medicineActive)
     {
         var recovered = SurgeryRules.SurgeryRecovered(f.MedicalPawns) && !SurgeryRules.ElectiveSurgeryOwed(f.MedicalPawns, f.SurgeryContextOf(), f.FabricableParts);
-        if ((OrganHarvestRules.SaleHarvestWanted(f, true) && SilverGapRules.RoundsSilverShort(f, p, medicineActive)) || OrganHarvestRules.PartRecoveryWanted(f))
+        if ((OrganHarvestRules.SaleHarvestWanted(f, true) && SilverGapRules.SilverShort(f, p, medicineActive)) || OrganHarvestRules.PartRecoveryWanted(f))
         {
             return false;
         }

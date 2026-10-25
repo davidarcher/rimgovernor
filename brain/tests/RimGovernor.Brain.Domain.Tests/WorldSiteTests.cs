@@ -1,13 +1,15 @@
 using RimGovernor.Brain.Domain;
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
 /// A world site row is total (#3861): its place, route, threat budget and loaded-map threat are named unions, the
-/// extraction a crew or none. On the wire it round-trips through <c>WireJsonContext</c> exactly.
+/// extraction a crew or none. On the wire it round-trips through <c>OrdersJsonContext</c> exactly.
 /// </summary>
 public sealed class WorldSiteTests
 {
@@ -56,8 +58,8 @@ public sealed class WorldSiteTests
             PeaceTalks = new QuestPeaceTalks { WorstGoodwillLoss = 30, BestGoodwillGain = 15, IdeologyActive = false },
         };
 
-        var json = WireJson.Serialize(loaded);
-        var other = WireJson.Serialize(pending);
+        var json = OrdersJson.Serialize(loaded);
+        var other = OrdersJson.Serialize(pending);
 
         Assert.Equal(
             """{"id":"Site_3","state":"spawned","place":{"type":"loaded","tile":12,"layer":0,"map":{"id":4,"threat":{"type":"trapped"},"extraction":{"type":"crew","value":{"canReform":true,"crew":["Thing_Human1"],"carryCapacity":75,"carriedMass":10.5,"inventoryFoodDays":2,"crewNutritionPerDay":1.6,"cargo":[{"id":"Thing_Gold7","def":"Gold","count":30,"unitMass":0.008,"marketValue":10,"nutrition":0,"held":false}],"homeRoutes":[{"map":0,"tile":40,"travel":{"type":"reachable","travelTicks":60000}},{"map":1,"tile":41,"travel":{"type":"unreachable"}}],"exitCells":[{"x":0,"z":5}]}},"miningTargets":[{"id":"Thing_MineableGold8","def":"MineableGold","cell":{"x":9,"z":9},"designated":true}]}},"questIds":["7"],"route":{"type":"reachable","travelTicks":30000,"crew":["Thing_Human1"]},"security":{"type":"bounded","initialPoints":350,"pendingRaidPoints":0},"peaceTalks":null}""",
@@ -65,7 +67,7 @@ public sealed class WorldSiteTests
         Assert.Equal(
             """{"id":"PeaceTalks_5","state":"pending","place":{"type":"on_tile","tile":20,"layer":0},"questIds":[],"route":{"type":"no_crew"},"security":{"type":"not_a_site"},"peaceTalks":{"worstGoodwillLoss":30,"bestGoodwillGain":15,"ideologyActive":false}}""",
             other);
-        Assert.Equal(loaded, WireJson.Deserialize<WorldSite>(json));
-        Assert.Equal(pending, WireJson.Deserialize<WorldSite>(other));
+        Assert.Equal(loaded, OrdersJson.Deserialize<WorldSite>(json));
+        Assert.Equal(pending, OrdersJson.Deserialize<WorldSite>(other));
     }
 }

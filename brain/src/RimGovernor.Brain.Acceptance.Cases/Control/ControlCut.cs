@@ -2,8 +2,6 @@ using System.Globalization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -75,23 +73,23 @@ internal static class ControlCut
         var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
         foreach (var tree in trees)
         {
-            _ = await TypedApply.AppliedAsync(s, "designate", new Operations.DesignateIntent
-            { Location = new Operations.DesignationLocation.ByTarget(),
-                Designation = Operations.ThingDesignation.CutPlant,
-                Target = new() { Id = tree }, ReplaceWithWall = false, Withdraw = false, Guard = Operations.DesignationGuard.NoGuard }, cancellationToken).ConfigureAwait(false);
+            _ = await TypedApply.AppliedAsync(s, "designate", new RimGovernor.Brain.GameOrders.Operations.DesignateIntent
+            { Location = new RimGovernor.Brain.GameOrders.Operations.DesignationLocation.ByTarget(),
+                Designation = RimGovernor.Brain.GameOrders.Operations.ThingDesignation.CutPlant,
+                Target = new() { Id = tree }, ReplaceWithWall = false, Withdraw = false, Guard = RimGovernor.Brain.GameOrders.Operations.DesignationGuard.NoGuard }, cancellationToken).ConfigureAwait(false);
         }
 
         // The standing designations are one Cut wave: the op named by the lowest plant, Targets the three, a row for the colonist.
-        var read = await s.CallAsync("removals", NativeOps.ReadConstructionActivity, new Observations.ConstructionActivityRequest(s.Identity, default), cancellationToken).ConfigureAwait(false);
+        var read = await s.CallAsync("removals", NativeOps.ReadConstructionActivity, new RimGovernor.Brain.GameOrders.Observations.ConstructionActivityRequest(s.Identity, default), cancellationToken).ConfigureAwait(false);
         s.RecordWire("removals", read.Removals);
-        var ops = read.Removals.Where(r => r.Kind == Observations.PlannedClearingKind.Cut).ToList();
+        var ops = read.Removals.Where(r => r.Kind == RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Cut).ToList();
         if (ops is not [var op] || op.Targets.Count != 3 || !trees.All(op.Targets.Contains) || op.Id != op.Targets[0])
         {
             throw new AcceptanceException($"removals: want one Cut op naming the three oaks [{string.Join(",", trees)}], got [{string.Join(";", read.Removals)}]; findings {string.Join(",", read.Findings)}");
         }
 
         var row = op.Options.FirstOrDefault(r => r.Pawn == worker);
-        if (row is null || row.WorkGiver.Length == 0 || row.Finish is not Observations.ConstructionFinish.Finishes { Ticks: > 0 })
+        if (row is null || row.WorkGiver.Length == 0 || row.Finish is not RimGovernor.Brain.GameFacts.Observations.ConstructionFinish.Finishes { Ticks: > 0 })
         {
             throw new AcceptanceException($"removals: want a row for {worker} with a work giver, a known route and finish, got [{string.Join(";", op.Options)}]");
         }
@@ -101,7 +99,7 @@ internal static class ControlCut
         {
             Tasks = [new SelectedActivityTask(TaskId, worker, [], step, row.Location, 0)],
         };
-        _ = await TypedApply.AppliedAsync(s, "order", new Operations.PawnActivitiesIntent { Batch = batch }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "order", new RimGovernor.Brain.GameOrders.Operations.PawnActivitiesIntent { Batch = batch }, cancellationToken).ConfigureAwait(false);
 
         var rect = new Fx.StageRect(site.X, site.Z, 5, 3);
         async Task<List<Fx.StageCell>> StandingAsync(string label, CancellationToken ct)
@@ -140,7 +138,7 @@ internal static class ControlCut
         }
 
         // The execution row: a set step ends completed when its count is done or no member is left (a removed tree is skipped, not a fault).
-        var tasks = await s.CallAsync("execution", NativeOps.ReadActivityTasks, new Observations.ActivityTaskRequest(s.Identity, batch), cancellationToken).ConfigureAwait(false);
+        var tasks = await s.CallAsync("execution", NativeOps.ReadActivityTasks, new RimGovernor.Brain.GameOrders.Observations.ActivityTaskRequest(s.Identity, batch), cancellationToken).ConfigureAwait(false);
         var execution = tasks.Pawns.FirstOrDefault(p => p.Pawn == worker)?.Execution;
         s.Record("execution", execution?.ToString() ?? "none");
         if (execution?.State != "completed" || removed && execution.Reason != "no_legal_member")

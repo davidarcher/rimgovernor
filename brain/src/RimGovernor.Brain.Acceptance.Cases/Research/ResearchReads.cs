@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -36,9 +35,9 @@ internal static class ResearchReads
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        async Task<Observations.ResearchSnapshot> ReadAsync(string label, string? nameContains)
+        async Task<RimGovernor.Brain.GameFacts.Observations.ResearchSnapshot> ReadAsync(string label, string? nameContains)
         {
-            var reply = await s.CallAsync(label, NativeOps.ReadResearch, new Observations.ResearchRequest
+            var reply = await s.CallAsync(label, NativeOps.ReadResearch, new RimGovernor.Brain.GameOrders.Observations.ResearchRequest
             {
                 Scope = s.Scope,
                 IncludeLocked = true,

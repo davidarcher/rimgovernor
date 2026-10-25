@@ -1,7 +1,5 @@
 using RimGovernor.Brain.Bridge;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -50,7 +48,7 @@ internal static class RoomsReads
         var inside = interior[interior.Count / 2];
         var problems = new List<string>();
 
-        async Task<List<Observations.RoomState>> ReadAsync(string label, Observations.ListRoomsRequest request)
+        async Task<List<RimGovernor.Brain.GameFacts.Observations.RoomState>> ReadAsync(string label, RimGovernor.Brain.GameOrders.Observations.ListRoomsRequest request)
         {
             var reply = await s.CallAsync(label, NativeOps.ListRooms, request with { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
             var rooms = reply.Rooms.ToList();
@@ -59,7 +57,7 @@ internal static class RoomsReads
         }
 
         var cell = new RimGovernor.Brain.Domain.Cell { X = inside.X, Z = inside.Z };
-        var byCell = await ReadAsync("by-cell", new Observations.ListRoomsRequest { Region = new Observations.Rectangle { Minimum = cell, Maximum = cell } }).ConfigureAwait(false);
+        var byCell = await ReadAsync("by-cell", new RimGovernor.Brain.GameOrders.Observations.ListRoomsRequest { Region = new RimGovernor.Brain.GameFacts.Observations.Rectangle { Minimum = cell, Maximum = cell } }).ConfigureAwait(false);
         if (byCell is not [{ Id: var id } room])
         {
             throw new AcceptanceException($"by-cell: want one room at {inside}, got {byCell.Count}");
@@ -87,7 +85,7 @@ internal static class RoomsReads
             problems.Add($"hut: center {room.Center} is not an interior cell");
         }
 
-        var exact = new Observations.ListRoomsRequest { RoomIds = [id] };
+        var exact = new RimGovernor.Brain.GameOrders.Observations.ListRoomsRequest { RoomIds = [id] };
         var byId = await ReadAsync("by-id", exact).ConfigureAwait(false);
         if (byId is not [var same] || same != room)
         {
@@ -99,13 +97,13 @@ internal static class RoomsReads
             problems.Add("repeat: the exact-id read changed");
         }
 
-        if ((await ReadAsync("unknown-id", new Observations.ListRoomsRequest { RoomIds = ["absent-room"] }).ConfigureAwait(false)).Count != 0)
+        if ((await ReadAsync("unknown-id", new RimGovernor.Brain.GameOrders.Observations.ListRoomsRequest { RoomIds = ["absent-room"] }).ConfigureAwait(false)).Count != 0)
         {
             problems.Add("unknown-id: an absent room id matched a room");
         }
 
         var boundary = await ReadAsync("boundary", exact with { IncludeBoundary = true }).ConfigureAwait(false);
-        static long Units(Observations.RoomState r) => r.Contents.Sum(q => q.Units);
+        static long Units(RimGovernor.Brain.GameFacts.Observations.RoomState r) => r.Contents.Sum(q => q.Units);
         if (boundary is not [var walled] || Units(walled) <= Units(room))
         {
             problems.Add($"boundary: contents {(boundary.Count == 1 ? Units(boundary[0]) : -1)} do not exceed the interior's {Units(room)}");
@@ -113,7 +111,7 @@ internal static class RoomsReads
 
         try
         {
-            var duplicate = await s.CallAsync("duplicate-id", NativeOps.ListRooms, new Observations.ListRoomsRequest { Scope = s.Scope, RoomIds = [id, id] }, cancellationToken).ConfigureAwait(false);
+            var duplicate = await s.CallAsync("duplicate-id", NativeOps.ListRooms, new RimGovernor.Brain.GameOrders.Observations.ListRoomsRequest { Scope = s.Scope, RoomIds = [id, id] }, cancellationToken).ConfigureAwait(false);
             problems.Add($"duplicate-id: want a refusal, got {duplicate.Rooms.Count} rooms");
         }
         catch (NativeRefusedException refused)

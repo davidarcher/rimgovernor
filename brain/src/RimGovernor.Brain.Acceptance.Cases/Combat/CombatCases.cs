@@ -1,4 +1,3 @@
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -62,7 +61,7 @@ public static class CombatCases
         var targets = lab.Manhunters();
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
         await CombatLabKit.DraftAsync(s, attackers, cancellationToken).ConfigureAwait(false);
-        var orders = attackers.Select((a, i) => CombatLabKit.Order(a, new Operations.CombatOrderOrder.AttackCase(CombatLabKit.Pawn(targets[i])))).ToArray();
+        var orders = attackers.Select((a, i) => CombatLabKit.Order(a, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AttackCase(CombatLabKit.Pawn(targets[i])))).ToArray();
         var results = await CombatLabKit.OrdersAsync(s, "attack", cancellationToken, orders).ConfigureAwait(false);
         for (var i = 0; i < Lanes.Length; i++)
         {

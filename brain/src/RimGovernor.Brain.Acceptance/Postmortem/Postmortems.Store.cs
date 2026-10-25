@@ -135,7 +135,7 @@ public static class PostmortemStore
     /// Reads rounds raw: the review's revision and tick, and every Need with a live method of the case's loads
     /// (<see cref="CaseRows.MethodsPredicate"/>) and its live method count.
     /// </summary>
-    internal static DigestSection RoundsSection(SqliteConnection? db, string note, CaseRows store)
+    internal static DigestSection Section(SqliteConnection? db, string note, CaseRows store)
     {
         var s = new DigestSection("rounds");
         if (db is null)
@@ -419,7 +419,7 @@ public static class PostmortemStore
     /// <summary>
     /// Reports how the native authority generation moved: each distinct Snapshot.Native across the case's transitions
     /// (<see cref="CaseRows.StagesPredicate"/>) in sequence order, the authority rows (changed, lost, retaken) and the
-    /// Rounder steps that failed on a lost control, and the report's own reacquisition count. A thrashing generation
+    /// ColonyReview steps that failed on a lost control, and the report's own reacquisition count. A thrashing generation
     /// invalidates every open attempt.
     /// </summary>
     internal static DigestSection AuthorityGenerations(SqliteConnection? db, string note, CaseRows store, List<Postmortems.LogRecordRow> rows, JsonObject report)
@@ -537,7 +537,7 @@ public static class PostmortemStore
 
         if (controlLost > 0 && lastControlLost is not null)
         {
-            s.Lines.Add(new DigestLine(string.Create(CultureInfo.InvariantCulture, $"{controlLost} Rounder steps failed on lost control"), lastControlLost.Evidence()));
+            s.Lines.Add(new DigestLine(string.Create(CultureInfo.InvariantCulture, $"{controlLost} ColonyReview steps failed on lost control"), lastControlLost.Evidence()));
         }
 
         if (s.Lines.Count == 0 && s.Note.Length == 0)

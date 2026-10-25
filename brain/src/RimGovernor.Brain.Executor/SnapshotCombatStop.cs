@@ -1,10 +1,8 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Cell = RimGovernor.Brain.Domain.Cell;
-using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Executor;
 
 /// <summary>
@@ -51,7 +49,7 @@ public static class SnapshotCombatStopReplay
     /// Appends one fight stop to this process's stream in dir, after the frame it decided from when that frame is
     /// not the last one recorded. The sink owns the stream and the frame/event de-duplication.
     /// </summary>
-    public static void RecordCombatStop(string dir, O.BundleSnapshot? frame, SnapshotCombatStop s)
+    public static void RecordCombatStop(string dir, RimGovernor.Brain.GameFacts.Observations.BundleSnapshot? frame, SnapshotCombatStop s)
     {
         if (frame is null)
         {
@@ -62,4 +60,4 @@ public static class SnapshotCombatStopReplay
 }
 
 /// <summary>A recorded fight stop with the frame it decided from.</summary>
-public sealed record RecordedStop(SnapshotCombatStop Stop, O.BundleSnapshot Frame);
+public sealed record RecordedStop(SnapshotCombatStop Stop, RimGovernor.Brain.GameFacts.Observations.BundleSnapshot Frame);

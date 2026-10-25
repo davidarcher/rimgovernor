@@ -7,7 +7,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Funding is unrestricted. Completion must retain reachable work cells
     // beside unfinished neighbours and an escape for nearby colonists.

@@ -1,4 +1,4 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;

@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -64,21 +63,21 @@ internal static class PowerFuel
         var generatorId = s.Staged!.Buildings[Generator].Ids.Single();
         var stoveId = s.Staged.Buildings[Stove].Ids.Single();
 
-        async Task<(Observations.BuildingServiceState Generator, Observations.BuildingServiceState Stove)> ReadAsync(string label, CancellationToken ct)
+        async Task<(RimGovernor.Brain.GameFacts.Observations.BuildingServiceState Generator, RimGovernor.Brain.GameFacts.Observations.BuildingServiceState Stove)> ReadAsync(string label, CancellationToken ct)
         {
-            var rows = await s.BuildingsAsync(label, new Observations.ListBuildingsRequest { Ids = [generatorId, stoveId] }, ct).ConfigureAwait(false);
-            Observations.BuildingServiceState Service(string id) => rows.FirstOrDefault(r => r.Building?.Id == id)?.Service
+            var rows = await s.BuildingsAsync(label, new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest { Ids = [generatorId, stoveId] }, ct).ConfigureAwait(false);
+            RimGovernor.Brain.GameFacts.Observations.BuildingServiceState Service(string id) => rows.FirstOrDefault(r => r.Building?.Id == id)?.Service
                 ?? throw new AcceptanceException($"{label}: no service row for {id}");
             return (Service(generatorId), Service(stoveId));
         }
 
-        static bool OutOfFuel(Observations.BuildingServiceState s) => s.Fuel is Observations.BuildingFuel.Refuelable { OutOfFuel: true };
-        static bool PowerOn(Observations.BuildingServiceState s) => s.Power is Observations.BuildingPower.Trader { PowerOn: true };
+        static bool OutOfFuel(RimGovernor.Brain.GameFacts.Observations.BuildingServiceState s) => s.Fuel is RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable { OutOfFuel: true };
+        static bool PowerOn(RimGovernor.Brain.GameFacts.Observations.BuildingServiceState s) => s.Power is RimGovernor.Brain.GameFacts.Observations.BuildingPower.Trader { PowerOn: true };
 
         var before = await ReadAsync("before", cancellationToken).ConfigureAwait(false);
         s.RecordWire("generator_before", before.Generator);
         s.RecordWire("stove_before", before.Stove);
-        if (!OutOfFuel(before.Generator) || before.Generator.Power is not Observations.BuildingPower.Trader { RatedW: > 0 } || PowerOn(before.Stove))
+        if (!OutOfFuel(before.Generator) || before.Generator.Power is not RimGovernor.Brain.GameFacts.Observations.BuildingPower.Trader { RatedW: > 0 } || PowerOn(before.Stove))
         {
             throw new AcceptanceException($"before: want an out-of-fuel producer and an unpowered stove, got {before.Generator} / {before.Stove}");
         }
@@ -87,7 +86,7 @@ internal static class PowerFuel
         _ = await s.RunUntilAsync("refuelled", 10000, async ct =>
         {
             after = await ReadAsync("after", ct).ConfigureAwait(false);
-            return (Wait.Signature(after.Generator.Fuel, PowerOn(after.Stove)), after.Generator.Fuel is Observations.BuildingFuel.Refuelable { OutOfFuel: false } && PowerOn(after.Stove));
+            return (Wait.Signature(after.Generator.Fuel, PowerOn(after.Stove)), after.Generator.Fuel is RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable { OutOfFuel: false } && PowerOn(after.Stove));
         }, cancellationToken).ConfigureAwait(false);
         s.RecordWire("generator_after", after.Generator);
         s.RecordWire("stove_after", after.Stove);

@@ -1,4 +1,5 @@
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -33,7 +34,7 @@ public sealed record BedroomGainFacts
     /// <summary>Per planned room, its closed stage when every stuff's prediction reads the same one; unstaged otherwise.</summary>
     public IReadOnlyDictionary<int, RoomStage> PlannedStages { get; init; } = new Dictionary<int, RoomStage>();
 
-    public static BedroomGainFacts Of(RoundsFacts facts) => new()
+    public static BedroomGainFacts Of(ReviewFacts facts) => new()
     {
         Pawns = (facts.ForecastObserved.Needs?.Pawns ?? []).GroupBy(p => p.Pawn, StringComparer.Ordinal).Where(g => g.Count() == 1)
             .ToDictionary(g => g.Key, g => g.Single(), StringComparer.Ordinal),

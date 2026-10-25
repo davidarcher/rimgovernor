@@ -1,9 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Contracts.Wire;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Mirror = RimGovernor.Contracts.Wire.Mirror;
-using Observations = RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -60,9 +58,9 @@ public sealed record GridCell
 /// </summary>
 public sealed class MapCellGrid
 {
-    private readonly Mirror.CellGrid _grid;
+    private readonly RimGovernor.Brain.GameFacts.Mirror.CellGrid _grid;
 
-    private MapCellGrid(Mirror.CellGrid grid) => _grid = grid;
+    private MapCellGrid(RimGovernor.Brain.GameFacts.Mirror.CellGrid grid) => _grid = grid;
 
     public int X => _grid.X;
 
@@ -73,7 +71,7 @@ public sealed class MapCellGrid
     public int Height => _grid.Height;
 
     /// <summary>The grid a read carried, which a cells read must.</summary>
-    public static MapCellGrid Of(Mirror.CellGrid? grid)
+    public static MapCellGrid Of(RimGovernor.Brain.GameFacts.Mirror.CellGrid? grid)
     {
         var n = grid is null ? 0 : (long)grid.Width * grid.Height;
         if (grid is null || grid.Width < 1 || grid.Height < 1 || grid.Held.Length != n || grid.Things.Length != n)
@@ -194,7 +192,7 @@ public sealed class MapCellGrid
 public static class CellReads
 {
     /// <summary>The whole map's cell grid, read through <c>observations_get_cells</c>: an anchor read for the map's size, then the map.</summary>
-    public static async Task<MapCellGrid> MapCellsAsync(this Harness harness, string label, Common.Identity identity, CancellationToken cancellationToken)
+    public static async Task<MapCellGrid> MapCellsAsync(this Harness harness, string label, RimGovernor.Brain.GameFacts.Common.Identity identity, CancellationToken cancellationToken)
     {
         var anchor = await harness.ReadCellsAsync(label + "-size", identity, new Cell(0, 0), new Cell(0, 0), cancellationToken).ConfigureAwait(false);
         var width = checked((int)anchor.MapSize.Width);
@@ -203,10 +201,10 @@ public static class CellReads
         return MapCellGrid.Of(map.Grid);
     }
 
-    private static async Task<Observations.CellsSnapshot> ReadCellsAsync(this Harness harness, string label, Common.Identity identity, Cell min, Cell max, CancellationToken cancellationToken)
+    private static async Task<RimGovernor.Brain.GameFacts.Observations.CellsSnapshot> ReadCellsAsync(this Harness harness, string label, RimGovernor.Brain.GameFacts.Common.Identity identity, Cell min, Cell max, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(harness);
-        var request = new Observations.GetCellsRequest
+        var request = new RimGovernor.Brain.GameOrders.Observations.GetCellsRequest
         {
             Scope = TypedReads.Scope(identity),
             Rectangle = new() { Minimum = new() { X = min.X, Z = min.Z }, Maximum = new() { X = max.X, Z = max.Z } },

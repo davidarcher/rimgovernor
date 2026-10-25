@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Brain.Policy;
@@ -10,7 +9,7 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record PawnTrait
 {
-    public required O.Trait Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.Trait Observed { get; init; }
 
     public string Name => Observed.DefName;
 
@@ -167,10 +166,10 @@ public sealed record TraitEffects
 public abstract record ProfileSkill
 {
     private ProfileSkill() { }
-    public sealed record Present(O.Skill Observed) : ProfileSkill;
+    public sealed record Present(RimGovernor.Brain.GameFacts.Observations.Skill Observed) : ProfileSkill;
     public sealed record Missing : ProfileSkill;
     public int Level => this is Present p ? p.Observed.Level : 0;
-    public string Passion => this is Present p && p.Observed.Passion != O.Passion.None ? WorkRules.PassionName(p.Observed.Passion) : "";
+    public string Passion => this is Present p && p.Observed.Passion != RimGovernor.Brain.GameFacts.Observations.Passion.None ? WorkRules.PassionName(p.Observed.Passion) : "";
     public bool Disabled => this is not Present p || p.Observed.Disabled;
     public double LearnFactor(TraitEffects effects) => this is Present p ? PawnRules.SkillLearnFactor(p.Observed, effects) : 0;
 }
@@ -181,11 +180,11 @@ public abstract record ProfileSkill
 /// </summary>
 public sealed record PawnProfile
 {
-    public required O.PawnState Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PawnState Observed { get; init; }
 
     public PawnId Id => new(Observed.Pawn.Id ?? throw new RequiredFactException("profile pawn id"));
 
-    public IReadOnlyDictionary<string, O.Skill> Skills => Observed.Biography.Skills.ToDictionary(skill => skill.DefName, StringComparer.Ordinal);
+    public IReadOnlyDictionary<string, RimGovernor.Brain.GameFacts.Observations.Skill> Skills => Observed.Biography.Skills.ToDictionary(skill => skill.DefName, StringComparer.Ordinal);
 
     public IReadOnlyList<PawnTrait> Traits { get; init; } = [];
 
@@ -320,12 +319,12 @@ public static class WorkPawnProfileExtensions
 
 public static partial class PawnRules
 {
-    public static double SkillLearnFactor(O.Skill skill, TraitEffects effects) => skill.Disabled ? 0 :
+    public static double SkillLearnFactor(RimGovernor.Brain.GameFacts.Observations.Skill skill, TraitEffects effects) => skill.Disabled ? 0 :
         (skill.Passion switch
         {
-            O.Passion.None => 0.35,
-            O.Passion.Minor => 1.0,
-            O.Passion.Major => 1.5,
+            RimGovernor.Brain.GameFacts.Observations.Passion.None => 0.35,
+            RimGovernor.Brain.GameFacts.Observations.Passion.Minor => 1.0,
+            RimGovernor.Brain.GameFacts.Observations.Passion.Major => 1.5,
             var invalid => throw new DomainException($"Invalid native passion: {invalid}."),
         }) * (1 + effects.LearnRate);
     /// <summary>

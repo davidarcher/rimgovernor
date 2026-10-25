@@ -1,4 +1,3 @@
-using Obs = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
@@ -35,24 +34,24 @@ public sealed class YardRunwayTests
         ],
         Loot = EquatableArray.From(loot),
         Occupancy = perDay is { } rate
-            ? new Obs.StorageOccupancySnapshot
+            ? new RimGovernor.Brain.GameFacts.Observations.StorageOccupancySnapshot
             {
                 CurrentHour = Now,
                 Groups =
                 [
-                    new Obs.StorageOccupancyGroup
+                    new RimGovernor.Brain.GameFacts.Observations.StorageOccupancyGroup
                     {
                         Group = "Zone_yard",
-                        Samples = EquatableArray.From(Enumerable.Range(Now - 71, 72).Select(h => new Obs.StorageOccupancySample { Hour = h, Stacks = (int)Math.Round(used - (rate * (Now - h) / 24)) })),
+                        Samples = EquatableArray.From(Enumerable.Range(Now - 71, 72).Select(h => new RimGovernor.Brain.GameFacts.Observations.StorageOccupancySample { Hour = h, Stacks = (int)Math.Round(used - (rate * (Now - h) / 24)) })),
                     },
                 ],
             }
-            : new Obs.StorageOccupancySnapshot { CurrentHour = Now, Groups = [] },
+            : new RimGovernor.Brain.GameFacts.Observations.StorageOccupancySnapshot { CurrentHour = Now, Groups = [] },
     };
 
     private static LootItem Stranded() =>
         LootFixtures.Stack("Thing_1", "Steel", new Cell(50, 50), false,
-            new Obs.HaulSafety.Safe { PathLength = 0 }, 10, 0, ["Zone_yard"], null);
+            new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Safe { PathLength = 0 }, 10, 0, ["Zone_yard"], null);
 
     [Fact]
     public void ASmallColonyFillingFastAsksBeforeALargeOneAtTheSameFill()

@@ -5,11 +5,11 @@ using RimGovernor.Host.Contracts;
 
 namespace RimGovernor.Host.Extensions.Abstractions;
 
-public delegate Task<OperationEnvelope> RimBridgeCapabilityHandler(CapabilityInvocation invocation, CancellationToken cancellationToken);
+public delegate Task<OperationEnvelope> NativeCapabilityHandler(CapabilityInvocation invocation, CancellationToken cancellationToken);
 
-public sealed class RimBridgeCapabilityRegistration
+public sealed class NativeCapabilityRegistration
 {
-    public RimBridgeCapabilityRegistration(CapabilityDescriptor descriptor, RimBridgeCapabilityHandler handler = null)
+    public NativeCapabilityRegistration(CapabilityDescriptor descriptor, NativeCapabilityHandler handler = null)
     {
         Descriptor = descriptor;
         Handler = handler;
@@ -17,14 +17,14 @@ public sealed class RimBridgeCapabilityRegistration
 
     public CapabilityDescriptor Descriptor { get; }
 
-    public RimBridgeCapabilityHandler Handler { get; }
+    public NativeCapabilityHandler Handler { get; }
 
     public bool HasHandler => Handler != null;
 }
 
-public interface IRimBridgeCapabilityProvider
+public interface INativeCapabilityProvider
 {
     string ProviderId { get; }
 
-    IEnumerable<RimBridgeCapabilityRegistration> GetCapabilities();
+    IEnumerable<NativeCapabilityRegistration> GetCapabilities();
 }

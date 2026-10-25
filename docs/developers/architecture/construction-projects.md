@@ -10,10 +10,10 @@ A planned room ends up represented three ways, and nothing joins them by project
 | Stage | Where it lives | Grain | Identity |
 | --- | --- | --- | --- |
 | Planned | `LayoutPlan.Rooms` (journal, `RecordLayoutPlanAsync`) | one `PlannedRoom` per room | `PlannedRoom.Id` (re-issued when a replan re-sites an unbuilt room) |
-| Admitted | `DependencyRecord` in the Rounds review (`RoundsDependency.cs`) | one cost per action (`DependencyCost(ActionId, Count)`) | `(Need, Standard, Episode, Method, Plan, Resource)` |
+| Admitted | `DependencyRecord` in the Colony review review (`Dependency.cs`) | one cost per action (`DependencyCost(ActionId, Count)`) | `(Need, Standard, Episode, Method, Plan, Resource)` |
 | Owed | native census, `ConstructionDeficitRead` (`ReadConstructionDeficitsAsync`) | every blueprint and frame, summed per resource | none |
 
-How a room becomes admitted work (`RoundsRoomReconcile.cs`):
+How a room becomes admitted work (`RoomReconcile.cs`):
 
 1. An owning concern calls `ReconcileRoomAsync` for its `PlannedRoom`. The reconcile is a stateless diff of
    the plan against the world's walls, doors, floors and furniture, so "what is built" is re-read every pass.
@@ -62,7 +62,7 @@ not, and the reason is structural: the contents of a room are decided in four pl
    and the child rooms each call `InteriorRoomFromLayout` (role to `RoomRole`, door side)
    and plan their own pieces (`BedroomFurnishing`, `ThroneTemplate`...). They do not
    read the tiler's pieces for the same room.
-3. **Benches are demand-driven and placed natively.** `RoundsWorkshop` follows the facility ladder
+3. **Benches are demand-driven and placed natively.** `Workshop` follows the facility ladder
    (`facilities.md`): a bench kind is staged when throughput is short, one `workshop-<def>-<n>` method at a time,
    capped by `BenchCap`, and placed by the native placer with `PlacementEnvironment.Indoors`. The tiler's cell
    for that bench is not an input.

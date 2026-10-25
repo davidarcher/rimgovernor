@@ -220,7 +220,7 @@ public sealed class AcceptanceFailFastTests : IDisposable
     public async Task ConnectProbeCountsAGameAtTheMenuAnsweringNotLoadedAsConnected()
     {
         // #3821: since #3761 an identity read on a game still at the main menu is a 503 NotLoaded, not an unloaded arm.
-        var transport = Transport(_ => Unavailable(nameof(RimGovernor.Contracts.Wire.Common.UnavailableReason.NotLoaded)));
+        var transport = Transport(_ => Unavailable(nameof(RimGovernor.Brain.GameFacts.Common.UnavailableReason.NotLoaded)));
         using var http = new HttpClient(new Handler(_ => Reply(HttpStatusCode.OK)));
 
         var problem = await GameSessions.ProbeAsync(transport, http, "http://127.0.0.1:1", TestContext.Current.CancellationToken, TestContext.Current.CancellationToken);
@@ -231,10 +231,10 @@ public sealed class AcceptanceFailFastTests : IDisposable
     [Fact]
     public async Task ConnectProbeDoesNotSwallowAnotherUnavailableReason()
     {
-        var transport = Transport(_ => Unavailable(nameof(RimGovernor.Contracts.Wire.Common.UnavailableReason.ReadFailed)));
+        var transport = Transport(_ => Unavailable(nameof(RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed)));
         using var http = new HttpClient(new Handler(_ => Reply(HttpStatusCode.OK)));
 
-        _ = await Assert.ThrowsAsync<RimGovernor.Brain.Bridge.Contracts.NativeUnavailableException>(() =>
+        _ = await Assert.ThrowsAsync<RimGovernor.Brain.GameAccess.NativeUnavailableException>(() =>
             GameSessions.ProbeAsync(transport, http, "http://127.0.0.1:1", TestContext.Current.CancellationToken, TestContext.Current.CancellationToken));
     }
 
@@ -288,6 +288,30 @@ public sealed class AcceptanceFailFastTests : IDisposable
     }
 
     [Fact]
+    public async Task DiscoveryAndCallsUseTheSameRegisteredOperationNames()
+    {
+        var paths = new List<string>();
+        await using var transport = Transport(request =>
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            paths.Add(path);
+            return path == "/api/tools"
+                ? new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""{"tools":["lifecycle_read_identity","set_time_speed","test/lab_start"]}"""),
+                }
+                : Reply(HttpStatusCode.OK);
+        });
+
+        Assert.Equal(["lifecycle_read_identity", "set_time_speed", "test/lab_start"], await transport.ToolNamesAsync(TestContext.Current.CancellationToken));
+        _ = await Call(transport);
+        _ = await transport.CallAsync("set_time_speed", new JsonObject(), new NativeCallOptions(), TestContext.Current.CancellationToken);
+        _ = await transport.CallAsync("test/lab_start", new JsonObject(), new NativeCallOptions(), TestContext.Current.CancellationToken);
+
+        Assert.Equal(["/api/tools", "/native/lifecycle_read_identity", "/native/set_time_speed", "/native/test/lab_start"], paths);
+    }
+
+    [Fact]
     public async Task CancellationDuringAnAwaitedCaseRecordsEvidenceAndNeverRetries()
     {
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -317,7 +341,7 @@ public sealed class AcceptanceFailFastTests : IDisposable
     }
 
     private static Task<NativeResult> Call(HttpNativeTransport transport) =>
-        transport.CallAsync("rimgovernor/lifecycle_read_identity", new JsonObject { ["request"] = "{}" }, new NativeCallOptions(), CancellationToken.None);
+        transport.CallAsync("lifecycle_read_identity", new JsonObject { ["request"] = "{}" }, new NativeCallOptions(), CancellationToken.None);
 
     private static HttpResponseMessage Reply(HttpStatusCode status) => new(status) { Content = new StringContent("{}") };
 

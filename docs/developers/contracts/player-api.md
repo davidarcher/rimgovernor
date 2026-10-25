@@ -63,7 +63,7 @@ direction compare-and-swap. Intents are journaled in order and each `requestId` 
 
 - Resume creates or reuses the world's empty root plan (`root/<colony>/<load>/<map>`, revision 1) and
   runs the bot under it; the root plan holds no actions. Routine methods for the same world are dispatched under the root's authority once
-  `AuthorizeRoundsPlan` accepts them.
+  `AuthorizeReviewPlan` accepts them.
 - Pause stops local work; drafted pawns stay drafted until the game's own auto-undraft takes them back.
 - Resume and Pause also own the game clock, with no wire field for it: the bot holds the clock exactly while
   `state.enabled` is true. Resume lets the run driver send `Run` and own the speed; Pause holds the clock once
@@ -77,7 +77,7 @@ direction compare-and-swap. Intents are journaled in order and each `requestId` 
   `CurTimeSpeed`; the row lights the pending click until a `Run` at that speed answers it, then `Status.LastRun` carries that speed.
   Pause and space go to the game, and native's ExternalPause hold is the take-over. Without the authority the row
   sets the game's speed as vanilla does: Ultrafast is 15x with the tick boost off, Hyperfast turns it on (30x).
-  The host tool `rimgovernor/press_time_speed {speed}` runs the same click handler for acceptance.
+  The host tool `press_time_speed {speed}` runs the same click handler for acceptance.
 - Record phases: `pending`, `running` (resume, non-zero native generation), `paused`, `refused`,
   `uncertain`. Historical results never confer current permission; `state.generation.plan` is the live
   root plan.

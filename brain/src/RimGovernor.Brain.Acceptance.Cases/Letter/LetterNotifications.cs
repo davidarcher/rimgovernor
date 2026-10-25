@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Presentation = RimGovernor.Contracts.Wire.Presentation;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -37,10 +36,10 @@ internal static class LetterNotifications
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        Task<Presentation.NotificationsSnapshot> Notifications(string label, Presentation.NotificationsRequest request, CancellationToken ct) =>
+        Task<RimGovernor.Brain.GameFacts.Presentation.NotificationsSnapshot> Notifications(string label, RimGovernor.Brain.GameOrders.Presentation.NotificationsRequest request, CancellationToken ct) =>
             s.CallAsync(label, NativeOps.ReadNotifications, request, ct);
 
-        var alertsOnly = new Presentation.NotificationsRequest
+        var alertsOnly = new RimGovernor.Brain.GameOrders.Presentation.NotificationsRequest
         {
             Identity = s.Identity, IncludeLetters = false, IncludeMessages = false, IncludeAlerts = true, LetterLimit = 40, MessageLimit = 12, AlertLimit = 40,
         };
@@ -52,7 +51,7 @@ internal static class LetterNotifications
         }, cancellationToken).ConfigureAwait(false);
 
         var letterId = (await s.FixtureAsync("deliver", Deliver, NoArgs.Value, cancellationToken).ConfigureAwait(false)).LetterId;
-        var snapshot = await Notifications("notifications", new Presentation.NotificationsRequest
+        var snapshot = await Notifications("notifications", new RimGovernor.Brain.GameOrders.Presentation.NotificationsRequest
         {
             Identity = s.Identity, IncludeLetters = true, IncludeMessages = true, IncludeAlerts = true, LetterLimit = 40, MessageLimit = 12, AlertLimit = 40,
         }, cancellationToken).ConfigureAwait(false);
@@ -83,7 +82,7 @@ internal static class LetterNotifications
             throw new AcceptanceException($"notifications: expected a fresh colony's alerts under a fingerprint, got {alerts}");
         }
 
-        var narrowed = await Notifications("notifications-no-letters", new Presentation.NotificationsRequest
+        var narrowed = await Notifications("notifications-no-letters", new RimGovernor.Brain.GameOrders.Presentation.NotificationsRequest
         {
             Identity = s.Identity, IncludeLetters = false, IncludeMessages = true, IncludeAlerts = true, LetterLimit = 40, MessageLimit = 12, AlertLimit = 1,
         }, cancellationToken).ConfigureAwait(false);

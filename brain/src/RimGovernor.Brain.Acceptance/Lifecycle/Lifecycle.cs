@@ -2,9 +2,8 @@ using System.Diagnostics;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.HttpChannel;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Wl = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -167,7 +166,7 @@ public static class StartOps
     }
 
     /// <summary>
-    /// Loads a save from the profile (<c>rimgovernor/load_game_ready</c>); a zero <paramref name="timeout"/> is 90 s.
+    /// Loads a save from the profile (<c>load_game_ready</c>); a zero <paramref name="timeout"/> is 90 s.
     /// <paramref name="ignoreMods"/> loads a save whose recorded mods are not all active: a downloaded CI bundle
     /// predates mods the build has since dropped.
     /// </summary>
@@ -258,7 +257,7 @@ public static class StartOps
     {
         try
         {
-            _ = await session.Harness.CallAsync("loaded-identity", NativeOps.ReadIdentity, new Wl.IdentityRequest(), cancellationToken).ConfigureAwait(false);
+            _ = await session.Harness.CallAsync("loaded-identity", NativeOps.ReadIdentity, new RimGovernor.Brain.GameOrders.Lifecycle.IdentityRequest(), cancellationToken).ConfigureAwait(false);
         }
         catch (BridgeUnavailableException e)
         {

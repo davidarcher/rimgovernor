@@ -1,9 +1,7 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Contracts.Wire;
-using Common = RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -60,31 +58,31 @@ internal static class CustodyPopulation
         }
 
         await RefusedAsync(s, "capture-guest", TypedPawnOps.GiveJob(capturer, "Capture", setup.Visitor), r => r.Reason?.Contains("Capture refused", StringComparison.Ordinal) == true, cancellationToken).ConfigureAwait(false);
-        await RefusedAsync(s, "capture-missing", TypedPawnOps.GiveJob(capturer, "Capture", "Thing_NoSuchPatient"), r => r.Code == Common.FailureCode.NotFound, cancellationToken).ConfigureAwait(false);
+        await RefusedAsync(s, "capture-missing", TypedPawnOps.GiveJob(capturer, "Capture", "Thing_NoSuchPatient"), r => r.Code == RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, cancellationToken).ConfigureAwait(false);
         await OrderedAsync(s, "custody-capture", capturer, setup.Candidate, "Capture", cancellationToken).ConfigureAwait(false);
         _ = await s.RunUntilAsync("observe-capture", CaptureTicks, Until(s, setup.Candidate, p => p.Prisoner && p.InBed), cancellationToken).ConfigureAwait(false);
 
         // Prisoner interaction: the captured candidate.
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
         var prisoner = await PersonAsync(s, "prisoner-before", setup.Candidate, cancellationToken).ConfigureAwait(false);
-        if (prisoner.Custody is not Observations.PersonCustody.Prisoner held)
+        if (prisoner.Custody is not RimGovernor.Brain.GameFacts.Observations.PersonCustody.Prisoner held)
         {
-            throw new AcceptanceException($"prisoner-before: want the census to hold {setup.Candidate} as a colony prisoner, got {WireJson.Serialize(prisoner.Custody)}");
+            throw new AcceptanceException($"prisoner-before: want the census to hold {setup.Candidate} as a colony prisoner, got {OrdersJson.Serialize(prisoner.Custody)}");
         }
 
         s.Record("prisoner_ticks", held.HeldTicks);
-        await RefusedAsync(s, "interaction-missing", Interaction("Thing_NoSuchPrisoner", Operations.PrisonerInteraction.ReduceResistance), r => r.Code == Common.FailureCode.NotFound, cancellationToken).ConfigureAwait(false);
+        await RefusedAsync(s, "interaction-missing", Interaction("Thing_NoSuchPrisoner", RimGovernor.Brain.GameOrders.Operations.PrisonerInteraction.ReduceResistance), r => r.Code == RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, cancellationToken).ConfigureAwait(false);
 
         // A Core mode beyond the routine Recruit/Maintain pair; resending the same intent applies again as it stands.
         foreach (var key in new[] { "reduce-resistance", "reduce-resistance-resend" })
         {
-            await InteractionAsync(s, key, setup.Candidate, Operations.PrisonerInteraction.ReduceResistance, "ReduceResistance", cancellationToken).ConfigureAwait(false);
+            await InteractionAsync(s, key, setup.Candidate, RimGovernor.Brain.GameOrders.Operations.PrisonerInteraction.ReduceResistance, "ReduceResistance", cancellationToken).ConfigureAwait(false);
         }
 
-        await InteractionAsync(s, "attempt-recruit", setup.Candidate, Operations.PrisonerInteraction.AttemptRecruit, "AttemptRecruit", cancellationToken).ConfigureAwait(false);
+        await InteractionAsync(s, "attempt-recruit", setup.Candidate, RimGovernor.Brain.GameOrders.Operations.PrisonerInteraction.AttemptRecruit, "AttemptRecruit", cancellationToken).ConfigureAwait(false);
 
         // The live custody check: the guest is no prisoner, so an interaction on it is refused before any write.
-        await RefusedAsync(s, "interaction-non-prisoner", Interaction(setup.Visitor, Operations.PrisonerInteraction.MaintainOnly), _ => true, cancellationToken).ConfigureAwait(false);
+        await RefusedAsync(s, "interaction-non-prisoner", Interaction(setup.Visitor, RimGovernor.Brain.GameOrders.Operations.PrisonerInteraction.MaintainOnly), _ => true, cancellationToken).ConfigureAwait(false);
 
         // Rescue: the downed, unadmitted friendly guest.
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
@@ -98,8 +96,8 @@ internal static class CustodyPopulation
         _ = await s.RunUntilAsync("observe-rescue", s.TicksLeft, Until(s, setup.Visitor, p => p.InBed), cancellationToken).ConfigureAwait(false);
     }
 
-    private static Operations.ActionIntent Interaction(string pawn, Operations.PrisonerInteraction mode) =>
-        new Operations.PrisonerInteractionIntent { PawnId = pawn, Interaction = mode };
+    private static RimGovernor.Brain.GameOrders.Operations.ActionIntent Interaction(string pawn, RimGovernor.Brain.GameOrders.Operations.PrisonerInteraction mode) =>
+        new RimGovernor.Brain.GameOrders.Operations.PrisonerInteractionIntent { PawnId = pawn, Interaction = mode };
 
     /// <summary>Applies one custody order, requires an issued <paramref name="job"/> job, then resends it and requires no second job.</summary>
     private static async Task OrderedAsync(TypedSession s, string key, string capturer, string target, string job, CancellationToken cancellationToken)
@@ -107,62 +105,62 @@ internal static class CustodyPopulation
         var issued = (await TypedPawns.AppliedAsync(s, key, TypedPawnOps.GiveJob(capturer, job, target), cancellationToken).ConfigureAwait(false))?.Job;
         if (issued is not { Issued: true } || issued.PawnId != capturer || issued.JobDef != job)
         {
-            throw new AcceptanceException($"{key}: want an issued {job} job by {capturer}, got {WireJson.Serialize(issued)}");
+            throw new AcceptanceException($"{key}: want an issued {job} job by {capturer}, got {OrdersJson.Serialize(issued)}");
         }
 
         var again = (await TypedPawns.AppliedAsync(s, key + "-resend", TypedPawnOps.GiveJob(capturer, job, target), cancellationToken).ConfigureAwait(false))?.Job;
         if (again?.Issued == true)
         {
-            throw new AcceptanceException($"{key}: the resend issued a second job: {WireJson.Serialize(again)}");
+            throw new AcceptanceException($"{key}: the resend issued a second job: {OrdersJson.Serialize(again)}");
         }
     }
 
     /// <summary>Applies one prisoner interaction, requires held <paramref name="def"/> evidence and the census to read it back.</summary>
-    private static async Task InteractionAsync(TypedSession s, string key, string pawn, Operations.PrisonerInteraction mode, string def, CancellationToken cancellationToken)
+    private static async Task InteractionAsync(TypedSession s, string key, string pawn, RimGovernor.Brain.GameOrders.Operations.PrisonerInteraction mode, string def, CancellationToken cancellationToken)
     {
         var effect = (await TypedPawns.AppliedAsync(s, key, Interaction(pawn, mode), cancellationToken).ConfigureAwait(false))?.Prisoner;
         if (effect is not { Outcome: "held" } || effect.InteractionDef != def)
         {
-            throw new AcceptanceException($"{key}: want held {def} evidence, got {WireJson.Serialize(effect)}");
+            throw new AcceptanceException($"{key}: want held {def} evidence, got {OrdersJson.Serialize(effect)}");
         }
 
         var person = await PersonAsync(s, key + "-read", pawn, cancellationToken).ConfigureAwait(false);
-        if (person.Custody is not Observations.PersonCustody.Prisoner { } held || held.Interaction != def)
+        if (person.Custody is not RimGovernor.Brain.GameFacts.Observations.PersonCustody.Prisoner { } held || held.Interaction != def)
         {
-            throw new AcceptanceException($"{key}: the census reads custody {WireJson.Serialize(person.Custody)}, want prisoner interaction {def}");
+            throw new AcceptanceException($"{key}: the census reads custody {OrdersJson.Serialize(person.Custody)}, want prisoner interaction {def}");
         }
     }
 
     /// <summary>Applies <paramref name="intent"/> and requires a refusal <paramref name="want"/> accepts.</summary>
-    private static async Task RefusedAsync(TypedSession s, string key, Operations.ActionIntent intent, Func<Operations.Refusal, bool> want, CancellationToken cancellationToken)
+    private static async Task RefusedAsync(TypedSession s, string key, RimGovernor.Brain.GameOrders.Operations.ActionIntent intent, Func<RimGovernor.Brain.GameFacts.Operations.Refusal, bool> want, CancellationToken cancellationToken)
     {
         var result = await TypedPawns.ApplyAsync(s, key, intent, cancellationToken).ConfigureAwait(false);
         s.RecordWire(key, result);
         if (result.Outcome?.Refused is not { } refusal || !want(refusal))
         {
-            throw new AcceptanceException($"{key}: want a refusal, got {WireJson.Serialize(result)}");
+            throw new AcceptanceException($"{key}: want a refusal, got {OrdersJson.Serialize(result)}");
         }
     }
 
-    private static Probe Until(TypedSession s, string pawn, Func<Observations.PawnState, bool> done) => async ct =>
+    private static Probe Until(TypedSession s, string pawn, Func<RimGovernor.Brain.GameFacts.Observations.PawnState, bool> done) => async ct =>
     {
         // The spawned-pawn census omits a patient while the carrier holds it.
         // Absence is pending, never successful custody; the tick budget still
         // fails a patient that does not reappear with the required outcome.
         var rows = await TypedPawns.ListAsync(s, "custody-" + pawn,
-            new Observations.PawnFilter { Ids = [pawn] }, ct).ConfigureAwait(false);
+            new RimGovernor.Brain.GameFacts.Observations.PawnFilter { Ids = [pawn] }, ct).ConfigureAwait(false);
         var row = rows.FirstOrDefault(p => p.Pawn.Id == pawn);
         if (row is null) return ("patient unobserved; awaiting spawned custody outcome", false);
         return ($"{row.Prisoner} {row.InBed} {row.Downed}", done(row));
     };
 
-    private static Task<Observations.PawnState> PawnAsync(TypedSession s, string label, string pawn, CancellationToken cancellationToken) =>
+    private static Task<RimGovernor.Brain.GameFacts.Observations.PawnState> PawnAsync(TypedSession s, string label, string pawn, CancellationToken cancellationToken) =>
         TypedPawns.OneAsync(s, label, pawn, cancellationToken);
 
     /// <summary>The population census row of <paramref name="pawn"/>.</summary>
-    private static async Task<Observations.PopulationPerson> PersonAsync(TypedSession s, string label, string pawn, CancellationToken cancellationToken)
+    private static async Task<RimGovernor.Brain.GameFacts.Observations.PopulationPerson> PersonAsync(TypedSession s, string label, string pawn, CancellationToken cancellationToken)
     {
-        var population = await s.CallAsync(label, NativeOps.ReadPopulation, new Observations.PopulationRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var population = await s.CallAsync(label, NativeOps.ReadPopulation, new RimGovernor.Brain.GameOrders.Observations.PopulationRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         return population.Persons.FirstOrDefault(p => p.Pawn.Value == pawn) ?? throw new AcceptanceException($"{label}: pawn {pawn} missing from the population census");
     }
 }

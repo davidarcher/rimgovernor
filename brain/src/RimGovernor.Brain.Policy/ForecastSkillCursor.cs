@@ -1,4 +1,5 @@
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>Mutable evaluation-local native skill arithmetic. No state leaves the forecast. The mechanics it reads are

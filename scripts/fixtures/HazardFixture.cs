@@ -8,7 +8,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Disposable test setup only. Injects one hazard of a declared
     // class into a running colony so the hazard/* acceptance cases can
@@ -24,7 +24,7 @@ namespace HomeBridge.BridgeTools
         private static readonly List<Thing> spawned = new List<Thing>();
 
         [Tool("test/hazard_inject", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: inject one supervisor hazard class into the running colony: op=hostile|downed|injury|predator|kill_all|cleanup.")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string kind = "")
+        public async Task<object> Run(INativeContext ctx, CancellationToken cancellationToken, string op, string kind = "")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;

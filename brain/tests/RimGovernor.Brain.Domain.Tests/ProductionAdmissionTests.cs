@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
@@ -17,17 +16,17 @@ public sealed class ProductionAdmissionTests
     private static readonly GenerationSnapshot World = new(new ColonyId("colony"), new MapId(1), new LoadId("load"), new PlanId("review"), new PlanRevision(1), default);
     private static ProductionBatch Batch(string id) => new(new ProductionBill("bench-" + id, "TestRecipe", BillMode.GearBatch, 5, Wood.Value),
         new ProgressView { Action = new ActionId(id), Stage = Stage.Pending });
-    private static RoundsFacts Facts => new()
+    private static ReviewFacts Facts => new()
     {
         MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } },
         Research = ResearchTestFacts.Read(),
         Comfort = ComfortTests.NoComfortObservation,
         BasicComfort = ComfortTests.NoComfortObservation,
         Tick = new Tick(100),
-        Census = (ColonyFactsCoreTests.Snapshot() with { WorkResources = default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>) }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = Wood.Value, Units = 60 }, new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = Other.Value, Units = 100 }] },
+        Census = (ColonyFactsCoreTests.Snapshot() with { WorkResources = default(EquatableArray<RimGovernor.Brain.GameFacts.Observations.WorkResourcePawn>) }) with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = Wood.Value, Units = 60 }, new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = Other.Value, Units = 100 }] },
         ForecastObserved = new() { WorkPawns = new WorkPawnsRead(default(EquatableArray<WorkPawn>)) },
         WorkProfiles = [new() { Observed = PawnFixtures.Row("artist") with { Biography = PawnFixtures.Row("artist").Biography with
-            { Skills = [new() { DefName = "TestArt", Passion = O.Passion.None, Level = 8 }] } },
+            { Skills = [new() { DefName = "TestArt", Passion = RimGovernor.Brain.GameFacts.Observations.Passion.None, Level = 8 }] } },
             WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "TestArt" },
         }],
 
@@ -39,7 +38,7 @@ public sealed class ProductionAdmissionTests
             Bills = default(EquatableArray<ProductionBatchState>),
         },
     };
-    private static WorkAdmissionEvidence Evidence(RoundsFacts? facts = null, params ProductionBatch[] reviewed) =>
+    private static WorkAdmissionEvidence Evidence(ReviewFacts? facts = null, params ProductionBatch[] reviewed) =>
         ProductionRules.WorkAdmissionEvidenceOf(facts ?? Facts, new ProductionBatchCensus.Read(EquatableArray.From(reviewed)));
     private static bool Fits(WorkAdmissionEvidence evidence, ProductionBatch[] committed, params ProductionBatch[] proposed) =>
         ProductionRules.ProductionAdmissionFits(evidence, new ProductionBatchCensus.Read(EquatableArray.From(committed)), EquatableArray.From(proposed));
@@ -65,7 +64,7 @@ public sealed class ProductionAdmissionTests
         Assert.Empty(standing.Buildings);
         Assert.Equal(3, standing.Owed[Wood]);
         Assert.NotNull(Evidence().Standing);
-        Assert.Throws<RequiredFactException>(() => Evidence(new RoundsFacts()));
+        Assert.Throws<RequiredFactException>(() => Evidence(new ReviewFacts()));
         Assert.Null(RoundTrip(new WorkAdmissionEvidence()).Standing);
     }
 
@@ -84,7 +83,7 @@ public sealed class ProductionAdmissionTests
     {
         var recipe = new ProductionRecipeInput("recipe", [[new(Wood, 1)]], true)
             { Products = [new(Other, 1)], WorkAmount = 20, WorkSpeedStat = "GeneralLaborSpeed" };
-        var pawn = new RimGovernor.Contracts.Wire.Observations.WorkResourcePawn("pawn", "assignment", 1, "started", "", "", 0)
+        var pawn = new RimGovernor.Brain.GameFacts.Observations.WorkResourcePawn("pawn", "assignment", 1, "started", "", "", 0)
             { LocalHour = 12, Unfinished = "unfinished", Bill = "bill", Target = "bench" };
         var exact = new ForecastMaterialClaim(Wood, new MaterialUnits.Exact(4), "bill");
         var open = new ForecastMaterialClaim(Other, new MaterialUnits.Open(), "bill");
@@ -112,8 +111,8 @@ public sealed class ProductionAdmissionTests
     [Fact]
     public void ANeedTargetsQuantityIsItsStackedCountOrUnbounded()
     {
-        Assert.Equal(new TargetQuantity.Units(4), TargetQuantity.Of(new RimGovernor.Contracts.Wire.Observations.NeedStock.Stacked(4, new RimGovernor.Contracts.Wire.Observations.FoodFreshness.Never())));
-        Assert.Equal(new TargetQuantity.Unbounded(), TargetQuantity.Of(new RimGovernor.Contracts.Wire.Observations.NeedStock.NotStacked()));
+        Assert.Equal(new TargetQuantity.Units(4), TargetQuantity.Of(new RimGovernor.Brain.GameFacts.Observations.NeedStock.Stacked(4, new RimGovernor.Brain.GameFacts.Observations.FoodFreshness.Never())));
+        Assert.Equal(new TargetQuantity.Unbounded(), TargetQuantity.Of(new RimGovernor.Brain.GameFacts.Observations.NeedStock.NotStacked()));
     }
 
     [Fact]
@@ -123,7 +122,7 @@ public sealed class ProductionAdmissionTests
         Assert.True(Fits(e, [], Batch("first")));
         Assert.False(Fits(e, [Batch("first")], Batch("second")));
         Assert.False(Fits(e, [], Batch("first"), Batch("second")));
-        Assert.True(Fits(Evidence(Facts with { Census = Facts.Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = Wood.Value, Units = 100 }, new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = Other.Value, Units = 100 }] }}), [], Batch("first"), Batch("second")));
+        Assert.True(Fits(Evidence(Facts with { Census = Facts.Census with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = Wood.Value, Units = 100 }, new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = Other.Value, Units = 100 }] }}), [], Batch("first"), Batch("second")));
     }
 
     [Fact]
@@ -176,7 +175,7 @@ public sealed class ProductionAdmissionTests
         };
         var f = Facts with
         {
-            WorkAdmission = Facts.WorkAdmission with { Bills = [new(BillWire.Bill("bill") with { ManagedUnchanged = true, RepeatMode = RimGovernor.Contracts.Wire.Operations.RepeatMode.Count, RepeatCount = 1 })] },
+            WorkAdmission = Facts.WorkAdmission with { Bills = [new(BillWire.Bill("bill") with { ManagedUnchanged = true, RepeatMode = RimGovernor.Brain.GameFacts.Operations.RepeatMode.Count, RepeatCount = 1 })] },
             BillReservations = [BillWire.Reservation("bill", "pawn", new Amount(Wood, 10))],
         };
         Assert.True(Fits(Evidence(f, first), [first], Batch("new")));
@@ -188,16 +187,16 @@ public sealed class ProductionAdmissionTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-admission-world-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        var request = new RoundsRequest { Current = World, Tick = Facts.Tick, Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = Facts with { Research = ResearchTestFacts.Read(finished: ["Brewing"]) } };
-        var full = journal.ReviewRounds(request, ct);
+        var request = new ReviewRequest { Current = World, Tick = Facts.Tick, Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = Facts with { Research = ResearchTestFacts.Read(finished: ["Brewing"]) } };
+        var full = journal.Review(request, ct);
         Assert.True(full.Review.BrewingFinished);
-        var immediate = journal.ReviewRounds(request with { Revision = full.Review.Revision, Immediate = true, Tick = new Tick(101), Facts = new() }, ct);
-        Assert.Equal(60, journal.LoadRounds(ct).WorkEvidence!.Stock[0].Count);
+        var immediate = journal.Review(request with { Revision = full.Review.Revision, Immediate = true, Tick = new Tick(101), Facts = new() }, ct);
+        Assert.Equal(60, journal.LoadReview(ct).WorkEvidence!.Stock[0].Count);
         Assert.True(immediate.Review.BrewingFinished);
-        var unread = journal.ReviewRounds(request with { Revision = immediate.Review.Revision, Tick = new Tick(102), Facts = request.Facts with { Census = request.Facts.Census with { Resources = default }} }, ct);
+        var unread = journal.Review(request with { Revision = immediate.Review.Revision, Tick = new Tick(102), Facts = request.Facts with { Census = request.Facts.Census with { Resources = default }} }, ct);
         var refused = journal.CommitClaimedMethod(AdminFamily.WorkLedger, World, new MethodId("unread"), "", Plan("unread"), ct);
         Assert.Equal(RefusalKind.ProductionMaterial, refused.Refusal!.Kind);
-        var changed = journal.ReviewRounds(request with { Revision = unread.Review.Revision, Immediate = true, Current = World with { Load = new LoadId("new-load") }, Tick = new Tick(103), Facts = new() }, ct);
+        var changed = journal.Review(request with { Revision = unread.Review.Revision, Immediate = true, Current = World with { Load = new LoadId("new-load") }, Tick = new Tick(103), Facts = new() }, ct);
         Assert.Null(changed.Review.WorkEvidence);
         Assert.False(changed.Review.BrewingFinished);
     }
@@ -208,7 +207,7 @@ public sealed class ProductionAdmissionTests
         var ct = TestContext.Current.CancellationToken;
         var path = Path.Combine(Path.GetTempPath(), "rg-admission-" + Guid.NewGuid().ToString("N") + ".db");
         using var first = Journal.Open(path, ct);
-        first.ReviewRounds(new() { Current = World, Tick = Facts.Tick, Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = Facts }, ct);
+        first.Review(new() { Current = World, Tick = Facts.Tick, Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = Facts }, ct);
         // Two admin/work-ledger Methods, one per connection, compete for the same material.
         bool Commit(Journal store, int i) =>
             store.CommitClaimedMethod(AdminFamily.WorkLedger, World, new MethodId("batch-" + i), "", Plan("candidate-" + i), ct).Outcome == ClaimOutcome.Admitted;

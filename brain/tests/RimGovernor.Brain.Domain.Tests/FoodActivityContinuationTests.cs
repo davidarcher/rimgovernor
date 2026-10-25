@@ -1,9 +1,10 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 using Journal = RimGovernor.Brain.Store.Store;
 
@@ -18,8 +19,8 @@ public sealed class FoodActivityContinuationTests
     private static PawnActivities Harvest() => ActivityContinuationFixtures.Harvest();
     private static Observed Terminal(PawnActivities batch, string state, params FoodActivityOption[] options) => new(Read(options),
         new("method/pawn", "method", batch.Orders[0].Revision, 0, state, "", 110),
-        new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 110 });
-    private sealed record Observed(FoodActivityRead Food, RimGovernor.Contracts.Wire.Operations.PawnActivityExecution Execution, RimGovernor.Contracts.Wire.Common.ObservationContext Context);
+        new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 110 });
+    private sealed record Observed(FoodActivityRead Food, RimGovernor.Brain.GameFacts.Operations.PawnActivityExecution Execution, RimGovernor.Brain.GameFacts.Common.ObservationContext Context);
 
     [Theory]
     [InlineData(false)]
@@ -30,8 +31,8 @@ public sealed class FoodActivityContinuationTests
         var path = Path.Combine(Path.GetTempPath(), "rg-food-continuation-" + Guid.NewGuid().ToString("N") + ".db");
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(path, ct);
-        journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
-            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
+        journal.Review(new ReviewRequest { Current = Root, Tick = new(100), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
         var harvest = Harvest();
         var plan = new PlanSpec(new("harvest"), new(1), [DomainAction.NewPawnActivitiesAction(new("harvest-action"), harvest)]);
         TestNeed.Commit(journal, Root, new("method"), plan, ct);
@@ -46,7 +47,7 @@ public sealed class FoodActivityContinuationTests
         var read = Terminal(harvest, "completed", Option("observed-food", 4));
         var next = new PlanSpec(new("delivery"), new(1), [DomainAction.NewPawnActivitiesAction(new("deliver-action"), CoordinatedActivitiesRules.ContinueCoordinatedActivity(harvest, ActivityNeed.Owed, TaskRead(harvest, read))!)]);
         journal.ContinueActivityMethod(plan.Id, Root, new(110), [new("pawn", "method/pawn", "method", 1, "completed")], next, ct);
-        journal.AuthorizeRoundsPlan(Root, Root with { Plan = next.Id }, ct);
+        journal.AuthorizeReviewPlan(Root, Root with { Plan = next.Id }, ct);
         var intent = IntentActionRules.IntentAction(next.Actions[0].Id.Value, journal.LoadPlan(next.Id, ct).Spec.Actions[0]).Intent!.PawnActivities!.Batch!;
         Assert.Equal("observed-food", intent.Orders[0].Steps[0].Target);
         Assert.Equal(4, intent.Orders[0].Steps[0].Count);
@@ -68,7 +69,7 @@ public sealed class FoodActivityContinuationTests
         var release = CoordinatedActivitiesRules.ContinueCoordinatedActivity(obligation.Batch, obligation.Needed, TaskRead(obligation.Batch, read))!;
         var cleanup = new PlanSpec(new("cleanup"), new(1), [DomainAction.NewPawnActivitiesAction(new("cleanup-action"), release)]);
         journal.ContinueActivityMethod(next.Id, Root, new(110), [new("pawn", "method/pawn", "method", 1, "completed")], cleanup, ct);
-        journal.AuthorizeRoundsPlan(Root, Root with { Plan = cleanup.Id }, ct);
+        journal.AuthorizeReviewPlan(Root, Root with { Plan = cleanup.Id }, ct);
         Assert.True(journal.LoadPlan(cleanup.Id, ct).Spec.Actions[0].PawnActivities!.Orders[0].Release);
     }
 
@@ -95,7 +96,7 @@ public sealed class FoodActivityContinuationTests
                             { Target = observed.Target, Count = Math.Min(task.Step.Count, observed.Count) })))),
             });
         public Task<ConstructionActivityRead> ReadConstructionActivityAsync(ConstructionActivityRequest request, CancellationToken ct) => Task.FromResult(ConstructionFixtures.NoConstruction());
-        public Task<PawnSnapshot> ReadPawnsAsync(RimGovernor.Contracts.Wire.Common.Identity identity, IReadOnlyList<string> ids, CancellationToken ct) =>
+        public Task<PawnSnapshot> ReadPawnsAsync(RimGovernor.Brain.GameFacts.Common.Identity identity, IReadOnlyList<string> ids, CancellationToken ct) =>
             Task.FromResult(new PawnSnapshot { Context = read.Context, Pawns = [] });
     }
     private sealed class DispatchSession(Journal journal) : IWorkerSession
@@ -125,8 +126,8 @@ public sealed class FoodActivityContinuationTests
         var ct = lifetime.Token;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-food-worker-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         IntentActionRules.RegisterIntentKinds();
-        journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
-            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
+        journal.Review(new ReviewRequest { Current = Root, Tick = new(100), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
         var batch = Harvest();
         var plan = new PlanSpec(new("harvest"), new(1), [DomainAction.NewPawnActivitiesAction(new("harvest-action"), batch)]);
         TestNeed.Commit(journal, Root, new("method"), plan, ct);
@@ -138,8 +139,8 @@ public sealed class FoodActivityContinuationTests
         var session = new DispatchSession(journal);
         using var player = Player.Create(new(TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10)), journal, session, new Worlds(), ct);
         var terminal = Terminal(batch, "completed", Option("live-observed-food", 2));
-        var read = terminal with { Context = new() { Identity = Boundary.Identity(Root), NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase(1), Tick = 200 } };
-        var worker = Worker.CreateInternal(new() { RoundsMethods = true, Pawns = new Reads(read),
+        var read = terminal with { Context = new() { Identity = Boundary.Identity(Root), NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase(1), Tick = 200 } };
+        var worker = Worker.CreateInternal(new() { ReviewMethods = true, Pawns = new Reads(read),
             StepInterval = TimeSpan.FromMinutes(1), MaxBackoff = TimeSpan.FromMinutes(1), StepTimeout = TimeSpan.FromSeconds(5) }, player, session, ct);
         try
         {
@@ -162,8 +163,8 @@ public sealed class FoodActivityContinuationTests
         var ct = lifetime.Token;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-task-review-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         IntentActionRules.RegisterIntentKinds();
-        journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
-            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
+        journal.Review(new ReviewRequest { Current = Root, Tick = new(100), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
         var step = new PawnActivityStep(PawnActivityKind.Work, "crop", "Harvest", "Harvest", 0, 2000);
         var first = new SelectedActivityTask("harvest", "pawn", [], step, new(2, 1), 0);
         var cook = new SelectedActivityTask("cook", "pawn", [first.Id], new(PawnActivityKind.Recipe, "bench", "Cook", "", 0, 2000)
@@ -180,9 +181,9 @@ public sealed class FoodActivityContinuationTests
         var session = new DispatchSession(journal);
         using var player = Player.Create(new(TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10)), journal, session, new Worlds(), ct);
         var read = new Observed(Read(), new(order.Assignment, order.Method, 1, 0, "completed", "", 200),
-            new() { Identity = Boundary.Identity(Root), NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase(1), Tick = 200 });
+            new() { Identity = Boundary.Identity(Root), NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase(1), Tick = 200 });
         var wake = new WakeSignal();
-        var worker = Worker.CreateInternal(new() { RoundsMethods = true, Pawns = new Reads(read), Wake = wake,
+        var worker = Worker.CreateInternal(new() { ReviewMethods = true, Pawns = new Reads(read), Wake = wake,
             StepInterval = TimeSpan.FromMinutes(1), MaxBackoff = TimeSpan.FromMinutes(1), StepTimeout = TimeSpan.FromSeconds(5) }, player, session, ct);
         try
         {

@@ -10,9 +10,9 @@ public sealed record MechGestation
     public IReadOnlyList<MechanitorInput> Mechanitors { get; init; } = [];
     public IReadOnlyList<MechInput> Mechs { get; init; } = [];
     public IReadOnlyList<WorkCoverage> Coverage { get; init; } = [];
-    public IReadOnlyList<RimGovernor.Contracts.Wire.Observations.MechGestatorState> Gestators { get; init; } = [];
-    public IReadOnlyList<RimGovernor.Contracts.Wire.Observations.Wastepack> Wastepacks { get; init; } = [];
-    public IReadOnlyList<RimGovernor.Contracts.Wire.Observations.MechChargerState> Chargers { get; init; } = [];
+    public IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.MechGestatorState> Gestators { get; init; } = [];
+    public IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.Wastepack> Wastepacks { get; init; } = [];
+    public IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.MechChargerState> Chargers { get; init; } = [];
 }
 
 /// <summary>The mech kind the next gestation builds.</summary>
@@ -42,7 +42,7 @@ public static partial class MechRules
         g.Gestators.Any(gestator => gestator.WasteCount > 0) || g.Wastepacks.Any(pack => pack.Count > 0 && !pack.Frozen && !pack.InAtomizer);
 
     /// <summary>A mechanitor's bandwidth left for a new mech.</summary>
-    public static int FreeBandwidth(RimGovernor.Contracts.Wire.Observations.PawnMechanitor m) => m.TotalBandwidth - m.UsedBandwidth - m.UsedBandwidthFromGestation;
+    public static int FreeBandwidth(RimGovernor.Brain.GameFacts.Observations.PawnMechanitor m) => m.TotalBandwidth - m.UsedBandwidth - m.UsedBandwidthFromGestation;
 
     /// <summary>
     /// Picks the next mech: for each mechanitor, most free bandwidth first, the role MechRoleNext names, then the

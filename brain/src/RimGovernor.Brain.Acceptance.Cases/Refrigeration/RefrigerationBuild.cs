@@ -2,8 +2,6 @@ using System.Globalization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Placement = RimGovernor.Contracts.Wire.Placement;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -67,10 +65,10 @@ internal static class RefrigerationBuild
             throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"meat-before: the meat reads {warm} C, not warm above the exit threshold {policy.ChilledExitC} C"));
         }
 
-        IReadOnlyList<Observations.BuildingState> coolers = [];
+        IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.BuildingState> coolers = [];
         _ = await s.ServeUntilAsync("chilled", s.TicksLeft, async ct =>
         {
-            coolers = await s.BuildingsAsync("coolers", new Observations.ListBuildingsRequest { DefNames = ["Cooler"], Statuses = [Observations.BuildingStatus.Built] }, ct).ConfigureAwait(false);
+            coolers = await s.BuildingsAsync("coolers", new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest { DefNames = ["Cooler"], Statuses = [RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Built] }, ct).ConfigureAwait(false);
             warm = await WarmestAsync(s, room, "meat", ct).ConfigureAwait(false);
             return (Wait.Signature(coolers.Count, warm), coolers.Count > 0 && warm <= policy.ChilledExitC);
         }, cancellationToken).ConfigureAwait(false);
@@ -83,7 +81,7 @@ internal static class RefrigerationBuild
 
         s.RecordWire("cooler", cooler);
 
-        var at = (cooler.Building.Place as RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap)?.Cell ?? throw new AcceptanceException("the cooler has no position");
+        var at = (cooler.Building.Place as RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap)?.Cell ?? throw new AcceptanceException("the cooler has no position");
         var cell = new Cell(at.X, at.Z);
         if (!room.Walls.Contains(new Fx.StageCell(cell.X, cell.Z)))
         {
@@ -97,9 +95,9 @@ internal static class RefrigerationBuild
             throw new AcceptanceException($"cooler at {cell} facing {cooler.Rotation} has cold side {cold} and hot side {hot}; want cold inside and hot outdoors");
         }
 
-        if (cooler.Settings.Control is not Observations.BuildingControl.Temperature { TargetC: var target } || target > policy.FreezerTargetC)
+        if (cooler.Settings.Control is not RimGovernor.Brain.GameFacts.Observations.BuildingControl.Temperature { TargetC: var target } || target > policy.FreezerTargetC)
         {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"cooler target {(cooler.Settings.Control as Observations.BuildingControl.Temperature)?.TargetC} C is not at or under the freezer target {policy.FreezerTargetC} C"));
+            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"cooler target {(cooler.Settings.Control as RimGovernor.Brain.GameFacts.Observations.BuildingControl.Temperature)?.TargetC} C is not at or under the freezer target {policy.FreezerTargetC} C"));
         }
     }
 

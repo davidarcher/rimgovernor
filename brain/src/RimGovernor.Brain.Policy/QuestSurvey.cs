@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -15,9 +14,9 @@ public sealed record SurveyPlan
 public static class QuestSurvey
 {
     /// <summary>The site's one survey scanner hold; null when no objective or more than one names the site.</summary>
-    private static Pb.QuestSurveyScanner? SurveyScannerOf(QuestState offer, string site)
+    private static RimGovernor.Brain.GameFacts.Observations.QuestSurveyScanner? SurveyScannerOf(QuestState offer, string site)
     {
-        Pb.QuestSurveyScanner? scanner = null;
+        RimGovernor.Brain.GameFacts.Observations.QuestSurveyScanner? scanner = null;
         foreach (var objective in offer.Objectives)
         {
             if (objective.SurveyScanner is { } candidate && candidate.SiteId == site)
@@ -32,13 +31,13 @@ public static class QuestSurvey
         return scanner;
     }
 
-    private static (ExpeditionSite Site, QuestSkipReason Reason) SurveyBudget(QuestState offer, ExpeditionSite site, RoundsFacts f)
+    private static (ExpeditionSite Site, QuestSkipReason Reason) SurveyBudget(QuestState offer, ExpeditionSite site, ReviewFacts f)
     {
         if (SurveyScannerOf(offer, site.Id) is not { } scanner)
         {
             return (site, "survey_unknown");
         }
-        if (scanner.Scanner == Pb.SurveyScannerCondition.Destroyed)
+        if (scanner.Scanner == RimGovernor.Brain.GameFacts.Observations.SurveyScannerCondition.Destroyed)
         {
             return (site, "scanner_destroyed");
         }
@@ -47,12 +46,12 @@ public static class QuestSurvey
         {
             return (site, "survey_duration_unknown");
         }
-        if (scanner.Hold is Pb.SurveyHold.Running running)
+        if (scanner.Hold is RimGovernor.Brain.GameFacts.Observations.SurveyHold.Running running)
         {
             duration = Math.Max(0L, running.EndTick.Value - f.QuestObservedTick.Value);
         }
         site = site with { HoldTicks = duration };
-        var forced = offer.Threat is Pb.QuestThreat.Points points ? points.Value : 0;
+        var forced = offer.Threat is RimGovernor.Brain.GameFacts.Observations.QuestThreat.Points points ? points.Value : 0;
         if (site.Threat is not ExpeditionThreat.Bounded { Points: var initial } || !TradePolicyRules.Finite(initial) || initial < 0)
         {
             return (site, "threat_unknown");
@@ -61,13 +60,13 @@ public static class QuestSurvey
         return (site, "");
     }
 
-    public static QuestSkipReason SurveyAdmission(QuestState offer, RoundsFacts f)
+    public static QuestSkipReason SurveyAdmission(QuestState offer, ReviewFacts f)
     {
         if (!QuestExpedition.QuestExpeditionSite(offer, f, out var site))
         {
             return "site_unknown";
         }
-        return PlanSurvey(offer, site, f, f.AnimalUpkeep.Food, RoundsRules.DefaultRoundsPolicy()).Reason;
+        return PlanSurvey(offer, site, f, f.AnimalUpkeep.Food, Rules.DefaultPlannerSettings()).Reason;
     }
 
     /// <summary>
@@ -75,7 +74,7 @@ public static class QuestSurvey
     /// affordable after that departure; none is sent merely because time passed, and the scanner performs its
     /// ordinary passive work.
     /// </summary>
-    public static ExpeditionPlan PlanSurvey(QuestState offer, ExpeditionSite site, RoundsFacts f, FoodSupply food, RoundsPolicy p)
+    public static ExpeditionPlan PlanSurvey(QuestState offer, ExpeditionSite site, ReviewFacts f, FoodSupply food, PlannerSettings p)
     {
         var (budget, reason) = SurveyBudget(offer, site, f);
         if (!reason.IsNone)
@@ -140,7 +139,7 @@ public static class QuestSurvey
     /// Accounts for the proposed primary crew in the same home staffing facts used by ordinary departure,
     /// without persisting a reservation.
     /// </summary>
-    private static bool SurveyReliefFacts(RoundsFacts f, EquatableArray<Domain.PawnId> crew, out RoundsFacts reserve)
+    private static bool SurveyReliefFacts(ReviewFacts f, EquatableArray<Domain.PawnId> crew, out ReviewFacts reserve)
     {
         reserve = f;
         var capacity = f.DefenseCapacity;
@@ -198,7 +197,7 @@ public static class QuestSurvey
         return true;
     }
 
-    public static SurveyPlan SurveyWork(QuestState offer, WorldSite site, RoundsFacts f, FoodSupply food, RoundsPolicy p)
+    public static SurveyPlan SurveyWork(QuestState offer, WorldSite site, ReviewFacts f, FoodSupply food, PlannerSettings p)
     {
         var result = new SurveyPlan();
         if (offer.State == QuestStatus.EndedFailed)
@@ -209,7 +208,7 @@ public static class QuestSurvey
         {
             return result with { Reason = "survey_unknown" };
         }
-        if (scanner.Scanner == Pb.SurveyScannerCondition.Destroyed)
+        if (scanner.Scanner == RimGovernor.Brain.GameFacts.Observations.SurveyScannerCondition.Destroyed)
         {
             return result with { Return = true, Reason = "scanner_destroyed" };
         }
@@ -217,7 +216,7 @@ public static class QuestSurvey
         {
             return result with { Return = true };
         }
-        if (scanner.Hold is not Pb.SurveyHold.Running running)
+        if (scanner.Hold is not RimGovernor.Brain.GameFacts.Observations.SurveyHold.Running running)
         {
             return result with { Reason = "survey_hold_stopped" };
         }
@@ -228,18 +227,18 @@ public static class QuestSurvey
         {
             return result with { Reason = "survey_completion_pending" };
         }
-        if (site.Place is not Pb.SitePlace.Loaded loaded)
+        if (site.Place is not RimGovernor.Brain.GameFacts.Observations.SitePlace.Loaded loaded)
         {
             return result with { Reason = "survey_supply_unknown" };
         }
         // A loaded site with no able crew left needs relief; it has no runway or routes of its own.
-        if (loaded.Map.Extraction is Pb.QuestSiteExtraction.Crew { Value: var extraction })
+        if (loaded.Map.Extraction is RimGovernor.Brain.GameFacts.Observations.QuestSiteExtraction.Crew { Value: var extraction })
         {
             long homeTicks = 0;
             var routeKnown = false;
             foreach (var route in extraction.HomeRoutes)
             {
-                if (route.Travel is Pb.SiteTravel.Reachable { TravelTicks: var ticks } && ticks >= 0)
+                if (route.Travel is RimGovernor.Brain.GameFacts.Observations.SiteTravel.Reachable { TravelTicks: var ticks } && ticks >= 0)
                 {
                     homeTicks = Math.Max(homeTicks, ticks);
                     routeKnown = true;
@@ -259,7 +258,7 @@ public static class QuestSurvey
         // Existing journeys prevent duplicate relief.
         foreach (var trip in f.QuestExpeditionTrips)
         {
-            if (trip is ExpeditionTrip.Forming || trip is ExpeditionTrip.OnWorld { Course: Pb.CaravanCourse.Moving { Destination: var destination } } && destination == loaded.Tile)
+            if (trip is ExpeditionTrip.Forming || trip is ExpeditionTrip.OnWorld { Course: RimGovernor.Brain.GameFacts.Observations.CaravanCourse.Moving { Destination: var destination } } && destination == loaded.Tile)
             {
                 return result;
             }

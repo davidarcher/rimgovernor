@@ -1,4 +1,4 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
@@ -60,8 +60,8 @@ public sealed class UrgentBuildsTests
     [Fact]
     public void AWaitingUrgentBuildRunsTheRounderAtTheNextReviewStep()
     {
-        const long every = ClockSchedulerConfig.DefaultRoundsEveryTicks;
-        Assert.Equal("urgent_build", ClockScheduler.RoundsSelection(StepCause.Review, false, 10_600, true, 10_000, every, urgent: true));
-        Assert.Null(ClockScheduler.RoundsSelection(StepCause.Review, false, 10_600, true, 10_000, every));
+        const long every = PlannerSchedulerConfig.DefaultReviewEveryTicks;
+        Assert.Equal("urgent_build", PlannerScheduler.Selection(StepCause.Review, false, 10_600, true, 10_000, every, urgent: true));
+        Assert.Null(PlannerScheduler.Selection(StepCause.Review, false, 10_600, true, 10_000, every));
     }
 }

@@ -1,16 +1,15 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>One guest's care cap inputs.</summary>
 public sealed record CarePatient
 {
-    public required O.PopulationPerson Person { get; init; }
-    public required O.PawnState Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PopulationPerson Person { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PawnState Observed { get; init; }
 
     public PawnId Id => Person.Pawn;
 
-    public MedicalCare Care => Observed.Settings.Care is O.PawnCare.Configured care ? WorkRules.MedicalCareOf(care.MedicalCare) : throw new RequiredFactException("guest medical care settings");
+    public MedicalCare Care => Observed.Settings.Care is RimGovernor.Brain.GameFacts.Observations.PawnCare.Configured care ? WorkRules.MedicalCareOf(care.MedicalCare) : throw new RequiredFactException("guest medical care settings");
 
     public EquatableArray<Hediff> Conditions => Observed.Health.Hediffs;
 
@@ -153,7 +152,7 @@ public static partial class MedicalRules
     }
 
     /// <summary>The care settings to write: every pawn whose care differs from its cap. A pawn with unknown cap inputs, an unknown animal care or an unknown census is left alone.</summary>
-    public static List<PawnSettings> MedicalCareChanges(RoundsFacts f, MedicalReservePolicy p)
+    public static List<PawnSettings> MedicalCareChanges(ReviewFacts f, MedicalReservePolicy p)
     {
         var output = new List<PawnSettings>();
         void Add(PawnId id, bool differs, MedicalCare want, bool ok)
@@ -213,7 +212,7 @@ public static partial class MedicalRules
     }
 
     /// <summary>The review's MedicalCareOwed flag: a care change is owed.</summary>
-    public static bool MedicalCareOwed(RoundsFacts f, MedicalReservePolicy p) => MedicalCareChanges(f, p).Count > 0;
+    public static bool MedicalCareOwed(ReviewFacts f, MedicalReservePolicy p) => MedicalCareChanges(f, p).Count > 0;
 
     private static bool FiniteUnit(double v) => !double.IsNaN(v) && !double.IsInfinity(v) && v >= 0 && v <= 1;
 }

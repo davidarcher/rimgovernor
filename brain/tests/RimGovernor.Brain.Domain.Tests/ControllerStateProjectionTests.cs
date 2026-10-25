@@ -1,4 +1,4 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.PlayerApi;
 using Xunit;
@@ -13,7 +13,7 @@ public sealed class ControllerStateProjectionTests
 {
     private static readonly DateTimeOffset ObservedAt = new(2026, 10, 24, 12, 0, 0, TimeSpan.Zero);
 
-    private static readonly ObservationIdentity World = new() { Context = new() { Identity = new() { ColonyId = "colony-1", LoadToken = "load-1", MapId = 3 }, Tick = 42, NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase() } };
+    private static readonly ObservationIdentity World = new() { Context = new() { Identity = new() { ColonyId = "colony-1", LoadToken = "load-1", MapId = 3 }, Tick = 42, NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase() } };
 
     private static ControllerSnapshot Snapshot(ControllerWorld world, ControllerControl control, bool connected = true) =>
         new() { Connected = connected, Mode = "manual", World = world, Control = control };
@@ -58,8 +58,8 @@ public sealed class ControllerStateProjectionTests
     [Fact]
     public void ARoutinesStatusNamesWhetherAReviewHasRun()
     {
-        var reviewed = ReadProjections.Rounds(new RoundsStatus { LastReview = new ReviewProgress.Reviewed(new Tick(900)) });
-        var none = ReadProjections.Rounds(new RoundsStatus { LastReview = new ReviewProgress.NotReviewed() });
+        var reviewed = ReadProjections.ReviewState(new ReviewStatus { LastReview = new ReviewProgress.Reviewed(new Tick(900)) });
+        var none = ReadProjections.ReviewState(new ReviewStatus { LastReview = new ReviewProgress.NotReviewed() });
 
         Assert.Equal(900L, reviewed.LastReviewTick);
         Assert.Null(none.LastReviewTick);

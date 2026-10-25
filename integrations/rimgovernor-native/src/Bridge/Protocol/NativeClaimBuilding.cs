@@ -4,12 +4,8 @@ using System.Linq;
 using System.Text;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // BuildingPatchIntent's claim arm: the game's Claim gizmo
     // (Building.ClaimableBy(player) requires def.Claimable, no faction or a
@@ -25,32 +21,32 @@ namespace HomeBridge.BridgeTools
         // of the other settings producers; a casket already the player's
         // stays eligible so the after-token can be read back.
         internal static bool Eligible(Thing thing) => thing is Building building && !building.Destroyed && building.Spawned
-            && ProtoBoundary.IsLoaded(building.Map) && building.def != null && building.def.Claimable
+            && GameThread.IsLoaded(building.Map) && building.def != null && building.def.Claimable
             && !(thing is Building_Bed) && !(thing is Building_PlantGrower) && thing.TryGetComp<CompTempControl>() == null;
 
         internal static bool PlayerOwned(Building building) => building.Faction != null && building.Faction == Faction.OfPlayerSilentFail;
 
-        private static Common.Failure? Resolve(Operations.BuildingPatchIntent intent, Common.ObservationContext context, out Building? building)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Building? building)
         {
             building = null;
-            if (!ProtoBoundary.IsIdentifier(intent.ThingId)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A claim requires an exact building.");
-            var thing = RefIndex.Thing(ProtoBoundary.LoadedMap(context), intent.ThingId);
-            if (thing == null || !Eligible(thing)) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact claimable building is unavailable.");
+            if (!GameThread.IsIdentifier(intent.ThingId)) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "A claim requires an exact building.");
+            var thing = RefIndex.Thing(GameThread.LoadedMap(context), intent.ThingId);
+            if (thing == null || !Eligible(thing)) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact claimable building is unavailable.");
             building = (Building)thing;
             var player = Faction.OfPlayerSilentFail;
-            if (player == null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "No player faction to claim for.");
+            if (player == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "No player faction to claim for.");
             if (PlayerOwned(building)) return null;
-            if (!building.ClaimableBy(player)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The game refuses the claim (contents, faction or a spawn lock).");
+            if (!building.ClaimableBy(player)) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The game refuses the claim (contents, faction or a spawn lock).");
             return null;
         }
 
-        private static Receipts.EffectEvidence Evidence() =>
-            new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
-                Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.Claim, Outcome = Receipts.FieldOutcome.Applied }] } };
+        private static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Evidence() =>
+            new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.SettingsEffect {
+                Fields = [new RimGovernor.Brain.GameFacts.Receipts.FieldResult { Field = RimGovernor.Brain.GameFacts.Receipts.SettingsField.Claim, Outcome = RimGovernor.Brain.GameFacts.Receipts.FieldOutcome.Applied }] } };
 
-        internal static Common.Failure? Validate(Operations.BuildingPatchIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Resolve(intent, context, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.BuildingPatchIntent intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var building);
             if (failure != null || building == null) throw new InvalidOperationException(failure?.Detail);

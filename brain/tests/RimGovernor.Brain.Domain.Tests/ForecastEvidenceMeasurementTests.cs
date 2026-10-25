@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Telemetry;
@@ -73,7 +73,7 @@ public sealed class ForecastEvidenceMeasurementTests
             File.WriteAllText(Path.Combine(output, name + ".evidence.measurements.json"), JsonSerializer.Serialize(new {
                 Runtime = RuntimeInformation.FrameworkDescription, Environment.MachineName,
                 Assembly = typeof(ForecastEvidenceMeasurementTests).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion,
-                Protocol = "One warmup, three synchronous same-thread samples; no forced GC in timed intervals. No native reads, full Rounds dispatch, task binding or async sink allocation included. Unbound tasks are explicit gaps. Retained bytes are descriptive process-wide GC estimate.",
+                Protocol = "One warmup, three synchronous same-thread samples; no forced GC in timed intervals. No native reads, full ReviewState dispatch, task binding or async sink allocation included. Unbound tasks are explicit gaps. Retained bytes are descriptive process-wide GC estimate.",
                 Horizon = GameTime.TicksPerDay, Budget = "production default", Workers = context.Needs.Pawns.Count,
                 Policy = new { policy.Bytes, policy.Milliseconds }, Capture = capture, Retirement = retirement,
                 PendingAfterFourCaptures = pending, Capacity = ForecastEvidencePending.Capacity, Populated = count, RetainedBytes = retained,

@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using HomeBridge.BridgeTools;
+using RimGovernor.Native;
 
 internal static class NativeConstructionTierGateProbe
 {

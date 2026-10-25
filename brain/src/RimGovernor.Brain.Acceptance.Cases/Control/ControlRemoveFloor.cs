@@ -2,8 +2,6 @@ using System.Globalization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -71,13 +69,13 @@ internal static class ControlRemoveFloor
         for (var i = 0; i < cells.Count; i++)
         {
             _ = await TypedApply.AppliedAsync(s, "floor-" + i.ToString(CultureInfo.InvariantCulture),
-                new Operations.RemoveFloorIntent { Cell = WallKit.Wire(cells[i]), DefName = Floor }, cancellationToken).ConfigureAwait(false);
+                new RimGovernor.Brain.GameOrders.Operations.RemoveFloorIntent { Cell = WallKit.Wire(cells[i]), DefName = Floor }, cancellationToken).ConfigureAwait(false);
         }
 
         // The standing designations are one FloorOut wave: the op named by its first cell, Cells the four, a row for the colonist.
-        var read = await s.CallAsync("removals", NativeOps.ReadConstructionActivity, new Observations.ConstructionActivityRequest(s.Identity, default), cancellationToken).ConfigureAwait(false);
+        var read = await s.CallAsync("removals", NativeOps.ReadConstructionActivity, new RimGovernor.Brain.GameOrders.Observations.ConstructionActivityRequest(s.Identity, default), cancellationToken).ConfigureAwait(false);
         s.RecordWire("removals", read.Removals);
-        var ops = read.Removals.Where(r => r.Kind == Observations.PlannedClearingKind.RemoveFloor).ToList();
+        var ops = read.Removals.Where(r => r.Kind == RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.RemoveFloor).ToList();
         var first = cells.OrderBy(c => c.X).ThenBy(c => c.Z).First();
         var id = string.Create(CultureInfo.InvariantCulture, $"removefloor/{first.X}/{first.Z}/x4");
         if (ops is not [var op] || op.Id != id || op.Cells.Count != 4 || !cells.All(op.Cells.Contains))
@@ -86,7 +84,7 @@ internal static class ControlRemoveFloor
         }
 
         var row = op.Options.FirstOrDefault(r => r.Pawn == worker);
-        if (row is null || row.WorkGiver.Length == 0 || row.Definition != Floor || !cells.Contains(row.Location) || row.Finish is not Observations.ConstructionFinish.Finishes { Ticks: > 0 })
+        if (row is null || row.WorkGiver.Length == 0 || row.Definition != Floor || !cells.Contains(row.Location) || row.Finish is not RimGovernor.Brain.GameFacts.Observations.ConstructionFinish.Finishes { Ticks: > 0 })
         {
             throw new AcceptanceException($"removals: want a row for {worker} with a work giver, the floor's def, a member cell as Location, a known route and finish, got [{string.Join(";", op.Options)}]");
         }
@@ -96,7 +94,7 @@ internal static class ControlRemoveFloor
         {
             Tasks = [new SelectedActivityTask(TaskId, worker, [], step, row.Location, 0)],
         };
-        _ = await TypedApply.AppliedAsync(s, "order", new Operations.PawnActivitiesIntent { Batch = batch }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "order", new RimGovernor.Brain.GameOrders.Operations.PawnActivitiesIntent { Batch = batch }, cancellationToken).ConfigureAwait(false);
 
         var left = cells.Count;
         _ = await s.RunUntilAsync("removed", Budget, async ct =>
@@ -110,7 +108,7 @@ internal static class ControlRemoveFloor
         }
 
         // The execution row: a cell set step ends completed when its count is done; the continuation reports the cleared set satisfied.
-        var tasks = await s.CallAsync("execution", NativeOps.ReadActivityTasks, new Observations.ActivityTaskRequest(s.Identity, batch), cancellationToken).ConfigureAwait(false);
+        var tasks = await s.CallAsync("execution", NativeOps.ReadActivityTasks, new RimGovernor.Brain.GameOrders.Observations.ActivityTaskRequest(s.Identity, batch), cancellationToken).ConfigureAwait(false);
         var execution = tasks.Pawns.FirstOrDefault(p => p.Pawn == worker)?.Execution;
         s.Record("execution", execution?.ToString() ?? "none");
         if (execution?.State != "completed")

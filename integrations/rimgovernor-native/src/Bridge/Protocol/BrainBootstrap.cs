@@ -11,7 +11,7 @@ using RimGovernor.Host.Sdk;
 using Verse;
 using Waylith;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// Starts the in-process brain (#3115) when the game was launched with <see cref="InProcLaunch.Flag"/>; without the
@@ -107,7 +107,7 @@ namespace HomeBridge.BridgeTools
                 ReplayLaunch(brainStarted);
                 host = started;
                 Supervisor.AttachRows(started.Telemetry);
-                await ProtoBoundary.OnGameThread("brain/activity", () => { PawnActivityTracker.Attach(started.Telemetry); return started; }, StartupLifetime.Token, MainThreadAdmission.Observation).ConfigureAwait(false);
+                await GameThread.OnGameThread("brain/activity", () => { PawnActivityTracker.Attach(started.Telemetry); return started; }, StartupLifetime.Token, GameThreadQueue.Observation).ConfigureAwait(false);
 
                 Log.Message($"[RimGovernor] The in-process brain started (state {inputs.StatePath}, run {inputs.RunId}, auto-resume {inputs.AutoResume}).");
             }
@@ -152,7 +152,7 @@ namespace HomeBridge.BridgeTools
                     await startup.ConfigureAwait(false);
                     if (host is { } started) await started.StopAsync().ConfigureAwait(false);
                 });
-                ShutdownDrain.Run(stop, () => MainThreadAdmission.Frame(false), () =>
+                ShutdownDrain.Run(stop, () => GameThreadQueue.Frame(false), () =>
                 {
                     Current.Game?.Dispose();
                     Current.Game = null;
@@ -177,7 +177,7 @@ namespace HomeBridge.BridgeTools
                 {
                     using var bound = CancellationTokenSource.CreateLinkedTokenSource(StartupLifetime.Token);
                     bound.CancelAfter(DefsHopBound);
-                    var state = await ProtoBoundary.OnGameThread("brain/defs_ready", ReadReadiness, bound.Token, MainThreadAdmission.Observation).ConfigureAwait(false);
+                    var state = await GameThread.OnGameThread("brain/defs_ready", ReadReadiness, bound.Token, GameThreadQueue.Observation).ConfigureAwait(false);
                     if (state.Loaded) return state.SaveDataFolder;
                 }
                 catch (Exception e) when (e is InvalidOperationException or OperationCanceledException or TimeoutException)

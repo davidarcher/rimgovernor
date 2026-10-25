@@ -1,5 +1,3 @@
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -36,17 +34,17 @@ internal static class CombatLabMortarShell
         var crew = lab.Colonists()[0];
         var mortar = lab.Cell(0, CombatFixtures.SiegeOurMortar);
         var camp = lab.Cell(0, CombatFixtures.SiegeCampMortar);
-        Operations.CombatOrder Fire(string shell) =>
-            CombatLabKit.Order(null, new Operations.CombatOrderOrder.MortarFireCase(new Operations.CombatMortarFire { Mortar = mortar, Aim = new Operations.MortarAim.At(camp), Shell = shell }));
+        RimGovernor.Brain.GameOrders.Operations.CombatOrder Fire(string shell) =>
+            CombatLabKit.Order(null, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.MortarFireCase(new RimGovernor.Brain.GameOrders.Operations.CombatMortarFire { Mortar = mortar, Aim = new RimGovernor.Brain.GameOrders.Operations.MortarAim.At(camp), Shell = shell }));
 
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
         var results = await CombatLabKit.OrdersAsync(
             s,
             "load-he",
             cancellationToken,
-            CombatLabKit.Order(crew, new Operations.CombatOrderOrder.DraftCase(new Operations.Clear())),
+            CombatLabKit.Order(crew, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DraftCase(new RimGovernor.Brain.GameOrders.Operations.Clear())),
             Fire("Shell_HighExplosive"),
-            CombatLabKit.Order(crew, new Operations.CombatOrderOrder.ManMortarCase(mortar)),
+            CombatLabKit.Order(crew, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.ManMortarCase(mortar)),
             Fire("Steel")).ConfigureAwait(false);
         CombatLabKit.Applied("draft", results[0]);
         CombatLabKit.Applied("HE fire", results[1]);

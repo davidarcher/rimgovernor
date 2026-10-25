@@ -1,16 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
 using DomainCell = RimGovernor.Brain.Domain.Cell;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 using PawnId = RimGovernor.Brain.Domain.PawnId;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Proto port of SpatialAccessTools.Inspect (home/spatial_access): the
     // read-only access audit that compares each mobile colonist's current
@@ -23,31 +21,31 @@ namespace HomeBridge.BridgeTools
         // is unavailable (LimitExceeded), never partial.
         internal const long MaximumMapCells = 262144;
 
-        internal static Obs.SpatialAccessSnapshot HandleReadSpatialAccess(Obs.SpatialAccessRequest request)
+        internal static RimGovernor.Brain.GameFacts.Observations.SpatialAccessSnapshot HandleReadSpatialAccess(RimGovernor.Brain.GameOrders.Observations.SpatialAccessRequest request)
         {
             if (!Validate(request, out var failure)) throw NativeFaults.Refused(failure);
-            if (!ProtoBoundary.ValidateIdentity(request.Scope.ExpectedIdentity, out var map, out var context, out failure))
+            if (!GameThread.ValidateIdentity(request.Scope.ExpectedIdentity, out var map, out var context, out failure))
                 throw NativeFaults.Refused(failure);
             if ((long)map.Size.x * map.Size.z > MaximumMapCells)
-                throw NativeFaults.Unavailable(Unavailable(Common.UnavailableReason.LimitExceeded, "Map exceeds the bounded spatial audit size."));
+                throw NativeFaults.Unavailable(Unavailable(RimGovernor.Brain.GameFacts.Common.UnavailableReason.LimitExceeded, "Map exceeds the bounded spatial audit size."));
             var blocked = new HashSet<IntVec3>(request.BlockedCells.Select(Native));
             var targets = request.TargetCells.Select(Native).ToList();
             if (blocked.Concat(targets).Any(c => !c.InBounds(map)))
-                throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cell is outside the current map."));
+                throw NativeFaults.Refused(GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Cell is outside the current map."));
             try { return Audit(map, blocked, targets, request.PawnIds.ToList(), context, request.BudgetMs); }
-            catch (ReadLimit error) { throw NativeFaults.Unavailable(Unavailable(Common.UnavailableReason.LimitExceeded, error.Message)); }
-            catch (Exception) { throw NativeFaults.Unavailable(Unavailable(Common.UnavailableReason.ReadFailed, "Native spatial access could not be read completely.")); }
+            catch (ReadLimit error) { throw NativeFaults.Unavailable(Unavailable(RimGovernor.Brain.GameFacts.Common.UnavailableReason.LimitExceeded, error.Message)); }
+            catch (Exception) { throw NativeFaults.Unavailable(Unavailable(RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed, "Native spatial access could not be read completely.")); }
         }
 
-        internal static bool Validate(Obs.SpatialAccessRequest request, [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out Common.Failure? failure)
+        internal static bool Validate(RimGovernor.Brain.GameOrders.Observations.SpatialAccessRequest request, [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out RimGovernor.Brain.GameFacts.Common.Failure? failure)
         {
             failure = null;
             if (request.BlockedCells.Concat(request.TargetCells).Any(c => c.X < 0 || c.Z < 0))
-                failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Every cell needs nonnegative x and z.");
+                failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Every cell needs nonnegative x and z.");
             else if (request.BlockedCells.Select(Native).Distinct().Count() != request.BlockedCells.Count || request.TargetCells.Select(Native).Distinct().Count() != request.TargetCells.Count)
-                failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Duplicate cells.");
+                failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Duplicate cells.");
             else if (request.PawnIds.Any(string.IsNullOrWhiteSpace) || request.PawnIds.Distinct().Count() != request.PawnIds.Count)
-                failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn ids must be unique and nonblank.");
+                failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Pawn ids must be unique and nonblank.");
             return failure == null;
         }
 
@@ -65,7 +63,7 @@ namespace HomeBridge.BridgeTools
             return found;
         }
 
-        private static Obs.SpatialAccessSnapshot Audit(Map map, HashSet<IntVec3> blocked, List<IntVec3> targets, List<string> pawnIds, Common.ObservationContext context, uint budgetMs)
+        private static RimGovernor.Brain.GameFacts.Observations.SpatialAccessSnapshot Audit(Map map, HashSet<IntVec3> blocked, List<IntVec3> targets, List<string> pawnIds, RimGovernor.Brain.GameFacts.Common.ObservationContext context, uint budgetMs)
         {
             var budgetTicks = budgetMs * System.Diagnostics.Stopwatch.Frequency / 1000;
             var began = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -78,7 +76,7 @@ namespace HomeBridge.BridgeTools
             }
             if (pawns.Count == 0) throw new ReadLimit("Require at least one mobile native colonist.");
             var terrain = map.AllCells.Where(c => !c.Fogged(map) && c.Walkable(map)).ToList();
-            var rows = new List<Obs.PawnAccess>();
+            var rows = new List<RimGovernor.Brain.GameFacts.Observations.PawnAccess>();
             foreach (var pawn in pawns)
             {
                 var id = new PawnId(pawn.GetUniqueLoadID());
@@ -87,7 +85,7 @@ namespace HomeBridge.BridgeTools
                 // it is reported skipped, not audited and not assumed to keep access.
                 if (System.Diagnostics.Stopwatch.GetTimestamp() - began >= budgetTicks)
                 {
-                    rows.Add(new Obs.PawnAccess.Skipped { Pawn = id, Position = position });
+                    rows.Add(new RimGovernor.Brain.GameFacts.Observations.PawnAccess.Skipped { Pawn = id, Position = position });
                     continue;
                 }
                 var area = pawn.playerSettings?.AreaRestrictionInPawnCurrentMap;
@@ -111,15 +109,15 @@ namespace HomeBridge.BridgeTools
                 }
                 if (!origin.IsValid)
                 {
-                    rows.Add(new Obs.PawnAccess.Stranded { Pawn = id, Position = position });
+                    rows.Add(new RimGovernor.Brain.GameFacts.Observations.PawnAccess.Stranded { Pawn = id, Position = position });
                     continue;
                 }
                 var after = Reach(origin, allowed);
-                rows.Add(new Obs.PawnAccess.Audited
+                rows.Add(new RimGovernor.Brain.GameFacts.Observations.PawnAccess.Audited
                 {
                     Pawn = id,
                     Position = position,
-                    Targets = [.. targets.Select(c => new Obs.AccessTarget
+                    Targets = [.. targets.Select(c => new RimGovernor.Brain.GameFacts.Observations.AccessTarget
                     {
                         Cell = Cell(c),
                         NativeReachable = pawn.CanReach(c, PathEndMode.OnCell, Danger.None),
@@ -127,12 +125,12 @@ namespace HomeBridge.BridgeTools
                     })],
                 });
             }
-            return new Obs.SpatialAccessSnapshot { Context = context, Pawns = [.. rows] };
+            return new RimGovernor.Brain.GameFacts.Observations.SpatialAccessSnapshot { Context = context, Pawns = [.. rows] };
         }
 
         private static IntVec3 Native(RimGovernor.Brain.Domain.Cell cell) => new IntVec3(cell.X, 0, cell.Z);
         private static DomainCell Cell(IntVec3 cell) => new DomainCell(cell.x, cell.z);
-        private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
+        private static RimGovernor.Brain.GameFacts.Common.Unavailable Unavailable(RimGovernor.Brain.GameFacts.Common.UnavailableReason reason, string detail) => new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = reason, Detail = detail };
         private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) { } }
     }
 }

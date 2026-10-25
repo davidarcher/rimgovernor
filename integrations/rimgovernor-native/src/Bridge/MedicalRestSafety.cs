@@ -3,7 +3,7 @@ using System.Linq;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// Eligibility for short observation windows, never proof of recovery.
     internal static class MedicalRestSafety

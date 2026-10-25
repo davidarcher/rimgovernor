@@ -5,10 +5,10 @@ using System.IO;
 using System.Threading;
 using RimGovernor.Host.Sdk;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Names a main-thread hop that has stalled. Every
-    // ProtoBoundary.OnGameThread hop registers here when queued, marks itself
+    // GameThread.OnGameThread hop registers here when queued, marks itself
     // started when the game thread picks it up, and unregisters when its body
     // returns. A background timer scans the live hops once a second and logs,
     // once per hop, the first time one has waited in the queue longer than

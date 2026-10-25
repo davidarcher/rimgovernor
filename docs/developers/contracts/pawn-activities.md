@@ -228,7 +228,7 @@ and coupled needs consequences. Unsupported mechanics remain explicit; the
 bounded result is not a globally optimal colony plan.
 
 The registered `coordination/food-delegated`, `coordination/food-carried-recovery`
-and `coordination/construction-delegated` prepared cases use normal Rounds and
+and `coordination/construction-delegated` prepared cases use normal Colony review and
 Hands. Their fixture establishes facts, captures exact installed ownership and
 injects one carrying failure; it installs no chosen tasks. They assert native
 completion, physical output and observed cleanup. The construction case also compares native pawn comfort and safe-temperature minima with the selected shell comparison: both exposure inputs must be assessed, and the shell must reduce positive baseline `value.thermal` capability-days lost to hypothermia/heatstroke. `value.harm` is raid loss, so zero there does not imply absent cold injury. The staged -10 C temperature and worn apparel remain unchanged. Registration/compilation does
@@ -425,7 +425,7 @@ harvest output, refusal when the selected delivery cell becomes occupied after
 installation, and an explicit new revision delivering one unit to another exact
 cell while conserving the source quantity. The fixture drives those revisions
 through native activity installation; it does not prove forecast selection, normal
-Rounds/Hands dispatch or autonomous recovery. Domain tests separately round-trip
+Colony review/Hands dispatch or autonomous recovery. Domain tests separately round-trip
 the exact delivery payload through the journal codec and Hands intent builder.
 
 `control/pawn-activity-cooking` prepares a fueled stove with a competing bill and
@@ -512,7 +512,7 @@ The pawn read reports its real vanilla job with `JobEvidence.preemptible` set
 holds, so a coupled order on that target is not refused for it. Changing authority leaves
 an unowned colonist's vanilla job running; it only releases stale orders. Native
 publishes nothing for an unowned colonist (#3556; the `unassigned_voluntary_pawn`
-invalidation is gone), and the next rounds review reads it in the census. See [supported scope and remaining owners](voluntary-control.md).
+invalidation is gone), and the next colony review reads it in the census. See [supported scope and remaining owners](voluntary-control.md).
 Native disorientation and the native imposed-sleep/force-job ability effects retain
 their direct job authority through exact source-method scopes. The scope applies only
 to the affected pawn, restores on exceptions, and records interruption/release of any

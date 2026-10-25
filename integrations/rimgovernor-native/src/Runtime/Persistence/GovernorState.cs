@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Governor state: opaque blobs the brain owns, saved with the game. Native
     // stores and returns them verbatim and never interprets them.

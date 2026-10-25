@@ -1,10 +1,8 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using DefinitionCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
 using CatalogStats = RimGovernor.Brain.Bridge.CatalogStats;
-using C = RimGovernor.Contracts.Wire.Common;
-using O = RimGovernor.Contracts.Wire.Observations;
 using Cell = RimGovernor.Brain.Domain.Cell;
 namespace RimGovernor.Brain.Bridge;
 
@@ -12,16 +10,16 @@ public static class AcquisitionReads
 {
     /// <summary>
     /// Decodes the native-approved harvest/hunt source census of one colony facts read; a source the tables or the
-    /// catalog cannot head fails the read. Hunt rows <c>HuntGate</c> holds are left out (<c>RoundsFacts.HuntHolds</c>).
+    /// catalog cannot head fails the read. Hunt rows <c>HuntGate</c> holds are left out (<c>ReviewFacts.HuntHolds</c>).
     /// </summary>
-    public static EquatableArray<AcquisitionSource> ColonyAcquisition(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? catalog) =>
+    public static EquatableArray<AcquisitionSource> ColonyAcquisition(RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? catalog) =>
         DecodeAcquisition(v, tables, catalog).Sources;
 
     /// <summary>
     /// Maps the census rows. A native read carries the raw hunt census, and every hunt row passes the hunt gate:
     /// a held row is not a source but a hold.
     /// </summary>
-    internal static (EquatableArray<AcquisitionSource> Sources, IReadOnlyList<HuntHold> Holds) DecodeAcquisition(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? definitions)
+    internal static (EquatableArray<AcquisitionSource> Sources, IReadOnlyList<HuntHold> Holds) DecodeAcquisition(RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? definitions)
     {
         var catalog = ColonyPlanningReads.RequireCatalog(definitions);
         var races = catalog.AnimalRaces();
@@ -32,7 +30,7 @@ public static class AcquisitionReads
         {
             var source = tables.Entity(row.Source) ?? throw new BridgeContractException($"acquisition source {row.Source.Id} has no entity head in the tables");
             var raceKnown = races.Race(new Resource(source.DefName), out var race);
-            var hunt = row.Kind as O.AcquisitionKind.Hunt;
+            var hunt = row.Kind as RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Hunt;
             var offered = new AcquisitionSource { Observed = row, Entity = source, Pest = race.Pest };
             if (hunt is not null)
             {
@@ -88,7 +86,7 @@ public static class AcquisitionReads
     /// baseBodySize; a prey whose row or stage is not held is not known to be small, so not meleeable. The
     /// comparison is in float32, as the game's.
     /// </summary>
-    private static bool Meleeable(C.Ref source, O.AcquisitionKind.Hunt row, Pawns pawns, AnimalRace race, AcquisitionSource prey)
+    private static bool Meleeable(RimGovernor.Brain.GameFacts.Common.Ref source, RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Hunt row, Pawns pawns, AnimalRace race, AcquisitionSource prey)
     {
         if (row.InMentalState || race.Predator || race.Meat is not RaceMeat.Yields)
         {
@@ -102,7 +100,7 @@ public static class AcquisitionReads
         {
             return false;
         }
-        if (!pawns.TryGetRow(source, out var state) || state.AnimalState is not O.PawnAnimalState.Animal { State: var animal })
+        if (!pawns.TryGetRow(source, out var state) || state.AnimalState is not RimGovernor.Brain.GameFacts.Observations.PawnAnimalState.Animal { State: var animal })
         {
             return false;
         }
@@ -115,7 +113,7 @@ public static class AcquisitionReads
     }
 
     /// <summary>Decodes native's raw hunt facts.</summary>
-    private static HuntCensus HuntCensusOf(O.HuntCensus v, DefinitionCatalog catalog)
+    private static HuntCensus HuntCensusOf(RimGovernor.Brain.GameFacts.Observations.HuntCensus v, DefinitionCatalog catalog)
     {
         var hunters = new List<HuntHunter>();
         foreach (var h in v.Hunters)
@@ -132,7 +130,7 @@ public static class AcquisitionReads
 
     internal static HashSet<string> Set(IEnumerable<string> values) => new(values, StringComparer.Ordinal);
 
-    internal static void ApplyAcquisition(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? catalog, ref RoundsFacts r)
+    internal static void ApplyAcquisition(RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? catalog, ref ReviewFacts r)
     {
         var (sources, holds) = DecodeAcquisition(v, tables, catalog);
         r = r with { Acquisition = sources, HuntHolds = holds };

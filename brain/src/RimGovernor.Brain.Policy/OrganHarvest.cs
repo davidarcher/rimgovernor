@@ -302,7 +302,7 @@ public static partial class OrganHarvestRules
     /// Reports whether a sale harvest would be queued now: the silver runway is short and some eligible
     /// prisoner's organ clears its cost. It keeps the medical/surgery Need unmet.
     /// </summary>
-    public static bool SaleHarvestWanted(RoundsFacts f, bool silverShort)
+    public static bool SaleHarvestWanted(ReviewFacts f, bool silverShort)
     {
         if (!silverShort)
         {
@@ -475,7 +475,7 @@ public static partial class OrganHarvestRules
     }
 
     /// <summary>Reports whether a stock recovery would be queued now; it keeps the medical/surgery Need unmet.</summary>
-    public static bool PartRecoveryWanted(RoundsFacts f) =>
+    public static bool PartRecoveryWanted(ReviewFacts f) =>
         SelectPartRecovery(f.Population, [], null, f.Recipes) is not null;
 
     /// <summary>

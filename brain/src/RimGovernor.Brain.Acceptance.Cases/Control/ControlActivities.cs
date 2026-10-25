@@ -1,7 +1,6 @@
 using System.Globalization;
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -163,7 +162,7 @@ internal static class ControlActivities
 
     private static async Task ReadWorkResourcesAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var reply = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var rows = reply.WorkResources.ToList();
         s.RecordWireRows("work_resources", rows);
         if (rows.Count < 3 || !rows.Any(r => r.Assignment.Length > 0)

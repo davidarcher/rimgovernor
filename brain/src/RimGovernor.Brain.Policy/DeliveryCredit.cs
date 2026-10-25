@@ -252,7 +252,7 @@ public sealed class DeliveryCredit
         var span = (double)(now.Value - h.Samples[0].Tick.Value) / GameTime.TicksPerDay;
         if (h.Delivered)
         {
-            // A single burst between nearby Rounds cannot promise many days of food; like hunt cadence, price at least one day's demand.
+            // A single burst between nearby ReviewState cannot promise many days of food; like hunt cadence, price at least one day's demand.
             span = Math.Max(1, span);
         }
         var expected = c.Expected * span;

@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
@@ -69,7 +68,7 @@ public sealed record HuntWeapon
 /// </summary>
 public sealed record HuntHunter
 {
-    public required O.HunterFacts Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.HunterFacts Observed { get; init; }
     public string ID => Observed.Pawn.Value;
     public Cell Cell => Observed.Position;
     public bool Downed => Observed.Downed;
@@ -94,8 +93,8 @@ public sealed record HuntHold
 public sealed record HuntPrey
 {
     public required AcquisitionSource Source { get; init; }
-    public bool Fogged => Source.Observed.Kind is O.AcquisitionKind.Hunt { Fogged: true };
-    public bool Mental => Source.Observed.Kind is O.AcquisitionKind.Hunt { InMentalState: true };
+    public bool Fogged => Source.Observed.Kind is RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Hunt { Fogged: true };
+    public bool Mental => Source.Observed.Kind is RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Hunt { InMentalState: true };
 
     /// <summary>The pest rule: a pest race that is not in a mental state.</summary>
     internal bool IsPest() => Source.Pest && !Mental;

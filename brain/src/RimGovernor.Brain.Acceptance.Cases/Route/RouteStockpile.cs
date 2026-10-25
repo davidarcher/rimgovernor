@@ -1,6 +1,5 @@
 using Cell = RimGovernor.Brain.Domain.Cell;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -66,17 +65,17 @@ internal static class RouteStockpile
         var colonists = routes.PawnIds.Count;
         var problems = new List<string>();
 
-        Observations.RouteFacility Facility(string name)
+        RimGovernor.Brain.GameFacts.Observations.RouteFacility Facility(string name)
         {
             var interior = staged.Rooms[name].Interior.ToHashSet();
-            var row = routes.Facilities.FirstOrDefault(f => f.Kind == Observations.RouteFacilityKind.Stockpile && interior.Contains(new(f.Cell.X, f.Cell.Z)))
+            var row = routes.Facilities.FirstOrDefault(f => f.Kind == RimGovernor.Brain.GameFacts.Observations.RouteFacilityKind.Stockpile && interior.Contains(new(f.Cell.X, f.Cell.Z)))
                 ?? throw new AcceptanceException($"routes: no STOCKPILE facility in the {name} room");
             s.RecordWire(name, row);
             return row;
         }
 
         var sealedRow = Facility("sealed");
-        if (colonists == 0 || sealedRow.Travel.Count != colonists || sealedRow.Travel.Any(t => t is not Observations.RouteTravel.Unreachable))
+        if (colonists == 0 || sealedRow.Travel.Count != colonists || sealedRow.Travel.Any(t => t is not RimGovernor.Brain.GameFacts.Observations.RouteTravel.Unreachable))
         {
             problems.Add($"sealed: want {colonists} travel rows, none reachable, got {string.Join("; ", sealedRow.Travel)}");
         }
@@ -95,7 +94,7 @@ internal static class RouteStockpile
         }
 
         var openRow = Facility("open");
-        if (!openRow.Travel.Any(t => t is Observations.RouteTravel.Measured { Cells: > 0 }) || openRow.Breaches.Count != 0)
+        if (!openRow.Travel.Any(t => t is RimGovernor.Brain.GameFacts.Observations.RouteTravel.Measured { Cells: > 0 }) || openRow.Breaches.Count != 0)
         {
             problems.Add($"open: want a measured reachable path and no breaches, got {string.Join("; ", openRow.Travel)} / {string.Join("; ", openRow.Breaches)}");
         }

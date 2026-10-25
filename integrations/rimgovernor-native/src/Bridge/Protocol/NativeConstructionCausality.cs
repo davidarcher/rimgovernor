@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // One synchronous native factory/completion scope. Matching geometry never
     // substitutes for observing the exact factory result passed to Spawn.

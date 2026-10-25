@@ -1,5 +1,6 @@
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -214,7 +215,7 @@ public sealed class PawnValueTests
     }
 
     /// <summary>
-    /// The production path on a fresh colony with no recreation building (#3822): tier 2's input built by RoundsColonyModel.InputOf
+    /// The production path on a fresh colony with no recreation building (#3822): tier 2's input built by ReviewColonyModel.InputOf
     /// from a needs read with no bed or recreation target, so the colonist's recreation is the walk the native read gives
     /// (NeedRate.UnservedGainPerTick), its free hours are known and the review values it instead of throwing. The walk serves only
     /// the weather that allows it (NeedRate.OutdoorShareByTwelfth, #3825 D7): a winter twelfth with none leaves the joy unserved and
@@ -248,7 +249,7 @@ public sealed class PawnValueTests
     }
 
     /// <summary>
-    /// The production path before the first layout plan (#3822, #3857): the Rounder reviews a colony with no saved plan, the first
+    /// The production path before the first layout plan (#3822, #3857): the ColonyReview reviews a colony with no saved plan, the first
     /// plan deriving only after the review (ColonyPlan.ReviewFirstPlanAsync), and sets the context's food walks to none. The review
     /// does not throw: the shortfall stands, no colonist is valued and the values name the plan they await, on the rounds_review row too.
     /// </summary>
@@ -259,20 +260,20 @@ public sealed class PawnValueTests
         Assert.True(Assert.Single(Assert.IsType<WorkShortfall>(findings.WorkShortfall).Rows).TicksPerDay > 0);
         Assert.Empty(findings.PawnValues);
         Assert.Equal(PawnValueRules.AwaitingLayoutPlan, findings.PawnValuesAwaitingPlan);
-        var attrs = RimGovernor.Brain.BuildingRuntime.Rounder.PawnValueAttrs(findings).ToDictionary(a => a.Key, a => a.Value);
-        Assert.Equal("layout_plan", attrs[RimGovernor.Brain.Telemetry.RoundsReviewTelemetry.PawnValuesAwaitingPlanKey]);
-        Assert.Null(attrs[RimGovernor.Brain.Telemetry.RoundsReviewTelemetry.PawnValuesKey]);
-        Assert.NotNull(attrs[RimGovernor.Brain.Telemetry.RoundsReviewTelemetry.WorkShortfallKey]);
+        var attrs = RimGovernor.Brain.Runtime.ColonyReview.PawnValueAttrs(findings).ToDictionary(a => a.Key, a => a.Value);
+        Assert.Equal("layout_plan", attrs[RimGovernor.Brain.Telemetry.ReviewTelemetry.PawnValuesAwaitingPlanKey]);
+        Assert.Null(attrs[RimGovernor.Brain.Telemetry.ReviewTelemetry.PawnValuesKey]);
+        Assert.NotNull(attrs[RimGovernor.Brain.Telemetry.ReviewTelemetry.WorkShortfallKey]);
 
         var planned = Inspected(sites: 1, stock: 100, finishTicks: 3 * Day);
         Assert.Equal("", planned.PawnValuesAwaitingPlan);
-        Assert.Null(RimGovernor.Brain.BuildingRuntime.Rounder.PawnValueAttrs(planned).Single(a => a.Key == RimGovernor.Brain.Telemetry.RoundsReviewTelemetry.PawnValuesAwaitingPlanKey).Value);
+        Assert.Null(RimGovernor.Brain.Runtime.ColonyReview.PawnValueAttrs(planned).Single(a => a.Key == RimGovernor.Brain.Telemetry.ReviewTelemetry.PawnValuesAwaitingPlanKey).Value);
     }
 
-    private static RoundsFindings Inspected(int sites, int stock, double finishTicks, ColonyModelInput? model = null) =>
+    private static Findings Inspected(int sites, int stock, double finishTicks, ColonyModelInput? model = null) =>
         Inspected(sites, stock, finishTicks, FreshLegs(), model);
 
-    private static RoundsFindings Inspected(int sites, int stock, double finishTicks, FoodHaulLegs? haul, ColonyModelInput? model = null)
+    private static Findings Inspected(int sites, int stock, double finishTicks, FoodHaulLegs? haul, ColonyModelInput? model = null)
     {
         var catalog = Game.WorkSpeedFactsTests.Catalog();
         var facts = ForecastCoupledTests.ConstructionReview(sites, stock);
@@ -307,6 +308,6 @@ public sealed class PawnValueTests
                 Context = coupled.Context with { ModelBasis = new(input, new() { MedicineTendsPerDay = 0 }), Bed = new(true, 0), FoodHaul = haul, InvestmentHorizonDays = 30 },
             },
         };
-        return RoundsRules.InspectRounds(facts, new(), RoundsRules.DefaultRoundsPolicy());
+        return Rules.InspectReview(facts, new(), Rules.DefaultPlannerSettings());
     }
 }

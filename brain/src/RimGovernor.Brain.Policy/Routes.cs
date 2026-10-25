@@ -30,7 +30,7 @@ public sealed record RoutesPolicy
 /// <summary>Pure validation of the native routes census.</summary>
 public static partial class RoutesRules
 {
-    public static void ValidateRoutes(RimGovernor.Contracts.Wire.Observations.RoutesFacts census)
+    public static void ValidateRoutes(RimGovernor.Brain.GameFacts.Observations.RoutesFacts census)
     {
         var pawns = new HashSet<string>(StringComparer.Ordinal);
         foreach (var id in census.PawnIds)
@@ -184,7 +184,7 @@ public static partial class RoutesRules
     /// game's own answer, read fresh every review. A door frame is walkable, so a facility reads reachable once its
     /// ordered door is framed; the open door Method then continues on its own and nothing holds the facility.
     /// </summary>
-    public static RoutesReview ReviewRoutes(RimGovernor.Contracts.Wire.Observations.RoutesFacts v, RoutesPolicy p)
+    public static RoutesReview ReviewRoutes(RimGovernor.Brain.GameFacts.Observations.RoutesFacts v, RoutesPolicy p)
     {
         if (!p.Valid())
         {

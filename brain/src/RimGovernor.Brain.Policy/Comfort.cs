@@ -1,5 +1,5 @@
-using ComfortFacts = RimGovernor.Contracts.Wire.Observations.ComfortFacts;
-using ComfortHost = RimGovernor.Contracts.Wire.Observations.ComfortHost;
+using ComfortFacts = RimGovernor.Brain.GameFacts.Observations.ComfortFacts;
+using ComfortHost = RimGovernor.Brain.GameFacts.Observations.ComfortHost;
 
 namespace RimGovernor.Brain.Policy;
 

@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 // The tier-2 colony model's input (#3523 of #3470): one record per review, collected from facts the review frame already carries.
-// The pawn cycle, engine, graph and valuation read it (RoundsColonyModel.Review runs them once per review, #3531); this is the contract they
+// The pawn cycle, engine, graph and valuation read it (ReviewColonyModel.Review runs them once per review, #3531); this is the contract they
 // read. Every section is present: a frame that lacks one yields no input (ColonyModelInputRead.Unready names each gap), and Gaps() names a value outside its range.
 
 /// <summary>A growing zone or planned field: its soil. Fertility lists each cell's fertility, so a poor cell is not averaged away.</summary>
@@ -151,7 +151,7 @@ public sealed record ModelPawn
 
     public EquatableArray<ModelNeed> Needs { get; init; }
 
-    public required EquatableArray<RimGovernor.Contracts.Wire.Observations.Skill> Skills { get; init; }
+    public required EquatableArray<RimGovernor.Brain.GameFacts.Observations.Skill> Skills { get; init; }
 
     /// <summary>The five capacities a pawn-day is counted in (#3519).</summary>
     public required double Consciousness { get; init; }
@@ -179,14 +179,14 @@ public sealed record ModelPawn
     public required bool Hunts { get; init; }
 
     /// <summary>The pawn's native stat values at each stored skill level (#3633); the practice node reads its surgery speed here.</summary>
-    public EquatableArray<RimGovernor.Contracts.Wire.Observations.SkillStatCurve> SkillStatCurves { get; init; }
+    public EquatableArray<RimGovernor.Brain.GameFacts.Observations.SkillStatCurve> SkillStatCurves { get; init; }
 
     /// <summary>The pawn's work speed stats now (PawnUpkeepRead.Speeds, #3868); a craft node reads its recipe's workSpeedStat here.</summary>
-    public EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkSpeedRead> WorkSpeeds { get; init; }
+    public EquatableArray<RimGovernor.Brain.GameFacts.Observations.WorkSpeedRead> WorkSpeeds { get; init; }
 }
 
 /// <summary>
-/// Everything the tier-2 colony model starts from, assembled per review by <c>RoundsColonyModel.InputOf</c>. Every section is
+/// Everything the tier-2 colony model starts from, assembled per review by <c>ReviewColonyModel.InputOf</c>. Every section is
 /// present; <see cref="Gaps"/> names a value outside its range.
 /// </summary>
 public sealed record ColonyModelInput
@@ -198,7 +198,7 @@ public sealed record ColonyModelInput
     public required GearClimate Climate { get; init; }
 
     /// <summary>The tile's growing days, the days remaining and until, and the non-growing stretch.</summary>
-    public required RimGovernor.Contracts.Wire.Observations.FoodClimate Calendar { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.FoodClimate Calendar { get; init; }
 
     /// <summary>Standing growing zones and planned fields with their cells' fertility.</summary>
     public required EquatableArray<ModelField> Land { get; init; }

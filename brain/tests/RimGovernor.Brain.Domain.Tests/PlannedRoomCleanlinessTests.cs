@@ -2,8 +2,8 @@ using System.Text;
 using System.Text.Json;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store.Codec;
-using PlannedRoomPrediction = RimGovernor.Contracts.Wire.Observations.PlannedRoomPrediction;
-using PlannedRoomFurniture = RimGovernor.Contracts.Wire.Observations.PlannedRoomFurniture;
+using PlannedRoomPrediction = RimGovernor.Brain.GameFacts.Observations.PlannedRoomPrediction;
+using PlannedRoomFurniture = RimGovernor.Brain.GameOrders.Observations.PlannedRoomFurniture;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;

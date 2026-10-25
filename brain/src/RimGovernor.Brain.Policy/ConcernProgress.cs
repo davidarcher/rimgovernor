@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record ConcernProgress
 {
-    public ConcernId Concern { get; init; }
+    public FilingKey Concern { get; init; }
 
     /// <summary>The goal's current method or ladder rung ("hunt", "cook").</summary>
     public string Method { get; init; } = "";
@@ -90,7 +90,7 @@ public readonly record struct BlockedReason(string Value)
     public static BlockedReason FromCause(Cause cause) => new(cause.Value);
 
     /// <summary>Blocks on another goal that must be served first.</summary>
-    public static BlockedReason OnPrerequisite(ConcernId goal) => new(PrerequisitePrefix + goal.Value);
+    public static BlockedReason OnPrerequisite(FilingKey goal) => new(PrerequisitePrefix + goal.Value);
 
     /// <summary>The Cause this reason spells, when it spells one.</summary>
     public bool TryGetCause(out Cause cause)
@@ -103,8 +103,8 @@ public readonly record struct BlockedReason(string Value)
     public bool Waiting() => TryGetCause(out var cause) && cause.Waiting();
 
     /// <summary>The goal a prerequisite reason waits on, else empty.</summary>
-    public ConcernId Prerequisite() =>
-        Text.StartsWith(PrerequisitePrefix, StringComparison.Ordinal) ? new ConcernId(Text[PrerequisitePrefix.Length..]) : default;
+    public FilingKey Prerequisite() =>
+        Text.StartsWith(PrerequisitePrefix, StringComparison.Ordinal) ? new FilingKey(Text[PrerequisitePrefix.Length..]) : default;
 
     /// <summary>Reports a goal intentionally not worked: a held: reason or a prerequisite another goal serves first.</summary>
     public bool Held() => Text.StartsWith(HeldPrefix, StringComparison.Ordinal) || !Prerequisite().IsEmpty;
@@ -189,14 +189,14 @@ public static class ConcernProgressRules
     /// The hunt stall policy as a contract: a hunt designation the census reports untaken for HuntStallTicks
     /// since native first saw it is withdrawn, so the planner tries other prey or a non-hunt source.
     /// </summary>
-    public static ProgressContract HuntProgress(this RoundsPolicy p) =>
+    public static ProgressContract HuntProgress(this PlannerSettings p) =>
         new() { Method = "hunt", Deadline = new Tick(p.HuntStallTicks) };
 
     /// <summary>
     /// The designation stall policy: a plant harvest the census reports designated and untaken for
     /// AcquisitionStallTicks since native first saw it is cancelled so the goal re-plans from another source.
     /// </summary>
-    public static ProgressContract AcquisitionProgress(this RoundsPolicy p) =>
+    public static ProgressContract AcquisitionProgress(this PlannerSettings p) =>
         new() { Method = "harvest", Deadline = new Tick(p.AcquisitionStallTicks) };
 
     internal static List<ProgressCooldown> LiveCooldowns(IEnumerable<ProgressCooldown> cooldowns, Tick now) =>

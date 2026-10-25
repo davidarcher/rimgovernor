@@ -3,7 +3,7 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Store.Codec;
 using Journal = RimGovernor.Brain.Store.Store;
-using ReviewRecord = RimGovernor.Brain.Store.Rounds;
+using ReviewRecord = RimGovernor.Brain.Store.ReviewState;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -24,11 +24,11 @@ internal sealed class CaseStore : IDisposable
 
     public void Dispose() => _store.Dispose();
 
-    public async Task<ulong> RoundsRevisionAsync(CancellationToken cancellationToken) =>
-        (await ReadAsync("read rounds", ct => _store.LoadRounds(ct), cancellationToken).ConfigureAwait(false)).Revision;
+    public async Task<ulong> RevisionAsync(CancellationToken cancellationToken) =>
+        (await ReadAsync("read rounds", ct => _store.LoadReview(ct), cancellationToken).ConfigureAwait(false)).Revision;
 
     public Task<NeedSample> SampleNeedAsync(string concern, CancellationToken cancellationToken) =>
-        ReadAsync("sample " + concern, ct => SampleNeed(new ConcernId(concern), ct), cancellationToken);
+        ReadAsync("sample " + concern, ct => SampleNeed(new FilingKey(concern), ct), cancellationToken);
 
     private static async Task<T> ReadAsync<T>(string what, Func<CancellationToken, T> read, CancellationToken cancellationToken)
     {
@@ -42,10 +42,10 @@ internal sealed class CaseStore : IDisposable
         }
     }
 
-    private NeedSample SampleNeed(ConcernId need, CancellationToken ct)
+    private NeedSample SampleNeed(FilingKey need, CancellationToken ct)
     {
         var at = WatchSample.Stamp(DateTimeOffset.UtcNow);
-        var review = _store.LoadRounds(ct);
+        var review = _store.LoadReview(ct);
         BlockedReason? blocked = null;
         foreach (var progress in review.Progress)
         {

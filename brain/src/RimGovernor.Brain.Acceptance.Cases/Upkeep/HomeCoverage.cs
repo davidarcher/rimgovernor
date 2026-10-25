@@ -2,9 +2,7 @@ using System.Globalization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -95,10 +93,10 @@ internal static class UpkeepHomeCoverage
     private static async Task<MapCellGrid> ReadHomeAsync(TypedSession s, string label, IReadOnlyList<Cell> corridor, Cell margin, Cell beyond, CancellationToken cancellationToken)
     {
         var cells = corridor.Append(margin).Append(beyond).ToList();
-        var reply = await s.CallAsync(label, NativeOps.GetCells, new Observations.GetCellsRequest
+        var reply = await s.CallAsync(label, NativeOps.GetCells, new RimGovernor.Brain.GameOrders.Observations.GetCellsRequest
         {
             Scope = s.Scope,
-            Rectangle = new Observations.Rectangle
+            Rectangle = new RimGovernor.Brain.GameFacts.Observations.Rectangle
             {
                 Minimum = new RimGovernor.Brain.Domain.Cell { X = cells.Min(c => c.X), Z = cells.Min(c => c.Z) },
                 Maximum = new RimGovernor.Brain.Domain.Cell { X = cells.Max(c => c.X), Z = cells.Max(c => c.Z) },

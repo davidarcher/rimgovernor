@@ -1,5 +1,3 @@
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -21,6 +19,6 @@ internal static class ApplyCases
     }
 
     /// <summary>The effect an applied action's receipt observed; null when the outcome is not an applied one.</summary>
-    internal static Receipts.EffectEvidenceEffect? Effect(Operations.ActionResultOutcome outcome) =>
+    internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidenceEffect? Effect(RimGovernor.Brain.GameFacts.Operations.ActionResultOutcome outcome) =>
         outcome.Applied?.Outcome?.Applied?.Observed?.Effect;
 }

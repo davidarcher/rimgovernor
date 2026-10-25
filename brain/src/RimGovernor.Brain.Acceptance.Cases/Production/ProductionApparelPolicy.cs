@@ -2,8 +2,6 @@ using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -42,13 +40,13 @@ internal static class ProductionApparelPolicy
     {
         var subject = await s.FixtureAsync("policy-setup", Gear, "policy_setup", cancellationToken).ConfigureAwait(false);
 
-        async Task<(Observations.GearLoadout Gear, Observations.PawnEquipment Equipment)> ReadAsync(string label)
+        async Task<(RimGovernor.Brain.GameFacts.Observations.GearLoadout Gear, RimGovernor.Brain.GameFacts.Observations.PawnEquipment Equipment)> ReadAsync(string label)
         {
-            var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+            var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
             var gear = facts.Gear;
             var loadout = gear.Pawns.FirstOrDefault(p => p.Pawn.Value == subject.Pawn) ?? throw new AcceptanceException($"{label}: no gear row for {subject.Pawn}");
             var pawns = await s.CallAsync(label + "-pawn", NativeOps.ListPawns,
-                new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [subject.Pawn] } }, cancellationToken).ConfigureAwait(false);
+                new RimGovernor.Brain.GameOrders.Observations.ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [subject.Pawn] } }, cancellationToken).ConfigureAwait(false);
             var pawn = pawns.Pawns.FirstOrDefault(p => p.Pawn.Id == subject.Pawn)
                 ?? throw new AcceptanceException($"{label}: no pawn row for {subject.Pawn}");
             return (loadout, pawn.Equipment);
@@ -66,15 +64,15 @@ internal static class ProductionApparelPolicy
 
         async Task WriteAsync(string label, float minHitPoints, IReadOnlyList<string> defs)
         {
-            var apply = await s.CallAsync(label, NativeOps.Apply, new Operations.ApplyRequest
+            var apply = await s.CallAsync(label, NativeOps.Apply, new RimGovernor.Brain.GameOrders.Operations.ApplyRequest
             {
                 Identity = s.Identity,
                 Actions =
                 [
-                    new Operations.Action
+                    new RimGovernor.Brain.GameOrders.Operations.Action
                     {
                         Key = label,
-                        Intent = new Operations.ApparelPolicyIntent
+                        Intent = new RimGovernor.Brain.GameOrders.Operations.ApparelPolicyIntent
                         {
                             PawnId = subject.Pawn,
                             Name = subject.ShortName,

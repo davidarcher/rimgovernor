@@ -1,10 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Contracts.Wire;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Wl = RimGovernor.Contracts.Wire.Lifecycle;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -16,11 +15,11 @@ public sealed partial class Harness
         (ulong)Context(await LoadedAsync("tick", cancellationToken).ConfigureAwait(false), "tick").Tick;
 
     /// <summary>lifecycle_read_identity's loaded identity; an unavailable game fails <paramref name="label"/> with its reason.</summary>
-    public async Task<Wl.LoadedIdentity> LoadedAsync(string label, CancellationToken cancellationToken)
+    public async Task<RimGovernor.Brain.GameFacts.Lifecycle.LoadedIdentity> LoadedAsync(string label, CancellationToken cancellationToken)
     {
         try
         {
-            return await CallAsync(label, NativeOps.ReadIdentity, new Wl.IdentityRequest(), cancellationToken).ConfigureAwait(false);
+            return await CallAsync(label, NativeOps.ReadIdentity, new RimGovernor.Brain.GameOrders.Lifecycle.IdentityRequest(), cancellationToken).ConfigureAwait(false);
         }
         catch (BridgeUnavailableException e)
         {
@@ -29,11 +28,11 @@ public sealed partial class Harness
     }
 
     /// <summary>lifecycle_read_tick's loaded tick; an unavailable game fails <paramref name="label"/> with its reason.</summary>
-    public async Task<Wl.LoadedTick> LoadedTickAsync(string label, CancellationToken cancellationToken)
+    public async Task<RimGovernor.Brain.GameFacts.Lifecycle.LoadedTick> LoadedTickAsync(string label, CancellationToken cancellationToken)
     {
         try
         {
-            return await CallAsync(label, NativeOps.ReadTick, new Wl.TickRequest(), cancellationToken).ConfigureAwait(false);
+            return await CallAsync(label, NativeOps.ReadTick, new RimGovernor.Brain.GameOrders.Lifecycle.TickRequest(), cancellationToken).ConfigureAwait(false);
         }
         catch (BridgeUnavailableException e)
         {
@@ -45,21 +44,21 @@ public sealed partial class Harness
     /// Saves the game as <paramref name="saveName"/> through lifecycle_save at the identity and tick <paramref name="loaded"/>
     /// observed; any outcome but <c>completed</c> fails with the reply.
     /// </summary>
-    public async Task<Wl.SaveCompleted> SaveGameAsync(string label, Wl.LoadedIdentity loaded, string saveName, string requestId, CancellationToken cancellationToken)
+    public async Task<RimGovernor.Brain.GameFacts.Lifecycle.SaveCompleted> SaveGameAsync(string label, RimGovernor.Brain.GameFacts.Lifecycle.LoadedIdentity loaded, string saveName, string requestId, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(loaded);
-        var request = new Wl.SaveRequest
+        var request = new RimGovernor.Brain.GameOrders.Lifecycle.SaveRequest
         {
             Player = new() { Identity = loaded.Context?.Identity, PlayerDirection = 1, RequestId = requestId },
             SaveName = saveName,
-            ExpectedTick = new Wl.ExpectedSaveTick.AtCase((loaded.Context ?? throw new AcceptanceException($"{label}: the loaded identity carried no context")).Tick),
+            ExpectedTick = new RimGovernor.Brain.GameOrders.Lifecycle.ExpectedSaveTick.AtCase((loaded.Context ?? throw new AcceptanceException($"{label}: the loaded identity carried no context")).Tick),
         };
         var reply = await CallAsync(label, NativeOps.SaveGame, request, cancellationToken).ConfigureAwait(false);
-        return reply.Outcome?.Completed ?? throw new AcceptanceException($"{NativeOps.SaveGame.Name} did not complete: {WireJson.Serialize(reply)}");
+        return reply.Outcome?.Completed ?? throw new AcceptanceException($"{NativeOps.SaveGame.Name} did not complete: {OrdersJson.Serialize(reply)}");
     }
 
     /// <summary>A loaded reply's observation context; a reply without one fails <paramref name="label"/>.</summary>
-    public static Common.ObservationContext Context(Wl.LoadedIdentity loaded, string label)
+    public static RimGovernor.Brain.GameFacts.Common.ObservationContext Context(RimGovernor.Brain.GameFacts.Lifecycle.LoadedIdentity loaded, string label)
     {
         ArgumentNullException.ThrowIfNull(loaded);
         return loaded.Context ?? throw new AcceptanceException($"{label}: {NativeOps.ReadIdentity.Name} loaded without a context");
@@ -69,19 +68,19 @@ public sealed partial class Harness
     /// The JSON document of <paramref name="identity"/>, as the session, reuse state and service hold it (an identity has
     /// no choice fields, so this is its wire form).
     /// </summary>
-    public static JsonObject IdentityNode(Common.Identity identity)
+    public static JsonObject IdentityNode(RimGovernor.Brain.GameFacts.Common.Identity identity)
     {
         ArgumentNullException.ThrowIfNull(identity);
-        return JsonNode.Parse(WireJson.Serialize(identity))!.AsObject();
+        return JsonNode.Parse(OrdersJson.Serialize(identity))!.AsObject();
     }
 
     /// <summary>The Contracts identity of an <see cref="IdentityNode"/> document.</summary>
-    public static Common.Identity IdentityOf(JsonNode identity)
+    public static RimGovernor.Brain.GameFacts.Common.Identity IdentityOf(JsonNode identity)
     {
         ArgumentNullException.ThrowIfNull(identity);
         try
         {
-            return WireJson.Deserialize<Common.Identity>(identity.ToJsonString());
+            return OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Common.Identity>(identity.ToJsonString());
         }
         catch (JsonException e)
         {

@@ -3,7 +3,7 @@ using RimGovernor.Host.Sdk;
 using System;
 using System.Collections.Generic;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// Where one frame capture's game-thread time went: the capture spans the
     /// snapshot sections and their families declare, with the rows each
@@ -65,10 +65,10 @@ namespace HomeBridge.BridgeTools
         /// A span inside a section already Captured, listed beside the
         /// families so a slow capture line breaks the family down. Inside a
         /// facade hop (the colony facts read on the game thread) the span is
-        /// also the hop's part on the brain's hop_run (ProtoBoundary.HopPart).
+        /// also the hop's part on the brain's hop_run (GameThread.HopPart).
         internal static void Detail(string section, long stopwatchTicks, long rows = 0)
         {
-            ProtoBoundary.HopPart(section, Math.Max(0, stopwatchTicks));
+            GameThread.HopPart(section, Math.Max(0, stopwatchTicks));
             Record(section, stopwatchTicks, rows, true);
         }
 

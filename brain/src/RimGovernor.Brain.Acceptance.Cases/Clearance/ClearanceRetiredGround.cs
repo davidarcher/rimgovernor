@@ -2,7 +2,6 @@ using System.Globalization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -75,7 +74,7 @@ internal static class ClearanceRetiredGround
         }, cancellationToken).ConfigureAwait(false);
         _ = await s.ServeUntilAsync("retired-ground", s.TicksLeft, async ct =>
         {
-            var standing = await s.BuildingsAsync("standing", new Observations.ListBuildingsRequest { Ids = [.. ours] }, ct).ConfigureAwait(false);
+            var standing = await s.BuildingsAsync("standing", new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest { Ids = [.. ours] }, ct).ConfigureAwait(false);
             s.Record("standing", string.Join(' ', standing.Select(b => b.Building.DefName)));
             return (string.Create(CultureInfo.InvariantCulture, $"{standing.Count} {string.Join(',', standing.Select(b => b.Building.Id))}"), standing.Count == 0);
         }, cancellationToken).ConfigureAwait(false);

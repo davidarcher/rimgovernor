@@ -1,7 +1,7 @@
 using System.Text.Json;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -46,10 +46,10 @@ internal static class IdeologyRitual
         s.Record("fixture", ServedOps.Json(prepared));
 
         var dialog = await s.FixtureAsync("ritual-explicit-assignment", Inspect, prepared.RitualId, cancellationToken).ConfigureAwait(false);
-        Operations.RitualIntent intent;
+        RimGovernor.Brain.GameOrders.Operations.RitualIntent intent;
         try
         {
-            intent = JsonSerializer.Deserialize(dialog.ExplicitIntent, WireJsonContext.Default.OperationsRitualIntent)
+            intent = JsonSerializer.Deserialize(dialog.ExplicitIntent, OrdersJsonContext.Default.OperationsRitualIntent)
                 ?? throw new AcceptanceException("ritual-explicit-assignment: the intent is empty");
         }
         catch (JsonException e)

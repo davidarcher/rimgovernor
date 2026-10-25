@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimWorld;
 using Verse;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests.Game;
 
@@ -15,7 +14,7 @@ public sealed class KnowledgeUnlockProductionTests
     private static readonly ThingDef Cloth = new() { defName = KnowledgeValueTests.ClothDef };
 
     // The census's locked bill for the unlocked duster: a fresh colony's skill-6 crafter could make it (#3850).
-    private static readonly O.GearLockedBill[] Locked =
+    private static readonly RimGovernor.Brain.GameFacts.Observations.GearLockedBill[] Locked =
         [new() { DefName = KnowledgeValueTests.Unlocked, Craftable = true, Crafters = [new(6, false, 0)] }];
 
     private static DefinitionCatalog Catalog()

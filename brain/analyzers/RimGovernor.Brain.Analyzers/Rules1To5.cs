@@ -19,12 +19,13 @@ public sealed class LayersAnalyzer : GateAnalyzer
     private static readonly string[][] Layers =
     {
         new[] { "Domain" },
-        new[] { "Contracts" },
+        new[] { "GameFacts" },
+        new[] { "GameOrders" },
         new[] { "Policy" },
-        new[] { "Bridge.Contracts", "Bridge" },
+        new[] { "GameAccess", "Bridge" },
         new[] { "Store" },
        new[] { "Executor" },
-        new[] { "BuildingRuntime" },
+        new[] { "Runtime" },
         new[] { "PlayerApi" },
         new[] { "Host" },
     };
@@ -35,11 +36,11 @@ public sealed class LayersAnalyzer : GateAnalyzer
     /// </summary>
     private static readonly string[][] Denied =
     {
-        new[] { "Store", "Bridge.Contracts" },
+        new[] { "Store", "GameAccess" },
         new[] { "Store", "Bridge" },
         new[] { "Store", "HttpChannel" },
        new[] { "Executor", "Store" },
-        new[] { "PlayerApi", "BuildingRuntime" },
+        new[] { "PlayerApi", "Runtime" },
     };
 
     public LayersAnalyzer()
@@ -238,7 +239,7 @@ public sealed class PolicyPurityAnalyzer : GateAnalyzer
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class OneOwnerAnalyzer : GateAnalyzer
 {
-    private static readonly string[] Owners = { "RimGovernor.Brain.Domain", "RimGovernor.Brain.Policy", "RimGovernor.Brain.Bridge.Contracts", "RimGovernor.Brain.Bridge" };
+    private static readonly string[] Owners = { "RimGovernor.Brain.Domain", "RimGovernor.Brain.Policy", "RimGovernor.Brain.GameAccess", "RimGovernor.Brain.Bridge" };
 
     public OneOwnerAnalyzer()
         : base(3, "One owner per exported type", "exported type declared by more than one of domain, policy and bridge")
@@ -345,7 +346,7 @@ public sealed class SwallowedErrorsAnalyzer : GateAnalyzer
 }
 
 /// <summary>
-/// Rule 5, numbers (RGARCH005), in Policy and BuildingRuntime. No literal 10000 compared with or clamping a
+/// Rule 5, numbers (RGARCH005), in Policy and Runtime. No literal 10000 compared with or clamping a
 /// count/target-named operand (use a named constant or delete the cap), and no sentinel standing for unknown
 /// (1e12, 1L&lt;&lt;40, double.MaxValue). Key "file|Type.Member|token".
 /// </summary>
@@ -363,7 +364,7 @@ public sealed class NumbersAnalyzer : GateAnalyzer
     {
     }
 
-    protected override bool Applies(string shortName) => shortName == "Policy" || shortName == "BuildingRuntime";
+    protected override bool Applies(string shortName) => shortName == "Policy" || shortName == "Runtime";
 
     protected override void Register(CompilationStartAnalysisContext context, GateRun run)
     {

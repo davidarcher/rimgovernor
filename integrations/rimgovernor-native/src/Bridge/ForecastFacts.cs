@@ -5,7 +5,7 @@ using System.Linq;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Current-condition inputs only. No work orders or simulated future yields.
     internal static class ForecastFacts

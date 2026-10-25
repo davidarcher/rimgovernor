@@ -10,7 +10,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>Native loadout inspection and guarded ordinary apparel jobs.</summary>
     public sealed class GearUpkeepTools

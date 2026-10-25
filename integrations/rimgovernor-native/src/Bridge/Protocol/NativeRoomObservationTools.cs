@@ -2,38 +2,36 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
 using DomainCell = RimGovernor.Brain.Domain.Cell;
 using DomainWire = RimGovernor.Brain.Domain.Wire;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class NativeRoomObservationTools
     {
         // On the game thread: the typed core of the tool, shared with the in-process facade. A refused request
         // or a census that cannot be read completely throws.
-        internal static Obs.RoomsSnapshot HandleListRooms(Obs.ListRoomsRequest parsed)
+        internal static RimGovernor.Brain.GameFacts.Observations.RoomsSnapshot HandleListRooms(RimGovernor.Brain.GameOrders.Observations.ListRoomsRequest parsed)
         {
             if (!Validate(parsed, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
-            if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
+            if (!GameThread.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
                 throw NativeFaults.Refused(error);
             if (parsed.Region != null && (!NativeCell(parsed.Region.Minimum).InBounds(map) || !NativeCell(parsed.Region.Maximum).InBounds(map)))
-                throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Room filter rectangle must be within the current map."));
+                throw NativeFaults.Refused(GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Room filter rectangle must be within the current map."));
             try { return Read(map, parsed, context); }
             catch (Exception readError)
             {
                 ModLog.Error("observe", "Room census read failed: " + readError);
-                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
+                throw NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed,
                     Detail = PlacementPreviewOperation.Diagnostic("Room census, geometry or contents could not be read completely: " + readError.GetType().Name + ": " + readError.Message) });
             }
         }
         // On the main thread: the room census for a validated request; a census it cannot read completely throws.
-        internal static Obs.RoomsSnapshot Read(Map map, Obs.ListRoomsRequest parsed, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Observations.RoomsSnapshot Read(Map map, RimGovernor.Brain.GameOrders.Observations.ListRoomsRequest parsed, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             if (map.regionGrid?.AllRooms == null || map.regionAndRoomUpdater == null || map.zoneManager == null || map.mapPawns == null)
                 throw new InvalidOperationException("Room, zone or pawn census is unavailable.");
@@ -56,7 +54,7 @@ namespace HomeBridge.BridgeTools
                 if (!pawnRooms.TryGetValue(room, out var list)) pawnRooms.Add(room, list = new List<Pawn>());
                 list.Add(pawn);
             }
-            var rows = new List<Obs.RoomState>();
+            var rows = new List<RimGovernor.Brain.GameFacts.Observations.RoomState>();
             foreach (var room in physical.OrderBy(r => r.ID))
             {
                 if (!Selected(parsed, Id(room.ID), room.PsychologicallyOutdoors, room.IsDoorway)) continue;
@@ -70,17 +68,17 @@ namespace HomeBridge.BridgeTools
                 if (parsed.Region != null && !cells.Any(c => Inside(parsed.Region, c))) continue;
                 rows.Add(Project(room, map, cells, pawnRooms.TryGetValue(room, out var members) ? members : new List<Pawn>(), parsed));
             }
-            return new Obs.RoomsSnapshot { Context = context, Rooms = [.. rows] };
+            return new RimGovernor.Brain.GameFacts.Observations.RoomsSnapshot { Context = context, Rooms = [.. rows] };
         }
-        internal static bool Validate(Obs.ListRoomsRequest request, out Common.Failure failure)
+        internal static bool Validate(RimGovernor.Brain.GameOrders.Observations.ListRoomsRequest request, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Expected identity, unique room IDs, valid rectangle required.");
+            failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Expected identity, unique room IDs, valid rectangle required.");
             return request?.Scope?.ExpectedIdentity != null && request.RoomIds.Count <= 256
-                && request.RoomIds.All(ProtoBoundary.IsIdentifier) && request.RoomIds.Distinct(StringComparer.Ordinal).Count() == request.RoomIds.Count
+                && request.RoomIds.All(GameThread.IsIdentifier) && request.RoomIds.Distinct(StringComparer.Ordinal).Count() == request.RoomIds.Count
                 && (request.Region == null || request.Region.Minimum is { } lo && request.Region.Maximum is { } hi && CellPresent(lo) && CellPresent(hi)
                     && lo.X <= hi.X && lo.Z <= hi.Z);
         }
-        internal static bool Selected(Obs.ListRoomsRequest request, string id, bool psychologicallyOutdoors, bool doorway)
+        internal static bool Selected(RimGovernor.Brain.GameOrders.Observations.ListRoomsRequest request, string id, bool psychologicallyOutdoors, bool doorway)
             => !psychologicallyOutdoors && !doorway && (request.RoomIds.Count == 0 || request.RoomIds.Contains(id));
         internal static bool HasPhysicalRegions(Room room)
         {
@@ -90,9 +88,9 @@ namespace HomeBridge.BridgeTools
             if (room.CellCount != 0 || room.Cells.Any()) throw new InvalidOperationException("Regionless room has physical cells.");
             return false;
         }
-        internal static bool Inside(Obs.Rectangle rectangle, IntVec3 cell) => cell.x >= rectangle.Minimum.X && cell.x <= rectangle.Maximum.X && cell.z >= rectangle.Minimum.Z && cell.z <= rectangle.Maximum.Z;
+        internal static bool Inside(RimGovernor.Brain.GameFacts.Observations.Rectangle rectangle, IntVec3 cell) => cell.x >= rectangle.Minimum.X && cell.x <= rectangle.Maximum.X && cell.z >= rectangle.Minimum.Z && cell.z <= rectangle.Maximum.Z;
 
-        private static Obs.RoomState Project(Room room, Map map, List<IntVec3> cells, List<Pawn> pawns, Obs.ListRoomsRequest request)
+        private static RimGovernor.Brain.GameFacts.Observations.RoomState Project(Room room, Map map, List<IntVec3> cells, List<Pawn> pawns, RimGovernor.Brain.GameOrders.Observations.ListRoomsRequest request)
         {
             // Room owns reusable region/thing buffers. Copy before any stat, label or
             // bed projection can read those getters again. Never enumerate Zone.Cells.
@@ -104,16 +102,16 @@ namespace HomeBridge.BridgeTools
             var held = cells.Where(c => !c.Fogged(map)).ToList();
             var buildings = things.OfType<Building>().Where(t => request.IncludeBoundary || room.ContainsCell(t.Position)).ToList();
             var beds = buildings.OfType<Building_Bed>().ToList();
-            var stats = new List<Obs.RoomStat>();
+            var stats = new List<RimGovernor.Brain.GameFacts.Observations.RoomStat>();
             foreach (var definition in new[] { RoomStatDefOf.Cleanliness, RoomStatDefOf.Wealth, RoomStatDefOf.Space, RoomStatDefOf.Beauty, RoomStatDefOf.Impressiveness })
             {
                 if (definition == null) throw new InvalidOperationException("Required room stat definition is unavailable.");
-                stats.Add(new Obs.RoomStat { DefName = Name(definition.defName), Value = Finite(room.GetStat(definition)) });
+                stats.Add(new RimGovernor.Brain.GameFacts.Observations.RoomStat { DefName = Name(definition.defName), Value = Finite(room.GetStat(definition)) });
             }
             // Doors in the boundary: the door cell, the cell across it
             // from this room, and whether that far side is an outdoor room. A far side
             // with no room (map edge, impassable) or this room is not outdoors.
-            var doors = new List<Obs.RoomDoor>();
+            var doors = new List<RimGovernor.Brain.GameFacts.Observations.RoomDoor>();
             foreach (var door in things.OfType<Building_Door>().OrderBy(d => d.Position.z).ThenBy(d => d.Position.x))
             {
                 foreach (var offset in GenAdj.CardinalDirections)
@@ -122,7 +120,7 @@ namespace HomeBridge.BridgeTools
                     if (!inside.InBounds(map) || inside.GetRoom(map) != room) continue;
                     var outside = door.Position - offset;
                     var far = outside.InBounds(map) ? outside.GetRoom(map) : null;
-                    doors.Add(new Obs.RoomDoor { Cell = Cell(door.Position), Outside = Cell(outside),
+                    doors.Add(new RimGovernor.Brain.GameFacts.Observations.RoomDoor { Cell = Cell(door.Position), Outside = Cell(outside),
                         Outdoors = far != null && far != room && far.PsychologicallyOutdoors,
                         PlayerOwned = door.Faction == Faction.OfPlayerSilentFail,
                         Open = door.Open, HoldOpen = door.HoldOpen, BlockedOpen = door.BlockedOpenMomentary,
@@ -131,13 +129,13 @@ namespace HomeBridge.BridgeTools
                 }
             }
             var contents = buildings.GroupBy(t => Name(t.def.defName)).OrderBy(g => g.Key, StringComparer.Ordinal)
-                .Select(g => new Obs.RoomContent { DefName = g.Key, Units = g.LongCount() }).ToList();
+                .Select(g => new RimGovernor.Brain.GameFacts.Observations.RoomContent { DefName = g.Key, Units = g.LongCount() }).ToList();
             var id = Id(room.ID);
             var roleName = Name(role.defName);
-            return new Obs.RoomState
+            return new RimGovernor.Brain.GameFacts.Observations.RoomState
             {
                 Id = id,
-                Role = DomainWire.TryParse<Obs.RoomRole>(roleName, out var parsed) ? parsed : Obs.RoomRole.Unrecognized,
+                Role = DomainWire.TryParse<RimGovernor.Brain.GameFacts.Observations.RoomRole>(roleName, out var parsed) ? parsed : RimGovernor.Brain.GameFacts.Observations.RoomRole.Unrecognized,
                 ProperRoom = room.ProperRoom,
                 Doorway = room.IsDoorway,
                 Outdoors = room.UsesOutdoorTemperature,
@@ -147,7 +145,7 @@ namespace HomeBridge.BridgeTools
                 TemperatureC = Finite(room.Temperature),
                 OpenRoofCount = (uint)roof,
                 CellCount = (uint)cells.Count,
-                Extents = new Obs.CellExtents { Minimum = new DomainCell(cells.Min(c => c.x), cells.Min(c => c.z)), Maximum = new DomainCell(cells.Max(c => c.x), cells.Max(c => c.z)) },
+                Extents = new RimGovernor.Brain.GameFacts.Observations.CellExtents { Minimum = new DomainCell(cells.Min(c => c.x), cells.Min(c => c.z)), Maximum = new DomainCell(cells.Max(c => c.x), cells.Max(c => c.z)) },
                 Center = Cell(Center(cells)),
                 Stats = [.. stats],
                 Pawns = [.. pawns.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).Select(p => NativeRef.Thing(p))],
@@ -174,6 +172,6 @@ namespace HomeBridge.BridgeTools
         private static IntVec3 NativeCell(RimGovernor.Brain.Domain.Cell cell) => new IntVec3(cell.X, 0, cell.Z);
         private static DomainCell Cell(IntVec3 cell) => new DomainCell(cell.x, cell.z);
         private static string Id(int id) => id >= 0 ? id.ToString(CultureInfo.InvariantCulture) : throw new InvalidOperationException("Invalid room ID.");
-        private static string Name(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Invalid native room identifier.");
+        private static string Name(string value) => GameThread.IsIdentifier(value) ? value : throw new InvalidOperationException("Invalid native room identifier.");
     }
 }

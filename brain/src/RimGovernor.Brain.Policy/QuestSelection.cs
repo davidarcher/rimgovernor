@@ -1,12 +1,11 @@
 using RimGovernor.Brain.Domain;
-using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
 public static class QuestSelection
 {
     /// <summary>Explains refusals with the same family decision used for admission.</summary>
-    public static IReadOnlyList<QuestSkip> QuestSkips(RoundsFacts f)
+    public static IReadOnlyList<QuestSkip> QuestSkips(ReviewFacts f)
     {
         var rows = f.QuestOffers;
         var output = new List<QuestSkip>();
@@ -31,7 +30,7 @@ public static class QuestSelection
     }
 
     /// <summary>Gates the delayed quest raid using its generated budget.</summary>
-    public static QuestSkipReason JoinerThreatReason(QuestState offer, RoundsFacts facts)
+    public static QuestSkipReason JoinerThreatReason(QuestState offer, ReviewFacts facts)
     {
         if (facts.QuestCalm is QuestCalm.Unsettled)
         {
@@ -42,7 +41,7 @@ public static class QuestSelection
             return "colony_busy";
         }
         // A quest without threat parts threatens no raid.
-        var threat = offer.Threat is Pb.QuestThreat.Points points ? points.Value : 0;
+        var threat = offer.Threat is RimGovernor.Brain.GameFacts.Observations.QuestThreat.Points points ? points.Value : 0;
         var defense = facts.DefenseCapacity;
         if (!TradePolicyRules.Finite(defense) || defense < 0)
         {
@@ -59,13 +58,13 @@ public static class QuestSelection
     /// Admits the short crash offer immediately when its observed window is still open and the colony can
     /// defend the generated raid.
     /// </summary>
-    public static QuestSkipReason ShuttleRescueAdmission(QuestState offer, RoundsFacts facts)
+    public static QuestSkipReason ShuttleRescueAdmission(QuestState offer, ReviewFacts facts)
     {
         if (facts.RootOf(offer) is not QuestRoot.Classified { Profile: var profile } || profile.Family != QuestFamily.ShuttleRescue)
         {
             return "";
         }
-        if (offer.Expiry is Pb.QuestExpiry.ExpiresIn { Ticks: <= 0 })
+        if (offer.Expiry is RimGovernor.Brain.GameFacts.Observations.QuestExpiry.ExpiresIn { Ticks: <= 0 })
         {
             return "expired";
         }
@@ -73,7 +72,7 @@ public static class QuestSelection
     }
 
     /// <summary>Shared by selection, inspection and refusal telemetry.</summary>
-    private static (bool Accept, QuestSkipReason Reason) QuestDecision(QuestState offer, RoundsFacts f)
+    private static (bool Accept, QuestSkipReason Reason) QuestDecision(QuestState offer, ReviewFacts f)
     {
         if (offer.State != QuestStatus.NotYetAccepted)
         {
@@ -119,7 +118,7 @@ public static class QuestSelection
         }
         if (profile.Family != QuestFamily.OdysseyGround && profile.Family != QuestFamily.Hack && profile.Family != QuestFamily.Relic && !expedition)
         {
-            if (offer.Faction is not Pb.QuestFaction.Involved faction)
+            if (offer.Faction is not RimGovernor.Brain.GameFacts.Observations.QuestFaction.Involved faction)
             {
                 return (false, "no_faction");
             }
@@ -127,7 +126,7 @@ public static class QuestSelection
             {
                 return (false, "hostile");
             }
-            if (offer.Place is not Pb.QuestPlace.OnMap place || new MapId(place.MapId) != f.ColonyMap)
+            if (offer.Place is not RimGovernor.Brain.GameFacts.Observations.QuestPlace.OnMap place || new MapId(place.MapId) != f.ColonyMap)
             {
                 return (false, "off_map");
             }
@@ -188,19 +187,19 @@ public static class QuestSelection
     /// Accounts for open non-automatic quests before admitting new work. Unknown observations hold capacity;
     /// an autoAccept root reserves none.
     /// </summary>
-    public static QuestSkipReason QuestFeasibility(QuestState offer, RoundsFacts f)
+    public static QuestSkipReason QuestFeasibility(QuestState offer, ReviewFacts f)
     {
         if (f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile })
         {
             return QuestSkipReason.ClassUnknown;
         }
-        if (offer.Expiry is Pb.QuestExpiry.ExpiresIn { Ticks: 0 })
+        if (offer.Expiry is RimGovernor.Brain.GameFacts.Observations.QuestExpiry.ExpiresIn { Ticks: 0 })
         {
             return "expired";
         }
         foreach (var objective in offer.Objectives)
         {
-            if (objective.Kind == Pb.QuestObjectiveKind.AcceptRequirementUnmet)
+            if (objective.Kind == RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.AcceptRequirementUnmet)
             {
                 return "accept_requirement";
             }
@@ -280,7 +279,7 @@ public static class QuestSelection
         return "";
     }
 
-    internal static (long Need, QuestSkipReason Reason) QuestPawnDemand(QuestState offer, RoundsFacts f)
+    internal static (long Need, QuestSkipReason Reason) QuestPawnDemand(QuestState offer, ReviewFacts f)
     {
         long need = 1;
         // Pickup passengers of a time-cost quest are guests, not colony staff leaving home. Only pawn-cost
@@ -293,11 +292,11 @@ public static class QuestSelection
         {
             switch (objective.Kind)
             {
-                case Pb.QuestObjectiveKind.LoadNamedPawns:
+                case RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.LoadNamedPawns:
                     need = Math.Max(need, objective.PawnIds.Count);
                     break;
-                case Pb.QuestObjectiveKind.LoadPawns:
-                    if (objective.Goal is not Pb.QuestObjectiveGoal.Pawns { Count: var count })
+                case RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.LoadPawns:
+                    if (objective.Goal is not RimGovernor.Brain.GameFacts.Observations.QuestObjectiveGoal.Pawns { Count: var count })
                     {
                         return (0, "pawn_demand_unknown");
                     }
@@ -313,7 +312,7 @@ public static class QuestSelection
     /// joiner offer is the joiners/offers step's and answers to its threat check; a quest no check refuses but no step
     /// answers reads <c>not_pursued</c>.
     /// </summary>
-    public static QuestSkipReason NamedQuestReason(QuestState offer, RoundsFacts f)
+    public static QuestSkipReason NamedQuestReason(QuestState offer, ReviewFacts f)
     {
         var (accept, reason) = QuestDecision(offer, f);
         return accept || !reason.IsNone ? reason : "not_pursued";
@@ -323,7 +322,7 @@ public static class QuestSelection
     /// Keeps a quest a player goal names first, then allowed title claims, then the lowest-ID affordable family offer. Joiner selection precedes
     /// this planner at runtime.
     /// </summary>
-    public static JoinerChoice SelectQuestMethod(RoundsFacts f)
+    public static JoinerChoice SelectQuestMethod(ReviewFacts f)
     {
         var rows = f.QuestOffers;
         // A quest a player goal names goes first, when the same checks every offer passes admit it (#3499).
@@ -376,6 +375,6 @@ public static class QuestSelection
     /// <summary>
     /// Whether a quest is worth accepting, or an accepted one owes hosting, expedition or ideology work; the census is read whole.
     /// </summary>
-    public static bool QuestDeficit(RoundsFacts f) =>
+    public static bool QuestDeficit(ReviewFacts f) =>
         SelectQuestMethod(f).Reason == JoinerPlanReason.None || QuestHospitality.HospitalityDeficit(f) || QuestExpedition.ExpeditionDeficit(f) || QuestHackPolicy.IdeologyWorkDeficit(f);
 }

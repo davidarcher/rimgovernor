@@ -143,7 +143,7 @@ public static partial class PlannedRules
     /// operation (<see cref="Reconciliation.Owed"/>: ring, fence, roof, vent, floor, template pieces, removals and
     /// clearing) keeps it open, except template pieces to build that are all <paramref name="blocked"/> (missing research,
     /// or no stuff or cost-list material the colony stocks or can obtain from the map, #3839, on read evidence only:
-    /// RoundsBuildingPlanner.PieceBlockedOf, #3819; the
+    /// BuildingPlanner.PieceBlockedOf, #3819; the
     /// service-day projection reads the same predicate, ForecastCoupledContext.BlockedItems, #3827): while only those remain the
     /// room frees its builders, and it is open again once one of them can be worked. A started room is open while it is
     /// not done; the open rings close first in the ring-closure projection (ForecastCoupledContext.OpenRooms).

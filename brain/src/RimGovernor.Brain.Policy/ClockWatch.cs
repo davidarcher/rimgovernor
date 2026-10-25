@@ -238,7 +238,7 @@ public static class ClockWatchRules
         foreach (var pawn in f.Emergency.Facts.Colonists)
         {
             // A colonist without a food need never trips the native hunger hold.
-            var due = pawn.Food is RimGovernor.Contracts.Wire.Observations.FoodNeed.Has food && food.Hunger >= HazardThresholdsRules.HungerHoldCategory;
+            var due = pawn.Food is RimGovernor.Brain.GameFacts.Observations.FoodNeed.Has food && food.Hunger >= HazardThresholdsRules.HungerHoldCategory;
             if (due && (f.Status.State == ClockWatchState.Held || kept.Contains(pawn.Id)))
             {
                 hungry.Add(pawn.Id);

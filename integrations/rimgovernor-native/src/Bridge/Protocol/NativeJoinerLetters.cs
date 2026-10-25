@@ -4,12 +4,8 @@ using System.Linq;
 using System.Text;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Only the Core walk-in offer is supported: its signal admits exactly one
     // pawn immediately. Other AcceptJoiner quest families remain player choices.
@@ -48,36 +44,36 @@ namespace HomeBridge.BridgeTools
             return NativeSnapshotVersions.Token(CreepJoinerKind, null, letter.GetUniqueLoadID(), text);
         }
 
-        private static List<Obs.JoinerLetter> CreepJoinerSnapshot()
+        private static List<RimGovernor.Brain.GameFacts.Observations.JoinerLetter> CreepJoinerSnapshot()
         {
-            var rows = new List<Obs.JoinerLetter>();
+            var rows = new List<RimGovernor.Brain.GameFacts.Observations.JoinerLetter>();
             foreach (var letter in PendingCreepJoiners().OrderBy(l => l.ID))
             {
                 var accept = letter.Choices.First();
-                var row = new Obs.JoinerLetter { Id = letter.ID, Token = CreepJoinerToken(letter),
+                var row = new RimGovernor.Brain.GameFacts.Observations.JoinerLetter { Id = letter.ID, Token = CreepJoinerToken(letter),
                     Label = ChoiceDialogTools.Label(accept), CanAccept = !accept.disabled && !string.IsNullOrEmpty(letter.signalAccept) };
                 rows.Add(row);
             }
             return rows;
         }
 
-        private static ChoiceLetter_AcceptCreepJoiner? ResolveCreepJoiner(Operations.DialogIntent c) =>
+        private static ChoiceLetter_AcceptCreepJoiner? ResolveCreepJoiner(RimGovernor.Brain.GameOrders.Operations.DialogIntent c) =>
             PendingCreepJoiners().SingleOrDefault(l => l.ID == c.WindowId && CreepJoinerToken(l) == (c.JoinerLetterToken ?? ""));
 
-        private static bool CreepJoinerAccepted(Operations.DialogIntent c) =>
+        private static bool CreepJoinerAccepted(RimGovernor.Brain.GameOrders.Operations.DialogIntent c) =>
             Find.Archive.ArchivablesListForReading.OfType<ChoiceLetter_AcceptCreepJoiner>()
                 .FirstOrDefault(l => l.ID == c.WindowId) is ChoiceLetter_AcceptCreepJoiner letter && letter.ArchivedOnly && letter.pawn != null
                 && !letter.pawn.Dead && letter.pawn.IsFreeColonist;
 
-        private static Common.Failure? ValidateCreepJoiner(Operations.DialogIntent c)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? ValidateCreepJoiner(RimGovernor.Brain.GameOrders.Operations.DialogIntent c)
         {
             if (CreepJoinerAccepted(c)) return null;
             if (string.IsNullOrEmpty(c.JoinerLetterToken))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A creepjoiner answer needs the letter and the letter token.");
-            return ResolveCreepJoiner(c) == null ? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Creepjoiner letter changed or expired; inspect again.") : null;
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "A creepjoiner answer needs the letter and the letter token.");
+            return ResolveCreepJoiner(c) == null ? GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Creepjoiner letter changed or expired; inspect again.") : null;
         }
 
-        private static Receipts.EffectEvidence ApplyCreepJoiner(Operations.DialogIntent c)
+        private static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence ApplyCreepJoiner(RimGovernor.Brain.GameOrders.Operations.DialogIntent c)
         {
             if (!CreepJoinerAccepted(c))
             {
@@ -88,10 +84,10 @@ namespace HomeBridge.BridgeTools
                 Find.LetterStack.RemoveLetter(letter);
                 if (pawn.Dead || !pawn.IsFreeColonist) throw new InvalidOperationException("Creepjoiner did not join.");
             }
-            return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.DialogCase() };
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.EffectEvidenceEffect.DialogCase() };
         }
 
-        internal static List<Obs.JoinerLetter> Snapshot()
+        internal static List<RimGovernor.Brain.GameFacts.Observations.JoinerLetter> Snapshot()
         {
             var rows = CreepJoinerSnapshot();
             foreach (var letter in Pending().OrderBy(l => l.ID))
@@ -99,25 +95,25 @@ namespace HomeBridge.BridgeTools
                 var pawn = Joiner(letter);
                 if (pawn == null || pawn.Dead) continue;
                 var accept = letter.Choices.First();
-                rows.Add(new Obs.JoinerLetter { Id = letter.ID, Token = Token(letter, pawn),
+                rows.Add(new RimGovernor.Brain.GameFacts.Observations.JoinerLetter { Id = letter.ID, Token = Token(letter, pawn),
                     Label = ChoiceDialogTools.Label(accept), CanAccept = !accept.disabled && accept.action != null });
             }
             return rows;
         }
 
         // Resolves the pending letter the intent names and its accept option.
-        private static Common.Failure? Resolve(Operations.DialogIntent c, out ChoiceLetter_AcceptJoiner? letter, out Pawn? pawn, out DiaOption? option)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(RimGovernor.Brain.GameOrders.Operations.DialogIntent c, out ChoiceLetter_AcceptJoiner? letter, out Pawn? pawn, out DiaOption? option)
         {
             letter = null; pawn = null; option = null;
             if (c.OptionIndex != 0 || c.OptionLabel is null || string.IsNullOrEmpty(c.JoinerLetterToken))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A joiner answer needs the letter, option 0, its label and the letter token.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "A joiner answer needs the letter, option 0, its label and the letter token.");
             var found = Pending().SingleOrDefault(l => l.ID == c.WindowId);
             var joiner = found == null ? null : Joiner(found);
             if (found == null || joiner == null || joiner.Dead || joiner.Faction == Faction.OfPlayer || Token(found, joiner) != (c.JoinerLetterToken ?? ""))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Joiner letter changed or expired; inspect again.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Joiner letter changed or expired; inspect again.");
             var accept = found.Choices.First();
             if (accept.disabled || accept.action == null || ChoiceDialogTools.Label(accept) != (c.OptionLabel ?? ""))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The joiner letter's accept option changed or is disabled.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The joiner letter's accept option changed or is disabled.");
             letter = found; pawn = joiner; option = accept;
             return null;
         }
@@ -125,7 +121,7 @@ namespace HomeBridge.BridgeTools
         // Accepted is the letter the intent names already archived with its
         // joiner a living spawned free colonist on the offered map: a resent
         // intent applies again as it stands.
-        private static bool Accepted(Operations.DialogIntent c, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out ChoiceLetter_AcceptJoiner? letter, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Pawn? pawn)
+        private static bool Accepted(RimGovernor.Brain.GameOrders.Operations.DialogIntent c, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out ChoiceLetter_AcceptJoiner? letter, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Pawn? pawn)
         {
             letter = Find.Archive.ArchivablesListForReading.OfType<ChoiceLetter_AcceptJoiner>().FirstOrDefault(l => l.ID == c.WindowId);
             pawn = letter == null ? null : Joiner(letter);
@@ -135,9 +131,9 @@ namespace HomeBridge.BridgeTools
         private static bool Joined(ChoiceLetter_AcceptJoiner letter, Pawn pawn) =>
             !pawn.Dead && pawn.Spawned && pawn.Map == letter.MapToUse && pawn.IsFreeColonist;
 
-        internal static Common.Failure? Validate(Operations.DialogIntent c) => (c.JoinerLetterToken ?? "").StartsWith(CreepJoinerTokenPrefix, StringComparison.Ordinal) ? ValidateCreepJoiner(c) : Accepted(c, out _, out _) ? null : Resolve(c, out _, out _, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.DialogIntent c) => (c.JoinerLetterToken ?? "").StartsWith(CreepJoinerTokenPrefix, StringComparison.Ordinal) ? ValidateCreepJoiner(c) : Accepted(c, out _, out _) ? null : Resolve(c, out _, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.DialogIntent c)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.DialogIntent c)
         {
             if ((c.JoinerLetterToken ?? "").StartsWith(CreepJoinerTokenPrefix, StringComparison.Ordinal)) return ApplyCreepJoiner(c);
             if (!Accepted(c, out var letter, out var pawn))
@@ -150,7 +146,7 @@ namespace HomeBridge.BridgeTools
                 option.action();
                 if (!letter.ArchivedOnly || !Joined(letter, pawn)) throw new InvalidOperationException("Joiner did not arrive.");
             }
-            return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.DialogCase() };
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.EffectEvidenceEffect.DialogCase() };
         }
     }
 }

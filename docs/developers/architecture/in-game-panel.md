@@ -28,7 +28,7 @@ acceptance build has no toggle. It is not a `[StaticConstructorOnStartup]`: thos
 
 ## Statuses
 
-`GoalsRounds.ReadAsync` derives each goal's `GoalStatus` and each theme's `ThemeStatus` for its `goal_review` rows and
+`GoalsReview.ReadAsync` derives each goal's `GoalStatus` and each theme's `ThemeStatus` for its `goal_review` rows and
 publishes them to the `GoalStatusBoard` (in memory, keyed to the colony). `HostGoals.Current()` returns them with the
 record. Nothing is saved or sent over a wire.
 

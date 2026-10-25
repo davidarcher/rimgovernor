@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record KnowledgeSlot
 {
-    public required RimGovernor.Contracts.Wire.Observations.ResearchSlot Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.ResearchSlot Observed { get; init; }
 
     public string Category => Observed.Category;
 

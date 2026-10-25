@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
-using O = RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameAccess;
 namespace RimGovernor.Brain.Bridge;
 
 public static class RitualSitesReads
@@ -11,7 +10,7 @@ public static class RitualSitesReads
     /// cells the game offers the begin command at. The required defs are the catalog's ritual defs, never a list
     /// here. None without the Ideology expansion; the building census is required.
     /// </summary>
-    internal static EquatableArray<O.BuildingState> RitualSitesOf(BuildingCensus census, IdeologyMode ideology)
+    internal static EquatableArray<RimGovernor.Brain.GameFacts.Observations.BuildingState> RitualSitesOf(BuildingCensus census, IdeologyMode ideology)
     {
         if (ideology is not IdeologyMode.Installed { Primary: var ideo })
         {
@@ -25,7 +24,7 @@ public static class RitualSitesReads
                 wanted.AddRange(pattern.RequiredBuildings);
             }
         }
-        var output = new List<O.BuildingState>();
+        var output = new List<RimGovernor.Brain.GameFacts.Observations.BuildingState>();
         if (wanted.Count == 0)
         {
             return EquatableArray.From(output);
@@ -33,7 +32,7 @@ public static class RitualSitesReads
         foreach (var row in census.Rows.Table.Values())
         {
             var def = row.Building.DefName;
-            if (row.Status != O.BuildingStatus.Built || !wanted.Contains(def))
+            if (row.Status != RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Built || !wanted.Contains(def))
             {
                 continue;
             }

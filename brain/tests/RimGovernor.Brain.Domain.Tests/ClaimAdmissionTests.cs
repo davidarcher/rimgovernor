@@ -17,7 +17,7 @@ public sealed class ClaimAdmissionTests
     private sealed class Colony : IDisposable
     {
         public required Journal Journal { get; init; }
-        public required RoundsResult Review { get; init; }
+        public required ReviewResult Review { get; init; }
         public void Dispose() => Journal.Dispose();
         /// <summary>Commits under the food/supply Need, admitted by claims in the review's world.</summary>
         public NeedCommit Food(string method, params DomainAction[] actions) =>
@@ -41,7 +41,7 @@ public sealed class ClaimAdmissionTests
         facts = facts with
         {
 
-            Census = (facts.Census with { ColonistCount = 1, IndoorSleepingCapacity = 0, BedCapacity = 0 }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 100 }] },   FieldCoverage = 0.0,
+            Census = (facts.Census with { ColonistCount = 1, IndoorSleepingCapacity = 0, BedCapacity = 0 }) with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Rice", Units = 100 }] },   FieldCoverage = 0.0,
             WorkAdmission = facts.WorkAdmission with
             {
                 Buildings = [
@@ -50,7 +50,7 @@ public sealed class ClaimAdmissionTests
                     new("TestSpot", "", []) { Size = new Cell(1, 1) }],
             },
         };
-        var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+        var review = journal.Review(new() { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
         return new() { Journal = journal, Review = review };
     }
 

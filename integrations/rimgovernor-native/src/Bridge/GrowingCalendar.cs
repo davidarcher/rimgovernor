@@ -2,7 +2,7 @@
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>The tile's seasonal crop calendar the typed colony facts'
     /// food climate reports: growing-day counts on a daily temperature sample

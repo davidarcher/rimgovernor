@@ -1,5 +1,7 @@
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -7,7 +9,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>
 /// The delivery ledger is one total facts record (#3763): every member is <c>required</c>, so a ledger built without
 /// one (say, without <c>Kills</c>) does not compile (CS9035), and native cannot hand the planner a partial ledger.
-/// On the wire it round-trips through <c>WireJsonContext</c> exactly.
+/// On the wire it round-trips through <c>OrdersJsonContext</c> exactly.
 /// </summary>
 public sealed class DeliveryLedgerTests
 {
@@ -29,11 +31,11 @@ public sealed class DeliveryLedgerTests
             Butchers = [new Butcher { CorpseId = "Thing_Corpse_Deer88", MeatUnits = 50, MeatNutrition = 2.5, LeatherUnits = 0 }],
         };
 
-        var json = WireJson.Serialize(ledger);
+        var json = OrdersJson.Serialize(ledger);
 
         Assert.Equal(
             """{"loadToken":"9f2c","counts":[{"kind":"crop","source":"Zone_Growing12","def":"RawRice","units":0,"nutrition":0},{"kind":"animal_product","source":"Cow","def":"Milk","units":14,"nutrition":0.7}],"kills":[{"corpseId":"Thing_Corpse_Deer88","pawn":"Thing_Deer87","race":"Deer","bodySize":1.2,"potentialNutrition":3.15,"tick":61234}],"butchers":[{"corpseId":"Thing_Corpse_Deer88","meatUnits":50,"meatNutrition":2.5,"leatherUnits":0}]}""",
             json);
-        Assert.Equal(ledger, WireJson.Deserialize<DeliveryLedger>(json));
+        Assert.Equal(ledger, OrdersJson.Deserialize<DeliveryLedger>(json));
     }
 }

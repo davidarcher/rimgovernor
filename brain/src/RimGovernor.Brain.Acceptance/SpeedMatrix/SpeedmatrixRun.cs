@@ -2,11 +2,11 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
-using RimGovernor.Contracts.Host;
+using RimGovernor.Brain.GameFacts.Host;
+using RimGovernor.Brain.GameOrders.Host;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Telemetry.Otlp;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Acceptance;
@@ -154,7 +154,7 @@ internal sealed partial class SpeedmatrixRun
         // Frozen needs do not survive a reload (the op is per game), so the save carries the stage only; each case
         // freezes again after loading.
         var started = DateTime.UtcNow;
-        _ = await h.CallAsync("save-stage", "rimgovernor/save_game", HostJson.Arguments(new SaveGameRequest { SaveName = StageSave }), cancellationToken).ConfigureAwait(false);
+        _ = await h.CallAsync("save-stage", "save_game", HostJson.Arguments(new SaveGameRequest { SaveName = StageSave }), cancellationToken).ConfigureAwait(false);
         await WaitSavedAsync(started, cancellationToken).ConfigureAwait(false);
     }
 
@@ -271,7 +271,7 @@ internal sealed partial class SpeedmatrixRun
             var keepAlive = new AuthorityKeepAlive(service, prefix, identity, token);
             stopKeepAlive = keepAlive.Start(cancellationToken);
 
-            _ = await ServiceJournal.WaitRoundsAsync(service, journal, TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false);
+            _ = await ServiceJournal.WaitReviewAsync(service, journal, TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false);
 
             // The target is game time: the wait ends once the tick of the newest enabled review of the row's own load has
             // advanced by the target past the reload tick. The signature is the tick itself, so a clock that stops
@@ -284,7 +284,7 @@ internal sealed partial class SpeedmatrixRun
                 await new Wait { Stall = Wait.StallBudget() > RowStall ? Wait.StallBudget() : RowStall, Interval = TimeSpan.FromSeconds(2), Terminal = service.Exited }.WaitProgressAsync(
                     async ct =>
                     {
-                        var review = await journal.LoadRoundsAsync(ct).ConfigureAwait(false);
+                        var review = await journal.LoadReviewAsync(ct).ConfigureAwait(false);
                         lastTick = ReviewedTick(review, rowWorld, startTick);
                         return (Wait.Signature(lastTick), lastTick >= startTick + Ticks);
                     },
@@ -301,7 +301,7 @@ internal sealed partial class SpeedmatrixRun
             {
                 try
                 {
-                    var final = await journal.LoadRoundsAsync(cancellationToken).ConfigureAwait(false);
+                    var final = await journal.LoadReviewAsync(cancellationToken).ConfigureAwait(false);
                     report["rounds_review_at_failure"] = OutputJson.Fields(("revision", final.Revision), ("tick", final.Tick.Value), ("progress", final.Progress.Count));
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
@@ -380,7 +380,7 @@ internal sealed partial class SpeedmatrixRun
     /// resuming writes a disabled review that carries the previous row's world and tick forward under a new revision,
     /// and a new world restarts the count.
     /// </summary>
-    internal static ulong ReviewedTick(Rounds review, Common.Identity row, ulong startTick) =>
+    internal static ulong ReviewedTick(ReviewState review, RimGovernor.Brain.GameFacts.Common.Identity row, ulong startTick) =>
         review.Enabled
         && review.Snapshot.Colony.Value == row.ColonyId
         && review.Snapshot.Load.Value == row.LoadToken
@@ -394,7 +394,7 @@ internal sealed partial class SpeedmatrixRun
     {
         var seen = new HashSet<PlanId>();
         var ids = new List<PlanId>();
-        var review = await journal.LoadRoundsAsync(cancellationToken).ConfigureAwait(false);
+        var review = await journal.LoadReviewAsync(cancellationToken).ConfigureAwait(false);
         foreach (var row in review.Progress)
         {
             if (review.Revision == 0 || new NeedId(row.Concern.Value) is not { IsValid: true } need)

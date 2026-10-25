@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -45,7 +44,7 @@ internal static class NeedsRecreationGain
     {
         var colonist = s.Staged?.Pawns["colonist"].Id ?? throw new AcceptanceException("the stage made no colonist");
         var board = s.Staged!.Buildings[Board].Ids.Single();
-        var reply = await s.CallAsync("needs", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var reply = await s.CallAsync("needs", NativeOps.ReadColonyFacts, new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var needs = reply.Forecast.Needs;
         var row = needs.Pawns.SingleOrDefault(p => p.Pawn == colonist) ?? throw new AcceptanceException($"needs: no row for {colonist}");
         s.RecordWireRows("joy_targets", row.Targets.Where(t => t.Kind == "joy"));
@@ -56,7 +55,7 @@ internal static class NeedsRecreationGain
 
         var target = row.Targets.SingleOrDefault(t => t.Id == board)
             ?? throw new AcceptanceException($"the board {board} is not a target: [{string.Join(' ', row.Targets.Select(t => $"{t.Kind}:{t.Id}"))}]");
-        if (target.Kind != "joy" || target.Recovery is not Observations.NeedRecovery.Rate { GainPerTick: > 0 } || target.MaxPawns < 1)
+        if (target.Kind != "joy" || target.Recovery is not RimGovernor.Brain.GameFacts.Observations.NeedRecovery.Rate { GainPerTick: > 0 } || target.MaxPawns < 1)
         {
             throw new AcceptanceException($"the board is not a joy target with a gain and capacity: {target}");
         }

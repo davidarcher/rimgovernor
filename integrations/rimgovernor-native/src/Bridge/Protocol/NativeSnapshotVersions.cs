@@ -4,9 +4,8 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
-using Common = RimGovernor.Contracts.Wire.Common;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Per-row snapshot tokens: one monotonically increasing version per
     // (kind, world, entity). A read serializes exactly the fields its row's
@@ -35,7 +34,7 @@ namespace HomeBridge.BridgeTools
         private static long _version;
         private static long _reads;
 
-        internal static string Token(string kind, Common.Identity? identity, string entityId, Action<BinaryWriter> write)
+        internal static string Token(string kind, RimGovernor.Brain.GameFacts.Common.Identity? identity, string entityId, Action<BinaryWriter> write)
         {
             byte[] fields;
             using (var stream = new MemoryStream())
@@ -60,7 +59,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // A row whose guarded fields are one text value.
-        internal static string Token(string kind, Common.Identity? identity, string entityId, string fields) =>
+        internal static string Token(string kind, RimGovernor.Brain.GameFacts.Common.Identity? identity, string entityId, string fields) =>
             Token(kind, identity, entityId, w => w.Write(fields));
 
         private static void Sweep()

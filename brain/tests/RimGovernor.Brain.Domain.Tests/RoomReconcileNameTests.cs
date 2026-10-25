@@ -1,4 +1,4 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
 /// Every room reconcile is named "&lt;role&gt;-shell-room&lt;id&gt;" (RoomReconcileName, #3741), so the in-flight census
-/// (Rounder.RoomMethodIds) finds the room's open work by its id: the morgue, tomb, jail, envelope, range and ring
+/// (ColonyReview.RoomMethodIds) finds the room's open work by its id: the morgue, tomb, jail, envelope, range and ring
 /// were "&lt;role&gt;-room&lt;id&gt;" and never counted.
 /// </summary>
 public sealed class RoomReconcileNameTests
@@ -26,10 +26,10 @@ public sealed class RoomReconcileNameTests
     [InlineData("bedroom")]
     public void TheCensusFindsEveryRoomReconcileByItsRoomId(string role)
     {
-        var name = RoundsSleepingUpkeepPlanner.RoomReconcileName(role, Room);
+        var name = SleepingUpkeepPlanner.RoomReconcileName(role, Room);
 
         Assert.Equal($"{role}-shell-room7", name);
-        Assert.Equal([7], Rounder.RoomMethodIds([Open(name), Open(name + "-build-0a1b")]));
+        Assert.Equal([7], ColonyReview.RoomMethodIds([Open(name), Open(name + "-build-0a1b")]));
     }
 
     [Fact]
@@ -37,12 +37,12 @@ public sealed class RoomReconcileNameTests
     {
         foreach (var role in Enum.GetValues<PlannedRole>().Where(r => r != PlannedRole.None))
         {
-            var method = RoundsBuildingPlanner.PlannedRoomMethod(Room with { Role = role }).Value;
-            Assert.True(Rounder.RoomMethodIds([Open(method + "-build-0a1b")]).SetEquals([7]), method);
+            var method = BuildingPlanner.PlannedRoomMethod(Room with { Role = role }).Value;
+            Assert.True(ColonyReview.RoomMethodIds([Open(method + "-build-0a1b")]).SetEquals([7]), method);
         }
     }
 
     [Fact]
     public void ARetiredPlanIsNotInFlight() =>
-        Assert.Empty(Rounder.RoomMethodIds([Open(RoundsSleepingUpkeepPlanner.RoomReconcileName("morgue", Room)) with { Retired = true }]));
+        Assert.Empty(ColonyReview.RoomMethodIds([Open(SleepingUpkeepPlanner.RoomReconcileName("morgue", Room)) with { Retired = true }]));
 }

@@ -10,14 +10,14 @@ internal static class NativeQuestShuttleProbe
     private static Assembly bridge = null!;
     private static int checks;
     private static void Check(bool value, string why) { if (!value) throw new Exception(why); checks++; }
-    private static object Wire(string name, string json)
+    private static object Wire(Type type, string json)
     {
-        var type = typeof(RimGovernor.Contracts.Wire.Common.Ref).Assembly.GetType("RimGovernor.Contracts.Wire." + name, true)!;
-        return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize", new[] { typeof(string) })!.MakeGenericMethod(type).Invoke(null, new object[] { json })!;
+
+        return typeof(RimGovernor.Brain.GameOrders.OrdersJson).GetMethod(nameof(RimGovernor.Brain.GameOrders.OrdersJson.Deserialize), new[] { typeof(string) })!.MakeGenericMethod(type).Invoke(null, new object[] { json })!;
     }
     private static bool Rejected(MethodInfo shape, string json)
     {
-        try { return !(bool)shape.Invoke(null, new[] { Wire("Operations.QuestShuttleIntent", json) })!; }
+        try { return !(bool)shape.Invoke(null, new[] { Wire(typeof(RimGovernor.Brain.GameOrders.Operations.QuestShuttleIntent),  json) })!; }
         catch (TargetInvocationException error) when (error.InnerException is JsonException) { return true; }
     }
     internal static int Invoke(string[] args)
@@ -25,17 +25,17 @@ internal static class NativeQuestShuttleProbe
         var dirs = args.Skip(1).Concat(new[] { Path.GetDirectoryName(Path.GetFullPath(args[0]))! }).ToArray();
         AppDomain.CurrentDomain.AssemblyResolve += (_, e) => { var path = dirs.Select(d => Path.Combine(d, new AssemblyName(e.Name).Name + ".dll")).FirstOrDefault(File.Exists); return path == null ? null : Assembly.LoadFrom(path); };
         bridge = Assembly.LoadFrom(Path.GetFullPath(args[0]));
-        var native = bridge.GetType("HomeBridge.BridgeTools.NativeQuestShuttleOperations", true)!;
+        var native = bridge.GetType("RimGovernor.Native.NativeQuestShuttleOperations", true)!;
         var shape = native.GetMethod("ValidShape", Flags)!;
         foreach (var json in new[] { "{\"questId\":\"Quest_1\",\"launch\":false,\"loading\":{\"type\":\"autoload\",\"value\":true}}", "{\"questId\":\"Quest_1\",\"launch\":false,\"loading\":{\"type\":\"autoload\",\"value\":false}}", "{\"questId\":\"Quest_1\",\"launch\":false,\"loading\":{\"type\":\"explicitPawns\",\"value\":{\"pawnIds\":[\"Pawn_1\",\"Pawn_2\"]}}}", "{\"questId\":\"Quest_1\",\"launch\":true}" })
-            Check((bool)shape.Invoke(null, new[] { Wire("Operations.QuestShuttleIntent", json) })!, "valid shuttle mode " + json);
+            Check((bool)shape.Invoke(null, new[] { Wire(typeof(RimGovernor.Brain.GameOrders.Operations.QuestShuttleIntent),  json) })!, "valid shuttle mode " + json);
         foreach (var json in new[] { "{}", "{\"questId\":\"Quest_1\",\"launch\":false}", "{\"launch\":false,\"loading\":{\"type\":\"autoload\",\"value\":true}}", "{\"questId\":\"Quest_1\",\"launch\":false,\"loading\":{\"type\":\"explicitPawns\",\"value\":{}}}", "{\"questId\":\"Quest_1\",\"launch\":false,\"loading\":{\"type\":\"explicitPawns\",\"value\":{\"pawnIds\":[\"Pawn_1\",\"Pawn_1\"]}}}" })
             Check(Rejected(shape, json), "invalid shuttle shape " + json);
         var conditions = native.GetMethod("LaunchConditionsSatisfied", Flags)!;
         Check((bool)conditions.Invoke(null, new object[] { true, true, false, false })!, "loaded launch allowed");
         foreach (var facts in new[] { new object[] { false, true, false, false }, new object[] { true, false, false, false }, new object[] { true, true, true, false }, new object[] { true, true, false, true } })
             Check(!(bool)conditions.Invoke(null, facts)!, "unavailable launch refused");
-        var dispatch = bridge.GetType("HomeBridge.BridgeTools.NativeActionDispatch", true)!;
+        var dispatch = bridge.GetType("RimGovernor.Native.NativeActionDispatch", true)!;
         dispatch.GetMethod("AssertComplete", Flags)!.Invoke(null, null);
         var handlers = (System.Collections.IDictionary)dispatch.GetField("Handlers", Flags)!.GetValue(null)!;
         Check(handlers.Keys.Cast<object>().Any(k => ((Type)k).Name == "QuestShuttleCase"), "quest shuttle handler registered");

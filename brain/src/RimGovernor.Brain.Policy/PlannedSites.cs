@@ -1,4 +1,5 @@
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -32,7 +33,7 @@ public sealed record PlannedBuildSite(string Id, int Room, OpKind Op, string Def
 
     /// <summary>
     /// A room's Build site whose piece no builder can work now, on read evidence (the one blocked predicate,
-    /// RoundsBuildingPlanner.DefinitionBlockedOf, #3838): its room's alternatives leave it out, so the pieces that can be
+    /// BuildingPlanner.DefinitionBlockedOf, #3838): its room's alternatives leave it out, so the pieces that can be
     /// built are valued without it.
     /// </summary>
     public bool Blocked { get; init; }

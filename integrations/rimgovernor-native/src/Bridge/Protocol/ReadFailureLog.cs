@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using RimGovernor.Host.Sdk;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // A native read that cannot produce its facts answers with the facts absent: the brain checks only
     // for the observed value and the wire carries no failure arm. This is where the reason is kept, so a

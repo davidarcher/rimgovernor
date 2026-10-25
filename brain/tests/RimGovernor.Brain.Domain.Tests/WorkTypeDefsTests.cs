@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
 /// The Observation reader names a native WorkTypeDef through <see cref="WorkType"/>; a def the mod itself ships that the
-/// enum lacks failed every Rounds pass (#3136). Reads the mod's own WorkTypeDefs against the enum's wire names.
+/// enum lacks failed every ReviewState pass (#3136). Reads the mod's own WorkTypeDefs against the enum's wire names.
 /// </summary>
 public sealed partial class WorkTypeDefsTests
 {

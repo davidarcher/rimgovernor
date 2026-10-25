@@ -1,17 +1,15 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Cell = RimGovernor.Brain.Domain.Cell;
-using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Executor;
 
-// The snapshot package (#3052). It records the colony facts a Rounds pass planned against so a
+// The snapshot package (#3052). It records the colony facts a ReviewState pass planned against so a
 // test can replay them. Recording is evidence for replay, never part of a decision.
 //
 // What is ported: the recorded value types, the planner-step recorder and its Note* hooks, the review
-// detection replay (SnapshotRounds.Detect / Assessment, SnapshotFirebreak.Replay), and the background queue.
+// detection replay (SnapshotReview.Detect / Assessment, SnapshotFirebreak.Replay), and the background queue.
 //
 // There is no file persistence layer: recordings through a reflection codec over the
 // whole policy value graph (about 400 types); the port conventions forbid reflection-based JSON, and a
@@ -44,8 +42,8 @@ public static class SnapshotRecorder
 
     internal static void Write(string dir, string kind, string name, object value) => Sink?.Record(dir, kind, name, value);
 
-    /// <summary>Writes a rounds review (<see cref="SnapshotRounds"/>) into dir.</summary>
-    public static void Record(string dir, SnapshotRounds rounds) => Write(dir, "routine", $"routine-{rounds.Tick.Value}", rounds);
+    /// <summary>Writes a rounds review (<see cref="SnapshotReview"/>) into dir.</summary>
+    public static void Record(string dir, SnapshotReview rounds) => Write(dir, "routine", $"routine-{rounds.Tick.Value}", rounds);
 
     /// <summary>The generation snapshot's provenance line every recording carries.</summary>
     internal static string Provenance(GenerationSnapshot current, Tick tick) =>

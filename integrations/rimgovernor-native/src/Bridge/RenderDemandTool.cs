@@ -9,10 +9,10 @@ using HarmonyLib;
 using UnityEngine;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The one status shape produced by the driver. The typed
-    // rimgovernor/presentation_render_state and .../presentation_render_demand
+    // presentation_render_state and .../presentation_render_demand
     // tools each project this into their own reply shape.
     internal readonly struct RenderDemandStatus
     {

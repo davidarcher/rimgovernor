@@ -1,6 +1,3 @@
-using Common = RimGovernor.Contracts.Wire.Common;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -56,7 +53,7 @@ internal static class CombatLabOrders
         }
 
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
-        var drafted = await CombatLabKit.OrdersAsync(s, "draft", cancellationToken, [.. colonists.Select(c => CombatLabKit.Order(c, new Operations.CombatOrderOrder.DraftCase(new Operations.Clear())))]).ConfigureAwait(false);
+        var drafted = await CombatLabKit.OrdersAsync(s, "draft", cancellationToken, [.. colonists.Select(c => CombatLabKit.Order(c, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DraftCase(new RimGovernor.Brain.GameOrders.Operations.Clear())))]).ConfigureAwait(false);
         foreach (var r in drafted)
         {
             CombatLabKit.Applied("draft", r);
@@ -70,16 +67,16 @@ internal static class CombatLabOrders
             s,
             "orders",
             cancellationToken,
-            CombatLabKit.Order(colonists[0], new Operations.CombatOrderOrder.AttackGroundCase(ground)),
-            CombatLabKit.Order(colonists[1], new Operations.CombatOrderOrder.MoveCase(moveTo)),
-            CombatLabKit.Order(colonists[2], new Operations.CombatOrderOrder.AttackCase(CombatLabKit.Pawn(hostiles[2]))),
-            CombatLabKit.Order(colonists[3], new Operations.CombatOrderOrder.FireModeCase(Operations.CombatFireMode.Hold)),
-            CombatLabKit.Order(colonists[3], new Operations.CombatOrderOrder.HoldPositionCase(new Operations.Clear())),
-            CombatLabKit.Order(colonists[4], new Operations.CombatOrderOrder.MoveCase(stopFrom)),
-            CombatLabKit.Order(colonists[4], new Operations.CombatOrderOrder.StopCase(new Operations.Clear())),
-            CombatLabKit.Order(null, new Operations.CombatOrderOrder.DoorCase(new Operations.CombatDoor { Cell = door, Mode = Operations.CombatDoorMode.HoldOpen })),
-            CombatLabKit.Order(hostiles[0], new Operations.CombatOrderOrder.MoveCase(moveTo)),
-            CombatLabKit.Order(null, new Operations.CombatOrderOrder.DoorCase(new Operations.CombatDoor { Cell = lab.Cell(10, 0), Mode = Operations.CombatDoorMode.Close })))
+            CombatLabKit.Order(colonists[0], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AttackGroundCase(ground)),
+            CombatLabKit.Order(colonists[1], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.MoveCase(moveTo)),
+            CombatLabKit.Order(colonists[2], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AttackCase(CombatLabKit.Pawn(hostiles[2]))),
+            CombatLabKit.Order(colonists[3], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.FireModeCase(RimGovernor.Brain.GameFacts.Operations.CombatFireMode.Hold)),
+            CombatLabKit.Order(colonists[3], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.HoldPositionCase(new RimGovernor.Brain.GameOrders.Operations.Clear())),
+            CombatLabKit.Order(colonists[4], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.MoveCase(stopFrom)),
+            CombatLabKit.Order(colonists[4], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.StopCase(new RimGovernor.Brain.GameOrders.Operations.Clear())),
+            CombatLabKit.Order(null, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DoorCase(new RimGovernor.Brain.GameOrders.Operations.CombatDoor { Cell = door, Mode = RimGovernor.Brain.GameOrders.Operations.CombatDoorMode.HoldOpen })),
+            CombatLabKit.Order(hostiles[0], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.MoveCase(moveTo)),
+            CombatLabKit.Order(null, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DoorCase(new RimGovernor.Brain.GameOrders.Operations.CombatDoor { Cell = lab.Cell(10, 0), Mode = RimGovernor.Brain.GameOrders.Operations.CombatDoorMode.Close })))
             .ConfigureAwait(false);
         string[] wantJob = ["AttackStatic", "Goto", "AttackStatic", "", "Wait_Combat", "Goto", "", ""];
         for (var i = 0; i < wantJob.Length; i++)
@@ -93,14 +90,14 @@ internal static class CombatLabOrders
         // The orders took their jobs on the paused game: read them before a tick moves anyone.
         var after = await CombatLabKit.PawnsAsync(s, "after", colonists, cancellationToken).ConfigureAwait(false);
         s.RecordWireRows("after", after.Values.OrderBy(p => p.Pawn.Id, StringComparer.Ordinal));
-        Observations.PawnState Row(int i) => after.GetValueOrDefault(colonists[i]) ?? throw new AcceptanceException($"colonist {i} not listed");
+        RimGovernor.Brain.GameFacts.Observations.PawnState Row(int i) => after.GetValueOrDefault(colonists[i]) ?? throw new AcceptanceException($"colonist {i} not listed");
         void Check(int i, string job, bool forced, string? thing = null, RimGovernor.Brain.Domain.Cell? cell = null)
         {
             var p = Row(i);
             RimGovernor.Brain.Domain.Cell? observedCell = p.Job.TargetA?.Target switch
             {
-                Observations.TargetRefTarget.EntityCase { Place: Observations.EntityPlace.OnMap at } => at.Cell,
-                Observations.TargetRefTarget.CellCase { Value: var at } => at,
+                RimGovernor.Brain.GameFacts.Observations.TargetRefTarget.EntityCase { Place: RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap at } => at.Cell,
+                RimGovernor.Brain.GameFacts.Observations.TargetRefTarget.CellCase { Value: var at } => at,
                 _ => null,
             };
             if (CombatLabKit.Job(p) != job || p.Job.PlayerForced != forced
@@ -126,7 +123,7 @@ internal static class CombatLabOrders
         }
 
         var held = await new LabFrames(s).UntilAsync("fire-mode", CombatLabKit.ProbeTicks, 0, f => LabFrames.Row(f, colonists[3]) is not null, cancellationToken).ConfigureAwait(false);
-        if (LabFrames.Row(held, colonists[3]) is not { Draft.FireMode: Operations.CombatFireMode.Hold } holder)
+        if (LabFrames.Row(held, colonists[3]) is not { Draft.FireMode: RimGovernor.Brain.GameFacts.Operations.CombatFireMode.Hold } holder)
         {
             throw new AcceptanceException($"colonist 3 after fire_mode hold: {LabFrames.Row(held, colonists[3])}");
         }
@@ -134,7 +131,7 @@ internal static class CombatLabOrders
         s.RecordWire("held_row", holder);
 
         // An ordinary passage opens the latched door, and the latch keeps it open.
-        CombatLabKit.Applied("door-passage", (await CombatLabKit.OrdersAsync(s, "door-passage", cancellationToken, CombatLabKit.Order(colonists[4], new Operations.CombatOrderOrder.MoveCase(door))).ConfigureAwait(false))[0]);
+        CombatLabKit.Applied("door-passage", (await CombatLabKit.OrdersAsync(s, "door-passage", cancellationToken, CombatLabKit.Order(colonists[4], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.MoveCase(door))).ConfigureAwait(false))[0]);
         _ = await s.RunUntilAsync("door-opened", CombatLabKit.ProbeTicks, async ct =>
         {
             var d = (await CombatLabKit.BuildingAtAsync(s, "door", door, ct).ConfigureAwait(false)).Door;
@@ -142,9 +139,9 @@ internal static class CombatLabOrders
         }, cancellationToken).ConfigureAwait(false);
 
         // Once the pawn has gone, a close order unlatches and shuts it.
-        CombatLabKit.Applied("door-clearance", (await CombatLabKit.OrdersAsync(s, "door-clearance", cancellationToken, CombatLabKit.Order(colonists[4], new Operations.CombatOrderOrder.MoveCase(lab.Cell(5, -10)))).ConfigureAwait(false))[0]);
+        CombatLabKit.Applied("door-clearance", (await CombatLabKit.OrdersAsync(s, "door-clearance", cancellationToken, CombatLabKit.Order(colonists[4], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.MoveCase(lab.Cell(5, -10)))).ConfigureAwait(false))[0]);
         await s.RunTicksAsync("clearance", 600, cancellationToken).ConfigureAwait(false);
-        CombatLabKit.Applied("door-close", (await CombatLabKit.OrdersAsync(s, "door-close", cancellationToken, CombatLabKit.Order(null, new Operations.CombatOrderOrder.DoorCase(new Operations.CombatDoor { Cell = door, Mode = Operations.CombatDoorMode.Close }))).ConfigureAwait(false))[0]);
+        CombatLabKit.Applied("door-close", (await CombatLabKit.OrdersAsync(s, "door-close", cancellationToken, CombatLabKit.Order(null, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DoorCase(new RimGovernor.Brain.GameOrders.Operations.CombatDoor { Cell = door, Mode = RimGovernor.Brain.GameOrders.Operations.CombatDoorMode.Close }))).ConfigureAwait(false))[0]);
         _ = await s.RunUntilAsync("door-closed", CombatLabKit.ProbeTicks, async ct =>
         {
             var d = (await CombatLabKit.BuildingAtAsync(s, "door", door, ct).ConfigureAwait(false)).Door;

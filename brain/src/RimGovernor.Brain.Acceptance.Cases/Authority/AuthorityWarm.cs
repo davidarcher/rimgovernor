@@ -1,10 +1,8 @@
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using System.Globalization;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
-using Clock = RimGovernor.Contracts.Wire.Clock;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Control = RimGovernor.Contracts.Wire.Authority;
+using RimGovernor.Brain.GameAccess;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -45,12 +43,12 @@ internal static class AuthorityWarm
             var expected = await TypedAuthority.ExpectedGenerationAsync(s, "p1-status", first, cancellationToken).ConfigureAwait(false);
             var generation = await TypedAuthority.GrantAsync(s, "p1-grant", first, expected, cancellationToken).ConfigureAwait(false);
             var before = await TypedAuthority.ClockStatusAsync(s, "p1-clock-status", first, cancellationToken).ConfigureAwait(false);
-            var run = await s.CallAsync("p1-clock-run", NativeOps.RunClock, new Clock.RunRequest
+            var run = await s.CallAsync("p1-clock-run", NativeOps.RunClock, new RimGovernor.Brain.GameOrders.Clock.RunRequest
             {
                 Identity = first,
                 ExpectedGeneration = generation,
-                Speed = Clock.Speed.Superfast,
-                Policy = new Clock.WatchPolicy
+                Speed = RimGovernor.Brain.GameFacts.Clock.Speed.Superfast,
+                Policy = new RimGovernor.Brain.GameOrders.Clock.WatchPolicy
                 {
                     SeriousSingleHitDamage = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSingleHitDamage,
                     SeriousSummaryHealthFloor = RimGovernor.Brain.Policy.HazardThresholdsRules.SeriousSummaryHealthFloor,
@@ -60,16 +58,16 @@ internal static class AuthorityWarm
                     MeleeReachCells = RimGovernor.Brain.Policy.HazardThresholdsRules.MeleeReachCells,
                     InjurySeverityFloorTicks = RimGovernor.Brain.Policy.HazardThresholdsRules.InjurySeverityFloorTicks,
                     HungerHoldCategory = RimGovernor.Brain.Policy.HazardThresholdsRules.HungerHoldCategory,
-                    Mode = Clock.WatchMode.Colony, HealthDropFraction = 0.5f, MinHealthFraction = 0.2f,
+                    Mode = RimGovernor.Brain.GameOrders.Clock.WatchMode.Colony, HealthDropFraction = 0.5f, MinHealthFraction = 0.2f,
                     HostileWithin = 40, InjuryStopCooldownMs = 0,
                 },
                 PlannedHoldSerial = before.HoldSerial,
                 // A review a day out: the case runs an hour and drops the session before the clock reaches it.
                 HoldAtTick = (ulong)(Math.Max(before.Context.Tick, 0) + 60_000),
             }, cancellationToken).ConfigureAwait(false);
-            if (run is not { State: Clock.ClockState.Running } running)
+            if (run is not { State: RimGovernor.Brain.GameFacts.Clock.ClockState.Running } running)
             {
-                throw new AcceptanceException($"p1-clock-run: want a running clock, got {WireJson.Serialize(run)}");
+                throw new AcceptanceException($"p1-clock-run: want a running clock, got {OrdersJson.Serialize(run)}");
             }
 
             s.RecordWire("p1_clock", running);
@@ -113,7 +111,7 @@ internal static class AuthorityWarm
     }
 
     /// <summary>Grants Auto and requires every status read through <see cref="HoldTicks"/> of running time to stay Active(Auto) at that generation; then revokes.</summary>
-    private static async Task HoldAsync(TypedSession s, Common.Identity identity, CancellationToken cancellationToken)
+    private static async Task HoldAsync(TypedSession s, RimGovernor.Brain.GameFacts.Common.Identity identity, CancellationToken cancellationToken)
     {
         var expected = await TypedAuthority.ExpectedGenerationAsync(s, "p2-status", identity, cancellationToken).ConfigureAwait(false);
         var generation = await TypedAuthority.GrantAsync(s, "p2-grant", identity, expected, cancellationToken).ConfigureAwait(false);
@@ -123,7 +121,7 @@ internal static class AuthorityWarm
         {
             var status = await TypedAuthority.StatusAsync(s, string.Create(CultureInfo.InvariantCulture, $"p2-hold-{reads:D3}"), identity, ct).ConfigureAwait(false);
             reads++;
-            if (status.State?.Active?.Mode != Control.Mode.Auto || status.Context?.NativeGeneration.IsAt(generation) != true)
+            if (status.State?.Active?.Mode != RimGovernor.Brain.GameFacts.Authority.Mode.Auto || status.Context?.NativeGeneration.IsAt(generation) != true)
             {
                 s.RecordWire("p2_loss", status);
                 s.RecordWire("p2_clock_at_loss", await TypedAuthority.ClockStatusAsync(s, "p2-clock-at-loss", identity, ct).ConfigureAwait(false));
@@ -136,9 +134,9 @@ internal static class AuthorityWarm
         }, cancellationToken).ConfigureAwait(false);
         s.Record("p2_held", ServedOps.Args(("reads", reads), ("ticks", held)));
         var release = await TypedAuthority.StatusAsync(s, "p2-release-status", identity, cancellationToken).ConfigureAwait(false);
-        var revoke = await s.CallAsync("p2-release", NativeOps.ControlAuthority, new Control.ControlRequest
+        var revoke = await s.CallAsync("p2-release", NativeOps.ControlAuthority, new RimGovernor.Brain.GameOrders.Authority.ControlRequest
         {
-            Operation = new Control.Revoke { Identity = identity, ExpectedGeneration = (release.Context ?? throw new AcceptanceException("p2-release: the status carried no context")).NativeGeneration.Claimed("p2-release: the status named no generation"), Reason = Control.RevocationReason.Manual },
+            Operation = new RimGovernor.Brain.GameOrders.Authority.Revoke { Identity = identity, ExpectedGeneration = (release.Context ?? throw new AcceptanceException("p2-release: the status carried no context")).NativeGeneration.Claimed("p2-release: the status named no generation"), Reason = RimGovernor.Brain.GameFacts.Authority.RevocationReason.Manual },
         }, cancellationToken).ConfigureAwait(false);
         if (revoke.Outcome?.Revoked is null)
         {

@@ -1,9 +1,8 @@
-using D = RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Common;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Common;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -16,7 +15,7 @@ public sealed class ForecastCoupledSelectionTests
     public void ActualHostCapabilitiesEnableOrdinarySelectionByDefaultAndHonorDisabledWork(bool work)
     {
         Assert.True(new RimGovernor.Brain.Host.BrainFamilies().Work);
-        var (_, capabilities) = RimGovernor.Brain.Host.BrainComposition.RoundsCapabilitiesFor(
+        var (_, capabilities) = RimGovernor.Brain.Host.BrainComposition.CapabilitiesFor(
             new() { Work = work }, false);
         var facts = Review() with { AvailableNeeds = EquatableArray.From(capabilities.Needs) };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon);
@@ -33,8 +32,8 @@ public sealed class ForecastCoupledSelectionTests
     private const double Horizon = 300;
     private static readonly string[] Plants = ["plant-a", "plant-b"];
     private static readonly ObservationContext Context = new()
-        { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
-    internal static RoundsFacts Review(double level = .2, double fall = .003, double harvest = 10, double expiry = 1000,
+        { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
+    internal static ReviewFacts Review(double level = .2, double fall = .003, double harvest = 10, double expiry = 1000,
         bool reverse = false, bool harvestRefused = false, int sourceCount = 2, double horizon = Horizon, bool neverRots = false)
     {
         var facts = WorkResourceTestFacts.Create("pawn");
@@ -65,7 +64,7 @@ public sealed class ForecastCoupledSelectionTests
         facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)?.Priced() };
     }
-    private static string SourceTask(RoundsFacts facts, string target) => facts.CoupledAlternatives!.Context.Activities.Activities
+    private static string SourceTask(ReviewFacts facts, string target) => facts.CoupledAlternatives!.Context.Activities.Activities
         .Single(t => t.Inputs.Count == 0 && t.Outputs.Any(o => o.Lot == "harvest/" + target)).Id;
 
     [Fact]
@@ -97,14 +96,14 @@ public sealed class ForecastCoupledSelectionTests
         Assert.True(WorkRules.WorkResourcesFit(facts.WorkView!, new(new("selected-service"), new(1),
             [DomainAction.NewPawnActivitiesAction(new("service-action"), batch)])));
     }
-    private static ForecastCoupledSelection Select(RoundsFacts facts, ForecastSearchBudget? budget = null, params ForecastCommitment[] incumbent)
+    private static ForecastCoupledSelection Select(ReviewFacts facts, ForecastSearchBudget? budget = null, params ForecastCommitment[] incumbent)
     {
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay,
             facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, EquatableArray.From(incumbent));
         return ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, budget);
     }
     private static readonly string[] NoSuchRoot = ["no/such/root"];
-    private static ForecastCoupledSelection SelectWarm(RoundsFacts facts, IReadOnlyList<string> warmStart, ForecastSearchBudget? budget = null)
+    private static ForecastCoupledSelection SelectWarm(ReviewFacts facts, IReadOnlyList<string> warmStart, ForecastSearchBudget? budget = null)
     {
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay,
             facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
@@ -136,14 +135,14 @@ public sealed class ForecastCoupledSelectionTests
         LazyEvaluationTests.AssertPaired(ForecastCoupledSelection.CompareActivityOutcomesEagerly(RequestOf(Review()), Review().CoupledAlternatives!), result);
     }
 
-    private static ColonyForecastRequest RequestOf(RoundsFacts facts, double horizon = Horizon) => ForecastCoupled.CoupledForecastRequestOf(new(100), horizon / GameTime.TicksPerDay,
+    private static ColonyForecastRequest RequestOf(ReviewFacts facts, double horizon = Horizon) => ForecastCoupled.CoupledForecastRequestOf(new(100), horizon / GameTime.TicksPerDay,
         facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
 
     /// <summary>Two pawns with their own food needs and, each, a harvest-and-eat root per plant (#3724): "pawn" starves at
     /// <paramref name="pawnLevel"/> and "worker" at <paramref name="workerLevel"/>, both falling .003 a tick against the .3 threshold,
     /// so a portfolio feeding only one of them keeps the other's baseline zero time. <paramref name="workerRest"/> gives the worker a
     /// bed and a falling rest need.</summary>
-    internal static RoundsFacts TwoPawnReview(double pawnLevel = .2, double workerLevel = .5, bool workerRest = false,
+    internal static ReviewFacts TwoPawnReview(double pawnLevel = .2, double workerLevel = .5, bool workerRest = false,
         double harvest = 10, int sourceCount = 2, double horizon = Horizon)
     {
         var facts = Review(level: pawnLevel, harvest: harvest, sourceCount: sourceCount, horizon: horizon);
@@ -239,7 +238,7 @@ public sealed class ForecastCoupledSelectionTests
         Assert.Equal(unpruned.Rejected.Count, i);
     }
 
-    private static (ForecastCoupledSelection Unpruned, ForecastCoupledSelection Pruned) Both(RoundsFacts facts, ForecastSearchBudget? budget = null, double horizon = Horizon) =>
+    private static (ForecastCoupledSelection Unpruned, ForecastCoupledSelection Pruned) Both(ReviewFacts facts, ForecastSearchBudget? budget = null, double horizon = Horizon) =>
         (ForecastCoupledSelection.CompareActivityOutcomesUnpruned(RequestOf(facts, horizon), facts.CoupledAlternatives!, budget),
             ForecastCoupledSelection.CompareActivityOutcomes(RequestOf(facts, horizon), facts.CoupledAlternatives!, budget));
 
@@ -321,7 +320,7 @@ public sealed class ForecastCoupledSelectionTests
     [InlineData("seed-budget")]
     public void ThePrunedSearchIsTheUnprunedSearchOnAdversarialGraphs(string graph)
     {
-        (RoundsFacts facts, ForecastSearchBudget? budget) = graph switch
+        (ReviewFacts facts, ForecastSearchBudget? budget) = graph switch
         {
             "one-pawn" => (Review(), null),
             "one-pawn-unknown-harvest" => (Review(harvestRefused: true), null),
@@ -559,7 +558,7 @@ public sealed class ForecastCoupledSelectionTests
             Targets = [NeedsFixtures.Food("meal", "MealSimple", 1, 0d, 10d, .9) with
                 { Location = new(1, 1), Stock = new NeedStock.Stacked(1, new FoodFreshness.Rots(100000)), MaxPawns = 1 }]
         };
-        facts = facts with { Census = facts.Census with { Resources = [new O.Quantity { DefName = "MealSimple", Units = 1 }] }, ForecastObserved = facts.ForecastObserved with
+        facts = facts with { Census = facts.Census with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "MealSimple", Units = 1 }] }, ForecastObserved = facts.ForecastObserved with
         {
             Needs = facts.ForecastObserved.Needs with { Pawns = [pawn] },
             Coupled = facts.ForecastObserved.Coupled! with { Food = facts.ForecastObserved.Coupled.Food with { Options = [] }, FoodUses = [] }
@@ -790,18 +789,18 @@ public sealed class ForecastCoupledSelectionTests
         // replaces it. Another world (or a restart's empty memory) still reads the default.
         var (facts, result, _) = TaintedParkaReview(false);
         var world = new GenerationSnapshot(new("colony"), new(0), new("load"), new("plan"), new(1), new(1));
-        var memory = new RimGovernor.Brain.BuildingRuntime.ReviewMemory<EquatableArray<GearChoice>>([]);
-        RimGovernor.Brain.BuildingRuntime.Rounder.NoteGearChoices(memory, world, facts.CoupledAlternatives, result);
+        var memory = new RimGovernor.Brain.Runtime.ReviewMemory<EquatableArray<GearChoice>>([]);
+        RimGovernor.Brain.Runtime.ColonyReview.NoteGearChoices(memory, world, facts.CoupledAlternatives, result);
         Assert.Equal([GearChoice.KeepFloors("pawn", true)], memory.Get(world));
-        RimGovernor.Brain.BuildingRuntime.Rounder.NoteGearChoices(memory, world, facts.CoupledAlternatives, null);
+        RimGovernor.Brain.Runtime.ColonyReview.NoteGearChoices(memory, world, facts.CoupledAlternatives, null);
         Assert.Equal([GearChoice.KeepFloors("pawn", true)], memory.Get(world));
         Assert.Empty(memory.Get(world with { Native = new(2) }));
         var (nearFacts, nearResult, _) = TaintedParkaReview(true);
-        RimGovernor.Brain.BuildingRuntime.Rounder.NoteGearChoices(memory, world, nearFacts.CoupledAlternatives, nearResult);
+        RimGovernor.Brain.Runtime.ColonyReview.NoteGearChoices(memory, world, nearFacts.CoupledAlternatives, nearResult);
         Assert.Equal([new GearChoice("pawn", false, new InsulationFloor.Chosen(30), new InsulationFloor.Chosen(0))], memory.Get(world));
     }
 
-    private static (RoundsFacts Facts, ForecastCoupledSelection Result, ForecastCommitment Root) TaintedParkaReview(bool nearBreak)
+    private static (ReviewFacts Facts, ForecastCoupledSelection Result, ForecastCommitment Root) TaintedParkaReview(bool nearBreak)
     {
         var root = Assert.Single(EffectSourcesRules.GenerateEffectSources(EffectSourceCandidatesTests.Facts(),
             new Dictionary<string, MechanicCard> { ["DeadMansApparel"] = MechanicCards.ByDef["DeadMansApparel"] with { Status = MechanicCardStatus.Verified } }).Roots);
@@ -835,7 +834,7 @@ public sealed class ForecastCoupledSelectionTests
     // #3327: a pawn comfortable from 10 C at -10 C outdoor work observes EnvironmentCold at -12 (a deficit of 20). A labor-free
     // -20 comfort shift (a warmer outfit) makes the deficit 0 during the work, so the card's offset there is 0 (+12).
     // #3329: a mild forecast (20 C at every task cell) observes no EnvironmentCold.
-    private static (RoundsFacts Facts, ForecastCommitment Work, ForecastCommitment Gear) ColdWorkReview(double mood, MechanicCardStatus status = MechanicCardStatus.Verified,
+    private static (ReviewFacts Facts, ForecastCommitment Work, ForecastCommitment Gear) ColdWorkReview(double mood, MechanicCardStatus status = MechanicCardStatus.Verified,
         ForecastCommitment? generated = null, bool mild = false)
     {
         var facts = Review(level: 1, fall: 0);
@@ -869,7 +868,7 @@ public sealed class ForecastCoupledSelectionTests
         return (facts, work, gear);
     }
 
-    private static ForecastCoupledOutcome Outcome(RoundsFacts facts, params ForecastCommitment[] add) =>
+    private static ForecastCoupledOutcome Outcome(ReviewFacts facts, params ForecastCommitment[] add) =>
         CoupledForecastKit.Forecast(ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay,
             facts with { CoupledAlternatives = facts.CoupledAlternatives! with { Context = facts.CoupledAlternatives.Context with { MoodTrajectory = true } } },  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) },
             []), add).Proposed.Coupled!.Alternatives.First(p => p.Feasible);
@@ -950,7 +949,7 @@ public sealed class ForecastCoupledSelectionTests
         var result = Select(facts, null, work);
         Assert.Contains(result.Selected.Plan.Allocations, a => work.ActivityCompletions.Contains(a.Activity));
         var choices = EffectSourcesRules.GearChoices(facts.CoupledAlternatives, result);
-        var census = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearChoices(new RoundsFacts { Gear = EffectSourceCandidatesTests.Census(pawn) }, choices).Gear;
+        var census = RimGovernor.Brain.Runtime.ColonyReview.WithGearChoices(new ReviewFacts { Gear = EffectSourceCandidatesTests.Census(pawn) }, choices).Gear;
         return (choices, GearLoadoutRules.PlanColonyGear(census.Pawns)[0].Target);
     }
 
@@ -960,7 +959,7 @@ public sealed class ForecastCoupledSelectionTests
         var (facts, work, gear) = ColdWorkReview(.28);
         var today = facts with { CoupledAlternatives = facts.CoupledAlternatives! with { Context = facts.CoupledAlternatives.Context with { Cards = new Dictionary<string, MechanicCard>() } } };
         // No thermal read: the shift has no span to act on; the mood is today's and names the constant thought.
-        static RoundsFacts Unread(RoundsFacts f) => f with { CoupledAlternatives = f.CoupledAlternatives! with { Context = f.CoupledAlternatives.Context with { Thermal = null } } };
+        static ReviewFacts Unread(ReviewFacts f) => f with { CoupledAlternatives = f.CoupledAlternatives! with { Context = f.CoupledAlternatives.Context with { Thermal = null } } };
         var idle = Outcome(Unread(facts), gear).Needs["pawn"].Mood!;
         var plain = Outcome(Unread(today), gear).Needs["pawn"].Mood!;
         Assert.Equal(0, Outcome(Unread(facts), gear).ThermalExposure.Single().AssessedTicks);
@@ -984,13 +983,13 @@ public sealed class ForecastCoupledSelectionTests
         return (Select(facts, null, work), parkas);
     }
 
-    private static (RoundsFacts Facts, ForecastCommitment[] Parkas, ForecastCommitment Work) ColdParkaReview(double mood,
+    private static (ReviewFacts Facts, ForecastCommitment[] Parkas, ForecastCommitment Work) ColdParkaReview(double mood,
         MechanicCardStatus status = MechanicCardStatus.Verified, bool shirt = true)
     {
         static GearOption Garment(string product, GearSlot slot, string layer, double cold, GearSource source) => new() { Origin = new GearOptionOrigin.Observed(GearFixtures.Option(product, product, "Cloth", source)), Slot = slot, Layers = [layer], Groups = ["Torso"], Cold = cold, Cost = 20 };
         var census = ColonyModelFixtures.NoGear() with
         {
-            Stored = default(EquatableArray<O.GearStock>),
+            Stored = default(EquatableArray<RimGovernor.Brain.GameFacts.Observations.GearStock>),
             Pawns = [new() { Observed = GearFixtures.Loadout("") with { Token = "load", Pawn = new("pawn") }, Candidates = default(EquatableArray<RimGovernor.Brain.Policy.GearCandidate>), LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Observed = GearFixtures.Loadout(""), Body = EmergencyFixtures.Placed("").Settings.Body with { ComfortableMinC = 10, ComfortableMaxC = 30 }, Threat = ColonyModelFixtures.NoThreat, Ambient = -10, Worn = shirt ? [Garment("Shirt", GearSlot.SkinTorso, "OnSkin", 2, GearSource.Worn), Garment("Jacket", GearSlot.Outer, "Shell", 5, GearSource.Worn)] : [], Options = [Garment("Parka", GearSlot.Outer, "Shell", 20, GearSource.Bill)], Role = GearFixtures.Role }) }]
         };
         var stack = new RecipeIngredientObservation("cloth-stack", "Cloth", 10, new(5, 5), 10)
@@ -999,7 +998,7 @@ public sealed class ForecastCoupledSelectionTests
             [stack], 0.0, 20.0, 5.0, new(15, 15)) { RequiredCount = 10 };
         var facts = Review(level: 1, fall: 0, harvest: 200);
         var roster = WorkResourceTestFacts.Create("pawn", "tailor") with
-        { Census = (WorkResourceTestFacts.Create("pawn", "tailor")).Census with { Resources = [new O.Quantity { DefName = "Cloth", Units = 10 }] }};
+        { Census = (WorkResourceTestFacts.Create("pawn", "tailor")).Census with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Cloth", Units = 10 }] }};
         var template = facts.ForecastObserved.Needs!.Pawns[0];
         facts = facts with
         {

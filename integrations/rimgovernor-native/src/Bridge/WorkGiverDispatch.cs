@@ -5,7 +5,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal sealed class WorkGiverJobResult
     {
@@ -17,7 +17,7 @@ namespace HomeBridge.BridgeTools
 
     /// <summary>
     /// Walks every WorkGiverDef the way `FloatMenuOptionProvider_WorkGivers` does
-    /// and takes the first job one produces for the target, so the protobuf haul
+    /// and takes the first job one produces for the target, so the typed haul
     /// Operation dispatch issues exactly the native job a player's click would produce.
     ///
     /// `Pawn_WorkSettings.WorkGiversInOrderNormal`

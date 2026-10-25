@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -19,10 +18,10 @@ public static class QuestCapacity
     /// Chooses only from the native eligibility list. The least skilled eligible pawn is preferred; royal favor
     /// goes to an existing title holder when one is eligible.
     /// </summary>
-    public static (PawnId Pawn, bool Ok) QuestAccepter(QuestState offer, RoundsFacts facts) =>
+    public static (PawnId Pawn, bool Ok) QuestAccepter(QuestState offer, ReviewFacts facts) =>
         QuestAccepter(offer, facts, QuestRewards.SelectQuestReward(offer, facts).Choice);
 
-    private static (PawnId Pawn, bool Ok) QuestAccepter(QuestState offer, RoundsFacts facts, int choice)
+    private static (PawnId Pawn, bool Ok) QuestAccepter(QuestState offer, ReviewFacts facts, int choice)
     {
         if (!offer.RequiresAccepter)
         {
@@ -79,7 +78,7 @@ public static class QuestCapacity
     }
 
     /// <summary>The Beggars gift the colony owes now: one hauler gives the requested item once stock covers it.</summary>
-    public static QuestGiftWork SelectQuestGift(RoundsFacts f, MapId currentMap)
+    public static QuestGiftWork SelectQuestGift(ReviewFacts f, MapId currentMap)
     {
         foreach (var offer in f.QuestOffers.OrderBy(o => o.Id))
         {
@@ -96,7 +95,7 @@ public static class QuestCapacity
                     continue;
                 }
                 seen = true;
-                if (request.Ask is not Pb.QuestGiftAsk.Asking ask)
+                if (request.Ask is not RimGovernor.Brain.GameFacts.Observations.QuestGiftAsk.Asking ask)
                 {
                     return result with { Reason = "gift_not_asked" };
                 }
@@ -234,7 +233,7 @@ public static class QuestCapacity
     }
 
     /// <summary>Whether the colony is calm: unsettled while the emergency decision rests on stale facts or is not clear.</summary>
-    public static QuestCalm QuestCalmColony(RoundsFacts f, EmergencyDecision emergency, bool podsPending)
+    public static QuestCalm QuestCalmColony(ReviewFacts f, EmergencyDecision emergency, bool podsPending)
     {
         if (podsPending)
         {
@@ -256,7 +255,7 @@ public static class QuestCapacity
         {
             return new QuestCalm.Unsettled();
         }
-        return RoundsRules.CombatSituation(f.Hostiles, HuntSquadRules.HuntRequest(f.FoodPlan).Count) switch
+        return Rules.CombatSituation(f.Hostiles, HuntSquadRules.HuntRequest(f.FoodPlan).Count) switch
         {
             Situation.Clear => QuestCalm.Settled,
             Situation.Active => new QuestCalm.Busy(),

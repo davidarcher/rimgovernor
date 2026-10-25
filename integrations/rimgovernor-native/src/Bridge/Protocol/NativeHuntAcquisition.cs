@@ -4,11 +4,8 @@ using System.Collections.Generic;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // A corpse is acquired material. Only later ordinary butchering/cooking can
     // produce edible stock; expected meat nutrition never populates this receipt.
@@ -51,13 +48,13 @@ namespace HomeBridge.BridgeTools
         // The brain multiplies it by the meat's nutrition off the def rows.
         private static double MeatAmount(Pawn prey) => Math.Max(0, prey.GetStatValue(StatDefOf.MeatAmount));
         private static double Nutrition(Pawn prey) => Math.Max(0, prey.GetStatValue(StatDefOf.MeatAmount)) * prey.RaceProps.meatDef.GetStatValueAbstract(StatDefOf.Nutrition);
-        private static string Token(Pawn prey, Common.ObservationContext context) => NativeAcquisitionToken.Hunt(context.Identity,
+        private static string Token(Pawn prey, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => NativeAcquisitionToken.Hunt(context.Identity,
             prey.GetUniqueLoadID(), prey.RaceProps.corpseDef.defName, Designated(prey));
         // A hunt row is a wild animal that bears a corpse and is a food source or a pest, whatever
         // policy then decides (policy.HuntGate): native states facts and keeps only physical validity.
         private static bool Candidate(Pawn prey) => prey.Spawned && !prey.Dead && prey.Faction == null && prey.RaceProps.Animal
             && prey.RaceProps.corpseDef != null && (PestRace(prey.RaceProps) || prey.RaceProps.meatDef?.IsNutritionGivingIngestible == true);
-        internal static void Read(NativePlantAcquisition.Facts result, Map map, IntVec3 center, Obs.ColonyFactsRequest request, Common.ObservationContext context)
+        internal static void Read(NativePlantAcquisition.Facts result, Map map, IntVec3 center, RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest request, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             result.PendingHunts = (uint)Pending(map);
             // Wild animals by distance from the colony anchor, food prey then every pest: a pest row is
@@ -73,27 +70,27 @@ namespace HomeBridge.BridgeTools
             {
                 var designated = Designated(animal);
                 var herd = (uint)map.mapPawns.AllPawnsSpawned.Count(p => !p.Dead && p.def == animal.def && p.Position.DistanceToSquared(animal.Position) <= herdSquared);
-                result.Rows.Add(new Obs.AcquisitionFacts {
+                result.Rows.Add(new RimGovernor.Brain.GameFacts.Observations.AcquisitionFacts {
                     Source = NativeRef.Thing(animal), Token = Token(animal, context),
                     Resource = animal.RaceProps.corpseDef.defName, Yield = 1,
                     Designation = ResourceAcquisitionTools.Designation(animal, designated),
                     Taken = ResourceAcquisitionTools.Taken(animal),
-                    Kind = new Obs.AcquisitionKind.Hunt(MeatAmount(animal), herd, animal.Downed, !animal.Awake(), animal.Position.Fogged(map), animal.InMentalState) });
+                    Kind = new RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Hunt(MeatAmount(animal), herd, animal.Downed, !animal.Awake(), animal.Position.Fogged(map), animal.InMentalState) });
             }
             result.HuntCensus = Census(map);
             result.PendingFoodNutrition += map.mapPawns.AllPawnsSpawned.Where(p => Designated(p) && p.RaceProps.meatDef != null).Sum(Nutrition);
         }
         // Raw facts per free colonist; policy decides who can hunt what.
-        private static Obs.HuntCensus Census(Map map)
+        private static RimGovernor.Brain.GameFacts.Observations.HuntCensus Census(Map map)
         {
-            var hunters = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).Select(pawn => new Obs.HunterFacts {
+            var hunters = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).Select(pawn => new RimGovernor.Brain.GameFacts.Observations.HunterFacts {
                 Pawn = new RimGovernor.Brain.Domain.PawnId(pawn.GetUniqueLoadID()),
                 Position = new RimGovernor.Brain.Domain.Cell(pawn.Position.x, pawn.Position.z),
                 Downed = pawn.Downed, InMentalState = pawn.InMentalState,
                 HuntingActive = pawn.workSettings?.WorkIsActive(WorkTypeDefOf.Hunting) == true,
                 WeaponDef = pawn.equipment?.Primary?.def.defName,
                 RangedBlockingShield = WorkGiver_HunterHunt.HasShieldAndRangedWeapon(pawn) });
-            return new Obs.HuntCensus { Hunters = RimGovernor.Brain.Domain.EquatableArray.From(hunters) };
+            return new RimGovernor.Brain.GameFacts.Observations.HuntCensus { Hunters = RimGovernor.Brain.Domain.EquatableArray.From(hunters) };
         }
         internal const string Kind = "Hunt";
         // Prepare is the apply-time precondition list for hunt (action-contracts.md): physical
@@ -101,10 +98,10 @@ namespace HomeBridge.BridgeTools
         // designator accepts it) plus the request's resource, one rule at a time. Whether a hunt is
         // wanted (butcher bill, hunter, weapon, pending cap) is brain policy (policy.HuntGate). The
         // request's cell is a hint only: the hunt follows the animal by identity.
-        internal static bool Prepare(AcquireRequest command, Common.ObservationContext context, out Pawn? prey, out Common.Failure failure)
+        internal static bool Prepare(AcquireRequest command, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Pawn? prey, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
-            prey = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hunting requires an exact safe prey (or pest) snapshot.");
-            var map = ProtoBoundary.LoadedMap(context);
+            prey = null; failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Hunting requires an exact safe prey (or pest) snapshot.");
+            var map = GameThread.LoadedMap(context);
             var found = map.mapPawns.AllPawnsSpawned.ById(command.SourceId);
             var rules = new ApplyPreconditions(Kind)
                 .Require(() => !map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c)), "a roof collapse is pending on this map")

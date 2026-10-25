@@ -1,7 +1,6 @@
 using System.Text.Json;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store.Codec;
-using O = RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -11,7 +10,7 @@ public sealed class CanonicalTraitTests
     [Fact]
     public void TraitEffectsKeepNativeIdentityAndExistingJournalPayload()
     {
-        var observed = new O.Trait { DefName = "Industriousness", Degree = 2 };
+        var observed = new RimGovernor.Brain.GameFacts.Observations.Trait { DefName = "Industriousness", Degree = 2 };
         var trait = new PawnTrait { Observed = observed, Effects = new() { WorkSpeed = 0.35 } };
         var json = StoreJson.Serialize(trait);
         using var document = JsonDocument.Parse(json);

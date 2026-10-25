@@ -45,7 +45,7 @@ public sealed record RoyaltyFacts
     public EquatableArray<RoyalThrone> Thrones { get; init; }
 
     /// <summary>f with the colony section's neuroformers, ceremonies and thrones, which the pawn rows do not carry.</summary>
-    public RoyaltyFacts WithColony(IReadOnlyDictionary<string, Neuroformer> neuroformers, RimGovernor.Contracts.Wire.Observations.RoyaltyColonyFacts colony) =>
+    public RoyaltyFacts WithColony(IReadOnlyDictionary<string, Neuroformer> neuroformers, RimGovernor.Brain.GameFacts.Observations.RoyaltyColonyFacts colony) =>
         this with { Neuroformers = neuroformers, Ceremonies = colony.Ceremonies, Thrones = colony.Thrones };
 }
 
@@ -94,7 +94,7 @@ public sealed record Psycast
 }
 
 /// <summary>A psycast a pawn knows: its def row and the ticks left of its cooldown at the read.</summary>
-public sealed record KnownPsycast(Psycast Psycast, RimGovernor.Contracts.Wire.Observations.PawnPsycast Observed)
+public sealed record KnownPsycast(Psycast Psycast, RimGovernor.Brain.GameFacts.Observations.PawnPsycast Observed)
 {
     public int CooldownRemaining => Observed.CooldownRemainingTicks;
 }
@@ -105,7 +105,7 @@ public sealed record KnownPsycast(Psycast Psycast, RimGovernor.Contracts.Wire.Ob
 /// </summary>
 public sealed record Neuroformer
 {
-    public required RimGovernor.Contracts.Wire.Observations.NeuroformerStock Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.NeuroformerStock Observed { get; init; }
 
     public int Held => Observed.Held;
 

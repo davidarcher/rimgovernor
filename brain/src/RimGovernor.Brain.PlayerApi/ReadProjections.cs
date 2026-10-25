@@ -1,5 +1,5 @@
 using System.Globalization;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
@@ -115,12 +115,12 @@ internal static class ReadProjections
 
     // routines
 
-    internal static RoundsStatusDto Rounds(RoundsStatus v)
+    internal static ReviewStatusDto ReviewState(ReviewStatus v)
     {
         var extent = (v.Extent as ExtentDerivation.Derived)?.Extent;
-        var extentDto = new RoundsExtentDto(extent is not null, extent?.Regions.Count ?? 0, extent?.Regions.Sum(r => r.Cells.Count) ?? 0, (v.Extent as ExtentDerivation.Incomplete)?.Evidence);
+        var extentDto = new ExtentDto(extent is not null, extent?.Regions.Count ?? 0, extent?.Regions.Sum(r => r.Cells.Count) ?? 0, (v.Extent as ExtentDerivation.Incomplete)?.Evidence);
         var eligibility = v.ExtentEligibility;
-        return new RoundsStatusDto(
+        return new ReviewStatusDto(
             new ExtentEligibilityDto(
                 eligibility.Known,
                 eligibility.Reason,
@@ -133,7 +133,7 @@ internal static class ReadProjections
             v.LastReview is ReviewProgress.Reviewed last ? last.Tick.Value : null,
             [.. v.Progress.Select(ConcernProgressRow)],
             v.Roster is { } roster ? Roster(roster) : null,
-            [.. v.Sections.Select(x => new RoundsSectionDto(Wire.Name(x.Section), Wire.Name(x.Family), x.AsOf, x.Complete, x.Source, x.StoredAt.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'", CultureInfo.InvariantCulture)))],
+            [.. v.Sections.Select(x => new SectionDto(Wire.Name(x.Section), Wire.Name(x.Family), x.AsOf, x.Complete, x.Source, x.StoredAt.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'", CultureInfo.InvariantCulture)))],
             [.. v.LootHolds.Select(h => new LootHoldDto(h.Thing, h.Definition, h.Cell.X, h.Cell.Z, h.Reason))]);
     }
 
@@ -165,27 +165,27 @@ internal static class ReadProjections
             [.. p.Cooldowns.Select(c => new ProgressCooldownDto(c.Key, c.Until.Value))]);
     }
 
-    private static RoundsRosterDto Roster(WorkRosterReport r)
+    private static RosterDto Roster(WorkRosterReport r)
     {
-        var coverage = r.Coverage.Select(c => new RoundsCoverageDto(Wire.Name(c.Work), c.Demand, c.Owners, c.Capable)).OrderBy(c => c.Work, StringComparer.Ordinal).ToList();
+        var coverage = r.Coverage.Select(c => new CoverageDto(Wire.Name(c.Work), c.Demand, c.Owners, c.Capable)).OrderBy(c => c.Work, StringComparer.Ordinal).ToList();
         var pawns = r.Profiles.Select(RosterPawn).OrderBy(p => p.Pawn, StringComparer.Ordinal).ToList();
-        return new RoundsRosterDto(r.Tick.Value, coverage, pawns);
+        return new RosterDto(r.Tick.Value, coverage, pawns);
     }
 
-    private static RoundsRosterPawnDto RosterPawn(PawnProfile p)
+    private static RosterPawnDto RosterPawn(PawnProfile p)
     {
         var skills = p.Skills.Values
-            .Select(s => new RoundsProfileSkillDto(s.DefName, s.Level, s.StoredLevel, s.Passion == RimGovernor.Contracts.Wire.Observations.Passion.None ? "" : WorkRules.PassionName(s.Passion), s.Disabled, PawnRules.SkillLearnFactor(s, p.Effects)))
+            .Select(s => new ProfileSkillDto(s.DefName, s.Level, s.StoredLevel, s.Passion == RimGovernor.Brain.GameFacts.Observations.Passion.None ? "" : WorkRules.PassionName(s.Passion), s.Disabled, PawnRules.SkillLearnFactor(s, p.Effects)))
             .OrderBy(s => s.Name, StringComparer.Ordinal).ToList();
         var incapable = p.Incapable.Where(kv => kv.Value).Select(kv => Wire.Name(kv.Key)).OrderBy(w => w, StringComparer.Ordinal).ToList();
         var e = p.Effects;
-        return new RoundsRosterPawnDto(
+        return new RosterPawnDto(
             p.Id.Value,
             p.Age,
             p.Child,
             p.Ranged,
-            [.. p.Traits.Select(t => new RoundsTraitDto(t.Name, t.Degree))],
-            new RoundsTraitEffectsDto(e.WorkSpeed, e.LearnRate, e.MoveSpeed, e.Sociable, e.ChemicalInterest, [.. e.Flags()]),
+            [.. p.Traits.Select(t => new TraitDto(t.Name, t.Degree))],
+            new TraitEffectsDto(e.WorkSpeed, e.LearnRate, e.MoveSpeed, e.Sociable, e.ChemicalInterest, [.. e.Flags()]),
             skills,
             incapable,
             [.. p.ForbiddenWork().Select(w => Wire.Name(w))]);
@@ -208,8 +208,8 @@ internal static class ReadProjections
                 pawn.Id.Value,
                 pawn.Label,
                 pawn.Downed,
-                pawn.Mood is RimGovernor.Contracts.Wire.Observations.NeedLevel.Has mood ? mood.Level : null,
-                pawn.Food is RimGovernor.Contracts.Wire.Observations.FoodNeed.Has food ? food.Level : null);
+                pawn.Mood is RimGovernor.Brain.GameFacts.Observations.NeedLevel.Has mood ? mood.Level : null,
+                pawn.Food is RimGovernor.Brain.GameFacts.Observations.FoodNeed.Has food ? food.Level : null);
             if (row.Downed == true)
             {
                 downed++;
@@ -234,7 +234,7 @@ internal static class ReadProjections
             v.Workers,
             v.FoodNutrition,
             v.NutritionPerDay,
-            v.FoodRunway is RimGovernor.Contracts.Wire.Observations.FoodRunway.Days runway ? runway.Value : null,
+            v.FoodRunway is RimGovernor.Brain.GameFacts.Observations.FoodRunway.Days runway ? runway.Value : null,
             v.PendingFoodNutrition,
             v.Threat.RaidPoints,
             v.Threat.WealthTotal,

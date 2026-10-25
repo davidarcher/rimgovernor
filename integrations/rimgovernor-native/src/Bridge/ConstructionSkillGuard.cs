@@ -5,9 +5,8 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 using ConstructionTier = RimGovernor.Brain.Domain.ConstructionTier;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class ConstructionSkillGuard
     {
@@ -62,22 +61,22 @@ namespace HomeBridge.BridgeTools
             && !skill.TotallyDisabled && skill.Level >= minimum;
         // Read is a blueprint's or frame's build state: its material deficits, with the finishing
         // floor and tier this guard holds for it.
-        internal static Obs.ConstructionState.Build Read(Thing t, string definition, RimGovernor.Brain.Domain.EquatableArray<Obs.MaterialDeficit> resources)
+        internal static RimGovernor.Brain.GameFacts.Observations.ConstructionState.Build Read(Thing t, string definition, RimGovernor.Brain.Domain.EquatableArray<RimGovernor.Brain.GameFacts.Observations.MaterialDeficit> resources)
         {
             var native = t.def.entityDefToBuild.constructionSkillPrerequisite;
             var setting = Setting(t);
-            Obs.ConstructionGate gate = new Obs.ConstructionGate.Ungated();
+            RimGovernor.Brain.GameFacts.Observations.ConstructionGate gate = new RimGovernor.Brain.GameFacts.Observations.ConstructionGate.Ungated();
             if (setting != null && setting.Tier != ConstructionSkillSetting.None)
             {
                 if (setting.Tier < 0 || setting.Tier > MaxTier) throw new InvalidOperationException("Invalid construction tier.");
-                gate = new Obs.ConstructionGate.Tiered { Tier = (ConstructionTier)setting.Tier };
+                gate = new RimGovernor.Brain.GameFacts.Observations.ConstructionGate.Tiered { Tier = (ConstructionTier)setting.Tier };
             }
-            var minimum = setting == null || setting.Minimum == ConstructionSkillSetting.None ? null : new Obs.FinishingMinimum
+            var minimum = setting == null || setting.Minimum == ConstructionSkillSetting.None ? null : new RimGovernor.Brain.GameFacts.Observations.FinishingMinimum
             {
                 Skill = setting.Minimum,
                 EligibleFinishers = t.Map.mapPawns.FreeColonistsSpawned.Count(p => Capable(p, Math.Max(setting.Minimum, native))),
             };
-            return new Obs.ConstructionState.Build
+            return new RimGovernor.Brain.GameFacts.Observations.ConstructionState.Build
             {
                 Definition = definition,
                 Resources = resources,

@@ -1,6 +1,6 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -29,7 +29,7 @@ public sealed class SkillStockTests
     /// <summary>The pawn with a Medicine skill on the mechanics, and each of <paramref name="others"/> on the same mechanics.</summary>
     internal static ModelPawn WithMedicine(ModelPawn pawn, SkillLearning mechanics, params string[] others) => pawn with
     {
-        Skills = EquatableArray.From(others.Prepend("Medicine").Select(name => new O.Skill { Passion = O.Passion.None, DefName = name, Learning = mechanics })),
+        Skills = EquatableArray.From(others.Prepend("Medicine").Select(name => new RimGovernor.Brain.GameFacts.Observations.Skill { Passion = RimGovernor.Brain.GameFacts.Observations.Passion.None, DefName = name, Learning = mechanics })),
     };
 
     /// <summary>Anna alone, with the skills of <see cref="WithMedicine"/>.</summary>
@@ -42,7 +42,7 @@ public sealed class SkillStockTests
     private static ColonyModelPolicy Policy(ProjectGraph graph) => new() { MedicineTendsPerDay = 0.0, Projects = graph };
 
     private static SkillStock Stock(SkillLearning mechanics) =>
-        SkillStock.Of(new ModelPawn { Pawn = "Anna", Skills = EquatableArray.From(new[] { new O.Skill { Passion = O.Passion.None, DefName = "Medicine", Learning = mechanics } }), Consciousness = 1.0, Moving = 1.0, Manipulation = 1.0, Sight = 1.0, Talking = 1.0, ComfortableMin = 16.0, ComfortableMax = 26.0, ResearchSpeed = 1.0, PlantWorkSpeed = 1.0, Hunts = false }, new SortedSet<string>()).Single();
+        SkillStock.Of(new ModelPawn { Pawn = "Anna", Skills = EquatableArray.From(new[] { new RimGovernor.Brain.GameFacts.Observations.Skill { Passion = RimGovernor.Brain.GameFacts.Observations.Passion.None, DefName = "Medicine", Learning = mechanics } }), Consciousness = 1.0, Moving = 1.0, Manipulation = 1.0, Sight = 1.0, Talking = 1.0, ComfortableMin = 16.0, ComfortableMax = 26.0, ResearchSpeed = 1.0, PlantWorkSpeed = 1.0, Hunts = false }, new SortedSet<string>()).Single();
 
     // A value that rises with the Medicine level: the level-days it stands over the horizon.
     internal sealed class LevelDays(double horizon) : ITrajectoryValue

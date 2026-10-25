@@ -3,7 +3,7 @@ using HarmonyLib;
 using UnityEngine;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Counts local player mouse and key input so a pending guarded wall
     // removal can tell that the player acted after it was admitted.

@@ -10,7 +10,7 @@ using Verse;
 using Waylith;
 using Waylith.Runtime;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 // Exercises the engine's actual event wiring without exiting before the harness
 // can read the postcondition. NoKeep retires this process after the reply.
@@ -20,7 +20,7 @@ public sealed class ShutdownCleanupFixture
     private static Action? pending;
 
     [Tool("test/shutdown_cleanup", Description = "Disposable fixture: fires engine quit callbacks and reads game cleanup before the engine allocation sweep.")]
-    public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken)
+    public async Task<object> Run(INativeContext ctx, CancellationToken cancellationToken)
     {
         var completion = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
         await ctx.MainThread.InvokeAsync(() =>

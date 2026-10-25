@@ -1,9 +1,8 @@
 
 using System;
 using System.Collections.Generic;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// The threat facts of one living non-colonist pawn: cheap field reads
     /// only, gathered before any pawn reference or distance scan is paid
@@ -74,7 +73,7 @@ namespace HomeBridge.BridgeTools
 
         internal static Scan Collect<T>(IReadOnlyList<T> pawns, Func<T, ThreatFacts> facts,
             IReadOnlyList<(int X, int Z)> colonists, double radius,
-            Func<T, RimGovernor.Contracts.Wire.Common.Ref> project, ref Obs.ThreatsSnapshot threats)
+            Func<T, RimGovernor.Brain.GameFacts.Common.Ref> project, ref RimGovernor.Brain.GameFacts.Observations.ThreatsSnapshot threats)
         {
             var scan = new Scan();
             foreach (var pawn in pawns) {
@@ -89,10 +88,10 @@ namespace HomeBridge.BridgeTools
                 }
                 scan.Candidates++;
                 scan.Projections++;
-                var row = new Obs.ThreatPawn { Pawn = project(pawn), Ours = f.Ours, FactionHostile = f.FactionHostile, PrisonBreak = f.PrisonBreak,
+                var row = new RimGovernor.Brain.GameFacts.Observations.ThreatPawn { Pawn = project(pawn), Ours = f.Ours, FactionHostile = f.FactionHostile, PrisonBreak = f.PrisonBreak,
                     PredatorHunt = f.PredatorHunt, Predator = f.Predator, Downed = f.Downed, Passive = f.Passive, MentalState = f.Mental,
-                    NearestColonist = nearest is int cells ? new Obs.ColonistDistance.Nearest(cells) : new Obs.ColonistDistance.NoColonist(),
-                    Prey = f.HasPrey ? new Obs.ThreatPrey(f.PreyOurs) : null };
+                    NearestColonist = nearest is int cells ? new RimGovernor.Brain.GameFacts.Observations.ColonistDistance.Nearest(cells) : new RimGovernor.Brain.GameFacts.Observations.ColonistDistance.NoColonist(),
+                    Prey = f.HasPrey ? new RimGovernor.Brain.GameFacts.Observations.ThreatPrey(f.PreyOurs) : null };
                 threats = threats with { Pawns = [.. threats.Pawns, row] };
             }
             return scan;

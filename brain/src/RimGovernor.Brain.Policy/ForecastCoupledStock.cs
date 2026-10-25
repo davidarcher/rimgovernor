@@ -68,8 +68,8 @@ public static partial class ForecastCoupled
             foreach (var row in request.Facts.Medicine.Items)
                 {
                     double fresh;
-                    if (row.Rot is RimGovernor.Contracts.Wire.Observations.ItemRot.Never) fresh = double.PositiveInfinity;
-                    else if (row.Rot is RimGovernor.Contracts.Wire.Observations.ItemRot.Rotting rot) fresh = rot.Ticks;
+                    if (row.Rot is RimGovernor.Brain.GameFacts.Observations.ItemRot.Never) fresh = double.PositiveInfinity;
+                    else if (row.Rot is RimGovernor.Brain.GameFacts.Observations.ItemRot.Rotting rot) fresh = rot.Ticks;
                     else throw new DomainException("invalid medicine rot state");
                     census[row.Id] = new(row.Id, new Resource(row.Definition), row.Count, fresh, FoodEligibility.Ineligible, 0d, [], !row.Forbidden && physical?.Contains(row.Id) == true);
                     Include(row.Id, new Resource(row.Definition), row.Count, fresh);

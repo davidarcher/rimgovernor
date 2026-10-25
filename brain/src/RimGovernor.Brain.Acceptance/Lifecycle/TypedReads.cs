@@ -1,8 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Contracts.Wire;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Observations = RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -13,7 +12,7 @@ namespace RimGovernor.Brain.Acceptance;
 public static class TypedReads
 {
     /// <summary>A read scope pinned to <paramref name="identity"/>.</summary>
-    public static Observations.ReadScope Scope(Common.Identity identity) => new() { ExpectedIdentity = identity };
+    public static RimGovernor.Brain.GameFacts.Observations.ReadScope Scope(RimGovernor.Brain.GameFacts.Common.Identity identity) => new() { ExpectedIdentity = identity };
 
     /// <summary>A read reply's <c>observed</c> arm; any other arm fails <paramref name="label"/> with the reply.</summary>
     public static T Observed<TReply, T>(string label, NativeOp op, TReply reply, T? observed)
@@ -21,11 +20,11 @@ public static class TypedReads
         where T : class
     {
         ArgumentNullException.ThrowIfNull(op);
-        return observed ?? throw new AcceptanceException($"{label}: {op.Name} did not observe: {WireJson.Serialize(reply)}");
+        return observed ?? throw new AcceptanceException($"{label}: {op.Name} did not observe: {OrdersJson.Serialize(reply)}");
     }
 
     /// <summary>The <c>observations_list_buildings</c> rows <paramref name="request"/> selects (its scope, ids, defNames, statuses, anyFaction).</summary>
-    public static async Task<IReadOnlyList<Observations.BuildingState>> BuildingsAsync(this Harness harness, string label, Observations.ListBuildingsRequest request, CancellationToken cancellationToken)
+    public static async Task<IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.BuildingState>> BuildingsAsync(this Harness harness, string label, RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(harness);
         var snapshot = await harness.CallAsync(label, NativeOps.ListBuildings, request, cancellationToken).ConfigureAwait(false);
@@ -33,10 +32,10 @@ public static class TypedReads
     }
 
     /// <summary>Every zone row <c>observations_list_zones</c> answers under <paramref name="scope"/>.</summary>
-    public static async Task<IReadOnlyList<Observations.ZoneState>> ZonesAsync(this Harness harness, string label, Observations.ReadScope scope, CancellationToken cancellationToken)
+    public static async Task<IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.ZoneState>> ZonesAsync(this Harness harness, string label, RimGovernor.Brain.GameFacts.Observations.ReadScope scope, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(harness);
-        var reply = await harness.CallAsync(label, NativeOps.ListZones, new Observations.ListZonesRequest { Scope = scope }, cancellationToken).ConfigureAwait(false);
+        var reply = await harness.CallAsync(label, NativeOps.ListZones, new RimGovernor.Brain.GameOrders.Observations.ListZonesRequest { Scope = scope }, cancellationToken).ConfigureAwait(false);
         return reply.Zones.ToList();
     }
 
@@ -44,7 +43,7 @@ public static class TypedReads
     /// Each growing zone (by load id) with its crop, its cells and the cells carrying a plant of that crop: the zones read
     /// joined to the whole map's cell grid.
     /// </summary>
-    public static async Task<IReadOnlyList<GrowingZone>> GrowingZonesAsync(this Harness harness, string label, Common.Identity identity, CancellationToken cancellationToken)
+    public static async Task<IReadOnlyList<GrowingZone>> GrowingZonesAsync(this Harness harness, string label, RimGovernor.Brain.GameFacts.Common.Identity identity, CancellationToken cancellationToken)
     {
         var zones = await harness.ZonesAsync(label + "-zones", Scope(identity), cancellationToken).ConfigureAwait(false);
         var grid = await harness.MapCellsAsync(label + "-cells", identity, cancellationToken).ConfigureAwait(false);
@@ -52,13 +51,13 @@ public static class TypedReads
     }
 
     /// <summary>Each growing zone of <paramref name="zones"/> with its cells and planted cells on <paramref name="grid"/>.</summary>
-    public static IReadOnlyList<GrowingZone> GrowingZones(IEnumerable<Observations.ZoneState> zones, MapCellGrid grid)
+    public static IReadOnlyList<GrowingZone> GrowingZones(IEnumerable<RimGovernor.Brain.GameFacts.Observations.ZoneState> zones, MapCellGrid grid)
     {
         ArgumentNullException.ThrowIfNull(zones);
         ArgumentNullException.ThrowIfNull(grid);
         var byZone = grid.ZoneCells();
         var rows = new List<GrowingZone>();
-        foreach (var zone in zones.OfType<Observations.ZoneState.Growing>())
+        foreach (var zone in zones.OfType<RimGovernor.Brain.GameFacts.Observations.ZoneState.Growing>())
         {
             var cells = byZone.GetValueOrDefault(zone.Id) ?? [];
             var crop = zone.Crop;
@@ -70,7 +69,7 @@ public static class TypedReads
     }
 
     /// <summary>The cells of a wire rectangle (inclusive corners), row-major; a missing corner fails the read.</summary>
-    public static IReadOnlyList<Cell> CellsOf(Observations.Rectangle? rectangle, string what)
+    public static IReadOnlyList<Cell> CellsOf(RimGovernor.Brain.GameFacts.Observations.Rectangle? rectangle, string what)
     {
         var min = CellOf(rectangle?.Minimum, what);
         var max = CellOf(rectangle?.Maximum, what);

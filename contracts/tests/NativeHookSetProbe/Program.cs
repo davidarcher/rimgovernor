@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.CompilerServices;
 using HarmonyLib;
-using HomeBridge.BridgeTools;
+using RimGovernor.Native;
 
 // Live Harmony inventory and method identity for NativeConstructionHookSet.
 

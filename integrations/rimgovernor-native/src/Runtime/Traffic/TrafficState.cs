@@ -4,7 +4,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Observed pawn traffic per layer: every cell a pawn's path
     // follower enters counts once on the pawn's layer, and on the crossing

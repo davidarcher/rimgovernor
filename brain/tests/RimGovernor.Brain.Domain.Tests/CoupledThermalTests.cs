@@ -2,8 +2,10 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Policy.Methods;
 using RimGovernor.Brain.Policy.Methods.Generation;
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -11,7 +13,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>
 /// The coupled thermal read is one total facts record (#3771): every member is set, a source's supply is a named
 /// <see cref="HeatSupply"/> state and a roof route's approach a named <see cref="RoofApproach"/>. On the wire it round-trips
-/// through <c>WireJsonContext</c> exactly.
+/// through <c>OrdersJsonContext</c> exactly.
 /// </summary>
 public sealed class CoupledThermalTests
 {
@@ -44,12 +46,12 @@ public sealed class CoupledThermalTests
             RoofRoutes = [new("Thing_Human7", new(3, 4), new RoofApproach.Path(120)), new("Thing_Human8", new(3, 4), new RoofApproach.Unreachable())],
         };
 
-        var json = WireJson.Serialize(read);
+        var json = OrdersJson.Serialize(read);
 
         Assert.Equal(
             """{"cells":[{"cell":{"x":3,"z":4},"temperature":5.5,"roof":"none","solid":false,"doorHeldOpen":true,"site":"Blueprint_Wall9","futureSolid":true,"futureDoor":false,"doorExchangePerTick":0.25,"buildRoof":true}],"sources":[{"target":"Thing_Heater1","cell":{"x":3,"z":5},"complete":true,"heatPerTick":0.35,"targetTemperature":21,"supply":{"type":"powered","network":"Thing_Battery2/Thing_Heater1","additionalWatts":175,"surplusWatts":400,"ticks":60000}},{"target":"Thing_Heater3","cell":{"x":4,"z":5},"complete":false,"heatPerTick":0.35,"targetTemperature":21,"supply":{"type":"short_of_power","network":"Thing_Battery2","additionalWatts":175,"surplusWatts":100}},{"target":"Thing_Heater4","cell":{"x":5,"z":5},"complete":false,"heatPerTick":0.35,"targetTemperature":21,"supply":{"type":"unconnected"}},{"target":"Thing_Campfire5","cell":{"x":6,"z":5},"complete":true,"heatPerTick":0.35,"targetTemperature":23,"supply":{"type":"burning","fuel":"WoodLog","fuelPerTick":0.0002}},{"target":"Thing_Torch6","cell":{"x":7,"z":5},"complete":true,"heatPerTick":0.1,"targetTemperature":23,"supply":{"type":"unsteady_burn"}}],"workers":[{"pawn":"Thing_Human7","roofCellWorkTicks":38.2,"skillWork":null}],"roofRoutes":[{"pawn":"Thing_Human7","cell":{"x":3,"z":4},"approach":{"type":"path","ticks":120}},{"pawn":"Thing_Human8","cell":{"x":3,"z":4},"approach":{"type":"unreachable"}}],"outdoors":-12.5,"thinRoofExchangePerTick":5E-05,"noRoofExchangePerTick":0.0007,"wallExchangePerTick":1.7E-05}""",
             json);
-        Assert.Equal(read, WireJson.Deserialize<CoupledThermalRead>(json));
+        Assert.Equal(read, OrdersJson.Deserialize<CoupledThermalRead>(json));
     }
 
     /// <summary>

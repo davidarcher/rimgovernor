@@ -1,4 +1,3 @@
-using Mirror = RimGovernor.Contracts.Wire.Mirror;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -34,7 +33,7 @@ internal static class CombatLabWild
         var wild = new StagedLab(Fixture, s.Staged!).Ids(CombatFixtures.Wild);
         var frame = await new LabFrames(s).CombatAsync("frame", cancellationToken).ConfigureAwait(false);
         s.RecordWireRows("rows", frame.CombatPawns);
-        if (LabFrames.Row(frame, wild[0]) is not { Side: Mirror.CombatSide.WildAnimal } thrumbo)
+        if (LabFrames.Row(frame, wild[0]) is not { Side: RimGovernor.Brain.GameFacts.Mirror.CombatSide.WildAnimal } thrumbo)
         {
             throw new AcceptanceException($"thrumbo {wild[0]} near the raiders: row {LabFrames.Row(frame, wild[0])}, want side wild_animal");
         }

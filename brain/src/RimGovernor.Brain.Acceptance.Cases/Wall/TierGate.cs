@@ -1,7 +1,5 @@
 using System.Text.Json.Nodes;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Placement = RimGovernor.Contracts.Wire.Placement;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -63,11 +61,11 @@ internal static class WallTierGate
         // Tier 0 steel first; tier 5 steel waits; wood and untiered are free.
         Expect("tier 0 first", gated, [true, false, true, true]);
 
-        Operations.BuildingIntent SetTier(int tier) => new()
+        RimGovernor.Brain.GameOrders.Operations.BuildingIntent SetTier(int tier) => new()
         {
-            Placement = new Placement.PlacementCandidate { DefName = "Wall", Stuff = "Steel", X = b.X, Z = b.Z, Rotation = Placement.Rotation.North, IgnoreNaturalRock = false },
-            Tier = new Operations.ConstructionTierChange.Selected(tier),
-            ExistingTargetId = b.Target, ReplaceWall = false, MinimumFinishingSkill = new Operations.FinishingSkillChange.Preserve(),
+            Placement = new RimGovernor.Brain.GameOrders.Placement.PlacementCandidate { DefName = "Wall", Stuff = "Steel", X = b.X, Z = b.Z, Rotation = RimGovernor.Brain.GameFacts.Placement.Rotation.North, IgnoreNaturalRock = false },
+            Tier = new RimGovernor.Brain.GameOrders.Operations.ConstructionTierChange.Selected(tier),
+            ExistingTargetId = b.Target, ReplaceWall = false, MinimumFinishingSkill = new RimGovernor.Brain.GameOrders.Operations.FinishingSkillChange.Preserve(),
         };
 
         _ = await TypedApply.AppliedAsync(s, "tier-raise", SetTier(0), cancellationToken).ConfigureAwait(false);

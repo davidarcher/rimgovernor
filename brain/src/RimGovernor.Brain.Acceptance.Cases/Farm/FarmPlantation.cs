@@ -1,7 +1,6 @@
 using System.Globalization;
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -51,7 +50,7 @@ internal static class FarmPlantation
     {
         var oakId = s.Staged!.Plants[Oak].Ids.Single();
         var riceId = s.Staged.Plants[Rice].Ids.Single();
-        var reply = await s.CallAsync("plantation-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var reply = await s.CallAsync("plantation-facts", NativeOps.ReadColonyFacts, new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var rows = reply.Acquisition.ToList();
         if (rows.FirstOrDefault(r => r.Source?.Id == riceId) is { } riceRow)
         {
@@ -61,7 +60,7 @@ internal static class FarmPlantation
         var oakRow = rows.FirstOrDefault(r => r.Source?.Id == oakId)
             ?? throw new AcceptanceException($"the sown oak {oakId} is not an acquisition row among {rows.Count}");
         s.RecordWire("oak_row", oakRow);
-        if (oakRow.Kind is not Observations.AcquisitionKind.Plant { Plantation: true, Growth: >= 0.79 and <= 0.81 })
+        if (oakRow.Kind is not RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Plant { Plantation: true, Growth: >= 0.79 and <= 0.81 })
         {
             throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"the oak row is not a plantation row at the staged growth 0.8: {oakRow}"));
         }

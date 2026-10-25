@@ -1,8 +1,6 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
-using Common = RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Brain.GameAccess;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -37,12 +35,12 @@ internal static class PawnReads
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var problems = new List<string>();
-        Common.ObservationContext? context = null;
+        RimGovernor.Brain.GameFacts.Common.ObservationContext? context = null;
 
-        Task<Observations.PawnSnapshot> CallAsync(string label, Observations.PawnFilter? filter, Observations.ReadScope? scope = null) =>
-            s.CallAsync(label, NativeOps.ListPawns, new Observations.ListPawnsRequest { Scope = scope ?? s.Scope, Filter = filter }, cancellationToken);
+        Task<RimGovernor.Brain.GameFacts.Observations.PawnSnapshot> CallAsync(string label, RimGovernor.Brain.GameFacts.Observations.PawnFilter? filter, RimGovernor.Brain.GameFacts.Observations.ReadScope? scope = null) =>
+            s.CallAsync(label, NativeOps.ListPawns, new RimGovernor.Brain.GameOrders.Observations.ListPawnsRequest { Scope = scope ?? s.Scope, Filter = filter }, cancellationToken);
 
-        async Task<List<Observations.PawnState>> ReadAsync(string label, Observations.PawnFilter? filter)
+        async Task<List<RimGovernor.Brain.GameFacts.Observations.PawnState>> ReadAsync(string label, RimGovernor.Brain.GameFacts.Observations.PawnFilter? filter)
         {
             var observed = await CallAsync(label, filter).ConfigureAwait(false);
             context ??= observed.Context;
@@ -67,7 +65,7 @@ internal static class PawnReads
             return [.. observed.Pawns];
         }
 
-        async Task ExpectFailureAsync(string label, Common.FailureCode code, Observations.PawnFilter? filter, Observations.ReadScope? scope = null)
+        async Task ExpectFailureAsync(string label, RimGovernor.Brain.GameFacts.Common.FailureCode code, RimGovernor.Brain.GameFacts.Observations.PawnFilter? filter, RimGovernor.Brain.GameFacts.Observations.ReadScope? scope = null)
         {
             try
             {
@@ -87,19 +85,19 @@ internal static class PawnReads
             problems.Add($"bounded read found {baseline.Count} pawns, want the 3 colonists and the muffalo");
         }
 
-        var colonists = await ReadAsync("colonists", new Observations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only, Humanlike = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only, Animal = RimGovernor.Contracts.Wire.Observations.PawnMembership.Excluded }).ConfigureAwait(false);
+        var colonists = await ReadAsync("colonists", new RimGovernor.Brain.GameFacts.Observations.PawnFilter { Colonist = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Only, Humanlike = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Only, Animal = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Excluded }).ConfigureAwait(false);
         if (colonists.Count != 3)
         {
             problems.Add($"colonist filter found {colonists.Count}, want 3");
         }
 
-        foreach (var row in colonists.Where(r => string.IsNullOrEmpty(r.Health.Snapshot.Token) || r.AnimalState is not Observations.PawnAnimalState.NotAnimal))
+        foreach (var row in colonists.Where(r => string.IsNullOrEmpty(r.Health.Snapshot.Token) || r.AnimalState is not RimGovernor.Brain.GameFacts.Observations.PawnAnimalState.NotAnimal))
         {
             problems.Add($"colonist {row.Pawn.Id} lacks a health snapshot or reads an animal state");
         }
 
         var target = colonists.FirstOrDefault()?.Pawn.Id ?? throw new AcceptanceException("no colonist read");
-        void ExpectCount(string label, IReadOnlyCollection<Observations.PawnState> rows, int want)
+        void ExpectCount(string label, IReadOnlyCollection<RimGovernor.Brain.GameFacts.Observations.PawnState> rows, int want)
         {
             if (rows.Count != want)
             {
@@ -107,24 +105,24 @@ internal static class PawnReads
             }
         }
 
-        ExpectCount("exact-id", await ReadAsync("exact-id", new Observations.PawnFilter { Ids = [target], Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only, Animal = RimGovernor.Contracts.Wire.Observations.PawnMembership.Excluded }).ConfigureAwait(false), 1);
-        ExpectCount("contradictory", await ReadAsync("contradictory", new Observations.PawnFilter { Ids = [target], Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Excluded }).ConfigureAwait(false), 0);
-        ExpectCount("unknown-id", await ReadAsync("unknown-id", new Observations.PawnFilter { Ids = ["missing-pawn-id"] }).ConfigureAwait(false), 0);
-        var animals = await ReadAsync("animals", new Observations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Excluded, Animal = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only }).ConfigureAwait(false);
-        if (!animals.Any(a => a.Pawn.Id == muffalo && a.PawnSnapshot is not null && a.AnimalState is Observations.PawnAnimalState.Animal))
+        ExpectCount("exact-id", await ReadAsync("exact-id", new RimGovernor.Brain.GameFacts.Observations.PawnFilter { Ids = [target], Colonist = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Only, Animal = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Excluded }).ConfigureAwait(false), 1);
+        ExpectCount("contradictory", await ReadAsync("contradictory", new RimGovernor.Brain.GameFacts.Observations.PawnFilter { Ids = [target], Colonist = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Excluded }).ConfigureAwait(false), 0);
+        ExpectCount("unknown-id", await ReadAsync("unknown-id", new RimGovernor.Brain.GameFacts.Observations.PawnFilter { Ids = ["missing-pawn-id"] }).ConfigureAwait(false), 0);
+        var animals = await ReadAsync("animals", new RimGovernor.Brain.GameFacts.Observations.PawnFilter { Colonist = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Excluded, Animal = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Only }).ConfigureAwait(false);
+        if (!animals.Any(a => a.Pawn.Id == muffalo && a.PawnSnapshot is not null && a.AnimalState is RimGovernor.Brain.GameFacts.Observations.PawnAnimalState.Animal))
         {
             problems.Add($"animal filter did not read the muffalo {muffalo} with a snapshot and an animal state");
         }
 
-        var knownFalse = await ReadAsync("known-false", new Observations.PawnFilter { Drafted = RimGovernor.Contracts.Wire.Observations.PawnMembership.Excluded, Downed = RimGovernor.Contracts.Wire.Observations.PawnMembership.Excluded }).ConfigureAwait(false);
+        var knownFalse = await ReadAsync("known-false", new RimGovernor.Brain.GameFacts.Observations.PawnFilter { Drafted = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Excluded, Downed = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Excluded }).ConfigureAwait(false);
         if (knownFalse.Any(p => p.Drafted || p.Downed))
         {
             problems.Add("known-false filter returned a drafted or downed pawn");
         }
 
-        await ExpectFailureAsync("duplicate-id", Common.FailureCode.InvalidRequest, new Observations.PawnFilter { Ids = [target, target] }).ConfigureAwait(false);
-        await ExpectFailureAsync("negative-distance", Common.FailureCode.InvalidRequest, new Observations.PawnFilter { WithinColonistDistance = new Observations.ColonistRange.Within { Distance = -1 } }).ConfigureAwait(false);
-        await ExpectFailureAsync("stale-identity", Common.FailureCode.StaleIdentity, null, new Observations.ReadScope { ExpectedIdentity = s.Identity with { LoadToken = "stale-load" } }).ConfigureAwait(false);
+        await ExpectFailureAsync("duplicate-id", RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, new RimGovernor.Brain.GameFacts.Observations.PawnFilter { Ids = [target, target] }).ConfigureAwait(false);
+        await ExpectFailureAsync("negative-distance", RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, new RimGovernor.Brain.GameFacts.Observations.PawnFilter { WithinColonistDistance = new RimGovernor.Brain.GameFacts.Observations.ColonistRange.Within { Distance = -1 } }).ConfigureAwait(false);
+        await ExpectFailureAsync("stale-identity", RimGovernor.Brain.GameFacts.Common.FailureCode.StaleIdentity, null, new RimGovernor.Brain.GameFacts.Observations.ReadScope { ExpectedIdentity = s.Identity with { LoadToken = "stale-load" } }).ConfigureAwait(false);
         var repeat = await ReadAsync("repeat", null).ConfigureAwait(false);
         if (!repeat.SequenceEqual(baseline))
         {

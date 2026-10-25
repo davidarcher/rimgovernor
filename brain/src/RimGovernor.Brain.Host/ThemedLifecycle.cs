@@ -13,12 +13,12 @@ namespace RimGovernor.Brain.Host;
 /// The adoption rides the completed poll, which the launcher and any player client make before using the colony; a
 /// colony nobody polls to completion starts without the theme's goals.
 /// </remarks>
-internal sealed class ThemedLifecycle(ILifecycleWriter inner, Func<PbCommon.ObservationContext, string, CancellationToken, Task> adopt) : ILifecycleWriter
+internal sealed class ThemedLifecycle(ILifecycleWriter inner, Func<RimGovernor.Brain.GameFacts.Common.ObservationContext, string, CancellationToken, Task> adopt) : ILifecycleWriter
 {
     private readonly object _mu = new();
     private readonly Dictionary<string, string> _themes = new(StringComparer.Ordinal);
 
-    public async Task<PbLifecycle.NewColonyReply> NewColonyAsync(PbLifecycle.NewColonyRequest request, CancellationToken cancellationToken)
+    public async Task<RimGovernor.Brain.GameFacts.Lifecycle.NewColonyReply> NewColonyAsync(RimGovernor.Brain.GameOrders.Lifecycle.NewColonyRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         var reply = await inner.NewColonyAsync(request, cancellationToken).ConfigureAwait(false);
@@ -32,13 +32,13 @@ internal sealed class ThemedLifecycle(ILifecycleWriter inner, Func<PbCommon.Obse
         return await SettleAsync(request.RequestId ?? "", reply, cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<PbLifecycle.NewColonyReply> ReadNewColonyAsync(string requestId, CancellationToken cancellationToken)
+    public async Task<RimGovernor.Brain.GameFacts.Lifecycle.NewColonyReply> ReadNewColonyAsync(string requestId, CancellationToken cancellationToken)
     {
         var reply = await inner.ReadNewColonyAsync(requestId, cancellationToken).ConfigureAwait(false);
         return await SettleAsync(requestId, reply, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<PbLifecycle.NewColonyReply> SettleAsync(string requestId, PbLifecycle.NewColonyReply reply, CancellationToken cancellationToken)
+    private async Task<RimGovernor.Brain.GameFacts.Lifecycle.NewColonyReply> SettleAsync(string requestId, RimGovernor.Brain.GameFacts.Lifecycle.NewColonyReply reply, CancellationToken cancellationToken)
     {
         if (reply.Outcome?.Pending is not null)
         {
@@ -57,15 +57,15 @@ internal sealed class ThemedLifecycle(ILifecycleWriter inner, Func<PbCommon.Obse
         return reply;
     }
 
-    public Task<PbLifecycle.SaveReply> SaveAsync(PbLifecycle.SaveRequest request, CancellationToken cancellationToken) => inner.SaveAsync(request, cancellationToken);
+    public Task<RimGovernor.Brain.GameFacts.Lifecycle.SaveReply> SaveAsync(RimGovernor.Brain.GameOrders.Lifecycle.SaveRequest request, CancellationToken cancellationToken) => inner.SaveAsync(request, cancellationToken);
 
-    public Task<PbLifecycle.SaveReply> ReadSaveAsync(string requestId, CancellationToken cancellationToken) => inner.ReadSaveAsync(requestId, cancellationToken);
+    public Task<RimGovernor.Brain.GameFacts.Lifecycle.SaveReply> ReadSaveAsync(string requestId, CancellationToken cancellationToken) => inner.ReadSaveAsync(requestId, cancellationToken);
 
-    public Task<PbLifecycle.LoadReply> LoadAsync(PbLifecycle.LoadRequest request, CancellationToken cancellationToken) => inner.LoadAsync(request, cancellationToken);
+    public Task<RimGovernor.Brain.GameFacts.Lifecycle.LoadReply> LoadAsync(RimGovernor.Brain.GameOrders.Lifecycle.LoadRequest request, CancellationToken cancellationToken) => inner.LoadAsync(request, cancellationToken);
 
-    public Task<PbLifecycle.LoadReply> ReadLoadAsync(string requestId, CancellationToken cancellationToken) => inner.ReadLoadAsync(requestId, cancellationToken);
+    public Task<RimGovernor.Brain.GameFacts.Lifecycle.LoadReply> ReadLoadAsync(string requestId, CancellationToken cancellationToken) => inner.ReadLoadAsync(requestId, cancellationToken);
 
-    public Task<PbLifecycle.MenuReply> MenuAsync(PbLifecycle.MenuRequest request, CancellationToken cancellationToken) => inner.MenuAsync(request, cancellationToken);
+    public Task<RimGovernor.Brain.GameFacts.Lifecycle.MenuReply> MenuAsync(RimGovernor.Brain.GameOrders.Lifecycle.MenuRequest request, CancellationToken cancellationToken) => inner.MenuAsync(request, cancellationToken);
 
-    public Task<PbLifecycle.MenuReply> ReadMenuAsync(string requestId, CancellationToken cancellationToken) => inner.ReadMenuAsync(requestId, cancellationToken);
+    public Task<RimGovernor.Brain.GameFacts.Lifecycle.MenuReply> ReadMenuAsync(string requestId, CancellationToken cancellationToken) => inner.ReadMenuAsync(requestId, cancellationToken);
 }

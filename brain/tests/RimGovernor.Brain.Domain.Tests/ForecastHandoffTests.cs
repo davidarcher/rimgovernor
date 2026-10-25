@@ -1,4 +1,5 @@
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -22,7 +23,7 @@ public sealed class ForecastHandoffTests
         var evidence = new WorkAdmissionEvidence { Stock = stock, Standing = new([], new Dictionary<Resource, long>()),
             Reservations = [], Promises = AdmissionAssertions.MaterialPromises([]) };
         return new() { Origin = new(0), HorizonDays = 1,
-            Facts = new() { Census = ColonyFactsCoreTests.Snapshot() with { Resources = EquatableArray.From(stock.Select(amount => new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = amount.Resource.Value, Units = amount.Count })) }, Food = new() { Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] }, Stocks = [new()
+            Facts = new() { Census = ColonyFactsCoreTests.Snapshot() with { Resources = EquatableArray.From(stock.Select(amount => new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = amount.Resource.Value, Units = amount.Count })) }, Food = new() { Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] }, Stocks = [new()
             {
                 Id = "meal", DefName = Food.Value, Count = 10L, Nutrition = 5d,
                 Place = new FoodPlace.Stands(true, ""), Form = new FoodForm.Item(), Rot = new FoodRot.Keeps(),
@@ -152,7 +153,7 @@ public sealed class ForecastHandoffTests
         Assert.Single(handoff.Shelters);
         var shelter = Assert.Single(handoff.ShelterPlans);
         Assert.Equal(20, shelter.Estimated().InitialTemperature);
-        Assert.Equal(30050, Assert.IsType<RimGovernor.Contracts.Wire.Observations.HeatSupply.Powered>(Assert.Single(shelter.Sources).Supply).Ticks);
+        Assert.Equal(30050, Assert.IsType<RimGovernor.Brain.GameFacts.Observations.HeatSupply.Powered>(Assert.Single(shelter.Sources).Supply).Ticks);
         Assert.Empty(shelter.Prerequisites);
     }
 
@@ -248,7 +249,7 @@ public sealed class ForecastHandoffTests
         var noSteel = request.Facts.ObservedStock().Where(s => s.Resource != Steel).ToArray();
         var stock = EquatableArray.From(noSteel);
         var basis = request.Coupled!.ModelBasis!;
-        request = request with { Facts = request.Facts with { Census = request.Facts.Census with { Resources = EquatableArray.From(stock.Select(amount => new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = amount.Resource.Value, Units = amount.Count })) } },
+        request = request with { Facts = request.Facts with { Census = request.Facts.Census with { Resources = EquatableArray.From(stock.Select(amount => new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = amount.Resource.Value, Units = amount.Count })) } },
             Coupled = request.Coupled with { ModelBasis = basis with { Input = basis.Input with { Stocks = basis.Input.Stocks with { Materials = stock } } },
                 Resources = request.Coupled.Resources with { Evidence = request.Coupled.Resources.Evidence with
                 { Stock = stock, Promises = AdmissionAssertions.MaterialPromises([("other", promise.MaterialClaims)]) } } } };

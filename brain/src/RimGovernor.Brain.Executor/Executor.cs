@@ -4,7 +4,7 @@ using RimGovernor.Brain.Store;
 
 namespace RimGovernor.Brain.Executor;
 
-// Port of internal/executor/executor.go. Owns one guarded building attempt at a time. The runtime must hold the
+// Owns one guarded building attempt at a time. The runtime must hold the
 // colony's process/store writer lease before enabling this local executor.
 //
 // (Result, error) pairs stay pairs where the result carries partial progress next to the failure
@@ -19,7 +19,7 @@ public sealed partial class Executor : IDisposable
     private readonly IBoundary _boundary;
     private readonly IClock _clock;
     private readonly Limits _limits;
-    private readonly IRoundsScope? _roundsScope;
+    private readonly IReviewScope? _reviewScope;
     private readonly SemaphoreSlim _writer = new(1, 1);
     private readonly Lock _gate = new();
 
@@ -34,7 +34,7 @@ public sealed partial class Executor : IDisposable
     private bool _stopped;
 
     /// <summary>Throws <see cref="DomainException"/> for a missing dependency or an invalid limit.</summary>
-    public Executor(IJournal journal, IBoundary boundary, IClock clock, Limits limits, IRoundsScope? roundsScope = null)
+    public Executor(IJournal journal, IBoundary boundary, IClock clock, Limits limits, IReviewScope? reviewScope = null)
     {
         DomainException.Require(
             journal is not null && boundary is not null && clock is not null && limits is not null
@@ -45,7 +45,7 @@ public sealed partial class Executor : IDisposable
         _boundary = boundary;
         _clock = clock;
         _limits = limits;
-        _roundsScope = roundsScope;
+        _reviewScope = reviewScope;
     }
 
     /// <summary>Releases the writer slot and the generation token. Call <see cref="StopAsync"/> first: this does not join an active dispatch.</summary>
@@ -59,10 +59,10 @@ public sealed partial class Executor : IDisposable
     }
 
     /// <summary>The executor with explicit walk-to-cell orders for drafted pawns.</summary>
-    public static Executor NewWithMovement(IJournal journal, IBoundary building, IMovementBoundary move, IClock clock, Limits limits, IRoundsScope? roundsScope = null)
+    public static Executor NewWithMovement(IJournal journal, IBoundary building, IMovementBoundary move, IClock clock, Limits limits, IReviewScope? reviewScope = null)
     {
         DomainException.Require(move is not null, "movement boundary required");
-        return new Executor(journal, building, clock, limits, roundsScope) { _movement = move };
+        return new Executor(journal, building, clock, limits, reviewScope) { _movement = move };
     }
 
     /// <summary>Activates the haul capability, wired explicitly rather than inferred from a composed boundary.</summary>
@@ -157,13 +157,13 @@ public sealed partial class Executor : IDisposable
         }
         if (!current.Snapshot.Matches(expected))
         {
-            if (_roundsScope is null)
+            if (_reviewScope is null)
             {
                 throw new AuthorityException();
             }
             try
             {
-                await _roundsScope.AuthorizeRoundsPlanAsync(current.Snapshot, expected, ct).ConfigureAwait(false);
+                await _reviewScope.AuthorizeReviewPlanAsync(current.Snapshot, expected, ct).ConfigureAwait(false);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {

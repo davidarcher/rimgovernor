@@ -23,8 +23,8 @@ public abstract record TargetQuantity
     private TargetQuantity() { }
     public sealed record Units(double Count) : TargetQuantity;
     public sealed record Unbounded : TargetQuantity;
-    public static TargetQuantity Of(RimGovernor.Contracts.Wire.Observations.NeedStock stock) =>
-        stock is RimGovernor.Contracts.Wire.Observations.NeedStock.Stacked stacked ? new Units(stacked.Count) : new Unbounded();
+    public static TargetQuantity Of(RimGovernor.Brain.GameFacts.Observations.NeedStock stock) =>
+        stock is RimGovernor.Brain.GameFacts.Observations.NeedStock.Stacked stacked ? new Units(stacked.Count) : new Unbounded();
 }
 /// <summary>One owner's claim on a capacity target; <see cref="Count"/> is the stack units it takes (0 for a bed or a pin).
 /// A stack use holds the target from <see cref="From"/> to <see cref="Until"/> (#3626); any other claim holds it throughout.</summary>
@@ -113,7 +113,7 @@ public sealed record WorkResourceView(WorkAdmissionEvidence Evidence, WorkResour
 public static partial class WorkRules
 {
     public static ProductionPromiseSet CreditCarriedBillInputs(ProductionPromiseSet promises,
-        EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn> observation)
+        EquatableArray<RimGovernor.Brain.GameFacts.Observations.WorkResourcePawn> observation)
     {
         if (promises is not ProductionPromiseSet.Assessed(var rows)) return promises;
         return new ProductionPromiseSet.Assessed(EquatableArray.From(rows.Select(c => c with
@@ -133,7 +133,7 @@ public static partial class WorkRules
             ? [new("journal", pawn, 0, 0, ForecastOccupancyState.Untimed)] : []);
         return ForecastCapacity.ForecastPawnCapacityOf(ForecastCapacity.InputOf(pawn, observed, horizon, protection, protectTimetable));
     }
-    public static RoundsFacts ReviewWorkResources(RoundsFacts facts, ProductionBatchCensus batches,
+    public static ReviewFacts ReviewWorkResources(ReviewFacts facts, ProductionBatchCensus batches,
         WorkActionCensus actions)
     {
         var evidence = ProductionRules.WorkAdmissionEvidenceOf(facts, batches);
@@ -415,17 +415,17 @@ public static partial class WorkRules
     /// continuation drops once native completion is observed, never predicted consumption; admission then shares the
     /// stack by the same arithmetic (<see cref="TargetOverCapacity"/>).
     /// </summary>
-    public static RimGovernor.Contracts.Wire.Observations.NeedTarget? ProposableNeedTarget(WorkResourceClaims claims,
-        RimGovernor.Contracts.Wire.Observations.NeedTarget target)
+    public static RimGovernor.Brain.GameFacts.Observations.NeedTarget? ProposableNeedTarget(WorkResourceClaims claims,
+        RimGovernor.Brain.GameFacts.Observations.NeedTarget target)
     {
         if (!claims.Targets.Contains(target.Id)) return target;
-        if (target.Kind != "food" || target.Stock is not RimGovernor.Contracts.Wire.Observations.NeedStock.Stacked(var stock, var freshness)) return null;
+        if (target.Kind != "food" || target.Stock is not RimGovernor.Brain.GameFacts.Observations.NeedStock.Stacked(var stock, var freshness)) return null;
         var held = claims.Shared.Where(s => s.Target == target.Id).ToArray();
         if (held.Length == 0 || held.Any(s => s.Alone)) return null;
         var units = stock - held.Sum(s => s.Count);
         var owners = target.MaxPawns - held.Select(s => s.Owner).Distinct(StringComparer.Ordinal).Count();
         return units > 0 && owners > 0
-            ? target with { AvailableCount = Math.Min(target.AvailableCount, units), Stock = new RimGovernor.Contracts.Wire.Observations.NeedStock.Stacked(units, freshness), MaxPawns = owners }
+            ? target with { AvailableCount = Math.Min(target.AvailableCount, units), Stock = new RimGovernor.Brain.GameFacts.Observations.NeedStock.Stacked(units, freshness), MaxPawns = owners }
             : null;
     }
 

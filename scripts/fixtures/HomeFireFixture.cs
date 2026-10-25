@@ -8,14 +8,14 @@ using RimWorld;
 using Verse;
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // control/home-fire-release (#3672): two capable colonists on committed orders, one holding and one sleeping, and a
     // fire set on staged kindling inside the home area.
     public sealed partial class PawnControlFixture
     {
         [Tool("test/home_fire_install", Description = "UNSAFE FOR MODEL EXECUTION. Install a long hold for the fighter and a sleep in the bed for the sleeper, then set the kindling alight. Test builds only.")]
-        public async Task<object> HomeFireInstall(IRimBridgeContext ctx, CancellationToken ct,
+        public async Task<object> HomeFireInstall(INativeContext ctx, CancellationToken ct,
             [ToolParameter(Description = "The holding colonist's load id.")] string fighter = "",
             [ToolParameter(Description = "The sleeping colonist's load id.")] string sleeper = "",
             [ToolParameter(Description = "The sleeper's bed's load id.")] string bed = "",

@@ -1,5 +1,3 @@
-using D = RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -9,7 +7,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class GearArmorTermTests
 {
     private static GearOption Garment(string id, GearSlot slot, string layer, double sharp, double blunt = 0, int quality = 2) =>
-        new() { Origin = new GearOptionOrigin.Observed(GearFixtures.Option(id, id, "", GearSource.Stored) with { Quality = new O.ItemQuality.Graded((D.QualityCategory)(quality)) }), Slot = slot, Layers = [layer], Groups = ["Torso"], Sharp = sharp, Blunt = blunt };
+        new() { Origin = new GearOptionOrigin.Observed(GearFixtures.Option(id, id, "", GearSource.Stored) with { Quality = new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded((RimGovernor.Brain.GameFacts.Defs.QualityCategory)(quality)) }), Slot = slot, Layers = [layer], Groups = ["Torso"], Sharp = sharp, Blunt = blunt };
 
     private static readonly GearOption Cloth = Garment("cloth-duster", GearSlot.Outer, "Shell", 0.1, 0.1);
     private static readonly GearOption Devilstrand = Garment("devilstrand-duster", GearSlot.Outer, "Shell", 0.5, 0.3);
@@ -49,7 +47,7 @@ public sealed class GearArmorTermTests
     {
         var threat = Threat(ArmorCategory.Sharp);
 
-        Assert.True(Value(threat, Devilstrand with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Devilstrand).Origin).Value) with { Quality = new O.ItemQuality.Graded(D.QualityCategory.Legendary) }) }) > Value(threat, Devilstrand));
+        Assert.True(Value(threat, Devilstrand with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Devilstrand).Origin).Value) with { Quality = new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded(RimGovernor.Brain.GameFacts.Defs.QualityCategory.Legendary) }) }) > Value(threat, Devilstrand));
         Assert.True(Value(threat, Devilstrand with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Devilstrand).Origin).Value) with { Condition = 0.4 }) }) < Value(threat, Devilstrand));
     }
 

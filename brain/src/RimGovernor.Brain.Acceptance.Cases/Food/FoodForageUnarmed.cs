@@ -1,7 +1,6 @@
 using System.Globalization;
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -65,11 +64,11 @@ internal static class FoodForageUnarmed
         long eaten = 0;
         _ = await s.ServeUntilAsync("forage", s.TicksLeft, async ct =>
         {
-            var facts = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, ct).ConfigureAwait(false);
-            designated.UnionWith(facts.Acquisition.Where(row => row.Designation is Observations.AcquisitionDesignation.Designated && row.Source.Id is { } id && bushes.Contains(id)).Select(row => row.Source.Id!));
+            var facts = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = s.Scope }, ct).ConfigureAwait(false);
+            designated.UnionWith(facts.Acquisition.Where(row => row.Designation is RimGovernor.Brain.GameFacts.Observations.AcquisitionDesignation.Designated && row.Source.Id is { } id && bushes.Contains(id)).Select(row => row.Source.Id!));
 
             // The ring lists completed hours only; a meal shows once its hour closes.
-            var hours = await s.CallAsync("consumption", NativeOps.ReadConsumption, new Observations.ConsumptionRequest { SinceHour = -1 }, ct).ConfigureAwait(false);
+            var hours = await s.CallAsync("consumption", NativeOps.ReadConsumption, new RimGovernor.Brain.GameOrders.Observations.ConsumptionRequest { SinceHour = -1 }, ct).ConfigureAwait(false);
             eaten = hours.Hours.SelectMany(h => h.Rows).Where(r => r is { Definition: "RawBerries", Reason: "food_eaten" }).Sum(r => r.Count);
             return (string.Create(CultureInfo.InvariantCulture, $"designated={designated.Count} eaten={eaten}"), designated.Count > 0 && eaten > 0);
         }, cancellationToken).ConfigureAwait(false);

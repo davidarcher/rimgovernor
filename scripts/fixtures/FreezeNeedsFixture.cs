@@ -6,7 +6,7 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Disposable test setup only; every fixture build carries this file. The needs test/freeze_needs pins
     // (FrozenNeeds) live in FixtureKit.cs with the other shared fixture primitives.
@@ -29,7 +29,7 @@ namespace HomeBridge.BridgeTools
     public sealed class FreezeNeedsFixture
     {
         [Tool("test/freeze_needs", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: pin every free colonist's needs at maximum after each needs tick except the NeedDefs in keep (e.g. Food, Rest, Joy), for the current game only. action=apply (default), inspect or release. Scenarios about eating, sleeping or mood keep those needs.")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> Run(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "apply (default), inspect or release.")] string action = "apply",
             [ToolParameter(Description = "Comma-separated NeedDef names left live; empty freezes everything.")] string keep = "")
         {

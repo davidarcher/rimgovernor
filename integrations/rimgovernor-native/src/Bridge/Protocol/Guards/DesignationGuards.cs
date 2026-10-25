@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // What the in-progress re-check of a guarded designation decides.
     internal enum GuardVerdict { Proceed, Wait, Cancel }

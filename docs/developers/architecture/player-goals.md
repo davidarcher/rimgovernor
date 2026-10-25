@@ -22,7 +22,7 @@ pursuit: a kind with no method still validates, persists and renders as `NoMetho
 
 - Each goal is a Development Need whose predicate is the kind's, over the review facts.
 - An unmet goal becomes demand on a channel that already exists. `GoalRules.DemandOf` collects it and
-  `GoalRules.Stamp` carries it on `RoundsFacts` into every read of the world, so demand lags a goal by one review.
+  `GoalRules.Stamp` carries it on `ReviewFacts` into every read of the world, so demand lags a goal by one review.
   The channels are the research-wanted set, the resource floors, the joiner and herd targets, the planned-room
   producers (`GoalBuild`), the outfit requirements and clothing bills, the quest step, the prisoner recruit set, the
   ideoligion reform planner and the conversion Need. The owning planner's own Need, safety floors and refusals decide
@@ -36,7 +36,7 @@ predicate and a demand, not a Family.
 
 ## Preferences are facts
 
-Standing preferences are not Needs. `RoundsFacts.Preferences` is stamped once where the review facts are observed,
+Standing preferences are not Needs. `ReviewFacts.Preferences` is stamped once where the review facts are observed,
 and the owning policy reads it: the food policy for diet, the apparel policy for dress, the drug policy planner, the
 butchery, organ and slavery refusals, clearance and draft exclusions. There is no veto layer and no Safeguard; the
 policy never proposes what the preference forbids ([persistence contracts](../contracts/persistence-contracts.md)).
@@ -53,7 +53,7 @@ named by a saved key simply stops resolving.
 
 ## Status to panel
 
-`GoalsRounds.ReadAsync` derives each goal's status and each theme's progress for its `goal_review` decision rows and
+`GoalsReview.ReadAsync` derives each goal's status and each theme's progress for its `goal_review` decision rows and
 publishes them to the in-memory `GoalStatusBoard`, keyed to the colony. `BrainHost.GoalsView.Current()` returns the
 record with those statuses, and `BrainHost.GoalsEditor` validates and stores an edit and wakes the `goals` planner.
 No HTTP route exists. Theme progress is value-weighted: each goal weighs its effective importance (Low 1, Normal 2,

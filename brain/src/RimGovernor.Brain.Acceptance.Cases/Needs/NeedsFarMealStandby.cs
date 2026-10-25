@@ -134,7 +134,7 @@ internal static class NeedsFarMealStandby
     // review: the review left it unheld (#3669).
     private static bool Released(TypedSession s, string pawn)
     {
-        var reviews = s.Telemetry(TelemetryKinds.RoundsReview).Where(r => r.HasTick).Select(r => r.Tick).ToList();
+        var reviews = s.Telemetry(TelemetryKinds.ReviewStep).Where(r => r.HasTick).Select(r => r.Tick).ToList();
         if (reviews.Count == 0) return false;
         var first = reviews.Min();
         return s.Telemetry(TelemetryKinds.PawnActivityInterval).Any(r =>

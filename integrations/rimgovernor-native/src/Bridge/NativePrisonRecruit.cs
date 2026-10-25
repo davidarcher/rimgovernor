@@ -5,19 +5,18 @@ using RimWorld;
 using UnityEngine;
 using Verse;
 using RimGovernor.Brain.Domain;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 /// <summary>
-/// The recruitment mechanics the prison credit prices (#3805, #3899, Obs.PrisonRecruitRead): the resistance curves, the rapport
+/// The recruitment mechanics the prison credit prices (#3805, #3899, RimGovernor.Brain.GameFacts.Observations.PrisonRecruitRead): the resistance curves, the rapport
 /// memory a chat gives, the wardens among the colonists with their inspirations, and every prisoner of the colony on the map, with
 /// its mood and memory groups, its opinion of each warden in its parts and what it would be as a colonist. Read-only: no thought is
 /// added, recalculated or cached on any pawn, and no inspiration is started.
 /// </summary>
 internal static class NativePrisonRecruit
 {
-    internal static Obs.PrisonRecruitRead Read(Map map, List<Pawn> people, Func<NativeRecreation.OutdoorClimate> climate)
+    internal static RimGovernor.Brain.GameFacts.Observations.PrisonRecruitRead Read(Map map, List<Pawn> people, Func<NativeRecreation.OutdoorClimate> climate)
     {
         var wardens = people.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Warden)).OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         var rapport = InteractionDefOf.BuildRapport.recipientThought ?? throw new InvalidOperationException("BuildRapport has no recipient thought.");
@@ -50,13 +49,13 @@ internal static class NativePrisonRecruit
         BridgeCommon.PrivateStaticField(typeof(InteractionWorker_RecruitAttempt), field)?.GetValue(null) is float factor
             ? factor : throw new InvalidOperationException("InteractionWorker_RecruitAttempt." + field + " is not readable.");
 
-    private static EquatableArray<Obs.CurvePointRead> Points(SimpleCurve curve) => EquatableArray.From(curve.Points.Select(p => new Obs.CurvePointRead(p.x, p.y)));
+    private static EquatableArray<RimGovernor.Brain.GameFacts.Observations.CurvePointRead> Points(SimpleCurve curve) => EquatableArray.From(curve.Points.Select(p => new RimGovernor.Brain.GameFacts.Observations.CurvePointRead(p.x, p.y)));
 
     /// <summary>
-    /// A warden (Obs.WardenRead): its NegotiationAbility, its inspiration now, InspirationHandler.BlockedByHediff's clause, and the
+    /// A warden (RimGovernor.Brain.GameFacts.Observations.WardenRead): its NegotiationAbility, its inspiration now, InspirationHandler.BlockedByHediff's clause, and the
     /// defs InspirationHandler.GetRandomAvailableInspirationDef picks among (InspirationCanOccur) at their CommonalityFor weight.
     /// </summary>
-    private static Obs.WardenRead WardenOf(Pawn warden)
+    private static RimGovernor.Brain.GameFacts.Observations.WardenRead WardenOf(Pawn warden)
     {
         var handler = warden.mindState?.inspirationHandler ?? throw new InvalidOperationException("warden without an inspiration handler: " + warden.GetUniqueLoadID());
         return new(warden.GetUniqueLoadID(), F(warden.GetStatValue(StatDefOf.NegotiationAbility), "negotiation ability"))
@@ -65,11 +64,11 @@ internal static class NativePrisonRecruit
             InspirationBlocked = warden.health.hediffSet.hediffs.Any(h => h.CurStage is { blocksInspirations: true }),
             Inspirations = EquatableArray.From(DefDatabase<InspirationDef>.AllDefsListForReading.Where(d => d.Worker.InspirationCanOccur(warden))
                 .OrderBy(d => d.defName, StringComparer.Ordinal)
-                .Select(d => new Obs.InspirationChanceRead(d.defName, F(d.Worker.CommonalityFor(warden), "inspiration commonality"), F(d.baseDurationDays, "inspiration duration")))),
+                .Select(d => new RimGovernor.Brain.GameFacts.Observations.InspirationChanceRead(d.defName, F(d.Worker.CommonalityFor(warden), "inspiration commonality"), F(d.baseDurationDays, "inspiration duration")))),
         };
     }
 
-    private static Obs.PrisonerRecruitRead PrisonerOf(Pawn pawn, Pawn[] wardens, ThoughtDef rapport, Map map, Func<NativeRecreation.OutdoorClimate> climate)
+    private static RimGovernor.Brain.GameFacts.Observations.PrisonerRecruitRead PrisonerOf(Pawn pawn, Pawn[] wardens, ThoughtDef rapport, Map map, Func<NativeRecreation.OutdoorClimate> climate)
     {
         var guest = pawn.guest ?? throw new InvalidOperationException("prisoner without a guest tracker: " + pawn.GetUniqueLoadID());
         return new()
@@ -87,7 +86,7 @@ internal static class NativePrisonRecruit
         (typeof(ThoughtWorker_PrisonCellImpressiveness), "prison_cell"), (typeof(ThoughtWorker_PrisonBarracksImpressiveness), "prison_barracks"),
     ];
 
-    private static Obs.PrisonerMoodRead? MoodOf(Pawn pawn)
+    private static RimGovernor.Brain.GameFacts.Observations.PrisonerMoodRead? MoodOf(Pawn pawn)
     {
         if (pawn.needs?.mood is not { } mood) return null;
         var groups = new List<Thought>();
@@ -96,7 +95,7 @@ internal static class NativePrisonRecruit
             + (mood.thoughts.TotalMoodOffset() + (pawn.IsColonist || pawn.IsPrisonerOfColony ? Find.Storyteller.difficulty.colonistMoodOffset : 0)) / 100d;
         var cell = groups.Where(t => CellThoughts.Any(c => c.Worker == t.def.workerClass)).Sum(t => (double)mood.thoughts.MoodOffsetOfGroup(t));
         var ascetic = pawn.story?.traits?.HasTrait(TraitDefOf.Ascetic) == true;
-        var rows = new List<Obs.NeedThoughtStage>();
+        var rows = new List<RimGovernor.Brain.GameFacts.Observations.NeedThoughtStage>();
         foreach (var (worker, role) in CellThoughts)
             foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == worker && d.stages != null))
             {
@@ -106,16 +105,16 @@ internal static class NativePrisonRecruit
                     // ThoughtWorker_RoomImpressiveness leaves the thought inactive at a null stage and for an Ascetic pawn: a 0 row.
                     var offset = can && def.stages[stage] != null ? NativeNeedsForecast.StageOffset(pawn, def, stage) : 0;
                     if (!double.IsFinite(offset)) throw new InvalidOperationException(def.defName + " stage " + stage + " offset is not finite.");
-                    rows.Add(new(def.defName, role, stage, offset, new Obs.ThoughtLasting.Situational()));
+                    rows.Add(new(def.defName, role, stage, offset, new RimGovernor.Brain.GameFacts.Observations.ThoughtLasting.Situational()));
                 }
             }
         // ThoughtHandler.GetAllMoodThoughts' memories, grouped as MoodOffsetOfGroup groups them (Thought.GroupsWith).
-        var memories = new List<Obs.MemoryGroupRead>();
+        var memories = new List<RimGovernor.Brain.GameFacts.Observations.MemoryGroupRead>();
         foreach (var head in Heads(mood.thoughts.memories.Memories))
             memories.Add(new(head.def.stackedEffectMultiplier)
             {
-                Members = EquatableArray.From(mood.thoughts.memories.Memories.Where(m => m.GroupsWith(head)).Select(m => new Obs.NeedMemory(m.def.defName,
-                    F(m.MoodOffset(), "memory offset"), m.permanent ? new Obs.MemoryLife.Permanent() : new Obs.MemoryLife.Expires(Math.Max(0, m.DurationTicks - m.age)),
+                Members = EquatableArray.From(mood.thoughts.memories.Memories.Where(m => m.GroupsWith(head)).Select(m => new RimGovernor.Brain.GameFacts.Observations.NeedMemory(m.def.defName,
+                    F(m.MoodOffset(), "memory offset"), m.permanent ? new RimGovernor.Brain.GameFacts.Observations.MemoryLife.Permanent() : new RimGovernor.Brain.GameFacts.Observations.MemoryLife.Expires(Math.Max(0, m.DurationTicks - m.age)),
                     m.def.lerpMoodToZero) { StackLimit = m.def.stackLimit })),
             });
         return new(F(unclamped, "prisoner unclamped mood"), F(cell, "prison cell thought")) { CellStages = EquatableArray.From(rows), Memories = EquatableArray.From(memories) };
@@ -140,7 +139,7 @@ internal static class NativePrisonRecruit
     /// the ages of the rapport memories of other pawns; and, for a wild man, InteractionWorker_RecruitAttempt's taming chance
     /// in a prison cell (no Inspired_Taming).
     /// </summary>
-    private static Obs.WardenOpinionRead OpinionOf(Pawn pawn, Pawn other, ThoughtDef rapport)
+    private static RimGovernor.Brain.GameFacts.Observations.WardenOpinionRead OpinionOf(Pawn pawn, Pawn other, ThoughtDef rapport)
     {
         if (!other.RaceProps.Humanlike) throw new InvalidOperationException("warden is not humanlike: " + other.GetUniqueLoadID());
         var relations = 0;
@@ -149,7 +148,7 @@ internal static class NativePrisonRecruit
         foreach (var hediff in pawn.health.hediffSet.hediffs)
             if (hediff.CurStage != null) factor *= hediff.CurStage.opinionOfOthersFactor;
         var situational = 0;
-        var groups = new List<Obs.SocialMemoryGroupRead>();
+        var groups = new List<RimGovernor.Brain.GameFacts.Observations.SocialMemoryGroupRead>();
         var others = new List<double>();
         var chat = 0d;
         // OpinionOf counts thoughts only for a humanlike pawn with a mood need.
@@ -179,13 +178,13 @@ internal static class NativePrisonRecruit
 
     // A social memory as OpinionOffset reads it: the opinionOffset (0 while nullified) and its age, by its class. A subclass the
     // credit does not model is a broken read.
-    private static Obs.SocialMemoryRead MemoryOf(Pawn pawn, Thought_MemorySocial memory)
+    private static RimGovernor.Brain.GameFacts.Observations.SocialMemoryRead MemoryOf(Pawn pawn, Thought_MemorySocial memory)
     {
         var offset = ThoughtUtility.ThoughtNullified(pawn, memory.def) ? 0 : F(memory.opinionOffset, "social memory offset");
         return memory switch
         {
-            Thought_MemorySocialCumulative => new Obs.SocialMemoryRead.Cumulative(offset, memory.age, memory.def.maxCumulatedOpinionOffset),
-            _ when memory.GetType() == typeof(Thought_MemorySocial) => new Obs.SocialMemoryRead.Fading(offset, memory.age, memory.DurationTicks),
+            Thought_MemorySocialCumulative => new RimGovernor.Brain.GameFacts.Observations.SocialMemoryRead.Cumulative(offset, memory.age, memory.def.maxCumulatedOpinionOffset),
+            _ when memory.GetType() == typeof(Thought_MemorySocial) => new RimGovernor.Brain.GameFacts.Observations.SocialMemoryRead.Fading(offset, memory.age, memory.DurationTicks),
             _ => throw new InvalidOperationException("social memory class " + memory.GetType().Name + " of " + memory.def.defName + " is not modelled."),
         };
     }
@@ -233,12 +232,12 @@ internal static class NativePrisonRecruit
     }
 
     /// <summary>
-    /// The pawn as it would be once it joins (#3805, Obs.JoinerRead): its upkeep (no mood: its mood parts are read apart), its
+    /// The pawn as it would be once it joins (#3805, RimGovernor.Brain.GameFacts.Observations.JoinerRead): its upkeep (no mood: its mood parts are read apart), its
     /// mood parts and its food, rest and joy needs. A pawn without the joy need now that would have it as a colonist (a prisoner:
     /// the Joy NeedDef is neverOnPrisoner) is read from a detached Need_Joy at its Satisfied threshold, built under its own random
     /// state (the Need constructor's SetInitialLevel draws from Rand).
     /// </summary>
-    private static Obs.JoinerRead JoinerOf(Pawn pawn, Map map, Func<NativeRecreation.OutdoorClimate> climate)
+    private static RimGovernor.Brain.GameFacts.Observations.JoinerRead JoinerOf(Pawn pawn, Map map, Func<NativeRecreation.OutdoorClimate> climate)
     {
         var joy = pawn.needs?.joy ?? DetachedJoy(pawn);
         return new()
@@ -274,15 +273,15 @@ internal static class NativePrisonRecruit
     }
 
     /// <summary>
-    /// The joiner's own mood parts (Obs.JoinerMoodRead); null without a mood need or a mental breaker. A trait thought is a
+    /// The joiner's own mood parts (RimGovernor.Brain.GameFacts.Observations.JoinerMoodRead); null without a mood need or a mental breaker. A trait thought is a
     /// situational non-social def whose requiredTraits the pawn has (CanGetThought's trait clause) and its traits do not disallow:
     /// an always-active one at its unattached MoodOffset, an <see cref="OwnStateWorkers"/> one at its worker's state now, an
     /// own-bedroom one (NativeNeedsForecast.RoomTraitWorkers) as its stage rows, any other named. The memories are its live memory groups.
     /// </summary>
-    private static Obs.JoinerMoodRead? JoinerMoodOf(Pawn pawn)
+    private static RimGovernor.Brain.GameFacts.Observations.JoinerMoodRead? JoinerMoodOf(Pawn pawn)
     {
         if (pawn.needs?.mood is not { } mood || pawn.mindState?.mentalBreaker is not { } breaker) return null;
-        var traits = new List<Obs.ThoughtOffsetRead>();
+        var traits = new List<RimGovernor.Brain.GameFacts.Observations.ThoughtOffsetRead>();
         var room = new List<ThoughtDef>();
         var situational = new List<string>();
         foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => !d.IsMemory && !d.IsSocial && !d.requiredTraits.NullOrEmpty())
@@ -303,7 +302,7 @@ internal static class NativePrisonRecruit
             if (!double.IsFinite(offset)) throw new InvalidOperationException(def.defName + " trait thought offset is not finite.");
             traits.Add(new(def.defName, offset));
         }
-        var memories = new List<Obs.ThoughtOffsetRead>();
+        var memories = new List<RimGovernor.Brain.GameFacts.Observations.ThoughtOffsetRead>();
         foreach (var head in Heads(mood.thoughts.memories.Memories)) memories.Add(new(head.def.defName, F(mood.thoughts.MoodOffsetOfGroup(head), "memory group offset")));
         return new(F(pawn.health.hediffSet.OverrideMoodBase ?? mood.def.baseLevel, "mood base level"), Find.Storyteller.difficulty.colonistMoodOffset, breaker.BreakThresholdMinor)
         {

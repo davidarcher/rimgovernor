@@ -1,6 +1,6 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -16,7 +16,7 @@ public sealed class ColonyModelContinuationTests
         Pawns = EquatableArray.From(new[] { ProjectGraphTests.Pawn("Anna", 1, 1) with
         {
             Needs = EquatableArray.From(new[] { new ModelNeed { Kind = "food", Fall = 0d, Gain = 0, Threshold = .3, Service = new ModelService.NoneObserved() } }),
-            Skills = EquatableArray.From<O.Skill>([]),
+            Skills = EquatableArray.From<RimGovernor.Brain.GameFacts.Observations.Skill>([]),
         } }),
         Stocks = new ModelStocks { Nutrition = 100d, Materials = EquatableArray.From(new[] { new Amount(Steel, 20) }), Medicine = EquatableArray.From<Amount>([]) },
     };

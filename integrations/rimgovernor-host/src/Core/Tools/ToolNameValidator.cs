@@ -3,10 +3,10 @@ using System.Text.RegularExpressions;
 
 namespace RimGovernor.Host.Core.Tools;
 
-/// <summary>The tool name shape the registry accepts: slash-delimited lowercase segments such as <c>rimgovernor/ping</c>.</summary>
+/// <summary>The operation name shape the registry accepts: a lowercase name, optionally grouped by slashes.</summary>
 public static class ToolNameValidator
 {
-    public const string CanonicalPattern = "^[a-z][a-z0-9_-]*(/[a-z][a-z0-9_-]*)+$";
+    public const string CanonicalPattern = "^[a-z][a-z0-9_-]*(/[a-z][a-z0-9_-]*)*$";
 
     private static readonly Regex CanonicalToolNameRegex = new(CanonicalPattern, RegexOptions.CultureInvariant);
 
@@ -21,6 +21,6 @@ public static class ToolNameValidator
             throw new ArgumentException("Tool name cannot be null or empty.", valueName);
 
         if (!IsCanonical(name))
-            throw new ArgumentException($"Tool name '{name}' must match {CanonicalPattern}. Use slash-delimited canonical names such as 'rimgovernor/ping'; dotted names are not valid here.", valueName);
+            throw new ArgumentException($"Tool name '{name}' must match {CanonicalPattern}. Use lowercase operation names such as 'ping' or 'test/lab_start'; dotted names are not valid here.", valueName);
     }
 }

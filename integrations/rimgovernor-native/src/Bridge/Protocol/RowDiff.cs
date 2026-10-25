@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// The per-row compare of a keyed family: each row is kept per row id and

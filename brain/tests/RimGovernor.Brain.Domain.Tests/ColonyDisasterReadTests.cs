@@ -1,9 +1,7 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using C = RimGovernor.Contracts.Wire.Common;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -20,15 +18,15 @@ public sealed class ColonyDisasterReadTests
         var building = PowerBuildingFixtures.Trader("generator", "Generator", new(3, 4), 1000, 800, true);
         var condition = new DisasterCondition
         {
-            Observed = new O.EnvironmentCondition { Id = "flare", DefName = "SolarFlare", Duration = new O.ConditionDuration.Timed { Ticks = 700 } },
+            Observed = new RimGovernor.Brain.GameFacts.Observations.EnvironmentCondition { Id = "flare", DefName = "SolarFlare", Duration = new RimGovernor.Brain.GameFacts.Observations.ConditionDuration.Timed { Ticks = 700 } },
             DisablesPower = true,
         };
         var snapshot = ColonyFactsCoreTests.Snapshot() with
         {
-            Recovery = new() { Restrictions = [], Buildings = [new C.Ref { Id = building.Building.Id }] },
+            Recovery = new() { Restrictions = [], Buildings = [new RimGovernor.Brain.GameFacts.Common.Ref { Id = building.Building.Id }] },
         };
 
-        var facts = ColonyFramesReads.ColonyDisaster(snapshot, new RoundsFacts(), Buildings.Of(building), [condition]);
+        var facts = ColonyFramesReads.ColonyDisaster(snapshot, new ReviewFacts(), Buildings.Of(building), [condition]);
 
         Assert.Same(building, Assert.Single(facts.RecoveryBuildings));
         Assert.Same(condition, Assert.Single(facts.DisasterConditions));
@@ -40,7 +38,7 @@ public sealed class ColonyDisasterReadTests
     public void AnEmptyRecoverySectionReadsAsNoRestrictionsAndNoBuildings()
     {
         var snapshot = ColonyFactsCoreTests.Snapshot();
-        var facts = ColonyFramesReads.ColonyDisaster(snapshot, new RoundsFacts(), default, default);
+        var facts = ColonyFramesReads.ColonyDisaster(snapshot, new ReviewFacts(), default, default);
 
         Assert.Empty(facts.RecoverySafety.Restrictions);
         Assert.Empty(facts.RecoveryBuildings);
@@ -52,9 +50,9 @@ public sealed class ColonyDisasterReadTests
     {
         var snapshot = ColonyFactsCoreTests.Snapshot() with
         {
-            Recovery = new() { Restrictions = [new O.RecoveryRestriction { Pawn = new C.Ref { Id = "pawn-1" }, AreaId = null }], Buildings = [] },
+            Recovery = new() { Restrictions = [new RimGovernor.Brain.GameFacts.Observations.RecoveryRestriction { Pawn = new RimGovernor.Brain.GameFacts.Common.Ref { Id = "pawn-1" }, AreaId = null }], Buildings = [] },
         };
-        var facts = ColonyFramesReads.ColonyDisaster(snapshot, new RoundsFacts(), default, default);
+        var facts = ColonyFramesReads.ColonyDisaster(snapshot, new ReviewFacts(), default, default);
 
         var restriction = Assert.Single(facts.RecoverySafety.Restrictions);
         Assert.Same(snapshot.Recovery.Restrictions[0], restriction);
@@ -67,9 +65,9 @@ public sealed class ColonyDisasterReadTests
     {
         var snapshot = ColonyFactsCoreTests.Snapshot() with
         {
-            Recovery = new() { Restrictions = [], Buildings = [new C.Ref { Id = "building-1" }] },
+            Recovery = new() { Restrictions = [], Buildings = [new RimGovernor.Brain.GameFacts.Common.Ref { Id = "building-1" }] },
         };
 
-        Assert.Throws<BridgeContractException>(() => ColonyFramesReads.ColonyDisaster(snapshot, new RoundsFacts(), default, default));
+        Assert.Throws<BridgeContractException>(() => ColonyFramesReads.ColonyDisaster(snapshot, new ReviewFacts(), default, default));
     }
 }

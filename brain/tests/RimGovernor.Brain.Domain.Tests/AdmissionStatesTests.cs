@@ -73,7 +73,7 @@ public sealed class AdmissionStatesTests
         {
             batch = batch with { Progress = batch.Progress with { Attempt = new(1), Stage = Stage.Completed, Bill = "bill" } };
             pricing = new BatchPricing.Priced(batch, [[new(new("Steel"), 2)]], false);
-            bills = [new(BillWire.Bill("bill") with { RepeatMode = RimGovernor.Contracts.Wire.Operations.RepeatMode.Count })];
+            bills = [new(BillWire.Bill("bill") with { RepeatMode = RimGovernor.Brain.GameFacts.Operations.RepeatMode.Count })];
         }
         Assert.Equal(reason, Assert.IsType<ProductionPromiseSet.Blocked>(ProductionRules.ProductionPromisesOf([pricing], bills)).Reason);
     }
@@ -82,10 +82,10 @@ public sealed class AdmissionStatesTests
     public void TradeRetentionDistinguishesTheConsumptionReadFromAnOpenMaterialObligation()
     {
         var facts = WorkResourceTestFacts.Create();
-        Assert.IsType<TradeRetention.AwaitingConsumption>(ResourceRules.ResourceDemandOf(facts, RoundsRules.DefaultRoundsPolicy(), new()).Retained);
+        Assert.IsType<TradeRetention.AwaitingConsumption>(ResourceRules.ResourceDemandOf(facts, Rules.DefaultPlannerSettings(), new()).Retained);
         facts = facts with { ResourceConsumption = new ResourceConsumption() };
-        Assert.IsType<TradeRetention.OpenMaterialObligation>(ResourceRules.ResourceDemandOf(facts, RoundsRules.DefaultRoundsPolicy(), new()).Retained);
+        Assert.IsType<TradeRetention.OpenMaterialObligation>(ResourceRules.ResourceDemandOf(facts, Rules.DefaultPlannerSettings(), new()).Retained);
         facts = facts with { ProductionPromises = new ProductionPromiseSet.Assessed([]) };
-        Assert.IsType<TradeRetention.Assessed>(ResourceRules.ResourceDemandOf(facts, RoundsRules.DefaultRoundsPolicy(), new()).Retained);
+        Assert.IsType<TradeRetention.Assessed>(ResourceRules.ResourceDemandOf(facts, Rules.DefaultPlannerSettings(), new()).Retained);
     }
 }

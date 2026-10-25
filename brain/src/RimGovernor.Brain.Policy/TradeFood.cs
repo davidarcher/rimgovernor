@@ -53,7 +53,7 @@ public static partial class TradePolicyRules
     /// Uses the shared tick plan and the observed active meal recipe. One day's ingredient buffer bridges a
     /// missing source without pretending a proposed channel is already producing stock.
     /// </summary>
-    public static TradeFoodContext RoundsTradeFood(RoundsFacts f, RoundsPolicy p)
+    public static TradeFoodContext TradeFood(ReviewFacts f, PlannerSettings p)
     {
         var plan = f.FoodPlan ?? throw new RequiredFactException("food plan");
         var runway = plan.Forecast.RunwayDays;

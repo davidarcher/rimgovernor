@@ -7,14 +7,14 @@ using RimWorld;
 using Verse;
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // control/unassigned-runs-vanilla (#3669): a player's CutPlant designation on a staged tree, which the stage
     // primitives cannot express, and the colonist's job as the native job tracker runs it.
     public sealed class VanillaChopFixture
     {
         [Tool("test/vanilla_chop_designate", Description = "UNSAFE FOR MODEL EXECUTION. Lay a player CutPlant designation on one plant by id. Test builds only.")]
-        public async Task<object> Designate(IRimBridgeContext ctx, CancellationToken ct,
+        public async Task<object> Designate(INativeContext ctx, CancellationToken ct,
             [ToolParameter(Description = "The plant's load id.")] string plant = "") => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             var map = Find.CurrentMap ?? throw new InvalidOperationException("A loaded game is required.");
@@ -25,7 +25,7 @@ namespace HomeBridge.BridgeTools
         }, ct).ConfigureAwait(false);
 
         [Tool("test/vanilla_chop_read", Description = "UNSAFE FOR MODEL EXECUTION. Read one colonist's current JobDef and whether a Hands execution owns it. Test builds only.")]
-        public async Task<object> Read(IRimBridgeContext ctx, CancellationToken ct,
+        public async Task<object> Read(INativeContext ctx, CancellationToken ct,
             [ToolParameter(Description = "The colonist's load id.")] string pawn = "") => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             var map = Find.CurrentMap ?? throw new InvalidOperationException("A loaded game is required.");

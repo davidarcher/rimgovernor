@@ -29,7 +29,7 @@ public static partial class MechRules
         var recovered = true;
         foreach (var mech in g.Mechs)
         {
-            if (mech.Energy is not RimGovernor.Contracts.Wire.Observations.PawnMechEnergy.Level { Fraction: var energy } || mech.Group is not { } band)
+            if (mech.Energy is not RimGovernor.Brain.GameFacts.Observations.PawnMechEnergy.Level { Fraction: var energy } || mech.Group is not { } band)
             {
                 recovered = false;
                 continue;
@@ -51,7 +51,7 @@ public static partial class MechRules
     }
 
     /// <summary>Whether some charger is powered and not full of waste (Building_MechCharger.IsFullOfWaste stops it charging).</summary>
-    public static bool MechChargerReady(IReadOnlyList<RimGovernor.Contracts.Wire.Observations.MechChargerState> chargers)
+    public static bool MechChargerReady(IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.MechChargerState> chargers)
     {
         foreach (var c in chargers)
         {
@@ -71,6 +71,6 @@ public static partial class MechRules
     /// power consumer (PowerCoverage, connectLiveBeforeUpgrade), so wiring it is the power goal's and a second
     /// charger would stand unpowered too. Gestation waits on MechChargerReady meanwhile.
     /// </summary>
-    public static bool MechChargerOwed(int mechanitors, IReadOnlyList<RimGovernor.Contracts.Wire.Observations.MechChargerState> chargers) =>
+    public static bool MechChargerOwed(int mechanitors, IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.MechChargerState> chargers) =>
         mechanitors > 0 && chargers.All(c => c.ChargingMechId is not null && !c.FullOfWaste);
 }

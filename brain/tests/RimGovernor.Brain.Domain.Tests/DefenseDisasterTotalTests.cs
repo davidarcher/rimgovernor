@@ -1,6 +1,6 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -20,15 +20,15 @@ public sealed class DefenseDisasterTotalTests
     [Fact]
     public void SleepingAbsenceCannotClearAWeatherShelterOrRestoreTemperature()
     {
-        var facts = new RoundsFacts
+        var facts = new ReviewFacts
         {
             Hostiles = new HostileCensus.Quiet(),
             Census = ColonyFactsCoreTests.Snapshot() with { SleepingTemperature = new SleepingTemperature.NoIndoorBed() },
             DisasterConditions = [new DisasterCondition { Observed = new EnvironmentCondition { Id = "cold-snap", DefName = DisasterRules.ConditionColdSnap, Duration = new ConditionDuration.Permanent() } }],
         };
         Assert.Equal(ShelterTrigger.NoIndoorBed, ShelterRules.ShelterTriggerOf(facts));
-        Assert.Equal(DisasterServiceStatus.Deficit, RoundsRules.DisasterServiceFacts(facts, RoundsRules.DefaultRoundsPolicy())[DisasterService.Temperature]);
-        Assert.Equal(DisasterServiceStatus.AwaitingFoodPlan, RoundsRules.DisasterServiceFacts(facts, RoundsRules.DefaultRoundsPolicy())[DisasterService.Food]);
+        Assert.Equal(DisasterServiceStatus.Deficit, Rules.DisasterServiceFacts(facts, Rules.DefaultPlannerSettings())[DisasterService.Temperature]);
+        Assert.Equal(DisasterServiceStatus.AwaitingFoodPlan, Rules.DisasterServiceFacts(facts, Rules.DefaultPlannerSettings())[DisasterService.Food]);
         Assert.Equal(ShelterTrigger.Temperature, ShelterRules.ShelterTriggerOf(facts with { Census = facts.Census with { SleepingTemperature = new SleepingTemperature.Indoor(15, 25), OutdoorTemperatureC = -30 } }));
         Assert.Equal(ShelterTrigger.None, ShelterRules.ShelterTriggerOf(facts with { DisasterConditions = [] }));
         Assert.Equal(ShelterTrigger.AwaitingEmergency, ShelterRules.ShelterTriggerOf(facts with { DisasterConditions = [], Hostiles = new HostileCensus.AwaitingEmergency() }));
@@ -45,8 +45,8 @@ public sealed class DefenseDisasterTotalTests
     [Fact]
     public void HuntingAdmissionUsesZeroOrTheObservedIntegerBudget()
     {
-        var prey = new AcquisitionSource { Observed = new() { Source = new() { Id = "prey" }, Token = "prey", Resource = "Meat_Deer", Yield = 1, Designation = new O.AcquisitionDesignation.Open(), Taken = false, Kind = new O.AcquisitionKind.Hunt(82, 1, false, false, false, false) },
-        Entity = new() { Id = "prey", DefName = "Deer", Label = "Deer", Place = new O.EntityPlace.OnMap(1, new Cell(1, 1)) }, NutritionYield = 2 };
+        var prey = new AcquisitionSource { Observed = new() { Source = new() { Id = "prey" }, Token = "prey", Resource = "Meat_Deer", Yield = 1, Designation = new RimGovernor.Brain.GameFacts.Observations.AcquisitionDesignation.Open(), Taken = false, Kind = new RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Hunt(82, 1, false, false, false, false) },
+        Entity = new() { Id = "prey", DefName = "Deer", Label = "Deer", Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(1, new Cell(1, 1)) }, NutritionYield = 2 };
         var held = new Dictionary<string, bool>();
         Assert.Empty(AcquisitionRules.SelectAcquisition([prey], 2, 0, true, held, 0));
         Assert.Equal(prey, Assert.Single(AcquisitionRules.SelectAcquisition([prey], 2, 0, true, held, 1)));

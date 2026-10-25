@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -47,9 +46,9 @@ public sealed record MechCatalog
 /// <summary>One colonist mechanitor. It is composed with forwarding members.</summary>
 public sealed record MechanitorInput
 {
-    public required O.PawnState Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PawnState Observed { get; init; }
     public PawnId Id => new(Observed.Pawn.Id);
-    public O.PawnMechanitor Mechanitor => Observed.Biotech is O.PawnBiotechState.Active { Facts.Mechanitor: { } mechanitor }
+    public RimGovernor.Brain.GameFacts.Observations.PawnMechanitor Mechanitor => Observed.Biotech is RimGovernor.Brain.GameFacts.Observations.PawnBiotechState.Active { Facts.Mechanitor: { } mechanitor }
         ? mechanitor : throw new RequiredFactException("mechanitor facts");
 
     public int UsedBandwidth => Mechanitor.UsedBandwidth;
@@ -60,19 +59,19 @@ public sealed record MechanitorInput
 /// <summary>One colony mech retaining its native pawn and Biotech records.</summary>
 public sealed record MechInput
 {
-    public required O.PawnState Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PawnState Observed { get; init; }
     public PawnId Id => new(Observed.Pawn.Id);
     public string Kind => Observed.KindDefName;
-    public O.PawnMech Mech => Observed.Biotech is O.PawnBiotechState.Active { Facts.Mech: { } mech }
+    public RimGovernor.Brain.GameFacts.Observations.PawnMech Mech => Observed.Biotech is RimGovernor.Brain.GameFacts.Observations.PawnBiotechState.Active { Facts.Mech: { } mech }
         ? mech : throw new RequiredFactException("mech facts");
-    public O.EntityPlace Place => Observed.Pawn.Place;
+    public RimGovernor.Brain.GameFacts.Observations.EntityPlace Place => Observed.Pawn.Place;
     public bool Downed => Observed.Downed;
     public bool Drafted => Observed.Drafted;
     public PawnId Target => new(Observed.Job.TargetA?.Target?.Entity?.Id ?? "");
     public string Overseer => Mech.Overseer?.Id ?? "";
     public string? WorkMode => Mech.WorkMode;
-    public O.PawnMechGroup? Group => Mech.Group;
-    public O.PawnMechEnergy Energy => Mech.Energy;
+    public RimGovernor.Brain.GameFacts.Observations.PawnMechGroup? Group => Mech.Group;
+    public RimGovernor.Brain.GameFacts.Observations.PawnMechEnergy Energy => Mech.Energy;
 }
 /// <summary>The colony's mechanitors and mechs as one read recorded them.</summary>
 public sealed record MechFleet
@@ -341,7 +340,7 @@ public static partial class MechRules
                 throw new DomainException($"mech {mech.Id} kind {mech.Kind} is not in the catalog");
             }
             var hok = overseers.TryGetValue(mech.Overseer, out var home);
-            if (kind.Role != MechRole.Guard || mech.Downed || !hok || mech.Place is not RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap { Cell: var place })
+            if (kind.Role != MechRole.Guard || mech.Downed || !hok || mech.Place is not RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap { Cell: var place })
             {
                 continue;
             }

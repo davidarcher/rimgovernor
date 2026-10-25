@@ -4,11 +4,8 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 using Verse.AI.Group;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The GatheringIntent arm of Actions/Apply: starts one vanilla gathering
     // (a party) through GatheringDef.Worker.TryExecute(map, organizer). The
@@ -26,22 +23,22 @@ namespace HomeBridge.BridgeTools
             public LordJob_Joinable_Gathering? Running;
         }
 
-        private static Common.Failure Invalid(string detail) => ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, detail);
+        private static RimGovernor.Brain.GameFacts.Common.Failure Invalid(string detail) => GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, detail);
 
         private static LordJob_Joinable_Gathering? FindRunning(GatheringDef def) =>
             Verse.Find.Maps.SelectMany(map => map.lordManager.lords)
                 .Select(lord => lord.LordJob as LordJob_Joinable_Gathering)
                 .FirstOrDefault(job => job != null && Traverse.Create(job).Field("gatheringDef").GetValue<GatheringDef>() == def);
 
-        private static Common.Failure? Resolve(Operations.GatheringIntent? command, out Plan? plan)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(RimGovernor.Brain.GameOrders.Operations.GatheringIntent? command, out Plan? plan)
         {
             plan = null;
-            if (command == null || command.GatheringDef is null || !ProtoBoundary.IsIdentifier(command.GatheringDef) || command.Organizer == null || !ProtoBoundary.IsIdentifier(command.Organizer.Id))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A gathering command requires a gathering def and an organizer.");
+            if (command == null || command.GatheringDef is null || !GameThread.IsIdentifier(command.GatheringDef) || command.Organizer == null || !GameThread.IsIdentifier(command.Organizer.Id))
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "A gathering command requires a gathering def and an organizer.");
             var def = DefDatabase<GatheringDef>.GetNamedSilentFail((command.GatheringDef ?? ""));
-            if (def == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Unknown gathering def.");
+            if (def == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Unknown gathering def.");
             var organizer = PawnsFinder.AllMaps_FreeColonists.ById(command.Organizer.Id);
-            if (organizer == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact colonist organizer is unavailable.");
+            if (organizer == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact colonist organizer is unavailable.");
             var found = new Plan { Def = def, Organizer = organizer, Running = FindRunning(def) };
             plan = found;
             if (found.Running != null) return null;
@@ -56,16 +53,16 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        private static Receipts.EffectEvidence Evidence(Plan plan)
+        private static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Evidence(Plan plan)
         {
             var job = plan.Running ?? FindRunning(plan.Def);
             if (job == null) throw new InvalidOperationException("Native gathering start readback did not apply.");
-            return new Receipts.EffectEvidence();
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence();
         }
 
-        internal static Common.Failure? Validate(Operations.GatheringIntent command) => Resolve(command, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.GatheringIntent command) => Resolve(command, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.GatheringIntent command)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.GatheringIntent command)
         {
             var failure = Resolve(command, out var plan);
             if (failure != null || plan == null) throw new InvalidOperationException("Gathering start prerequisites changed before apply: " + (failure?.Detail ?? ""));
@@ -78,7 +75,7 @@ namespace HomeBridge.BridgeTools
 
     internal sealed class GatheringActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeGathering.Validate(action.Intent?.Gathering ?? new Operations.GatheringIntent());
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeGathering.Apply(action.Intent?.Gathering ?? new Operations.GatheringIntent());
+        public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => NativeGathering.Validate(action.Intent?.Gathering ?? new RimGovernor.Brain.GameOrders.Operations.GatheringIntent());
+        public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => NativeGathering.Apply(action.Intent?.Gathering ?? new RimGovernor.Brain.GameOrders.Operations.GatheringIntent());
     }
 }

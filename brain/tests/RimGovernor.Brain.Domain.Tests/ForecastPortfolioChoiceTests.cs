@@ -1,7 +1,8 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Common;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Common;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -9,10 +10,10 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class ForecastPortfolioChoiceTests
 {
     private static readonly ObservationContext Context = new()
-        { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
+        { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
     private static readonly Cell Source = new(1, 1), Bench = new(2, 1), Destination = new(3, 1);
     private static readonly Cell[] Cells = [Source, Bench, Destination];
-    private static (ForecastCoupledSelection Selection, PawnActivities Batch) Select(RoundsFacts facts)
+    private static (ForecastCoupledSelection Selection, PawnActivities Batch) Select(ReviewFacts facts)
     {
         facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 150)?.Priced() };
         var generated = Assert.IsType<ForecastCoupledCandidates>(facts.CoupledAlternatives);
@@ -25,7 +26,7 @@ public sealed class ForecastPortfolioChoiceTests
         Assert.True(selected.SelectedVector.Value.Ledger.LossAgainst(selected.BaselineVector.Value.Ledger) < 0);
         return (selected, Assert.IsType<PawnActivities>(ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "portfolio-choice", 100)));
     }
-    internal static RoundsFacts Observed(CoupledFoodConversion[] conversions, CoupledFoodSource[] sources, bool helper = false)
+    internal static ReviewFacts Observed(CoupledFoodConversion[] conversions, CoupledFoodSource[] sources, bool helper = false)
     {
         var facts = ForecastCoupledSelectionTests.Review(level: .1, fall: .001);
         var roster = helper ? WorkResourceTestFacts.Create("pawn", "helper") : WorkResourceTestFacts.Create("pawn");
@@ -33,7 +34,7 @@ public sealed class ForecastPortfolioChoiceTests
         facts = facts with
         {
 
-            Census = (facts.Census with { WorkResources = roster.Census.WorkResources }) with { Resources = EquatableArray.From((EquatableArray.From(sources.GroupBy(s => s.Resource).Select(g => new RimGovernor.Brain.Policy.Amount(new(g.Key), g.Sum(s => s.Count))))).Select(amount => new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = amount.Resource.Value, Units = amount.Count })) },
+            Census = (facts.Census with { WorkResources = roster.Census.WorkResources }) with { Resources = EquatableArray.From((EquatableArray.From(sources.GroupBy(s => s.Resource).Select(g => new RimGovernor.Brain.Policy.Amount(new(g.Key), g.Sum(s => s.Count))))).Select(amount => new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = amount.Resource.Value, Units = amount.Count })) },
             ForecastObserved = facts.ForecastObserved with
             {
                 WorkPawns = roster.ForecastObserved.WorkPawns,

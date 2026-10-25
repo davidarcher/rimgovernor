@@ -1,8 +1,6 @@
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -40,9 +38,9 @@ internal static class ApplyPolicyPrune
         s.Record("setup", ServedOps.Json(before));
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 
-        async Task PruneAsync(string key, Operations.PolicyDatabase database, string id, bool wantDeleted)
+        async Task PruneAsync(string key, RimGovernor.Brain.GameOrders.Operations.PolicyDatabase database, string id, bool wantDeleted)
         {
-            var outcome = await TypedApply.OneAsync(s, key, new Operations.PolicyPruneIntent { Database = database, DeleteIds = [id] }, cancellationToken).ConfigureAwait(false);
+            var outcome = await TypedApply.OneAsync(s, key, new RimGovernor.Brain.GameOrders.Operations.PolicyPruneIntent { Database = database, DeleteIds = [id] }, cancellationToken).ConfigureAwait(false);
             var effect = ApplyCases.Effect(outcome)?.PolicyPrune ?? throw new AcceptanceException($"{key}: expected an applied policy prune, got {outcome}");
             s.RecordWire(key, effect);
             var ok = wantDeleted
@@ -54,10 +52,10 @@ internal static class ApplyPolicyPrune
             }
         }
 
-        await PruneAsync("prune-outfit", Operations.PolicyDatabase.Outfit, before.Outfit, true).ConfigureAwait(false);
-        await PruneAsync("prune-area", Operations.PolicyDatabase.AllowedArea, before.Area, true).ConfigureAwait(false);
+        await PruneAsync("prune-outfit", RimGovernor.Brain.GameOrders.Operations.PolicyDatabase.Outfit, before.Outfit, true).ConfigureAwait(false);
+        await PruneAsync("prune-area", RimGovernor.Brain.GameOrders.Operations.PolicyDatabase.AllowedArea, before.Area, true).ConfigureAwait(false);
 
-        var reply = await s.CallAsync("after", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var reply = await s.CallAsync("after", NativeOps.ReadColonyFacts, new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var policies = reply.Policies;
         s.RecordWire("after_outfits", policies.Outfit);
         s.RecordWire("after_areas", policies.AllowedAreas);
@@ -72,7 +70,7 @@ internal static class ApplyPolicyPrune
             throw new AcceptanceException($"after: {before.Pawn} is not on its own outfit \"{before.ShortName}\" and unrestricted: outfit {own}");
         }
 
-        await PruneAsync("prune-outfit-again", Operations.PolicyDatabase.Outfit, before.Outfit, false).ConfigureAwait(false);
-        await PruneAsync("prune-area-again", Operations.PolicyDatabase.AllowedArea, before.Area, false).ConfigureAwait(false);
+        await PruneAsync("prune-outfit-again", RimGovernor.Brain.GameOrders.Operations.PolicyDatabase.Outfit, before.Outfit, false).ConfigureAwait(false);
+        await PruneAsync("prune-area-again", RimGovernor.Brain.GameOrders.Operations.PolicyDatabase.AllowedArea, before.Area, false).ConfigureAwait(false);
     }
 }

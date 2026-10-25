@@ -11,7 +11,7 @@ using Verse;
 using Verse.AI;
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Stages one open-air training range column for the native training job (#2610,
     // #2686): a stand and a dummy RangeDistance cells north of it and two sentinel
@@ -28,7 +28,7 @@ namespace HomeBridge.BridgeTools
         private const int RangeDistance = 8; // Brain.Policy RangeDistance
 
         [Tool("test/training_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Build one open-air training range column at the cell and stage a low-skill colonist whose only work is training. Test builds only.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, int x, int z,
+        public async Task<object> Prepare(INativeContext ctx, CancellationToken cancellationToken, int x, int z,
             [ToolParameter(Description = "Starting Shooting level of every shooter (default 0).")] int level = 0,
             [ToolParameter(Description = "Stage a second column at x+1 with its own shooter.")] bool neighbour = false,
             [ToolParameter(Description = "Stand a drafted idle colonist mid-lane, between the stand and the dummy.")] bool bystander = false)
@@ -109,7 +109,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/training_act", Description = "UNSAFE FOR MODEL EXECUTION. One disturbance for the training fixture: set a Shooting level, light a fire on a thing, draft a pawn, or have one pawn chat with another. Test builds only.")]
-        public async Task<object> Act(IRimBridgeContext ctx, CancellationToken cancellationToken, string action,
+        public async Task<object> Act(INativeContext ctx, CancellationToken cancellationToken, string action,
             string pawnId = "", string otherId = "", string thingId = "", int level = 0)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -145,7 +145,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/skill_learning_verify", Description = "Test-only read observer of recipe, surgery, tend and sparring XP callbacks; start, read or stop verification, never issue pawn work.")]
-        public async Task<object> VerifyLearning(IRimBridgeContext ctx, CancellationToken cancellationToken, string action)
+        public async Task<object> VerifyLearning(INativeContext ctx, CancellationToken cancellationToken, string action)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 if (action == "start") SkillLearningVerifier.Start();
@@ -166,7 +166,7 @@ namespace HomeBridge.BridgeTools
         private static bool medicalStarted;
 
         [Tool("test/medical_learning", Description = "UNSAFE FOR MODEL EXECUTION. Stage a doctor and a patient in bed for one native tend or surgery; poll hands the doctor the staged surgery once the patient lies in bed. Test builds only.")]
-        public async Task<object> MedicalLearning(IRimBridgeContext ctx, CancellationToken cancellationToken, string action)
+        public async Task<object> MedicalLearning(INativeContext ctx, CancellationToken cancellationToken, string action)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -255,7 +255,7 @@ namespace HomeBridge.BridgeTools
         });
 
         [Tool("test/skill_learning_probe", Description = "UNSAFE FOR MODEL EXECUTION. Compare bounded learning projections against native SkillRecord methods on detached records. Test builds only.")]
-        public async Task<object> LearningProbe(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> LearningProbe(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var pawn = Find.CurrentMap.mapPawns.FreeColonistsSpawned.First(p => p.skills != null);
@@ -274,7 +274,7 @@ namespace HomeBridge.BridgeTools
                         ValidForTicks = 1000,
                         TrackerIntervalTicks = 1, TrackerPhase = 0, TrackerElapsedTicks = 0, NextMidnightReset = GenDate.TicksPerDay,
                         NextDecay = 200,
-                        Practice = read.Practice is RimGovernor.Contracts.Wire.Observations.SkillPractice.Range range ? range with { Eligible = true, Ceiling = SkillRecord.MaxLevel } : read.Practice,
+                        Practice = read.Practice is RimGovernor.Brain.GameFacts.Observations.SkillPractice.Range range ? range with { Eligible = true, Ceiling = SkillRecord.MaxLevel } : read.Practice,
                     };
                     var direct = def == SkillDefOf.Shooting;
                     var path = direct ? RimGovernor.Brain.Policy.SkillXpPath.Range : RimGovernor.Brain.Policy.SkillXpPath.NormalRecord;
@@ -303,7 +303,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
         }
         [Tool("test/skill_stat_curve_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Clear two Medicine-, Melee- and Shooting-capable colonists' hediffs and inspiration, anesthetize the second, compare each one's biography medical, MeleeDPS and ranged defense curves with live native stat calls at each level (temporarily set and restored), then check that a Shooting accuracy inspiration disqualifies ShootingAccuracyPawn and no unrelated stat. Test builds only.")]
-        public async Task<object> SkillStatCurvePrepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> SkillStatCurvePrepare(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = FixtureKit.CurrentMap();
@@ -333,7 +333,7 @@ namespace HomeBridge.BridgeTools
                         {
                             // The curve names its stat and skill by defName across the wire; the ranged defense curve (#3846) is the
                             // live ranged DPS at the live hit factor, which reads the pawn's ShootingAccuracyPawn.
-                            var ranged = curve.Stat == RimGovernor.Contracts.Wire.Observations.SkillStatCurve.RangedDefenseDps;
+                            var ranged = curve.Stat == RimGovernor.Brain.GameFacts.Observations.SkillStatCurve.RangedDefenseDps;
                             var stat = ranged ? null : DefDatabase<StatDef>.GetNamed(curve.Stat);
                             var skill = records.Single(r => r.def.defName == curve.Skill);
                             var saved = skill.levelInt;
@@ -407,7 +407,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
         }
         [Tool("test/training_inspect", Description = "Read-only postcondition of the training fixture: the colonist's skills, hands, job and the range's hit points.")]
-        public async Task<object> Inspect(IRimBridgeContext ctx, CancellationToken cancellationToken, string pawnId, string dummyId, string sentinels,
+        public async Task<object> Inspect(INativeContext ctx, CancellationToken cancellationToken, string pawnId, string dummyId, string sentinels,
             string otherId = "", string bystanderId = "")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -434,7 +434,7 @@ namespace HomeBridge.BridgeTools
                 var shots = pawn.records.GetAsInt(RecordDefOf.ShotsFired);
                 var baseline = learning with {
                     StoredLevel = 0, Xp = 0d, XpSinceMidnight = 0d,
-                    Practice = learning.Practice is RimGovernor.Contracts.Wire.Observations.SkillPractice.Range range
+                    Practice = learning.Practice is RimGovernor.Brain.GameFacts.Observations.SkillPractice.Range range
                         ? range with { Eligible = true, AppliedBudget = RangeTraining.DailyXpBudget } : learning.Practice,
                     ValidForTicks = 2,
                 };
@@ -461,7 +461,7 @@ namespace HomeBridge.BridgeTools
     }
 }
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Test builds only. Observe actual callbacks, and predict from independently quoted job mechanics.
     internal static class SkillLearningVerifier

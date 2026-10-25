@@ -6,13 +6,13 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Disposable setup only; never exposed through the controller gameplay surface.
     public sealed class WasteFixture
     {
         [Tool("test/waste_fixture", Description = "Prepare the ColonyFacts equality inputs: a rotted corpse, a forbidden Steel stack and a dumping stockpile outside Home.")]
-        public async Task<object> Create(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Create(INativeContext ctx, CancellationToken cancellationToken)
             => await ctx.MainThread.InvokeAsync(() =>
             {
                 var map = Find.CurrentMap;
@@ -90,7 +90,7 @@ namespace HomeBridge.BridgeTools
         // carry the colonist into the grave (a higher storage priority than the
         // morgue) and leave the stranger, whom the grave refuses, in the morgue.
         [Tool("test/burial_stage", Description = "Disposable fixture (#2196): a morgue zone holding a colonist and a stranger corpse, a free grave and a hauler. Test builds only.")]
-        public async Task<object> BurialStage(IRimBridgeContext ctx, CancellationToken cancellationToken, string priority = "Normal")
+        public async Task<object> BurialStage(INativeContext ctx, CancellationToken cancellationToken, string priority = "Normal")
             => await ctx.MainThread.InvokeAsync(() =>
             {
                 var map = Find.CurrentMap;
@@ -142,7 +142,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
 
         [Tool("test/burial_read", Description = "Disposable fixture (#2196): where the staged corpses lie: in the grave, in the morgue zone or elsewhere. Test builds only.")]
-        public async Task<object> BurialRead(IRimBridgeContext ctx, CancellationToken cancellationToken, string ids = "")
+        public async Task<object> BurialRead(INativeContext ctx, CancellationToken cancellationToken, string ids = "")
             => await ctx.MainThread.InvokeAsync(() =>
             {
                 var map = Find.CurrentMap;
@@ -164,7 +164,7 @@ namespace HomeBridge.BridgeTools
         // accepting any humanlike corpse, a fresh stranger corpse (a humanlike
         // pawn of no faction) a few cells away, and every colonist hauling.
         [Tool("test/tomb_stage", Description = "Disposable fixture (#3242): a fresh sarcophagus and a fresh stranger corpse near the first colonist. Test builds only.")]
-        public async Task<object> TombStage(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> TombStage(INativeContext ctx, CancellationToken cancellationToken)
             => await ctx.MainThread.InvokeAsync(() =>
             {
                 var map = Find.CurrentMap;
@@ -228,7 +228,7 @@ namespace HomeBridge.BridgeTools
         // Where the sarcophagus, each colonist's KnowBuriedInSarcophagus
         // memories and each listed corpse stand.
         [Tool("test/tomb_read", Description = "Disposable fixture (#3242): the sarcophagus, every colonist's KnowBuriedInSarcophagus memories and the listed corpses. Test builds only.")]
-        public async Task<object> TombRead(IRimBridgeContext ctx, CancellationToken cancellationToken, string sarcophagus, string ids = "")
+        public async Task<object> TombRead(INativeContext ctx, CancellationToken cancellationToken, string sarcophagus, string ids = "")
             => await ctx.MainThread.InvokeAsync(() =>
             {
                 var map = Find.CurrentMap;
@@ -253,31 +253,31 @@ namespace HomeBridge.BridgeTools
         // call so no tick passes between them, must be byte-identical (row
         // order included). Add each new optimization's switch here.
         [Tool("test/colony_facts_equality", Description = "Compare ColonyFacts bytes with read optimizations off and on.")]
-        public async Task<object> ColonyFactsEquality(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> ColonyFactsEquality(INativeContext ctx, CancellationToken cancellationToken)
             => await ctx.MainThread.InvokeAsync(() => CompareColonyFacts(Find.CurrentMap), cancellationToken);
 
         // On the main thread: the equality probe's reply for map.
         private static object CompareColonyFacts(Map map)
         {
             {
-                if (!ProtoBoundary.TryReadContext(map, out var context, out var unavailable))
+                if (!GameThread.TryReadContext(map, out var context, out var unavailable))
                     throw new System.InvalidOperationException(unavailable.Detail);
-                RimGovernor.Contracts.Wire.Observations.ColonyFactsSnapshot Capture(bool optimized)
+                RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot Capture(bool optimized)
                 {
                     var previous = NativeUpkeepFacts.SharedPass;
                     NativeUpkeepFacts.SharedPass = optimized;
                     try
                     {
-                        var request = new RimGovernor.Contracts.Wire.Observations.ColonyFactsRequest {
-                            Scope = new RimGovernor.Contracts.Wire.Observations.ReadScope { ExpectedIdentity = context.Identity } };
+                        var request = new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest {
+                            Scope = new RimGovernor.Brain.GameFacts.Observations.ReadScope { ExpectedIdentity = context.Identity } };
                         return NativeColonyObservationTools.Read(map, request, context);
                     }
                     finally { NativeUpkeepFacts.SharedPass = previous; }
                 }
                 var off = Capture(false);
                 var on = Capture(true);
-                var offBytes = RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(off);
-                var onBytes = RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(on);
+                var offBytes = RimGovernor.Brain.GameOrders.OrdersJson.SerializeToUtf8Bytes(off);
+                var onBytes = RimGovernor.Brain.GameOrders.OrdersJson.SerializeToUtf8Bytes(on);
                 var upkeep = on.Upkeep;
                 // ResourceSources: each resource's reply with the
                 // cheap census and support shortcut off and on. Plant yields
@@ -289,11 +289,11 @@ namespace HomeBridge.BridgeTools
                     try
                     {
                         var began = System.Diagnostics.Stopwatch.GetTimestamp();
-                        var observed = NativeResourceSourcesTool.Read(map, new RimGovernor.Contracts.Wire.Observations.ResourceSourcesRequest { Resource = resource });
+                        var observed = NativeResourceSourcesTool.Read(map, new RimGovernor.Brain.GameOrders.Observations.ResourceSourcesRequest { Resource = resource });
                         ms += (System.Diagnostics.Stopwatch.GetTimestamp() - began) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
                         observed = observed with { Sources = [.. observed.Sources.Select(row =>
                             DefDatabase<ThingDef>.GetNamedSilentFail(row.DefName)?.mineable != true ? row with { Yield = 0 } : row)] };
-                        return RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(observed);
+                        return RimGovernor.Brain.GameOrders.OrdersJson.SerializeToUtf8Bytes(observed);
                     }
                     finally { NativeResourceSourcesTool.Cheap = true; ExcavationSafety.Shortcut = true; }
                 }
@@ -303,7 +303,7 @@ namespace HomeBridge.BridgeTools
                         var a = Sources(resource, false, ref offMs);
                         var b = Sources(resource, true, ref onMs);
                         if (!a.SequenceEqual(b)) resourcesEqual = false;
-                        if (i == 0) resourceRows += RimGovernor.Contracts.Wire.WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ResourceSourcesSnapshot>(b)!.Sources.Count;
+                        if (i == 0) resourceRows += RimGovernor.Brain.GameOrders.OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.ResourceSourcesSnapshot>(b)!.Sources.Count;
                     }
                 return (object)new { equal = offBytes.SequenceEqual(onBytes) && resourcesEqual, resourcesEqual, resourceRows,
                     resourcesOffMs = System.Math.Round(offMs, 1), resourcesOnMs = System.Math.Round(onMs, 1), offBytes = offBytes.Length, onBytes = onBytes.Length,
@@ -320,7 +320,7 @@ namespace HomeBridge.BridgeTools
         // raw; `acceptance profile-capture` computes the percentiles.
         // equality also runs the ColonyFacts equality probe afterwards.
         [Tool("test/profile_capture", Description = "Time SnapshotFrames.Capture count times, paused, per family and detail span.")]
-        public async Task<object> ProfileCapture(IRimBridgeContext ctx, CancellationToken cancellationToken, int count = 20, bool equality = false)
+        public async Task<object> ProfileCapture(INativeContext ctx, CancellationToken cancellationToken, int count = 20, bool equality = false)
             => await ctx.MainThread.InvokeAsync(() =>
             {
                 if (count < 1 || count > 1000) throw new System.ArgumentOutOfRangeException(nameof(count), "count must be 1..1000");
@@ -337,12 +337,12 @@ namespace HomeBridge.BridgeTools
                     {
                         var began = System.Diagnostics.Stopwatch.GetTimestamp();
                         var hop = ObservationWork.BeginCapture();
-                        RimGovernor.Contracts.Wire.Observations.BundleSnapshot? frame;
+                        RimGovernor.Brain.GameFacts.Observations.BundleSnapshot? frame;
                         try { frame = SnapshotFrames.Capture(map, shape); }
                         finally { ObservationWork.End(); }
                         var elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - began;
                         if (frame == null) throw new System.InvalidOperationException("SnapshotFrames.Capture read no context.");
-                        if (i == 0) bytes = RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(frame).Length;
+                        if (i == 0) bytes = RimGovernor.Brain.GameOrders.OrdersJson.SerializeToUtf8Bytes(frame).Length;
                         captures.Add(new { totalMs = Ms(elapsed), sections = hop.Sections.Select(s =>
                             (object)new { name = s.Name, ms = Ms(s.Ticks), rows = s.Rows, detail = s.Detail }).ToList() });
                     }

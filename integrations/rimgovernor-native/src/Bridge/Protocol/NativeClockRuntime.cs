@@ -9,13 +9,11 @@ using RimWorld;
 using Verse;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Contracts.Wire;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Authority = RimGovernor.Contracts.Wire.Authority;
-using Clock = RimGovernor.Contracts.Wire.Clock;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static partial class Supervisor
     {
@@ -24,15 +22,15 @@ namespace HomeBridge.BridgeTools
         /// it was last sent, and the hold's pause facts.
         private sealed class TypedEpoch
         {
-            internal Common.ObservationContext LastObservation;
+            internal RimGovernor.Brain.GameFacts.Common.ObservationContext LastObservation;
             internal ulong ExpectedGeneration;
-            internal Clock.WatchPolicy? Policy;
-            internal Clock.WatchPolicy RunPolicy => Policy ?? throw new InvalidOperationException("A held clock has no run policy.");
-            internal TypedEpoch(Common.ObservationContext origin, ulong expectedGeneration, Clock.WatchPolicy? policy)
+            internal RimGovernor.Brain.GameOrders.Clock.WatchPolicy? Policy;
+            internal RimGovernor.Brain.GameOrders.Clock.WatchPolicy RunPolicy => Policy ?? throw new InvalidOperationException("A held clock has no run policy.");
+            internal TypedEpoch(RimGovernor.Brain.GameFacts.Common.ObservationContext origin, ulong expectedGeneration, RimGovernor.Brain.GameOrders.Clock.WatchPolicy? policy)
             { LastObservation = origin; ExpectedGeneration = expectedGeneration; Policy = policy; }
             internal bool StopPauseVerified;
             // The armed combat event that held this segment, else unset.
-            internal Clock.CombatEvent? CombatEvent;
+            internal RimGovernor.Brain.GameFacts.Clock.CombatEvent? CombatEvent;
         }
         // The native dev tick boost behind a Run(Hyperfast) is driven up to its
         // 30x cap (HyperfastCap.cs) and the one ceiling, with no launch gate; a
@@ -46,16 +44,16 @@ namespace HomeBridge.BridgeTools
         {
             var generation = TypedOf(s).ExpectedGeneration;
             if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
-            { Stop(s, Clock.HoldReason.Unavailable, "Authorizing native authority is unavailable.", true); return true; }
+            { Stop(s, RimGovernor.Brain.GameFacts.Clock.HoldReason.Unavailable, "Authorizing native authority is unavailable.", true); return true; }
             var result = authority.Check(generation);
             if (result.Success && TypedHooksReadyThisFrame()) return false;
             var reason = result.Snapshot.Reason;
             // Shutdown is the old game unloading under a load: the session
             // changed, not a pause (a small map's fast frames reach this
             // check before the swapped game does).
-            var held = reason == NativeControlRevocationReason.IdentityChanged || reason == NativeControlRevocationReason.Shutdown ? Clock.HoldReason.SessionChanged
+            var held = reason == NativeControlRevocationReason.IdentityChanged || reason == NativeControlRevocationReason.Shutdown ? RimGovernor.Brain.GameFacts.Clock.HoldReason.SessionChanged
                 : reason == NativeControlRevocationReason.HooksUnavailable || reason == NativeControlRevocationReason.GenerationExhausted
-                    || reason == NativeControlRevocationReason.ClockUnavailable || !TypedHooksReady() ? Clock.HoldReason.Unavailable : Clock.HoldReason.ExternalPause;
+                    || reason == NativeControlRevocationReason.ClockUnavailable || !TypedHooksReady() ? RimGovernor.Brain.GameFacts.Clock.HoldReason.Unavailable : RimGovernor.Brain.GameFacts.Clock.HoldReason.ExternalPause;
             var detail = result.Snapshot.Detail;
             Stop(s, held, "Authorizing native authority stopped: " + reason + "; " + result.Error
                 + (string.IsNullOrEmpty(detail) ? "" : "; " + detail), true);
@@ -64,29 +62,29 @@ namespace HomeBridge.BridgeTools
         private static void CaptureTypedContext(State s)
         {
             if (ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map)
-                && ProtoBoundary.TryReadContext(s.Map, out var observed, out _)) TypedOf(s).LastObservation = observed;
+                && GameThread.TryReadContext(s.Map, out var observed, out _)) TypedOf(s).LastObservation = observed;
         }
 
-        internal static Common.Failure? ValidateTypedRun(Clock.RunRequest request)
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? ValidateTypedRun(RimGovernor.Brain.GameOrders.Clock.RunRequest request)
         {
             if (!ClockRunSpeed.Ordinary(request.Speed) || request.Policy is null
                 || request.ExpectedGeneration == 0 || !ValidPolicy(request.Policy)
                 || !Enum.IsDefined(request.Speed))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Run requires an ordinary speed, the current authority generation, a complete bounded watch policy, the hold serial its step read and the tick to hold at for review.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Run requires an ordinary speed, the current authority generation, a complete bounded watch policy, the hold serial its step read and the tick to hold at for review.");
             if (BoostUnavailable(request.Speed) is { } boostless) return boostless;
             lock (Gate)
             {
                 if (!GameWatchReads.CoreWatchersAvailable)
-                    return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native safety watchers are unavailable.");
+                    return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "Native safety watchers are unavailable.");
                 try
                 {
                     EnsurePatched(); LetterPauseHook.EnsurePatched();
-                    if (!TypedHooksReady()) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Exact native clock hooks are unavailable.");
-                    var map = ProtoBoundary.ResolveMap(request.Identity ?? throw new InvalidOperationException("Missing identity")) ?? throw new InvalidOperationException("The requested map is not loaded.");
+                    if (!TypedHooksReady()) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "Exact native clock hooks are unavailable.");
+                    var map = GameThread.ResolveMap(request.Identity ?? throw new InvalidOperationException("Missing identity")) ?? throw new InvalidOperationException("The requested map is not loaded.");
                     ResolveHostiles(map, request.Policy.AcknowledgedHostileIds);
                     foreach (var ids in PolicyIds(request.Policy).Skip(1)) ResolveIds(map, ids);
                 }
-                catch (Exception error) { ModLog.Error("clock", "Clock run preconditions failed: " + error); return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native watcher or exact policy pawn identity is unavailable."); }
+                catch (Exception error) { ModLog.Error("clock", "Clock run preconditions failed: " + error); return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "Native watcher or exact policy pawn identity is unavailable."); }
                 return null;
             }
         }
@@ -96,7 +94,7 @@ namespace HomeBridge.BridgeTools
         /// the review tick in place. Idempotent. Refused while a long event or a
         /// force-pausing window holds the game. The segment holds for Review on
         /// the first tick at or past the request's hold tick (TickBody).
-        internal static Clock.Status TypedRun(Clock.RunRequest request, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Clock.Status TypedRun(RimGovernor.Brain.GameOrders.Clock.RunRequest request, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             lock (Gate)
             {
@@ -108,10 +106,10 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private static Common.Failure? RunClock(TypedEpoch typed, Clock.Speed speed, ulong plannedHoldSerial, int holdAtTick)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? RunClock(TypedEpoch typed, RimGovernor.Brain.GameFacts.Clock.Speed speed, ulong plannedHoldSerial, int holdAtTick)
         {
             if (Current.Game == null || Find.TickManager == null || Find.CurrentMap == null)
-                return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "No playable map is loaded.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "No playable map is loaded.");
             // The serial as the caller could have read it: retiring another
             // game's segment below enters a hold no status of this game shows.
             var refusal = HoldSerial.Refuses(plannedHoldSerial);
@@ -119,26 +117,26 @@ namespace HomeBridge.BridgeTools
             if (existing != null && existing.Active)
             {
                 if (!ReferenceEquals(existing.Session, Current.Game) || !ReferenceEquals(existing.Map, Find.CurrentMap))
-                    Stop(existing, Clock.HoldReason.SessionChanged, "Loaded game changed.", false);
+                    Stop(existing, RimGovernor.Brain.GameFacts.Clock.HoldReason.SessionChanged, "Loaded game changed.", false);
                 else if (existing.Pending != null)
-                    return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The clock is entering a hold and its pause has not taken yet.");
+                    return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "The clock is entering a hold and its pause has not taken yet.");
                 else return ChangeRun(existing, typed, speed, holdAtTick);
             }
             // Only a resume can release a hold, so only a resume is guarded:
             // a hold entered after the step's read refuses it and stays.
-            if (refusal != null) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, refusal);
+            if (refusal != null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, refusal);
             return ResumeRun(existing, typed, speed, holdAtTick);
         }
 
         // A Hyperfast Run needs the boost; every other speed runs without it.
-        private static Common.Failure? BoostUnavailable(Clock.Speed speed) =>
-            speed == Clock.Speed.Hyperfast && !BoostAvailable
-                ? ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The native tick boost behind Hyperfast is unavailable.") : null;
+        private static RimGovernor.Brain.GameFacts.Common.Failure? BoostUnavailable(RimGovernor.Brain.GameFacts.Clock.Speed speed) =>
+            speed == RimGovernor.Brain.GameFacts.Clock.Speed.Hyperfast && !BoostAvailable
+                ? GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "The native tick boost behind Hyperfast is unavailable.") : null;
 
         // The boost the speed owns (ClockRunSpeed.Boost): Hyperfast on, Ultrafast
         // off, the others the value the segment found. Without the field there is
         // no boost to own, and only a Hyperfast Run (refused above) needs one.
-        private static void SetBoost(State s, Clock.Speed speed)
+        private static void SetBoost(State s, RimGovernor.Brain.GameFacts.Clock.Speed speed)
         {
             if (!BoostAvailable) return;
             s.Boost.For(ClockRunSpeed.Boost(speed), () => (bool)(BoostField.GetValue(null) ?? throw new System.InvalidOperationException("Required native reflection value is unavailable.")), value => BoostField.SetValue(null, value));
@@ -146,10 +144,10 @@ namespace HomeBridge.BridgeTools
 
         /// Every policy-derived field of a run segment; re-applied whenever Run
         /// resends a changed policy.
-        private static void ApplyPolicy(State s, Clock.WatchPolicy p)
+        private static void ApplyPolicy(State s, RimGovernor.Brain.GameOrders.Clock.WatchPolicy p)
         {
             var map = s.Map;
-            s.Mode = p.Mode == Clock.WatchMode.Colony ? "colony" : "combat";
+            s.Mode = p.Mode == RimGovernor.Brain.GameOrders.Clock.WatchMode.Colony ? "colony" : "combat";
             s.HostileWithin = ClampFloat(p.HostileWithin, 1f, 250f);
             s.HealthDropFraction = ClampFloat(p.HealthDropFraction, 0.01f, 1f);
             s.MinHealthFraction = ClampFloat(p.MinHealthFraction, 0.01f, 1f);
@@ -163,7 +161,7 @@ namespace HomeBridge.BridgeTools
             s.IgnoredHungry = PawnIds(ResolveIds(map, p.AcknowledgedHungryColonistIds));
         }
 
-        private static Common.Failure? ChangeRun(State s, TypedEpoch typed, Clock.Speed speed, int holdAtTick)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? ChangeRun(State s, TypedEpoch typed, RimGovernor.Brain.GameFacts.Clock.Speed speed, int holdAtTick)
         {
             if (BoostUnavailable(speed) is { } boostless) return boostless;
             var running = TypedOf(s);
@@ -190,21 +188,21 @@ namespace HomeBridge.BridgeTools
             if (Find.TickManager.CurTimeSpeed != native)
             {
                 s.Speed = old; SetBoost(s, old);
-                return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The requested speed did not take; the clock keeps its previous speed.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "The requested speed did not take; the clock keeps its previous speed.");
             }
             SpeedRequest.Ran(s.Session, speed);
             return null;
         }
 
-        private static Common.Failure? ResumeRun(State? previous, TypedEpoch typed, Clock.Speed speed, int holdAtTick)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? ResumeRun(State? previous, TypedEpoch typed, RimGovernor.Brain.GameFacts.Clock.Speed speed, int holdAtTick)
         {
             if (!GameWatchReads.CoreWatchersAvailable)
-                return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Alert or transient-message reflection watcher is unavailable; refusing blind play.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "Alert or transient-message reflection watcher is unavailable; refusing blind play.");
             if (BoostUnavailable(speed) is { } boostless) return boostless;
             try { LetterPauseHook.EnsurePatched(); }
-            catch (Exception error) { return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Pause source tracking unavailable: " + error.Message); }
+            catch (Exception error) { return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "Pause source tracking unavailable: " + error.Message); }
             if (LongEventHandler.AnyEventNowOrWaiting)
-                return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "A long event (autosave, map generation) is running or queued; nothing is open to dismiss. An autosave clears in about a second, so retry.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "A long event (autosave, map generation) is running or queued; nothing is open to dismiss. An autosave clears in about a second, so retry.");
             // Only a window a human can close refuses a Run. A merely paused
             // clock does not: the speed set below unpauses it.
             if (ColonyNamingTools.Pending() != null)
@@ -212,8 +210,8 @@ namespace HomeBridge.BridgeTools
                 try { ColonyNamingTools.ConfirmSuggested(); } catch (Exception) { }
             }
             if (ForcePausingWindows().Count > 0)
-                return ProtoBoundary.Fail(Common.FailureCode.Unavailable, ForcePauseDetail());
-            var from = previous != null && ReferenceEquals(previous.Session, Current.Game) ? previous.StopReason ?? Clock.HoldReason.Unavailable : Clock.HoldReason.NeverRun;
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, ForcePauseDetail());
+            var from = previous != null && ReferenceEquals(previous.Session, Current.Game) ? previous.StopReason ?? RimGovernor.Brain.GameFacts.Clock.HoldReason.Unavailable : RimGovernor.Brain.GameFacts.Clock.HoldReason.NeverRun;
             var tm = Find.TickManager;
             var (frames, overBudget, _) = FrameAccount();
             var s = new State(Current.Game, Find.CurrentMap) {
@@ -269,7 +267,7 @@ namespace HomeBridge.BridgeTools
             Find.TickManager.CurTimeSpeed = native;
             if (Find.TickManager.CurTimeSpeed != native)
             {
-                Stop(s, Clock.HoldReason.RunRefused, "The requested speed did not take.", true);
+                Stop(s, RimGovernor.Brain.GameFacts.Clock.HoldReason.RunRefused, "The requested speed did not take.", true);
                 return null;
             }
             SpeedRequest.Ran(s.Session, speed);
@@ -277,21 +275,21 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        internal static Common.Failure? ValidateTypedHold(Clock.HoldRequest request)
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? ValidateTypedHold(RimGovernor.Brain.GameOrders.Clock.HoldRequest request)
         {
             var reason = request.Reason;
-            if (reason != Clock.HoldReason.CoupledOrder && reason != Clock.HoldReason.Review
-                && reason != Clock.HoldReason.Autosave && reason != Clock.HoldReason.GameForced)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A brain hold names coupled order, review, autosave or game forced.");
+            if (reason != RimGovernor.Brain.GameFacts.Clock.HoldReason.CoupledOrder && reason != RimGovernor.Brain.GameFacts.Clock.HoldReason.Review
+                && reason != RimGovernor.Brain.GameFacts.Clock.HoldReason.Autosave && reason != RimGovernor.Brain.GameFacts.Clock.HoldReason.GameForced)
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "A brain hold names coupled order, review, autosave or game forced.");
             if (request.Detail != null && request.Detail.Length > 512)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hold detail is at most 512 characters.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Hold detail is at most 512 characters.");
             return null;
         }
 
         /// Hold: pauses and publishes one HoldEntered for the brain's reason. While
         /// already held the first reason stands (nothing is published), but a
         /// game someone un-paused is paused again. Needs only the loaded identity.
-        internal static Clock.Status TypedHold(Clock.HoldRequest request, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Clock.Status TypedHold(RimGovernor.Brain.GameOrders.Clock.HoldRequest request, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             lock (Gate)
             {
@@ -309,7 +307,7 @@ namespace HomeBridge.BridgeTools
                     if (Current.Game != null && Find.TickManager != null && Find.CurrentMap != null)
                     {
                         var shell = new State(Current.Game, Find.CurrentMap) {
-                            Active = true, Speed = Clock.Speed.Normal,
+                            Active = true, Speed = RimGovernor.Brain.GameFacts.Clock.Speed.Normal,
                             Typed = new TypedEpoch(context, 0, null),
                             StartTick = Find.TickManager.TicksGame, LastTick = Find.TickManager.TicksGame,
                             LastProbeTick = Find.TickManager.TicksGame, LastProbeMs = NowMs(), LastDigestTick = Find.TickManager.TicksGame,
@@ -336,50 +334,50 @@ namespace HomeBridge.BridgeTools
 
         /// Heartbeat: the brain's contact for the one ceiling. Not published and
         /// not a hold; silence only lowers the ceiling. Reads are not contact.
-        internal static Clock.HeartbeatAck TypedHeartbeat()
+        internal static RimGovernor.Brain.GameFacts.Clock.HeartbeatAck TypedHeartbeat()
         {
             lock (Gate)
             {
                 SharedCeiling().Beat(NowMs());
-                return new Clock.HeartbeatAck();
+                return new RimGovernor.Brain.GameFacts.Clock.HeartbeatAck();
             }
         }
 
-        internal static Clock.Status TypedStatus(Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Clock.Status TypedStatus(RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             lock (Gate)
             {
                 EnsurePatched();
                 var s = _state;
-                Clock.HoldState hold = new Clock.HoldState.NeverRunCase();
-                Clock.RunHistory lastRun = new Clock.RunHistory.NeverRunCase();
-                Clock.Pacing pacing = new Clock.Pacing.StoppedCase();
-                var state = Clock.ClockState.Held;
+                RimGovernor.Brain.GameFacts.Clock.HoldState hold = new RimGovernor.Brain.GameFacts.Clock.HoldState.NeverRunCase();
+                RimGovernor.Brain.GameFacts.Clock.RunHistory lastRun = new RimGovernor.Brain.GameFacts.Clock.RunHistory.NeverRunCase();
+                RimGovernor.Brain.GameFacts.Clock.Pacing pacing = new RimGovernor.Brain.GameFacts.Clock.Pacing.StoppedCase();
+                var state = RimGovernor.Brain.GameFacts.Clock.ClockState.Held;
                 if (s != null && ReferenceEquals(s.Session, Current.Game))
                 {
-                    if (TypedOf(s).Policy != null) lastRun = new Clock.RunHistory.RanCase(s.Speed);
+                    if (TypedOf(s).Policy != null) lastRun = new RimGovernor.Brain.GameFacts.Clock.RunHistory.RanCase(s.Speed);
                     if (s.Active && s.Pending == null)
                     {
-                        state = Clock.ClockState.Running;
-                        hold = new Clock.HoldState.RunningCase();
-                        pacing = new Clock.Pacing.RunningCase((uint)PacedTicksPerSecond(s), PacingReasonOf(s), (uint)CeilingTicksPerSecond(s));
+                        state = RimGovernor.Brain.GameFacts.Clock.ClockState.Running;
+                        hold = new RimGovernor.Brain.GameFacts.Clock.HoldState.RunningCase();
+                        pacing = new RimGovernor.Brain.GameFacts.Clock.Pacing.RunningCase((uint)PacedTicksPerSecond(s), PacingReasonOf(s), (uint)CeilingTicksPerSecond(s));
                     }
                     else if (s.Pending is { } pending)
-                        hold = new Clock.HoldState.PendingCase(pending.Reason);
+                        hold = new RimGovernor.Brain.GameFacts.Clock.HoldState.PendingCase(pending.Reason);
                     else
                     {
                         var reason = s.StopReason ?? throw new InvalidOperationException("A held clock has no hold reason.");
                         var at = s.StopAtMs ?? throw new InvalidOperationException("A held clock has no hold timestamp.");
-                        Clock.HoldTrigger trigger = reason == Clock.HoldReason.CombatEvent
-                            ? new Clock.HoldTrigger.CombatCase(TypedOf(s).CombatEvent ?? throw new InvalidOperationException("A combat hold has no event."))
-                            : new Clock.HoldTrigger.OrdinaryCase();
-                        hold = new Clock.HoldState.HeldCase(reason, at, trigger);
+                        RimGovernor.Brain.GameFacts.Clock.HoldTrigger trigger = reason == RimGovernor.Brain.GameFacts.Clock.HoldReason.CombatEvent
+                            ? new RimGovernor.Brain.GameFacts.Clock.HoldTrigger.CombatCase(TypedOf(s).CombatEvent ?? throw new InvalidOperationException("A combat hold has no event."))
+                            : new RimGovernor.Brain.GameFacts.Clock.HoldTrigger.OrdinaryCase();
+                        hold = new RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase(reason, at, trigger);
                     }
                 }
-                return SpeedRequest.Report(new Clock.Status
+                return SpeedRequest.Report(new RimGovernor.Brain.GameFacts.Clock.Status
                 {
                     Context = context, State = state, Hold = hold, LastRun = lastRun, Pacing = pacing,
-                    HoldSerial = HoldSerial.Current, PlayerRequest = new Clock.PlayerSpeedRequest.NoneCase(),
+                    HoldSerial = HoldSerial.Current, PlayerRequest = new RimGovernor.Brain.GameFacts.Clock.PlayerSpeedRequest.NoneCase(),
                     ActualPaused = Find.TickManager.Paused, NativeTickBoundary = TypedHooksReady(),
                     EffectiveTicksPerSecond = EffectiveTicksPerSecond()
                 }, Current.Game);
@@ -391,29 +389,29 @@ namespace HomeBridge.BridgeTools
         /// the request serial Status reports, then publishes SpeedRequested to
         /// wake the brain, which adopts the speed and sends a Run; native never
         /// changes its own running speed for it. Normal through Hyperfast only.
-        internal static void RequestSpeed(Clock.Speed speed)
+        internal static void RequestSpeed(RimGovernor.Brain.GameFacts.Clock.Speed speed)
         {
             lock (Gate)
             {
                 var game = Current.Game ?? throw new InvalidOperationException("No game is loaded.");
                 var serial = SpeedRequest.Request(game, speed, RunSpeedOf(game));
                 // A request with no map to observe it under is still on Status: the next read picks it up.
-                if (Find.CurrentMap == null || !ProtoBoundary.TryReadContext(Find.CurrentMap, out var observed, out _)) return;
+                if (Find.CurrentMap == null || !GameThread.TryReadContext(Find.CurrentMap, out var observed, out _)) return;
                 Publish(new SpeedRequested(OriginOf(observed), "Player requested " + speed + " (request " + serial + ").", speed));
             }
         }
 
         // The last Run's speed in this game (Status.LastRun), else null.
-        private static Clock.Speed? RunSpeedOf(object? game)
+        private static RimGovernor.Brain.GameFacts.Clock.Speed? RunSpeedOf(object? game)
         {
             var s = _state;
-            return game != null && s != null && ReferenceEquals(s.Session, game) ? s.Speed : (Clock.Speed?)null;
+            return game != null && s != null && ReferenceEquals(s.Session, game) ? s.Speed : (RimGovernor.Brain.GameFacts.Clock.Speed?)null;
         }
 
         /// What the time controls read from the clock, on the game thread: the
         /// player's request no Run at that speed has answered yet, and the last
         /// Run's speed, both of the loaded game.
-        internal static (Clock.Speed? Pending, Clock.Speed? Run) ShownSpeeds()
+        internal static (RimGovernor.Brain.GameFacts.Clock.Speed? Pending, RimGovernor.Brain.GameFacts.Clock.Speed? Run) ShownSpeeds()
         {
             lock (Gate)
             {
@@ -426,7 +424,7 @@ namespace HomeBridge.BridgeTools
         /// connected (game thread). The boost follows the run speeds' rule
         /// (ClockRunSpeed.Boost): Ultrafast turns it off, so a leftover boost
         /// cannot run vanilla's Ultrafast at 30x, and Hyperfast turns it on.
-        internal static void SetGameSpeed(Clock.Speed speed)
+        internal static void SetGameSpeed(RimGovernor.Brain.GameFacts.Clock.Speed speed)
         {
             var native = ClockRunSpeed.Native(speed);
             Find.TickManager.CurTimeSpeed = native;
@@ -471,7 +469,7 @@ namespace HomeBridge.BridgeTools
                 _publishedGeneration = snapshot.Generation;
                 // Observed whether or not a run segment exists: the current map supplies the origin, and with no
                 // loaded map there is no world to publish under.
-                if (Current.Game == null || Find.CurrentMap == null || !ProtoBoundary.TryReadContext(Find.CurrentMap, out var observed, out _)) return;
+                if (Current.Game == null || Find.CurrentMap == null || !GameThread.TryReadContext(Find.CurrentMap, out var observed, out _)) return;
                 Publish(new AuthorityChanged(OriginOf(observed), "Native authority generation " + previous + " -> " + snapshot.Generation + " (" + snapshot.Reason + ").",
                     snapshot.Generation, snapshot.Reason.ToString(), snapshot.Active));
             }
@@ -495,10 +493,10 @@ namespace HomeBridge.BridgeTools
         {
             var typed = TypedOf(s);
             if (ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map)
-                && ProtoBoundary.TryReadContext(s.Map, out var current, out _)) typed.LastObservation = current;
+                && GameThread.TryReadContext(s.Map, out var current, out _)) typed.LastObservation = current;
             return OriginOf(typed.LastObservation);
         }
-        private static ColonyEventOrigin OriginOf(Common.ObservationContext context) =>
+        private static ColonyEventOrigin OriginOf(RimGovernor.Brain.GameFacts.Common.ObservationContext context) =>
             new ColonyEventOrigin(context.Identity.ColonyId, context.Identity.LoadToken, context.Identity.MapId, context.Tick, NowMs());
 
         // The brain's emitter, attached once BrainHost has started; before it
@@ -547,14 +545,14 @@ namespace HomeBridge.BridgeTools
                 return target != null && Harmony.GetPatchInfo(target)?.Postfixes.Any(p => p.owner == "homebridge.supervised-play" && p.PatchMethod == patch) == true;
             });
         }
-        private static IEnumerable<IEnumerable<string>> PolicyIds(Clock.WatchPolicy policy)
+        private static IEnumerable<IEnumerable<string>> PolicyIds(RimGovernor.Brain.GameOrders.Clock.WatchPolicy policy)
         { yield return policy.AcknowledgedHostileIds; yield return policy.AcknowledgedDownedColonistIds; yield return policy.AcknowledgedInjuredColonistIds; yield return policy.SurgicalRecoveryIds; yield return policy.MedicalRestIds; yield return policy.AcknowledgedHungryColonistIds; }
         /// A watched hostile (a hunt's prey included) that has since died is no longer on the map and needs no acknowledging: the run goes on without it.
         private static string ResolveHostiles(Map map, IEnumerable<string> ids) => string.Join(",", ids.SelectMany(id => map.mapPawns.AllPawns.Where(p => p.GetUniqueLoadID() == id)).Select(p => p.thingIDNumber.ToString(System.Globalization.CultureInfo.InvariantCulture)));
         private static string ResolveIds(Map map, IEnumerable<string> ids) => string.Join(",", ids.Select(id => map.mapPawns.AllPawns.Single(p => p.GetUniqueLoadID() == id).thingIDNumber.ToString(System.Globalization.CultureInfo.InvariantCulture)));
-        private static bool ValidPolicy(Clock.WatchPolicy policy)
+        private static bool ValidPolicy(RimGovernor.Brain.GameOrders.Clock.WatchPolicy policy)
         {
-            return policy != null && (policy.Mode == Clock.WatchMode.Colony || policy.Mode == Clock.WatchMode.Combat)
+            return policy != null && (policy.Mode == RimGovernor.Brain.GameOrders.Clock.WatchMode.Colony || policy.Mode == RimGovernor.Brain.GameOrders.Clock.WatchMode.Combat)
                 && Fraction(policy.HealthDropFraction) && Fraction(policy.MinHealthFraction)
                 && !float.IsNaN(policy.HostileWithin) && policy.HostileWithin >= 1 && policy.HostileWithin <= 250
                 && policy.InjuryStopCooldownMs <= 1800000
@@ -565,11 +563,11 @@ namespace HomeBridge.BridgeTools
                 && Positive(policy.ExplosiveNearMarginCells)
                 && Positive(policy.MeleeReachCells)
                 && policy.InjurySeverityFloorTicks > 0 && policy.InjurySeverityFloorTicks <= int.MaxValue
-                && policy.HungerHoldCategory is { } hunger && hunger != RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed && Enum.IsDefined(typeof(RimGovernor.Contracts.Wire.Defs.HungerCategory), hunger)
-                && (policy.CombatStopEvents.Count == 0 || policy.Mode == Clock.WatchMode.Combat)
-                && policy.CombatStopEvents.All(e => Enum.IsDefined(typeof(Clock.CombatEvent), e))
+                && policy.HungerHoldCategory is { } hunger && hunger != RimGovernor.Brain.GameFacts.Defs.HungerCategory.Fed && Enum.IsDefined(typeof(RimGovernor.Brain.GameFacts.Defs.HungerCategory), hunger)
+                && (policy.CombatStopEvents.Count == 0 || policy.Mode == RimGovernor.Brain.GameOrders.Clock.WatchMode.Combat)
+                && policy.CombatStopEvents.All(e => Enum.IsDefined(typeof(RimGovernor.Brain.GameFacts.Clock.CombatEvent), e))
                 && policy.CombatStopEvents.Distinct().Count() == policy.CombatStopEvents.Count
-                && PolicyIds(policy).All(ids => ids.Count() <= 256 && ids.All(ProtoBoundary.IsIdentifier) && ids.Distinct(StringComparer.Ordinal).Count() == ids.Count());
+                && PolicyIds(policy).All(ids => ids.Count() <= 256 && ids.All(GameThread.IsIdentifier) && ids.Distinct(StringComparer.Ordinal).Count() == ids.Count());
         }
         private static bool Positive(float value) => !float.IsNaN(value) && !float.IsInfinity(value) && value > 0;
         private static bool Fraction(float value) => !float.IsNaN(value) && value >= 0.01f && value <= 1;

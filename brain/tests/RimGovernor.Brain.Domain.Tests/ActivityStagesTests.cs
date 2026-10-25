@@ -18,6 +18,8 @@ public sealed class ActivityStagesTests
     [InlineData("Binding", "RimGovernor.Brain.Domain.PawnActivities a = new();", false)]
     [InlineData("Generation", "Helper.Choose();", true)]
     [InlineData("Binding", "RimGovernor.Brain.Policy.Methods.Evaluation.Selection.Compare();", true)]
+    [InlineData("Evaluation", "RimGovernor.Brain.GameFacts.Observed a = new();", true)]
+    [InlineData("Evaluation", "RimGovernor.Brain.GameOrders.Request a = new();", true)]
     public async Task StageDependenciesAreCheckedSemantically(string stage, string body, bool rejected)
     {
         var source = $$"""
@@ -26,6 +28,8 @@ public sealed class ActivityStagesTests
             namespace RimGovernor.Brain.Policy { public static class PolicyFunctions { public static void CompareActivityPlans() {} public static void CompareActivityOutcomes() {} }
                 public static class Helper { public static void Choose() {} } }
             namespace RimGovernor.Brain.Domain { public class PawnActivities {} }
+            namespace RimGovernor.Brain.GameFacts { public class Observed {} }
+            namespace RimGovernor.Brain.GameOrders { public class Request {} }
             namespace RimGovernor.Brain.Policy.Methods.Evaluation { internal class Selection { internal static void Compare() {} } }
             namespace RimGovernor.Brain.Policy.Methods.{{stage}} { internal class Stage { void Run() { {{body}} } } }
             """;

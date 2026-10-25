@@ -45,7 +45,7 @@ public sealed record FirebreakFootprint
 
     public required EquatableArray<ConstructionClaim> Claims { get; init; }
 
-    public required RimGovernor.Contracts.Wire.Observations.HomeCoverageFacts Home { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.HomeCoverageFacts Home { get; init; }
 
     /// <summary>The cells of every growing zone; they join the footprint so a field is enclosed rather than cut.</summary>
     public required EquatableArray<Cell> GrowingZones { get; init; }

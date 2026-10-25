@@ -52,7 +52,7 @@ public static partial class MoodRules
     /// <summary>Whether the def's facts let the pawn carry the thought; Known is false when the pawn's or the def's expectation level is off the ladder.</summary>
     private static (bool Applies, bool Known) ThoughtApplies(ThoughtFacts f, MoodPawn p)
     {
-        if (f.NullifyingTraits.Any(name => p.Pawn.Biography.Traits.Any(t => t.DefName == name)) || p.Pawn.Settings.PolicyInputs.Ideo is RimGovernor.Contracts.Wire.Observations.PawnIdeo.Member member && f.NullifyingPrecepts.Any(member.Precepts.Contains))
+        if (f.NullifyingTraits.Any(name => p.Pawn.Biography.Traits.Any(t => t.DefName == name)) || p.Pawn.Settings.PolicyInputs.Ideo is RimGovernor.Brain.GameFacts.Observations.PawnIdeo.Member member && f.NullifyingPrecepts.Any(member.Precepts.Contains))
         {
             return (false, true);
         }

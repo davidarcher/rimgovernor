@@ -4,16 +4,14 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using HarmonyLib;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.PlayerApi;
 using RimGovernor.Brain.Policy;
 using RimWorld;
 using Verse;
 using BrainCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// The definition catalog the in-process brain plans over (#3116). The catalog reply carries what the game computes
@@ -42,7 +40,7 @@ namespace HomeBridge.BridgeTools
         /// stat table and race facts the load's definition catalog read built (<see cref="NativeStatTable"/>,
         /// <see cref="NativeRaceFacts"/>).
         /// </summary>
-        internal static BrainCatalog Create(Common.Identity identity)
+        internal static BrainCatalog Create(RimGovernor.Brain.GameFacts.Common.Identity identity)
         {
             ArgumentNullException.ThrowIfNull(identity);
             return new BrainCatalog(AllDefs(), NativeStatTable.ForLoad(identity.LoadToken), NativeDefinitionCatalogTool.BrainDerived(), NativeRaceFacts.ForLoad(identity.LoadToken));
@@ -61,7 +59,7 @@ namespace HomeBridge.BridgeTools
         /// With a <paramref name="theme"/> preset id (#3511) the design holds that preset's memes, precepts and venerated
         /// animals as they resolve over the installed game.
         /// </summary>
-        internal static Task<Common.IdeoligionDesign> StartingIdeoligion(string scenario, string? theme, CancellationToken cancellationToken)
+        internal static Task<RimGovernor.Brain.GameFacts.Common.IdeoligionDesign> StartingIdeoligion(string scenario, string? theme, CancellationToken cancellationToken)
             => Task.Run(() =>
             {
                 cancellationToken.ThrowIfCancellationRequested();

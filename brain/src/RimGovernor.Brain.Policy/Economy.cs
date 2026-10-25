@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record ResearchCensus
 {
-    public required RimGovernor.Contracts.Wire.Observations.ResearchSnapshot Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.ResearchSnapshot Observed { get; init; }
 
     public string Current => Observed.Projects.FirstOrDefault(row => row.Current && Projects[row.Project.DefName].KnowledgeCategory.Length == 0)?.Project.DefName ?? "";
 
@@ -53,8 +53,8 @@ public sealed record ResourceFacts
     /// <summary>Whether the colony's own works (construction, open bills, clothing, fuel, feed) demand some stock: stock a chop or a mine provides.</summary>
     public bool Works { get; init; }
 
-    private RimGovernor.Contracts.Wire.Observations.ColonyFactsSnapshot? census;
-    public RimGovernor.Contracts.Wire.Observations.ColonyFactsSnapshot Census { get => census ?? throw new RequiredFactException("colony census"); init => census = value; }
+    private RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot? census;
+    public RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot Census { get => census ?? throw new RequiredFactException("colony census"); init => census = value; }
 
     public EquatableArray<ResourceRunway> Runways { get; init; }
 
@@ -62,7 +62,7 @@ public sealed record ResourceFacts
     public string ResearchGate { get; init; } = "";
 
     /// <summary>The resource facts of a review: its facts and the demand it derived from them.</summary>
-    public static ResourceFacts From(RoundsFacts f, DerivedDemand demand) => new()
+    public static ResourceFacts From(ReviewFacts f, DerivedDemand demand) => new()
     {
         Targets = demand.Needs,
         Works = demand.Works.Count > 0,
@@ -222,7 +222,7 @@ public static class EconomyRules
     /// overflow category from <paramref name="overflow"/> (the catalog's KnowledgeCategoryDef.overflowCategory by
     /// category). A row or a knowledge slot the catalog does not hold is a contract violation (<see cref="DomainException"/>).
     /// </summary>
-    public static ResearchCensus ResearchCensusOf(RimGovernor.Contracts.Wire.Observations.ResearchSnapshot read, IReadOnlyDictionary<string, ResearchProjectDefinition> catalog,
+    public static ResearchCensus ResearchCensusOf(RimGovernor.Brain.GameFacts.Observations.ResearchSnapshot read, IReadOnlyDictionary<string, ResearchProjectDefinition> catalog,
         IReadOnlyDictionary<string, string> overflow)
     {
         var projects = new Dictionary<string, ResearchProjectFacts>(StringComparer.Ordinal);

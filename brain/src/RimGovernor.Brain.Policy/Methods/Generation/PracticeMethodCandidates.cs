@@ -1,4 +1,5 @@
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 namespace RimGovernor.Brain.Policy.Methods.Generation;
 
 /// <summary>
@@ -13,7 +14,7 @@ internal sealed record PracticeMethodCandidates(ForecastActivity[] Tasks, Foreca
     EquatableArray<ForecastPracticeTask> Practice, EquatableArray<ForecastMaintenanceRequirement> Requirements,
     EquatableArray<string> Findings, PracticeTrainees? Sparring, PracticeTrainees? Range)
 {
-    internal static PracticeMethodCandidates Generate(RoundsFacts facts, PracticeActivityRead read, double horizon, EquatableArray<AssignedCapability> assigned, bool admitted)
+    internal static PracticeMethodCandidates Generate(ReviewFacts facts, PracticeActivityRead read, double horizon, EquatableArray<AssignedCapability> assigned, bool admitted)
     {
         var tasks = new List<ForecastActivity>(); var options = new List<ForecastActivityOption>();
         var routes = new List<ForecastActivityRoute>(); var roots = new List<ForecastCommitment>();
@@ -81,7 +82,7 @@ internal sealed record PracticeMethodCandidates(ForecastActivity[] Tasks, Foreca
     /// damage. The standing practice targets of the skill. A trainee without its curve (a pipeline the curve does not
     /// qualify) is a named not-modelled finding and earns nothing. Null when the work pawns were not read.
     /// </summary>
-    internal static PracticeTrainees? TraineesOf(RoundsFacts facts, PracticeActivityRead read, SortedSet<string> findings, string skill)
+    internal static PracticeTrainees? TraineesOf(ReviewFacts facts, PracticeActivityRead read, SortedSet<string> findings, string skill)
     {
         var pawns = facts.ForecastObserved.WorkPawns.Pawns;
         var melee = skill == "Melee";

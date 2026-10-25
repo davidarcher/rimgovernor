@@ -1,10 +1,11 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.HttpChannel;
-using RimGovernor.Contracts.Wire.Common;
-using RimGovernor.Contracts.Wire.Lifecycle;
+using RimGovernor.Brain.GameFacts.Common;
+using RimGovernor.Brain.GameFacts.Lifecycle;
+using RimGovernor.Brain.GameOrders.Lifecycle;
 
 namespace RimGovernor.Brain.PlayerApi;
 

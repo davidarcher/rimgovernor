@@ -3,11 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
-using static HomeBridge.BridgeTools.NativePawnObservationTools;
+using static RimGovernor.Native.NativePawnObservationTools;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The primary ideoligion's current state for the snapshot frame's
     // "ideology" section; absent without Ideology. The static defs
@@ -24,7 +22,7 @@ namespace HomeBridge.BridgeTools
         // RequirementsSatisfied as the game computes it (a building of the precept whose effective room meets every
         // requirement) without filling the demand's met-count cache. The requirements by kind; the derived classes are
         // tested before the base they derive from.
-        private static Obs.IdeoBuilding Building(Map map, Precept_Building building)
+        private static RimGovernor.Brain.GameFacts.Observations.IdeoBuilding Building(Map map, Precept_Building building)
         {
             var thing = building.ThingDef ?? throw new InvalidOperationException("Building precept " + building.def.defName + " has no ThingDef.");
             var demand = building.presenceDemand ?? throw new InvalidOperationException("Building precept " + building.def.defName + " has no presence demand.");
@@ -33,7 +31,7 @@ namespace HomeBridge.BridgeTools
                 && demand.GetEffectiveRoom(b) is { } room && requirements.All(r => r.MetOrDisabled(room)));
             int area = 0, impressiveness = 0;
             var floors = new List<string>();
-            var things = new List<Obs.IdeoThingCount>();
+            var things = new List<RimGovernor.Brain.GameFacts.Observations.IdeoThingCount>();
             var forbidden = new List<string>();
             var unread = new List<string>();
             foreach (var requirement in requirements)
@@ -49,7 +47,7 @@ namespace HomeBridge.BridgeTools
                     default: unread.Add(requirement?.GetType().Name ?? "null"); break;
                 }
             }
-            return new Obs.IdeoBuilding
+            return new RimGovernor.Brain.GameFacts.Observations.IdeoBuilding
             {
                 Building = Id(thing.defName),
                 Applies = demand.AppliesTo(map),
@@ -68,44 +66,44 @@ namespace HomeBridge.BridgeTools
         // Ideology. With Ideology active a colony always holds a primary
         // ideoligion, so its absence, a fluid ideoligion without its
         // development tracker, or a ritual without its pattern, throws.
-        internal static Obs.IdeologySnapshot? Build(Map map)
+        internal static RimGovernor.Brain.GameFacts.Observations.IdeologySnapshot? Build(Map map)
         {
             if (!ModsConfig.IdeologyActive) return null;
             var ideo = Faction.OfPlayerSilentFail?.ideos?.PrimaryIdeo
                 ?? throw new InvalidOperationException("Ideology is active but the player faction has no primary ideoligion.");
-            Obs.IdeoDevelopment development = new Obs.IdeoDevelopment.Fixed();
+            RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment development = new RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment.Fixed();
             if (ideo.Fluid)
             {
                 var d = ideo.development ?? throw new InvalidOperationException("Fluid ideoligion without its development tracker.");
-                development = new Obs.IdeoDevelopment.Fluid(d.CanReformNow, d.Points, d.reformCount, d.NextReformationDevelopmentPoints);
+                development = new RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment.Fluid(d.CanReformNow, d.Points, d.reformCount, d.NextReformationDevelopmentPoints);
             }
-            var precepts = new List<Obs.IdeoPrecept>();
-            var roles = new List<Obs.IdeoRole>();
-            var rituals = new List<Obs.IdeoRitual>();
-            var buildings = new List<Obs.IdeoBuilding>();
+            var precepts = new List<RimGovernor.Brain.GameFacts.Observations.IdeoPrecept>();
+            var roles = new List<RimGovernor.Brain.GameFacts.Observations.IdeoRole>();
+            var rituals = new List<RimGovernor.Brain.GameFacts.Observations.IdeoRitual>();
+            var buildings = new List<RimGovernor.Brain.GameFacts.Observations.IdeoBuilding>();
             foreach (var precept in ideo.PreceptsListForReading.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)) {
                 var id = Id(precept.GetUniqueLoadID());
                 var def = Id(precept.def.defName);
                 switch (precept) {
                     case Precept_Role role:
                         var holders = role.ChosenPawns().OrderBy(p => p.thingIDNumber).ToList();
-                        roles.Add(new Obs.IdeoRole { Id = id, DefName = def, Active = role.Active, Pawns = [.. holders.Select(PawnId)],
+                        roles.Add(new RimGovernor.Brain.GameFacts.Observations.IdeoRole { Id = id, DefName = def, Active = role.Active, Pawns = [.. holders.Select(PawnId)],
                             Converts = NativeConversionOperations.Grants(role.def), ConvertReady = holders.Any(NativeConversionOperations.Charged) });
                         break;
                     case Precept_Ritual ritual:
                         var pattern = ritual.sourcePattern ?? throw new InvalidOperationException("Ritual precept " + def + " has no source pattern.");
-                        rituals.Add(new Obs.IdeoRitual { Id = id, Pattern = Id(pattern.defName), LastFinishedTick = ritual.lastFinishedTick,
+                        rituals.Add(new RimGovernor.Brain.GameFacts.Observations.IdeoRitual { Id = id, Pattern = Id(pattern.defName), LastFinishedTick = ritual.lastFinishedTick,
                             ActiveObligations = ritual.activeObligations?.Count ?? 0, RepeatPenaltyActive = ritual.RepeatPenaltyActive, Running = NativeRitualBegin.Running(ritual) });
                         break;
                     case Precept_Building building:
                         buildings.Add(Building(map, building));
                         break;
                     default:
-                        precepts.Add(new Obs.IdeoPrecept { Id = id, DefName = def });
+                        precepts.Add(new RimGovernor.Brain.GameFacts.Observations.IdeoPrecept { Id = id, DefName = def });
                         break;
                 }
             }
-            return new Obs.IdeologySnapshot
+            return new RimGovernor.Brain.GameFacts.Observations.IdeologySnapshot
             {
                 IdeoId = Id(ideo.GetUniqueLoadID()),
                 Memes = [.. Sorted(Names(ideo.memes))],

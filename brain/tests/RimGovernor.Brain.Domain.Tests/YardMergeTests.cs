@@ -1,4 +1,4 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
@@ -39,7 +39,7 @@ public sealed class YardMergeTests
         Assert.Equal(FilterBase.OutdoorSafeWaste, filter.Base);
         Assert.Empty(filter.Allow);
         Assert.Empty(filter.Disallow);
-        Assert.Equal(FilterBase.OutdoorSafeWaste, Assert.IsType<RimGovernor.Contracts.Wire.Operations.StockpilePresetChange.Selected>(Zones.StockpileSettings(filter, StockpilePriority.Low).Preset).Value);
+        Assert.Equal(FilterBase.OutdoorSafeWaste, Assert.IsType<RimGovernor.Brain.GameOrders.Operations.StockpilePresetChange.Selected>(Zones.StockpileSettings(filter, StockpilePriority.Low).Preset).Value);
     }
 
     [Fact]

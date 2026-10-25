@@ -1,8 +1,6 @@
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -81,7 +79,7 @@ internal static class FarmBlight
     }
 
     /// <summary>The zone's bounding rectangle widened by the spread radius, clamped to the map.</summary>
-    private static async Task<Observations.Rectangle> RectAsync(TypedSession s, IReadOnlyList<Fx.StageCell> zone, CancellationToken cancellationToken)
+    private static async Task<RimGovernor.Brain.GameFacts.Observations.Rectangle> RectAsync(TypedSession s, IReadOnlyList<Fx.StageCell> zone, CancellationToken cancellationToken)
     {
         var anchor = await ReadAsync(s, "map-size", Rect(0, 0, 0, 0), cancellationToken).ConfigureAwait(false);
         var width = checked((int)anchor.MapSize.Width);
@@ -93,18 +91,18 @@ internal static class FarmBlight
             Math.Min(height - 1, zone.Max(c => c.Z) + SpreadRadius));
     }
 
-    private static Observations.Rectangle Rect(int minX, int minZ, int maxX, int maxZ) => new()
+    private static RimGovernor.Brain.GameFacts.Observations.Rectangle Rect(int minX, int minZ, int maxX, int maxZ) => new()
     {
         Minimum = new RimGovernor.Brain.Domain.Cell { X = minX, Z = minZ },
         Maximum = new RimGovernor.Brain.Domain.Cell { X = maxX, Z = maxZ },
     };
 
-    private static async Task<Observations.CellsSnapshot> ReadAsync(TypedSession s, string label, Observations.Rectangle rect, CancellationToken cancellationToken)
+    private static async Task<RimGovernor.Brain.GameFacts.Observations.CellsSnapshot> ReadAsync(TypedSession s, string label, RimGovernor.Brain.GameFacts.Observations.Rectangle rect, CancellationToken cancellationToken)
     {
-        return await s.CallAsync(label, NativeOps.GetCells, new Observations.GetCellsRequest { Scope = s.Scope, Rectangle = rect }, cancellationToken).ConfigureAwait(false);
+        return await s.CallAsync(label, NativeOps.GetCells, new RimGovernor.Brain.GameOrders.Observations.GetCellsRequest { Scope = s.Scope, Rectangle = rect }, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task<Census> CensusAsync(TypedSession s, string label, Observations.Rectangle rect, CancellationToken cancellationToken)
+    private static async Task<Census> CensusAsync(TypedSession s, string label, RimGovernor.Brain.GameFacts.Observations.Rectangle rect, CancellationToken cancellationToken)
     {
         var grid = MapCellGrid.Of((await ReadAsync(s, label, rect, cancellationToken).ConfigureAwait(false)).Grid);
         var plants = grid.Things().SelectMany(t => t).Where(t => t.Def == "Plant_Rice").ToList();

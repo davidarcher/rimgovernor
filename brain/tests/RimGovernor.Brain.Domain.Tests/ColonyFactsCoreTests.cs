@@ -1,12 +1,12 @@
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
-using C = RimGovernor.Contracts.Wire.Common;
-using Defs = RimGovernor.Contracts.Wire.Defs;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -18,16 +18,16 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class ColonyFactsCoreTests
 {
     /// <summary>A colony facts read with every section present and empty: no indoor bed and nothing pending.</summary>
-    internal static ColonyFactsSnapshot Snapshot(C.ObservationContext? context = null) => new()
+    internal static ColonyFactsSnapshot Snapshot(RimGovernor.Brain.GameFacts.Common.ObservationContext? context = null) => new()
     {
         Gear = GearFixtures.NoSnapshot,
         Crops = [],
         FoodClimate = new FoodClimate { GrowingYear = [], GrowingDays = 0, GrowingDaysRemaining = 0, SowingNow = false, GrowingDaysUntil = 60, Season = "Winter", DayOfYear = 0, NonGrowingDays = 60 },
         ControlledEnvironment = ControlledEnvironmentTests.NoEnvironment,
         Resources = [],
-        Context = context ?? new C.ObservationContext { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 0 },
+        Context = context ?? new RimGovernor.Brain.GameFacts.Common.ObservationContext { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new RimGovernor.Brain.GameFacts.Common.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 0 },
         ResourceThings = [],
-        FoodRunway = new RimGovernor.Contracts.Wire.Observations.FoodRunway.NoDemand(),
+        FoodRunway = new RimGovernor.Brain.GameFacts.Observations.FoodRunway.NoDemand(),
         WorkResources = [],
         JoinerLetters = [],
         ColonistCount = 0,
@@ -47,7 +47,7 @@ public sealed class ColonyFactsCoreTests
         Recovery = new() { Restrictions = [], Buildings = [] },
         Waste = new() { Items = [] },
         Blight = new() { Plants = [] },
-        PlayerTechLevel = Defs.TechLevel.Neolithic,
+        PlayerTechLevel = RimGovernor.Brain.GameFacts.Defs.TechLevel.Neolithic,
         Threat = new() { Observed = QuietThreat },
         EventLoot = new(),
         FoodChannels = new() { FishableWater = null, Gatherable = [], EggLayer = [], PasteDispenser = [], Forage = [], Grazing = [], Slaughter = [], PastureTerrain = [] },
@@ -105,9 +105,9 @@ public sealed class ColonyFactsCoreTests
     [Fact]
     public void EveryColonyReplyRequiresGearEvenWithoutAPlanningRequest()
     {
-        var json = System.Text.Json.Nodes.JsonNode.Parse(WireJson.Serialize(Snapshot()))!.AsObject();
+        var json = System.Text.Json.Nodes.JsonNode.Parse(OrdersJson.Serialize(Snapshot()))!.AsObject();
         Assert.True(json.Remove("gear"));
-        Assert.Throws<System.Text.Json.JsonException>(() => WireJson.Deserialize<ColonyFactsSnapshot>(json.ToJsonString()));
+        Assert.Throws<System.Text.Json.JsonException>(() => OrdersJson.Deserialize<ColonyFactsSnapshot>(json.ToJsonString()));
     }
 
     [Fact]
@@ -133,9 +133,9 @@ public sealed class ColonyFactsCoreTests
             },
         })
         {
-            var json = WireJson.Serialize(facts);
-            var back = WireJson.Deserialize<ColonyFactsSnapshot>(json);
-            Assert.Equal(json, WireJson.Serialize(back));
+            var json = OrdersJson.Serialize(facts);
+            var back = OrdersJson.Deserialize<ColonyFactsSnapshot>(json);
+            Assert.Equal(json, OrdersJson.Serialize(back));
             Assert.Equal(facts.SleepingTemperature, back.SleepingTemperature);
         }
     }
@@ -145,9 +145,9 @@ public sealed class ColonyFactsCoreTests
     [InlineData("controlledEnvironment")]
     public void TotalCensusCannotBeOmittedFromJson(string member)
     {
-        var node = System.Text.Json.Nodes.JsonNode.Parse(WireJson.Serialize(Snapshot()))!.AsObject();
+        var node = System.Text.Json.Nodes.JsonNode.Parse(OrdersJson.Serialize(Snapshot()))!.AsObject();
         Assert.True(node.Remove(member));
-        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<ColonyFactsSnapshot>(node.ToJsonString()));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => OrdersJson.Deserialize<ColonyFactsSnapshot>(node.ToJsonString()));
     }
 
     [Fact]
@@ -202,7 +202,7 @@ public sealed class ColonyFactsCoreTests
     [Fact]
     public void ZoneSnapshotFillsBothTotalCropArrays()
     {
-        var context = Snapshot().Context with { NativeGeneration = new C.ObservedGeneration.AtCase(7) };
+        var context = Snapshot().Context with { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase(7) };
         var expected = new ObservationIdentity { Context = context };
         var read = new ZonesSnapshot
         {
@@ -235,9 +235,9 @@ public sealed class ColonyFactsCoreTests
     [Fact]
     public void ReadMissingItsCropCensusDoesNotDecode()
     {
-        var json = WireJson.Serialize(Snapshot());
+        var json = OrdersJson.Serialize(Snapshot());
         var node = System.Text.Json.Nodes.JsonNode.Parse(json)!.AsObject();
         Assert.True(node.Remove("crops"));
-        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<ColonyFactsSnapshot>(node.ToJsonString()));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => OrdersJson.Deserialize<ColonyFactsSnapshot>(node.ToJsonString()));
     }
 }

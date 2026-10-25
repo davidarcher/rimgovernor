@@ -1,7 +1,7 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -11,7 +11,7 @@ public sealed class ForecastIncumbentSelectionTests
     private static (ColonyForecastRequest Request, ForecastCoupledCandidates Candidates) Problem(double food, double fall, bool meal = true)
     {
         var facts = ForecastCoupledSelectionTests.Review(food, fall);
-        facts = WorkRules.ReviewWorkResources(facts with { Census = facts.Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 1 }] }},
+        facts = WorkRules.ReviewWorkResources(facts with { Census = facts.Census with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Rice", Units = 1 }] }},
             new ProductionBatchCensus.Read([]), new([]));
         var original = facts.CoupledAlternatives!;
         var pawn = original.Context.Needs.Pawns[0] with

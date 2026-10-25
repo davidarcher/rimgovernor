@@ -8,7 +8,7 @@ using RimWorld.Planet;
 using UnityEngine;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// The clock in the bottom-right date readout reads as a time with seconds in place of vanilla's hour: "3:45:12 PM"

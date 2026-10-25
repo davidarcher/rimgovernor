@@ -1,9 +1,10 @@
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Contracts.Wire.Placement;
+using RimGovernor.Brain.GameFacts.Placement;
+using RimGovernor.Brain.GameOrders.Placement;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class PlacementPreviewsTools
     {
@@ -14,7 +15,7 @@ namespace HomeBridge.BridgeTools
             if (!PlacementProtocol.Validate(parsed, out var invalidRequest))
                 return new PlacementReply { Outcome = invalidRequest };
             var map = Find.CurrentMap;
-            if (!ProtoBoundary.ValidateIdentity(parsed.Identity, map, out var context, out var identityFailure))
+            if (!GameThread.ValidateIdentity(parsed.Identity, map, out var context, out var identityFailure))
                 return new PlacementReply { Outcome = identityFailure };
             var batch = new PlacementBatch { Context = context, Results = [] };
             foreach (var candidate in parsed.Placements)

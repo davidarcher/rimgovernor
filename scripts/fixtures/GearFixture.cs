@@ -7,7 +7,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Disposable scenario setup only; default companion builds exclude this tool.
     public sealed class GearFixture
@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
         private static Apparel damaged { get => damagedState ?? throw new System.InvalidOperationException("damaged must be staged first."); set => damagedState = value; }
         private static ThingWithComps? weapon;
         [Tool("test/gear_fixture", Description = "Set up disposable apparel acceptance conditions.")]
-        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> Setup(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "setup, force, unforce, forbid, allow, policy or interrupt")] string mode = "setup",
             [ToolParameter(Description = "production_setup: the ingredient stack placed by the subject (Cloth or a leather def).")] string material = "Cloth",
             [ToolParameter(Description = "South-west corner x of the 11x11 hut the controller's starter search chose (required).")] int siteX = -1,
@@ -165,7 +165,7 @@ namespace HomeBridge.BridgeTools
         private static readonly string[] Outfit = { "Apparel_BasicShirt", "Apparel_Pants", "Apparel_FlakVest", "Apparel_Duster", "Apparel_CowboyHat" };
 
         [Tool("test/deadmans_wear", Description = "Disposable fixture (#3283): redress the first colonist in five fresh garments, the first `tainted` worn by a corpse, with Bloodlust on or off. Test builds only.")]
-        public async Task<object> Wear(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> Wear(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "How many of the five garments are WornByCorpse (0-5).")] int tainted = 0,
             [ToolParameter(Description = "Give the pawn the Bloodlust trait (true) or remove it (false).")] bool bloodlust = false)
             => await ctx.MainThread.InvokeAsync<object>(() =>

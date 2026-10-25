@@ -1,5 +1,3 @@
-using D = RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -74,7 +72,7 @@ public sealed class PreferencesFactsTests
     {
         HumanCorpseNutrition = 60.0,
         Recipes = [new ProductionRecipe { Access = ProductionBenchFixtures.Recipe("ButcherCorpseFlesh"), Role = RecipeRole.ButcherFlesh, Food = new RecipeFood.NotFood() }],
-        HumanButchers = [new HumanButcherCandidate { Observed = new() { PawnId = "worker1", CanWork = true, PawnTraits = [] }, Traits = EquatableArray.From<PawnTrait>([]), Ideology = new O.PawnIdeo.None() }],
+        HumanButchers = [new HumanButcherCandidate { Observed = new() { PawnId = "worker1", CanWork = true, PawnTraits = [] }, Traits = EquatableArray.From<PawnTrait>([]), Ideology = new RimGovernor.Brain.GameFacts.Observations.PawnIdeo.None() }],
     };
 
     [Fact]
@@ -143,9 +141,9 @@ public sealed class PreferencesFactsTests
     public void ForbiddenHumanLeatherLeavesTheStuffCatalogAndTheApparelOptions()
     {
         var cloth = new Resource("Cloth");
-        var option = new GearOption { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("o1", "Apparel_Parka", (PreferenceRules.HumanLeather).Value, GearSource.Worn) with { Condition = 0, Quality = new O.ItemQuality.Graded(D.QualityCategory.Awful) }) };
-        var plain = new GearOption { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("o2", "Apparel_Parka", (cloth).Value, GearSource.Worn) with { Condition = 0, Quality = new O.ItemQuality.Graded(D.QualityCategory.Awful) }) };
-        var facts = new RoundsFacts
+        var option = new GearOption { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("o1", "Apparel_Parka", (PreferenceRules.HumanLeather).Value, GearSource.Worn) with { Condition = 0, Quality = new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded(RimGovernor.Brain.GameFacts.Defs.QualityCategory.Awful) }) };
+        var plain = new GearOption { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("o2", "Apparel_Parka", (cloth).Value, GearSource.Worn) with { Condition = 0, Quality = new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded(RimGovernor.Brain.GameFacts.Defs.QualityCategory.Awful) }) };
+        var facts = new ReviewFacts
         {
             Items = new ItemFacts
             {
@@ -172,7 +170,7 @@ public sealed class PreferencesFactsTests
     [Fact]
     public void TheStampReachesThePrisonerDecisions()
     {
-        var facts = new RoundsFacts { Population = PopulationFixtures.Census(colony: new PrisonerColony { Colonists = 2 }) }.WithPreferences(Prefer(forbidden: [ForbiddenMethod.Slavery]));
+        var facts = new ReviewFacts { Population = PopulationFixtures.Census(colony: new PrisonerColony { Colonists = 2 }) }.WithPreferences(Prefer(forbidden: [ForbiddenMethod.Slavery]));
 
         var colony = facts.Population.Colony;
         Assert.True(colony.Preferences.Forbids(ForbiddenMethod.Slavery));

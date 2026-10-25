@@ -2,7 +2,7 @@
 using System;
 using System.Diagnostics;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// Wall time the supervisor's own stop/start transitions account for
     ///: the paused time from each epoch's stop to the next

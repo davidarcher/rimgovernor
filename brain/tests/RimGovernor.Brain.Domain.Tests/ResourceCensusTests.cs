@@ -1,8 +1,7 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -16,10 +15,10 @@ public sealed class ResourceCensusTests
             FuelDefinitions = [Fuel.Value],
             Service = BuildingServiceWire.NoService with
             {
-                Fuel = new O.BuildingFuel.Refuelable
+                Fuel = new RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable
                 {
                     Fuel = empty ? 0 : 2, TargetFuel = 10, OutOfFuel = empty,
-                    Burn = new O.FuelBurn { PerDay = 2, UnitsPerItem = 2, UseDriven = useDriven, InRain = rain, WhenPowered = false, Flickable = false },
+                    Burn = new RimGovernor.Brain.GameFacts.Observations.FuelBurn { PerDay = 2, UnitsPerItem = 2, UseDriven = useDriven, InRain = rain, WhenPowered = false, Flickable = false },
                 },
             },
         };
@@ -96,7 +95,7 @@ public sealed class ResourceCensusTests
     [Fact]
     public void AnUncomposedConstructionProjectionRefusesPlanning()
     {
-        Assert.Throws<RequiredFactException>(() => new RoundsFacts().CurrentConstruction);
+        Assert.Throws<RequiredFactException>(() => new ReviewFacts().CurrentConstruction);
         Assert.Throws<RequiredFactException>(() => ConstructionOwnershipRules.WorkOpen(new("TestBuilding", new(1, 1), Rotation.North, ""), null));
         Assert.Empty(ConstructionReads.ConstructionFromTables(new(default, default, default, [])).Buildings);
     }

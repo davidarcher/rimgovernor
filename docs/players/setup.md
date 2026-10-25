@@ -6,7 +6,7 @@ A clean checkout needs:
 
 - The .NET SDK 10 on `PATH` (builds the launcher, the native mod and the brain).
 - RimWorld 1.7 (Waylith) with Harmony from Steam (the launcher finds them through Steam's
-  libraries). Do not also subscribe to RimBridgeServer: the RimGovernor mod
+  libraries). Do not also subscribe to NativeServer: the RimGovernor mod
   is not designed to run beside it.
 - The Microsoft Edge WebView2 Runtime (preinstalled on Windows 11).
 

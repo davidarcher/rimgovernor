@@ -4,11 +4,11 @@ using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Telemetry;
 using RimGovernor.Brain.Telemetry.Otlp;
-using RimGovernor.Contracts.Wire;
-using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -49,7 +49,7 @@ public sealed partial class Harness : IAsyncDisposable
 
     /// <summary>
     /// Calls the native op <paramref name="op"/> with its Contracts request record and returns its Contracts reply record:
-    /// the typed edge (<see cref="WireJson"/> both ways), recorded as evidence like every call.
+    /// the typed edge (<see cref="OrdersJson"/> both ways), recorded as evidence like every call.
     /// </summary>
     public async Task<TReply> CallAsync<TRequest, TReply>(string label, NativeOp<TRequest, TReply> op, TRequest request, CancellationToken cancellationToken)
         where TRequest : class
@@ -57,7 +57,7 @@ public sealed partial class Harness : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(op);
         ArgumentNullException.ThrowIfNull(request);
-        var envelope = await CallAsync(label, op.Tool, new JsonObject { { "request", WireJson.Serialize(request) } }, cancellationToken).ConfigureAwait(false);
+        var envelope = await CallAsync(label, op.Name, new JsonObject { { "request", OrdersJson.Serialize(request) } }, cancellationToken).ConfigureAwait(false);
         if (HarnessJson.TryRead(envelope, HarnessJsonContext.Default.ReplyPayload)?.Payload is not { } payload)
         {
             throw new AcceptanceException($"{label}: {op.Name}: reply did not preserve the JSON string envelope");
@@ -65,7 +65,7 @@ public sealed partial class Harness : IAsyncDisposable
 
         try
         {
-            return WireJson.Deserialize<TReply>(payload);
+            return OrdersJson.Deserialize<TReply>(payload);
         }
         catch (JsonException e)
         {
@@ -81,7 +81,7 @@ public sealed partial class Harness : IAsyncDisposable
     /// asked again with the same request id until <paramref name="patience"/> is spent; any other non-2xx status is the
     /// start's refusal. Each exchange is recorded as evidence.
     /// </summary>
-    public async Task StartNewColonyThroughBrainAsync(string label, Lifecycle.NewColonyRequest request, TimeSpan patience, CancellationToken cancellationToken)
+    public async Task StartNewColonyThroughBrainAsync(string label, RimGovernor.Brain.GameOrders.Lifecycle.NewColonyRequest request, TimeSpan patience, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         if (IsClosed)
@@ -89,7 +89,7 @@ public sealed partial class Harness : IAsyncDisposable
             throw Closed(NewColonyRoute, null);
         }
 
-        var body = WireJson.Serialize(request);
+        var body = OrdersJson.Serialize(request);
         var arguments = JsonNode.Parse(body) as JsonObject ?? [];
         var waited = Stopwatch.StartNew();
         using var pace = Wait.Pace(RouteRetryInterval);

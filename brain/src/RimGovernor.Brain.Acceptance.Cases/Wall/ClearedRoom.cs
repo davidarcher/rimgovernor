@@ -1,7 +1,6 @@
 using System.Globalization;
 using RimGovernor.Brain.Domain;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -84,7 +83,7 @@ internal static class WallClearedRoom
         _ = await TypedApply.AppliedAsync(s, "held-wall", WallKit.Deconstruct(heldWall), cancellationToken).ConfigureAwait(false);
 
         // Vanilla roofs the walls too (auto-roof), so clearance unroofs the room's whole footprint.
-        var unroof = await TypedApply.AppliedAsync(s, "remove-roof", new Operations.RemoveRoofIntent { Cells = [.. footprint.Select(WallKit.Wire)] }, cancellationToken).ConfigureAwait(false);
+        var unroof = await TypedApply.AppliedAsync(s, "remove-roof", new RimGovernor.Brain.GameOrders.Operations.RemoveRoofIntent { Cells = [.. footprint.Select(WallKit.Wire)] }, cancellationToken).ConfigureAwait(false);
         if (unroof.Effect()?.RemoveRoof is not { Designated: > 0 })
         {
             throw new AcceptanceException($"remove-roof: want fresh NoRoof cells designated over the roofed footprint, got {unroof.Effect()}");
@@ -106,7 +105,7 @@ internal static class WallClearedRoom
 
         for (var i = 0; i < interior.Count; i++)
         {
-            _ = await TypedApply.AppliedAsync(s, "floor-" + i.ToString(CultureInfo.InvariantCulture), new Operations.RemoveFloorIntent { Cell = WallKit.Wire(interior[i]), DefName = Floor }, cancellationToken).ConfigureAwait(false);
+            _ = await TypedApply.AppliedAsync(s, "floor-" + i.ToString(CultureInfo.InvariantCulture), new RimGovernor.Brain.GameOrders.Operations.RemoveFloorIntent { Cell = WallKit.Wire(interior[i]), DefName = Floor }, cancellationToken).ConfigureAwait(false);
         }
 
         var floors = await s.RunUntilAsync("floors-cleared", s.TicksLeft, async ct =>

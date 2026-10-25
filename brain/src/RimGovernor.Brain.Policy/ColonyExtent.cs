@@ -1,5 +1,5 @@
-using HomeCoverageFacts = RimGovernor.Contracts.Wire.Observations.HomeCoverageFacts;
-using HomeCoverageTarget = RimGovernor.Contracts.Wire.Observations.HomeCoverageTarget;
+using HomeCoverageFacts = RimGovernor.Brain.GameFacts.Observations.HomeCoverageFacts;
+using HomeCoverageTarget = RimGovernor.Brain.GameFacts.Observations.HomeCoverageTarget;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -31,7 +31,7 @@ public sealed record ExtentProvenance
 
     public ActionId Action { get; init; }
 
-    public ConcernId Concern { get; init; }
+    public FilingKey Concern { get; init; }
 }
 
 public sealed record ExtentCell

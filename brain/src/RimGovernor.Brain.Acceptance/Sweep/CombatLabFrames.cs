@@ -1,17 +1,15 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
-using RimGovernor.Contracts.Wire;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Mirror = RimGovernor.Contracts.Wire.Mirror;
-using Obs = RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>The combat sections of one snapshot frame.</summary>
-public sealed record CombatState(Obs.BundleSnapshot Frame)
+public sealed record CombatState(RimGovernor.Brain.GameFacts.Observations.BundleSnapshot Frame)
 {
     /// <summary>The frame's <c>combatEvents</c> rows.</summary>
-    public IReadOnlyList<Mirror.CombatEventRow> Events => Frame.CombatEvents;
+    public IReadOnlyList<RimGovernor.Brain.GameFacts.Mirror.CombatEventRow> Events => Frame.CombatEvents;
 
     /// <summary>The frame's tick.</summary>
     public long Tick => Frame.Context?.Tick ?? 0;
@@ -26,12 +24,12 @@ public sealed class CombatFrames
     /// <summary>Bounds the wait for a frame after a step.</summary>
     private static readonly TimeSpan FrameWait = TimeSpan.FromSeconds(10);
 
-    private readonly Common.Identity _identity;
+    private readonly RimGovernor.Brain.GameFacts.Common.Identity _identity;
     private readonly SnapshotPoller _poller;
     private ulong _last;
     private ulong _seen;
 
-    private CombatFrames(Common.Identity identity, SnapshotPoller poller)
+    private CombatFrames(RimGovernor.Brain.GameFacts.Common.Identity identity, SnapshotPoller poller)
     {
         _identity = identity;
         _poller = poller;
@@ -62,7 +60,7 @@ public sealed class CombatFrames
                     var identity = frame.Frame.Context?.Identity;
                     if (identity != _identity)
                     {
-                        throw new AcceptanceException($"frame {SweepText.Tag((long)frame.Number)} describes another world: {(identity is null ? "null" : WireJson.Serialize(identity))}");
+                        throw new AcceptanceException($"frame {SweepText.Tag((long)frame.Number)} describes another world: {(identity is null ? "null" : OrdersJson.Serialize(identity))}");
                     }
 
                     return state;

@@ -8,7 +8,7 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Disposable test setup only. Opens the same kind of
     // force-pausing Verse.Dialog_NodeTree the game opens by itself (a finished
@@ -22,7 +22,7 @@ namespace HomeBridge.BridgeTools
         private static readonly List<string> chosen = new List<string>();
 
         [Tool("test/open_choice_dialog", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: open a force-pausing Dialog_NodeTree with the given '|'-separated option labels now or delayTicks (1..600) ticks ahead. Every option closes the dialog and records its label; a label prefixed '!' is disabled. action=read reports the dialog's state.")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> Run(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "open or read.")] string action = "open",
             [ToolParameter(Description = "Dialog title.")] string title = "Research finished",
             [ToolParameter(Description = "Dialog body text.")] string text = "Disposable choice dialog acceptance case.",

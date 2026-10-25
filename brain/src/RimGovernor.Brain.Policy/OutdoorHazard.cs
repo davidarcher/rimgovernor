@@ -30,7 +30,7 @@ public static partial class OutdoorHazardRules
     /// Derives the active hazards: toxic fallout from the condition census, cold and heat from the outdoor
     /// temperature at or past the extreme bounds.
     /// </summary>
-    public static EquatableArray<OutdoorHazard> OutdoorHazardsOf(RoundsFacts f)
+    public static EquatableArray<OutdoorHazard> OutdoorHazardsOf(ReviewFacts f)
     {
         var result = new List<OutdoorHazard>();
         if (f.DisasterConditions.Any(c => c.Definition == DisasterRules.ConditionToxicFallout))
@@ -58,5 +58,5 @@ public static partial class OutdoorHazardRules
         hazards.Any(hazard => !dashOpen || hazard.Kind != HazardKind.ExtremeCold);
 
     /// <summary>The chop, hunt and forage gate: the same hold the remote requests apply, read from the review facts.</summary>
-    public static bool OutdoorAcquisitionHeld(RoundsFacts f) => OutdoorHazardHeld(OutdoorHazardsOf(f));
+    public static bool OutdoorAcquisitionHeld(ReviewFacts f) => OutdoorHazardHeld(OutdoorHazardsOf(f));
 }

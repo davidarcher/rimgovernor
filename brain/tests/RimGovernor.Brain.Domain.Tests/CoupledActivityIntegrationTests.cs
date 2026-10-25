@@ -1,8 +1,9 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 using Journal = RimGovernor.Brain.Store.Store;
 
@@ -12,7 +13,7 @@ public sealed class CoupledActivityIntegrationTests
 {
     private static readonly GenerationSnapshot Root = new(new("colony"), new(1), new("load"), new("root"), new(1), new(1));
 
-    private static (RoundsFacts Facts, PawnActivities Batch) SelectObserved()
+    private static (ReviewFacts Facts, PawnActivities Batch) SelectObserved()
     {
         var facts = ForecastCoupledSelectionTests.Review(level: .1, fall: .00001, expiry: 100000);
         var observed = facts.ForecastObserved.Coupled!;
@@ -20,7 +21,7 @@ public sealed class CoupledActivityIntegrationTests
             { Food = observed.Food with { Options = [observed.Food.Options[0] with { Destination = new(2, 1) }] },
                 FoodUses = EquatableArray.From(observed.FoodUses.Select(u => u with { Location = new(2, 1) })) } } };
         facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, GameTime.TicksPerDay)?.Priced() };
-        var findings = RoundsRules.InspectRounds(facts, new(), RoundsRules.DefaultRoundsPolicy());
+        var findings = Rules.InspectReview(facts, new(), Rules.DefaultPlannerSettings());
         var selection = Assert.IsType<ForecastCoupledSelection>(findings.CoupledSelection);
         Assert.NotEmpty(selection.Selection.Selected);
         Assert.True(selection.SelectedVector.Urgent[0].Number() < selection.BaselineVector.Urgent[0].Number());
@@ -33,7 +34,7 @@ public sealed class CoupledActivityIntegrationTests
 
     private static ActivityTaskRead Observe(PawnActivities batch, string state, long tick, params ActivityTaskBinding[] bindings) => ConstructionFixtures.NoTasks() with
     {
-        Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = tick },
+        Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = tick },
         Bindings = EquatableArray.From(bindings),
         Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
             new(o.Assignment, o.Method, o.Revision, o.Preparing ? 1 : 0, state, "", tick)))),
@@ -56,7 +57,7 @@ public sealed class CoupledActivityIntegrationTests
         var plan = new PlanSpec(new(id), new(1), [DomainAction.NewPawnActivitiesAction(new(id + "-action"), next)]);
         Assert.Equal(ActivityContinuationAdmission.Admitted, journal.ContinueActivityMethod(old.Id, Root, new(tick), EquatableArray.From(batch.Orders.Select(o =>
             new ActivityOwnership(o.Pawn, o.Assignment, o.Method, o.Revision, state))), plan, ct));
-        journal.AuthorizeRoundsPlan(Root, Root with { Plan = plan.Id }, ct);
+        journal.AuthorizeReviewPlan(Root, Root with { Plan = plan.Id }, ct);
         return plan;
     }
 
@@ -70,8 +71,8 @@ public sealed class CoupledActivityIntegrationTests
             ForecastObserved = facts.ForecastObserved with { WorkPawns = roster.ForecastObserved.WorkPawns } };
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-independent-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
-            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.Review(new ReviewRequest { Current = Root, Tick = new(100), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
         var firstPlan = new PlanSpec(new("first"), new(1), [DomainAction.NewPawnActivitiesAction(new("first-action"), first)]);
         TestNeed.Commit(journal, Root, new("coupled-observed"), firstPlan, ct);
         Send(journal, firstPlan, 100, ct);
@@ -88,7 +89,7 @@ public sealed class CoupledActivityIntegrationTests
         Assert.Contains("pawn", facts.WorkView!.Claims.Pawns);
         Assert.Contains("plant-a", facts.WorkView.Claims.Targets);
         facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, GameTime.TicksPerDay)?.Priced() };
-        var inspected = RoundsRules.InspectRounds(facts, new(), RoundsRules.DefaultRoundsPolicy());
+        var inspected = Rules.InspectReview(facts, new(), Rules.DefaultPlannerSettings());
         var choice = Assert.IsType<ForecastCoupledSelection>(inspected.CoupledSelection);
         var next = ForecastCoupledSelection.StartCoupledActivity(choice, facts.CoupledAlternatives!, 1, "coupled-independent", 100);
         Assert.NotNull(next);
@@ -139,8 +140,8 @@ public sealed class CoupledActivityIntegrationTests
         Assert.Contains(batch.Tasks.SelectMany(t => t.Inputs), input => input.Producers.Count > 0);
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-coupled-integration-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        var reviewed = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
-            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+        var reviewed = journal.Review(new ReviewRequest { Current = Root, Tick = new(100), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
         var plan = new PlanSpec(new("selected"), new(1), [DomainAction.NewPawnActivitiesAction(new("selected-action"), batch)]);
         TestNeed.Commit(journal, Root, new("coupled-observed"), plan, ct);
         TestNeed.File(journal, met: false, new("coupled-observed"), ct);
@@ -162,9 +163,9 @@ public sealed class CoupledActivityIntegrationTests
         facts = facts with { Tick = new(completedAt),
             CoupledAlternatives = null, CoupledWorkActive = true,
             Census = (facts.Census with { WorkResources = [new(active.Pawn, active.Assignment, active.Revision,
-                "completed", "", "", 0) { LocalHour = 6 }] }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 2 }] }};
-        var refreshed = journal.ReviewRounds(new RoundsRequest { Revision = reviewed.Review.Revision, Current = Root, Tick = new(completedAt), Enabled = true,
-            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+                "completed", "", "", 0) { LocalHour = 6 }] }) with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Rice", Units = 2 }] }};
+        var refreshed = journal.Review(new ReviewRequest { Revision = reviewed.Review.Revision, Current = Root, Tick = new(completedAt), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
         Assert.False(journal.LoadPlan(plan.Id, ct).Retired); // Accepted assignment still owns unfinished graph work.
         var continuation = Continue(journal, plan, batch, next, completedAt, "delivery", ct);
         var sent = Send(journal, continuation, completedAt, ct);
@@ -185,8 +186,8 @@ public sealed class CoupledActivityIntegrationTests
         {
             var released = Assert.Single(retry.Orders);
             Assert.True(released.Release);
-            journal.ReviewRounds(new RoundsRequest { Revision = refreshed.Review.Revision, Current = Root,
-                Tick = new(completedAt + 20), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(),
+            journal.Review(new ReviewRequest { Revision = refreshed.Review.Revision, Current = Root,
+                Tick = new(completedAt + 20), Enabled = true, Policy = Rules.DefaultPlannerSettings(),
                 Facts = facts with { Tick = new(completedAt + 20), CoupledWorkActive = false,
                     Census = facts.Census with { WorkResources = [new(released.Pawn, "", 0, "", "", "", 0) { LocalHour = 6 }] } } }, ct);
             Assert.True(journal.LoadPlan(recovered.Id, ct).Retired); // Accepted release must not become a permanent hold.

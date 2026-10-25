@@ -42,7 +42,7 @@ public sealed record SaveStart : Start
 
     /// <summary>
     /// Loads a save whose recorded mods are not all active: a downloaded CI bundle predates mods the build has since
-    /// dropped (the retired RimBridgeServer).
+    /// dropped (the retired NativeServer).
     /// </summary>
     public bool IgnoreModCompatibility { get; init; }
 

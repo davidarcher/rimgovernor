@@ -1,5 +1,5 @@
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
@@ -18,7 +18,7 @@ public sealed class HomeUpkeepFamilyTests
     private static RepairStructure Structure(string id, int hp, int max = 100, bool home = true, int priority = 1) =>
         new(new() { Id = id, Home = home }, PowerBuildingFixtures.Trader(id, "Wall", new(1, 1), 0, 0, false) with
         {
-            HitPoints = new RimGovernor.Contracts.Wire.Observations.BuildingHitPoints.Tracked { Current = hp, Maximum = max },
+            HitPoints = new RimGovernor.Brain.GameFacts.Observations.BuildingHitPoints.Tracked { Current = hp, Maximum = max },
         }, priority, 0);
 
     // Only the Need under test is composed: the family raises on the first composed Need whose fact is unread.
@@ -94,14 +94,14 @@ public sealed class HomeUpkeepFamilyTests
     {
         public required Journal Journal { get; init; }
         public required FamilyRunner<HomeUpkeepFacts> Runner { get; init; }
-        public required RoundsRequest Review { get; init; }
+        public required ReviewRequest Review { get; init; }
         public HomeUpkeepFacts Facts { get; set; } = new();
 
         /// <summary>Files a run's Need progress as the scheduler does after a wave.</summary>
         public void File(FamilyRun run) =>
-            Journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(), [PlannerWave.NeedProgressOf("home-upkeep", run)!], TestContext.Current.CancellationToken);
+            Journal.RecordPlannerReasons(new Dictionary<FilingKey, PlannerNote>(), [PlannerWave.NeedProgressOf("home-upkeep", run)!], TestContext.Current.CancellationToken);
 
-        public ConcernProgress? Row(NeedId need) => Journal.LoadRounds(TestContext.Current.CancellationToken).Progress.SingleOrDefault(p => p.Concern == need.FilingKey);
+        public ConcernProgress? Row(NeedId need) => Journal.LoadReview(TestContext.Current.CancellationToken).Progress.SingleOrDefault(p => p.Concern == need.FilingKey);
 
         public void Dispose() => Journal.Dispose();
 
@@ -120,8 +120,8 @@ public sealed class HomeUpkeepFamilyTests
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-home-upkeep-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
         facts = facts with { Census = facts.Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 },   FieldCoverage = 1.0};
-        var review = new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts };
-        journal.ReviewRounds(review, ct);
+        var review = new ReviewRequest { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts };
+        journal.Review(review, ct);
         Colony? colony = null;
         var runner = new FamilyRunner<HomeUpkeepFacts>(new HomeUpkeepFamily(), (_, _) => Task.FromResult(colony!.Facts),
             new FamilySchedule { Kinds = [ActionKind.Deconstruction] });
@@ -237,7 +237,7 @@ public sealed class HomeUpkeepFamilyTests
         Assert.True(clearance.Blocked.IsEmpty);
 
         // The review rebuild keeps the family's rows as they stand.
-        colony.Journal.ReviewRounds(colony.Review with { Tick = new(200), Revision = colony.Journal.LoadRounds(ct).Revision }, ct);
+        colony.Journal.Review(colony.Review with { Tick = new(200), Revision = colony.Journal.LoadReview(ct).Revision }, ct);
         Assert.Equal(repairs, colony.Row(HomeUpkeepFamily.Repairs));
         Assert.Equal(clearance, colony.Row(HomeUpkeepFamily.Clearance));
     }
@@ -258,22 +258,22 @@ public sealed class HomeUpkeepFamilyTests
         Assert.NotNull(colony.Row(HomeUpkeepFamily.Clearance));
 
         // A partial run (the immediate pass) prunes nothing; a complete run that no longer derives a Need does.
-        colony.Journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(), [new FamilyProgress("home-upkeep", false, [])], ct);
+        colony.Journal.RecordPlannerReasons(new Dictionary<FilingKey, PlannerNote>(), [new FamilyProgress("home-upkeep", false, [])], ct);
         Assert.NotNull(colony.Row(HomeUpkeepFamily.Clearance));
-        colony.Journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(), [new FamilyProgress("home-upkeep", true, [])], ct);
+        colony.Journal.RecordPlannerReasons(new Dictionary<FilingKey, PlannerNote>(), [new FamilyProgress("home-upkeep", true, [])], ct);
         Assert.Null(colony.Row(HomeUpkeepFamily.Clearance));
     }
 
     [Fact]
     public void TheFamilyIsOneDueQueueEntryWakingOnItsReadsAndMethodKinds()
     {
-        var entry = ClockPlannerCatalog.FamilyEntry(HomeUpkeepReaderRunner());
+        var entry = PlannerCatalog.FamilyEntry(HomeUpkeepReaderRunner());
         Assert.Equal("home-upkeep", entry.Name);
         Assert.Contains(ActionKind.Deconstruction, entry.Kinds);
         Assert.Contains(ActionKind.RemoveRoof, entry.Kinds);
         Assert.Contains(RimGovernor.Brain.Facts.Section.Colony, entry.Sections);
         Assert.Contains(RimGovernor.Brain.Facts.Section.Rooms, entry.Sections);
-        Assert.DoesNotContain(ClockPlannerCatalog.Entries, e => e.Name is "repair" or "clearance");
+        Assert.DoesNotContain(PlannerCatalog.Entries, e => e.Name is "repair" or "clearance");
         Assert.False(entry.Immediate);
     }
 

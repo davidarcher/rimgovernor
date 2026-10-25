@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -9,7 +8,7 @@ public static partial class TradePolicyRules
     /// Selects one healthy negotiator, retaining the existing departure policy's last work owners, home staffing
     /// and defense headroom. Claimed pawns include urgent work and other outstanding missions.
     /// </summary>
-    public static (IReadOnlyList<PawnId> Crew, QuestSkipReason Reason) TradeMissionCrew(RoundsFacts f, IReadOnlyList<PawnId> claimed)
+    public static (IReadOnlyList<PawnId> Crew, QuestSkipReason Reason) TradeMissionCrew(ReviewFacts f, IReadOnlyList<PawnId> claimed)
     {
         if (f.QuestPawns is not QuestPawns.Seen { Departures: var departure } || f.QuestRoster is not QuestRoster.Planned planned)
         {
@@ -23,11 +22,11 @@ public static partial class TradePolicyRules
                     {
                         switch (x.Negotiation, y.Negotiation)
                         {
-                            case (O.QuestNegotiation.Able a, O.QuestNegotiation.Able b) when a.Ability != b.Ability:
+                            case (RimGovernor.Brain.GameFacts.Observations.QuestNegotiation.Able a, RimGovernor.Brain.GameFacts.Observations.QuestNegotiation.Able b) when a.Ability != b.Ability:
                                 return a.Ability > b.Ability ? -1 : 1;
-                            case (O.QuestNegotiation.Able, O.QuestNegotiation.Incapable):
+                            case (RimGovernor.Brain.GameFacts.Observations.QuestNegotiation.Able, RimGovernor.Brain.GameFacts.Observations.QuestNegotiation.Incapable):
                                 return -1;
-                            case (O.QuestNegotiation.Incapable, O.QuestNegotiation.Able):
+                            case (RimGovernor.Brain.GameFacts.Observations.QuestNegotiation.Incapable, RimGovernor.Brain.GameFacts.Observations.QuestNegotiation.Able):
                                 return 1;
                         }
                         return x.Id.CompareTo(y.Id);
@@ -37,7 +36,7 @@ public static partial class TradePolicyRules
             .ToList();
         foreach (var row in rows)
         {
-            if (row.Negotiation is not O.QuestNegotiation.Able(var ability, _) || !Finite(ability) || ability <= 0 || claimed.Contains(row.Id) || !planned.Spare.Contains(row.Id))
+            if (row.Negotiation is not RimGovernor.Brain.GameFacts.Observations.QuestNegotiation.Able(var ability, _) || !Finite(ability) || ability <= 0 || claimed.Contains(row.Id) || !planned.Spare.Contains(row.Id))
             {
                 continue;
             }
@@ -53,7 +52,7 @@ public static partial class TradePolicyRules
     }
 
     /// <summary>Uses observed dietary access and rot, leaving every home consumer's reserve. Capacity excludes the observed silver mass.</summary>
-    public static (IReadOnlyList<CargoItem> Cargo, QuestSkipReason Reason) TradeMissionFood(RoundsFacts f, IReadOnlyList<PawnId> crew, double roundTripDays, double capacity, RoundsPolicy p)
+    public static (IReadOnlyList<CargoItem> Cargo, QuestSkipReason Reason) TradeMissionFood(ReviewFacts f, IReadOnlyList<PawnId> crew, double roundTripDays, double capacity, PlannerSettings p)
     {
         var supply = f.AnimalUpkeep.Food;
         if (!Finite(capacity) || capacity < 0 || !Finite(roundTripDays) || roundTripDays < 0)
@@ -63,7 +62,7 @@ public static partial class TradePolicyRules
         return QuestExpedition.ExpeditionFood(supply, crew, Math.Max(1, roundTripDays), p.FoodMinDays, capacity);
     }
 
-    public static (double Capacity, bool Ok) TradeMissionCarryCapacity(RoundsFacts f, IReadOnlyList<PawnId> crew)
+    public static (double Capacity, bool Ok) TradeMissionCarryCapacity(ReviewFacts f, IReadOnlyList<PawnId> crew)
     {
         if (f.QuestPawns is not QuestPawns.Seen { Departures: var rows })
         {
@@ -96,9 +95,9 @@ public static partial class TradePolicyRules
     }
 
     /// <summary>Admits only a fresh native calculation for the exact final crew and cargo, including both asymmetric routes.</summary>
-    public static bool SafeTradeMissionPack(O.TradePackEstimate pack)
+    public static bool SafeTradeMissionPack(RimGovernor.Brain.GameFacts.Observations.TradePackEstimate pack)
     {
-        if (pack is not O.TradePackEstimate.Packed packed || packed.MassUsage < 0 || packed.MassUsage > packed.MassCapacity)
+        if (pack is not RimGovernor.Brain.GameFacts.Observations.TradePackEstimate.Packed packed || packed.MassUsage < 0 || packed.MassUsage > packed.MassCapacity)
         {
             return false;
         }
@@ -107,8 +106,8 @@ public static partial class TradePolicyRules
     }
 
     /// <summary>The round trip's days, outbound plus home; false while either leg is unreachable.</summary>
-    public static (double Days, bool Reachable) TradeMissionRouteDays(O.TradePackEstimate.Packed pack) =>
-        (pack.Outbound, pack.Home) is (O.PackRoute.Reachable outbound, O.PackRoute.Reachable home)
+    public static (double Days, bool Reachable) TradeMissionRouteDays(RimGovernor.Brain.GameFacts.Observations.TradePackEstimate.Packed pack) =>
+        (pack.Outbound, pack.Home) is (RimGovernor.Brain.GameFacts.Observations.PackRoute.Reachable outbound, RimGovernor.Brain.GameFacts.Observations.PackRoute.Reachable home)
             ? ((double)(outbound.EstimatedTicks + home.EstimatedTicks) / GameTime.TicksPerDay, true)
             : (0, false);
 }

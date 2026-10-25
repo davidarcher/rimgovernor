@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -37,7 +38,7 @@ internal static class MoodProbe
                 continue;
             }
 
-            var thoughts = RoundsMoodReads.MoodThoughts(state);
+            var thoughts = MoodReads.MoodThoughts(state);
             return (thoughts.FirstOrDefault(t => t.Def == thought)?.Offset ?? 0, social.Situational.FirstOrDefault(r => r.DefName == thought), advanced, state);
         }
     }

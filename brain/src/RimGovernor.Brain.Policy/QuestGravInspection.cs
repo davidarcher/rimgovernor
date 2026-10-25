@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -16,7 +15,7 @@ public sealed record QuestGravInspectionWork
 
 public static class QuestGravInspection
 {
-    public static QuestGravInspectionWork SelectQuestGravInspection(RoundsFacts f, MapId home)
+    public static QuestGravInspectionWork SelectQuestGravInspection(ReviewFacts f, MapId home)
     {
         var offers = f.QuestOffers;
         foreach (var offer in offers.OrderBy(o => o.Id))
@@ -28,7 +27,7 @@ public static class QuestGravInspection
             foreach (var objective in offer.Objectives)
             {
                 var engine = objective.GravEngine;
-                if (objective.Kind == Pb.QuestObjectiveKind.InspectGravEngine && engine is null)
+                if (objective.Kind == RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.InspectGravEngine && engine is null)
                 {
                     return new QuestGravInspectionWork { Quest = offer.Id, Waiting = true };
                 }
@@ -37,7 +36,7 @@ public static class QuestGravInspection
                     continue;
                 }
                 var result = new QuestGravInspectionWork { Quest = offer.Id, Waiting = true };
-                if (engine.Place is not Pb.GravEnginePlace.Spawned spawned)
+                if (engine.Place is not RimGovernor.Brain.GameFacts.Observations.GravEnginePlace.Spawned spawned)
                 {
                     return result;
                 }
@@ -60,7 +59,7 @@ public static class QuestGravInspection
         return new QuestGravInspectionWork();
     }
 
-    public static bool GravInspectionDeficit(RoundsFacts f)
+    public static bool GravInspectionDeficit(ReviewFacts f)
     {
         var rows = f.QuestOffers;
         foreach (var offer in rows)
@@ -72,7 +71,7 @@ public static class QuestGravInspection
             foreach (var objective in offer.Objectives)
             {
                 var engine = objective.GravEngine;
-                if (objective.Kind == Pb.QuestObjectiveKind.InspectGravEngine && engine is null)
+                if (objective.Kind == RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.InspectGravEngine && engine is null)
                 {
                     return true;
                 }

@@ -16,9 +16,9 @@ namespace HeadlessRim
             {
                 // The acceptance-only world patches ride on their own launch
                 // gate (-rimgovernor-test-acceleration), not on headless mode.
-                HomeBridge.BridgeTools.AcceptanceWorld.Install();
+                RimGovernor.Native.AcceptanceWorld.Install();
                 // Production patches: the pre_save handshake and no vanilla autosave.
-                HomeBridge.BridgeTools.SaveHandshake.Install();
+                RimGovernor.Native.SaveHandshake.Install();
                 if (!HeadlessMode.Active) return;
 
 

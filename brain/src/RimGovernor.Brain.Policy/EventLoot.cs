@@ -2,25 +2,25 @@ namespace RimGovernor.Brain.Policy;
 
 public sealed record LootItem
 {
-    public required RimGovernor.Contracts.Wire.Observations.LootItem Observed { get; init; }
-    public required RimGovernor.Contracts.Wire.Observations.EntityRef Entity { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.LootItem Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.EntityRef Entity { get; init; }
 
     /// <summary>The allow/forbid work identity derived only when policy selects the stack.</summary>
     public StartingSupply Supply => new()
     {
         Thing = Observed.Item.Id ?? throw new RequiredFactException("loot stack id"),
         Definition = Entity.DefName,
-        Cell = Entity.Place is RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap at
+        Cell = Entity.Place is RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap at
             ? at.Cell : throw new RequiredFactException("loot stack map cell"),
     };
     public bool Forbidden => Observed.Forbidden;
-    public RimGovernor.Contracts.Wire.Observations.HaulSafety Haul => Observed.Safety;
-    public bool IsSafe => Haul is RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe;
-    public bool IsExposed => Haul is RimGovernor.Contracts.Wire.Observations.HaulSafety.Unsafe;
-    public bool IsUnreached => Haul is RimGovernor.Contracts.Wire.Observations.HaulSafety.Unreached;
+    public RimGovernor.Brain.GameFacts.Observations.HaulSafety Haul => Observed.Safety;
+    public bool IsSafe => Haul is RimGovernor.Brain.GameFacts.Observations.HaulSafety.Safe;
+    public bool IsExposed => Haul is RimGovernor.Brain.GameFacts.Observations.HaulSafety.Unsafe;
+    public bool IsUnreached => Haul is RimGovernor.Brain.GameFacts.Observations.HaulSafety.Unreached;
     public bool SafePath(out double pathLength)
     {
-        pathLength = Haul is RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength: var path } ? path : 0;
+        pathLength = Haul is RimGovernor.Brain.GameFacts.Observations.HaulSafety.Safe { PathLength: var path } ? path : 0;
         return IsSafe;
     }
 
@@ -30,7 +30,7 @@ public sealed record LootItem
     public long StorageHeadroom => Observed.StorageHeadroom;
     public EquatableArray<string> AcceptedBy => EquatableArray.From(Observed.AcceptedBy.Select(reference =>
         reference.Id ?? throw new RequiredFactException("loot accepting storage id")));
-    public RimGovernor.Contracts.Wire.Observations.LootDeterioration? Deterioration => Observed.Deterioration;
+    public RimGovernor.Brain.GameFacts.Observations.LootDeterioration? Deterioration => Observed.Deterioration;
 }
 /// <summary>
 /// The latest complete safety census's work, not a first-seen cohort. The controller owns both forbidding and

@@ -2,8 +2,6 @@ using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -24,28 +22,28 @@ public static class ColonyHousing
     public const string HousedKey = "housed";
 
     /// <summary>The watch probe reading the census on <paramref name="h"/> under <paramref name="identity"/>.</summary>
-    public static WatchProbe Probe(Harness h, Common.Identity identity) => new(Key, ct => SampleAsync(h, identity, ct));
+    public static WatchProbe Probe(Harness h, RimGovernor.Brain.GameFacts.Common.Identity identity) => new(Key, ct => SampleAsync(h, identity, ct));
 
     /// <summary>Reads the colonists and the rooms and returns {colonists, housed}.</summary>
-    public static async Task<JsonObject> SampleAsync(Harness h, Common.Identity identity, CancellationToken cancellationToken)
+    public static async Task<JsonObject> SampleAsync(Harness h, RimGovernor.Brain.GameFacts.Common.Identity identity, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(h);
         var scope = TypedReads.Scope(identity);
-        var pawnsReply = await h.CallAsync("housing-pawns", NativeOps.ListPawns, new Observations.ListPawnsRequest { Scope = scope, Filter = new() { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only } }, cancellationToken).ConfigureAwait(false);
+        var pawnsReply = await h.CallAsync("housing-pawns", NativeOps.ListPawns, new RimGovernor.Brain.GameOrders.Observations.ListPawnsRequest { Scope = scope, Filter = new() { Colonist = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Only } }, cancellationToken).ConfigureAwait(false);
         var pawns = pawnsReply.Pawns;
-        var roomsReply = await h.CallAsync("housing-rooms", NativeOps.ListRooms, new Observations.ListRoomsRequest { Scope = scope }, cancellationToken).ConfigureAwait(false);
+        var roomsReply = await h.CallAsync("housing-rooms", NativeOps.ListRooms, new RimGovernor.Brain.GameOrders.Observations.ListRoomsRequest { Scope = scope }, cancellationToken).ConfigureAwait(false);
         var rooms = roomsReply.Rooms;
         var (colonists, housed) = Count(pawns, rooms);
         return new JsonObject { { ColonistsKey, colonists }, { HousedKey, housed } };
     }
 
     /// <summary>The live colonists, and those whose owned bed stands in an enclosed Bedroom or Barracks.</summary>
-    public static (int Colonists, int Housed) Count(IEnumerable<Observations.PawnState> pawns, IEnumerable<Observations.RoomState> rooms)
+    public static (int Colonists, int Housed) Count(IEnumerable<RimGovernor.Brain.GameFacts.Observations.PawnState> pawns, IEnumerable<RimGovernor.Brain.GameFacts.Observations.RoomState> rooms)
     {
         ArgumentNullException.ThrowIfNull(pawns);
         ArgumentNullException.ThrowIfNull(rooms);
         var beds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var room in rooms.Where(r => Enclosed(r) && (r.Role == Observations.RoomRole.Bedroom || r.Role == Observations.RoomRole.Barracks)))
+        foreach (var room in rooms.Where(r => Enclosed(r) && (r.Role == RimGovernor.Brain.GameFacts.Observations.RoomRole.Bedroom || r.Role == RimGovernor.Brain.GameFacts.Observations.RoomRole.Barracks)))
         {
             beds.UnionWith(room.Beds.Select(b => b.Id));
         }
@@ -55,6 +53,6 @@ public static class ColonyHousing
 
     // The census's enclosure (as Policy's RoomsRules.Enclosed reads it): a proper room, no doorway, not
     // outdoors or psychologically outdoors, off the map edge and fully roofed.
-    private static bool Enclosed(Observations.RoomState r) =>
+    private static bool Enclosed(RimGovernor.Brain.GameFacts.Observations.RoomState r) =>
         r.ProperRoom && !r.Doorway && !r.Outdoors && !r.PsychologicallyOutdoors && !r.TouchesMapEdge && r.OpenRoofCount == 0;
 }

@@ -37,7 +37,7 @@ public static partial class PopulationRules
     /// ties go to the lowest pawn ID. Null when the colony is at target, its size is unknown or no row
     /// qualifies. Who wears a lance is the planner's combat read (SelectLanceUse).
     /// </summary>
-    public static PawnId? LanceCandidate(RoundsFacts f)
+    public static PawnId? LanceCandidate(ReviewFacts f)
     {
         var census = f.Population;
         if (census.Colony.Colonists >= PopulationTargetFor(f.ColonistGoal))

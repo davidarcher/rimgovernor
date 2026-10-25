@@ -7,7 +7,8 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
-    <ProjectReference Include="../RimGovernor.Brain.Contracts/RimGovernor.Brain.Contracts.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.GameFacts/RimGovernor.Brain.GameFacts.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.GameOrders/RimGovernor.Brain.GameOrders.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- The mood audit table, embedded unchanged. -->
@@ -25,103 +26,103 @@
     <!-- Domain.Known / Domain.Unknown, and the package-level consts and functions with no owner type. -->
     <Using Include="RimGovernor.Brain.Domain" />
     <!-- The native room census rows (#3764): Policy reads rooms through functions over them. -->
-    <Using Include="RimGovernor.Contracts.Wire.Observations.RoomRole" Alias="RoomRole" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.RoomState" Alias="RoomState" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.RoomDoor" Alias="RoomDoor" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.RoomRole" Alias="RoomRole" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.RoomState" Alias="RoomState" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.RoomDoor" Alias="RoomDoor" />
     <!-- The native placement preview's watch-cell and wind-catch states (#3922). -->
-    <Using Include="RimGovernor.Contracts.Wire.Placement.WatchAccess" Alias="WatchAccess" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.BuildingWind" Alias="BuildingWind" />
+    <Using Include="RimGovernor.Brain.GameFacts.Placement.WatchAccess" Alias="WatchAccess" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.BuildingWind" Alias="BuildingWind" />
     <!-- The native clearance census floor rows (#3774). -->
-    <Using Include="RimGovernor.Contracts.Wire.Observations.ClearanceFloor" Alias="ClearanceFloor" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.ClearanceFloor" Alias="ClearanceFloor" />
     <!-- The native pawn table's policy inputs (#3768). -->
-    <Using Include="RimGovernor.Contracts.Wire.Observations.PawnPolicyInputs" Alias="PawnPolicyInputs" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.PawnIdeo" Alias="PawnIdeo" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.GuestState" Alias="GuestState" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.PawnPolicyInputs" Alias="PawnPolicyInputs" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.PawnIdeo" Alias="PawnIdeo" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.GuestState" Alias="GuestState" />
     <!-- The pawn table's needs, care and body blocks the WorkPawn carries (#3876). -->
-    <Using Include="RimGovernor.Contracts.Wire.Observations.NeedLevel" Alias="NeedLevel" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.FoodNeed" Alias="FoodNeed" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.PawnCare" Alias="PawnCare" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.PawnBodyStats" Alias="PawnBodyStats" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.NeedLevel" Alias="NeedLevel" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.FoodNeed" Alias="FoodNeed" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.PawnCare" Alias="PawnCare" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.PawnBodyStats" Alias="PawnBodyStats" />
     <!-- The DLC colony sections and pawn blocks (#3773). -->
-    <Using Include="RimGovernor.Contracts.Wire.Observations.PawnRoyalHolding" Alias="PawnRoyalHolding" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.PawnPsylink" Alias="PawnPsylink" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.BestowingCeremony" Alias="BestowingCeremony" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.RoyalThrone" Alias="RoyalThrone" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.PawnAnomaly" Alias="PawnAnomaly" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.PawnAnomalyState" Alias="PawnAnomalyState" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.CreepJoinerState" Alias="CreepJoinerState" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.HeldState" Alias="HeldState" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.StudyState" Alias="StudyState" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.AnomalyDoor" Alias="AnomalyDoor" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.EntityContainmentModeKind" Alias="EntityContainmentModeKind" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.PawnRoyalHolding" Alias="PawnRoyalHolding" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.PawnPsylink" Alias="PawnPsylink" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.BestowingCeremony" Alias="BestowingCeremony" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.RoyalThrone" Alias="RoyalThrone" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.PawnAnomaly" Alias="PawnAnomaly" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.PawnAnomalyState" Alias="PawnAnomalyState" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.CreepJoinerState" Alias="CreepJoinerState" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.HeldState" Alias="HeldState" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.StudyState" Alias="StudyState" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.AnomalyDoor" Alias="AnomalyDoor" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.EntityContainmentModeKind" Alias="EntityContainmentModeKind" />
     <!-- The gear census's climate and option source (#3777). -->
-    <Using Include="RimGovernor.Contracts.Wire.Observations.GearClimate" Alias="GearClimate" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.GearSource" Alias="GearSource" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.GearClimate" Alias="GearClimate" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.GearSource" Alias="GearSource" />
     <!-- The native health and surgery rows the care planners read (#3788). -->
-    <Using Include="RimGovernor.Contracts.Wire.Observations.Hediff" Alias="Hediff" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.BleedOut" Alias="BleedOut" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.HediffTend" Alias="HediffTend" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.HediffImmunity" Alias="HediffImmunity" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.ImmunityGain" Alias="ImmunityGain" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.SurgeryOperation" Alias="SurgeryOperation" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.SurgeryChance" Alias="SurgeryChance" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.SurgeryKind" Alias="SurgeryKind" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.MissingBodyPart" Alias="MissingBodyPart" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.AnimalPregnancy" Alias="AnimalPregnancy" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.AnimalNextLifeStage" Alias="AnimalNextLifeStage" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.Hediff" Alias="Hediff" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.BleedOut" Alias="BleedOut" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.HediffTend" Alias="HediffTend" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.HediffImmunity" Alias="HediffImmunity" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.ImmunityGain" Alias="ImmunityGain" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.SurgeryOperation" Alias="SurgeryOperation" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.SurgeryChance" Alias="SurgeryChance" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.SurgeryKind" Alias="SurgeryKind" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.MissingBodyPart" Alias="MissingBodyPart" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.AnimalPregnancy" Alias="AnimalPregnancy" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.AnimalNextLifeStage" Alias="AnimalNextLifeStage" />
     <!-- The population read's ideology mode and owned names (#3785). -->
-    <Using Include="RimGovernor.Contracts.Wire.Observations.ColonyIdeology" Alias="ColonyIdeology" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.OwnedName" Alias="OwnedName" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.ColonyIdeology" Alias="ColonyIdeology" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.OwnedName" Alias="OwnedName" />
     <!-- A construction site's finishing minimum and tier gate (#3874). -->
-    <Using Include="RimGovernor.Contracts.Wire.Observations.FinishingMinimum" Alias="FinishingMinimum" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.ConstructionGate" Alias="ConstructionGate" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.WorldSite" Alias="WorldSite" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.QuestState" Alias="QuestState" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.QuestObjective" Alias="QuestObjective" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.JoinerLetter" Alias="JoinerLetter" />
-    <Using Include="RimGovernor.Contracts.Wire.Receipts.QuestStatus" Alias="QuestStatus" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.FinishingMinimum" Alias="FinishingMinimum" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.ConstructionGate" Alias="ConstructionGate" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.WorldSite" Alias="WorldSite" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.QuestState" Alias="QuestState" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.QuestObjective" Alias="QuestObjective" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.JoinerLetter" Alias="JoinerLetter" />
+    <Using Include="RimGovernor.Brain.GameFacts.Receipts.QuestStatus" Alias="QuestStatus" />
     <!-- The routes census rows (#3903). -->
-    <Using Include="RimGovernor.Contracts.Wire.Observations.RouteFacility" Alias="RouteFacility" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.RouteFacilityKind" Alias="RouteFacilityKind" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.RouteTravel" Alias="RouteTravel" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.RouteBreach" Alias="RouteBreach" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.TrafficCell" Alias="TrafficCell" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.TrafficLayer" Alias="TrafficLayer" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.RouteFacility" Alias="RouteFacility" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.RouteFacilityKind" Alias="RouteFacilityKind" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.RouteTravel" Alias="RouteTravel" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.RouteBreach" Alias="RouteBreach" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.TrafficCell" Alias="TrafficCell" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.TrafficLayer" Alias="TrafficLayer" />
   </ItemGroup>
 
   <ItemGroup>
-    <Using Include="RimGovernor.Contracts.Wire.Observations.FoodPlace" Alias="FoodPlace" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.FoodConsumer" Alias="FoodConsumer" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.FoodLarderFacts" Alias="FoodLarder" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.FoodStock" Alias="FoodStock" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.CorpseHandling" Alias="CorpseHandling" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.FoodIngredientClass" Alias="FoodIngredientClass" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.FoodForm" Alias="FoodForm" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.FoodRot" Alias="FoodRot" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.FoodPlace" Alias="FoodPlace" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.FoodConsumer" Alias="FoodConsumer" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.FoodLarderFacts" Alias="FoodLarder" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.FoodStock" Alias="FoodStock" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.CorpseHandling" Alias="CorpseHandling" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.FoodIngredientClass" Alias="FoodIngredientClass" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.FoodForm" Alias="FoodForm" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.FoodRot" Alias="FoodRot" />
   </ItemGroup>
   <ItemGroup>
-    <Using Include="RimGovernor.Contracts.Wire.Observations.ControlledEnvironment" Alias="ControlledEnvironment" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.GrowLight" Alias="GrowLight" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.PlantGrower" Alias="PlantGrower" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.GrowerFertility" Alias="GrowerFertility" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.GrowRoom" Alias="GrowRoom" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.PowerHeadroom" Alias="PowerHeadroom" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.ControlledEnvironment" Alias="ControlledEnvironment" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.GrowLight" Alias="GrowLight" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.PlantGrower" Alias="PlantGrower" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.GrowerFertility" Alias="GrowerFertility" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.GrowRoom" Alias="GrowRoom" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.PowerHeadroom" Alias="PowerHeadroom" />
   </ItemGroup>
   <ItemGroup>
-    <Using Include="RimGovernor.Contracts.Wire.Observations.BuildingState" Alias="PowerSite" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.BuildingState" Alias="PowerBuilding" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.TurretGun" Alias="TurretGun" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.BuildingState" Alias="PowerSite" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.BuildingState" Alias="PowerBuilding" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.TurretGun" Alias="TurretGun" />
   </ItemGroup>
   <ItemGroup>
-    <Using Include="RimGovernor.Contracts.Wire.Observations.PowerNetwork" Alias="PowerNetworkFact" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.SteamGeyser" Alias="PowerGeyser" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.PowerNetwork" Alias="PowerNetworkFact" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.SteamGeyser" Alias="PowerGeyser" />
   </ItemGroup>
   <ItemGroup>
-    <Using Include="RimGovernor.Contracts.Wire.Observations.BuildingState" Alias="FuelConsumer" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.FuelBurn" Alias="FuelBurn" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.BuildingState" Alias="FuelConsumer" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.FuelBurn" Alias="FuelBurn" />
   </ItemGroup>
   <ItemGroup>
-    <Using Include="RimGovernor.Contracts.Wire.Observations.BuildingState" Alias="DefenseTurretFacts" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.BuildingState" Alias="DefenseTurretFacts" />
   </ItemGroup>
-  <ItemGroup><Using Include="RimGovernor.Contracts.Wire.Observations.PenGrazing" Alias="PenGrazing" /></ItemGroup>
+  <ItemGroup><Using Include="RimGovernor.Brain.GameFacts.Observations.PenGrazing" Alias="PenGrazing" /></ItemGroup>
 </Project>

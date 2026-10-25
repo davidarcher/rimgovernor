@@ -17,10 +17,10 @@ internal static class NativeGiveJobProbe
 
     private static void Check(bool value, string label) { if (!value) throw new Exception(label); checks++; }
 
-    private static object Wire(string name, string json)
+    private static object Wire(Type type, string json)
     {
-        var type = typeof(RimGovernor.Contracts.Wire.Common.Ref).Assembly.GetType("RimGovernor.Contracts.Wire." + name, true)!;
-        return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize", new[] { typeof(string) })!.MakeGenericMethod(type).Invoke(null, new object[] { json })!;
+
+        return typeof(RimGovernor.Brain.GameOrders.OrdersJson).GetMethod(nameof(RimGovernor.Brain.GameOrders.OrdersJson.Deserialize), new[] { typeof(string) })!.MakeGenericMethod(type).Invoke(null, new object[] { json })!;
     }
 
     private static object? Get(object obj, string name) => obj.GetType().GetProperty(name, Flags)!.GetValue(obj);
@@ -34,20 +34,20 @@ internal static class NativeGiveJobProbe
         };
         bridge = Assembly.LoadFrom(Path.GetFullPath(args[0]));
 
-        var action = Wire("Operations.Action", "{\"key\":\"k\",\"intent\":{\"type\":\"giveJob\",\"value\":{\"pawn\":{\"id\":\"Human1\"},\"job\":\"UseItem\",\"targets\":[{\"id\":\"Apparel_PsychicShockLance7\"},{\"id\":\"Human2\"}]}}}");
+        var action = Wire(typeof(RimGovernor.Brain.GameOrders.Operations.Action),  "{\"key\":\"k\",\"intent\":{\"type\":\"giveJob\",\"value\":{\"pawn\":{\"id\":\"Human1\"},\"job\":\"UseItem\",\"targets\":[{\"id\":\"Apparel_PsychicShockLance7\"},{\"id\":\"Human2\"}]}}}");
         var intent = Get(Get(action, "Intent")!, "GiveJob")!;
         Check(Get(action, "Intent")!.GetType().Name == "GiveJobCase", "give_job arm parses");
 
         Check((string)Get(Get(intent, "Pawn")!, "Id")! == "Human1" && (string)Get(intent, "Job")! == "UseItem", "give_job fields round trip");
 
-        var dispatch = bridge.GetType("HomeBridge.BridgeTools.NativeActionDispatch", true)!;
+        var dispatch = bridge.GetType("RimGovernor.Native.NativeActionDispatch", true)!;
         dispatch.GetMethod("AssertComplete", Flags)!.Invoke(null, null);
         var handlers = (System.Collections.IDictionary)dispatch.GetField("Handlers", Flags)!.GetValue(null)!;
         Check(handlers.Keys.Cast<object>().Any(k => ((Type)k).Name == "GiveJobCase"), "Actions/Apply has a GiveJob handler");
 
-        var giveJob = bridge.GetType("HomeBridge.BridgeTools.NativeGiveJob", true)!;
+        var giveJob = bridge.GetType("RimGovernor.Native.NativeGiveJob", true)!;
         var classify = giveJob.GetMethod("Classify", Flags)!;
-        string Arm(string json) => classify.Invoke(null, new object?[] { Wire("Operations.GiveJobIntent", json), null, null })!.ToString()!;
+        string Arm(string json) => classify.Invoke(null, new object?[] { Wire(typeof(RimGovernor.Brain.GameOrders.Operations.GiveJobIntent),  json), null, null })!.ToString()!;
         Check(Arm("{\"pawn\":{\"id\":\"p\"},\"job\":\"UseItem\",\"targets\":[{\"id\":\"i\"},{\"id\":\"t\"}]}") == "Use", "UseItem arm");
         Check(Arm("{\"pawn\":{\"id\":\"p\"},\"job\":\"UseItem\",\"targets\":[{\"id\":\"i\"},{\"id\":\"p\"}]}") == "Use", "UseItem self-use arm");
         Check(Arm("{\"pawn\":{\"id\":\"p\"},\"job\":\"Repair\",\"targets\":[{\"id\":\"t\"}]}") == "Order", "Repair arm");
@@ -55,9 +55,9 @@ internal static class NativeGiveJobProbe
         Check(Arm("{\"pawn\":{\"id\":\"p\"},\"options\":{\"prioritized\":false,\"relieveNeed\":\"NEED_FOOD\"}}") == "Need", "need relief arm");
         Check(Arm("{\"pawn\":{\"id\":\"p\"},\"job\":\"FinishFrame\",\"targets\":[{\"id\":\"f\"}],\"options\":{\"prioritized\":true}}") == "Prioritized", "prioritized arm");
 
-        var handler = Activator.CreateInstance(bridge.GetType("HomeBridge.BridgeTools.GiveJobActionHandler", true)!, true)!;
+        var handler = Activator.CreateInstance(bridge.GetType("RimGovernor.Native.GiveJobActionHandler", true)!, true)!;
         var validate = handler.GetType().GetMethod("Validate", Flags)!;
-        var context = Wire("Common.ObservationContext", "{\"identity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0},\"tick\":10,\"nativeGeneration\":1}");
+        var context = Wire(typeof(RimGovernor.Brain.GameFacts.Common.ObservationContext),  "{\"identity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0},\"tick\":10,\"nativeGeneration\":1}");
         foreach (var json in new[] {
             "{}",
             "{\"job\":\"Repair\",\"targets\":[{\"id\":\"t\"}]}",
@@ -72,7 +72,7 @@ internal static class NativeGiveJobProbe
             "{\"pawn\":{\"id\":\"p\"},\"job\":\"Ingest\",\"options\":{\"prioritized\":false,\"relieveNeed\":\"NEED_FOOD\"}}",
         })
         {
-            var failure = validate.Invoke(handler, new[] { Wire("Operations.Action", "{\"key\":\"k\",\"intent\":{\"type\":\"giveJob\",\"value\":" + json + "}}"), context });
+            var failure = validate.Invoke(handler, new[] { Wire(typeof(RimGovernor.Brain.GameOrders.Operations.Action),  "{\"key\":\"k\",\"intent\":{\"type\":\"giveJob\",\"value\":" + json + "}}"), context });
             Check(failure != null && Get(failure, "Code")!.ToString() == "InvalidRequest", "malformed give_job refused: " + json);
         }
         Console.WriteLine($"native-give-job: {checks} checks passed");

@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -144,7 +145,7 @@ public sealed class CorpseCreditTests
     public void TheCoupledContextCarriesTheCorpseFactsTheRoundsRead()
     {
         // The production path (#3822): GenerateCoupledActivities builds the context from the review's facts; the corpses and
-        // each colonist's corpse memories and sighting record ride on the needs read (NeedsForecastRead), which RoundsRead fills.
+        // each colonist's corpse memories and sighting record ride on the needs read (NeedsForecastRead), which Read fills.
         var facts = ForecastCoupledTests.ConstructionReview() with
         {
             PlannedShelters = [new() { Id = 1, Role = PlannedRole.Morgue, Region = RegionRules.RectRegion(new(1, 1, 1, 1)) }],

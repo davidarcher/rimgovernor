@@ -1,8 +1,7 @@
-using D = RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -618,7 +617,7 @@ public sealed class ForecastValueTests
     public void AnUnobservedInputNamesItsOwnFinding()
     {
         Assert.Contains("defense_capacity_nonpositive", Harmed(Cloth, RaidDay() with { Raid = new HarmInputs().Raid }).Findings);
-        Assert.Contains("defense_capacity_nonpositive", Harmed(Cloth, RaidDay() with { Raid = HarmInputs.Of(new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { RaidPoints = 1000d } } } }).Raid }).Findings);
+        Assert.Contains("defense_capacity_nonpositive", Harmed(Cloth, RaidDay() with { Raid = HarmInputs.Of(new ReviewFacts { Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { RaidPoints = 1000d } } } }).Raid }).Findings);
         Assert.Contains("threat_schedule_unknown", Harmed(Cloth, RaidDay() with { Schedule = new() }).Findings);
         Assert.Contains("raid_composition_unknown", Harmed(Cloth, RaidDay() with { Composition = new RaidComposition.Uncomposed() }).Findings);
         var noOutfit = ForecastValue.Of(Outcome(Calm()), Context(HarmPawn(), HarmTables(), RaidDay()), Day, Outcome(Calm()));

@@ -38,7 +38,7 @@ public static partial class ResourceRules
     /// fuel, animal feed and the runways' targets, each raising a level and never lowering one. A new demand
     /// source is one entry here.
     /// </summary>
-    public static DerivedDemand ResourceDemandOf(RoundsFacts f, RoundsPolicy p, RoundsLatches l)
+    public static DerivedDemand ResourceDemandOf(ReviewFacts f, PlannerSettings p, Latches l)
     {
         var clothing = f.ClothingRunway();
         var works = ConstructionDemandRules.ConstructionDemandOf(f, p, l);

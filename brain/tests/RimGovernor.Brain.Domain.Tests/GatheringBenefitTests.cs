@@ -66,7 +66,7 @@ public sealed class GatheringBenefitTests
         Assert.IsType<GatheringPlan.NoParty>(GatheringRules.PlanGathering(input with { Census = input.Census with { Buildings = [] } }));
         Assert.IsType<GatheringPlan.NoParty>(GatheringRules.PlanGathering(input with { Ledger = new MoodLedger() }));
         Assert.IsType<GatheringPlan.NoParty>(GatheringRules.PlanGathering(input with { Pawns = EquatableArray.From(input.Pawns.Select(p => p with { Pawn = p.Pawn with { Downed = true } })) }));
-        Assert.IsType<GatheringPlan.NoParty>(GatheringRules.PlanGathering(input with { Pawns = EquatableArray.From(input.Pawns.Select(p => p with { Pawn = p.Pawn with { MentalState = new RimGovernor.Contracts.Wire.Observations.PawnMentalState { DefName = "Wander", IsAggro = false, Ticks = 120 } } })) }));
+        Assert.IsType<GatheringPlan.NoParty>(GatheringRules.PlanGathering(input with { Pawns = EquatableArray.From(input.Pawns.Select(p => p with { Pawn = p.Pawn with { MentalState = new RimGovernor.Brain.GameFacts.Observations.PawnMentalState { DefName = "Wander", IsAggro = false, Ticks = 120 } } })) }));
         Assert.IsType<GatheringPlan.NoParty>(GatheringRules.PlanGathering(input with { Pawns = EquatableArray.From(input.Pawns.Select(p => p with { Thoughts = [new MoodThought(GatheringRules.PartyThought, 2)] })) }));
     }
 }

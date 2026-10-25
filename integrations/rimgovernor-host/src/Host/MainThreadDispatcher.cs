@@ -5,15 +5,15 @@ namespace RimGovernor.Host;
 
 internal sealed class MainThreadDispatcher : IGameThreadDispatcher
 {
-    public bool IsMainThread => RimBridgeMainThread.IsMainThread;
+    public bool IsMainThread => NativeMainThread.IsMainThread;
 
     public T Invoke<T>(Func<T> func, int timeoutMs)
     {
-        return RimBridgeMainThread.Invoke(func, timeoutMs);
+        return NativeMainThread.Invoke(func, timeoutMs);
     }
 
     public void Invoke(Action action, int timeoutMs)
     {
-        RimBridgeMainThread.Invoke(action, timeoutMs);
+        NativeMainThread.Invoke(action, timeoutMs);
     }
 }

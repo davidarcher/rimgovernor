@@ -1,7 +1,5 @@
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
-using Clock = RimGovernor.Contracts.Wire.Clock;
-using Control = RimGovernor.Contracts.Wire.Authority;
 using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -43,7 +41,7 @@ internal static class LifecycleRuntimeFault
     {
         // A clock status read installs the clock watchers, as a controller's first call does; the authority seam publishes
         // journal rows only once they are.
-        _ = await s.CallAsync("clock-status", NativeOps.ReadClockStatus, new Clock.StatusRequest { Identity = s.Identity }, cancellationToken).ConfigureAwait(false);
+        _ = await s.CallAsync("clock-status", NativeOps.ReadClockStatus, new RimGovernor.Brain.GameOrders.Clock.StatusRequest { Identity = s.Identity }, cancellationToken).ConfigureAwait(false);
         var expected = await TypedAuthority.ExpectedGenerationAsync(s, "status-fresh", s.Identity, cancellationToken).ConfigureAwait(false);
         var granted = await TypedAuthority.GrantAsync(s, "grant", s.Identity, expected, cancellationToken).ConfigureAwait(false);
 
@@ -56,7 +54,7 @@ internal static class LifecycleRuntimeFault
         }
 
         // The game's update poll invalidates authority on its own; a hooks-not-ready status may also read unavailable.
-        Control.Status broken = null!;
+        RimGovernor.Brain.GameFacts.Authority.Status broken = null!;
         _ = await s.RunUntilAsync(
             "status-broken",
             600,
@@ -67,7 +65,7 @@ internal static class LifecycleRuntimeFault
             },
             cancellationToken).ConfigureAwait(false);
         s.RecordWire("status_broken", broken);
-        if (broken.State?.Inactive is { } inactive && inactive.Reason != Control.RevocationReason.HooksUnavailable)
+        if (broken.State?.Inactive is { } inactive && inactive.Reason != RimGovernor.Brain.GameFacts.Authority.RevocationReason.HooksUnavailable)
         {
             throw new AcceptanceException($"status-broken: expected HOOKS_UNAVAILABLE, got {broken}");
         }

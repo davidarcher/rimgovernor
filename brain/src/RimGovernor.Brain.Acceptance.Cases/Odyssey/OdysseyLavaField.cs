@@ -1,7 +1,5 @@
 using RimGovernor.Brain.Bridge;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -53,10 +51,10 @@ internal static class OdysseyLavaField
             return ($"{zones.Count} zones", zones.Count > 0);
         }, cancellationToken).ConfigureAwait(false);
 
-        var reply = await s.CallAsync("lava-cells", NativeOps.GetCells, new Observations.GetCellsRequest
+        var reply = await s.CallAsync("lava-cells", NativeOps.GetCells, new RimGovernor.Brain.GameOrders.Observations.GetCellsRequest
         {
             Scope = s.Scope,
-            Rectangle = new Observations.Rectangle
+            Rectangle = new RimGovernor.Brain.GameFacts.Observations.Rectangle
             {
                 Minimum = new RimGovernor.Brain.Domain.Cell { X = site.X, Z = site.Z },
                 Maximum = new RimGovernor.Brain.Domain.Cell { X = site.X + site.Width - 1, Z = site.Z + site.Height - 1 },
@@ -79,10 +77,10 @@ internal static class OdysseyLavaField
             throw new AcceptanceException($"lava-cells: {zoned.Count} zone cells and {built.Count} player buildings stand on lava, first {zoned.Concat(built).First()}");
         }
 
-        var pawns = await s.CallAsync("colonists", NativeOps.ListPawns, new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new Observations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only } }, cancellationToken).ConfigureAwait(false);
+        var pawns = await s.CallAsync("colonists", NativeOps.ListPawns, new RimGovernor.Brain.GameOrders.Observations.ListPawnsRequest { Scope = s.Scope, Filter = new RimGovernor.Brain.GameFacts.Observations.PawnFilter { Colonist = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Only } }, cancellationToken).ConfigureAwait(false);
         var rows = pawns.Pawns;
         bool OnLava(RimGovernor.Brain.Domain.Cell? at) => at is { X: { } x, Z: { } z } && x >= site.X && x < site.X + site.Width && z >= site.Z && z < site.Z + site.Height;
-        var standing = rows.Where(p => OnLava((p.Pawn.Place as Observations.EntityPlace.OnMap)?.Cell)).Select(p => p.Pawn.Id).ToList();
+        var standing = rows.Where(p => OnLava((p.Pawn.Place as RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap)?.Cell)).Select(p => p.Pawn.Id).ToList();
         if (rows.Count == 0 || standing.Count > 0)
         {
             throw new AcceptanceException($"colonists: expected colonists none of whom stand on lava, got {rows.Count} with [{string.Join(' ', standing)}] on it");

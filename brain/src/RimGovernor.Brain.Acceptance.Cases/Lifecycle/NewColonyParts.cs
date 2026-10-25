@@ -1,5 +1,4 @@
 using System.Xml.Linq;
-using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -16,15 +15,15 @@ internal static class LifecycleNewColonyParts
     // Crashlanded's base things the supplied ones replace.
     private static readonly string[] ReplacedBaseThings = ["Silver", "Gun_BoltActionRifle", "MealSurvivalPack"];
 
-    private static readonly (Lifecycle.StartingThingPlacement Placement, string Def, uint Count)[] Things =
+    private static readonly (RimGovernor.Brain.GameOrders.Lifecycle.StartingThingPlacement Placement, string Def, uint Count)[] Things =
     [
-        (Lifecycle.StartingThingPlacement.StartWith, "Pemmican", 11),
-        (Lifecycle.StartingThingPlacement.StartNear, "Hay", 20),
-        (Lifecycle.StartingThingPlacement.Scattered, "Kibble", 15),
+        (RimGovernor.Brain.GameOrders.Lifecycle.StartingThingPlacement.StartWith, "Pemmican", 11),
+        (RimGovernor.Brain.GameOrders.Lifecycle.StartingThingPlacement.StartNear, "Hay", 20),
+        (RimGovernor.Brain.GameOrders.Lifecycle.StartingThingPlacement.Scattered, "Kibble", 15),
     ];
 
-    private const Lifecycle.ScenarioPawnContext Starter = Lifecycle.ScenarioPawnContext.PlayerStarter;
-    private const Lifecycle.ScenarioPawnContext All = Lifecycle.ScenarioPawnContext.All;
+    private const RimGovernor.Brain.GameOrders.Lifecycle.ScenarioPawnContext Starter = RimGovernor.Brain.GameOrders.Lifecycle.ScenarioPawnContext.PlayerStarter;
+    private const RimGovernor.Brain.GameOrders.Lifecycle.ScenarioPawnContext All = RimGovernor.Brain.GameOrders.Lifecycle.ScenarioPawnContext.All;
 
     internal static TypedCase Case() => new()
     {
@@ -40,21 +39,21 @@ internal static class LifecycleNewColonyParts
         Run = RunAsync,
     };
 
-    private static Lifecycle.NewColonySpec PartsSpec() => NewColonyStart.Spec() with
+    private static RimGovernor.Brain.GameOrders.Lifecycle.NewColonySpec PartsSpec() => NewColonyStart.Spec() with
     {
         ColonistCount = 1,
         SaveName = PartsSave,
         Seed = "newcolony-parts-accept",
-        StartingThings = [.. Things.Select(t => new Lifecycle.StartingThing { Placement = t.Placement, ThingDef = t.Def, Count = t.Count })],
-        ForcedTraits = [new Lifecycle.ForcedTrait { Trait = "Jogger", Degree = 0, Chance = 1, Context = Starter }],
-        ForcedHediffs = [new Lifecycle.ForcedHediff { Hediff = "ToxicBuildup", Severity = 0.1f, Chance = 1, Context = Starter }],
-        Naked = [new Lifecycle.NakedPart { Chance = 1, Context = Starter }],
-        SetNeedLevels = [new Lifecycle.SetNeedLevel { Need = "Rest", Level = 0.5f, Chance = 1, Context = Starter }],
+        StartingThings = [.. Things.Select(t => new RimGovernor.Brain.GameOrders.Lifecycle.StartingThing { Placement = t.Placement, ThingDef = t.Def, Count = t.Count })],
+        ForcedTraits = [new RimGovernor.Brain.GameOrders.Lifecycle.ForcedTrait { Trait = "Jogger", Degree = 0, Chance = 1, Context = Starter }],
+        ForcedHediffs = [new RimGovernor.Brain.GameOrders.Lifecycle.ForcedHediff { Hediff = "ToxicBuildup", Severity = 0.1f, Chance = 1, Context = Starter }],
+        Naked = [new RimGovernor.Brain.GameOrders.Lifecycle.NakedPart { Chance = 1, Context = Starter }],
+        SetNeedLevels = [new RimGovernor.Brain.GameOrders.Lifecycle.SetNeedLevel { Need = "Rest", Level = 0.5f, Chance = 1, Context = Starter }],
         PermaGameConditions = ["ColdSnap"],
         DisallowedBuildings = ["Heater"],
         DisabledIncidents = ["WandererJoin"],
-        PlayerFaction = Lifecycle.ScenarioPlayerFaction.NewTribe,
-        ArrivalMethod = Lifecycle.ScenarioArrivalMethod.Standing,
+        PlayerFaction = RimGovernor.Brain.GameOrders.Lifecycle.ScenarioPlayerFaction.NewTribe,
+        ArrivalMethod = RimGovernor.Brain.GameOrders.Lifecycle.ScenarioArrivalMethod.Standing,
     };
 
     private static Task RunAsync(TypedSession s, CancellationToken cancellationToken) =>
@@ -74,9 +73,9 @@ internal static class LifecycleNewColonyParts
     private static async Task RefusalsAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var spec = PartsSpec();
-        var bad = new (string Name, Lifecycle.NewColonySpec Spec)[]
+        var bad = new (string Name, RimGovernor.Brain.GameOrders.Lifecycle.NewColonySpec Spec)[]
         {
-            ("thing", spec with { StartingThings = [new() { Placement = Lifecycle.StartingThingPlacement.StartWith, ThingDef = "NoSuchThing", Count = 1 }] }),
+            ("thing", spec with { StartingThings = [new() { Placement = RimGovernor.Brain.GameOrders.Lifecycle.StartingThingPlacement.StartWith, ThingDef = "NoSuchThing", Count = 1 }] }),
             ("trait", spec with { ForcedTraits = [new() { Trait = "NoSuchTrait", Degree = 0, Chance = 1, Context = All }] }),
             ("trait-degree", spec with { ForcedTraits = [new() { Trait = "Jogger", Degree = 3, Chance = 1, Context = All }] }),
             ("hediff", spec with { ForcedHediffs = [new() { Hediff = "NoSuchHediff", Severity = 0.1f, Chance = 1, Context = All }] }),
@@ -84,7 +83,7 @@ internal static class LifecycleNewColonyParts
             ("condition", spec with { PermaGameConditions = ["NoSuchCondition"] }),
             ("building", spec with { DisallowedBuildings = ["NoSuchBuilding"] }),
             ("incident", spec with { DisabledIncidents = ["NoSuchIncident"] }),
-            ("stuffless-stuff", spec with { StartingThings = [new() { Placement = Lifecycle.StartingThingPlacement.StartWith, ThingDef = "Silver", Stuff = "Steel", Count = 1 }] }),
+            ("stuffless-stuff", spec with { StartingThings = [new() { Placement = RimGovernor.Brain.GameOrders.Lifecycle.StartingThingPlacement.StartWith, ThingDef = "Silver", Stuff = "Steel", Count = 1 }] }),
         };
         foreach (var (name, refused) in bad)
         {

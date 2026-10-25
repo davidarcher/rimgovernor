@@ -2,13 +2,12 @@ using System;
 using System.Collections.Generic;
 using RimWorld;
 using Verse;
-using Mirror = RimGovernor.Contracts.Wire.Mirror;
 using P = RimGovernor.Brain.Policy;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
-    /// Reads a rect of a map (the whole map for a snapshot frame) into a Mirror.CellGrid on the game thread: one
+    /// Reads a rect of a map (the whole map for a snapshot frame) into a RimGovernor.Brain.GameFacts.Mirror.CellGrid on the game thread: one
     /// typed array per cell fact, indexed [z * width + x] within the rect. The grid is a copy that refers to no live
     /// game state: defs are held by name, zones by load id, rooms by key and things as thing records (ThingReader).
     /// A fogged cell is not held, and every other array keeps its default there.
@@ -16,12 +15,12 @@ namespace HomeBridge.BridgeTools
     internal static class CellGridReader
     {
         /// Every cell of map, against the map's last whole read (ThingReader).
-        internal static Mirror.CellGrid Read(Map map) => Read(map, 0, 0, map.Size.x, map.Size.z, ThingReader.Whole(map));
+        internal static RimGovernor.Brain.GameFacts.Mirror.CellGrid Read(Map map) => Read(map, 0, 0, map.Size.x, map.Size.z, ThingReader.Whole(map));
 
         /// The w x h rect at (x0, z0), on the map.
-        internal static Mirror.CellGrid Read(Map map, int x0, int z0, int w, int h) => Read(map, x0, z0, w, h, new ThingReader(map));
+        internal static RimGovernor.Brain.GameFacts.Mirror.CellGrid Read(Map map, int x0, int z0, int w, int h) => Read(map, x0, z0, w, h, new ThingReader(map));
 
-        private static Mirror.CellGrid Read(Map map, int x0, int z0, int w, int h, ThingReader things)
+        private static RimGovernor.Brain.GameFacts.Mirror.CellGrid Read(Map map, int x0, int z0, int w, int h, ThingReader things)
         {
             int n = w * h;
             bool[] held = new bool[n], walkable = new bool[n], indoors = new bool[n], doorway = new bool[n], polluted = new bool[n],
@@ -70,7 +69,7 @@ namespace HomeBridge.BridgeTools
                 }
             StampRooms(map, x0, z0, w, h, held, room, indoors);
             things.Finish(cellThings);
-            return new Mirror.CellGrid
+            return new RimGovernor.Brain.GameFacts.Mirror.CellGrid
             {
                 X = x0, Z = z0, Width = w, Height = h, Held = held, Walkable = walkable, Indoors = indoors, Doorway = doorway,
                 Polluted = polluted, InHome = inHome, TopLayerRemovable = topLayer, FoundationRemoval = foundation,
@@ -137,7 +136,7 @@ namespace HomeBridge.BridgeTools
             capacity = edifice == null ? 1 : edifice is Building_Storage ? edifice.def.building.maxItemsInCell : 0;
         }
 
-        private static string Identifier(string? value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
+        private static string Identifier(string? value) => GameThread.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
         private static float Finite(float value) => float.IsNaN(value) || float.IsInfinity(value) ? throw new InvalidOperationException("Nonfinite native fact.") : value;
     }
 }

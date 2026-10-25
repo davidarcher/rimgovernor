@@ -20,7 +20,7 @@ namespace RimGovernor.Runtime
     public static class RangeTraining
     {
         public static bool MigratedScope(Pawn pawn) => pawn.IsColonistPlayerControlled && Current.Game != null
-            && HomeBridge.BridgeTools.NativeControlAuthority.TryGetForGame(Current.Game, out var authority)
+            && RimGovernor.Native.NativeControlAuthority.TryGetForGame(Current.Game, out var authority)
             && authority.Status() is { Active: true, Identity: { } identity } && identity.Map == pawn.Map;
 
         public const string ShootingJob = "RimGovernor_TrainShooting";

@@ -1,7 +1,5 @@
 using System.Text.Json.Nodes;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -61,8 +59,8 @@ internal static class CombatLabAnimals
         Run = RunOrphanAsync,
     };
 
-    private static Operations.CombatOrderOrder.AnimalAreaCase Zone(Operations.CombatAnimalAreaArea area) =>
-        new Operations.CombatOrderOrder.AnimalAreaCase(new Operations.CombatAnimalArea { Area = area });
+    private static RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AnimalAreaCase Zone(RimGovernor.Brain.GameOrders.Operations.CombatAnimalAreaArea area) =>
+        new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AnimalAreaCase(new RimGovernor.Brain.GameOrders.Operations.CombatAnimalArea { Area = area });
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
@@ -81,10 +79,10 @@ internal static class CombatLabAnimals
             s,
             "animals",
             cancellationToken,
-            CombatLabKit.Order(trained, new Operations.CombatOrderOrder.ReleaseCase(CombatLabKit.Pawn(wargs[0]))),
-            CombatLabKit.Order(pup, new Operations.CombatOrderOrder.ReleaseCase(CombatLabKit.Pawn(wargs[0]))),
-            CombatLabKit.Order(wargs[1], Zone(new Operations.CombatAnimalAreaArea.CellCase(lab.Cell(-1, -3)))),
-            CombatLabKit.Order(pup, Zone(new Operations.CombatAnimalAreaArea.CellCase(lab.Cell(-1, -3))))).ConfigureAwait(false);
+            CombatLabKit.Order(trained, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.ReleaseCase(CombatLabKit.Pawn(wargs[0]))),
+            CombatLabKit.Order(pup, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.ReleaseCase(CombatLabKit.Pawn(wargs[0]))),
+            CombatLabKit.Order(wargs[1], Zone(new RimGovernor.Brain.GameOrders.Operations.CombatAnimalAreaArea.CellCase(lab.Cell(-1, -3)))),
+            CombatLabKit.Order(pup, Zone(new RimGovernor.Brain.GameOrders.Operations.CombatAnimalAreaArea.CellCase(lab.Cell(-1, -3))))).ConfigureAwait(false);
         CombatLabKit.Applied("release", results[0], "AttackMelee");
         CombatLabKit.Refused("release untrained", results[1], "untrained");
         CombatLabKit.Refused("zone warg", results[2], "not_ours");
@@ -102,7 +100,7 @@ internal static class CombatLabAnimals
             throw new AcceptanceException($"zoned husky not restricted to a one-cell \"Combat {pup}\" area: {area}");
         }
 
-        CombatLabKit.Applied("clear", (await CombatLabKit.OrdersAsync(s, "clear", cancellationToken, CombatLabKit.Order(pup, Zone(new Operations.CombatAnimalAreaArea.ClearCase(new Operations.Clear())))).ConfigureAwait(false))[0]);
+        CombatLabKit.Applied("clear", (await CombatLabKit.OrdersAsync(s, "clear", cancellationToken, CombatLabKit.Order(pup, Zone(new RimGovernor.Brain.GameOrders.Operations.CombatAnimalAreaArea.ClearCase(new RimGovernor.Brain.GameOrders.Operations.Clear())))).ConfigureAwait(false))[0]);
         if (await PupAreaAsync(s, "cleared", pup, cancellationToken).ConfigureAwait(false) is { } left)
         {
             throw new AcceptanceException($"cleared husky still restricted to {left}");
@@ -110,7 +108,7 @@ internal static class CombatLabAnimals
     }
 
     // The allowed area the pawn is restricted to: the area listing it, which its own settings name.
-    private static async Task<Observations.AllowedArea?> PupAreaAsync(TypedSession s, string label, string pup, CancellationToken cancellationToken)
+    private static async Task<RimGovernor.Brain.GameFacts.Observations.AllowedArea?> PupAreaAsync(TypedSession s, string label, string pup, CancellationToken cancellationToken)
     {
         var areas = await CombatLabKit.AreasAsync(s, label + "-areas", cancellationToken).ConfigureAwait(false);
         s.RecordWireRows(label + "_areas", areas);
@@ -133,7 +131,7 @@ internal static class CombatLabAnimals
             s,
             "zone",
             cancellationToken,
-            [.. huskies.Select((h, i) => CombatLabKit.Order(h, Zone(new Operations.CombatAnimalAreaArea.CellCase(lab.Cell(-1 - i, -3)))))]).ConfigureAwait(false);
+            [.. huskies.Select((h, i) => CombatLabKit.Order(h, Zone(new RimGovernor.Brain.GameOrders.Operations.CombatAnimalAreaArea.CellCase(lab.Cell(-1 - i, -3)))))]).ConfigureAwait(false);
         foreach (var r in zoned)
         {
             CombatLabKit.Applied("zone", r);
@@ -147,7 +145,7 @@ internal static class CombatLabAnimals
             for (var i = 0; i < 2; i++)
             {
                 var label = $"clear-{mode}-{i}";
-                var r = (await CombatLabKit.OrdersAsync(s, label, cancellationToken, CombatLabKit.Order(animal, Zone(new Operations.CombatAnimalAreaArea.ClearCase(new Operations.Clear())))).ConfigureAwait(false))[0];
+                var r = (await CombatLabKit.OrdersAsync(s, label, cancellationToken, CombatLabKit.Order(animal, Zone(new RimGovernor.Brain.GameOrders.Operations.CombatAnimalAreaArea.ClearCase(new RimGovernor.Brain.GameOrders.Operations.Clear())))).ConfigureAwait(false))[0];
                 if (r.Applied == true || r.Refusal is not ("not_found" or "not_ours"))
                 {
                     throw new AcceptanceException($"{label}: want refusal not_found or not_ours, got {r}");

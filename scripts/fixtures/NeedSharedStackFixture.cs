@@ -12,7 +12,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 // Shared-stack remainder (#3194): one four-meal stack, one pawn hungry now whose Method owes later bites of it, then a
 // second pawn made hungry while that Method still owns the stack. It must eat from the same stack under its own Method.
@@ -26,7 +26,7 @@ public sealed partial class PawnControlFixture
     private static readonly HashSet<string> remainderEaters = new(StringComparer.Ordinal);
 
     [Tool("test/shared_stack_prepare", Description="UNSAFE FOR MODEL EXECUTION. Prepare one hungry pawn, one sated pawn and one four-meal simple-meal stack, with no other food. Install no chosen task, Method or assignment.")]
-    public async Task<object> SharedStackPrepare(IRimBridgeContext ctx, CancellationToken ct)
+    public async Task<object> SharedStackPrepare(INativeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             var map = Find.CurrentMap;
@@ -53,7 +53,7 @@ public sealed partial class PawnControlFixture
         }, ct).ConfigureAwait(false);
 
     [Tool("test/shared_stack_hunger", Description="UNSAFE FOR MODEL EXECUTION. Once a Method owes bites of the stack, make the second pawn hungry. Install no chosen task, Method or assignment.")]
-    public async Task<object> SharedStackHunger(IRimBridgeContext ctx, CancellationToken ct)
+    public async Task<object> SharedStackHunger(INativeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             if (!remainderActive || remainderOwed.Count == 0) throw new InvalidOperationException("No Method owes bites of the stack yet.");
@@ -84,7 +84,7 @@ public sealed partial class PawnControlFixture
     }
 
     [Tool("test/shared_stack_read", Description="UNSAFE FOR MODEL EXECUTION. Observe the Methods eating from the staged stack and its remaining units; writes no orders.")]
-    public async Task<object> SharedStackRead(IRimBridgeContext ctx, CancellationToken ct)
+    public async Task<object> SharedStackRead(INativeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() => FixtureKit.Reply(new Fx.SharedStackRead
         {
             Tick = Find.TickManager.TicksGame,

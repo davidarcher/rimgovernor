@@ -1,7 +1,7 @@
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -18,28 +18,28 @@ public sealed class ControlledEnvironmentTests
     [Fact]
     public void JsonRoundTripIsExact()
     {
-        var census = new O.ControlledEnvironment
+        var census = new RimGovernor.Brain.GameFacts.Observations.ControlledEnvironment
         {
             OutdoorTemperatureC = -3,
             Lights =
             [
-                new O.GrowLight { Id = "Thing_SunLamp4", Room = "12", GrowthCells = [new Cell(3, 4)], LitNow = true, Network = "77" },
-                new O.GrowLight { Id = "Thing_SunLamp5", Room = null, GrowthCells = [], LitNow = false, Network = null },
+                new RimGovernor.Brain.GameFacts.Observations.GrowLight { Id = "Thing_SunLamp4", Room = "12", GrowthCells = [new Cell(3, 4)], LitNow = true, Network = "77" },
+                new RimGovernor.Brain.GameFacts.Observations.GrowLight { Id = "Thing_SunLamp5", Room = null, GrowthCells = [], LitNow = false, Network = null },
             ],
             Growers =
             [
-                new O.PlantGrower { Id = "Thing_HydroponicsBasin8", Fertility = new GrowerFertility.Fixed(2.8), SowTag = "Hydroponic", Crop = "Plant_Rice", CanSow = true },
-                new O.PlantGrower { Id = "Thing_HydroponicsBasin9", Fertility = new GrowerFertility.Ground(), SowTag = null, Crop = null, CanSow = false },
+                new RimGovernor.Brain.GameFacts.Observations.PlantGrower { Id = "Thing_HydroponicsBasin8", Fertility = new GrowerFertility.Fixed(2.8), SowTag = "Hydroponic", Crop = "Plant_Rice", CanSow = true },
+                new RimGovernor.Brain.GameFacts.Observations.PlantGrower { Id = "Thing_HydroponicsBasin9", Fertility = new GrowerFertility.Ground(), SowTag = null, Crop = null, CanSow = false },
             ],
-            Rooms = [new O.GrowRoom { Id = "12", GridRoom = 4, TemperatureC = -2.5 }],
-            Networks = [new O.PowerHeadroom { Id = "77", GenerationW = 1000, SolarW = 400, WindW = 300, ConsumptionW = 200, CapacityWattDays = 0, ActiveSource = true }],
+            Rooms = [new RimGovernor.Brain.GameFacts.Observations.GrowRoom { Id = "12", GridRoom = 4, TemperatureC = -2.5 }],
+            Networks = [new RimGovernor.Brain.GameFacts.Observations.PowerHeadroom { Id = "77", GenerationW = 1000, SolarW = 400, WindW = 300, ConsumptionW = 200, CapacityWattDays = 0, ActiveSource = true }],
         };
 
-        var json = WireJson.Serialize(census);
+        var json = OrdersJson.Serialize(census);
 
         Assert.Contains(""""kind":"fixed"""", json);
         Assert.Contains(""""kind":"ground"""", json);
-        Assert.Equal(census, WireJson.Deserialize<O.ControlledEnvironment>(json));
+        Assert.Equal(census, OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.ControlledEnvironment>(json));
     }
 
     [Fact]

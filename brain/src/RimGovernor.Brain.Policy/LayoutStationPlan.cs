@@ -495,7 +495,7 @@ public static partial class LayoutStationPlanRules
             {
                 continue;
             }
-            if (bt.DevelopmentalStage is RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Newborn or RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Baby)
+            if (bt.DevelopmentalStage is RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Newborn or RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Baby)
             {
                 n++;
             }

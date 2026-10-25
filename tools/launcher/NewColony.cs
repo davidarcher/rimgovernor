@@ -1,9 +1,8 @@
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using WireLifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Launcher;
 
@@ -537,7 +536,7 @@ public static partial class NewColony
     }
 
     /// <summary>Builds the wire spec from the form and runs the bridge's own validation over it.</summary>
-    internal static WireLifecycle.NewColonySpec WireSpec(string saveName, NewColonySpec form, string seed)
+    internal static RimGovernor.Brain.GameOrders.Lifecycle.NewColonySpec WireSpec(string saveName, NewColonySpec form, string seed)
     {
         if (form.ColonistCount < 0 || form.MapSize < 0)
         {
@@ -547,7 +546,7 @@ public static partial class NewColony
         var wire = ToWire(form with { SaveName = saveName }, seed);
         try
         {
-            NewColonyValidation.ValidateNewColonyRequest(new WireLifecycle.NewColonyRequest
+            NewColonyValidation.ValidateNewColonyRequest(new RimGovernor.Brain.GameOrders.Lifecycle.NewColonyRequest
             {
                 RequestId = "x", TimeoutMs = NewColonyBounds.MaxTimeoutMs, Spec = wire,
             });
@@ -563,40 +562,40 @@ public static partial class NewColony
     [GeneratedRegex("^bridge contract failure: ", RegexOptions.CultureInvariant)]
     private static partial Regex ContractPrefix();
 
-    private static WireLifecycle.NewColonySpec ToWire(NewColonySpec s, string seed)
+    private static RimGovernor.Brain.GameOrders.Lifecycle.NewColonySpec ToWire(NewColonySpec s, string seed)
     {
         try
         {
-            var spec = new WireLifecycle.NewColonySpec
+            var spec = new RimGovernor.Brain.GameOrders.Lifecycle.NewColonySpec
             {
                 Scenario = s.Scenario, ColonistCount = (uint)s.ColonistCount, Seed = seed, FlatTile = s.FlatTile,
                 Difficulty = s.Difficulty, Storyteller = s.Storyteller, MapSize = (uint)s.MapSize, PlanetCoverage = s.PlanetCoverage,
                 SaveName = s.SaveName,
-                MinTemperature = s.MinTemperature is { } min ? new WireLifecycle.TemperatureLimit.AtCase(min) : new WireLifecycle.TemperatureLimit.OpenCase(),
-                MaxTemperature = s.MaxTemperature is { } max ? new WireLifecycle.TemperatureLimit.AtCase(max) : new WireLifecycle.TemperatureLimit.OpenCase(),
+                MinTemperature = s.MinTemperature is { } min ? new RimGovernor.Brain.GameOrders.Lifecycle.TemperatureLimit.AtCase(min) : new RimGovernor.Brain.GameOrders.Lifecycle.TemperatureLimit.OpenCase(),
+                MaxTemperature = s.MaxTemperature is { } max ? new RimGovernor.Brain.GameOrders.Lifecycle.TemperatureLimit.AtCase(max) : new RimGovernor.Brain.GameOrders.Lifecycle.TemperatureLimit.OpenCase(),
                 GovernorIdeoligion = false,
                 PlayerFaction = string.IsNullOrEmpty(s.PlayerFaction)
-                    ? WireLifecycle.ScenarioPlayerFaction.Base
-                    : EnumByName<WireLifecycle.ScenarioPlayerFaction>(s.PlayerFaction, "SCENARIO_PLAYER_FACTION_", "playerFaction"),
+                    ? RimGovernor.Brain.GameOrders.Lifecycle.ScenarioPlayerFaction.Base
+                    : EnumByName<RimGovernor.Brain.GameOrders.Lifecycle.ScenarioPlayerFaction>(s.PlayerFaction, "SCENARIO_PLAYER_FACTION_", "playerFaction"),
                 ArrivalMethod = string.IsNullOrEmpty(s.ArrivalMethod)
-                    ? WireLifecycle.ScenarioArrivalMethod.Base
-                    : EnumByName<WireLifecycle.ScenarioArrivalMethod>(s.ArrivalMethod, "SCENARIO_ARRIVAL_METHOD_", "arrivalMethod"),
+                    ? RimGovernor.Brain.GameOrders.Lifecycle.ScenarioArrivalMethod.Base
+                    : EnumByName<RimGovernor.Brain.GameOrders.Lifecycle.ScenarioArrivalMethod>(s.ArrivalMethod, "SCENARIO_ARRIVAL_METHOD_", "arrivalMethod"),
                 Biomes = [.. s.Biomes ?? []],
-                StartingThings = [.. (s.StartingThings ?? []).Select(t => new WireLifecycle.StartingThing
+                StartingThings = [.. (s.StartingThings ?? []).Select(t => new RimGovernor.Brain.GameOrders.Lifecycle.StartingThing
                 {
                     Placement = ThingPlacement(t),
                     ThingDef = t.ThingDef, Stuff = t.Stuff, Count = t.Count ?? 0, Quality = t.Quality,
                 })],
-                ForcedTraits = [.. (s.ForcedTraits ?? []).Select(t => new WireLifecycle.ForcedTrait
+                ForcedTraits = [.. (s.ForcedTraits ?? []).Select(t => new RimGovernor.Brain.GameOrders.Lifecycle.ForcedTrait
                 {
                     Trait = t.Trait, Degree = Given(t.Degree, "forced trait degree"), Chance = Given(t.Chance, "forced trait chance"), Context = PawnContext(t.Context),
                 })],
-                ForcedHediffs = [.. (s.ForcedHediffs ?? []).Select(h => new WireLifecycle.ForcedHediff
+                ForcedHediffs = [.. (s.ForcedHediffs ?? []).Select(h => new RimGovernor.Brain.GameOrders.Lifecycle.ForcedHediff
                 {
                     Hediff = h.Hediff, Severity = Given(h.Severity, "forced hediff severity"), Chance = Given(h.Chance, "forced hediff chance"), Context = PawnContext(h.Context),
                 })],
-                Naked = [.. (s.Naked ?? []).Select(n => new WireLifecycle.NakedPart { Chance = Given(n.Chance, "naked chance"), Context = PawnContext(n.Context) })],
-                SetNeedLevels = [.. (s.SetNeedLevels ?? []).Select(n => new WireLifecycle.SetNeedLevel
+                Naked = [.. (s.Naked ?? []).Select(n => new RimGovernor.Brain.GameOrders.Lifecycle.NakedPart { Chance = Given(n.Chance, "naked chance"), Context = PawnContext(n.Context) })],
+                SetNeedLevels = [.. (s.SetNeedLevels ?? []).Select(n => new RimGovernor.Brain.GameOrders.Lifecycle.SetNeedLevel
                 {
                     Need = n.Need, Level = Given(n.Level, "need level"), Chance = Given(n.Chance, "need chance"), Context = PawnContext(n.Context),
                 })],
@@ -628,20 +627,20 @@ public static partial class NewColony
     }
 
     // A scattered thing allowed on roofed ground is its own placement; the flag applies to scattered things only.
-    private static WireLifecycle.StartingThingPlacement ThingPlacement(StartingThingPart t)
+    private static RimGovernor.Brain.GameOrders.Lifecycle.StartingThingPlacement ThingPlacement(StartingThingPart t)
     {
-        var placement = EnumByName<WireLifecycle.StartingThingPlacement>(t.Placement, "STARTING_THING_PLACEMENT_", "placement");
+        var placement = EnumByName<RimGovernor.Brain.GameOrders.Lifecycle.StartingThingPlacement>(t.Placement, "STARTING_THING_PLACEMENT_", "placement");
         if (t.AllowRoofed is not { } roofed)
         {
             return placement;
         }
 
-        if (placement != WireLifecycle.StartingThingPlacement.Scattered)
+        if (placement != RimGovernor.Brain.GameOrders.Lifecycle.StartingThingPlacement.Scattered)
         {
             throw new FormatException("allowRoofed applies to scattered things only");
         }
 
-        return roofed ? WireLifecycle.StartingThingPlacement.ScatteredRoofed : WireLifecycle.StartingThingPlacement.Scattered;
+        return roofed ? RimGovernor.Brain.GameOrders.Lifecycle.StartingThingPlacement.ScatteredRoofed : RimGovernor.Brain.GameOrders.Lifecycle.StartingThingPlacement.Scattered;
     }
 
     // A part value the form left out is a refusal, as the wire's own validation was for an absent one.
@@ -649,8 +648,8 @@ public static partial class NewColony
         where T : struct =>
         value ?? throw new FormatException(what + " is required");
 
-    private static WireLifecycle.ScenarioPawnContext PawnContext(string name) =>
-        EnumByName<WireLifecycle.ScenarioPawnContext>(name, "SCENARIO_PAWN_CONTEXT_", "context");
+    private static RimGovernor.Brain.GameOrders.Lifecycle.ScenarioPawnContext PawnContext(string name) =>
+        EnumByName<RimGovernor.Brain.GameOrders.Lifecycle.ScenarioPawnContext>(name, "SCENARIO_PAWN_CONTEXT_", "context");
 
     /// <summary>A lower-case wire name maps to the enum value of that prefixed upper-case name.</summary>
     private static T EnumByName<T>(string name, string prefix, string part)

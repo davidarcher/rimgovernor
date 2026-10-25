@@ -1,9 +1,8 @@
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using PbObservations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -13,16 +12,16 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class ReviewColonyFactsTests
 {
-    private static RimGovernor.Brain.Bridge.Contracts.ObservationIdentity At(long tick) => new()
+    private static RimGovernor.Brain.GameAccess.ObservationIdentity At(long tick) => new()
     {
-        Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 1 }, Tick = tick, NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase(7) },
+        Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 1 }, Tick = tick, NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase(7) },
     };
 
-    private static RoundsCensusStore Retained(PbObservations.ColonyFactsSnapshot colony)
+    private static CensusStore Retained(RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot colony)
     {
-        var census = new RoundsCensusStore();
+        var census = new CensusStore();
         census.RememberColony(colony);
-        var reading = new RoundsReading { Emergency = new(), Frame = new(), Reading = ColonyFactsCoreTests.Reading(At(100)) };
+        var reading = new ReviewReading { Emergency = new(), Frame = new(), Reading = ColonyFactsCoreTests.Reading(At(100)) };
         census.Retain(reading);
         return census;
     }
@@ -51,6 +50,6 @@ public sealed class ReviewColonyFactsTests
         var census = Retained(ColonyFactsCoreTests.Snapshot());
 
         var later = At(130);
-        Assert.Null(census.ServedColony(later with { Context = later.Context with { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase(8) } }));
+        Assert.Null(census.ServedColony(later with { Context = later.Context with { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase(8) } }));
     }
 }

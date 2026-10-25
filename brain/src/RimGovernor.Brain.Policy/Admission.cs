@@ -51,7 +51,7 @@ public enum Purpose
     None,
 
     [WireName("routine")]
-    Rounds,
+    ReviewState,
     Defense,
     Shelter,
 }
@@ -104,7 +104,7 @@ public sealed record Preview
     public required EquatableArray<Amount> Costs { get; init; }
 
     /// <summary>Distinguishes deliberate replacement from accidental destruction. Admission still requires SafeToPlace.</summary>
-    public EquatableArray<RimGovernor.Contracts.Wire.Placement.PlacementBlocker> Blockers => Source switch
+    public EquatableArray<RimGovernor.Brain.GameFacts.Placement.PlacementBlocker> Blockers => Source switch
     {
         PreviewSource.Native native => native.Orientation.BlockingThings,
         PreviewSource.Zone => [],
@@ -115,9 +115,9 @@ public sealed record Preview
 public abstract record PreviewSource
 {
     private PreviewSource() { }
-    public sealed record Native(RimGovernor.Contracts.Wire.Placement.PlacementEvaluated Observed, int OrientationIndex) : PreviewSource
+    public sealed record Native(RimGovernor.Brain.GameFacts.Placement.PlacementEvaluated Observed, int OrientationIndex) : PreviewSource
     {
-        public RimGovernor.Contracts.Wire.Placement.PlacementRotation Orientation => Observed.Rotations[OrientationIndex];
+        public RimGovernor.Brain.GameFacts.Placement.PlacementRotation Orientation => Observed.Rotations[OrientationIndex];
     }
     public sealed record Zone : PreviewSource;
 }
@@ -250,7 +250,7 @@ public sealed record Decision
 public static class AdmissionRules
 {
     /// <summary>Whether <paramref name="p"/> names a spending class.</summary>
-    public static bool ValidPurpose(Purpose p) => p is Purpose.Rounds or Purpose.Defense or Purpose.Shelter;
+    public static bool ValidPurpose(Purpose p) => p is Purpose.ReviewState or Purpose.Defense or Purpose.Shelter;
 
     public static Input NewInput(Request r)
     {

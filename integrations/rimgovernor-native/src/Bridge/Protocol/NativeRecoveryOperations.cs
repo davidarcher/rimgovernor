@@ -6,12 +6,8 @@ using System.Text;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Authority = RimGovernor.Contracts.Wire.Authority;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // GiveJobIntent jobs FixBrokenDownBuilding and Refuel:
     // order one undrafted colonist to fix a breakdown on or refuel one colony
@@ -24,7 +20,7 @@ namespace HomeBridge.BridgeTools
     internal static class NativeRecoveryOperations
     {
         internal static bool Eligible(Building? building) => building != null && !building.Destroyed && building.Spawned
-            && ProtoBoundary.IsLoaded(building.Map) && !building.Position.Fogged(building.Map)
+            && GameThread.IsLoaded(building.Map) && !building.Position.Fogged(building.Map)
             && !building.IsForbidden(Faction.OfPlayer) && !building.IsBurning();
 
         // Refuses when the "observed service no longer needs this
@@ -61,20 +57,20 @@ namespace HomeBridge.BridgeTools
             _ => null,
         };
 
-        private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Building? building, out WorkGiverJobResult? job)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Pawn? pawn, out Building? building, out WorkGiverJobResult? job)
         {
             building = null; job = null;
             var giverType = WorkGiverType(intent.Kind);
-            if (giverType == null) { pawn = null; return ProtoBoundary.Fail(Common.FailureCode.Unsupported, "The service job kind is unsupported."); }
+            if (giverType == null) { pawn = null; return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unsupported, "The service job kind is unsupported."); }
             if (!NativeGiveJob.TryPawn(intent, context, out pawn, out var snapshot, out var failure)) return failure;
-            var map = ProtoBoundary.LoadedMap(context);
-            if (snapshot.Drafted || !snapshot.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Service order requires an eligible undrafted pawn.");
+            var map = GameThread.LoadedMap(context);
+            if (snapshot.Drafted || !snapshot.Eligible) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Service order requires an eligible undrafted pawn.");
             building = map.listerBuildings.allBuildingsColonist.ById(intent.TargetId);
-            if (building == null || !Eligible(building)) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact serviceable building is unavailable.");
+            if (building == null || !Eligible(building)) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact serviceable building is unavailable.");
             if (Servicing(pawn, building, giverType)) return null;
-            if (Satisfied(building, intent.Kind)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Observed service no longer needs this method.");
+            if (Satisfied(building, intent.Kind)) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Observed service no longer needs this method.");
             job = WorkGiverDispatch.TryJob(pawn, building, def => giverType.IsAssignableFrom(def.giverClass), out _);
-            if (job == null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "No native service job is available for this pawn and target.");
+            if (job == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "No native service job is available for this pawn and target.");
             return null;
         }
 
@@ -84,19 +80,19 @@ namespace HomeBridge.BridgeTools
             return current != null && current.targetA.Thing == building && current.workGiverDef != null && giverType.IsAssignableFrom(current.workGiverDef.giverClass);
         }
 
-        private static Receipts.EffectEvidence Evidence(Pawn pawn, Building building, Job job, bool issued) => new Receipts.EffectEvidence
+        private static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Evidence(Pawn pawn, Building building, Job job, bool issued) => new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence
         {
-            Effect = new Receipts.JobEffect
+            Effect = new RimGovernor.Brain.GameFacts.Receipts.JobEffect
             {
                 PawnId = pawn.GetUniqueLoadID(), JobDef = job.def?.defName ?? "",
-                TargetA = new Receipts.JobTarget { Target = new Receipts.JobTargetTarget.ThingIdCase(building.GetUniqueLoadID()) },
+                TargetA = new RimGovernor.Brain.GameFacts.Receipts.JobTarget { Target = new RimGovernor.Brain.GameFacts.Receipts.JobTargetTarget.ThingIdCase(building.GetUniqueLoadID()) },
                 Issued = issued,
             }
         };
 
-        internal static Common.Failure? Validate(JobOrder intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var building, out var job);
             if (failure != null || pawn == null || building == null) throw new InvalidOperationException(failure?.Detail);

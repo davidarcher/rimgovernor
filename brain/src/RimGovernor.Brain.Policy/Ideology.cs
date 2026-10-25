@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -191,21 +190,21 @@ public sealed record IdeologyDefs
 /// <summary>A building precept joined with the catalog's forbidden building definitions.</summary>
 public sealed record HeldBuilding(BuildingDemand Demand)
 {
-    public O.IdeoBuilding Observed => Demand.Observed;
+    public RimGovernor.Brain.GameFacts.Observations.IdeoBuilding Observed => Demand.Observed;
     public string Building => Observed.Building;
 }
 
 /// <summary>The canonical native building demand and its catalog-derived forbidden definitions.</summary>
 public sealed record BuildingDemand
 {
-    public required O.IdeoBuilding Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.IdeoBuilding Observed { get; init; }
     public bool Applies => Observed.Applies;
     public bool Present => Observed.Present;
     public bool Satisfied => Observed.Satisfied;
     public int MinArea => Observed.MinArea;
     public int MinImpressiveness => Observed.MinImpressiveness;
     public IReadOnlyList<string> FloorTags => Observed.FloorTags;
-    public IReadOnlyList<O.IdeoThingCount> Counts => Observed.Things;
+    public IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.IdeoThingCount> Counts => Observed.Things;
     public IReadOnlyList<string> ForbiddenDefs { get; init; } = [];
     public IReadOnlyList<string> Unread => Observed.Unread;
 }
@@ -213,16 +212,16 @@ public sealed record BuildingDemand
 /// <summary>The primary ideoligion's canonical snapshot and catalog joins.</summary>
 public sealed record IdeoligionFacts
 {
-    public required O.IdeologySnapshot Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.IdeologySnapshot Observed { get; init; }
     public string IdeoId => Observed.IdeoId;
     public IReadOnlyList<string> Memes => Observed.Memes;
-    public IReadOnlyList<O.IdeoPrecept> Precepts => Observed.Precepts;
-    public IReadOnlyList<O.IdeoRole> Roles => Observed.Roles;
-    public IReadOnlyList<O.IdeoRitual> Rituals => Observed.Rituals;
+    public IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.IdeoPrecept> Precepts => Observed.Precepts;
+    public IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.IdeoRole> Roles => Observed.Roles;
+    public IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.IdeoRitual> Rituals => Observed.Rituals;
     public IReadOnlyList<HeldBuilding> Buildings { get; init; } = [];
     public int Believers => Observed.Believers;
     public IReadOnlyList<PawnId> BelieverPawns => Observed.BelieverPawns;
-    public O.IdeoDevelopment Development => Observed.Development;
+    public RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment Development => Observed.Development;
     public IReadOnlyList<string> StyleCategories => Observed.StyleCategories;
     public IReadOnlyList<string> VeneratedAnimals => Observed.VeneratedAnimals;
 }

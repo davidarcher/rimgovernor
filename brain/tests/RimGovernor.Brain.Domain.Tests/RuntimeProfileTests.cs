@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;

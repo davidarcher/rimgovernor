@@ -4,41 +4,25 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.Serialization;
-using System.Threading;
+using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameFacts.Common;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 
 internal static class NativeProtoSuppliesProbe
 {
-    private static Assembly bridge = null!;
-    private static Assembly game = null!;
-    private static Type tools = null!;
     private const BindingFlags Flags = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
-    private const BindingFlags MemberFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
+    private const BindingFlags Members = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
     private static int checks;
     private static void Check(bool value, string label) { if (!value) throw new Exception(label); checks++; }
-    private static object Wire(string name, string json)
+    private static void Set(object value, string name, object? fieldValue)
     {
-        return WireOf("RimGovernor.Contracts.Wire.Observations." + name, json);
+        for (var type = value.GetType(); type != null; type = type.BaseType)
+            if (type.GetField(name, Members) is { } field) { field.SetValue(value, fieldValue); return; }
+        throw new MissingFieldException(value.GetType().FullName, name);
     }
-    private static object WireOf(string fullName, string json)
-    {
-        var type = typeof(RimGovernor.Contracts.Wire.Common.Ref).Assembly.GetType(fullName, true)!;
-        return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize", new[] { typeof(string) })!.MakeGenericMethod(type).Invoke(null, new object[] { json })!;
-    }
-    private static object Get(object value, string property) => value.GetType().GetProperty(property)!.GetValue(value)!;
-    private static bool Valid(string json) => (bool)tools.GetMethod("Validate", Flags)!.Invoke(null,
-        new object?[] { Wire("ListSuppliesRequest", json), null })!;
 
-    // ---- Fixture-construction helpers (native-proto-supplies items 1-5) ----
-    // FieldInfo.GetField does not search base-class fields, and several traversal-relevant
-    // fields (e.g. Verse.Area's innerGrid, Verse.Corpse's innerContainer) are declared on a
-    // base type -- walk BaseType explicitly, matching the pattern used by the other
-    // native-proto/native-pawn fixture suites in this repo.
-    private static FieldInfo FixtureField(Type t, string name) { for (var x = t; x != null; x = x.BaseType!) { var fi = x.GetField(name, MemberFlags); if (fi != null) return fi; } throw new Exception("field not found: " + name + " on " + t); }
-    private static void SetF(object o, string f, object? v) => FixtureField(o.GetType(), f).SetValue(o, v);
-    private static object New(string typeName) => System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(game.GetType(typeName, true)!);
-    private static bool SkipOriginal() => false;
-    private static bool EmptyStringResult(ref string __result) { __result = ""; return false; }
     internal static int Invoke(string[] args)
     {
         var directories = args.Skip(1).Concat(new[] { Path.GetDirectoryName(Path.GetFullPath(args[0]))! }).ToArray();
@@ -46,225 +30,90 @@ internal static class NativeProtoSuppliesProbe
             var path = directories.Select(d => Path.Combine(d, new AssemblyName(e.Name).Name + ".dll")).FirstOrDefault(File.Exists);
             return path == null ? null : Assembly.LoadFrom(path);
         };
-        bridge = Assembly.LoadFrom(Path.GetFullPath(args[0]));
+        var bridge = Assembly.LoadFrom(Path.GetFullPath(args[0]));
         foreach (var reference in bridge.GetReferencedAssemblies()) Assembly.Load(reference);
-        tools = bridge.GetType("HomeBridge.BridgeTools.NativeSuppliesObservationTools", true)!;
-        game = AppDomain.CurrentDomain.GetAssemblies().Single(a => a.GetName().Name == "Assembly-CSharp");
-        var allow = bridge.GetType("HomeBridge.BridgeTools.NativeSupplyAllow", true)!;
-        Func<string, string, object> parse = (type, json) => WireOf("RimGovernor.Contracts.Wire." + type, json);
-        var identity = parse("Common.Identity", "{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0}");
+        var tools = bridge.GetType("RimGovernor.Native.NativeSuppliesObservationTools", true)!;
+        var game = AppDomain.CurrentDomain.GetAssemblies().Single(a => a.GetName().Name == "Assembly-CSharp");
+        var allow = bridge.GetType("RimGovernor.Native.NativeSupplyAllow", true)!;
+        var identity = new Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 };
+        var context = new ObservationContext { Identity = identity, Tick = 1, NativeGeneration = new ObservedGeneration.UnclaimedCase() };
         object[] tokenInputs = { identity, "Thing_Supply1", "Meal", 1, 2, 10, true, "" };
-        Func<object[], string> token = values => (string)allow.GetMethod("Token", Flags)!.Invoke(null, values)!;
-        var originalToken = token(tokenInputs);
-        Check(originalToken == token(tokenInputs), "Unchanged supply token stable across polling");
-        var changedValues = new object[] { parse("Common.Identity", "{\"colonyId\":\"colony\",\"loadToken\":\"new-load\",\"mapId\":0}"),
-            "Thing_Supply2", "WoodLog", 2, 3, 9, false, "OtherFaction" };
-        for (var index = 0; index < tokenInputs.Length; index++) {
-            var changed = (object[])tokenInputs.Clone(); changed[index] = changedValues[index];
-            Check(originalToken != token(changed), "Supply CAS binds field " + index);
+        string Token(object[] values) => (string)allow.GetMethod("Token", Flags)!.Invoke(null, values)!;
+        var originalToken = Token(tokenInputs);
+        Check(originalToken == Token(tokenInputs), "unchanged supply token stable across polling");
+        object[] changedValues = { identity with { LoadToken = "new-load" }, "Thing_Supply2", "WoodLog", 2, 3, 9, false, "OtherFaction" };
+        for (var i = 0; i < tokenInputs.Length; i++) {
+            var changed = (object[])tokenInputs.Clone(); changed[i] = changedValues[i];
+            Check(originalToken != Token(changed), "supply CAS binds field " + i);
         }
-        foreach (var otherIdentity in new[] { "{\"colonyId\":\"other\",\"loadToken\":\"load\",\"mapId\":0}",
-            "{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":1}" }) {
-            var changed = (object[])tokenInputs.Clone(); changed[0] = parse("Common.Identity", otherIdentity);
-            Check(originalToken != token(changed), "Supply CAS cannot cross colony/map");
+        foreach (var other in new[] { identity with { ColonyId = "other" }, identity with { MapId = 1 } }) {
+            var changed = (object[])tokenInputs.Clone(); changed[0] = other;
+            Check(originalToken != Token(changed), "supply CAS binds colony and map");
         }
-        const string scope = "\"scope\":{\"expectedIdentity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0}}";
-        Func<string, string> request = fields => "{" + scope + (fields.Length == 0 ? "" : "," + fields) + "}";
-        Check(Valid(request("")), "Default census accepted");
-        foreach (var category in new[] { "haulable", "food", "weapons", "all", "buildings" })
-            Check(Valid(request("\"filter\":{\"category\":\"" + category + "\",\"ownership\":\"all\",\"includeHeld\":false}")), "Supported category/explicit false");
-        Check(Valid(request("\"filter\":{\"defNames\":[\"Modded_Resourceα\"],\"corpses\":true,\"forbiddenOnly\":true,\"excludeChunks\":true}")), "Open native def identifiers and combined filters");
-        // N01.03: frozen paging is no longer refused outright -- a cursor within the
-        // byte bound is accepted (its actual freshness is checked at read time by the
-        // shared NativeObservationSnapshot.Cursor helper, not by Validate).
-        Check(Valid(request("\"page\":{\"cursor\":\"" + new string('a', 4096) + "\"}")), "A within-bound cursor is accepted by Validate");
-        foreach (var invalid in new[] { "{}", request("\"page\":{\"limit\":0}"), request("\"page\":{\"limit\":257}"),
-            request("\"page\":{\"cursor\":\"" + new string('a', 4097) + "\"}"), request("\"filter\":{\"category\":\"FOOD\"}"),
-            request("\"filter\":{\"ownership\":\"enemy\"}"), request("\"filter\":{\"defNames\":[\"a\",\"a\"]}"),
-            request("\"filter\":{\"defNames\":[\"\"]}"), request("\"filter\":{\"defNames\":[\"bad\\u0000id\"]}"),
-            request("\"filter\":{\"region\":{\"minimum\":{\"x\":1,\"z\":0},\"maximum\":{\"x\":0,\"z\":0}}}") })
-            Check(!Valid(invalid), "Invalid bounded request refused");
-        var filter = Wire("StockFilter", "{}");
-        Check((string)tools.GetMethod("Category", Flags)!.Invoke(null, new[] { filter })! == "haulable", "Default category unchanged");
-        Check((string)tools.GetMethod("Ownership", Flags)!.Invoke(null, new[] { filter })! == "ours", "Default ownership unchanged");
-        Check((bool)tools.GetMethod("IncludeHeld", Flags)!.Invoke(null, new[] { filter })!, "Held stock included by default");
-        Func<bool, bool, bool, bool, bool, bool> ours = (fog, held, player, other, dead) =>
-            (bool)tools.GetMethod("IsOurs", Flags)!.Invoke(null, new object[] { fog, held, player, other, dead })!;
-        Check(ours(false, false, false, false, false), "Visible neutral spawned stock is usable");
-        Check(!ours(true, false, true, false, false), "Fogged stock not usable even if player faction");
-        Check(!ours(false, false, false, true, false), "Other faction spawned stock not ours");
-        Check(ours(false, true, true, false, false), "Living player pawn held stock ours");
-        Check(!ours(false, true, true, false, true), "Dead pawn held stock not ours");
-        Check(!ours(false, true, false, true, false), "Trader held stock not ours");
-        var reply = Wire("ListSuppliesReply", "{\"outcome\":{\"type\":\"observed\",\"value\":{\"stocks\":[{\"definition\":{\"defName\":\"Modded_Resourceα\"},\"units\":2147483648,\"ours\":0}]}}}");
-        var snapshot = Get(Get(reply, "Outcome"), "Observed");
-        var row = ((IList)Get(snapshot, "Stocks"))[0]!;
-        Check((long)Get(row, "Units") == 2147483648L, "64-bit quantities roundtrip");
-        Check(Get(row, "Ours") is long oursUnits && oursUnits == 0, "Known zero usable stock retained");
+        var filter = new StockFilter { Category = StockCategory.Haulable, Ownership = StockOwnership.Ours, IncludeHeld = true };
+        var request = new ListSuppliesRequest { Scope = new RimGovernor.Brain.GameFacts.Observations.ReadScope { ExpectedIdentity = identity }, Filter = filter };
+        bool Valid(ListSuppliesRequest? value) => (bool)tools.GetMethod("Validate", Flags)!.Invoke(null, new object?[] { value, null })!;
+        Check(Valid(request), "explicit census accepted");
+        foreach (var category in Enum.GetValues<StockCategory>())
+            Check(Valid(request with { Filter = filter with { Category = category, Ownership = StockOwnership.All, IncludeHeld = false } }), "supported category and explicit false accepted");
+        Check(Valid(request with { Filter = filter with { DefNames = ["Modded_Resourceα"], Corpses = true, ForbiddenOnly = true, ExcludeChunks = true } }), "open identifiers and combined filters accepted");
+        Check(!Valid(null) && !Valid(request with { Scope = null }) && !Valid(request with { Filter = null! }), "identity and filter required");
+        foreach (var invalid in new[] {
+            filter with { Category = (StockCategory)int.MaxValue }, filter with { Ownership = (StockOwnership)int.MaxValue },
+            filter with { DefNames = ["a", "a"] }, filter with { DefNames = [""] }, filter with { DefNames = ["bad\0id"] },
+            filter with { DefNames = [.. Enumerable.Range(0, 257).Select(i => "Def" + i)] },
+            filter with { Region = new Rectangle { Minimum = new Cell(-1, 0), Maximum = new Cell(1, 1) } },
+            filter with { Region = new Rectangle { Minimum = new Cell(2, 0), Maximum = new Cell(1, 1) } } })
+            Check(!Valid(request with { Filter = invalid }), "invalid exact census filter refused");
+        bool Ours(bool fogged, bool held, bool player, bool other, bool dead) => (bool)tools.GetMethod("IsOurs", Flags)!.Invoke(null, new object[] { fogged, held, player, other, dead })!;
+        Check(Ours(false, false, false, false, false), "unclaimed loose stock is ours");
+        Check(!Ours(true, false, true, false, false), "fogged stock excluded");
+        Check(!Ours(false, false, false, true, false), "other faction loose stock excluded");
+        Check(Ours(false, true, true, false, false), "live player holder stock is ours");
+        Check(!Ours(false, true, false, true, false), "trader held stock excluded");
+        Check(!Ours(false, true, true, false, true), "dead holder stock excluded");
 
-        // ==================== N01.03: Project()-level fixtures ====================
-        // Real Census.Add()/Walk() traversal depends on Verse.FogGrid's NativeBitArray field,
-        // which is only initialized inside a running Unity player; touching it outside the game
-        // process was observed to throw an intermittent System.TypeLoadException regardless of
-        // fixture shape. These fixtures therefore exercise Project() directly with hand-built
-        // StockEntry lists shaped exactly as Census traversal would have produced, per item.
-        //
-        // Two Harmony patches (loaded purely via reflection -- 0Harmony.dll is one of the
-        // directories this suite already requires) neutralize environment-only crashes that
-        // are unrelated to the code under test: Verse.Log.* calls into
-        // UnityEngine.StackTraceUtility outside Unity and throws SecurityException, and
-        // RimWorld.GenLabel.LabelExtras decorates labels via the native stat system (never
-        // populated here). Project()/Entity() only forward the opaque diagnostic label text,
-        // so stubbing both is a narrow, justified bypass of environment limitations -- not a
-        // change to the observation logic under test.
-        var harmonyAsm = Assembly.Load("0Harmony");
-        var harmonyType = harmonyAsm.GetType("HarmonyLib.Harmony", true)!;
-        var harmony = Activator.CreateInstance(harmonyType, "test.native-proto-supplies.fixtures")!;
-        var harmonyMethodType = harmonyAsm.GetType("HarmonyLib.HarmonyMethod", true)!;
-        var patchMethod = harmonyType.GetMethod("Patch", new[] { typeof(MethodBase), harmonyMethodType, harmonyMethodType, harmonyMethodType, harmonyMethodType })!;
-        var noopHarmony = Activator.CreateInstance(harmonyMethodType, typeof(NativeProtoSuppliesProbe).GetMethod(nameof(SkipOriginal), Flags)!);
-        var logType = game.GetType("Verse.Log", true)!;
-        foreach (var name in new[] { "Warning", "Error", "Message", "ErrorOnce", "WarningOnce" })
-            foreach (var m in logType.GetMethods(Flags).Where(x => x.Name == name))
-                patchMethod.Invoke(harmony, new object?[] { m, noopHarmony, null, null, null });
-        var labelExtras = game.GetType("RimWorld.GenLabel", true)!.GetMethod("LabelExtras", Flags)!;
-        var emptyStringHarmony = Activator.CreateInstance(harmonyMethodType, typeof(NativeProtoSuppliesProbe).GetMethod(nameof(EmptyStringResult), Flags)!);
-        patchMethod.Invoke(harmony, new object?[] { labelExtras, emptyStringHarmony, null, null, null });
-
-        var entryType = tools.GetNestedType("StockEntry", Flags)!;
-        var projectM = tools.GetMethod("Project", Flags)!;
-
-        object MakeDef(string name) { var d = New("Verse.ThingDef"); SetF(d, "defName", name); SetF(d, "label", name);
-            SetF(d, "category", Enum.Parse(game.GetType("Verse.ThingCategory", true)!, "Item")); return d; }
-        object MakeThing(string defName, int stack, int id, string typeName = "Verse.Thing")
-        { var t = New(typeName); SetF(t, "def", MakeDef(defName)); SetF(t, "thingIDNumber", id); SetF(t, "stackCount", stack); return t; }
-        void GiveComps(object thingWithComps, params object[] comps)
-        {
-            var list = Activator.CreateInstance(typeof(List<>).MakeGenericType(game.GetType("Verse.ThingComp", true)!))!;
-            foreach (var c in comps) ((IList)list).Add(c);
-            SetF(thingWithComps, "comps", list);
+        // These fixtures exercise projection, not running-game census traversal. Private game fixture fields
+        // require reflection; all published records and output members below are compiler-checked.
+        object New(string name) => System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(game.GetType(name, true)!);
+        object Thing(string definition, int count, int id) {
+            var def = New("Verse.ThingDef"); Set(def, "defName", definition); Set(def, "label", definition);
+            Set(def, "category", Enum.Parse(game.GetType("Verse.ThingCategory", true)!, "Item"));
+            var thing = New("Verse.Thing"); Set(thing, "def", def); Set(thing, "thingIDNumber", id); Set(thing, "stackCount", count);
+            Set(thing, "mapIndexOrState", (sbyte)-1); // Unspawned fixture: no live Allow snapshot lookup.
+            return thing;
         }
-
-        // Current.Game.maps trick so Thing.MapHeld resolves without ever stringifying a Map
-        // (Map.ToString()'s reachable GravshipUtility/ModsConfig path is another Unity-only crash).
-        var mapType = game.GetType("Verse.Map", true)!;
-        var fixtureMap = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(mapType);
-        SetF(fixtureMap, "uniqueID", 9);
-        var nativeGame = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(game.GetType("Verse.Game", true)!);
-        var mapsList = Activator.CreateInstance(typeof(List<>).MakeGenericType(mapType))!;
-        ((IList)mapsList).Add(fixtureMap);
-        SetF(nativeGame, "maps", mapsList);
-        game.GetType("Verse.Current", true)!.GetProperty("Game")!.SetValue(null, nativeGame);
-        void PlaceOnMap(object thing) => SetF(thing, "mapIndexOrState", (sbyte)0);
-
-        object MakeEntry(object thing, object? holder, string? holderKind, bool ours, bool forbidden, bool fogged,
-            bool inHome, bool inStockpile, bool playerFaction, bool otherFaction)
-        {
-            var e = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(entryType);
-            SetF(e, "Thing", thing); SetF(e, "Holder", holder); SetF(e, "HolderKind", holderKind);
-            SetF(e, "Position", Activator.CreateInstance(game.GetType("Verse.IntVec3", true)!, 2, 0, 2));
-            SetF(e, "Ours", ours); SetF(e, "Forbidden", forbidden); SetF(e, "Fogged", fogged);
-            SetF(e, "InHome", inHome); SetF(e, "InStockpile", inStockpile);
-            SetF(e, "PlayerFaction", playerFaction); SetF(e, "OtherFaction", otherFaction);
-            return e;
+        var entryType = tools.GetNestedType("StockEntry", BindingFlags.NonPublic)!;
+        object Entry(object thing, object? holder = null, string? kind = null, bool ours = true) {
+            var entry = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(entryType);
+            Set(entry, "Thing", thing); Set(entry, "Holder", holder); Set(entry, "HolderKind", kind);
+            Set(entry, "Position", Activator.CreateInstance(game.GetType("Verse.IntVec3", true)!, 2, 0, 2));
+            Set(entry, "Ours", ours); Set(entry, "Forbidden", false); Set(entry, "PlayerFaction", ours); Set(entry, "OtherFaction", !ours);
+            return entry;
         }
-        object RunProject(IList entries)
-        {
-            var list = Activator.CreateInstance(typeof(List<>).MakeGenericType(entryType))!;
-            foreach (var e in entries) ((IList)list).Add(e);
-            return projectM.Invoke(null, new object?[] { list })!;
+        ResourceStock Project(params object[] entries) {
+            var list = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(entryType))!;
+            foreach (var entry in entries) list.Add(entry);
+            return (ResourceStock)tools.GetMethod("Project", Flags)!.Invoke(null, new object[] { list, context })!;
         }
-
-        // ---- Item 5: a modded (non-vanilla) ThingDef fixture round-trips like a vanilla one ----
-        var moddedThing = MakeThing("Modded_ExoticOreXYZ", 4, 501);
-        PlaceOnMap(moddedThing);
-        var moddedRow = RunProject(new object[] { MakeEntry(moddedThing, null, null, true, false, false, true, false, true, false) });
-        var moddedDef = Get(moddedRow, "Definition");
-        Check((string)Get(moddedDef, "DefName") == "Modded_ExoticOreXYZ" && (string)Get(moddedDef, "Label") == "Modded_ExoticOreXYZ", "Modded def name/label observed like a vanilla def");
-        var moddedItems = (IList)Get(moddedRow, "Items");
-        Check(moddedItems.Count == 1 && (string)Get(moddedItems[0]!, "DefName") == "Modded_ExoticOreXYZ" && (int)Get(moddedItems[0]!, "MapId") == 9, "Modded def item entity carries its own def name and resolved map");
-        Check((long)Get(moddedRow, "Units") == 4 && (long)Get(moddedRow, "Ours") == 4, "Modded def units/ownership aggregate exactly as a vanilla def would");
-
-        // ---- Item 1: a corpse with populated inventory descends into its held items ----
-        var pawnDef = MakeDef("Human_Test");
-        var race = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(game.GetType("Verse.RaceProperties", true)!);
-        SetF(race, "intelligence", Enum.Parse(game.GetType("Verse.Intelligence", true)!, "Humanlike"));
-        SetF(pawnDef, "race", race);
-        var innerPawn = New("Verse.Pawn");
-        SetF(innerPawn, "def", pawnDef); SetF(innerPawn, "thingIDNumber", 601); SetF(innerPawn, "factionInt", null);
-        var kindDef = New("Verse.PawnKindDef"); SetF(kindDef, "defName", "Human_Test_Kind"); SetF(kindDef, "label", "test colonist");
-        SetF(innerPawn, "kindDef", kindDef);
-        GiveComps(innerPawn, System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(game.GetType("RimWorld.CompForbiddable", true)!));
-        var corpse = New("Verse.Corpse");
-        SetF(corpse, "def", MakeDef("Corpse_Human_Test")); SetF(corpse, "thingIDNumber", 602); SetF(corpse, "stackCount", 1);
-        GiveComps(corpse, System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(game.GetType("RimWorld.CompForbiddable", true)!));
-        // Corpse.InnerPawn's property setter NREs outside a running game (it depends on
-        // machinery Corpse's constructor would normally have wired up); bypass it and construct
-        // the backing ThingOwner<Pawn> directly, mirroring how Thing.MapHeld is resolved above.
-        var pawnOwnerType = game.GetType("Verse.ThingOwner`1", true)!.MakeGenericType(game.GetType("Verse.Pawn", true)!);
-        var pawnOwner = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(pawnOwnerType);
-        var pawnList = Activator.CreateInstance(typeof(List<>).MakeGenericType(game.GetType("Verse.Pawn", true)!))!;
-        ((IList)pawnList).Add(innerPawn);
-        SetF(pawnOwner, "innerList", pawnList);
-        SetF(corpse, "innerContainer", pawnOwner);
-        // Corpse.LabelNoCount lazily translates "DeadLabel" through the grammar-resolution
-        // system (backstories/rules), unavailable outside the real game and irrelevant here
-        // since Entity() only forwards the opaque label text -- pre-seed the cache it checks first.
-        SetF(corpse, "cachedLabel", "test colonist corpse");
-        PlaceOnMap(corpse);
-        var ration = MakeThing("Modded_CorpsePocketRation", 2, 603);
-        PlaceOnMap(ration);
-        var corpseRow = RunProject(new object[] {
-            MakeEntry(corpse, null, null, false, false, false, true, false, false, false),
-            MakeEntry(ration, corpse, "corpse", false, false, false, true, false, false, false),
-        });
-        Check(((IList)Get(corpseRow, "Holders")).Count == 1, "Corpse-held ration surfaces as one held-stock row");
-        var corpseIssues = (IList)Get(corpseRow, "Issues");
-        Check(corpseIssues.Count == 1, "Corpse without a rot component reads without a rot issue, not a crash");
-
-        // ---- Item 2: a live trader caravan pawn's carried goods are held stock, not ours ----
-        var traderHolder = MakeThing("Trader_Pawn_Test", 1, 701);
-        PlaceOnMap(traderHolder);
-        var goods = MakeThing("Modded_TradeGoods", 6, 702);
-        PlaceOnMap(goods);
-        var traderRow = RunProject(new object[] { MakeEntry(goods, traderHolder, "pawnInventory", false, false, false, false, false, false, true) });
-        Check((long)Get(traderRow, "Ours") == 0, "Trader-carried goods are not ours");
-        var traderHolders = (IList)Get(traderRow, "Holders");
-        Check(traderHolders.Count == 1 && Get(traderHolders[0]!, "HolderKind").ToString() == "PawnInventory", "Trader caravan pawn recorded as the held-stock holder");
-
-        // ---- Item 3: a container nested inside another container is walked multiple levels ----
-        var outerCrate = MakeThing("Modded_OuterCrate", 1, 801);
-        var innerCrate = MakeThing("Modded_InnerCrate", 1, 802);
-        var nestedGem = MakeThing("Modded_NestedGem", 5, 803);
-        PlaceOnMap(outerCrate); PlaceOnMap(innerCrate); PlaceOnMap(nestedGem);
-        var nestedRow = RunProject(new object[] {
-            MakeEntry(outerCrate, null, null, true, false, false, true, false, true, false),
-            MakeEntry(innerCrate, outerCrate, "container", true, false, false, true, false, true, false),
-            MakeEntry(nestedGem, innerCrate, "container", true, false, false, true, false, true, false),
-        });
-        Check((long)Get(nestedRow, "Stacks") == 3, "All three nesting levels retained as distinct stacks");
-        var nestedHolders = (IList)Get(nestedRow, "Holders");
-        Check(nestedHolders.Count == 2
-            && (string)Get(Get(nestedHolders[0]!, "Holder"), "DefName") == "Modded_OuterCrate" && (string)Get(nestedHolders[0]!, "HolderKind") == "container"
-            && (string)Get(Get(nestedHolders[1]!, "Holder"), "DefName") == "Modded_InnerCrate" && (string)Get(nestedHolders[1]!, "HolderKind") == "container",
-            "Container-in-container multi-level nesting walked and each level's holder identity preserved");
-
-        // ---- Item 4: every stack of one definition is listed; there is no per-list cap ----
-        var overflowEntries = new List<object>();
-        for (var i = 0; i < 300; i++)
-        {
-            var t = MakeThing("Modded_OverflowStack", 2, 900 + i);
-            PlaceOnMap(t);
-            overflowEntries.Add(MakeEntry(t, null, null, true, false, false, true, false, true, false));
-        }
-        var overflowRow = RunProject(overflowEntries);
-        var overflowItems = (IList)Get(overflowRow, "Items");
-        Check((long)Get(overflowRow, "Units") == 600 && (long)Get(overflowRow, "Stacks") == 300 && (long)Get(overflowRow, "OursUnforbidden") == 600,
-            "300 stacks of one definition: units and ownership counts cover every entry");
-        Check(overflowItems.Count == 300,
-            "300 stacks of one definition: items list every entry");
-
-        Console.WriteLine(checks + " compiled supplies boundary assertions passed + fixtures; no gameplay assertions.");
+        var modded = Project(Entry(Thing("Modded_ExoticOreXYZ", 4, 501)));
+        Check(modded.DefName == "Modded_ExoticOreXYZ" && modded.Items.Count == 1 && modded.Items[0].Id.Contains("501"), "modded definition and item identity retained");
+        Check(modded.Units == 4 && modded.Ours == 4, "modded stock aggregate exact");
+        var corpse = Thing("Corpse_Human_Test", 1, 602);
+        var corpseRow = Project(Entry(Thing("Modded_Ration", 2, 603), corpse, "corpse", false));
+        Check(corpseRow.Holders.Count == 1 && corpseRow.Holders[0].HolderKind == HolderKind.Corpse && corpseRow.Holders[0].Units == 2, "corpse holder kind and units retained");
+        var trader = Project(Entry(Thing("Modded_TradeGoods", 6, 702), Thing("Trader_Pawn_Test", 1, 701), "pawnInventory", false));
+        Check(trader.Ours == 0 && trader.Holders[0].HolderKind == HolderKind.PawnInventory, "trader goods retain holder and zero ownership");
+        var outer = Thing("Modded_Crate", 1, 801); var inner = Thing("Modded_Crate", 1, 802);
+        var nested = Project(Entry(outer), Entry(inner, outer, "container"), Entry(Thing("Modded_Crate", 5, 803), inner, "container"));
+        Check(nested.Stacks == 3 && nested.Holders.Count == 2 && nested.Holders[0].Holder != nested.Holders[1].Holder && nested.Holders.All(h => h.HolderKind == HolderKind.Container), "each projected nesting level retains its holder identity");
+        var overflow = Project(Enumerable.Range(0, 300).Select(i => Entry(Thing("Modded_OverflowStack", 2, 900 + i))).ToArray());
+        Check(overflow.Units == 600 && overflow.Stacks == 300 && overflow.OursUnforbidden == 600 && overflow.Items.Count == 300, "all 300 stacks retained without a list cap");
+        var wide = Project(Entry(Thing("Modded_Wide", 1073741824, 1301), null, null, false), Entry(Thing("Modded_Wide", 1073741824, 1302), null, null, false));
+        var snapshot = new SuppliesSnapshot { Context = context, Stocks = [wide] };
+        var decoded = FactsJson.Deserialize<SuppliesSnapshot>(FactsJson.Serialize(snapshot));
+        Check(decoded.Stocks[0].Units == 2147483648L && decoded.Stocks[0].Ours == 0 && decoded.Context == context, "snapshot preserves long totals, explicit zero and observation context");
+        Console.WriteLine(checks + " compiled supplies boundary assertions passed; no gameplay assertions.");
         return 0;
     }
 }

@@ -19,13 +19,13 @@ public static partial class ShelterRules
     /// foothold sleeping and indoor places are not both met; no Missing once they are. Count is the foothold count
     /// the shortfall is of.
     /// </summary>
-    public static (long Count, int Missing) StandInsOwed(RoundsFacts f)
+    public static (long Count, int Missing) StandInsOwed(ReviewFacts f)
     {
-        if (RoundsRules.FootholdShelter(f) && RoundsRules.FootholdSleeping(f))
+        if (Rules.FootholdShelter(f) && Rules.FootholdSleeping(f))
         {
             return (0, 0);
         }
-        var count = RoundsRules.FootholdCount(f);
+        var count = Rules.FootholdCount(f);
         return (count, (int)Math.Max(0, count - f.Census.BedCapacity));
     }
 

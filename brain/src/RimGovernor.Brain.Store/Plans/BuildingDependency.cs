@@ -9,16 +9,16 @@ public readonly record struct WallCell(Cell Cell, bool Standing = false);
 
 public sealed partial class Store
 {
-    /// <summary>Bounds <c>Rounds.WallCells</c>: one stone-shell bundle names at most four removal cells, and few bundles are ever live at once.</summary>
+    /// <summary>Bounds <c>ReviewState.WallCells</c>: one stone-shell bundle names at most four removal cells, and few bundles are ever live at once.</summary>
     internal const int MaxWallCells = 256;
 
     /// <summary>
     /// Every admission's prerequisite gate: <see cref="PlanSpec.CheckDependencies"/>, then the last rounds's census
     /// for each prerequisite whose receipt does not mean the work is done. An accepted building intent completes
     /// once its blueprint is placed, so a dependent (a bed on a floor) waits for the building to stand built
-    /// (<c>Rounds.Built</c>). An accepted wall removal completes once its demolition is designated, so a dependent
+    /// (<c>ReviewState.Built</c>). An accepted wall removal completes once its demolition is designated, so a dependent
     /// (the replacement wall on the same cell) waits for the census to show no wall left in that cell
-    /// (<c>Rounds.WallCells</c>).
+    /// (<c>ReviewState.WallCells</c>).
     /// </summary>
     internal static void CheckDependencies(StoreTransaction tx, PlanState state, ActionId action, GenerationSnapshot current, Tick tick)
     {
@@ -46,7 +46,7 @@ public sealed partial class Store
         {
             return;
         }
-        var review = LoadRounds(tx);
+        var review = LoadReview(tx);
         var s = review.Snapshot;
         if (s.Colony != current.Colony || s.Load != current.Load || s.Map != current.Map)
         {

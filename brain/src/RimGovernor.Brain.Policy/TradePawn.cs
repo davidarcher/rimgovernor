@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 public static partial class TradePolicyRules
 {
     /// <summary>Scores an offered pawn from its skills and passions: each usable skill's level weighted by how fast its passion grows it. A disabled skill adds nothing.</summary>
-    public static double PawnPurchaseValue(IReadOnlyList<RimGovernor.Contracts.Wire.Observations.Skill> skills)
+    public static double PawnPurchaseValue(IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.Skill> skills)
     {
         var value = 0.0;
         foreach (var skill in skills)

@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -8,12 +7,12 @@ public sealed record CarePawn
     /// <summary>Quest-protected guests may be tended, but never operated on during their visit.</summary>
     public bool QuestProtected { get; init; }
 
-    public required O.PawnState Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PawnState Observed { get; init; }
 
     public PawnId Id => new(Observed.Pawn.Id);
 
     /// <summary>The colonist's standing medical care.</summary>
-    public MedicalCare Care => Observed.Settings.Care is O.PawnCare.Configured care
+    public MedicalCare Care => Observed.Settings.Care is RimGovernor.Brain.GameFacts.Observations.PawnCare.Configured care
         ? WorkRules.MedicalCareOf(care.MedicalCare)
         : throw new RequiredFactException("patient medical care settings");
 

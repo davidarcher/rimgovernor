@@ -1,6 +1,4 @@
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -45,11 +43,11 @@ internal static class MovementArrival
         var pawnId = s.Staged!.Pawns["walker"].Id;
         var site = s.Staged.Site ?? throw new AcceptanceException("stage: no site");
         var destination = new RimGovernor.Brain.Domain.Cell { X = site.X + To.X, Z = site.Z + To.Z };
-        var move = new Operations.MoveIntent { PawnId = pawnId, Destination = destination };
+        var move = new RimGovernor.Brain.GameOrders.Operations.MoveIntent { PawnId = pawnId, Destination = destination };
 
         _ = await TypedApply.RefusedAsync(s, "move-undrafted", move, cancellationToken).ConfigureAwait(false);
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
-        _ = await TypedApply.AppliedAsync(s, "draft", new Operations.DraftIntent { PawnId = pawnId, Drafted = true }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "draft", new RimGovernor.Brain.GameOrders.Operations.DraftIntent { PawnId = pawnId, Drafted = true }, cancellationToken).ConfigureAwait(false);
         _ = await TypedApply.AppliedAsync(s, "move", move, cancellationToken).ConfigureAwait(false);
 
         var moving = await TypedApply.PawnAsync(s, "moving", pawnId, cancellationToken).ConfigureAwait(false);
@@ -62,7 +60,7 @@ internal static class MovementArrival
         RimGovernor.Brain.Domain.Cell? at = null;
         _ = await s.RunUntilAsync("arrive", 2000, async ct =>
         {
-            at = ((await TypedApply.PawnAsync(s, "position", pawnId, ct).ConfigureAwait(false)).Pawn.Place as RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap)?.Cell;
+            at = ((await TypedApply.PawnAsync(s, "position", pawnId, ct).ConfigureAwait(false)).Pawn.Place as RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap)?.Cell;
             return (Wait.Signature(at?.X, at?.Z), at?.X == destination.X && at?.Z == destination.Z);
         }, cancellationToken).ConfigureAwait(false);
         s.RecordWire("arrived", at);

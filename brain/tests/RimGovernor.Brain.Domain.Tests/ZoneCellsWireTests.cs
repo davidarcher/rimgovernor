@@ -1,19 +1,17 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
-using C = RimGovernor.Contracts.Wire.Common;
-using Mirror = RimGovernor.Contracts.Wire.Mirror;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>The zone census and the cell read are whole on the wire: each round-trips exactly and a missing member does not decode.</summary>
 public sealed class ZoneCellsWireTests
 {
-    private static readonly C.ObservationContext Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 7 };
+    private static readonly RimGovernor.Brain.GameFacts.Common.ObservationContext Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new RimGovernor.Brain.GameFacts.Common.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 7 };
 
-    private static readonly O.ZonesSnapshot Census = new()
+    private static readonly RimGovernor.Brain.GameFacts.Observations.ZonesSnapshot Census = new()
     {
         Context = Context,
         Zones =
@@ -21,17 +19,17 @@ public sealed class ZoneCellsWireTests
             ZoneFixtures.Growing("Zone_1", "Plant_Rice", usableCells: 12, edible: true) with { PlantedCells = 4, FertilePlantedCells = 3, BlightedPlants = 1, GrowthTotal = 1.5, FertilityFactorTotal = 3.2 },
             ZoneFixtures.Stockpile("Zone_2", "Important", foodStorage: true) with
             {
-                Filter = new O.StockpileFilter { AllowedDefNames = ["MealSimple"], HitPointsMin = 0, HitPointsMax = 1, QualityMin = Quality.Awful, QualityMax = Quality.Legendary, AllowFresh = true, AllowRotten = false },
+                Filter = new RimGovernor.Brain.GameFacts.Observations.StockpileFilter { AllowedDefNames = ["MealSimple"], HitPointsMin = 0, HitPointsMax = 1, QualityMin = Quality.Awful, QualityMax = Quality.Legendary, AllowFresh = true, AllowRotten = false },
             },
-            new O.ZoneState.Other { Id = "Zone_3", Label = "Fishing zone 1", Bounds = ZoneFixtures.Origin },
+            new RimGovernor.Brain.GameFacts.Observations.ZoneState.Other { Id = "Zone_3", Label = "Fishing zone 1", Bounds = ZoneFixtures.Origin },
         ],
     };
 
-    private static O.CellsSnapshot Cells() => new()
+    private static RimGovernor.Brain.GameFacts.Observations.CellsSnapshot Cells() => new()
     {
         Context = Context,
-        MapSize = new O.MapSize { Width = 250, Height = 250 },
-        Grid = new Mirror.CellGrid
+        MapSize = new RimGovernor.Brain.GameFacts.Observations.MapSize { Width = 250, Height = 250 },
+        Grid = new RimGovernor.Brain.GameFacts.Mirror.CellGrid
         {
             X = 3, Z = 4, Width = 1, Height = 1,
             Held = [true], Walkable = [true], Indoors = [false], Doorway = [false], Polluted = [false], InHome = [true],
@@ -44,10 +42,10 @@ public sealed class ZoneCellsWireTests
     [Fact]
     public void TheZoneCensusRoundTripsExactly()
     {
-        var json = WireJson.Serialize(Census);
-        var back = WireJson.Deserialize<O.ZonesSnapshot>(json);
+        var json = OrdersJson.Serialize(Census);
+        var back = OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.ZonesSnapshot>(json);
 
-        Assert.Equal(json, WireJson.Serialize(back));
+        Assert.Equal(json, OrdersJson.Serialize(back));
         Assert.Equal(Census.Zones, back.Zones);
         Assert.Equal(["growing", "stockpile", "other"], JsonNode.Parse(json)!["zones"]!.AsArray().Select(z => (string?)z!["type"]));
     }
@@ -61,18 +59,18 @@ public sealed class ZoneCellsWireTests
     [InlineData(2, "bounds")]
     public void AZoneMissingAMemberDoesNotDecode(int row, string member)
     {
-        var node = JsonNode.Parse(WireJson.Serialize(Census))!.AsObject();
+        var node = JsonNode.Parse(OrdersJson.Serialize(Census))!.AsObject();
         Assert.True(node["zones"]![row]!.AsObject().Remove(member));
 
-        Assert.ThrowsAny<JsonException>(() => WireJson.Deserialize<O.ZonesSnapshot>(node.ToJsonString()));
+        Assert.ThrowsAny<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.ZonesSnapshot>(node.ToJsonString()));
     }
 
     [Fact]
     public void TheCellReadRoundTripsExactly()
     {
-        var json = WireJson.Serialize(Cells());
+        var json = OrdersJson.Serialize(Cells());
 
-        Assert.Equal(json, WireJson.Serialize(WireJson.Deserialize<O.CellsSnapshot>(json)));
+        Assert.Equal(json, OrdersJson.Serialize(OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.CellsSnapshot>(json)));
     }
 
     [Theory]
@@ -80,18 +78,18 @@ public sealed class ZoneCellsWireTests
     [InlineData("grid")]
     public void ACellReadMissingAMemberDoesNotDecode(string member)
     {
-        var node = JsonNode.Parse(WireJson.Serialize(Cells()))!.AsObject();
+        var node = JsonNode.Parse(OrdersJson.Serialize(Cells()))!.AsObject();
         Assert.True(node.Remove(member));
 
-        Assert.ThrowsAny<JsonException>(() => WireJson.Deserialize<O.CellsSnapshot>(node.ToJsonString()));
+        Assert.ThrowsAny<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.CellsSnapshot>(node.ToJsonString()));
     }
 
     [Fact]
     public void AGridMissingAnArrayDoesNotDecode()
     {
-        var node = JsonNode.Parse(WireJson.Serialize(Cells()))!.AsObject();
+        var node = JsonNode.Parse(OrdersJson.Serialize(Cells()))!.AsObject();
         Assert.True(node["grid"]!.AsObject().Remove("walkable"));
 
-        Assert.ThrowsAny<JsonException>(() => WireJson.Deserialize<O.CellsSnapshot>(node.ToJsonString()));
+        Assert.ThrowsAny<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.CellsSnapshot>(node.ToJsonString()));
     }
 }

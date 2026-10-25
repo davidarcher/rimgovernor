@@ -2,15 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Typed resource source read. It reuses ResourceAcquisitionTools' eligibility,
     // designation and safety logic (Eligible/Designated/MiningBlocker) for what
@@ -22,10 +20,10 @@ namespace HomeBridge.BridgeTools
     internal static class NativeResourceSourcesTool
     {
 
-        internal static Obs.ResourceSourcesSnapshot HandleListResourceSources(Obs.ResourceSourcesRequest request)
+        internal static RimGovernor.Brain.GameFacts.Observations.ResourceSourcesSnapshot HandleListResourceSources(RimGovernor.Brain.GameOrders.Observations.ResourceSourcesRequest request)
         {
             if (!Validate(request, out var failure)) throw NativeFaults.Refused(failure);
-            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out _, out var error))
+            if (!GameThread.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out _, out var error))
                 throw NativeFaults.Refused(error);
             return Read(map, request);
         }
@@ -39,11 +37,11 @@ namespace HomeBridge.BridgeTools
 
         // Read is the read on the main thread under a validated identity: the
         // reply its tool encodes, and the section the bundle carries.
-        internal static Obs.ResourceSourcesSnapshot Read(Map map, Obs.ResourceSourcesRequest parsed)
+        internal static RimGovernor.Brain.GameFacts.Observations.ResourceSourcesSnapshot Read(Map map, RimGovernor.Brain.GameOrders.Observations.ResourceSourcesRequest parsed)
         {
             var cheap = Cheap;
             var definition = DefDatabase<ThingDef>.GetNamedSilentFail(parsed.Resource)
-                ?? throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.NotApplicable, Detail = "Unknown resource definition." });
+                ?? throw NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.NotApplicable, Detail = "Unknown resource definition." });
             try
             {
                 // Only a plant or rock def can yield the resource, so the
@@ -72,7 +70,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var t in eligible) distances[t] = colonists.Min(p => p.Position.DistanceTo(t.Position));
                 var ordered = eligible.OrderByDescending(ResourceAcquisitionTools.Designated).ThenBy(t => distances[t]).ThenBy(t => t.thingIDNumber).ToList();
                 var reserved = cheap ? new HashSet<Thing>(map.reservationManager.AllReservedThings()) : null;
-                return new Obs.ResourceSourcesSnapshot
+                return new RimGovernor.Brain.GameFacts.Observations.ResourceSourcesSnapshot
                 {
                     Sources = [.. ordered.Select(thing => Project(thing, distances[thing], buried.Contains(thing), reserved))],
                     Storage = Storage(map, definition),
@@ -81,15 +79,15 @@ namespace HomeBridge.BridgeTools
             catch (Exception readError)
             {
                 ModLog.Error("observe", "Resource sources read failed: " + readError);
-                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Resource sources could not be read completely." });
+                throw NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed, Detail = "Resource sources could not be read completely." });
             }
         }
 
-        internal static bool Validate(Obs.ResourceSourcesRequest request, out Common.Failure failure)
+        internal static bool Validate(RimGovernor.Brain.GameOrders.Observations.ResourceSourcesRequest request, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity scope and an exact resource definition are required.");
+            failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Identity scope and an exact resource definition are required.");
             if (request == null || request.Scope?.ExpectedIdentity == null) return false;
-            if (request.Resource is null || !ProtoBoundary.IsIdentifier(request.Resource)) return false;
+            if (request.Resource is null || !GameThread.IsIdentifier(request.Resource)) return false;
             return true;
         }
 
@@ -98,7 +96,7 @@ namespace HomeBridge.BridgeTools
         // stored, stack_limit and candidates. Deep-drill portion sizing and
         // the hauling WorkType are not carried -- nothing on the brain side
         // reads either.
-        private static Obs.StorageCapacity Storage(Map map, ThingDef def)
+        private static RimGovernor.Brain.GameFacts.Observations.StorageCapacity Storage(Map map, ThingDef def)
         {
             var haulers = Haulers(map);
             var capacity = Capacity(map, def, haulers, out var stored);
@@ -115,7 +113,7 @@ namespace HomeBridge.BridgeTools
                     && !c.GetThingList(map).Any(t => t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item)
                     && Protected(c) && !Verse.CellRect.CenteredOn(c, margin).Any(q => q.InBounds(map) && q.GetEdifice(map) is Mineable)
                     && Accessible(c)).ToList();
-            return new Obs.StorageCapacity
+            return new RimGovernor.Brain.GameFacts.Observations.StorageCapacity
             {
                 Capacity = capacity,
                 Stored = stored,
@@ -153,7 +151,7 @@ namespace HomeBridge.BridgeTools
                 .SelectMany(g => g.CellsList).Distinct().Where(Protected).Sum(Slots) * def.stackLimit;
         }
 
-        private static Obs.ResourceSource Project(Thing thing, double distance, bool buried, HashSet<Thing>? reserved) => new()
+        private static RimGovernor.Brain.GameFacts.Observations.ResourceSource Project(Thing thing, double distance, bool buried, HashSet<Thing>? reserved) => new()
         {
             Id = thing.GetUniqueLoadID(),
             DefName = thing.def.defName,

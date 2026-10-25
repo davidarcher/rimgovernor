@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
 
     /// <summary>

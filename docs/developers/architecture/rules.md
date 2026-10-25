@@ -23,14 +23,14 @@ the rule.
 
 ## Gates
 
-1. **Layers (`RGARCH001`).** `Domain -> Contracts -> Policy -> Bridge
-   (Bridge.Contracts, Bridge) -> Store ->
-   Executor -> BuildingRuntime -> PlayerApi -> Host`. The project references
+1. **Layers (`RGARCH001`).** `Domain -> GameFacts -> GameOrders -> Policy -> Bridge
+   (GameAccess, Bridge) -> Store ->
+   Executor -> Runtime -> PlayerApi -> Host`. The project references
    already form this order and Roslyn cannot compile a cycle; the analyzer
    reads the assembly references of each compilation and fails a reference that
    climbs the order or is a role denial: store does not reference bridge
    or `HttpChannel`; executor does not reference store (it still does, baselined);
-   `PlayerApi` does not reference `BuildingRuntime`. `Telemetry`, `Simulation`,
+   `PlayerApi` does not reference `Runtime`. `Telemetry`, `Simulation`,
    `HttpChannel` and `Acceptance*` sit outside the order.
    Bridge validates and joins native records, policy decides, store
    persists, buildingruntime sequences. Bridge returns Policy types by design, so
@@ -50,7 +50,7 @@ the rule.
    check that; it is a review question. Baseline `file|ban Type`:
    `ClockTypes.cs` (`DateTimeOffset` fields).
 3. **One owner per exported type (`RGARCH003`).** A public type name declared in
-   two or more of `Domain`, `Policy` and `Bridge.Contracts`/`Bridge`
+   two or more of `Domain`, `Policy` and `GameAccess`/`Bridge`
    fails unless listed. These form one reference chain, so
    the higher project sees the collision and reports it. Baseline
    `Higher|Name`: today's duplicates.
@@ -59,7 +59,7 @@ the rule.
    Baseline `file|Type.Member`. Many entries are a skipped `DomainException` or best-effort cleanup in the
    acceptance harness; review them as you touch the file and delete the line
    once the catch records or rethrows.
-5. **Numbers (narrow, `RGARCH005`).** In `Policy` and `BuildingRuntime`: no
+5. **Numbers (narrow, `RGARCH005`).** In `Policy` and `Runtime`: no
    literal `10000` compared with or clamping (`Math.Min`/`Max`/`Clamp`) a
    count/target-named operand (use a named constant or delete the cap), and no
    sentinel standing for unknown (`1e12`, `1L << 40`, `double.MaxValue`). A cap
@@ -85,7 +85,7 @@ the rule.
 9. **There is no unknown (`RGARCH009`).** The gate half of review item 9 ([#3753](https://github.com/davidarcher/rimgovernor/issues/3753)).
    In every `RimGovernor.Brain.*` project except `Acceptance*` it counts these tokens per file:
    - `UnknownMember`: an enum member named `Unknown` or `Unspecified`;
-   - `NullableValue` (in `Policy`, `Domain` and `Contracts` only): a property or positional parameter of a
+   - `NullableValue` (in `Policy`, `Domain`, `GameFacts` and `GameOrders` only): a property or positional parameter of a
      record or class whose type is a nullable value type (`int?`, `Cell?`);
    - `Discard`: a catch-all `_ =>` arm, `default:` or `case _:` label in a switch whose governing type is
      an enum or an abstract or sealed record declared in the repo. Switches over game or BCL enums, strings
@@ -93,7 +93,7 @@ the rule.
 
    The former `Fact`, `Unknown` and `ValueOrDefault` wrapper tokens have no production type to bind to;
    their analyzer checks activate only if both retired wrapper types are present. Required native reads
-   now use Contracts records directly, and missing required inputs raise `RequiredFactException`.
+   now use GameFacts records directly, and missing required inputs raise `RequiredFactException`.
 
    The baseline (`rule9.txt`) is counted, unlike the other gates: each line is `Project/File.cs|token|count`.
    A count above its line fails, a file or token without a line fails on its first hit, and a count below its
@@ -145,12 +145,12 @@ not every existing planner or every possible form of decision math.
 
 This is a gate job (`contract orphans` in `RimGovernor.cmd test`,
 `tools/repo/Commands/ContractOrphans.cs`): every member of a public wire type in
-`RimGovernor.Brain.Contracts` (enums aside) and of a record in `RimGovernor.Brain.Policy` must be
+`RimGovernor.Brain.GameFacts` or `RimGovernor.Brain.GameOrders` (enums aside) and of a record in `RimGovernor.Brain.Policy` must be
 read somewhere outside its declaration, and an observation member the native mod writes must be read by the brain.
-The check is direction-aware by sub-namespace: `Wire.Operations` records are brain-to-native intent (the brain
-writes, the native side reads, and the native side may build its own copy to compare against, which is not a
-brain-read obligation); every other wire record is a native-to-brain observation. The list is
-`IntentNamespaces` on `ContractOrphans.Wire`.
+The check is direction-aware by owning assembly. `GameOrders` contains requests and intent: native consumers
+must read their members and may construct copies for comparison. `GameFacts` contains native observations
+and outcomes: native writes require a brain reader even when native also reads them. All public types owned
+by each assembly are checked, including canonical site records that retain the Policy namespace.
 An analyzer sees one project at a time, and IDE0051/IDE0052 only private members, so this
 reads the built assemblies instead: every other `brain/src` assembly (tests excluded) and the native
 mod's own `RimGovernor.*` assemblies, by the member tokens the compiler bound (getter calls,
@@ -161,7 +161,7 @@ Constructing a type reaches its virtual methods (overrides, interface implementa
 bodies). Record equality, hashing, printing and cloning, and the JSON context and converters, touch
 every member and count as nothing: a member that only takes part in equality is an orphan. A parameterless
 constructor's field initializers are not a write by whoever constructs the type. Findings
-read `Contracts|Type.Member` or `Policy|Type.Member` with a reason (`not referenced outside its
+read `GameFacts|Type.Member`, `GameOrders|Type.Member` or `Policy|Type.Member` with a reason (`not referenced outside its
 declaration`, `written, never read`, `written by the native side, never read by the brain`). The baseline
 `brain/analyzers/baseline/orphans.txt` holds the orphans that predate the check, and the members the check
 exposed when it stopped counting acceptance string keys as reads (#3410; burndown for both:
@@ -177,7 +177,7 @@ the same way, as `Fixtures|Type.Member`. Their other end is the fixture build's 
 never builds, so the acceptance cases and their harness are the readers: a case setting a spec member uses
 it as a case reading a reply member does. This check needs no game, and it has no baseline lines.
 
-Acceptance cases and their harness read native replies as typed Contracts records
+Acceptance cases and their harness read native replies as typed GameFacts records
 (`Harness.CallAsync` with a `NativeOps` op), so every read is a symbol the check sees. The check counts no
 string key, JSON name or by-name read as a read: a member the acceptance code mentions only by its JSON name
 is an orphan. PlayerApi
@@ -226,4 +226,4 @@ The landing report answers each in a line.
    `Never`); a fact that cannot be read raises `RequiredFactException`. Never a
    default, a zero, a sentinel or a clamp: read the fact, name the state, or
    drop the option from planning and file an issue
-   ([#3753](https://github.com/davidarcher/rimgovernor/issues/3753)). The generic fact wrapper and decode layer are removed. Native observed records have one owner in Contracts; policy reads those records directly and keeps only derived review state. Gate 9 rejects reintroduced unknown wrappers and unnamed catch-all states.
+   ([#3753](https://github.com/davidarcher/rimgovernor/issues/3753)). The generic fact wrapper and decode layer are removed. Native observed records have one owner in GameFacts; policy reads those records directly and keeps only derived review state. Gate 9 rejects reintroduced unknown wrappers and unnamed catch-all states.

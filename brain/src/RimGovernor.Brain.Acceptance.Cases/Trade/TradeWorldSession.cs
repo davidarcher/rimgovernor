@@ -1,9 +1,5 @@
 using RimGovernor.Brain.Bridge;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -37,13 +33,13 @@ internal static class TradeWorldSession
         var prepared = await s.FixtureAsync("session-setup", TradeKit.Session, channel, cancellationToken).ConfigureAwait(false);
         s.Record("prepared", ServedOps.Json(prepared));
         var target = channel == "settlement"
-            ? new Common.TradeTarget { Kind = new Common.SettlementTradeTarget { SettlementId = prepared.Trader, CaravanId = prepared.Caravan } }
-            : new Common.TradeTarget { Kind = new Common.OrbitalTradeTarget { ShipId = prepared.Trader } };
+            ? new RimGovernor.Brain.GameFacts.Common.TradeTarget { Kind = new RimGovernor.Brain.GameFacts.Common.SettlementTradeTarget { SettlementId = prepared.Trader, CaravanId = prepared.Caravan } }
+            : new RimGovernor.Brain.GameFacts.Common.TradeTarget { Kind = new RimGovernor.Brain.GameFacts.Common.OrbitalTradeTarget { ShipId = prepared.Trader } };
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 
-        async Task<Receipts.TradeEffect> Apply(string label, Operations.TradeIntentStep step) => TradeKit.AppliedTrade(
+        async Task<RimGovernor.Brain.GameFacts.Receipts.TradeEffect> Apply(string label, RimGovernor.Brain.GameOrders.Operations.TradeIntentStep step) => TradeKit.AppliedTrade(
             label,
-            await TradeKit.ApplyAsync(s, "world-session-" + label, new Operations.TradeIntent { Target = target, NegotiatorId = prepared.Negotiator, Step = step }, cancellationToken).ConfigureAwait(false));
+            await TradeKit.ApplyAsync(s, "world-session-" + label, new RimGovernor.Brain.GameOrders.Operations.TradeIntent { Target = target, NegotiatorId = prepared.Negotiator, Step = step }, cancellationToken).ConfigureAwait(false));
 
         Task<Fx.TradeInventory> Inventory(string label, CancellationToken ct) => s.FixtureAsync(label, TradeKit.Inventory, (channel, prepared), ct);
 
@@ -59,7 +55,7 @@ internal static class TradeWorldSession
         async Task Closed(string label)
         {
             var state = await TradeKit.SessionAsync(s, label, cancellationToken).ConfigureAwait(false);
-            if (state.Engagement is Observations.TradeEngagement.Engaged { Open: true })
+            if (state.Engagement is RimGovernor.Brain.GameFacts.Observations.TradeEngagement.Engaged { Open: true })
             {
                 throw new AcceptanceException($"{label}: session still open: {state}");
             }
@@ -67,18 +63,18 @@ internal static class TradeWorldSession
 
         async Task<string> Open(string label)
         {
-            _ = await Apply(label, new Operations.OpenTrade { GiftMode = false }).ConfigureAwait(false);
+            _ = await Apply(label, new RimGovernor.Brain.GameOrders.Operations.OpenTrade { GiftMode = false }).ConfigureAwait(false);
             var sessionId = "";
             async Task<(string Signature, bool Done)> Observe(CancellationToken ct)
             {
                 var sheet = await TradeKit.SessionAsync(s, label + "-session", ct).ConfigureAwait(false);
-                var open = sheet.Engagement is Observations.TradeEngagement.Engaged { Open: true };
+                var open = sheet.Engagement is RimGovernor.Brain.GameFacts.Observations.TradeEngagement.Engaged { Open: true };
                 sessionId = open ? (await Sheet(ct).ConfigureAwait(false)).SessionId : "";
                 return ($"open={open} session={sessionId}", sessionId.Length > 0);
             }
 
-            Task<Observations.TradeSheet> Sheet(CancellationToken ct) =>
-                s.CallAsync(label + "-sheet", NativeOps.ReadTradeSheet, new Observations.TradeSheetRequest { Scope = s.Scope }, ct);
+            Task<RimGovernor.Brain.GameFacts.Observations.TradeSheet> Sheet(CancellationToken ct) =>
+                s.CallAsync(label + "-sheet", NativeOps.ReadTradeSheet, new RimGovernor.Brain.GameOrders.Observations.TradeSheetRequest { Scope = s.Scope }, ct);
 
             // The orbital open orders a real UseCommsConsole job; its receipt is not an open session.
             if (!(await Observe(cancellationToken).ConfigureAwait(false)).Done)
@@ -89,11 +85,11 @@ internal static class TradeWorldSession
             return sessionId;
         }
 
-        static Observations.TradeLine? Find(Observations.TradeSheet sheet, string name) => sheet.Lines.FirstOrDefault(row => row.DefName == name);
+        static RimGovernor.Brain.GameFacts.Observations.TradeLine? Find(RimGovernor.Brain.GameFacts.Observations.TradeSheet sheet, string name) => sheet.Lines.FirstOrDefault(row => row.DefName == name);
 
         async Task Cancel(string label)
         {
-            _ = await Apply(label, new Operations.EndTrade { Kind = Operations.EndTradeKind.Cancel, ReceiveQuest = false }).ConfigureAwait(false);
+            _ = await Apply(label, new RimGovernor.Brain.GameOrders.Operations.EndTrade { Kind = RimGovernor.Brain.GameOrders.Operations.EndTradeKind.Cancel, ReceiveQuest = false }).ConfigureAwait(false);
             await Closed(label + "-closed").ConfigureAwait(false);
         }
 
@@ -113,7 +109,7 @@ internal static class TradeWorldSession
         }
 
         await Unchanged("opened-no-delivery", before).ConfigureAwait(false);
-        _ = await Apply("browse-stage", new Operations.SetTradeLines { Lines = [new() { LineId = component.LineId, AbsoluteCount = 1 }], AllowPawns = false }).ConfigureAwait(false);
+        _ = await Apply("browse-stage", new RimGovernor.Brain.GameOrders.Operations.SetTradeLines { Lines = [new() { LineId = component.LineId, AbsoluteCount = 1 }], AllowPawns = false }).ConfigureAwait(false);
         await Unchanged("staged-no-delivery", before).ConfigureAwait(false);
         await Cancel("browse-cancel").ConfigureAwait(false);
         await Unchanged("cancel-no-purchase", before).ConfigureAwait(false);
@@ -121,9 +117,9 @@ internal static class TradeWorldSession
         sessionId = await Open("purchase-open").ConfigureAwait(false);
         offers = await TradeKit.SheetAsync(s, "purchase-sheet", sessionId, cancellationToken).ConfigureAwait(false);
         var componentId = Find(offers, "ComponentIndustrial")?.LineId ?? throw new AcceptanceException("purchase-sheet: no component row");
-        _ = await Apply("purchase-stage", new Operations.SetTradeLines { Lines = [new() { LineId = componentId, AbsoluteCount = 1 }], AllowPawns = false }).ConfigureAwait(false);
+        _ = await Apply("purchase-stage", new RimGovernor.Brain.GameOrders.Operations.SetTradeLines { Lines = [new() { LineId = componentId, AbsoluteCount = 1 }], AllowPawns = false }).ConfigureAwait(false);
         var staged = await TradeKit.SheetAsync(s, "purchase-accept-sheet", sessionId, cancellationToken).ConfigureAwait(false);
-        var effect = await Apply("purchase-accept", new Operations.AcceptTrade { ExpectedDealSignature = staged.DealSignature, AllowEmpty = false, ReceiveQuest = true }).ConfigureAwait(false);
+        var effect = await Apply("purchase-accept", new RimGovernor.Brain.GameOrders.Operations.AcceptTrade { ExpectedDealSignature = staged.DealSignature, AllowEmpty = false, ReceiveQuest = true }).ConfigureAwait(false);
         s.RecordWire("purchase", effect);
         await Closed("purchase-closed").ConfigureAwait(false);
 
@@ -142,7 +138,7 @@ internal static class TradeWorldSession
 
         s.Record("before", ServedOps.Json(before));
         s.Record("after", ServedOps.Json(after));
-        if (after.SellerComponents != 19 || after.Medicine != 6 || after.Silver >= 2000 || after.Silver < 1000 || effect is not Receipts.TradeEffect.ExecutedCase executed || after.Silver != executed.AfterSilver)
+        if (after.SellerComponents != 19 || after.Medicine != 6 || after.Silver >= 2000 || after.Silver < 1000 || effect is not RimGovernor.Brain.GameFacts.Receipts.TradeEffect.ExecutedCase executed || after.Silver != executed.AfterSilver)
         {
             throw new AcceptanceException($"native purchase inventory/silver mismatch: {after} effect={effect}");
         }

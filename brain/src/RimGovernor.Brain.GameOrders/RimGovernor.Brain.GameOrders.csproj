@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The plain-record wire contracts shared by the in-process brain and the native mod (#3100): sealed records,
+       EquatableArray lists, [WireName] enums, source-generated System.Text.Json. Replaces Brain.Wire. -->
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Brain.GameOrders</RootNamespace>
+    <AssemblyName>RimGovernor.Brain.GameOrders</AssemblyName>
+    <!-- tools/rg publishes win-x64 ReadyToRun and restores this project with that RID; declaring it keeps the lock file stable. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../RimGovernor.Brain.GameFacts/RimGovernor.Brain.GameFacts.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
+  </ItemGroup>
+</Project>

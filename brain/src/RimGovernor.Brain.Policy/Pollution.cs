@@ -63,7 +63,7 @@ public static partial class PollutionRules
     /// The biotech/pollution Need's read off the Biotech colony section: each wastepack with the game's verdicts and
     /// the count of polluted cells outside the pollution-clear area.
     /// </summary>
-    public static PollutionFacts PollutionOf(RimGovernor.Contracts.Wire.Observations.BiotechColonyFacts biotech) => new()
+    public static PollutionFacts PollutionOf(RimGovernor.Brain.GameFacts.Observations.BiotechColonyFacts biotech) => new()
     {
         UncoveredCells = biotech.PollutedUncoveredCells,
         Wastepacks = [.. biotech.Wastepacks.Select(w => new Wastepack
@@ -127,8 +127,8 @@ public static partial class PollutionRules
     /// The review's pollution cohort: the allow of every forbidden pack SelectPollutionWork would order, the only
     /// supply allows method admission takes from the biotech/pollution Need. Empty without Biotech.
     /// </summary>
-    public static IReadOnlyList<StartingSupply> PollutionAllowSupplies(RimGovernor.Contracts.Wire.Observations.BiotechSection biotech) =>
-        biotech is RimGovernor.Contracts.Wire.Observations.BiotechSection.Active { Facts: var colony }
+    public static IReadOnlyList<StartingSupply> PollutionAllowSupplies(RimGovernor.Brain.GameFacts.Observations.BiotechSection biotech) =>
+        biotech is RimGovernor.Brain.GameFacts.Observations.BiotechSection.Active { Facts: var colony }
             ? [.. SelectPollutionWork(PollutionOf(colony), null, []).Allow.Select(w => new StartingSupply { Thing = w.Id, Definition = w.Definition, Cell = w.Cell })]
             : [];
 

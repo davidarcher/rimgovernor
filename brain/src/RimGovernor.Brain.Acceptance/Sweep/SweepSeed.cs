@@ -6,7 +6,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Simulation.CombatMetrics;
 using RimGovernor.Brain.Telemetry;
 using RimGovernor.Brain.Telemetry.Otlp;
-using Mirror = RimGovernor.Contracts.Wire.Mirror;
 using Fx = RimGovernor.Fixtures.Contracts;
 using SimMetrics = RimGovernor.Brain.Simulation.CombatMetrics.Metrics;
 
@@ -258,7 +257,7 @@ internal static class SweepSeed
         var state = await frames.NextAsync(tick, cancellationToken).ConfigureAwait(false);
         foreach (var row in state.Events)
         {
-            if (row.Kind == Mirror.CombatLogKind.HostileArrived && row.RaidStrategy == "pods" && row.Pods?.OpenTick > tick)
+            if (row.Kind == RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.HostileArrived && row.RaidStrategy == "pods" && row.Pods?.OpenTick > tick)
             {
                 return staged;
             }

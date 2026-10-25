@@ -10,7 +10,7 @@ using RimGovernor.Host.Sdk;
 using RimGovernor.Brain.Domain;
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // control/pawn-activity-delivery (#3398): the staged hauler, ripe crop and two stockpile cells bound by load id and
     // cell; an exact harvest and exact deliveries installed straight into the native execution table, with a blocked
@@ -25,7 +25,7 @@ namespace HomeBridge.BridgeTools
         private static IntVec3 deliverySourceCell;
 
         [Tool("test/pawn_delivery_prepare", Description="UNSAFE FOR MODEL EXECUTION. Bind the staged hauler, ripe crop and the two delivery cells; stand every colonist still.")]
-        public async Task<object> PrepareDelivery(IRimBridgeContext ctx, CancellationToken ct,
+        public async Task<object> PrepareDelivery(INativeContext ctx, CancellationToken ct,
             [ToolParameter(Description="The hauler's load id.")] string hauler = "",
             [ToolParameter(Description="The ripe crop's load id.")] string crop = "",
             [ToolParameter(Description="The first delivery cell, \"x,z\".")] string destination = "",
@@ -47,13 +47,13 @@ namespace HomeBridge.BridgeTools
         }, ct).ConfigureAwait(false);
 
         [Tool("test/pawn_delivery_harvest", Description="UNSAFE FOR MODEL EXECUTION. Install an exact harvest in the prepared delivery fixture.")]
-        public async Task<object> HarvestDelivery(IRimBridgeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() =>
+        public async Task<object> HarvestDelivery(INativeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             var giver = DefDatabase<WorkGiverDef>.AllDefsListForReading.First(d => d.Worker is WorkGiver_GrowerHarvest).defName;
             var reading = NativeFoodActivity.Read(new(Context().Identity!, EquatableArray.From(new[] { crop!.GetUniqueLoadID() })));
             if (!reading.Options.Any(o => o.Pawn == worker!.GetUniqueLoadID() && o.Target == crop.GetUniqueLoadID()))
                 throw new InvalidOperationException("No native eligible harvest-to-storage observation.");
-            NativePawnActivities.Apply(new PawnActivities(((RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase)Context().NativeGeneration).Value,
+            NativePawnActivities.Apply(new PawnActivities(((RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase)Context().NativeGeneration).Value,
                 new[] { new PawnActivityOrder(worker!.GetUniqueLoadID(), "food-delivery", "food-method", 0, 1, false,
                     new[] { new PawnActivityStep(PawnActivityKind.Work, crop!.GetUniqueLoadID(), giver, "Harvest", 0, deadline) }) }), Context());
             // The idle colonists run vanilla with their work priorities off (#3669).
@@ -62,7 +62,7 @@ namespace HomeBridge.BridgeTools
         }, ct).ConfigureAwait(false);
 
         [Tool("test/pawn_delivery_select", Description="UNSAFE FOR MODEL EXECUTION. Bind observed harvested food to an exact delivery; optionally block the destination after admission.")]
-        public async Task<object> SelectDelivery(IRimBridgeContext ctx, CancellationToken ct,
+        public async Task<object> SelectDelivery(INativeContext ctx, CancellationToken ct,
             [ToolParameter(Description="First attempt blocks its destination; the second explicitly chooses another cell.")] bool revised = false) => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             if (NativePawnActivities.Read(worker!)?.State != (revised ? "failed" : "completed"))
@@ -84,7 +84,7 @@ namespace HomeBridge.BridgeTools
             var cell = revised ? revisedDeliveryCell : deliveryCell;
             var order = new PawnActivityOrder(worker!.GetUniqueLoadID(), "food-delivery", "food-method", revised ? 2 : 1, revised ? 3 : 2, false,
                 new[] { new PawnActivityStep(PawnActivityKind.Deliver, product.GetUniqueLoadID(), "", "", 1, deadline).At(new Cell(cell.x, cell.z)) });
-            var batch = new PawnActivities(((RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase)Context().NativeGeneration).Value, new[] { order });
+            var batch = new PawnActivities(((RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase)Context().NativeGeneration).Value, new[] { order });
             NativePawnActivities.Apply(batch, Context());
             NativePawnActivities.Apply(batch, Context());
             if (!revised) GenSpawn.Spawn(ThingDefOf.Steel, cell, worker.Map);
@@ -92,7 +92,7 @@ namespace HomeBridge.BridgeTools
         }, ct).ConfigureAwait(false);
 
         [Tool("test/pawn_delivery_read", Description="UNSAFE FOR MODEL EXECUTION. Read actual edible food and exact delivery locations, independent of job success.")]
-        public async Task<object> ReadDelivery(IRimBridgeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() =>
+        public async Task<object> ReadDelivery(INativeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             int Count(IntVec3 cell) => cell.GetThingList(worker!.Map).Where(t => t.def == harvestProduct && t.IngestibleNow).Sum(t => t.stackCount);
             return FixtureKit.Reply(new Fx.DeliveryRead { Execution = Execution(NativePawnActivities.Read(worker!)),

@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -13,7 +14,7 @@ public sealed class WorkTargetCapacityClaimsTests
     private static NeedTarget Service(string id, string kind, int maxPawns) =>
         NeedsFixtures.Service(id, kind, 0d, .01) with { MaxPawns = maxPawns };
 
-    private static RoundsFacts Facts(params NeedTarget[] targets)
+    private static ReviewFacts Facts(params NeedTarget[] targets)
     {
         var facts = WorkResourceTestFacts.Create("a", "b", "c", "d");
         return facts with { ForecastObserved = facts.ForecastObserved with
@@ -25,7 +26,7 @@ public sealed class WorkTargetCapacityClaimsTests
     private static DomainAction Action(string id, params PawnActivityOrder[] orders) =>
         DomainAction.NewPawnActivitiesAction(new(id), new(1, orders));
     private static PlanSpec Plan(string id, params DomainAction[] actions) => new(new(id), new(1), EquatableArray.From(actions));
-    private static WorkResourceView Committed(RoundsFacts facts, params DomainAction[] held) =>
+    private static WorkResourceView Committed(ReviewFacts facts, params DomainAction[] held) =>
         WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new(EquatableArray.From(held
             .Select(a => new WorkAction(new(a.Id.Value + "-plan"), a, new() { Action = a.Id, Stage = Stage.Pending })))))
         .WorkView!;

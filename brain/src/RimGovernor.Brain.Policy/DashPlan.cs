@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Policy;
 // it starts at, not the speed the pawn left at.
 //
 // Every trip is counted from home with no rest between trips. The window is planned once, from the severity the
-// pawn starts at, and held in RoundsLatches.Dash until its bound (ReviewDash); DashWindow.Until is the one
+// pawn starts at, and held in Latches.Dash until its bound (ReviewDash); DashWindow.Until is the one
 // bound every consumer reads (OpenAt). A pawn still outside at the bound is sheltered again, which recalls it
 // through the Safe area.
 
@@ -189,14 +189,14 @@ public static class DashPlanRules
     }
 
     /// <summary>Reports whether <paramref name="pawn"/> may be outdoors at the facts' tick.</summary>
-    public static bool DashOpenFor(this RoundsFacts f, PawnId pawn) =>
+    public static bool DashOpenFor(this ReviewFacts f, PawnId pawn) =>
         f.Dash.Pawn == pawn && f.Dash.OpenAt(f.Tick);
 
     /// <summary>Reports whether any dash window is open at the facts' tick.</summary>
-    public static bool DashOpen(this RoundsFacts f) => f.Dash.OpenAt(f.Tick);
+    public static bool DashOpen(this ReviewFacts f) => f.Dash.OpenAt(f.Tick);
 
     /// <summary>The pickups the loot census offers: safe stacks with a known path and a known market value.</summary>
-    public static IReadOnlyList<DashCandidate> DashCandidates(RoundsFacts f)
+    public static IReadOnlyList<DashCandidate> DashCandidates(ReviewFacts f)
     {
         var result = new List<DashCandidate>();
         foreach (var row in f.EventLoot)
@@ -216,7 +216,7 @@ public static class DashPlanRules
     }
 
     /// <summary>Plans a window afresh: ReviewDash with none held.</summary>
-    public static DashWindow DashWindowOf(RoundsFacts f, WorkPawnsRead pawns, Tick now, HypothermiaTuning tuning) =>
+    public static DashWindow DashWindowOf(ReviewFacts f, WorkPawnsRead pawns, Tick now, HypothermiaTuning tuning) =>
         ReviewDash(new DashWindow(), f, pawns, now, tuning);
 
     /// <summary>
@@ -228,7 +228,7 @@ public static class DashPlanRules
     /// Otherwise each available colonist with a readable body is planned and the plan with the most value
     /// wins, ties to the lowest pawn id. Unknown while the hazards, hostiles or the roster are unknown.
     /// </summary>
-    public static DashWindow ReviewDash(DashWindow held, RoundsFacts f, WorkPawnsRead pawns, Tick now, HypothermiaTuning tuning)
+    public static DashWindow ReviewDash(DashWindow held, ReviewFacts f, WorkPawnsRead pawns, Tick now, HypothermiaTuning tuning)
     {
         var hazards = OutdoorHazardRules.OutdoorHazardsOf(f);
         var hostiles = f.Hostiles.ThreatCount;

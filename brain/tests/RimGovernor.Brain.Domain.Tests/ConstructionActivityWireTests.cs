@@ -1,6 +1,8 @@
 using RimGovernor.Brain.Domain;
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -30,7 +32,7 @@ public sealed class ConstructionActivityWireTests
             Planned = [.. Enum.GetValues<PlannedSiteVerdict>().Select(v => ConstructionFixtures.Answer("site/" + v, v) with { Options = [rows[0]], Clearing = [clearing] })],
             Removals = [clearing],
         };
-        var copy = WireJson.Deserialize<ConstructionActivityRead>(WireJson.Serialize(read));
+        var copy = OrdersJson.Deserialize<ConstructionActivityRead>(OrdersJson.Serialize(read));
         Assert.Equal(read.Options, copy.Options);
         Assert.Equal(read.Planned, copy.Planned);
         Assert.Equal(read.Removals, copy.Removals);
@@ -46,7 +48,7 @@ public sealed class ConstructionActivityWireTests
             Bindings = [new ActivityTaskBinding.Bound("bound", step), new ActivityTaskBinding.Supply("supply", step, 2),
                 new ActivityTaskBinding.Recipe("recipe", step with { Kind = PawnActivityKind.Recipe }, 120)],
         };
-        var copy = WireJson.Deserialize<ActivityTaskRead>(WireJson.Serialize(read));
+        var copy = OrdersJson.Deserialize<ActivityTaskRead>(OrdersJson.Serialize(read));
         Assert.Equal(read.Bindings, copy.Bindings);
         Assert.Equal(2, Assert.IsType<ActivityTaskBinding.Supply>(copy.Bindings[1]).RemainingCount);
         Assert.Equal(120, Assert.IsType<ActivityTaskBinding.Recipe>(copy.Bindings[2]).ProductiveWorkTicks);
@@ -67,7 +69,7 @@ public sealed class ConstructionActivityWireTests
     {
         var batch = ActivityContinuationFixtures.Cooking();
         batch = batch with { Tasks = [.. batch.Tasks.Select(t => t.Step.Kind == PawnActivityKind.Recipe ? new BoundRecipeTask(t, 100d) : t)] };
-        var copy = WireJson.Deserialize<ActivityTaskRequest>(WireJson.Serialize(new ActivityTaskRequest(ConstructionFixtures.Context().Identity, batch)));
+        var copy = OrdersJson.Deserialize<ActivityTaskRequest>(OrdersJson.Serialize(new ActivityTaskRequest(ConstructionFixtures.Context().Identity, batch)));
         Assert.Equal(batch.Tasks, copy.Batch.Tasks);
         Assert.Equal(100d, Assert.IsType<BoundRecipeTask>(copy.Batch.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe)).ProductiveWorkTicks);
         Assert.All(copy.Batch.Tasks.Where(t => t.Step.Kind != PawnActivityKind.Recipe), t => Assert.IsNotType<BoundRecipeTask>(t));

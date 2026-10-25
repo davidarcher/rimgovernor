@@ -11,7 +11,7 @@ param(
 )
 # Publishes the trusted tool host (tools/rg) as a self-contained win-x64 single file.
 #
-# brain/Game.props builds Bridge, Simulation, Observation and BuildingRuntime empty unless RimWorldDir holds the game's
+# brain/Game.props builds Bridge, Simulation, Observation and Runtime empty unless RimWorldDir holds the game's
 # Assembly-CSharp.dll, UnityStubs.dll and Waylith.dll, and tools/rg reaches them through Acceptance and Acceptance.Cases,
 # so the compile needs those three assemblies. They exist only in the encrypted release bundle, and the bundle reader is
 # itself inside rg.exe, so this script reads the bundle with the same pinned age and 7-Zip tools bootstrap_remote.ps1

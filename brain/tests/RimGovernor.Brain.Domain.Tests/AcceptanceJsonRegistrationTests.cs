@@ -4,7 +4,8 @@ using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
 using RimGovernor.Brain.Acceptance;
 using RimGovernor.Brain.Acceptance.Cases;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
 using Fx = RimGovernor.Fixtures.Contracts;
 
@@ -20,8 +21,8 @@ public sealed class AcceptanceJsonRegistrationTests
     /// <summary>The generic entry points whose type argument must be registered, with the serializer that proves it.</summary>
     private static readonly (MethodInfo[] Definitions, MethodInfo Serialize)[] EntryPoints =
     [
-        (Generic(typeof(WireJson)), typeof(WireJson).GetMethod(nameof(WireJson.Serialize))!),
-        (Generic(typeof(TypedSession), nameof(TypedSession.RecordWire), nameof(TypedSession.RecordWireRows)), typeof(WireJson).GetMethod(nameof(WireJson.Serialize))!),
+        (Generic(typeof(OrdersJson)), typeof(OrdersJson).GetMethod(nameof(OrdersJson.Serialize))!),
+        (Generic(typeof(TypedSession), nameof(TypedSession.RecordWire), nameof(TypedSession.RecordWireRows)), typeof(OrdersJson).GetMethod(nameof(OrdersJson.Serialize))!),
         (Generic(typeof(TypedSession), nameof(TypedSession.RecordFixture)), typeof(Fx.FixtureJson).GetMethod(nameof(Fx.FixtureJson.Serialize))!),
         (Generic(typeof(Fx.FixtureJson)), typeof(Fx.FixtureJson).GetMethod(nameof(Fx.FixtureJson.Serialize))!),
         (Generic(typeof(Harness), nameof(Harness.FixtureReply)), typeof(Fx.FixtureJson).GetMethod(nameof(Fx.FixtureJson.Serialize))!),

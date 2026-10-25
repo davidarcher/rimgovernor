@@ -1,4 +1,4 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
 using RimGovernor.Brain.Bridge;
@@ -48,7 +48,7 @@ public sealed record SessionParts
 public sealed record PlayerNatives
 {
     /// <summary>The tick and status reads behind the cached controller snapshot.</summary>
-    public RimGovernor.Brain.Bridge.Contracts.IObservationSource? Source { get; init; }
+    public RimGovernor.Brain.GameAccess.IObservationSource? Source { get; init; }
 
     public IPresentationReader? Presentation { get; init; }
 
@@ -72,7 +72,7 @@ public sealed class PlannerContext
 
     public required StoreJournal Journal { get; init; }
 
-    public required INativeFacade Facade { get; init; }
+    public required IGameApi Facade { get; init; }
 
     public required TelemetryEmitter Telemetry { get; init; }
 
@@ -83,7 +83,7 @@ public sealed class PlannerContext
     public required FactStore Sections { get; init; }
 
     /// <summary>Rebuilds the store once per loaded world; the scheduler runs it first on each step.</summary>
-    public required Func<RimGovernor.Contracts.Wire.Common.ObservationContext, CancellationToken, Task<bool>> WorldReady { get; init; }
+    public required Func<RimGovernor.Brain.GameFacts.Common.ObservationContext, CancellationToken, Task<bool>> WorldReady { get; init; }
 
     /// <summary>Where the goals Family files its latest statuses and the host's goals view reads them (#3497).</summary>
     public required GoalStatusBoard GoalStatuses { get; init; }
@@ -92,17 +92,17 @@ public sealed class PlannerContext
     /// The autosave a run start at a paused tick calls with the loaded world's identity and tick.
     /// It flushes the governor state before it saves. Null saves nothing.
     /// </summary>
-    public Func<RimGovernor.Contracts.Wire.Common.Identity, long, CancellationToken, Task>? Autosave { get; init; }
+    public Func<RimGovernor.Brain.GameFacts.Common.Identity, long, CancellationToken, Task>? Autosave { get; init; }
 }
 
 /// <summary>What the planner side hands back to the host.</summary>
 public sealed class PlannerParts
 {
     /// <summary>The scheduler over the composed planners; the host steps it on its thread.</summary>
-    public required ClockScheduler Scheduler { get; init; }
+    public required PlannerScheduler Scheduler { get; init; }
 
     /// <summary>The Worker's native reads for break responses and the arrival hold.</summary>
-    public FacadeNativeClient? BreakSource { get; init; }
+    public GameClient? BreakSource { get; init; }
 
     public IArrivalPawns? Pawns { get; init; }
 
@@ -123,11 +123,11 @@ public sealed class PlannerParts
     /// (coupled order, review, autosave), the heartbeat and the colony event consumer. Null steps the planners without ever
     /// running the clock.
     /// </summary>
-    public ClockRunDriver? Clock { get; init; }
+    public PlannerRunDriver? Clock { get; init; }
 
     /// <summary>The live target speed behind <c>POST /api/player/clock-speed</c>; null registers no such route.</summary>
     public ClockTargetSpeed? TargetSpeed { get; init; }
 
     /// <summary>The routine diagnostics behind <c>/api/routines</c>; null registers no such route.</summary>
-    public IRoundsProvider? Rounds { get; init; }
+    public IReviewProvider? ReviewState { get; init; }
 }

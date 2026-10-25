@@ -23,14 +23,14 @@ internal readonly record struct GovernorWorld(ColonyId Colony, MapId Map, LoadId
 {
     public bool SameWorld(GovernorWorld other) => Colony == other.Colony && Map == other.Map && Load == other.Load;
 
-    public static GovernorWorld Of(RimGovernor.Contracts.Wire.Common.ObservationContext context)
+    public static GovernorWorld Of(RimGovernor.Brain.GameFacts.Common.ObservationContext context)
     {
-        var identity = new RimGovernor.Brain.Bridge.Contracts.ObservationIdentity { Context = context };
+        var identity = new RimGovernor.Brain.GameAccess.ObservationIdentity { Context = context };
         NativeGeneration? generation = identity.NativeGeneration switch
         {
-            RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase at => new NativeGeneration(at.Value),
-            RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase => null,
-            var invalid => throw new RimGovernor.Brain.Bridge.Contracts.ObservationContractException($"invalid native generation state {invalid}"),
+            RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase at => new NativeGeneration(at.Value),
+            RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase => null,
+            var invalid => throw new RimGovernor.Brain.GameAccess.ObservationContractException($"invalid native generation state {invalid}"),
         };
         return new(identity.Colony, identity.Map, identity.Load, generation);
     }
@@ -92,7 +92,7 @@ internal sealed class WorldRebuild(StoreJournal database, FacadeGovernorState na
             var families = Stopwatch.GetElapsedTime(began) - read - owners;
             try
             {
-                await database.ResetRoundsAsync(ct).ConfigureAwait(false);
+                await database.ResetReviewAsync(ct).ConfigureAwait(false);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
@@ -123,7 +123,7 @@ internal sealed class WorldRebuild(StoreJournal database, FacadeGovernorState na
     /// The scheduler's <c>WorldReady</c> hook: it ensures the step's world is rebuilt and
     /// reports whether any rebuild ran since the scheduler's last step, so the step reviews again from the reset cache.
     /// </summary>
-    public Func<RimGovernor.Contracts.Wire.Common.ObservationContext, CancellationToken, Task<bool>> SchedulerGate()
+    public Func<RimGovernor.Brain.GameFacts.Common.ObservationContext, CancellationToken, Task<bool>> SchedulerGate()
     {
         ulong seen = 0;
         return async (observed, ct) =>
@@ -153,7 +153,7 @@ internal sealed class StateFlusher(FacadeGovernorState native, FacadeWorldSource
 {
     public async Task FlushAsync(CancellationToken ct)
     {
-        PbCommon.ObservationContext context;
+        RimGovernor.Brain.GameFacts.Common.ObservationContext context;
         try
         {
             context = await worlds.ReadContextAsync(ct).ConfigureAwait(false);

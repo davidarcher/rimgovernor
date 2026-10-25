@@ -103,7 +103,7 @@ public sealed record FoodForecast
 public static class FoodForecastRules
 {
     public static bool IsCorpse(this FoodStock stock) => stock.Form is FoodForm.Corpse;
-    public static FoodSupply FromCensus(RimGovernor.Contracts.Wire.Observations.FoodSupplyFacts census)
+    public static FoodSupply FromCensus(RimGovernor.Brain.GameFacts.Observations.FoodSupplyFacts census)
     {
         ArgumentNullException.ThrowIfNull(census);
         var stocks = new List<FoodStock>();

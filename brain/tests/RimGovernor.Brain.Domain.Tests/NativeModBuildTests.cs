@@ -80,13 +80,15 @@ public sealed class NativeModBuildTests : IDisposable
     /// Two worktrees whose contracts differ share one work directory (#3430): the second build must not inherit the
     /// first's obj/bin/_out. The same contracts keep the state; non-contract changes do not discard it.
     /// </summary>
-    [Fact]
-    public void BuildStateSurvivesOnlyWhileTheContractsAreUnchanged()
+    [Theory]
+    [InlineData("GameFacts")]
+    [InlineData("GameOrders")]
+    public void BuildStateSurvivesOnlyWhileTheContractsAreUnchanged(string project)
     {
         var work = Path.Combine(repo, "work");
-        var contract = "brain/src/RimGovernor.Brain.Contracts/Ops.cs";
+        var contract = $"brain/src/RimGovernor.Brain.{project}/Operations.cs";
         var a = new Dictionary<string, string> { [contract] = "aa", ["brain/src/RimGovernor.Brain.Domain/X.cs"] = "11" };
-        var obj = Path.Combine(work, "brain", "src", "RimGovernor.Brain.Contracts", "obj", "stale.dll");
+        var obj = Path.Combine(work, "brain", "src", $"RimGovernor.Brain.{project}", "obj", "stale.dll");
         void Build()
         {
             _ = Directory.CreateDirectory(Path.GetDirectoryName(obj)!);

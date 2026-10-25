@@ -10,7 +10,7 @@ public sealed partial class Store
     /// <summary>The stockpile-zone creations one admin/stockpiles Method may carry.</summary>
     private const int MaxStockpileCreates = 16;
 
-    private static readonly HashSet<ActionKind> RoundsSettingsKinds = new HashSet<ActionKind> { ActionKind.PawnSettings, ActionKind.ReadingPolicy, ActionKind.DrugPolicy, ActionKind.FoodPolicy };
+    private static readonly HashSet<ActionKind> SettingsKinds = new HashSet<ActionKind> { ActionKind.PawnSettings, ActionKind.ReadingPolicy, ActionKind.DrugPolicy, ActionKind.FoodPolicy };
 
     /// <summary>
     /// The per-family admission checks every owner shares, then the plan itself; the caller then writes the
@@ -86,9 +86,9 @@ public sealed partial class Store
     /// Method admission's backstop for the Safeguards the planner already asked: a vetoed proposal is refused with
     /// the Safeguard's reason. An owner the review does not bind (a player goal) is outside the routine Safeguards.
     /// </summary>
-    internal static AdmissionRefusal? RoundsSafeguardRefusal(StoreTransaction tx, NeedOwner owner)
+    internal static AdmissionRefusal? SafeguardRefusal(StoreTransaction tx, NeedOwner owner)
     {
-        var review = LoadRounds(tx);
+        var review = LoadReview(tx);
         var (refusal, vetoed) = review.Refuse(new SafeguardProposal());
         return vetoed ? new(RefusalKind.SharedAdmission, $"{owner.OwnerLabel}: {refusal.Safeguard}: {refusal.Reason}") : null;
     }
@@ -97,9 +97,9 @@ public sealed partial class Store
     /// The Safeguard backstop of the paths outside claimed commits (combat commits, dispatch, activity continuation),
     /// which still report a veto as <see cref="NotAdmittedException"/>.
     /// </summary>
-    internal static void AdmitRoundsSafeguards(StoreTransaction tx, NeedOwner owner)
+    internal static void AdmitReviewSafeguards(StoreTransaction tx, NeedOwner owner)
     {
-        if (RoundsSafeguardRefusal(tx, owner) is { } refused)
+        if (SafeguardRefusal(tx, owner) is { } refused)
         {
             throw new NotAdmittedException(refused.Reason);
         }
@@ -120,7 +120,7 @@ public sealed partial class Store
         {
             return;
         }
-        var review = LoadRounds(tx);
+        var review = LoadReview(tx);
         if (!review.Enabled || review.Snapshot != owner.Snapshot || plan.Actions.Count > MaxBillPlanActions)
         {
             throw new ConflictException($"bill method needs a current autopilot review and at most {MaxBillPlanActions} actions");
@@ -163,7 +163,7 @@ public sealed partial class Store
         {
             return;
         }
-        var review = LoadRounds(tx);
+        var review = LoadReview(tx);
         // A growing-field or fishing method places a bounded batch (the food/supply Need), a royal decree's harvest
         // field (the joiners/decrees Need, #3302) or the hay, social and resource crops (the economy/resource Need).
         // A stockpile zone is admitted for the admin/stockpiles Need alone, which applies every store the departments
@@ -218,7 +218,7 @@ public sealed partial class Store
         {
             return;
         }
-        var review = LoadRounds(tx);
+        var review = LoadReview(tx);
         if (!review.Enabled || review.Snapshot != owner.Snapshot || plan.Actions.Count > AcquisitionCatalogRules.MaxCatalogSelection + PawnRules.MaxHuntRows)
         {
             throw new ConflictException($"{owner.OwnerLabel}: acquisition method needs a current autopilot review and at most {AcquisitionCatalogRules.MaxCatalogSelection + PawnRules.MaxHuntRows} actions");
@@ -249,7 +249,7 @@ public sealed partial class Store
         {
             return;
         }
-        var review = LoadRounds(tx);
+        var review = LoadReview(tx);
         if (!review.Enabled || review.Snapshot != owner.Snapshot)
         {
             throw new ConflictException($"{owner.OwnerLabel}: work method needs a current autopilot review");
@@ -272,7 +272,7 @@ public sealed partial class Store
         foreach (var action in plan.Actions)
         {
             if (
-                RoundsSettingsKinds.Contains(action.Kind)
+                SettingsKinds.Contains(action.Kind)
                 || (bound && action.FinishingSkill is not null)
                 || (isolation && action.Kind != ActionKind.WorkAssignment)
             )
@@ -302,7 +302,7 @@ public sealed partial class Store
         {
             return;
         }
-        var review = LoadRounds(tx);
+        var review = LoadReview(tx);
         if (!review.Enabled || review.Snapshot != owner.Snapshot)
         {
             throw new ConflictException($"{owner.OwnerLabel}: supply method needs a current autopilot review");

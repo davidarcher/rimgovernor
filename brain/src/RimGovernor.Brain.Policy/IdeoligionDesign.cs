@@ -699,9 +699,9 @@ public static class IdeoligionDesignRules
     /// Keeps memes and special instances when their transition cost cannot be valued. Plain-precept changes
     /// may improve known restrictions/mood while preserving obligations and every unvalued effect.
     /// </summary>
-    public static DesignChoice ChooseIdeoligionReform(DesignOptions options, IdeoligionDesign current, RimGovernor.Contracts.Wire.Observations.IdeoDevelopment state, bool safe, Func<DesignNeeds> believerNeeds, IReadOnlyList<IdeoGoalTarget> targets)
+    public static DesignChoice ChooseIdeoligionReform(DesignOptions options, IdeoligionDesign current, RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment state, bool safe, Func<DesignNeeds> believerNeeds, IReadOnlyList<IdeoGoalTarget> targets)
     {
-        if (!safe || state is not RimGovernor.Contracts.Wire.Observations.IdeoDevelopment.Fluid fluid)
+        if (!safe || state is not RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment.Fluid fluid)
         {
             return new DesignChoice { Design = current, Comparison = new DesignComparison { Decision = safe ? DesignDecision.Ineligible : DesignDecision.Unsafe } };
         }

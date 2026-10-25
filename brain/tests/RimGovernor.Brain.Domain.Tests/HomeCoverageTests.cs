@@ -1,7 +1,9 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -9,7 +11,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>
 /// The Home census is one total facts record (#3771): the revision, the auto-expand setting, the Home cells and one row per
 /// target, a target with no bounded visible geometry named <see cref="HomeCoverageTarget.Unscoped"/>. On the wire it
-/// round-trips through <c>WireJsonContext</c> exactly.
+/// round-trips through <c>OrdersJsonContext</c> exactly.
 /// </summary>
 public sealed class HomeCoverageTests
 {
@@ -33,12 +35,12 @@ public sealed class HomeCoverageTests
             ],
         };
 
-        var json = WireJson.Serialize(census);
+        var json = OrdersJson.Serialize(census);
 
         Assert.Equal(
             """{"revision":7,"autoHomeArea":true,"homeCells":[{"x":1,"z":2}],"targets":[{"type":"scoped","extent":{"enclosedInterior":[{"x":2,"z":3}],"corridor":[{"x":2,"z":4}],"zone":[]},"id":"Thing_Bed1"},{"type":"unscoped","id":"Thing_Wall2"}]}""",
             json);
-        Assert.Equal(census, WireJson.Deserialize<HomeCoverageFacts>(json));
+        Assert.Equal(census, OrdersJson.Deserialize<HomeCoverageFacts>(json));
     }
 
     /// <summary>

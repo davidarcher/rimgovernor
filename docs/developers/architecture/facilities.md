@@ -15,7 +15,7 @@ admission checks its resources and dependencies; vanilla priorities schedule paw
    existing bench, bed or spot that already does the job. Reuse wins over
    building while its capacity suffices, so a colony that has the facility
    gets no second one. The one exception is a production bench kind the work
-   dispatcher reports short (`RoundsFacts.UnmetThroughput` reason `no_bench`
+   dispatcher reports short (`ReviewFacts.UnmetThroughput` reason `no_bench`
    or `benches_exhausted`; slots, ingredient and haul-bound shortfalls never
    count): its standing benches stop counting as reuse and a further bench of
    that kind walks the research, power, bench and workstation-stockpile rungs
@@ -46,11 +46,11 @@ admission checks its resources and dependencies; vanilla priorities schedule paw
    nearest it; hauling brings the inputs to the bench. All stores are declared by
    their store owners and applied by the `admin/stockpiles` Need: see
    [storage](storage.md). Once ComplexFurniture is researched and no zone edit
-   stands, `RoundsStockpilePlanner` upgrades the warehouse (the general store)
+   stands, `StockpilePlanner` upgrades the warehouse (the general store)
    with a Shelf inside it, up to a third of its footprint, one at a time. The Need patches each built shelf with its zone's filter and
    priority (role `shelf:<buildingID>`). Native storage
    capacity counts a shelf cell's free slots (three stacks per cell).
-6. **Bill**: `RoundsResourcePlanner` dispatches the bill and native readback
+6. **Bill**: `ResourcePlanner` dispatches the bill and native readback
    of the rising item count carries the deficit to recovery. Native
    applies a bill on an unfueled bench (`UsableForBillsAfterFueling`):
    a bill waiting on the bench is what makes haulers refuel it, and a bench
@@ -357,7 +357,7 @@ the reason of a split. A lost effect whose mood is unknown (no model, no mood
 census) is counted and breaks ties between equal totals, fewer first. A trial
 ranks by what it leaves undone (no ground, a required link not adjacent), then
 the total, then the lost effects. Nothing is vetoed by a constant. The search is
-seeded by the embedding's seed (`regroupProposals` moves a round, `regroupRounds`
+seeded by the embedding's seed (`regroupProposals` moves a round, `regroupReview`
 rounds, as `siteSearchTop` bounds the embedding), so it is the same at any
 thread count. With no work price (food census, colonists or a crop unread) the
 seed stands (`regroup_work_price_unknown`). Each applied move, or the reason none
@@ -368,8 +368,8 @@ was, is a `layout_regroup` decision.
 `policy.AdviseStations` (`LayoutStationPlan.cs`) runs graph, clustering and
 embedding over the live colony and returns the `StationAdvice`; `TileStations` hands that
 to `TileEmbedding`, and `DeriveLayoutPlan` and `ReplanLayout` take the tiled plan as the
-plan. The advice itself is held in memory by the Rounder and is not persisted. At each layout review
-`Rounder.stationAdvice` reads `StationFacts` from the
+plan. The advice itself is held in memory by the ColonyReview and is not persisted. At each layout review
+`ColonyReview.stationAdvice` reads `StationFacts` from the
 projection (the unknown stays unknown, never zero): the people (colonists less
 babies, the ward from `SelectHospitalBed`'s ill set, held prisoners, the pen
 herd), the colonists' nutrition a day (the food census consumers' rates), the
@@ -401,7 +401,7 @@ distance left unread fails the advice with `RequiredFactException`, which names 
 ledger and the resource demand (a demand the review derived is known even when
 empty), reads the rooms census while no plan exists, and holds the clock under
 `first_plan` until the plan is recorded and a review has planned with it
-(`Rounder.ReviewFirstPlanAsync`, `FirstPlanFacts`, `ColonyStationAdvice.cs`).
+(`ColonyReview.ReviewFirstPlanAsync`, `FirstPlanFacts`, `ColonyStationAdvice.cs`).
 
 #### Climate model
 
@@ -551,9 +551,9 @@ the rest of the plan carries:
   lays one conduit net: the first site is the root and every later site and consuming
   room routes to the nearest cell of the net (`routeTileConduits`, `ConduitLink`,
   `LayoutConduit.cs`). The power round reads the plan's net (`PlannedNetOf`,
-  `RoundsPower.cs`).
+  `Power.cs`).
 - **Climate envelope.** `PlanRoofed` sets `LayoutPlan.Roofed` on a bad-climate map and
-  `chooseVents` places vents; the `layout/climate-envelope` Need (`LayoutRounds`) builds
+  `chooseVents` places vents; the `layout/climate-envelope` Need (`LayoutReview`) builds
   both.
 - **Lamps.** `LayoutPlan.Lamps` is what the lighting round builds.
 - **Perimeter.** `DeriveLayoutPlan` and `ReplanLayout` lay the ring and defense sites
@@ -1090,7 +1090,7 @@ Royalty, no throne room is owed.
 The tomb and the morgue are room nodes of the station graph
 (`LayoutPlan.OutskirtsRoomNodes`) only while the burial asks for them or the plan
 holds one, so a first plan with no dead holds neither. The review's burial demand
-(`RoundsBurialFacts.BurialDemand`, into `RoomDemand.Tomb` and `RoomDemand.Morgue`)
+(`BurialFacts.BurialDemand`, into `RoomDemand.Tomb` and `RoomDemand.Morgue`)
 asks for one more tomb than the plan holds while a dead colonist is owed a
 sarcophagus no planned tomb has room for (`TombStepKind.Full`), and for a morgue
 while a human corpse waits (`MorgueWaiting`); the burial step waits on
@@ -1120,7 +1120,7 @@ plan without it; its graves stand untouched. `PlannedRole.IsOutdoor` lists the
 Outdoor roles.
 
 The `admin/burial` Need (People, #2196, #3304) stages the tomb, the graves and the morgue
-(`AdminRounds`, under the Need owner: rooms by name, graves as `grave-<n>`) and its `burialOwner` declares the tomb and morgue stores
+(`AdminReview`, under the Need owner: rooms by name, graves as `grave-<n>`) and its `burialOwner` declares the tomb and morgue stores
 (`policy.StoreOwner`); it asks layout for no room. With no grave site the
 preview accepts, the body waits in the morgue. The morgue holds every human corpse, fresh or rotten, at
 `MorguePriority` (Normal), below the graves and sarcophagi that take a colonist
@@ -1166,7 +1166,7 @@ spot, attendees). While one is accepted:
 
 An offered quest is how a title is claimed: when `NextTitleClaim` says claim
 (favor, the next rung's bedroom and throne room met), the review lists the
-quest in `RoundsFacts.TitleClaimQuests` and the `joiners/quests` Need's
+quest in `ReviewFacts.TitleClaimQuests` and the `joiners/quests` Need's
 `SelectQuestMethod` accepts it through the existing QuestAccept (quest
 identified by the read's quest id, not its script def). The ritual starts
 only on the player's command (the bestower's Wait toil gizmo): once the
@@ -1224,7 +1224,7 @@ The `military/training` Need requests a range with a stand per pawn capable of S
 the range ceiling (#3846), and a ring with a marker per pawn capable of Melee practice below the
 sparring ceiling when two or more are (#3813). Unlocked tiers constrain feasibility rather than
 desired proficiency. Existing facilities remain grow-only.
-The military family's training work step (`MilitaryRounds`) reconciles those facilities. Shared coupled selection chooses the
+The military family's training work step (`MilitaryReview`) reconciles those facilities. Shared coupled selection chooses the
 actual sessions, participants and opportunity costs through ordinary Method/Hands actions.
 See [assigned capability maintenance](../contracts/capability-maintenance.md).
 

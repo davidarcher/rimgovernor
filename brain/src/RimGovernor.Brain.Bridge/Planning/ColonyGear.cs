@@ -1,13 +1,9 @@
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using DefinitionCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
 using CatalogStats = RimGovernor.Brain.Bridge.CatalogStats;
-using C = RimGovernor.Contracts.Wire.Common;
-using D = RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
-using L = RimGovernor.Contracts.Wire.Lifecycle;
 using PawnId = RimGovernor.Brain.Domain.PawnId;
-using GearSource = RimGovernor.Contracts.Wire.Observations.GearSource;
+using GearSource = RimGovernor.Brain.GameFacts.Observations.GearSource;
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using RimGovernor.Brain.Policy;
@@ -22,7 +18,7 @@ public static class ColonyGearReads
     /// A census whose rows are not the frame's colonists raises
     /// <see cref="RequiredFactException"/>. A pawn the loadout model refuses is <see cref="GearModel.Refused"/> with the cause.
     /// </summary>
-    public static GearObservation GearFacts(O.ColonyFactsSnapshot v, Tables tables, GearDefinitions defs, IReadOnlyList<FoodField> fields)
+    public static GearObservation GearFacts(RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot v, Tables tables, GearDefinitions defs, IReadOnlyList<FoodField> fields)
     {
         var gear = v.Gear ?? throw new BridgeContractException("missing total gear census");
         var catalog = defs.Catalog;
@@ -93,7 +89,7 @@ public static class ColonyGearReads
     /// The census lists only recipes available now, so these are what finishing those projects adds. A def no free colonist could
     /// craft offers nothing; one the <paramref name="locked"/> bills lack raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static EquatableArray<GearOption> KnowledgeBillOptions(DefinitionCatalog catalog, IReadOnlySet<string> finished, IEnumerable<O.GearLockedBill> locked)
+    public static EquatableArray<GearOption> KnowledgeBillOptions(DefinitionCatalog catalog, IReadOnlySet<string> finished, IEnumerable<RimGovernor.Brain.GameFacts.Observations.GearLockedBill> locked)
     {
         var crafters = locked.ToDictionary(b => b.DefName, StringComparer.Ordinal);
         var options = new List<GearOption>();
@@ -133,7 +129,7 @@ public static class ColonyGearReads
     /// recipe's work or the race's row); and the growing <paramref name="fields"/>, each its standing crop (the growing
     /// cells times the plant's harvest yield) at its harvest lead. A fallow or dormant field offers no harvest arrival.
     /// </summary>
-    internal static StuffArrival StuffArrivalFacts(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog catalog, IReadOnlyDictionary<Resource, long> stock,
+    internal static StuffArrival StuffArrivalFacts(RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog catalog, IReadOnlyDictionary<Resource, long> stock,
         IReadOnlyList<FoodField> fields)
     {
         var supply = new List<SupplyCandidate>();
@@ -148,7 +144,7 @@ public static class ColonyGearReads
         var races = catalog.AnimalRaces();
         foreach (var held in v.FoodSupply.Stocks)
         {
-            if (tables.Things.TryRow(new C.Ref { Id = held.Id }, out var row) && row.Corpse && !row.Forbidden && !catalog.HumanlikeCorpse(row.Entity.DefName)
+            if (tables.Things.TryRow(new RimGovernor.Brain.GameFacts.Common.Ref { Id = held.Id }, out var row) && row.Corpse && !row.Forbidden && !catalog.HumanlikeCorpse(row.Entity.DefName)
                 && races.Race(new Resource(catalog.CorpseRace(row.Entity.DefName)), out var race)
                 && ClothingDemandRules.CorpseYieldCandidate(row.Entity.Id, race.Butchery, butcher / GameTime.TicksPerDay) is { } corpse)
             {
@@ -173,7 +169,7 @@ public static class ColonyGearReads
     /// hostile factions, with the catalog's body coverage and the race's natural armor. Uncomposed when no hostile faction
     /// raids or the faction defs support no composition.
     /// </summary>
-    internal static RaidThreat RaidThreatFacts(O.ThreatFacts threat, DefinitionCatalog catalog)
+    internal static RaidThreat RaidThreatFacts(RimGovernor.Brain.GameFacts.Observations.ThreatFacts threat, DefinitionCatalog catalog)
     {
         var composition = RaidCompositionRules.Of(threat.RaidPoints, [.. threat.HostileFactions], catalog.RaidFactions());
         return composition is RaidComposition.Expected expected
@@ -189,7 +185,7 @@ public static class ColonyGearReads
     /// slot) throws a <see cref="DomainException"/> naming the cause. Each option carries its <see cref="GearOption.Arrival"/>
     /// by <paramref name="arrival"/>.
     /// </summary>
-    public static GearModel GearLoadoutModelFacts(GearDefinitions defs, Tables tables, double outdoor, O.GearLoadout p, ApparelPolicyState? role, RaidThreat threat, StuffArrival arrival)
+    public static GearModel GearLoadoutModelFacts(GearDefinitions defs, Tables tables, double outdoor, RimGovernor.Brain.GameFacts.Observations.GearLoadout p, ApparelPolicyState? role, RaidThreat threat, StuffArrival arrival)
     {
         var m = p.LoadoutModel;
         if (role is null)
@@ -211,7 +207,7 @@ public static class ColonyGearReads
         var traits = new List<PawnTrait>();
         foreach (var t in role.Role.Pawn.Biography.Traits)
         {
-            traits.Add(RoundsWorkReads.ResolveTrait(catalog, t));
+            traits.Add(WorkReads.ResolveTrait(catalog, t));
         }
         input = input with { Role = input.Role with { Traits = EquatableArray.From(traits), Work = EquatableArray.From(input.Role.Work.Select(catalog.ResolveWorkRow)) } };
         HashSet<string>? allowed = null;
@@ -249,7 +245,7 @@ public static class ColonyGearReads
     /// census already carries: the exposure role is its only consumer (<c>HarmLedger.RoleOf</c>), so it carries the def and
     /// whether the def's verb is ranged. Null for an unarmed pawn; throws for a primary the frame's tables or the catalog cannot resolve.
     /// </summary>
-    private static GearOption? PrimaryWeaponOption(O.PawnEquipment equipment, Tables tables, DefinitionCatalog catalog)
+    private static GearOption? PrimaryWeaponOption(RimGovernor.Brain.GameFacts.Observations.PawnEquipment equipment, Tables tables, DefinitionCatalog catalog)
     {
         if (equipment.PrimaryId is not { } id)
         {
@@ -409,7 +405,7 @@ public static class ColonyGearReads
     /// its development slot for the run. A candidate whose things table row the frame lacks, or whose def the
     /// catalog lacks, raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static EquatableArray<GearCandidate> GearCandidateFacts(O.GearLoadout p, Tables tables, DefinitionCatalog catalog)
+    public static EquatableArray<GearCandidate> GearCandidateFacts(RimGovernor.Brain.GameFacts.Observations.GearLoadout p, Tables tables, DefinitionCatalog catalog)
     {
         var candidates = new List<GearCandidate>();
         foreach (var c in p.Candidates)
@@ -429,7 +425,7 @@ public static class ColonyGearReads
     /// (1 without hit points) and body-part groups. A garment whose things table row the frame lacks, or whose def the
     /// catalog does not know as apparel, raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static EquatableArray<GearApparel> GearApparelFacts(O.PawnEquipment equipment, Tables tables, DefinitionCatalog catalog)
+    public static EquatableArray<GearApparel> GearApparelFacts(RimGovernor.Brain.GameFacts.Observations.PawnEquipment equipment, Tables tables, DefinitionCatalog catalog)
     {
         var apparel = new List<GearApparel>(equipment.Apparel.Count);
         foreach (var item in equipment.Apparel)
@@ -443,14 +439,14 @@ public static class ColonyGearReads
     }
 
     /// <summary>The def of a gear item by its frame row, which the catalog must know.</summary>
-    private static string GearRowDef(Tables tables, DefinitionCatalog catalog, C.Ref thing)
+    private static string GearRowDef(Tables tables, DefinitionCatalog catalog, RimGovernor.Brain.GameFacts.Common.Ref thing)
     {
         var def = tables.Entity(thing)?.DefName ?? throw new RequiredFactException($"frame row of gear item {thing.Id}");
         return catalog.FindThing(def) is null ? throw new RequiredFactException($"catalog row of gear def {def}") : def;
     }
 
     /// <summary>Every outfit policy's load id.</summary>
-    public static EquatableArray<string> OutfitIds(O.Policies p)
+    public static EquatableArray<string> OutfitIds(RimGovernor.Brain.GameFacts.Observations.Policies p)
     {
         var ids = new List<string>();
         foreach (var row in p.Outfit)
@@ -467,13 +463,13 @@ public static class ColonyGearReads
     /// (GearRoleInput.Precepts; the temperature cards read them). Every gear pawn must have a row in the total
     /// pawn census. The census is copied, never mutated in place.
     /// </summary>
-    public static GearObservation StampGearCreepjoiners(GearObservation gear, O.PawnSnapshot? pawns, CreepJoinerDownsides downsides)
+    public static GearObservation StampGearCreepjoiners(GearObservation gear, RimGovernor.Brain.GameFacts.Observations.PawnSnapshot? pawns, CreepJoinerDownsides downsides)
     {
         if (pawns is null)
         {
             throw new BridgeContractException("missing total pawn census for gear roles");
         }
-        var rows = new Dictionary<string, O.PawnState>(pawns.Pawns.Count, StringComparer.Ordinal);
+        var rows = new Dictionary<string, RimGovernor.Brain.GameFacts.Observations.PawnState>(pawns.Pawns.Count, StringComparer.Ordinal);
         foreach (var row in pawns.Pawns)
         {
             if (!rows.TryAdd(row.Pawn.Id, row))
@@ -507,7 +503,7 @@ public static class ColonyGearReads
     /// <summary>
     /// The pawn's outfit census; null for a pawn without an outfit.
     /// </summary>
-    public static ApparelPolicyState? ApparelPolicyFacts(O.GearLoadout p, DefinitionCatalog catalog, O.PawnState pawn)
+    public static ApparelPolicyState? ApparelPolicyFacts(RimGovernor.Brain.GameFacts.Observations.GearLoadout p, DefinitionCatalog catalog, RimGovernor.Brain.GameFacts.Observations.PawnState pawn)
     {
         var v = p.ApparelPolicy;
         if (v is null)
@@ -527,11 +523,11 @@ public static class ColonyGearReads
         var priorities = new List<WorkPriority>();
         var work = pawn.Settings.Work switch
         {
-            O.PawnWork.Works working => working.Rows,
-            O.PawnWork.NeverWorks => [],
-            O.PawnWork.Uninitialized => throw new RequiredFactException("initialized gear role work settings"),
+            RimGovernor.Brain.GameFacts.Observations.PawnWork.Works working => working.Rows,
+            RimGovernor.Brain.GameFacts.Observations.PawnWork.NeverWorks => [],
+            RimGovernor.Brain.GameFacts.Observations.PawnWork.Uninitialized => throw new RequiredFactException("initialized gear role work settings"),
             null => throw new RequiredFactException("gear role work settings"),
-            O.PawnWork invalid => throw new DomainException($"invalid gear role work settings: {invalid}"),
+            RimGovernor.Brain.GameFacts.Observations.PawnWork invalid => throw new DomainException($"invalid gear role work settings: {invalid}"),
         };
         foreach (var w in work)
         {

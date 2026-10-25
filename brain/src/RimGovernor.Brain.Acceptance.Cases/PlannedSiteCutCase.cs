@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -60,9 +59,9 @@ internal static class PlannedSiteCutCase
         var read = await s.CallAsync(
             "planned",
             NativeOps.ReadConstructionActivity,
-            new Observations.ConstructionActivityRequest(s.Identity, default)
+            new RimGovernor.Brain.GameOrders.Observations.ConstructionActivityRequest(s.Identity, default)
             {
-                Planned = [new Observations.PlannedConstructionSite(Site, "Wall", Stuff, Rotation.North, EquatableArray.From(ring))],
+                Planned = [new RimGovernor.Brain.GameOrders.Observations.PlannedConstructionSite(Site, "Wall", Stuff, Rotation.North, EquatableArray.From(ring))],
             },
             cancellationToken).ConfigureAwait(false);
         if (read.Planned.ToList() is not [var answer] || answer.Site != Site)
@@ -72,12 +71,12 @@ internal static class PlannedSiteCutCase
 
         s.RecordWire("answer", answer);
         var problems = new List<string>();
-        if (answer.Verdict != Observations.PlannedSiteVerdict.Feasible)
+        if (answer.Verdict != RimGovernor.Brain.GameFacts.Observations.PlannedSiteVerdict.Feasible)
         {
             problems.Add($"verdict {answer.Verdict}, findings {string.Join(",", read.Findings)}");
         }
 
-        if (answer.Clearing.Where(c => c.Kind == Observations.PlannedClearingKind.Cut).ToList() is not [var op] || op.Id != Site + "/cut")
+        if (answer.Clearing.Where(c => c.Kind == RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Cut).ToList() is not [var op] || op.Id != Site + "/cut")
         {
             problems.Add($"clearing: want one Cut op {Site}/cut, got [{string.Join(",", answer.Clearing.Select(c => c.Kind + ":" + c.Id))}]");
         }
@@ -89,7 +88,7 @@ internal static class PlannedSiteCutCase
                 problems.Add($"targets: want the two oaks [{string.Join(",", trees)}] lowest id first, got [{string.Join(",", op.Targets)}]");
             }
 
-            if (!op.Options.Any(r => r.WorkGiver.Length > 0 && r.Finish is Observations.ConstructionFinish.Finishes { Ticks: > 0 }))
+            if (!op.Options.Any(r => r.WorkGiver.Length > 0 && r.Finish is RimGovernor.Brain.GameFacts.Observations.ConstructionFinish.Finishes { Ticks: > 0 }))
             {
                 problems.Add($"rows: want a pawn row with a work giver, a known route and finish, got [{string.Join(";", op.Options)}]");
             }

@@ -24,8 +24,8 @@ public sealed class StorageOptionsTests
 
     private static LootItem Stranded(string thing, Resource def, Cell at) =>
         LootFixtures.Stack(thing, def.Value, at, false,
-            new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 0 }, 0, 0, ["Zone_w"],
-            def == Steel ? null : new RimGovernor.Contracts.Wire.Observations.LootDeterioration { BaseRatePerDay = def == Cloth ? 2 : 1, Environmental = true, Outdoors = true });
+            new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Safe { PathLength = 0 }, 0, 0, ["Zone_w"],
+            def == Steel ? null : new RimGovernor.Brain.GameFacts.Observations.LootDeterioration { BaseRatePerDay = def == Cloth ? 2 : 1, Environmental = true, Outdoors = true });
 
     private static ItemFacts Items()
     {
@@ -75,7 +75,7 @@ public sealed class StorageOptionsTests
                 Stranded("Thing_steel", Steel, new Cell(21, 0)),
                 Stranded("Thing_chunk", Granite, new Cell(22, 0)),
             }),
-            Occupancy = new RimGovernor.Contracts.Wire.Observations.StorageOccupancySnapshot { CurrentHour = 0, Groups = [] },
+            Occupancy = new RimGovernor.Brain.GameFacts.Observations.StorageOccupancySnapshot { CurrentHour = 0, Groups = [] },
             Items = Items(),
         };
     }
@@ -187,7 +187,7 @@ public sealed class StorageOptionsTests
     public void InitialReviewCanReadCapacityWhileWaitingForItsFirstPlan()
     {
         var pending = new StorageLayout.AwaitingFirstPlan();
-        Assert.IsType<StorageLayout.AwaitingFirstPlan>(RimGovernor.Brain.BuildingRuntime.RoundsStockpilePlanner.StorageLayout(ColonyFactsCoreTests.Reading(), new FlooringPolicy()));
+        Assert.IsType<StorageLayout.AwaitingFirstPlan>(RimGovernor.Brain.Runtime.StockpilePlanner.StorageLayout(ColonyFactsCoreTests.Reading(), new FlooringPolicy()));
         var request = Request() with { Layout = pending, ShelfAvailable = true };
         var report = StockpileRules.PlanStockpileMaintenance(request);
         Assert.Empty(report.ShelfCandidates);

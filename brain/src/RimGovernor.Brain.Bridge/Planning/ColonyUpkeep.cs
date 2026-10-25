@@ -1,10 +1,8 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using DefinitionCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
 using CatalogStats = RimGovernor.Brain.Bridge.CatalogStats;
-using C = RimGovernor.Contracts.Wire.Common;
-using O = RimGovernor.Contracts.Wire.Observations;
 using Cell = RimGovernor.Brain.Domain.Cell;
 namespace RimGovernor.Brain.Bridge;
 
@@ -14,7 +12,7 @@ public static class ColonyUpkeepReads
     /// Decodes the upkeep censuses, each read whole. One that needs a def the catalog cannot answer for throws naming
     /// the census and the def, never an unknown.
     /// </summary>
-    internal static UpkeepObservation ColonyUpkeep(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? catalog)
+    internal static UpkeepObservation ColonyUpkeep(RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? catalog)
     {
         var u = v.Upkeep;
         var r = new UpkeepObservation
@@ -38,7 +36,7 @@ public static class ColonyUpkeepReads
     /// The structure census with each row's catalog repair priority (a medical bed is the bed census's) and
     /// flammability; a def the catalog cannot answer for throws naming the structure.
     /// </summary>
-    private static EquatableArray<RepairStructure> RepairStructures(O.UpkeepFacts u, Buildings buildings, DefinitionCatalog catalog)
+    private static EquatableArray<RepairStructure> RepairStructures(RimGovernor.Brain.GameFacts.Observations.UpkeepFacts u, Buildings buildings, DefinitionCatalog catalog)
     {
         var medical = new HashSet<string>(StringComparer.Ordinal);
         foreach (var bed in u.Beds)
@@ -51,8 +49,8 @@ public static class ColonyUpkeepReads
         var rows = new List<RepairStructure>(u.Structures.Count);
         foreach (var s in u.Structures)
         {
-            if (!buildings.TryGetValue(s.Id, out var building) || building.Building.Place is not O.EntityPlace.OnMap
-                || building.HitPoints is not O.BuildingHitPoints.Tracked)
+            if (!buildings.TryGetValue(s.Id, out var building) || building.Building.Place is not RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap
+                || building.HitPoints is not RimGovernor.Brain.GameFacts.Observations.BuildingHitPoints.Tracked)
             {
                 throw new ObservationContractException($"repair census building {s.Id} lacks a placed damageable building row");
             }
@@ -73,7 +71,7 @@ public static class ColonyUpkeepReads
     /// <summary>
     /// Decodes the flooring census; a terrain the catalog has no stat or def row for throws.
     /// </summary>
-    private static FlooringObservation ColonyFlooring(O.FlooringFacts f, O.RoutesFacts routes, DefinitionCatalog? catalog)
+    private static FlooringObservation ColonyFlooring(RimGovernor.Brain.GameFacts.Observations.FlooringFacts f, RimGovernor.Brain.GameFacts.Observations.RoutesFacts routes, DefinitionCatalog? catalog)
     {
         var terrains = ColonyPlanningReads.RequireCatalog(catalog).FloorTerrains();
         var r = new FlooringObservation { Terrains = new Dictionary<string, FloorTerrain>(terrains, StringComparer.Ordinal) };
@@ -100,7 +98,7 @@ public static class ColonyUpkeepReads
     /// def, cell, glow radius and service state, and the census plants that die to light. A lamp the building table
     /// does not hold, or a def the catalog cannot answer for, throws.
     /// </summary>
-    private static LightingObservation ColonyLighting(O.LightingFacts census, Buildings buildings, DefinitionCatalog? catalog)
+    private static LightingObservation ColonyLighting(RimGovernor.Brain.GameFacts.Observations.LightingFacts census, Buildings buildings, DefinitionCatalog? catalog)
     {
         var required = ColonyPlanningReads.RequireCatalog(catalog);
         var lamps = new List<Lamp>();
@@ -113,7 +111,7 @@ public static class ColonyUpkeepReads
             var reference = b.Building;
             var radius = required.GlowRadius(reference.DefName)
                 ?? throw new DomainException($"lamp {reference.Id}: def {reference.DefName} has no glower comp");
-            if (reference.Place is not O.EntityPlace.OnMap)
+            if (reference.Place is not RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap)
             {
                 throw new ObservationContractException("required map census row is unplaced");
             }

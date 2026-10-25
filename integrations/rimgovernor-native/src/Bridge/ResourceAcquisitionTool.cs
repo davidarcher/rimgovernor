@@ -9,7 +9,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class ResourceAcquisitionTools
     {
@@ -23,13 +23,13 @@ namespace HomeBridge.BridgeTools
         // a new Game (load) starts it empty, so designations read fresh.
         private static Game? designationGame;
         private static readonly Dictionary<string, int> designationSeen = new Dictionary<string, int>();
-        internal static RimGovernor.Contracts.Wire.Observations.AcquisitionDesignation Designation(Thing t, bool designated)
+        internal static RimGovernor.Brain.GameFacts.Observations.AcquisitionDesignation Designation(Thing t, bool designated)
         {
             if (!ReferenceEquals(designationGame, Current.Game)) { designationSeen.Clear(); designationGame = Current.Game; }
             var id = t.GetUniqueLoadID();
-            if (!designated) { designationSeen.Remove(id); return new RimGovernor.Contracts.Wire.Observations.AcquisitionDesignation.Open(); }
+            if (!designated) { designationSeen.Remove(id); return new RimGovernor.Brain.GameFacts.Observations.AcquisitionDesignation.Open(); }
             if (!designationSeen.TryGetValue(id, out var tick)) designationSeen[id] = tick = Find.TickManager.TicksGame;
-            return new RimGovernor.Contracts.Wire.Observations.AcquisitionDesignation.Designated(new RimGovernor.Brain.Domain.Tick(tick));
+            return new RimGovernor.Brain.GameFacts.Observations.AcquisitionDesignation.Designated(new RimGovernor.Brain.Domain.Tick(tick));
         }
         // Taken: any pawn's reservation, or a colonist's current job, targets the thing.
         internal static bool Taken(Thing t) => Taken(t, null);

@@ -1,16 +1,15 @@
 using RimGovernor.Brain.Policy;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>Complete native animal observations used by policy fixtures.</summary>
 internal static class AnimalFixtures
 {
-    public static readonly O.AnimalState Adult = new()
+    public static readonly RimGovernor.Brain.GameFacts.Observations.AnimalState Adult = new()
     {
-        Gender = RimGovernor.Contracts.Wire.Defs.Gender.Female,
+        Gender = RimGovernor.Brain.GameFacts.Defs.Gender.Female,
         AgeYears = 3.5,
-        Pregnancy = new O.AnimalPregnancy.NotPregnant(),
+        Pregnancy = new RimGovernor.Brain.GameFacts.Observations.AnimalPregnancy.NotPregnant(),
         PenId = null,
         Training = [],
         Release = false,
@@ -34,11 +33,11 @@ internal static class AnimalFixtures
         ColonistBonded = false,
         SlaughterDesignatable = true,
         LifeStageIndex = 2,
-        NextLifeStage = new O.AnimalNextLifeStage.LastStage(),
+        NextLifeStage = new RimGovernor.Brain.GameFacts.Observations.AnimalNextLifeStage.LastStage(),
         BondedPawnIds = [],
     };
 
-    public static O.PawnState Row(string id, string race, O.AnimalState? state = null)
+    public static RimGovernor.Brain.GameFacts.Observations.PawnState Row(string id, string race, RimGovernor.Brain.GameFacts.Observations.AnimalState? state = null)
     {
         var pawn = PawnFixtures.Row(id);
         return pawn with
@@ -49,13 +48,13 @@ internal static class AnimalFixtures
             FreeColonist = false,
             Humanlike = false,
             Animal = true,
-            AnimalState = new O.PawnAnimalState.Animal(state ?? Adult),
+            AnimalState = new RimGovernor.Brain.GameFacts.Observations.PawnAnimalState.Animal(state ?? Adult),
         };
     }
 
-    public static UpkeepAnimal Owned(string id, string race, O.AnimalState? state = null) => new()
+    public static UpkeepAnimal Owned(string id, string race, RimGovernor.Brain.GameFacts.Observations.AnimalState? state = null) => new()
     {
         Pawn = Row(id, race, state),
-        Colony = new() { Pawn = new(id), Roping = new O.AnimalRoping.Unroped() },
+        Colony = new() { Pawn = new(id), Roping = new RimGovernor.Brain.GameFacts.Observations.AnimalRoping.Unroped() },
     };
 }

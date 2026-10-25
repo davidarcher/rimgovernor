@@ -11,7 +11,7 @@ using RimWorld;
 using UnityEngine;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Colony review recorder (acceptance colony-review): once started, every
     // IntervalTicks of game time it renders the colony from above into
@@ -154,7 +154,7 @@ namespace HomeBridge.BridgeTools
     public sealed class ColonyReviewFixture
     {
         [Tool("test/colony_review", Description = "UNSAFE FOR MODEL EXECUTION. Test recorder: action=start renders the colony to a JPEG in dir every intervalTicks of game time (a whole-map shot once a day); stop ends it; status reads it. Needs a graphics device (a game launched without -Headless).")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> Run(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "start, stop or status (default).")] string action = "status",
             [ToolParameter(Description = "Output directory for start.")] string dir = "",
             [ToolParameter(Description = "Game ticks between captures (2500 is one in-game hour).")] int intervalTicks = 2500,

@@ -2,11 +2,9 @@ using System.Globalization;
 using System.Runtime.ExceptionServices;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Contracts.Wire;
-using Common = RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Wl = RimGovernor.Contracts.Wire.Lifecycle;
-using Wp = RimGovernor.Contracts.Wire.Presentation;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -20,8 +18,8 @@ public sealed record PauseState(
     bool Paused,
     bool ForcePaused,
     string? TimeSpeed,
-    IReadOnlyList<Wl.PausingWindow> Windows,
-    IReadOnlyList<Wp.Letter> Letters);
+    IReadOnlyList<RimGovernor.Brain.GameFacts.Lifecycle.PausingWindow> Windows,
+    IReadOnlyList<RimGovernor.Brain.GameFacts.Presentation.Letter> Letters);
 
 /// <summary>
 /// Why the game stopped ticking under <see cref="RunAt.RunUntilAsync(Harness, string, ulong, Wait, Probe, bool, Report?, CancellationToken)"/>:
@@ -118,16 +116,16 @@ public static class RunAt
     }
 
     /// <summary>presentation_notifications' letter stack, newest first.</summary>
-    public static async Task<IReadOnlyList<Wp.Letter>> ReadLettersAsync(Harness h, string label, Common.Identity? identity, CancellationToken cancellationToken)
+    public static async Task<IReadOnlyList<RimGovernor.Brain.GameFacts.Presentation.Letter>> ReadLettersAsync(Harness h, string label, RimGovernor.Brain.GameFacts.Common.Identity? identity, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(h);
         var snapshot = await h.CallAsync(
             label + "-letters",
             NativeOps.ReadNotifications,
-            new Wp.NotificationsRequest { Identity = identity, IncludeLetters = true, IncludeMessages = false, IncludeAlerts = false, LetterLimit = 40, MessageLimit = 12, AlertLimit = 40 },
+            new RimGovernor.Brain.GameOrders.Presentation.NotificationsRequest { Identity = identity, IncludeLetters = true, IncludeMessages = false, IncludeAlerts = false, LetterLimit = 40, MessageLimit = 12, AlertLimit = 40 },
             cancellationToken).ConfigureAwait(false);
         var observed = snapshot.Letters?.Outcome?.Observed
-            ?? throw new AcceptanceException($"{label}: letter section not observed: {WireJson.Serialize(snapshot)}");
+            ?? throw new AcceptanceException($"{label}: letter section not observed: {OrdersJson.Serialize(snapshot)}");
         return [.. observed.Items];
     }
 
@@ -139,7 +137,7 @@ public static class RunAt
     /// is map discovery, not an incident the quiet storyteller can suppress. A force-pausing window, any other letter, or
     /// a pause with no visible cause is the <see cref="PauseCause"/> that fails the wait.
     /// </summary>
-    public static (PauseCause? Cause, IReadOnlyList<Wp.Letter> Dismiss) ClassifyPause(PauseState status, IReadOnlyList<string> tools, string label, ulong tick, bool quiet)
+    public static (PauseCause? Cause, IReadOnlyList<RimGovernor.Brain.GameFacts.Presentation.Letter> Dismiss) ClassifyPause(PauseState status, IReadOnlyList<string> tools, string label, ulong tick, bool quiet)
     {
         ArgumentNullException.ThrowIfNull(status);
         ArgumentNullException.ThrowIfNull(tools);

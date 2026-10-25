@@ -26,7 +26,7 @@ not a silent exemption.
 | `NativeNeedsForecast.SunlightCheckInterval`, `SunlightGlow` | `NativeNeedsForecast.cs` | 150, 0.1 | Mirror the private `Gene_Deathrest.SunlightCheckInterval` and the inline literal in `IntVec3.InSunlight`: a deathrest checks its bed for sunlight every 150 ticks on the pawn's hash phase, and a cell is sunlit unroofed above 0.1 sky glow (#3883). A game rule. |
 | `NativeBabyFits.ClamorMaxRegions` | `NativeBabyFits.cs` | 15 | Mirrors the inline `maxRegions` literal of `GenClamor.DoClamor`: a baby's cry or giggle walks at most 15 regions (#3854). A game rule. |
 | `ForecastHousing.JealousMargin` | `ForecastHousing.cs` | 0.1 | Mirrors the inline literal in `ThoughtWorker_BedroomJealous`: another owned room at least a tenth of the own room's Impressiveness (absolute) better makes a Jealous pawn jealous (#3826). A game rule. |
-| Overlay bounds `MaxCells`, `MaxLabels`, `MaxLayerId` | `ProtoOverlayTools.cs` | 250000, 4096, 64 | Input bounds on an output-only draw request. |
+| Overlay bounds `MaxCells`, `MaxLabels`, `MaxLayerId` | `OverlayTools.cs` | 250000, 4096, 64 | Input bounds on an output-only draw request. |
 | Placement candidates | `PlacementProtocol.cs` | 1..64 | Input bound on one placement preview/apply request, a main-thread budget. |
 | Request id lists | room and supplies observation tools (256), zone observation `MaxIds` (16), quest shuttle explicit pawns (256) | 256 / 16 | The caller names exact ids; an input bound; larger sets are several requests. |
 | `CombatGeometryTools` `MaxCells`, `MaxHostiles`, `MaxRadius` | `NativeCombatGeometryTools.cs` | 64, 16, 12 | Measured on `lab-ranged`: 64 cells x 8 pawns took 1.3-6.6 ms, about 13 ms at the caps. |

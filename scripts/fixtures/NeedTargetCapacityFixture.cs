@@ -12,7 +12,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 // Need-target capacity (#3213): one multi-meal stack shared by two hungry pawns, then a one-slot bed shared by two tired
 // pawns. Only the world is staged and observed; no task, Method or order is installed.
@@ -59,7 +59,7 @@ public sealed partial class PawnControlFixture
     }
 
     [Tool("test/need_capacity_prepare", Description="UNSAFE FOR MODEL EXECUTION. Prepare two hungry pawns and one four-meal simple-meal stack, with no other food or bed. Install no chosen task, Method or assignment.")]
-    public async Task<object> NeedCapacityPrepare(IRimBridgeContext ctx, CancellationToken ct)
+    public async Task<object> NeedCapacityPrepare(INativeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             var map = Find.CurrentMap;
@@ -77,7 +77,7 @@ public sealed partial class PawnControlFixture
         }, ct).ConfigureAwait(false);
 
     [Tool("test/need_capacity_bed", Description="UNSAFE FOR MODEL EXECUTION. Replace the meal stack with one single-slot bed and tire both pawns. Install no chosen task, Method or assignment.")]
-    public async Task<object> NeedCapacityBed(IRimBridgeContext ctx, CancellationToken ct)
+    public async Task<object> NeedCapacityBed(INativeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             if (capacityPhase != "food" || capacityAte.Count < 2) throw new InvalidOperationException("The shared-stack phase has not completed.");
@@ -119,7 +119,7 @@ public sealed partial class PawnControlFixture
     }
 
     [Tool("test/need_capacity_read", Description="UNSAFE FOR MODEL EXECUTION. Observe concurrent reservations and completed ingestion/sleep from normal-planner batches; writes no orders.")]
-    public async Task<object> NeedCapacityRead(IRimBridgeContext ctx, CancellationToken ct)
+    public async Task<object> NeedCapacityRead(INativeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() => FixtureKit.Reply(new Fx.NeedCapacityRead
         {
             Tick = Find.TickManager.TicksGame, MaxStackReservers = capacityMaxStackReservers, Ate = capacityAte.Count,

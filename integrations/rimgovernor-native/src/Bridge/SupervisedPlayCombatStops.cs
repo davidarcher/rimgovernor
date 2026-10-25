@@ -9,10 +9,8 @@ using UnityEngine;
 using Verse;
 using Verse.AI;
 using Verse.AI.Group;
-using Clock = RimGovernor.Contracts.Wire.Clock;
-using Mirror = RimGovernor.Contracts.Wire.Mirror;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// Event-triggered combat stops. A combat epoch carries the armed
     /// list in WatchPolicy.combat_stop_events. A game hook that sees an armed
@@ -31,7 +29,7 @@ namespace HomeBridge.BridgeTools
         /// literal for them. They read from the last epoch's policy, so a
         /// colonist's damage is classified serious only once the brain has started
         /// an epoch, and the combat log records Unspecified before that.
-        private static Clock.WatchPolicy? EpochPolicy => _state?.Policy;
+        private static RimGovernor.Brain.GameOrders.Clock.WatchPolicy? EpochPolicy => _state?.Policy;
 
         private const string CombatHarmonyId = "homebridge.supervised-play.combat";
         private static int _combatHooked;
@@ -41,7 +39,7 @@ namespace HomeBridge.BridgeTools
 
         private sealed class CombatStop
         {
-            public Clock.CombatEvent Event; public string? ThingId; public int? PawnId; public string Reason = ""; public int Tick;
+            public RimGovernor.Brain.GameFacts.Clock.CombatEvent Event; public string? ThingId; public int? PawnId; public string Reason = ""; public int Tick;
         }
         // The first armed event seen since the last boundary; the tick path
         // takes it. Hooks run on the main thread between tick boundaries.
@@ -59,7 +57,7 @@ namespace HomeBridge.BridgeTools
         /// active through it).
         internal static bool CombatEpochRunning
         {
-            get { var s = _state; return s != null && s.Active && s.Typed != null && s.Typed.RunPolicy.Mode == Clock.WatchMode.Combat; }
+            get { var s = _state; return s != null && s.Active && s.Typed != null && s.Typed.RunPolicy.Mode == RimGovernor.Brain.GameOrders.Clock.WatchMode.Combat; }
         }
 
         internal static void EnsureCombatHooks()
@@ -99,22 +97,22 @@ namespace HomeBridge.BridgeTools
         private static void ResetCombatStops(State s)
         {
             _combatPending = null;
-            if (s.Typed?.Policy?.Mode == Clock.WatchMode.Combat && ReferenceEquals(_combatSession, s.Session)) return;
+            if (s.Typed?.Policy?.Mode == RimGovernor.Brain.GameOrders.Clock.WatchMode.Combat && ReferenceEquals(_combatSession, s.Session)) return;
             _inRange.Clear(); _inOurRange.Clear(); _meleePairs.Clear(); _combatScanBaselined = false;
-            _combatSession = s.Typed?.Policy?.Mode == Clock.WatchMode.Combat ? s.Session : null;
+            _combatSession = s.Typed?.Policy?.Mode == RimGovernor.Brain.GameOrders.Clock.WatchMode.Combat ? s.Session : null;
         }
 
         /// Whether the running epoch is a combat epoch armed for this event.
-        private static bool CombatArmed(Clock.CombatEvent e)
+        private static bool CombatArmed(RimGovernor.Brain.GameFacts.Clock.CombatEvent e)
         {
             var s = _state;
-            return s != null && s.Active && s.Typed != null && s.Typed.RunPolicy.Mode == Clock.WatchMode.Combat
+            return s != null && s.Active && s.Typed != null && s.Typed.RunPolicy.Mode == RimGovernor.Brain.GameOrders.Clock.WatchMode.Combat
                 && s.Typed.RunPolicy.CombatStopEvents.Contains(e);
         }
 
         /// A hook saw an armed event: record it for the tick boundary. The
         /// first one since the boundary wins; the rest are the same stop.
-        private static void NoteCombatEvent(Clock.CombatEvent e, Thing? thing, string reason)
+        private static void NoteCombatEvent(RimGovernor.Brain.GameFacts.Clock.CombatEvent e, Thing? thing, string reason)
         {
             if (_combatPending != null || !CombatArmed(e)) return;
             var tm = Find.TickManager;
@@ -127,23 +125,23 @@ namespace HomeBridge.BridgeTools
         /// armed, then stops on a recorded event. -> true when play stopped.
         private static bool StopOnCombatEvent(State s)
         {
-            if (s.Typed == null || s.Typed.RunPolicy.Mode != Clock.WatchMode.Combat || s.Typed.RunPolicy.CombatStopEvents.Count == 0) return false;
+            if (s.Typed == null || s.Typed.RunPolicy.Mode != RimGovernor.Brain.GameOrders.Clock.WatchMode.Combat || s.Typed.RunPolicy.CombatStopEvents.Count == 0) return false;
             if (_combatPending == null) ScanCombatContact(s);
             var hit = _combatPending;
             if (hit == null) return false;
             _combatPending = null;
             s.Typed.CombatEvent = hit.Event;
-            Stop(s, new HoldCause(Clock.HoldReason.CombatEvent, EventName(hit.Event) + ": " + hit.Reason,
+            Stop(s, new HoldCause(RimGovernor.Brain.GameFacts.Clock.HoldReason.CombatEvent, EventName(hit.Event) + ": " + hit.Reason,
                 new RimGovernor.Brain.Bridge.CombatEvidence(hit.Event, hit.ThingId, hit.Reason), hit.Tick), true);
             return true;
         }
 
-        private static string EventName(Clock.CombatEvent e) => e.ToString();
+        private static string EventName(RimGovernor.Brain.GameFacts.Clock.CombatEvent e) => e.ToString();
 
         private static void ScanCombatContact(State s)
         {
-            var range = (s.Typed ?? throw new System.InvalidOperationException("Required native value is unavailable: s.Typed.")).RunPolicy.CombatStopEvents.Contains(Clock.CombatEvent.EnteredRange);
-            var melee = s.Typed.RunPolicy.CombatStopEvents.Contains(Clock.CombatEvent.MeleeContact);
+            var range = (s.Typed ?? throw new System.InvalidOperationException("Required native value is unavailable: s.Typed.")).RunPolicy.CombatStopEvents.Contains(RimGovernor.Brain.GameFacts.Clock.CombatEvent.EnteredRange);
+            var melee = s.Typed.RunPolicy.CombatStopEvents.Contains(RimGovernor.Brain.GameFacts.Clock.CombatEvent.MeleeContact);
             if (!range && !melee) return;
             var map = s.Map;
             var pawns = map.mapPawns.AllPawnsSpawned;
@@ -172,7 +170,7 @@ namespace HomeBridge.BridgeTools
                         if (near != null)
                         {
                             _inRange.Add(h.thingIDNumber);
-                            if (!baseline) { NoteCombatEvent(Clock.CombatEvent.EnteredRange, h, SafeLoadId(h) + " reaches " + SafeLoadId(near)); return; }
+                            if (!baseline) { NoteCombatEvent(RimGovernor.Brain.GameFacts.Clock.CombatEvent.EnteredRange, h, SafeLoadId(h) + " reaches " + SafeLoadId(near)); return; }
                         }
                     }
                     if (!_inOurRange.Contains(h.thingIDNumber))
@@ -182,7 +180,7 @@ namespace HomeBridge.BridgeTools
                         if (shooter != null)
                         {
                             _inOurRange.Add(h.thingIDNumber);
-                            if (!baseline) { NoteCombatEvent(Clock.CombatEvent.EnteredRange, h, SafeLoadId(h) + " reached by " + SafeLoadId(shooter)); return; }
+                            if (!baseline) { NoteCombatEvent(RimGovernor.Brain.GameFacts.Clock.CombatEvent.EnteredRange, h, SafeLoadId(h) + " reached by " + SafeLoadId(shooter)); return; }
                         }
                     }
                 }
@@ -195,7 +193,7 @@ namespace HomeBridge.BridgeTools
                     if (p.IsColonist ? !target.HostileTo(Faction.OfPlayer) : !target.IsColonist) continue;
                     var key = ((long)p.thingIDNumber << 32) | (uint)target.thingIDNumber;
                     if (!_meleePairs.Add(key) || baseline) continue;
-                    NoteCombatEvent(Clock.CombatEvent.MeleeContact, p, SafeLoadId(p) + " began melee on " + SafeLoadId(target));
+                    NoteCombatEvent(RimGovernor.Brain.GameFacts.Clock.CombatEvent.MeleeContact, p, SafeLoadId(p) + " began melee on " + SafeLoadId(target));
                     return;
                 }
             }
@@ -229,11 +227,11 @@ namespace HomeBridge.BridgeTools
                 if (CombatMirror.Active)
                 {
                     var serious = pawn.IsColonist ? SeriousWhy(pawn, dinfo, totalDamageDealt, __state) : null;
-                    CombatMirror.Record(Mirror.CombatLogKind.Damaged, serious != null ? Clock.CombatEvent.SeriousInjury : null, pawn, dinfo.Instigator);
+                    CombatMirror.Record(RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.Damaged, serious != null ? RimGovernor.Brain.GameFacts.Clock.CombatEvent.SeriousInjury : null, pawn, dinfo.Instigator);
                 }
-                if (!pawn.IsColonist || !OnEpochMap(pawn) || !CombatArmed(Clock.CombatEvent.SeriousInjury)) return;
+                if (!pawn.IsColonist || !OnEpochMap(pawn) || !CombatArmed(RimGovernor.Brain.GameFacts.Clock.CombatEvent.SeriousInjury)) return;
                 var why = SeriousWhy(pawn, dinfo, totalDamageDealt, __state);
-                if (why != null) NoteCombatEvent(Clock.CombatEvent.SeriousInjury, pawn, why);
+                if (why != null) NoteCombatEvent(RimGovernor.Brain.GameFacts.Clock.CombatEvent.SeriousInjury, pawn, why);
             }
             catch { }
         }
@@ -265,10 +263,10 @@ namespace HomeBridge.BridgeTools
             try
             {
                 var wearer = (__instance.parent as Apparel)?.Wearer ?? __instance.parent as Pawn;
-                if (wearer != null) CombatMirror.Record(Mirror.CombatLogKind.ShieldBroken, wearer.HostileTo(Faction.OfPlayer) ? null : Clock.CombatEvent.ShieldBroken,
+                if (wearer != null) CombatMirror.Record(RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.ShieldBroken, wearer.HostileTo(Faction.OfPlayer) ? null : RimGovernor.Brain.GameFacts.Clock.CombatEvent.ShieldBroken,
                     wearer, null);
                 if (wearer == null || !OnEpochMap(wearer) || wearer.HostileTo(Faction.OfPlayer)) return;
-                NoteCombatEvent(Clock.CombatEvent.ShieldBroken, wearer, "shield broke");
+                NoteCombatEvent(RimGovernor.Brain.GameFacts.Clock.CombatEvent.ShieldBroken, wearer, "shield broke");
             }
             catch { }
         }
@@ -285,15 +283,15 @@ namespace HomeBridge.BridgeTools
                     var margin = EpochPolicy?.ExplosiveNearMarginCells;
                     var explosiveNear = margin.HasValue && radius > 0f && launcher.HostileTo(Faction.OfPlayer) && launcher.Map != null
                         && launcher.Map.mapPawns.FreeColonistsSpawned.Any(c => (c.Position - target).LengthHorizontalSquared <= (radius + margin.Value) * (radius + margin.Value));
-                    CombatMirror.Record(Mirror.CombatLogKind.ProjectileLaunched, explosiveNear ? Clock.CombatEvent.ExplosiveLaunched : null,
+                    CombatMirror.Record(RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.ProjectileLaunched, explosiveNear ? RimGovernor.Brain.GameFacts.Clock.CombatEvent.ExplosiveLaunched : null,
                         launcher, __instance.intendedTarget.Thing);
                 }
                 if (radius <= 0f || launcher == null || !OnEpochMap(launcher) || !launcher.HostileTo(Faction.OfPlayer)) return;
-                if (!CombatArmed(Clock.CombatEvent.ExplosiveLaunched)) return;
+                if (!CombatArmed(RimGovernor.Brain.GameFacts.Clock.CombatEvent.ExplosiveLaunched)) return;
                 var at = ___destination.ToIntVec3();
                 var near = radius + ((_state ?? throw new System.InvalidOperationException("Required native value is unavailable: _state.")).Policy ?? throw new System.InvalidOperationException("Required native value is unavailable: (_state ?? throw new System.InvalidOperationException(\"Required native value is unavailable: _state.\")).Policy.")).ExplosiveNearMarginCells;
                 var colonist = _state.Map.mapPawns.FreeColonistsSpawned.FirstOrDefault(c => (c.Position - at).LengthHorizontalSquared <= near * near);
-                if (colonist != null) NoteCombatEvent(Clock.CombatEvent.ExplosiveLaunched, launcher, (__instance.def ?? throw new System.InvalidOperationException("Required native value is unavailable: __instance.def.")).defName + " launched at " + SafeLoadId(colonist));
+                if (colonist != null) NoteCombatEvent(RimGovernor.Brain.GameFacts.Clock.CombatEvent.ExplosiveLaunched, launcher, (__instance.def ?? throw new System.InvalidOperationException("Required native value is unavailable: __instance.def.")).defName + " launched at " + SafeLoadId(colonist));
             }
             catch { }
         }
@@ -308,11 +306,11 @@ namespace HomeBridge.BridgeTools
                 if (__state != null && !ReferenceEquals(__state, newLordToil) && __instance != null && CombatMirror.Active)
                 {
                     var hostile = __instance.faction != null && __instance.faction.HostileTo(Faction.OfPlayer);
-                    CombatMirror.Record(Mirror.CombatLogKind.LordToil, hostile ? Clock.CombatEvent.RaidPhase : null, __instance.ownedPawns.FirstOrDefault(), null, CombatMirror.Strategy(__instance));
+                    CombatMirror.Record(RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.LordToil, hostile ? RimGovernor.Brain.GameFacts.Clock.CombatEvent.RaidPhase : null, __instance.ownedPawns.FirstOrDefault(), null, CombatMirror.Strategy(__instance));
                 }
                 if (__state == null || ReferenceEquals(__state, newLordToil) || s == null || !ReferenceEquals((__instance ?? throw new System.InvalidOperationException("Required native value is unavailable: __instance.")).Map, s.Map)) return;
                 if (__instance.faction == null || !__instance.faction.HostileTo(Faction.OfPlayer)) return;
-                NoteCombatEvent(Clock.CombatEvent.RaidPhase, __instance.ownedPawns.FirstOrDefault(),
+                NoteCombatEvent(RimGovernor.Brain.GameFacts.Clock.CombatEvent.RaidPhase, __instance.ownedPawns.FirstOrDefault(),
                     __state.GetType().Name + " -> " + newLordToil.GetType().Name);
             }
             catch { }
@@ -328,11 +326,11 @@ namespace HomeBridge.BridgeTools
                 if (CombatMirror.Active && __instance is Building && __instance.Spawned)
                 {
                     var breach = __instance.Faction == Faction.OfPlayer && (wall || def.IsDoor || __instance is Building_Turret);
-                    CombatMirror.Record(Mirror.CombatLogKind.BuildingDestroyed, breach ? Clock.CombatEvent.Breach : null, __instance, null);
+                    CombatMirror.Record(RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.BuildingDestroyed, breach ? RimGovernor.Brain.GameFacts.Clock.CombatEvent.Breach : null, __instance, null);
                 }
                 if (__instance.Faction != Faction.OfPlayer || !OnEpochMap(__instance)) return;
                 if (!wall && !def.IsDoor && !(__instance is Building_Turret)) return;
-                NoteCombatEvent(Clock.CombatEvent.Breach, __instance, def.defName + " destroyed");
+                NoteCombatEvent(RimGovernor.Brain.GameFacts.Clock.CombatEvent.Breach, __instance, def.defName + " destroyed");
             }
             catch { }
         }
@@ -342,9 +340,9 @@ namespace HomeBridge.BridgeTools
             try
             {
                 if (__result && ___pawn != null && ___pawn.Spawned)
-                    CombatMirror.Record(Mirror.CombatLogKind.MentalState, ___pawn.RaceProps?.Humanlike == true ? Clock.CombatEvent.MentalBreak : null, ___pawn, null);
+                    CombatMirror.Record(RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.MentalState, ___pawn.RaceProps?.Humanlike == true ? RimGovernor.Brain.GameFacts.Clock.CombatEvent.MentalBreak : null, ___pawn, null);
                 if (!__result || ___pawn == null || !OnEpochMap(___pawn) || ___pawn.RaceProps == null || !___pawn.RaceProps.Humanlike) return;
-                NoteCombatEvent(Clock.CombatEvent.MentalBreak, ___pawn, stateDef?.defName ?? "mental state");
+                NoteCombatEvent(RimGovernor.Brain.GameFacts.Clock.CombatEvent.MentalBreak, ___pawn, stateDef?.defName ?? "mental state");
             }
             catch { }
         }

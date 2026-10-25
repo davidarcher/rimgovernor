@@ -9,10 +9,10 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record JoinersFacts
 {
-    public RoundsFacts Rounds { get; init; } = new();
+    public ReviewFacts ReviewState { get; init; } = new();
 
     /// <summary>The facts a review already holds.</summary>
-    public static JoinersFacts From(RoundsFacts f) => new() { Rounds = f };
+    public static JoinersFacts From(ReviewFacts f) => new() { ReviewState = f };
 }
 
 /// <summary>
@@ -66,7 +66,7 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
 
     public IReadOnlyList<Need> Derive(JoinersFacts facts)
     {
-        var f = facts.Rounds;
+        var f = facts.ReviewState;
         var capacity = PopulationRules.JoinerCapacity(f.JoinerCapacity());
         var offers = Offered(f);
         var letters = f.JoinerLetters;
@@ -88,7 +88,7 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
     /// <summary>The offer, letter and quest acceptances and the ceremony hold; the rest is the runtime's work.</summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, JoinersFacts facts)
     {
-        var f = facts.Rounds;
+        var f = facts.ReviewState;
         var capacity = PopulationRules.JoinerCapacity(f.JoinerCapacity());
         var output = new List<NeedMethod>();
         var joiner = PopulationRules.SelectJoinerMethod(Offered(f), capacity, f);
@@ -134,9 +134,9 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
     /// <summary>
     /// The ceremony Need: unmet while an accepted ceremony waits to start. With Royalty inactive none can, so it is met.
     /// </summary>
-    private static Need Ceremonies(RoundsFacts f) =>
+    private static Need Ceremonies(ReviewFacts f) =>
         Owed(Ceremony, f.Royalty is RoyaltyState.Active { Facts: var royalty } && CeremonyRules.CeremonyStart(royalty) is not null);
 
     /// <summary>The quest census.</summary>
-    private static EquatableArray<QuestState> Offered(RoundsFacts f) => f.QuestOffers;
+    private static EquatableArray<QuestState> Offered(ReviewFacts f) => f.QuestOffers;
 }

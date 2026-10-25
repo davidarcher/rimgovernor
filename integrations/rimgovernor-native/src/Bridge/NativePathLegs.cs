@@ -13,7 +13,7 @@ using Unity.Jobs;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 /// <summary>
 /// One native read's paths, each searched once (#3341). PathFinder's cost is the path's summed cell costs plus each

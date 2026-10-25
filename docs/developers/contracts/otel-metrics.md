@@ -16,7 +16,7 @@ All names are prefixed `rimgovernor.`; durations are milliseconds.
 
 | Name | Kind, unit | Attributes | Recorded at |
 | --- | --- | --- | --- |
-| `scheduler.step.duration` | histogram, `ms` (scheduler buckets) | `step_cause` (`review`, `wake`, `retry`, `full`) | end of every `ClockScheduler.StepWithReason` |
+| `scheduler.step.duration` | histogram, `ms` (scheduler buckets) | `step_cause` (`review`, `wake`, `retry`, `full`) | end of every `PlannerScheduler.StepWithReason` |
 | `scheduler.stop_latency` | histogram, `ms` | none | a step woken by a native hold: hold stamp to step start |
 | `scheduler.critical_wave.duration` | histogram, `ms` | none | critical planner wave wall time |
 | `game.ticks_per_second` | gauge, `{tick}/s` | none | the clock status's effective ticks per wall second, set by each step that read one |
@@ -48,7 +48,7 @@ or free-form target can reach a metric.
 | Attribute | Closed set |
 | --- | --- |
 | `verdict`, `step_cause` | the fixed words in the table |
-| `action_kind` | the kinds `roundsExecutableKind` accepts |
+| `action_kind` | the kinds `reviewExecutableKind` accepts |
 | `reason` | every `policy.Reason` (a test keeps the list equal to the constants in `package policy`), `none` for a non-refusal, `other` for anything else |
 
 `TestMetricsInstrumentsUnitsBucketsAndCardinality` offers hundreds of distinct values

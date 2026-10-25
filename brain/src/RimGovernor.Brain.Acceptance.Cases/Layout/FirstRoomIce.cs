@@ -2,7 +2,6 @@ using System.Globalization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -19,7 +18,7 @@ internal static class LayoutFirstRoomIce
     private const float Outdoor = -30f;
     private const int BarracksId = 1;
     private const int BedroomId = 2;
-    private static readonly HashSet<Observations.RoomRole> SleepingRoles = [Observations.RoomRole.Bedroom, Observations.RoomRole.Barracks];
+    private static readonly HashSet<RimGovernor.Brain.GameFacts.Observations.RoomRole> SleepingRoles = [RimGovernor.Brain.GameFacts.Observations.RoomRole.Bedroom, RimGovernor.Brain.GameFacts.Observations.RoomRole.Barracks];
 
     // A 16x7 site: the barracks (5x3 interior, ring 7x5) at its west end with its door south, the bedroom's 3x3 interior at
     // (11..13, 1..3), the wood and meals between them.
@@ -88,7 +87,7 @@ internal static class LayoutFirstRoomIce
         var before = CoupledSelections.Of(s, 0).Select(r => r.Sequence).DefaultIfEmpty(0UL).Max();
         CoupledSelectionRow? first = null;
         var worst = (Pawn: "", Severity: 0.0);
-        Observations.RoomState? closed = null;
+        RimGovernor.Brain.GameFacts.Observations.RoomState? closed = null;
         _ = await s.ServeUntilAsync("barracks-closed", s.TicksLeft, async ct =>
         {
             first ??= CoupledSelections.Of(s, before).FirstOrDefault(r => r.SelectedIds.Any(id => id.StartsWith("planned/room", StringComparison.Ordinal)));

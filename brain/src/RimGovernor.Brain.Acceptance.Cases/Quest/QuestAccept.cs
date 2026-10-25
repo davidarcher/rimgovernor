@@ -1,7 +1,3 @@
-using Common = RimGovernor.Contracts.Wire.Common;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -37,33 +33,33 @@ internal static class QuestAccept
 
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 
-        async Task<Observations.QuestState> Target(string label) =>
+        async Task<RimGovernor.Brain.GameFacts.Observations.QuestState> Target(string label) =>
             await QuestKit.QuestAsync(s, label, questId, cancellationToken).ConfigureAwait(false)
                 ?? throw new AcceptanceException($"{label}: fixture quest {questId} not found in world progression");
 
         var before = await Target("target-before").ConfigureAwait(false);
-        if (before.State != Receipts.QuestStatus.NotYetAccepted || before.RequiresAccepter || !before.CanAccept)
+        if (before.State != RimGovernor.Brain.GameFacts.Receipts.QuestStatus.NotYetAccepted || before.RequiresAccepter || !before.CanAccept)
         {
             throw new AcceptanceException($"target-before: expected an acceptable not-yet-accepted quest needing no accepter, got {before}");
         }
 
-        Task<Operations.ActionResult> Apply(string key, string? accepter, int rewardChoice) => TradeKit.ApplyAsync(s, key, new Operations.AcceptQuestIntent
+        Task<RimGovernor.Brain.GameFacts.Operations.ActionResult> Apply(string key, string? accepter, int rewardChoice) => TradeKit.ApplyAsync(s, key, new RimGovernor.Brain.GameOrders.Operations.AcceptQuestIntent
         {
             QuestId = questId,
             AccepterPawnId = accepter,
-            RewardChoice = rewardChoice == -1 ? new Operations.QuestRewardSelection.NoChoice() : new Operations.QuestRewardSelection.Choose(rewardChoice),
+            RewardChoice = rewardChoice == -1 ? new RimGovernor.Brain.GameOrders.Operations.QuestRewardSelection.NoChoice() : new RimGovernor.Brain.GameOrders.Operations.QuestRewardSelection.Choose(rewardChoice),
         }, cancellationToken);
 
         async Task Refused(string key, string? accepter, int rewardChoice)
         {
             var result = await Apply(key, accepter, rewardChoice).ConfigureAwait(false);
-            if (result.Outcome?.Refused is not { Code: Common.FailureCode.InvalidRequest, Reason.Length: > 0 })
+            if (result.Outcome?.Refused is not { Code: RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, Reason.Length: > 0 })
             {
                 throw new AcceptanceException($"{key}: expected an INVALID_REQUEST refusal with a reason, got {result}");
             }
         }
 
-        void Accepted(string label, Operations.ActionResult result)
+        void Accepted(string label, RimGovernor.Brain.GameFacts.Operations.ActionResult result)
         {
             if (TradeKit.Applied(label, result).Quest is not { Accepted: true } quest || quest.QuestId != questId)
             {
@@ -75,7 +71,7 @@ internal static class QuestAccept
         await Refused("quest-accept-reward", null, 5).ConfigureAwait(false);
         await Refused("quest-accept-unwanted-accepter", prepared.PawnIds[0], 0).ConfigureAwait(false);
         var afterRefusals = await Target("target-after-refusals").ConfigureAwait(false);
-        if (afterRefusals.State != Receipts.QuestStatus.NotYetAccepted)
+        if (afterRefusals.State != RimGovernor.Brain.GameFacts.Receipts.QuestStatus.NotYetAccepted)
         {
             throw new AcceptanceException($"target-after-refusals: a refused intent changed the quest: {afterRefusals}");
         }
@@ -84,7 +80,7 @@ internal static class QuestAccept
         Accepted("apply", result);
         var after = await Target("target-after-apply").ConfigureAwait(false);
         s.RecordWire("accepted", after);
-        if (after.State == Receipts.QuestStatus.NotYetAccepted || after.CanAccept || after.Acceptance is not Observations.QuestAcceptance.Accepted { Tick: >= 0 })
+        if (after.State == RimGovernor.Brain.GameFacts.Receipts.QuestStatus.NotYetAccepted || after.CanAccept || after.Acceptance is not RimGovernor.Brain.GameFacts.Observations.QuestAcceptance.Accepted { Tick: >= 0 })
         {
             throw new AcceptanceException($"target-after-apply: expected an accepted quest with its acceptance tick, no longer acceptable, got {after}");
         }

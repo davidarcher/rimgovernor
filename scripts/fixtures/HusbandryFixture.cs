@@ -7,7 +7,7 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Disposable prerequisites only. All asserted outcomes happen afterward through normal ticks.
     public sealed class HusbandryFixture
@@ -16,7 +16,7 @@ namespace HomeBridge.BridgeTools
         // another, and each new map may seed the fixture once.
         private static readonly System.WeakReference<Map?> createdOn = new System.WeakReference<Map?>(null);
         [Tool("test/husbandry_setup", Description = "Seed a disposable husbandry acceptance fixture; test builds only.")]
-        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Setup(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;

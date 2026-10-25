@@ -10,7 +10,7 @@ dotnet run --project contracts/tests/NativeContractProbes.csproj -- native-proto
 ```
 
 Prerequisites in a fresh worktree: the wire records come from the built
-`RimGovernor.Brain.Contracts` assembly (the gate builds it first; nothing is
+`RimGovernor.Brain.GameFacts` assembly (the gate builds it first; nothing is
 generated); build the private mod with `acceptance setup -rebuild` (it stages
 `RimGovernor.Bridge.dll` under `.rimgovernor/native-rimworld/Mods/RimGovernor/BridgeTools/RimGovernor`).
 The project compiles against fake Verse/Harmony stubs and takes no

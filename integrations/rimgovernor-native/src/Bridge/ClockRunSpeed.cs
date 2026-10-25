@@ -1,8 +1,7 @@
 using System;
 using Verse;
-using Clock = RimGovernor.Contracts.Wire.Clock;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // How a Run's wire speed drives the game's clock (#3604). Five wire speeds
     // share four TimeSpeeds: Ultrafast and Hyperfast are both TimeSpeed.Ultrafast
@@ -16,18 +15,18 @@ namespace HomeBridge.BridgeTools
     // Pure, with no game reads, so the contract probe compiles it directly.
     internal static class ClockRunSpeed
     {
-        internal static bool Ordinary(Clock.Speed speed) => speed == Clock.Speed.Normal || speed == Clock.Speed.Fast
-            || speed == Clock.Speed.Superfast || speed == Clock.Speed.Ultrafast || speed == Clock.Speed.Hyperfast;
+        internal static bool Ordinary(RimGovernor.Brain.GameFacts.Clock.Speed speed) => speed == RimGovernor.Brain.GameFacts.Clock.Speed.Normal || speed == RimGovernor.Brain.GameFacts.Clock.Speed.Fast
+            || speed == RimGovernor.Brain.GameFacts.Clock.Speed.Superfast || speed == RimGovernor.Brain.GameFacts.Clock.Speed.Ultrafast || speed == RimGovernor.Brain.GameFacts.Clock.Speed.Hyperfast;
 
-        internal static TimeSpeed Native(Clock.Speed speed) => speed == Clock.Speed.Normal ? TimeSpeed.Normal
-            : speed == Clock.Speed.Fast ? TimeSpeed.Fast
-            : speed == Clock.Speed.Superfast ? TimeSpeed.Superfast
-            : speed == Clock.Speed.Ultrafast || speed == Clock.Speed.Hyperfast ? TimeSpeed.Ultrafast
+        internal static TimeSpeed Native(RimGovernor.Brain.GameFacts.Clock.Speed speed) => speed == RimGovernor.Brain.GameFacts.Clock.Speed.Normal ? TimeSpeed.Normal
+            : speed == RimGovernor.Brain.GameFacts.Clock.Speed.Fast ? TimeSpeed.Fast
+            : speed == RimGovernor.Brain.GameFacts.Clock.Speed.Superfast ? TimeSpeed.Superfast
+            : speed == RimGovernor.Brain.GameFacts.Clock.Speed.Ultrafast || speed == RimGovernor.Brain.GameFacts.Clock.Speed.Hyperfast ? TimeSpeed.Ultrafast
             : throw new ArgumentOutOfRangeException(nameof(speed));
 
         // The UltraSpeedBoost value a run at this speed owns; null leaves the flag as the run found it.
-        internal static bool? Boost(Clock.Speed speed) => speed == Clock.Speed.Hyperfast ? true
-            : speed == Clock.Speed.Ultrafast ? false : (bool?)null;
+        internal static bool? Boost(RimGovernor.Brain.GameFacts.Clock.Speed speed) => speed == RimGovernor.Brain.GameFacts.Clock.Speed.Hyperfast ? true
+            : speed == RimGovernor.Brain.GameFacts.Clock.Speed.Ultrafast ? false : (bool?)null;
     }
 
     // A run segment's ownership of the static TickManager.UltraSpeedBoost: the

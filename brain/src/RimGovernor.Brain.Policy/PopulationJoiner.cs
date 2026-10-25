@@ -119,14 +119,14 @@ public static partial class PopulationRules
     /// the colony cannot host is not a deficit: it is left to expire. A waiting offer while the capacity is
     /// unread raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static bool JoinerDeficit(IReadOnlyList<QuestState> offers, PopulationCapacity capacity, RoundsFacts facts) =>
+    public static bool JoinerDeficit(IReadOnlyList<QuestState> offers, PopulationCapacity capacity, ReviewFacts facts) =>
         offers.Any(offer => JoinerAnswerable(offer) && QuestSelection.JoinerThreatReason(offer, facts).IsNone) && Room(capacity);
 
     /// <summary>
     /// Picks the lowest-ID answerable joiner offer to accept next, for a deterministic order, once the
     /// colony's capacity for one more colonist is known.
     /// </summary>
-    public static JoinerChoice SelectJoinerMethod(IReadOnlyList<QuestState> offers, PopulationCapacity capacity, RoundsFacts facts)
+    public static JoinerChoice SelectJoinerMethod(IReadOnlyList<QuestState> offers, PopulationCapacity capacity, ReviewFacts facts)
     {
         var refused = false;
         foreach (var offer in offers.OrderBy(o => o.Id))
@@ -178,12 +178,12 @@ public static partial class PopulationRules
         letters.Any(row => row.CanAccept) && Room(capacity);
 }
 
-public static class JoinerRoundsFactsExtensions
+public static class JoinerReviewFactsExtensions
 {
     /// <summary>
     /// The slice of a review's facts JoinerCapacity measures: the population census and the population food
     /// runway (falling back to the stock runway, as the foothold food gate does).
     /// </summary>
-    public static JoinerCapacityFacts JoinerCapacity(this RoundsFacts f) =>
+    public static JoinerCapacityFacts JoinerCapacity(this ReviewFacts f) =>
         new() { Population = f.Population, FoodDays = f.FoodDays, ColonistGoal = f.ColonistGoal };
 }

@@ -1,8 +1,6 @@
 using RimGovernor.RealCombat;
 using RimGovernor.RealCombat.Native;
 using Verse;
-using Mirror = RimGovernor.Contracts.Wire.Mirror;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 // One duel in which the colonist is observed through the mod's combat mirror and commanded through its combat order
 // handler (the raider stands still: nothing drives it yet). With --bare the built-in retargeting plays both sides.
@@ -609,8 +607,8 @@ internal sealed class SeatController : IFightController
         var frame = _seat!.Capture();
         Captures++;
         Events = Math.Max(Events, frame.CombatEvents.Count);
-        var me = frame.CombatPawns.FirstOrDefault(p => p.Side == Mirror.CombatSide.Colonist);
-        var foe = frame.CombatPawns.FirstOrDefault(p => p.Side == Mirror.CombatSide.Hostile && p.Downed != true);
+        var me = frame.CombatPawns.FirstOrDefault(p => p.Side == RimGovernor.Brain.GameFacts.Mirror.CombatSide.Colonist);
+        var foe = frame.CombatPawns.FirstOrDefault(p => p.Side == RimGovernor.Brain.GameFacts.Mirror.CombatSide.Hostile && p.Downed != true);
         if (me is null || foe is null)
         {
             return;
@@ -618,14 +616,14 @@ internal sealed class SeatController : IFightController
 
         if (!_drafted)
         {
-            Record(_seat.Apply(Orders(me.Id.Value, new Operations.CombatOrderOrder.DraftCase(new Operations.Clear()))));
+            Record(_seat.Apply(Orders(me.Id.Value, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DraftCase(new RimGovernor.Brain.GameOrders.Operations.Clear()))));
             _drafted = true;
         }
 
         if (_target != foe.Id.Value)
         {
             _target = foe.Id.Value;
-            Record(_seat.Apply(Orders(me.Id.Value, new Operations.CombatOrderOrder.AttackCase(new Operations.EntityPrecondition { EntityId = foe.Id.Value }))));
+            Record(_seat.Apply(Orders(me.Id.Value, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AttackCase(new RimGovernor.Brain.GameOrders.Operations.EntityPrecondition { EntityId = foe.Id.Value }))));
         }
     }
 
@@ -645,9 +643,9 @@ internal sealed class SeatController : IFightController
         }
     }
 
-    private static Operations.CombatOrders Orders(string pawn, Operations.CombatOrderOrder order) => new()
+    private static RimGovernor.Brain.GameOrders.Operations.CombatOrders Orders(string pawn, RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder order) => new()
     {
-        Orders = [new Operations.CombatOrder { Pawn = new Operations.EntityPrecondition { EntityId = pawn }, Order = order }],
+        Orders = [new RimGovernor.Brain.GameOrders.Operations.CombatOrder { Pawn = new RimGovernor.Brain.GameOrders.Operations.EntityPrecondition { EntityId = pawn }, Order = order }],
     };
 }
 
@@ -678,20 +676,20 @@ internal sealed class DoorProbe : IFightController
         object? Field(string n) => f.GetField(n, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)?.GetValue(door);
         string State() => $"open={door.Open} free={door.FreePassage} hold={door.HoldOpen} ticksOpen={Field("visualTicksOpen")} untilClose={Field("ticksUntilClose")} pawn={pawn.Position.x},{pawn.Position.z} job={pawn.CurJobDef?.defName}";
         void Say(string what) => Console.Error.WriteLine($"t={tick} [{what}] {State()}");
-        void Do(Operations.CombatOrderOrder order) => _seat!.Apply(new Operations.CombatOrders { Orders = [new Operations.CombatOrder { Pawn = new Operations.EntityPrecondition { EntityId = "Thing_" + pawn.ThingID }, Order = order }] });
+        void Do(RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder order) => _seat!.Apply(new RimGovernor.Brain.GameOrders.Operations.CombatOrders { Orders = [new RimGovernor.Brain.GameOrders.Operations.CombatOrder { Pawn = new RimGovernor.Brain.GameOrders.Operations.EntityPrecondition { EntityId = "Thing_" + pawn.ThingID }, Order = order }] });
         _pawn = pawn.ThingID;
 
         if (tick == 1)
         {
-            Do(new Operations.CombatOrderOrder.DraftCase(new Operations.Clear()));
-            Do(new Operations.CombatOrderOrder.MoveCase(new RimGovernor.Brain.Domain.Cell { X = 37, Z = 30 }));
+            Do(new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DraftCase(new RimGovernor.Brain.GameOrders.Operations.Clear()));
+            Do(new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.MoveCase(new RimGovernor.Brain.Domain.Cell { X = 37, Z = 30 }));
             _phase = 1;
         }
 
         if (_phase == 1 && pawn.Position.x == 37 && pawn.Position.z == 30)
         {
             Say("beside the door; ordering onto it");
-            Do(new Operations.CombatOrderOrder.MoveCase(new RimGovernor.Brain.Domain.Cell { X = 38, Z = 30 }));
+            Do(new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.MoveCase(new RimGovernor.Brain.Domain.Cell { X = 38, Z = 30 }));
             _phase = 2;
             _since = tick;
         }
@@ -699,7 +697,7 @@ internal sealed class DoorProbe : IFightController
         if (_phase == 2 && (door.Open || Convert.ToInt32(Field("visualTicksOpen") ?? 0) > 0))
         {
             Say("door started opening; stopping the pawn");
-            Do(new Operations.CombatOrderOrder.StopCase(new Operations.Clear()));
+            Do(new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.StopCase(new RimGovernor.Brain.GameOrders.Operations.Clear()));
             _phase = 3;
             _since = tick;
         }
@@ -707,7 +705,7 @@ internal sealed class DoorProbe : IFightController
         if (_phase == 3 && tick - _since == 120)
         {
             Say("120 ticks later; setting hold-open");
-            Do(new Operations.CombatOrderOrder.DoorCase(new Operations.CombatDoor { Cell = new RimGovernor.Brain.Domain.Cell { X = 38, Z = 30 }, Mode = Operations.CombatDoorMode.HoldOpen }));
+            Do(new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DoorCase(new RimGovernor.Brain.GameOrders.Operations.CombatDoor { Cell = new RimGovernor.Brain.Domain.Cell { X = 38, Z = 30 }, Mode = RimGovernor.Brain.GameOrders.Operations.CombatDoorMode.HoldOpen }));
             _phase = 4;
             _since = tick;
         }
@@ -715,7 +713,7 @@ internal sealed class DoorProbe : IFightController
         if (_phase == 4 && tick - _since == 200)
         {
             Say("200 ticks held; releasing hold (Close)");
-            Do(new Operations.CombatOrderOrder.DoorCase(new Operations.CombatDoor { Cell = new RimGovernor.Brain.Domain.Cell { X = 38, Z = 30 }, Mode = Operations.CombatDoorMode.Close }));
+            Do(new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DoorCase(new RimGovernor.Brain.GameOrders.Operations.CombatDoor { Cell = new RimGovernor.Brain.Domain.Cell { X = 38, Z = 30 }, Mode = RimGovernor.Brain.GameOrders.Operations.CombatDoorMode.Close }));
             _phase = 5;
             _since = tick;
         }

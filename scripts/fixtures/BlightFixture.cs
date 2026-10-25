@@ -7,7 +7,7 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Private disposable acceptance only. Stages the blight responder's
     // precondition: one small growing zone of grown rice near
@@ -19,13 +19,13 @@ namespace HomeBridge.BridgeTools
     public sealed class BlightFixture
     {
         [Tool("test/blight_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: sow one small rice growing zone near the colonists, blight `blighted` of its plants, and report the blighted plant ids with their read-time cut snapshot tokens.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, int blighted = 3)
+        public async Task<object> Prepare(INativeContext ctx, CancellationToken cancellationToken, int blighted = 3)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
                 if (map == null || Current.Game == null || player == null || !Find.TickManager.Paused)
                     return Refuse("A paused disposable colony map is required.");
-                if (!ProtoBoundary.TryReadContext(map, out var context, out var unavailable))
+                if (!GameThread.TryReadContext(map, out var context, out var unavailable))
                     return Refuse("Native context unavailable: " + unavailable.Detail);
                 if (blighted < 1 || blighted > 16) return Refuse("blighted must be between 1 and 16.");
                 var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();

@@ -1,31 +1,30 @@
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 // #3845: defense capacity counts each colonist's ranged DPS at the game's hit chance over the reference gunner's
 // (PawnEquipment.RangedHitFactor, read natively from ShotReport and the weapon's accuracy at the engagement distance).
-// The tests run the production read: the pawn rows as native gives them, decoded by RoundsDefenders, summed by
+// The tests run the production read: the pawn rows as native gives them, decoded by Defenders, summed by
 // DefenseCapacityPolicy.
 public sealed class DefenseCapacityHitChanceTests
 {
     // The rows of a colonist with these combat facts, as the pawn read gives them.
-    private static O.PawnState Row(string id, double rangedDps, double hitFactor, double meleeDps) => PawnFixtures.Row(id) with
+    private static RimGovernor.Brain.GameFacts.Observations.PawnState Row(string id, double rangedDps, double hitFactor, double meleeDps) => PawnFixtures.Row(id) with
     {
         Equipment = GearFixtures.NoEquipment with { RangedDps = rangedDps, RangedHitFactor = hitFactor, MeleeDps = meleeDps },
     };
 
-    private static double Capacity(params O.PawnState[] rows)
+    private static double Capacity(params RimGovernor.Brain.GameFacts.Observations.PawnState[] rows)
     {
         var emergency = new EmergencyFacts
         {
             Colonists = [.. rows.Select(r => new EmergencyPawn { Observed = r })],
         };
         var colony = ColonyFactsCoreTests.Snapshot() with { ColonistCount = (uint)rows.Length };
-        var pawns = new O.PawnSnapshot { Context = colony.Context, Pawns = EquatableArray.From(rows) };
-        var defenders = RoundsMoodReads.RoundsDefenders(colony, emergency, pawns);
+        var pawns = new RimGovernor.Brain.GameFacts.Observations.PawnSnapshot { Context = colony.Context, Pawns = EquatableArray.From(rows) };
+        var defenders = MoodReads.Defenders(colony, emergency, pawns);
         return DefenseCapacityPolicy.DefenseCapacity(defenders, []);
     }
 

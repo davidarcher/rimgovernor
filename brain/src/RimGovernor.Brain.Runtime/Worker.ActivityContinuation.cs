@@ -1,0 +1,94 @@
+using RimGovernor.Brain.Policy;
+using RimGovernor.Brain.Store;
+
+namespace RimGovernor.Brain.Runtime;
+
+public sealed partial class Worker
+{
+    /// <summary>Existing Method cleanup runs independently of new-work Concern eligibility. Reads and
+    /// journal transitions only: ordinary worker/Hands dispatch performs the resulting release.</summary>
+    private async Task ContinueActivityMethodsAsync(GenerationSnapshot current, CancellationToken ct)
+    {
+        var methods = _player.Journal.ActivityMethods(current, ct);
+        var live = methods.SelectMany(m => m.Batch.Orders.Select(o => o.Method)).ToHashSet(StringComparer.Ordinal);
+        _finishedTasks.RemoveWhere(k => !live.Contains(k[..k.IndexOf('/', StringComparison.Ordinal)]));
+        if (methods.Count == 0 || _config.Pawns is null) return;
+        var ids = methods.SelectMany(m => m.Batch.Orders.Select(o => o.Pawn)).Distinct(StringComparer.Ordinal).ToArray();
+        var (rows, tick) = await ArrivalRowsAsync(current, ids, ct).ConfigureAwait(false);
+        var ownership = rows.Select(pair => pair.Value.ActivityExecution is { } e
+            ? new ActivityOwnership(pair.Key, e.Assignment, e.Method, e.Revision, e.State)
+            : new ActivityOwnership(pair.Key, "", "", 0, "unowned")).ToArray();
+        foreach (var method in methods)
+        {
+            if (method.Batch.Tasks.Count != 0 && _config.Pawns is IActivityTaskSource taskSource)
+            {
+                var read = await taskSource.ReadActivityTasksAsync(new(Boundary.Identity(current), method.Batch), ct).ConfigureAwait(false);
+                var taskTick = read.Context.Tick;
+                _ = Boundary.Context(read.Context, current);
+                _player.ForecastEvidence.Tasks(current, method.Batch, read);
+                var participants = read.Pawns.Select(p => p.Execution is { } e
+                    ? new ActivityOwnership(p.Pawn, e.Assignment, e.Method, e.Revision, e.State)
+                    : new ActivityOwnership(p.Pawn, "", "", 0, "unowned")).ToArray();
+                if (ActivityContinuationRules.ReviewActivityOwnership(method.Batch, method.Needed, taskTick, participants).OwnershipEnded)
+                {
+                    _player.Journal.ResolveActivityMethod(method.Plan, current, new Tick(taskTick), participants, ct);
+                    _advanced = true;
+                    continue;
+                }
+                // A worker finished a task and bills are left: the scheduler's next step reviews who takes its next task, and
+                // that worker starts no next task until the review has run (#3624); participants still working are not touched, and
+                // the Method's other transitions wait the same short while. The step is woken now, with the clock running.
+                // Without a step loop to wake (no Wake signal) nothing reviews, and the worker goes on.
+                var finished = _config.Wake is null ? [] : ActivityContinuationRules.FinishedTasks(method.Batch, participants);
+                var signalled = false;
+                foreach (var key in finished.Where(_finishedTasks.Add))
+                {
+                    _player.TaskReviews.Await(key);
+                    signalled = true;
+                }
+                if (signalled)
+                {
+                    _config.Wake?.NotifyTaskReview();
+                    Tel.Decide(new Decision { Kind = "coupled_observed", Component = "worker", Target = method.Method.Value, Verdict = "deferred",
+                        Reason = "awaiting_task_review", Attrs = new Dictionary<string, object?> { ["observed_tick"] = taskTick, ["finished"] = finished.ToArray() } });
+                }
+                if (finished.Any(_player.TaskReviews.Waiting)) continue;
+                var needed = ForecastServiceInvestments.ReviewServiceActivityNeed(method.Batch, method.Needed, read);
+                var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(method.Batch, needed, read);
+                ActivityContinuationAdmission? admission = null;
+                if (next is not null)
+                {
+                    var id = PlanIds.MintPlanId();
+                    admission = _player.Journal.ContinueActivityMethod(method.Plan, current, new Tick(taskTick), participants,
+                        new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"), next)]), ct);
+                    _advanced |= admission == ActivityContinuationAdmission.Admitted;
+                }
+                if (method.Batch.Orders.Any(o => o.Method.StartsWith("coupled-", StringComparison.Ordinal)))
+                    Tel.Decide(new Decision { Kind = "coupled_observed", Component = "worker", Target = method.Method.Value,
+                        Verdict = admission == ActivityContinuationAdmission.ResourcesUnavailable ? "deferred"
+                            : admission == ActivityContinuationAdmission.Admitted ? "transition" : "continue",
+                        Reason = admission == ActivityContinuationAdmission.ResourcesUnavailable
+                            ? "work_resource_conflict_or_unknown" : "native_task_evidence",
+                        Attrs = new Dictionary<string, object?> { ["observed_tick"] = taskTick,
+                            ["satisfied_tasks"] = read.SatisfiedTasks.ToArray(),
+                            ["remaining_tasks"] = method.Batch.Tasks.Select(t => t.Id).ToArray(),
+                            ["native_states"] = participants.Select(p => p.Pawn + ":" + p.State).ToArray() } });
+                continue;
+            }
+            var decision = ActivityContinuationRules.ReviewActivityOwnership(method.Batch, method.Needed, tick, ownership);
+            if (decision.OwnershipEnded)
+            {
+                _player.Journal.ResolveActivityMethod(method.Plan, current, new Tick(tick), ownership, ct);
+                _advanced = true;
+            }
+            else if (decision.Release is { } release)
+            {
+                var id = PlanIds.MintPlanId();
+                var action = DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"), release);
+                var admission = _player.Journal.ContinueActivityMethod(method.Plan, current, new Tick(tick), ownership,
+                    new PlanSpec(id, new PlanRevision(1), [action]), ct);
+                _advanced |= admission == ActivityContinuationAdmission.Admitted;
+            }
+        }
+    }
+}

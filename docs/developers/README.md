@@ -27,7 +27,7 @@ verify and land the change.
 
 | Guide | Responsibility |
 | --- | --- |
-| [Control loop](architecture/control-loop.md) | Rounds, planner scheduling, events and Manual control |
+| [Control loop](architecture/control-loop.md) | Colony review, planner scheduling, events and Manual control |
 | [Plans and Hands](architecture/plans-and-hands.md) | Admission, dispatch, receipts and outcomes |
 | [Sessions and recovery](architecture/sessions-and-recovery.md) | Authority, save/load, reconnect and uncertainty |
 | [Space and resources](architecture/space-and-resources.md) | Placement and material accounting |

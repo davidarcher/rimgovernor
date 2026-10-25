@@ -1,14 +1,9 @@
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
-using Mirror = RimGovernor.Contracts.Wire.Mirror;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -40,24 +35,24 @@ internal static class CombatLabKit
     internal static Fx.StageSpec Spec(LabFixture f) => f.ToSpec() with { Paused = true, Site = Site };
 
     /// <summary>A pawn named by id, as an order's subject or target.</summary>
-    internal static Operations.EntityPrecondition Pawn(string id) => new() { EntityId = id };
+    internal static RimGovernor.Brain.GameOrders.Operations.EntityPrecondition Pawn(string id) => new() { EntityId = id };
 
     /// <summary>One order for <paramref name="pawn"/> (null for a door order).</summary>
-    internal static Operations.CombatOrder Order(string? pawn, Operations.CombatOrderOrder order) =>
+    internal static RimGovernor.Brain.GameOrders.Operations.CombatOrder Order(string? pawn, RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder order) =>
         new() { Pawn = pawn is null ? null : Pawn(pawn), Order = order };
 
     /// <summary>
     /// Sends one combat_orders batch through operations_apply and returns its per-order results; a refused or failed
     /// action, or a result count off the batch, fails the label.
     /// </summary>
-    internal static async Task<IReadOnlyList<RimGovernor.Brain.Domain.CombatResult>> OrdersAsync(TypedSession s, string label, CancellationToken cancellationToken, params Operations.CombatOrder[] orders)
+    internal static async Task<IReadOnlyList<RimGovernor.Brain.Domain.CombatResult>> OrdersAsync(TypedSession s, string label, CancellationToken cancellationToken, params RimGovernor.Brain.GameOrders.Operations.CombatOrder[] orders)
     {
-        var reply = await s.CallAsync(label, NativeOps.Apply, new Operations.ApplyRequest
+        var reply = await s.CallAsync(label, NativeOps.Apply, new RimGovernor.Brain.GameOrders.Operations.ApplyRequest
         {
             Identity = s.Identity,
-            Actions = [new Operations.Action { Key = label, Intent = new Operations.CombatOrders { Orders = [.. orders] } }], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
+            Actions = [new RimGovernor.Brain.GameOrders.Operations.Action { Key = label, Intent = new RimGovernor.Brain.GameOrders.Operations.CombatOrders { Orders = [.. orders] } }], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
         var outcome = reply.Results.Count == 1 ? reply.Results[0].Outcome?.Applied?.Outcome : null;
-        var observed = outcome?.Applied?.Observed ?? (outcome as Receipts.ReceiptOutcome.NoChangeCase)?.Value.Observed;
+        var observed = outcome?.Applied?.Observed ?? (outcome as RimGovernor.Brain.GameFacts.Receipts.ReceiptOutcome.NoChangeCase)?.Value.Observed;
         var results = observed?.Effect?.CombatOrders?.Results
             ?? throw new AcceptanceException($"{label}: combat orders not applied: {reply.BatchFailure} {string.Join("; ", reply.Results)}");
         if (results.Count != orders.Length)
@@ -72,14 +67,14 @@ internal static class CombatLabKit
     /// <summary>Drafts <paramref name="pawns"/> in one batch; an order that does not apply fails.</summary>
     internal static async Task DraftAsync(TypedSession s, IEnumerable<string> pawns, CancellationToken cancellationToken)
     {
-        foreach (var r in await OrdersAsync(s, "draft", cancellationToken, [.. pawns.Select(p => Order(p, new Operations.CombatOrderOrder.DraftCase(new Operations.Clear())))]).ConfigureAwait(false))
+        foreach (var r in await OrdersAsync(s, "draft", cancellationToken, [.. pawns.Select(p => Order(p, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DraftCase(new RimGovernor.Brain.GameOrders.Operations.Clear())))]).ConfigureAwait(false))
         {
             Applied("draft", r);
         }
     }
 
     /// <summary>Sends one order and returns its result.</summary>
-    internal static async Task<RimGovernor.Brain.Domain.CombatResult> OrderAsync(TypedSession s, string label, string? pawn, Operations.CombatOrderOrder order, CancellationToken cancellationToken) =>
+    internal static async Task<RimGovernor.Brain.Domain.CombatResult> OrderAsync(TypedSession s, string label, string? pawn, RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder order, CancellationToken cancellationToken) =>
         (await OrdersAsync(s, label, cancellationToken, Order(pawn, order)).ConfigureAwait(false))[0];
 
     /// <summary>Checks an order applied (with <paramref name="job"/> when given).</summary>
@@ -101,45 +96,45 @@ internal static class CombatLabKit
     }
 
     /// <summary>The production pawn rows of <paramref name="ids"/> (dead ones included) by id, with health, gear and settings.</summary>
-    internal static async Task<Dictionary<string, Observations.PawnState>> PawnsAsync(TypedSession s, string label, IEnumerable<string> ids, CancellationToken cancellationToken)
+    internal static async Task<Dictionary<string, RimGovernor.Brain.GameFacts.Observations.PawnState>> PawnsAsync(TypedSession s, string label, IEnumerable<string> ids, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ListPawns, new Observations.ListPawnsRequest
+        var reply = await s.CallAsync(label, NativeOps.ListPawns, new RimGovernor.Brain.GameOrders.Observations.ListPawnsRequest
         {
             Scope = s.Scope,
-            Filter = new Observations.PawnFilter { Ids = [.. ids], IncludeDead = true },
+            Filter = new RimGovernor.Brain.GameFacts.Observations.PawnFilter { Ids = [.. ids], IncludeDead = true },
         }, cancellationToken).ConfigureAwait(false);
         var snapshot = reply;
         return snapshot.Pawns.ToDictionary(p => p.Pawn.Id, StringComparer.Ordinal);
     }
 
     /// <summary>The production pawn row of <paramref name="id"/>; a pawn the read does not list fails the label.</summary>
-    internal static async Task<Observations.PawnState> PawnAsync(TypedSession s, string label, string id, CancellationToken cancellationToken) =>
+    internal static async Task<RimGovernor.Brain.GameFacts.Observations.PawnState> PawnAsync(TypedSession s, string label, string id, CancellationToken cancellationToken) =>
         (await PawnsAsync(s, label, [id], cancellationToken).ConfigureAwait(false)).GetValueOrDefault(id)
             ?? throw new AcceptanceException($"{label}: pawn {id} not listed");
 
     /// <summary>The pawn's current job def, empty without one.</summary>
-    internal static string Job(Observations.PawnState p) => p.Job.DefName ?? "";
+    internal static string Job(RimGovernor.Brain.GameFacts.Observations.PawnState p) => p.Job.DefName ?? "";
 
     /// <summary>The thing the pawn's job targets, null for none or a cell.</summary>
-    internal static string? JobThing(Observations.PawnState p) => p.Job.TargetA?.Target?.Entity?.Id;
+    internal static string? JobThing(RimGovernor.Brain.GameFacts.Observations.PawnState p) => p.Job.TargetA?.Target?.Entity?.Id;
 
     /// <summary>The colony's allowed areas (the typed colony read's policy section).</summary>
-    internal static async Task<IReadOnlyList<Observations.AllowedArea>> AreasAsync(TypedSession s, string label, CancellationToken cancellationToken)
+    internal static async Task<IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.AllowedArea>> AreasAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         return [.. facts.Policies.AllowedAreas];
     }
 
     /// <summary>The player building at <paramref name="cell"/> (a door, a mortar), from the production building read.</summary>
-    internal static async Task<Observations.BuildingState> BuildingAtAsync(TypedSession s, string label, RimGovernor.Brain.Domain.Cell cell, CancellationToken cancellationToken)
+    internal static async Task<RimGovernor.Brain.GameFacts.Observations.BuildingState> BuildingAtAsync(TypedSession s, string label, RimGovernor.Brain.Domain.Cell cell, CancellationToken cancellationToken)
     {
-        var rows = await s.BuildingsAsync(label, new Observations.ListBuildingsRequest(), cancellationToken).ConfigureAwait(false);
-        return rows.FirstOrDefault(b => b.Building.Place is RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap { Cell: var at } && at == cell)
+        var rows = await s.BuildingsAsync(label, new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest(), cancellationToken).ConfigureAwait(false);
+        return rows.FirstOrDefault(b => b.Building.Place is RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap { Cell: var at } && at == cell)
             ?? throw new AcceptanceException($"{label}: no player building at {Show(cell)}");
     }
 
     /// <summary>A geometry read of <paramref name="request"/>, checked against its request.</summary>
-    internal static async Task<Mirror.CombatGeometry> GeometryAsync(TypedSession s, string label, Mirror.CombatGeometryRequest request, CancellationToken cancellationToken)
+    internal static async Task<RimGovernor.Brain.GameFacts.Mirror.CombatGeometry> GeometryAsync(TypedSession s, string label, RimGovernor.Brain.GameOrders.Mirror.CombatGeometryRequest request, CancellationToken cancellationToken)
     {
         var g = await s.CallAsync(label, NativeOps.ReadCombatGeometry, request, cancellationToken).ConfigureAwait(false);
         CombatGeometryContract.Validate(label, g, request);
@@ -150,8 +145,8 @@ internal static class CombatLabKit
     /// <summary>The loaded game's tick.</summary>
     internal static async Task<long> TickAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var loaded = await s.CallAsync(label, NativeOps.ReadTick, new Lifecycle.TickRequest(), cancellationToken).ConfigureAwait(false);
-        return loaded.Context?.Tick ?? throw new AcceptanceException($"{label}: no loaded tick: {WireJson.Serialize(loaded)}");
+        var loaded = await s.CallAsync(label, NativeOps.ReadTick, new RimGovernor.Brain.GameOrders.Lifecycle.TickRequest(), cancellationToken).ConfigureAwait(false);
+        return loaded.Context?.Tick ?? throw new AcceptanceException($"{label}: no loaded tick: {OrdersJson.Serialize(loaded)}");
     }
 
     /// <summary>A cell as text.</summary>
@@ -261,10 +256,10 @@ internal sealed class LabFrames
     public LabFrames(TypedSession s) => _s = s;
 
     /// <summary>The newest frame read so far.</summary>
-    public Observations.BundleSnapshot? Last { get; private set; }
+    public RimGovernor.Brain.GameFacts.Observations.BundleSnapshot? Last { get; private set; }
 
     /// <summary>Every combat event first seen in a frame read so far, oldest first.</summary>
-    public List<Mirror.CombatEventRow> Events { get; } = [];
+    public List<RimGovernor.Brain.GameFacts.Mirror.CombatEventRow> Events { get; } = [];
 
     /// <summary>The newest frame's tick, -1 before any.</summary>
     public long Tick => Last?.Context?.Tick ?? -1;
@@ -273,10 +268,10 @@ internal sealed class LabFrames
     /// Reads the newest frame published since the last read (subscribing the stream on the first) and returns it, or
     /// null when none is newer; its unseen combat events join <see cref="Events"/>.
     /// </summary>
-    public async Task<Observations.BundleSnapshot?> NextAsync(CancellationToken cancellationToken)
+    public async Task<RimGovernor.Brain.GameFacts.Observations.BundleSnapshot?> NextAsync(CancellationToken cancellationToken)
     {
         var label = "frame-" + (++_reads).ToString(CultureInfo.InvariantCulture);
-        var reply = await _s.CallAsync(label, NativeOps.ReadSnapshot, new Observations.SnapshotReadRequest { AfterNumber = _head }, cancellationToken).ConfigureAwait(false);
+        var reply = await _s.CallAsync(label, NativeOps.ReadSnapshot, new RimGovernor.Brain.GameOrders.Observations.SnapshotReadRequest { AfterNumber = _head }, cancellationToken).ConfigureAwait(false);
         var read = reply.Outcome?.Read ?? throw new AcceptanceException($"{label}: snapshot read failed: {reply.Outcome}");
         if (read.Frame is not { } frame)
         {
@@ -305,9 +300,9 @@ internal sealed class LabFrames
     /// Runs the lab until a frame captured at or past <paramref name="fromTick"/> satisfies <paramref name="done"/>, at most
     /// <paramref name="ticks"/> ticks; returns that frame. <paramref name="done"/> may throw to fail on a frame.
     /// </summary>
-    public async Task<Observations.BundleSnapshot> UntilAsync(string label, int ticks, long fromTick, Func<Observations.BundleSnapshot, bool> done, CancellationToken cancellationToken)
+    public async Task<RimGovernor.Brain.GameFacts.Observations.BundleSnapshot> UntilAsync(string label, int ticks, long fromTick, Func<RimGovernor.Brain.GameFacts.Observations.BundleSnapshot, bool> done, CancellationToken cancellationToken)
     {
-        Observations.BundleSnapshot? hit = null;
+        RimGovernor.Brain.GameFacts.Observations.BundleSnapshot? hit = null;
         _ = await _s.RunUntilAsync(label, ticks, async ct =>
         {
             var frame = await NextAsync(ct).ConfigureAwait(false);
@@ -322,11 +317,11 @@ internal sealed class LabFrames
     }
 
     /// <summary>The first frame captured with the combat sections live: a frame past the staging the claim reads.</summary>
-    public Task<Observations.BundleSnapshot> CombatAsync(string label, CancellationToken cancellationToken) =>
+    public Task<RimGovernor.Brain.GameFacts.Observations.BundleSnapshot> CombatAsync(string label, CancellationToken cancellationToken) =>
         UntilAsync(label, CombatLabKit.ProbeTicks, 0, f => f.CombatPawns.Count > 0, cancellationToken);
 
     /// <summary>The frame's combat row of <paramref name="id"/>, null when it has none.</summary>
-    public static Mirror.CombatPawn? Row(Observations.BundleSnapshot frame, string id) => frame.CombatPawns.FirstOrDefault(p => p.Id.Value == id);
+    public static RimGovernor.Brain.GameFacts.Mirror.CombatPawn? Row(RimGovernor.Brain.GameFacts.Observations.BundleSnapshot frame, string id) => frame.CombatPawns.FirstOrDefault(p => p.Id.Value == id);
 }
 
 /// <summary>A geometry reply checked against its request (the combat_geometry contract the cases rely on).</summary>
@@ -346,7 +341,7 @@ internal static class CombatGeometryContract
     /// only for a propose block: standable, distinct from each other and the named cells
     /// (a rescue route excepted), within the cells cap.
     /// </summary>
-    internal static void Validate(string label, Mirror.CombatGeometry g, Mirror.CombatGeometryRequest request)
+    internal static void Validate(string label, RimGovernor.Brain.GameFacts.Mirror.CombatGeometry g, RimGovernor.Brain.GameOrders.Mirror.CombatGeometryRequest request)
     {
         if (g.Context.Identity != request.Identity)
         {
@@ -386,7 +381,7 @@ internal static class CombatGeometryContract
             throw Contract(label, "combat geometry proposals over the cells cap");
         }
 
-        var route = request.Propose is Mirror.CombatGeometryPropose.RescuePath;
+        var route = request.Propose is RimGovernor.Brain.GameFacts.Mirror.CombatGeometryPropose.RescuePath;
         for (var i = 0; i < g.Proposed.Count; i++)
         {
             var row = g.Proposed[i];
@@ -401,11 +396,11 @@ internal static class CombatGeometryContract
     }
 
     /// <summary>A proposal's cells as a set.</summary>
-    internal static HashSet<(int X, int Z)> Cells(IEnumerable<Mirror.CombatGeometryCell> rows) => [.. rows.Select(r => Key(r.Cell))];
+    internal static HashSet<(int X, int Z)> Cells(IEnumerable<RimGovernor.Brain.GameFacts.Mirror.CombatGeometryCell> rows) => [.. rows.Select(r => Key(r.Cell))];
 
     internal static (int X, int Z) Key(RimGovernor.Brain.Domain.Cell c) => (c.X, c.Z);
 
-    private static void Lines(string label, Mirror.CombatGeometryCell row, Mirror.CombatGeometryRequest request, int i)
+    private static void Lines(string label, RimGovernor.Brain.GameFacts.Mirror.CombatGeometryCell row, RimGovernor.Brain.GameOrders.Mirror.CombatGeometryRequest request, int i)
     {
         if (row.Lines.Count != request.HostileIds.Count)
         {

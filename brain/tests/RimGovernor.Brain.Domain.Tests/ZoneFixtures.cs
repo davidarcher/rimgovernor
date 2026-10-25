@@ -1,4 +1,3 @@
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -6,10 +5,10 @@ namespace RimGovernor.Brain.Domain.Tests;
 internal static class ZoneFixtures
 {
     /// <summary>The bounds every fixture zone reports: the one cell at the origin.</summary>
-    public static readonly Observations.CellExtents Origin = new() { Minimum = new Cell(0, 0), Maximum = new Cell(0, 0) };
+    public static readonly RimGovernor.Brain.GameFacts.Observations.CellExtents Origin = new() { Minimum = new Cell(0, 0), Maximum = new Cell(0, 0) };
 
     /// <summary>A growing zone sowing <paramref name="crop"/> with nothing planted yet.</summary>
-    public static Observations.ZoneState.Growing Growing(string id, string crop, uint usableCells = 0, bool edible = false, double temperature = 21) => new()
+    public static RimGovernor.Brain.GameFacts.Observations.ZoneState.Growing Growing(string id, string crop, uint usableCells = 0, bool edible = false, double temperature = 21) => new()
     {
         Id = id,
         Label = id,
@@ -27,7 +26,7 @@ internal static class ZoneFixtures
     };
 
     /// <summary>A stockpile zone with no filter read.</summary>
-    public static Observations.ZoneState.Stockpile Stockpile(string id, string priority = "Normal", bool foodStorage = false) => new()
+    public static RimGovernor.Brain.GameFacts.Observations.ZoneState.Stockpile Stockpile(string id, string priority = "Normal", bool foodStorage = false) => new()
     {
         Id = id,
         Label = id,

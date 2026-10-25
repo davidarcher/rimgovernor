@@ -1,10 +1,10 @@
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -136,7 +136,7 @@ public sealed class DeathrestCreditTests
     }
 
     // The production path: the staging's chamber need (ChildRoomsRules.ChildRoomNeeds over the work pawns' Biotech facts) resolved
-    // against the catalog's deathrest buildings (ChildRoomsRules.DeathrestFurniture, as RoundsSleepingUpkeepPlanner.DeathrestFurnitureOf).
+    // against the catalog's deathrest buildings (ChildRoomsRules.DeathrestFurniture, as SleepingUpkeepPlanner.DeathrestFurnitureOf).
     private static readonly IReadOnlyList<FurnitureDefinition> Catalog =
     [
         new() { Name = "DeathrestCasket", Available = true, Size = new P.Bounds(1, 2), Roles = [FurnitureRole.DeathrestCasket.Value] },
@@ -144,13 +144,13 @@ public sealed class DeathrestCreditTests
         new() { Name = "HemogenAmplifier", Available = true, Size = new P.Bounds(1, 2), Roles = [FurnitureRole.DeathrestAccelerator.Value] },
     ];
 
-    private static WorkPawn Worker(O.PawnDeathrest? deathrest) => PawnFixtures.Worker("pawn") with
+    private static WorkPawn Worker(RimGovernor.Brain.GameFacts.Observations.PawnDeathrest? deathrest) => PawnFixtures.Worker("pawn") with
     {
-        Biotech = new PawnBiotechStatus.Active(Biotech(deathrest, RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Adult)),
+        Biotech = new PawnBiotechStatus.Active(Biotech(deathrest, RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Adult)),
     };
 
-    private static P.PawnBiotech Biotech(O.PawnDeathrest? deathrest, RimGovernor.Contracts.Wire.Defs.DevelopmentalStage stage) =>
-        new() { Observed = new O.PawnBiotech { DevelopmentalStage = stage, Genes = [], Mechanitor = null, Mech = null, Deathrest = deathrest } };
+    private static P.PawnBiotech Biotech(RimGovernor.Brain.GameFacts.Observations.PawnDeathrest? deathrest, RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage stage) =>
+        new() { Observed = new RimGovernor.Brain.GameFacts.Observations.PawnBiotech { DevelopmentalStage = stage, Genes = [], Mechanitor = null, Mech = null, Deathrest = deathrest } };
 
     private static EquatableArray<DeathrestPiece> Staged(DeathrestDefsRead? defs, params WorkPawn[] pawns) =>
         ChildRoomsRules.DeathrestFurniture(ChildRoomsRules.ChildRoomNeeds(pawns, defs), Catalog);
@@ -160,7 +160,7 @@ public sealed class DeathrestCreditTests
     {
         // #3842: the casket does not count toward capacity, so a capacity-1 deathrester binds one accelerator beside it. The
         // amplifier (factor 1) raises no efficiency and is not staged.
-        var furniture = Staged(Defs, Worker(new O.PawnDeathrest { Deathresting = false, Capacity = 1 }));
+        var furniture = Staged(Defs, Worker(new RimGovernor.Brain.GameFacts.Observations.PawnDeathrest { Deathresting = false, Capacity = 1 }));
         Assert.Equal([new DeathrestPiece("DeathrestCasket", 1), new DeathrestPiece("DeathrestAccelerator", 1)], furniture.Items);
         var row = Assert.Single(Rows(Context(Deathrester(capacity: 1), furniture), Serving(0)));
         Assert.Equal(-(Share(1) - Share(1.32)) * Horizon, row.Value, 12);
@@ -171,7 +171,7 @@ public sealed class DeathrestCreditTests
     {
         // Capacity 3 binds two accelerators (the stack limit); two such deathresters get two caskets and four accelerators,
         // and the credit binds them all.
-        var a = Worker(new O.PawnDeathrest { Deathresting = false, Capacity = 3 });
+        var a = Worker(new RimGovernor.Brain.GameFacts.Observations.PawnDeathrest { Deathresting = false, Capacity = 3 });
         var furniture = Staged(Defs, a, a with { Observed = a.Observed with { Pawn = a.Observed.Pawn with { Id = "b" } } });
         Assert.Equal([new DeathrestPiece("DeathrestCasket", 2), new DeathrestPiece("DeathrestAccelerator", 4)], furniture.Items);
         var context = Context(Deathrester("a", capacity: 3), furniture) with { Needs = NeedsFixtures.Empty with { Pawns = [Deathrester("a", capacity: 3), Deathrester("b", capacity: 3)], Deathrest = Defs } };
@@ -194,11 +194,11 @@ public sealed class DeathrestCreditTests
     public void PawnsWithoutADeathrestGeneStageTheirChildRooms()
     {
         // Pawns with no deathrest gene, or no Biotech at all, never throw, and their nursery and classroom stage.
-        static WorkPawn Child(string id, RimGovernor.Contracts.Wire.Defs.DevelopmentalStage stage) =>
+        static WorkPawn Child(string id, RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage stage) =>
             PawnFixtures.Worker(id) with { Biotech = new PawnBiotechStatus.Active(Biotech(null, stage)) };
         var needs = ChildRoomsRules.ChildRoomNeeds([
-            Child("baby", RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Baby),
-            Child("child", RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Child),
+            Child("baby", RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Baby),
+            Child("child", RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Child),
             PawnFixtures.Worker("plain")], Defs);
         Assert.Equal([RoomRole.Nursery, RoomRole.Classroom], needs.Select(n => n.Role));
     }
@@ -210,7 +210,7 @@ public sealed class DeathrestCreditTests
         // defs on ForecastObserved and the catalog's role rows, through DeathrestFurnitureOf as the round sets the credit's context.
         PlanningDefinition Row(string name, FurnitureRole role) =>
             new() { Name = name, Available = true, Size = new P.Bounds(1, 2), RoomRoles = [role.Value] };
-        var worker = PawnFixtures.Worker("pawn") with { Biotech = new PawnBiotechStatus.Active(new RimGovernor.Brain.Policy.PawnBiotech { Observed = new O.PawnBiotech { DevelopmentalStage = RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Adult, Genes = [], Mechanitor = null, Mech = null, Deathrest = new O.PawnDeathrest { Deathresting = false, Capacity = 1 } } }) };
+        var worker = PawnFixtures.Worker("pawn") with { Biotech = new PawnBiotechStatus.Active(new RimGovernor.Brain.Policy.PawnBiotech { Observed = new RimGovernor.Brain.GameFacts.Observations.PawnBiotech { DevelopmentalStage = RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Adult, Genes = [], Mechanitor = null, Mech = null, Deathrest = new RimGovernor.Brain.GameFacts.Observations.PawnDeathrest { Deathresting = false, Capacity = 1 } } }) };
         var colony = ColonyFactsCoreTests.Reading() with
         {
             Facts = ColonyFactsCoreTests.Reading().Facts with
@@ -239,16 +239,16 @@ public sealed class DeathrestCreditTests
                 }
             }
         };
-        var furniture = RoundsSleepingUpkeepPlanner.DeathrestFurnitureOf(colony);
+        var furniture = SleepingUpkeepPlanner.DeathrestFurnitureOf(colony);
         Assert.Equal([new DeathrestPiece("DeathrestCasket", 1), new DeathrestPiece("DeathrestAccelerator", 1)], furniture.Items);
         Assert.Equal(-(Share(1) - Share(1.32)) * Horizon, Assert.Single(Rows(Context(Deathrester(), furniture), Serving(0))).Value, 12);
         // Without Biotech no pawn row carries a block and the needs read no defs: no chamber is owed.
-        Assert.Empty(RoundsSleepingUpkeepPlanner.DeathrestFurnitureOf(colony with { Facts = ColonyFactsCoreTests.Reading().Facts with { Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 }, Flooring = new(), Lighting = new() { Census = LightingTests.NoLighting, DiesToLight = [], Lamps = [] } }, ForecastObserved = new ColonyForecastObserved { WorkPawns = new WorkPawnsRead(EquatableArray.From<WorkPawn>([PawnFixtures.Worker("pawn")])) } } }));
+        Assert.Empty(SleepingUpkeepPlanner.DeathrestFurnitureOf(colony with { Facts = ColonyFactsCoreTests.Reading().Facts with { Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 }, Flooring = new(), Lighting = new() { Census = LightingTests.NoLighting, DiesToLight = [], Lamps = [] } }, ForecastObserved = new ColonyForecastObserved { WorkPawns = new WorkPawnsRead(EquatableArray.From<WorkPawn>([PawnFixtures.Worker("pawn")])) } } }));
     }
 
     [Fact]
     public void ADeathresterWhoseDeathrestDefsAreUnreadIsARequiredFactForTheStaging()
     {
-        Assert.Throws<RequiredFactException>(() => Staged(null, Worker(new O.PawnDeathrest { Deathresting = false, Capacity = 1 })));
+        Assert.Throws<RequiredFactException>(() => Staged(null, Worker(new RimGovernor.Brain.GameFacts.Observations.PawnDeathrest { Deathresting = false, Capacity = 1 })));
     }
 }

@@ -3,12 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Food policies: the food kinds the definition catalog classifies,
     // FoodPolicyIntent on Actions/Apply (the FoodPolicy labelled name, made
@@ -44,18 +40,18 @@ namespace HomeBridge.BridgeTools
         internal static bool Respected(Pawn pawn) =>
             pawn.foodRestriction?.GetCurrentRespectedRestriction(pawn) != null && pawn.needs?.food != null && !pawn.DevelopmentalStage.Baby();
 
-        internal static Common.Failure? Validate(Operations.FoodPolicyIntent? intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.FoodPolicyIntent? intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
-            if (intent == null || intent.Name is null || !ProtoBoundary.IsIdentifier(intent.Name) || (intent.Name ?? "").Length > 80
+            if (intent == null || intent.Name is null || !GameThread.IsIdentifier(intent.Name) || (intent.Name ?? "").Length > 80
                 || intent.AllowedDefs.Distinct().Count() != intent.AllowedDefs.Count
                 || intent.AllowedDefs.Any(d => DefDatabase<ThingDef>.GetNamedSilentFail(d) is not ThingDef def || !IsFood(def)))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A food policy needs a name and distinct food definitions.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "A food policy needs a name and distinct food definitions.");
             if (Current.Game.foodRestrictionDatabase.AllFoodRestrictions.Count(p => p.label == (intent.Name ?? "")) > 1)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "More than one food policy has this name.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "More than one food policy has this name.");
             return null;
         }
 
-        internal static Receipts.EffectEvidence Apply(Operations.FoodPolicyIntent? intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.FoodPolicyIntent? intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Validate(intent, context);
             if (failure != null) throw new ApplyRefusedException(failure);
@@ -63,27 +59,27 @@ namespace HomeBridge.BridgeTools
             if (intent == null) throw new InvalidOperationException("Food policy intent missing.");
             var want = intent.AllowedDefs.OrderBy(d => d, StringComparer.Ordinal).ToList();
             var policy = db.AllFoodRestrictions.FirstOrDefault(p => p.label == (intent.Name ?? ""));
-            var outcome = Receipts.FieldOutcome.Unchanged;
+            var outcome = RimGovernor.Brain.GameFacts.Receipts.FieldOutcome.Unchanged;
             if (policy == null || !Allowed(policy).SequenceEqual(want))
             {
                 if (policy == null) { policy = db.MakeNewFoodRestriction(); policy.label = intent.Name; }
                 foreach (var d in Foods()) policy.filter.SetAllow(d, want.Contains(d.defName));
                 if (!Allowed(policy).SequenceEqual(want)) throw new InvalidOperationException("Native food policy requires readback.");
-                outcome = Receipts.FieldOutcome.Applied;
+                outcome = RimGovernor.Brain.GameFacts.Receipts.FieldOutcome.Applied;
             }
             // No bot policy lets an animal eat a corpse, a colony pet's least of all.
             foreach (var corpse in DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.IsCorpse && policy.filter.Allows(d)).ToList()) {
                 policy.filter.SetAllow(corpse, false);
-                outcome = Receipts.FieldOutcome.Applied;
+                outcome = RimGovernor.Brain.GameFacts.Receipts.FieldOutcome.Applied;
             }
-            return new Receipts.EffectEvidence { Effect = new Receipts.SettingsEffect {
-                Fields = [new Receipts.FieldResult { Field = Receipts.SettingsField.FoodRestriction, Outcome = outcome }] } };
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.SettingsEffect {
+                Fields = [new RimGovernor.Brain.GameFacts.Receipts.FieldResult { Field = RimGovernor.Brain.GameFacts.Receipts.SettingsField.FoodRestriction, Outcome = outcome }] } };
         }
     }
 
     internal sealed class FoodPolicyActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeFoodPolicy.Validate(action.Intent?.FoodPolicy, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeFoodPolicy.Apply(action.Intent?.FoodPolicy, context);
+        public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => NativeFoodPolicy.Validate(action.Intent?.FoodPolicy, context);
+        public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => NativeFoodPolicy.Apply(action.Intent?.FoodPolicy, context);
     }
 }

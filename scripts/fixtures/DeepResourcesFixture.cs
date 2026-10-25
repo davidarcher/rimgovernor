@@ -7,12 +7,12 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     public sealed class DeepResourcesFixture
     {
         [Tool("test/deep_resources_seed", Description = "Disposable deep lump, scanner and drill readback fixture; no bills.")]
-        public async Task<object> Seed(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Seed(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;

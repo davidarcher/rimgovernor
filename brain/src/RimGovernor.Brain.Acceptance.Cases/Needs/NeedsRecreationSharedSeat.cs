@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Domain;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -71,7 +70,7 @@ internal static class NeedsRecreationSharedSeat
         {
             Tasks = [new SelectedActivityTask(TaskId, player, [], step, new Cell(cell.X, cell.Z), 0)],
         };
-        var read = await s.CallAsync("bind", NativeOps.ReadActivityTasks, new Observations.ActivityTaskRequest(s.Identity, batch), cancellationToken).ConfigureAwait(false);
+        var read = await s.CallAsync("bind", NativeOps.ReadActivityTasks, new RimGovernor.Brain.GameOrders.Observations.ActivityTaskRequest(s.Identity, batch), cancellationToken).ConfigureAwait(false);
         s.RecordWireRows("bindings", read.Bindings);
         if (!read.Bindings.Any(b => b.Task == TaskId && b.Step.Target == table))
         {

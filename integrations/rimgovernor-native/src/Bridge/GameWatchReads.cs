@@ -6,7 +6,7 @@ using System.Reflection;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// The guarded reads the supervised clock watches between ticks: the

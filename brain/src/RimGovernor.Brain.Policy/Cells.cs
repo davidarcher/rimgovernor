@@ -1,6 +1,6 @@
-using RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Brain.GameFacts.Common;
 using DomainCell = RimGovernor.Brain.Domain.Cell;
-using WireRectangle = RimGovernor.Contracts.Wire.Observations.Rectangle;
+using WireRectangle = RimGovernor.Brain.GameFacts.Observations.Rectangle;
 
 namespace RimGovernor.Brain.Policy;
 

@@ -8,14 +8,14 @@ using Verse;
 using Verse.AI;
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // control/coupled-preempts-vanilla-holder (#3671): an unowned colonist's own vanilla haul of a staged stack, started
     // paused so the case need not race the holder's walk; the stage primitives cannot start a job.
     public sealed class PreemptHaulFixture
     {
         [Tool("test/preempt_haul_start", Description = "UNSAFE FOR MODEL EXECUTION. Start the holder's vanilla haul-to-storage job on the staged stack, reserving it. Test builds only.")]
-        public async Task<object> Start(IRimBridgeContext ctx, CancellationToken ct,
+        public async Task<object> Start(INativeContext ctx, CancellationToken ct,
             [ToolParameter(Description = "The holder's load id.")] string holder = "",
             [ToolParameter(Description = "The stack's load id.")] string stack = "") => await ctx.MainThread.InvokeAsync<object>(() =>
         {
@@ -29,7 +29,7 @@ namespace HomeBridge.BridgeTools
         }, ct).ConfigureAwait(false);
 
         [Tool("test/preempt_haul_read", Description = "UNSAFE FOR MODEL EXECUTION. Read the load id of the holder's job and whether it targets and reserves the stack. Test builds only.")]
-        public async Task<object> ReadTool(IRimBridgeContext ctx, CancellationToken ct,
+        public async Task<object> ReadTool(INativeContext ctx, CancellationToken ct,
             [ToolParameter(Description = "The holder's load id.")] string holder = "",
             [ToolParameter(Description = "The stack's load id.")] string stack = "") => await ctx.MainThread.InvokeAsync<object>(() =>
         {

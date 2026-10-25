@@ -1,7 +1,6 @@
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Telemetry;
-using Clock = RimGovernor.Contracts.Wire.Clock;
 using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -49,9 +48,9 @@ public static class HazardCases
         ServedOps.Succeeded<Fx.LetterPauseMode>(PauseModeTool, r => r.Success && r.Mode.Length > 0));
 
     // The colony watch policy (no combat events armed) with the policy's own hazard thresholds, which native requires (#2587).
-    private static readonly Clock.WatchPolicy Policy = new()
+    private static readonly RimGovernor.Brain.GameOrders.Clock.WatchPolicy Policy = new()
     {
-        Mode = Clock.WatchMode.Colony,
+        Mode = RimGovernor.Brain.GameOrders.Clock.WatchMode.Colony,
         HealthDropFraction = 0.1f,
         MinHealthFraction = 0.5f,
         HostileWithin = 40,
@@ -64,7 +63,7 @@ public static class HazardCases
         MeleeReachCells = (float)HazardThresholdsRules.MeleeReachCells,
         InjurySeverityFloorTicks = (uint)HazardThresholdsRules.InjurySeverityFloorTicks,
         // Only starvation holds here: these cases inject other hazards and must not stop for an ordinary hungry pawn.
-        HungerHoldCategory = RimGovernor.Contracts.Wire.Defs.HungerCategory.Starving,
+        HungerHoldCategory = RimGovernor.Brain.GameFacts.Defs.HungerCategory.Starving,
     };
 
     /// <summary>Registers every <c>hazard/*</c> case.</summary>
@@ -117,7 +116,7 @@ public static class HazardCases
     private static async Task RunColonyLostAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
-        var request = new ClockRunPlan { ExpectedGeneration = generation, Speed = Clock.Speed.Hyperfast, Policy = Policy };
+        var request = new ClockRunPlan { ExpectedGeneration = generation, Speed = RimGovernor.Brain.GameFacts.Clock.Speed.Hyperfast, Policy = Policy };
         long? startTick = null;
         Injection? killed = null;
         var held = await s.RunClockUntilHeldAsync(
@@ -138,28 +137,28 @@ public static class HazardCases
             cancellationToken).ConfigureAwait(false);
         s.Record("colony_lost", CombatLabKit.Obj(
             ("kill_tick", killed?.Tick),
-            ("hold_reason", (held.Hold as Clock.HoldState.HeldCase)?.Reason.ToString()),
+            ("hold_reason", (held.Hold as RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase)?.Reason.ToString()),
             ("hold_tick", held.Context?.Tick),
             ("detail", held.Hold.ToString()),
             ("killed", killed?.Evidence?.DeepClone())));
         if (killed is null)
         {
-            throw new AcceptanceException($"the clock held before the kill ({(held.Hold as Clock.HoldState.HeldCase)?.Reason}): {held.Hold}");
+            throw new AcceptanceException($"the clock held before the kill ({(held.Hold as RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase)?.Reason}): {held.Hold}");
         }
 
-        if (held.State != Clock.ClockState.Held || (held.Hold as Clock.HoldState.HeldCase)?.Reason != Clock.HoldReason.ColonyLost)
+        if (held.State != RimGovernor.Brain.GameFacts.Clock.ClockState.Held || (held.Hold as RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase)?.Reason != RimGovernor.Brain.GameFacts.Clock.HoldReason.ColonyLost)
         {
-            throw new AcceptanceException($"clock {held.State} {(held.Hold as Clock.HoldState.HeldCase)?.Reason} after the kill, expected held for ColonyLost: {held.Hold}");
+            throw new AcceptanceException($"clock {held.State} {(held.Hold as RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase)?.Reason} after the kill, expected held for ColonyLost: {held.Hold}");
         }
     }
 
     // The colony policy as a fight's combat watch, armed with the down: no hostile to acknowledge in a quiet world.
-    private static readonly Clock.WatchPolicy CombatPolicy = Policy with { Mode = Clock.WatchMode.Combat, CombatStopEvents = [Clock.CombatEvent.Downed] };
+    private static readonly RimGovernor.Brain.GameOrders.Clock.WatchPolicy CombatPolicy = Policy with { Mode = RimGovernor.Brain.GameOrders.Clock.WatchMode.Combat, CombatStopEvents = [RimGovernor.Brain.GameFacts.Clock.CombatEvent.Downed] };
 
     private static async Task RunCombatDownedAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
-        var request = new ClockRunPlan { ExpectedGeneration = generation, Speed = Clock.Speed.Hyperfast, Policy = CombatPolicy };
+        var request = new ClockRunPlan { ExpectedGeneration = generation, Speed = RimGovernor.Brain.GameFacts.Clock.Speed.Hyperfast, Policy = CombatPolicy };
         long? startTick = null;
         Injection? injected = null;
         var held = await s.RunClockUntilHeldAsync(
@@ -180,20 +179,20 @@ public static class HazardCases
             cancellationToken).ConfigureAwait(false);
         if (injected is null)
         {
-            throw new AcceptanceException($"the clock held before the injection ({(held.Hold as Clock.HoldState.HeldCase)?.Reason}): {held.Hold}");
+            throw new AcceptanceException($"the clock held before the injection ({(held.Hold as RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase)?.Reason}): {held.Hold}");
         }
 
         var row = await s.HoldRowAsync("hold", held, cancellationToken).ConfigureAwait(false);
         var detected = ClockRows.Whole(row, ColonyEventTelemetry.DetectedTickKey);
         s.Record("hazard", CombatLabKit.Obj(
-            ("hold_reason", (held.Hold as Clock.HoldState.HeldCase)?.Reason.ToString()),
-            ("combat_event", ((held.Hold as Clock.HoldState.HeldCase)?.Trigger as Clock.HoldTrigger.CombatCase)?.Event.ToString()),
+            ("hold_reason", (held.Hold as RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase)?.Reason.ToString()),
+            ("combat_event", ((held.Hold as RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase)?.Trigger as RimGovernor.Brain.GameFacts.Clock.HoldTrigger.CombatCase)?.Event.ToString()),
             ("inject_tick", injected.Tick),
             ("detected_tick", detected),
             ("injected", injected.Evidence?.DeepClone())));
-        if ((held.Hold as Clock.HoldState.HeldCase)?.Reason != Clock.HoldReason.CombatEvent || ((held.Hold as Clock.HoldState.HeldCase)?.Trigger as Clock.HoldTrigger.CombatCase)?.Event != Clock.CombatEvent.Downed)
+        if ((held.Hold as RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase)?.Reason != RimGovernor.Brain.GameFacts.Clock.HoldReason.CombatEvent || ((held.Hold as RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase)?.Trigger as RimGovernor.Brain.GameFacts.Clock.HoldTrigger.CombatCase)?.Event != RimGovernor.Brain.GameFacts.Clock.CombatEvent.Downed)
         {
-            throw new AcceptanceException($"hold {(held.Hold as Clock.HoldState.HeldCase)?.Reason} ({((held.Hold as Clock.HoldState.HeldCase)?.Trigger as Clock.HoldTrigger.CombatCase)?.Event}), expected the Downed combat event: {held.Hold}");
+            throw new AcceptanceException($"hold {(held.Hold as RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase)?.Reason} ({((held.Hold as RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase)?.Trigger as RimGovernor.Brain.GameFacts.Clock.HoldTrigger.CombatCase)?.Event}), expected the Downed combat event: {held.Hold}");
         }
 
         var gap = detected - injected.Tick;
@@ -205,26 +204,26 @@ public static class HazardCases
 
     // One class: how it is injected and the hold it must raise (with whether a game hook lands it), or -- for a demoted
     // tier, Reason null -- the invalidation wake it must raise instead while the run goes on.
-    private sealed record HazardCase(string Name, string Class, Clock.HoldReason? Reason, bool Hooked, long Bound, string Scope, Func<TypedSession, CancellationToken, Task<Injection>> Inject);
+    private sealed record HazardCase(string Name, string Class, RimGovernor.Brain.GameFacts.Clock.HoldReason? Reason, bool Hooked, long Bound, string Scope, Func<TypedSession, CancellationToken, Task<Injection>> Inject);
 
     // The tick the fixture acted on, the injury's bleed-out estimate (0: not bleeding out, or not an injury) and the reply as evidence.
     private sealed record Injection(long Tick, long BleedOutTicks, JsonNode? Evidence);
 
     private static HazardCase[] Classes() =>
     [
-        new("hazard/letter", "notification_batch", Clock.HoldReason.NotificationBatch, true, ProbeIntervalTicks,
+        new("hazard/letter", "notification_batch", RimGovernor.Brain.GameFacts.Clock.HoldReason.NotificationBatch, true, ProbeIntervalTicks,
             "A letter received mid-run at Hyperfast holds the clock as notification_batch within the 30-tick bound (the letter hook lands it next tick).",
             InjectLetterAsync),
-        new("hazard/hostile", "hostile", Clock.HoldReason.Hostile, true, ProbeIntervalTicks,
+        new("hazard/hostile", "hostile", RimGovernor.Brain.GameFacts.Clock.HoldReason.Hostile, true, ProbeIntervalTicks,
             "A hostile pawn spawned near a colonist mid-run at Hyperfast holds the clock as hostile within the 30-tick bound (the spawn hook lands it next tick).",
             InjectOp("hostile")),
-        new("hazard/downed", "colonist_downed", Clock.HoldReason.ColonistDowned, true, HookedBoundTicks,
+        new("hazard/downed", "colonist_downed", RimGovernor.Brain.GameFacts.Clock.HoldReason.ColonistDowned, true, HookedBoundTicks,
             "A colonist downed mid-run at Hyperfast holds the clock as colonist_downed within the hooked 1-tick bound.",
             InjectOp("downed")),
         new("hazard/injury", "colonist_injury", null, false, ProbeIntervalTicks,
             "A colonist wounded under the severity floor mid-run at Hyperfast keeps the clock running and invalidates the medical facts within the 30-tick probe bound (#584).",
             InjectOp("injury")),
-        new("hazard/predator", "predator_hunt", Clock.HoldReason.PredatorHunt, false, ProbeIntervalTicks,
+        new("hazard/predator", "predator_hunt", RimGovernor.Brain.GameFacts.Clock.HoldReason.PredatorHunt, false, ProbeIntervalTicks,
             "A predator hunting a colonist mid-run at Hyperfast holds the clock as predator_hunt within the 30-tick probe bound.",
             InjectOp("predator")),
     ];
@@ -289,7 +288,7 @@ public static class HazardCases
     private static async Task RunHazardAsync(TypedSession s, HazardCase hc, CancellationToken cancellationToken)
     {
         var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
-        var request = new ClockRunPlan { ExpectedGeneration = generation, Speed = Clock.Speed.Hyperfast, Policy = Policy };
+        var request = new ClockRunPlan { ExpectedGeneration = generation, Speed = RimGovernor.Brain.GameFacts.Clock.Speed.Hyperfast, Policy = Policy };
 
         // The run goes on SettleTicks before the injection, which lands while the clock still runs; a hold before then is a
         // hazard the colony raised on its own and fails the case. The demoted tier ends on its wake instead of a hold.
@@ -322,13 +321,13 @@ public static class HazardCases
                 }
 
                 wake = s.Telemetry(TelemetryKinds.ClockInvalidation)
-                    .FirstOrDefault(row => ClockRows.ObservedSince(row, injectedSince) && HasFamily(row, Clock.FactFamily.Pawns));
+                    .FirstOrDefault(row => ClockRows.ObservedSince(row, injectedSince) && HasFamily(row, RimGovernor.Brain.GameFacts.Clock.FactFamily.Pawns));
                 return wake is not null;
             },
             cancellationToken).ConfigureAwait(false);
         if (injected is null)
         {
-            throw new AcceptanceException($"the clock held before the injection ({(status.Hold as Clock.HoldState.HeldCase)?.Reason}): {status.Hold}");
+            throw new AcceptanceException($"the clock held before the injection ({(status.Hold as RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase)?.Reason}): {status.Hold}");
         }
 
         if (hc.Reason is { } reason)
@@ -341,7 +340,7 @@ public static class HazardCases
         }
     }
 
-    private static async Task AssertHoldAsync(TypedSession s, HazardCase hc, Clock.HoldReason reason, Injection injected, Clock.Status held, CancellationToken cancellationToken)
+    private static async Task AssertHoldAsync(TypedSession s, HazardCase hc, RimGovernor.Brain.GameFacts.Clock.HoldReason reason, Injection injected, RimGovernor.Brain.GameFacts.Clock.Status held, CancellationToken cancellationToken)
     {
         // The hold row carries what the status does not: the event's detected and occurrence ticks.
         var row = await s.HoldRowAsync("hold", held, cancellationToken).ConfigureAwait(false);
@@ -358,7 +357,7 @@ public static class HazardCases
         s.Record("hazard", CombatLabKit.Obj(
             ("class", hc.Class),
             ("bound_ticks", hc.Bound),
-            ("hold_reason", (held.Hold as Clock.HoldState.HeldCase)?.Reason.ToString()),
+            ("hold_reason", (held.Hold as RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase)?.Reason.ToString()),
             ("inject_tick", injected.Tick),
             ("hold_tick", holdTick),
             ("detected_tick", detected),
@@ -379,10 +378,10 @@ public static class HazardCases
         response.DetectionTick = detected;
         s.Record("response", response.ToJson());
 
-        var shown = $"{(held.Hold as Clock.HoldState.HeldCase)?.Reason} at tick {holdTick}: {held.Hold}";
-        if ((held.Hold as Clock.HoldState.HeldCase)?.Reason != reason)
+        var shown = $"{(held.Hold as RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase)?.Reason} at tick {holdTick}: {held.Hold}";
+        if ((held.Hold as RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase)?.Reason != reason)
         {
-            throw new AcceptanceException($"hold reason {(held.Hold as Clock.HoldState.HeldCase)?.Reason}, expected {reason}: {shown}");
+            throw new AcceptanceException($"hold reason {(held.Hold as RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase)?.Reason}, expected {reason}: {shown}");
         }
 
         if (detected is null || occurrence is null)
@@ -431,7 +430,7 @@ public static class HazardCases
     // Proves a tier the supervisor no longer holds for: the hazard is detected within the class's bound and published as a
     // clock_invalidation wake naming the pawn and emergency families, and the clock keeps running -- the review the hold
     // used to buy, without the hold-to-readmit pause.
-    private static void AssertDemoted(TypedSession s, HazardCase hc, Injection injected, Clock.Status ended, LogRow? wake)
+    private static void AssertDemoted(TypedSession s, HazardCase hc, Injection injected, RimGovernor.Brain.GameFacts.Clock.Status ended, LogRow? wake)
     {
         var wakeTick = wake is null ? (long?)null : ClockRows.Tick(wake);
         var families = wake is null ? "" : string.Join(",", ClockRows.Strings(wake, "families"));
@@ -457,9 +456,9 @@ public static class HazardCases
         }
 
         // The run survives the wake: the readmit the hold used to cost is exactly what this tier no longer spends.
-        if (ended.State == Clock.ClockState.Held || wake is null)
+        if (ended.State == RimGovernor.Brain.GameFacts.Clock.ClockState.Held || wake is null)
         {
-            throw new AcceptanceException($"the clock was held ({(ended.Hold as Clock.HoldState.HeldCase)?.Reason}) for a wound under the severity floor: {ended.Hold}");
+            throw new AcceptanceException($"the clock was held ({(ended.Hold as RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase)?.Reason}) for a wound under the severity floor: {ended.Hold}");
         }
 
         if (gap is < 0 || gap > hc.Bound)
@@ -467,13 +466,13 @@ public static class HazardCases
             throw new AcceptanceException($"the medical wake landed {gap} ticks after the injection, bound {hc.Bound}: families {families}");
         }
 
-        if (!HasFamily(wake, Clock.FactFamily.Emergency))
+        if (!HasFamily(wake, RimGovernor.Brain.GameFacts.Clock.FactFamily.Emergency))
         {
             throw new AcceptanceException($"the medical wake does not invalidate the emergency family: families {families}");
         }
     }
 
     // Reports whether a clock_invalidation row names a fact family; the row carries the enum's C# name.
-    private static bool HasFamily(LogRow row, Clock.FactFamily family) =>
+    private static bool HasFamily(LogRow row, RimGovernor.Brain.GameFacts.Clock.FactFamily family) =>
         ClockRows.Strings(row, "families").Contains(family.ToString(), StringComparer.Ordinal);
 }

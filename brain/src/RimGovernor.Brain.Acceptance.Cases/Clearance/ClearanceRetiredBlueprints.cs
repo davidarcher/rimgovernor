@@ -2,7 +2,6 @@ using System.Globalization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -72,11 +71,11 @@ internal static class ClearanceRetiredBlueprints
         }, cancellationToken).ConfigureAwait(false);
         _ = await s.ServeUntilAsync("retired-blueprints", s.TicksLeft, async ct =>
         {
-            var pending = await s.BuildingsAsync("pending", new Observations.ListBuildingsRequest
+            var pending = await s.BuildingsAsync("pending", new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest
             {
-                Statuses = [Observations.BuildingStatus.Blueprint, Observations.BuildingStatus.Frame],
+                Statuses = [RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Blueprint, RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Frame],
             }, ct).ConfigureAwait(false);
-            var onCell = pending.Where(b => b.Building.Place is Observations.EntityPlace.OnMap { Cell: var p } && p.X == cell.X && p.Z == cell.Z).ToList();
+            var onCell = pending.Where(b => b.Building.Place is RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap { Cell: var p } && p.X == cell.X && p.Z == cell.Z).ToList();
             s.Record("on_cell", string.Join(' ', onCell.Select(b => $"{b.Building.Id}:{b.Status}")));
             var gone = onCell.Count == 0 && !pending.Any(b => blueprint.Ids.Contains(b.Building.Id));
             return (string.Create(CultureInfo.InvariantCulture, $"{onCell.Count} {string.Join(',', onCell.Select(b => b.Building.Id))}"), gone);

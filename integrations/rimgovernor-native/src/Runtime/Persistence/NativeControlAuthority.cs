@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     public enum NativeControlRevocationReason
     {

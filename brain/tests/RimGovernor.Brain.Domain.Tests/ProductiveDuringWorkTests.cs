@@ -1,8 +1,10 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Policy.Methods.Generation;
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -20,7 +22,7 @@ public sealed class ProductiveDuringWorkTests
         var worker = new ResearchWorker("pawn", "bench", new(1, 1), "research", "giver", "job", .5)
             { SkillWork = Work("Intellectual", 10000, .5, fixedDuration: true) };
         var read = new ResearchActivityRead { Workers = [worker], Findings = [] };
-        Assert.Equal(read, WireJson.Deserialize<ResearchActivityRead>(WireJson.Serialize(read)));
+        Assert.Equal(read, OrdersJson.Deserialize<ResearchActivityRead>(OrdersJson.Serialize(read)));
         var generated = ResearchMethodCandidates.Generate(read, GameTime.TicksPerDay, new([], [], [], []), GameTime.TicksPerDay);
         var result = ProductiveLearningTests.Timed(ForecastProductiveWorkPolicy.ForecastProductiveWork(Assert.Single(generated.Options), [], 0));
         Assert.Equal(GameTime.TicksPerHour, result.WorkTicks);

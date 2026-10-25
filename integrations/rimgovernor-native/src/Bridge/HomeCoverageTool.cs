@@ -7,7 +7,7 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class HomeCoverage
     {

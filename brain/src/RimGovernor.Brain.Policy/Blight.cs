@@ -8,15 +8,15 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record BlightedPlant
 {
-    public required RimGovernor.Contracts.Wire.Observations.BlightedPlantState Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.BlightedPlantState Observed { get; init; }
 
-    public required RimGovernor.Contracts.Wire.Observations.EntityRef Entity { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.EntityRef Entity { get; init; }
 
     public string ID => Entity.Id;
 
     public string Definition => Entity.DefName;
 
-    public Cell Cell => Entity.Place is RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap { Cell: var cell }
+    public Cell Cell => Entity.Place is RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap { Cell: var cell }
         ? new Cell(cell.X, cell.Z)
         : throw new RequiredFactException("blighted plant map cell");
 

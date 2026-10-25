@@ -70,7 +70,7 @@ public static partial class TombRules
     /// Counts the unburied colonist dead, the empty graves and the plain graves, and returns the cells graves stand
     /// on. A buried body, colonist or stranger, fills its grave.
     /// </summary>
-    private static (TombStep Step, List<CurrentBuilding> Graves) TombCensus(IReadOnlyList<RimGovernor.Contracts.Wire.Observations.WasteItem> waste, IReadOnlyList<CurrentBuilding> built, string sarcophagus)
+    private static (TombStep Step, List<CurrentBuilding> Graves) TombCensus(IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.WasteItem> waste, IReadOnlyList<CurrentBuilding> built, string sarcophagus)
     {
         var dead = 0;
         var empty = 0;
@@ -78,7 +78,7 @@ public static partial class TombRules
         var filled = new HashSet<string>(StringComparer.Ordinal);
         foreach (var item in waste)
         {
-            if (item.CorpseClass != RimGovernor.Contracts.Wire.Common.CorpseClass.Colonist && item.CorpseClass != RimGovernor.Contracts.Wire.Common.CorpseClass.Stranger)
+            if (item.CorpseClass != RimGovernor.Brain.GameFacts.Common.CorpseClass.Colonist && item.CorpseClass != RimGovernor.Brain.GameFacts.Common.CorpseClass.Stranger)
             {
                 continue;
             }
@@ -86,7 +86,7 @@ public static partial class TombRules
             {
                 filled.Add(grave.Id);
             }
-            else if (item.CorpseClass == RimGovernor.Contracts.Wire.Common.CorpseClass.Colonist)
+            else if (item.CorpseClass == RimGovernor.Brain.GameFacts.Common.CorpseClass.Colonist)
             {
                 dead++;
             }
@@ -138,7 +138,7 @@ public static partial class TombRules
     /// </summary>
     public static TombStep NextTombStep(
         LayoutPlan plan,
-        IReadOnlyList<RimGovernor.Contracts.Wire.Observations.WasteItem> waste,
+        IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.WasteItem> waste,
         IReadOnlyList<CurrentBuilding> built,
         PieceShapes shapes,
         bool sarcophagus
@@ -191,7 +191,7 @@ public static partial class TombRules
         PieceShapes shapes,
         bool available,
         LayoutPlan? plan,
-        EquatableArray<RimGovernor.Contracts.Wire.Observations.WasteItem> waste,
+        EquatableArray<RimGovernor.Brain.GameFacts.Observations.WasteItem> waste,
         CurrentConstruction? built
     )
     {

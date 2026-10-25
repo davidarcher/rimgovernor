@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Telemetry;
 
 /// <summary>
-/// The tier-2 colony model's per-review row (the Rounder's <c>colony_model</c> event; docs/developers/contracts/otel-signals.md#kinds):
+/// The tier-2 colony model's per-review row (the ColonyReview's <c>colony_model</c> event; docs/developers/contracts/otel-signals.md#kinds):
 /// its kind and the attrs a reader selects. Readers: the <c>goals/research-goal</c> and <c>production/skill-marginal</c> acceptance cases.
 /// </summary>
 public static class ColonyModelTelemetry

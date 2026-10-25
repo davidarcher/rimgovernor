@@ -9,14 +9,14 @@ using RimWorld.Planet;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Test-only trade participants and pinned stock the stage primitives cannot express, and the inventories the trade
     // read does not cover. Every reply is a RimGovernor.Fixtures.Contracts record.
     public sealed class TradeFixture
     {
         [Tool("test/trade_fixture", Description = "Disposable trade acceptance setup/readback; excluded from production builds and model execution.")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> Run(INativeContext ctx, CancellationToken cancellationToken,
             string action = "", string? traderId = null, string? pawnId = null, string channel = "", string? caravanId = null)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {

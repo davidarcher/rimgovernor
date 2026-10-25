@@ -1,22 +1,21 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class HumanButcherIdeologyTests
 {
-    private static readonly O.HumanButcherCandidate Worker = new() { PawnId = "worker", CanWork = true, PawnTraits = [] };
+    private static readonly RimGovernor.Brain.GameFacts.Observations.HumanButcherCandidate Worker = new() { PawnId = "worker", CanWork = true, PawnTraits = [] };
 
-    private static O.ColonyFactsSnapshot Snapshot() => ColonyFactsCoreTests.Snapshot() with
+    private static RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot Snapshot() => ColonyFactsCoreTests.Snapshot() with
     {
         ProductionBenches = [new()
         {
             Bench = ProductionBenchFixtures.Observed("bench", "ButcherTable", "token", true),
-            Cooking = new O.CookingProduction.NotSupported(),
-            Butchering = new O.ButcheringProduction.Supported { Usable = true, Recipes = [], HumanButchers = [Worker], HumanCorpseMeat = [] },
+            Cooking = new RimGovernor.Brain.GameFacts.Observations.CookingProduction.NotSupported(),
+            Butchering = new RimGovernor.Brain.GameFacts.Observations.ButcheringProduction.Supported { Usable = true, Recipes = [], HumanButchers = [Worker], HumanCorpseMeat = [] },
         }],
     };
 
@@ -25,7 +24,7 @@ public sealed class HumanButcherIdeologyTests
     [InlineData(false)]
     public void ProductionRetainsTheExactPawnIdeologyAndCandidate(bool member)
     {
-        O.PawnIdeo ideology = member ? new O.PawnIdeo.Member("other", ["Butchery_Disapproved"], null, .5) : new O.PawnIdeo.None();
+        RimGovernor.Brain.GameFacts.Observations.PawnIdeo ideology = member ? new RimGovernor.Brain.GameFacts.Observations.PawnIdeo.Member("other", ["Butchery_Disapproved"], null, .5) : new RimGovernor.Brain.GameFacts.Observations.PawnIdeo.None();
         var pawn = EmergencyFixtures.Placed(Worker.PawnId);
         pawn = pawn with { Settings = pawn.Settings with { PolicyInputs = pawn.Settings.PolicyInputs with { Ideo = ideology } } };
         var catalog = new DefinitionCatalog([new Verse.ThingDef { defName = "Silver" }, new Verse.TerrainDef { defName = "Soil" }],
@@ -57,11 +56,11 @@ public sealed class HumanButcherIdeologyTests
                 }]),
             },
         }, new IdeoligionFacts { Observed = IdeologyReadsTests.NoPrecepts }));
-        var candidate = new HumanButcherCandidate { Observed = Worker, Ideology = new O.PawnIdeo.Member("other", ["Butchery_Disapproved"], null, .5) };
+        var candidate = new HumanButcherCandidate { Observed = Worker, Ideology = new RimGovernor.Brain.GameFacts.Observations.PawnIdeo.Member("other", ["Butchery_Disapproved"], null, .5) };
 
         Assert.False(HumanFoodRules.QualifyingHumanButcher([candidate], ideology).Ok);
-        Assert.True(HumanFoodRules.QualifyingHumanButcher([candidate with { Ideology = new O.PawnIdeo.Member("other", [], null, .5) }], ideology).Ok);
-        var noIdeology = candidate with { Ideology = new O.PawnIdeo.None() };
+        Assert.True(HumanFoodRules.QualifyingHumanButcher([candidate with { Ideology = new RimGovernor.Brain.GameFacts.Observations.PawnIdeo.Member("other", [], null, .5) }], ideology).Ok);
+        var noIdeology = candidate with { Ideology = new RimGovernor.Brain.GameFacts.Observations.PawnIdeo.None() };
         Assert.False(HumanFoodRules.QualifyingHumanButcher([noIdeology], ideology).Ok);
         Assert.True(HumanFoodRules.QualifyingHumanButcher([noIdeology], new IdeologyMode.NotInstalled()).Ok);
         var traitQualified = noIdeology with { Traits = [new PawnTrait { Observed = new() { DefName = "Cannibal" }, Effects = new TraitEffects { HumanButcher = true } }] };

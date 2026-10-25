@@ -3,7 +3,6 @@ using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -116,18 +115,18 @@ internal static class LayoutBarracksSplits
         var before = CoupledSelections.Of(s, 0).Select(r => r.Sequence).DefaultIfEmpty(0UL).Max();
         CoupledSelectionRow? started = null;
         var owned = "";
-        Observations.BuildingState? newBed = null;
-        Observations.RoomState? bedRoom = null;
+        RimGovernor.Brain.GameFacts.Observations.BuildingState? newBed = null;
+        RimGovernor.Brain.GameFacts.Observations.RoomState? bedRoom = null;
         _ = await s.ServeUntilAsync("bedroom-moved", s.TicksLeft, async ct =>
         {
             // The first bed placed outside the barracks, at whatever stage, and the room its cell lies in then.
             if (newBed is null)
             {
-                var buildings = await s.BuildingsAsync("beds", new Observations.ListBuildingsRequest(), ct).ConfigureAwait(false);
-                newBed = buildings.FirstOrDefault(b => (b.Construction is Observations.ConstructionState.Build build ? build.Definition : b.Building.DefName) == "Bed" && !barracksBeds.Contains(b.Building.Id));
-                if (newBed?.Building.Place is Observations.EntityPlace.OnMap { Cell: var at })
+                var buildings = await s.BuildingsAsync("beds", new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest(), ct).ConfigureAwait(false);
+                newBed = buildings.FirstOrDefault(b => (b.Construction is RimGovernor.Brain.GameFacts.Observations.ConstructionState.Build build ? build.Definition : b.Building.DefName) == "Bed" && !barracksBeds.Contains(b.Building.Id));
+                if (newBed?.Building.Place is RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap { Cell: var at })
                 {
-                    var request = new Observations.ListRoomsRequest { Scope = s.Scope, Region = new Observations.Rectangle { Minimum = at, Maximum = at } };
+                    var request = new RimGovernor.Brain.GameOrders.Observations.ListRoomsRequest { Scope = s.Scope, Region = new RimGovernor.Brain.GameFacts.Observations.Rectangle { Minimum = at, Maximum = at } };
                     var reply = await s.CallAsync("bed-room", NativeOps.ListRooms, request, ct).ConfigureAwait(false);
                     var rooms = reply.Rooms;
                     bedRoom = rooms.Count > 0 ? rooms[0] : null;

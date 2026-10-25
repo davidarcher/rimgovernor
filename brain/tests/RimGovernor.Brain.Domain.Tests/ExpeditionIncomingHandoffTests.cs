@@ -1,13 +1,11 @@
 using System.Reflection;
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using Journal = RimGovernor.Brain.Store.Store;
-using PbCommon = RimGovernor.Contracts.Wire.Common;
-using PbObservations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -36,16 +34,16 @@ public sealed class ExpeditionIncomingHandoffTests
 
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
-            if (targetMethod?.Name != nameof(IClockStepNative.ReadWorldProgressionAsync))
+            if (targetMethod?.Name != nameof(IPlannerStepNative.ReadWorldProgressionAsync))
             {
                 throw new NotSupportedException(targetMethod?.Name + " is outside the handoff rig");
             }
             Reads++;
-            return Task.FromResult(new RimGovernor.Contracts.Wire.Observations.WorldProgressionSnapshot
+            return Task.FromResult(new RimGovernor.Brain.GameFacts.Observations.WorldProgressionSnapshot
             {
-                Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = Colony, LoadToken = Load, MapId = ExpeditionMap }, Tick = 100 },
+                Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = Colony, LoadToken = Load, MapId = ExpeditionMap }, Tick = 100 },
                 Caravans = [], Assemblies = [], Quests = [], Sites = [],
-                Maps = [new PbObservations.WorldMap { Id = ExpeditionMap, Tile = DestinationTile, Home = true, Pawns = [PawnFixtures.Row(Pawn)], QuestWorkers = [] }],
+                Maps = [new RimGovernor.Brain.GameFacts.Observations.WorldMap { Id = ExpeditionMap, Tile = DestinationTile, Home = true, Pawns = [PawnFixtures.Row(Pawn)], QuestWorkers = [] }],
             });
         }
     }
@@ -92,9 +90,9 @@ public sealed class ExpeditionIncomingHandoffTests
     }
 
     /// <summary>A bundle exactly as the step read returns it: a context and no world progression.</summary>
-    private static PbObservations.BundleSnapshot Bundle(int map) => new()
+    private static RimGovernor.Brain.GameFacts.Observations.BundleSnapshot Bundle(int map) => new()
     {
-        Context = new PbCommon.ObservationContext { Identity = new PbCommon.Identity { ColonyId = Colony, LoadToken = Load, MapId = map }, Tick = 100, NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase(1) },
+        Context = new RimGovernor.Brain.GameFacts.Common.ObservationContext { Identity = new RimGovernor.Brain.GameFacts.Common.Identity { ColonyId = Colony, LoadToken = Load, MapId = map }, Tick = 100, NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase(1) },
     };
 
     /// <summary>A running control for the home map and an accepted departure of <see cref="Pawn"/> to the expedition tile.</summary>
@@ -102,7 +100,7 @@ public sealed class ExpeditionIncomingHandoffTests
     {
         IntentActionRules.RegisterIntentKinds();
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-expedition-handoff-" + Guid.NewGuid().ToString("N") + ".db"), Ct);
-        _ = journal.ReviewRounds(new RoundsRequest { Current = Home, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create(Pawn) }, Ct);
+        _ = journal.Review(new ReviewRequest { Current = Home, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create(Pawn) }, Ct);
         var plan = new PlanSpec(new("expedition-plan"), new(1),
             [DomainAction.NewCaravanDepartureAction(new("expedition-action"), new CaravanDeparture([new(Pawn)], [], DestinationTile))]);
         _ = TestNeed.Commit(journal, Home, new("quest-expedition-q1-site1-a"), plan, Ct);
@@ -126,7 +124,7 @@ public sealed class ExpeditionIncomingHandoffTests
         var (journal, player, session) = await RigAsync();
         using var _ = journal;
         using var __ = player;
-        var native = DispatchProxy.Create<IClockStepNative, Native>();
+        var native = DispatchProxy.Create<IPlannerStepNative, Native>();
 
         using var entry = await player.EnterAsync("test", false, Ct);
         var handled = await player.ExpeditionIncomingHandoffAsync(Bundle(ExpeditionMap), native, entry.Call, entry.Epoch);
@@ -143,7 +141,7 @@ public sealed class ExpeditionIncomingHandoffTests
         var (journal, player, session) = await RigAsync();
         using var _ = journal;
         using var __ = player;
-        var native = DispatchProxy.Create<IClockStepNative, Native>();
+        var native = DispatchProxy.Create<IPlannerStepNative, Native>();
 
         using var entry = await player.EnterAsync("test", false, Ct);
         var handled = await player.ExpeditionIncomingHandoffAsync(Bundle(HomeMap), native, entry.Call, entry.Epoch);

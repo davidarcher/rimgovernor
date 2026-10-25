@@ -1,11 +1,6 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Control = RimGovernor.Contracts.Wire.Authority;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -183,9 +178,9 @@ internal static class LifecycleReuse
         var revoke = await s.CallAsync(
             c.Name + "-revoke",
             NativeOps.ControlAuthority,
-            new Control.ControlRequest
+            new RimGovernor.Brain.GameOrders.Authority.ControlRequest
             {
-                Operation = new Control.Revoke { Identity = identity, ExpectedGeneration = (status.Context ?? throw new AcceptanceException("revoke: the status carried no context")).NativeGeneration.Claimed("revoke: the status named no generation"), Reason = Control.RevocationReason.Manual },
+                Operation = new RimGovernor.Brain.GameOrders.Authority.Revoke { Identity = identity, ExpectedGeneration = (status.Context ?? throw new AcceptanceException("revoke: the status carried no context")).NativeGeneration.Claimed("revoke: the status named no generation"), Reason = RimGovernor.Brain.GameFacts.Authority.RevocationReason.Manual },
             },
             cancellationToken).ConfigureAwait(false);
         if (revoke.Outcome?.Revoked is null)
@@ -238,7 +233,7 @@ internal static class LifecycleReuse
     }
 
     /// <summary>Sets authority to Auto and drafts the first standing colonist through the draft intent; returns the drafted pawn's id.</summary>
-    private static async Task<string> DraftColonistAsync(TypedSession s, Common.Identity identity, string label, CancellationToken cancellationToken)
+    private static async Task<string> DraftColonistAsync(TypedSession s, RimGovernor.Brain.GameFacts.Common.Identity identity, string label, CancellationToken cancellationToken)
     {
         var status = await TypedAuthority.StatusAsync(s, label + "-status", identity, cancellationToken).ConfigureAwait(false);
         _ = await TypedAuthority.GrantAsync(s, label + "-auto", identity, (status.Context ?? throw new AcceptanceException($"{label}-status: no generation: {status}")).NativeGeneration.Claimed($"{label}-status: no generation: {status}"), cancellationToken).ConfigureAwait(false);
@@ -255,27 +250,27 @@ internal static class LifecycleReuse
     }
 
     // The first standing colonist, or the one ids names.
-    private static async Task<Observations.PawnState> StandingAsync(TypedSession s, string label, Common.Identity identity, string[] ids, CancellationToken cancellationToken)
+    private static async Task<RimGovernor.Brain.GameFacts.Observations.PawnState> StandingAsync(TypedSession s, string label, RimGovernor.Brain.GameFacts.Common.Identity identity, string[] ids, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(
             label,
             NativeOps.ListPawns,
-            new Observations.ListPawnsRequest { Scope = TypedReads.Scope(identity), Filter = new Observations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only, Downed = RimGovernor.Contracts.Wire.Observations.PawnMembership.Excluded, Ids = [.. ids] } },
+            new RimGovernor.Brain.GameOrders.Observations.ListPawnsRequest { Scope = TypedReads.Scope(identity), Filter = new RimGovernor.Brain.GameFacts.Observations.PawnFilter { Colonist = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Only, Downed = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Excluded, Ids = [.. ids] } },
             cancellationToken).ConfigureAwait(false);
         var rows = reply.Pawns;
         return rows.Count > 0 ? rows[0] : throw new AcceptanceException($"{label}: no standing colonist");
     }
 
     // One draft intent through operations_apply; returns the applied receipt's effect.
-    private static async Task<Receipts.EffectEvidenceEffect> ApplyDraftAsync(TypedSession s, string label, Common.Identity identity, string pawn, bool drafted, CancellationToken cancellationToken)
+    private static async Task<RimGovernor.Brain.GameFacts.Receipts.EffectEvidenceEffect> ApplyDraftAsync(TypedSession s, string label, RimGovernor.Brain.GameFacts.Common.Identity identity, string pawn, bool drafted, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(
             label,
             NativeOps.Apply,
-            new Operations.ApplyRequest
+            new RimGovernor.Brain.GameOrders.Operations.ApplyRequest
             {
                 Identity = identity,
-                Actions = [new Operations.Action { Key = TypedLifecycle.Stamp(label), Intent = new Operations.DraftIntent { PawnId = pawn, Drafted = drafted } }], DeferSnapshot = false },
+                Actions = [new RimGovernor.Brain.GameOrders.Operations.Action { Key = TypedLifecycle.Stamp(label), Intent = new RimGovernor.Brain.GameOrders.Operations.DraftIntent { PawnId = pawn, Drafted = drafted } }], DeferSnapshot = false },
             cancellationToken).ConfigureAwait(false);
         var receipt = reply.Results.ToList() is [{ Outcome.Applied: { } applied }] ? applied : throw new AcceptanceException($"{label}: want one applied result, got {reply.BatchFailure} {string.Join("; ", reply.Results)}");
         return receipt.Outcome?.Applied?.Observed?.Effect ?? throw new AcceptanceException($"{label}: the receipt names no effect: {receipt}");

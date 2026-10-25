@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -34,7 +33,7 @@ public sealed record QuestRewardChoice
 
 public static class QuestRewards
 {
-    private static bool QuestWantsTitles(RoundsFacts f)
+    private static bool QuestWantsTitles(ReviewFacts f)
     {
         if (f.Royalty is not RoyaltyState.Active { Facts: var royalty })
         {
@@ -58,7 +57,7 @@ public static class QuestRewards
     /// without a reward choice is scored on that favor alone as choice -1. A multiple-part quest is refused because
     /// native cannot choose it.
     /// </summary>
-    public static QuestRewardChoice SelectQuestReward(QuestState offer, RoundsFacts f)
+    public static QuestRewardChoice SelectQuestReward(QuestState offer, ReviewFacts f)
     {
         if (offer.ChoicePartCount > 1)
         {

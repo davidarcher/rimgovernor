@@ -5,9 +5,10 @@ using System.Text;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.HttpChannel;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Contracts.Wire;
-using IdentityRequest = RimGovernor.Contracts.Wire.Lifecycle.IdentityRequest;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using IdentityRequest = RimGovernor.Brain.GameOrders.Lifecycle.IdentityRequest;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -279,8 +280,8 @@ public static class GameSessions
         {
             // A booting game misses replies for a while, so the probe goes around the transport's lost-run accounting.
             _ = await transport.SendAsync(
-                NativeOps.ReadIdentity.Tool,
-                new JsonObject { { "request", WireJson.Serialize(new IdentityRequest()) } },
+                NativeOps.ReadIdentity.Name,
+                new JsonObject { { "request", OrdersJson.Serialize(new IdentityRequest()) } },
                 new NativeCallOptions { Phase = "connect" },
                 round).ConfigureAwait(false);
             return null;
@@ -296,7 +297,7 @@ public static class GameSessions
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return $"{NativeOps.ReadIdentity.Tool}: no reply";
+            return $"{NativeOps.ReadIdentity.Name}: no reply";
         }
     }
 

@@ -1,8 +1,6 @@
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using C = RimGovernor.Contracts.Wire.Common;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -173,7 +171,7 @@ public sealed class ContainmentCreditTests
         var heldRow = Row("entity1", held: true);
         var waitingRow = Row("entity2", held: false);
         var platform = Platform("entity1", 5, 5, Now);
-        var forecast = RoundsContainmentReads.ContainmentForecastOf(
+        var forecast = ContainmentReads.ContainmentForecastOf(
             [heldRow, waitingRow, Row("noble", entity: false), Row("entity3", held: false, capturable: false)],
             [platform], curves);
         Assert.Equal("", forecast.Unread);
@@ -181,18 +179,18 @@ public sealed class ContainmentCreditTests
         Assert.Same(heldRow, forecast.Entities[0].Observed);
         Assert.Same(waitingRow, forecast.Entities[1].Observed);
         Assert.Same(platform, forecast.Entities[0].Platform);
-        var anomaly = Assert.IsType<O.PawnAnomalyState.Active>(heldRow.Anomaly).Facts;
+        var anomaly = Assert.IsType<RimGovernor.Brain.GameFacts.Observations.PawnAnomalyState.Active>(heldRow.Anomaly).Facts;
         Assert.Same(anomaly.Held!.Escape, forecast.Entities[0].Escape);
         Assert.Same(anomaly.Study!.Yield, forecast.Entities[0].Study);
         Assert.Null(forecast.Entities[1].Platform);
         // A held entity whose platform row is missing is unread.
-        Assert.StartsWith("entity1: ", RoundsContainmentReads.ContainmentForecastOf([Row("entity1", held: true)], [], curves).Unread);
+        Assert.StartsWith("entity1: ", ContainmentReads.ContainmentForecastOf([Row("entity1", held: true)], [], curves).Unread);
 
         var facts = ForecastCoupledTests.ConstructionReview() with { Containment = new() { Forecast = forecast } };
         Assert.Equal(forecast, ForecastCoupledCandidates.GenerateCoupledActivities(facts)!.Context.Harm.Containment);
         // A fresh colony has no entity: the forecast is empty and nothing throws.
         var fresh = ForecastCoupledCandidates.GenerateCoupledActivities(ForecastCoupledTests.ConstructionReview()
-            with { Containment = new() { Forecast = RoundsContainmentReads.ContainmentForecastOf([], [], curves) } })!.Context;
+            with { Containment = new() { Forecast = ContainmentReads.ContainmentForecastOf([], [], curves) } })!.Context;
         Assert.Empty(fresh.Harm.Containment.Entities);
         Assert.Empty(ForecastContainment.CellCredit(Cell, Outcome(), [], fresh, Day));
     }
@@ -201,11 +199,11 @@ public sealed class ContainmentCreditTests
     public void AWaitingCaptureForecastDoesNotReplaceItsNativeEscapeFacts()
     {
         var waiting = Entity(held: false);
-        var anomaly = Assert.IsType<O.PawnAnomalyState.Active>(waiting.Observed.Anomaly).Facts;
+        var anomaly = Assert.IsType<RimGovernor.Brain.GameFacts.Observations.PawnAnomalyState.Active>(waiting.Observed.Anomaly).Facts;
         var escape = waiting.Escape with { MovingFactor = 4, DaysInCaptivity = 120, ColdFactor = 2 };
         var observed = waiting.Observed with
         {
-            Anomaly = new O.PawnAnomalyState.Active(anomaly with { Held = anomaly.Held! with { Escape = escape } }),
+            Anomaly = new RimGovernor.Brain.GameFacts.Observations.PawnAnomalyState.Active(anomaly with { Held = anomaly.Held! with { Escape = escape } }),
         };
         waiting = waiting with { Observed = observed };
         Assert.Equal(0, ForecastContainment.EscapesPerDay(waiting, Planned, Curves));
@@ -221,10 +219,10 @@ public sealed class ContainmentCreditTests
     {
         var row = Row("entity1", held: true);
         var platform = Platform("entity1", 5, 5, Now);
-        var offMap = platform with { Building = platform.Building with { Place = new O.EntityPlace.Unplaced() } };
-        foreach (var buildings in new O.BuildingState[][] { [], [Platform("other", 5, 5, Now)], [offMap], [platform with { Anomaly = null }] })
+        var offMap = platform with { Building = platform.Building with { Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.Unplaced() } };
+        foreach (var buildings in new RimGovernor.Brain.GameFacts.Observations.BuildingState[][] { [], [Platform("other", 5, 5, Now)], [offMap], [platform with { Anomaly = null }] })
         {
-            var forecast = RoundsContainmentReads.ContainmentForecastOf([row], buildings, Curves);
+            var forecast = ContainmentReads.ContainmentForecastOf([row], buildings, Curves);
             Assert.StartsWith("entity1: ", forecast.Unread);
             Assert.Throws<RequiredFactException>(() => ForecastContainment.CellCredit(Cell, Outcome(), [], Context([], unread: forecast.Unread), Day));
         }
@@ -234,9 +232,9 @@ public sealed class ContainmentCreditTests
     public void NativeAbsenceOfStudyIsPreserved()
     {
         var row = Row("entity1", held: true);
-        var anomaly = Assert.IsType<O.PawnAnomalyState.Active>(row.Anomaly).Facts;
-        row = row with { Anomaly = new O.PawnAnomalyState.Active(anomaly with { Study = null }) };
-        var entity = Assert.Single(RoundsContainmentReads.ContainmentForecastOf([row], [Platform("entity1", 5, 5, Now)], Curves).Entities);
+        var anomaly = Assert.IsType<RimGovernor.Brain.GameFacts.Observations.PawnAnomalyState.Active>(row.Anomaly).Facts;
+        row = row with { Anomaly = new RimGovernor.Brain.GameFacts.Observations.PawnAnomalyState.Active(anomaly with { Study = null }) };
+        var entity = Assert.Single(ContainmentReads.ContainmentForecastOf([row], [Platform("entity1", 5, 5, Now)], Curves).Entities);
         Assert.Same(row, entity.Observed);
         Assert.Null(entity.Study);
         Assert.Equal(0, ForecastContainment.StudyPerDay(entity, Planned, Context([entity]), Curves));
@@ -256,38 +254,38 @@ public sealed class ContainmentCreditTests
             ForecastContainment.CellsOf(planning with { Defs = new ContainmentDefsRead.Unread("Wall is not among the planning definitions") }, floors));
     }
 
-    private static O.PawnState Row(string id, bool held = false, bool entity = true, bool capturable = true, double combatPower = 1000) => PawnFixtures.Row(id) with
+    private static RimGovernor.Brain.GameFacts.Observations.PawnState Row(string id, bool held = false, bool entity = true, bool capturable = true, double combatPower = 1000) => PawnFixtures.Row(id) with
     {
-        Anomaly = new O.PawnAnomalyState.Active(new O.PawnAnomaly
+        Anomaly = new RimGovernor.Brain.GameFacts.Observations.PawnAnomalyState.Active(new RimGovernor.Brain.GameFacts.Observations.PawnAnomaly
         {
             Entity = entity, Mutant = false, MinContainmentStrength = entity ? Need : 0,
             HiddenFromPlayer = false, PsychicRitualInvoker = false, MeleeOnly = false, Creepjoiner = null,
-            Held = entity ? new O.HeldState
+            Held = entity ? new RimGovernor.Brain.GameFacts.Observations.HeldState
             {
-                Held = held, CanBeCaptured = capturable, Mode = O.EntityContainmentModeKind.Study, Escaping = false, ExtractBioferrite = false,
+                Held = held, CanBeCaptured = capturable, Mode = RimGovernor.Brain.GameFacts.Observations.EntityContainmentModeKind.Study, Escaping = false, ExtractBioferrite = false,
                 NeedsTend = false, Bleeding = false, HarvesterAttached = false, BioferritePerDay = 0,
-                Escape = new O.EntityEscapeState { BaseMtbDays = MtbDays, MovingFactor = 1, DaysInCaptivity = 0, ColdFactor = 1, CombatPower = combatPower, CanEscape = held },
+                Escape = new RimGovernor.Brain.GameFacts.Observations.EntityEscapeState { BaseMtbDays = MtbDays, MovingFactor = 1, DaysInCaptivity = 0, ColdFactor = 1, CombatPower = combatPower, CanEscape = held },
             } : null,
-            Study = entity ? new O.StudyState { CurrentlyStudiable = true, Yield = new O.StudyYieldState { Knowledge = Knowledge, Category = "Basic", FrequencyTicks = (int)Day } } : null,
+            Study = entity ? new RimGovernor.Brain.GameFacts.Observations.StudyState { CurrentlyStudiable = true, Yield = new RimGovernor.Brain.GameFacts.Observations.StudyYieldState { Knowledge = Knowledge, Category = "Basic", FrequencyTicks = (int)Day } } : null,
         }),
     };
 
 
-    private static O.BuildingState Platform(string held, int x, int z, double strength) => new()
+    private static RimGovernor.Brain.GameFacts.Observations.BuildingState Platform(string held, int x, int z, double strength) => new()
     {
-        Roofed = false, RainVulnerable = false, FuelDefinitions = [], Turret = null, Conduit = O.ConduitKind.None,
-        Building = new O.EntityRef { Id = "platform", DefName = "HoldingPlatform", Label = "holding platform", Place = new O.EntityPlace.OnMap(0, new RimGovernor.Brain.Domain.Cell { X = x, Z = z }) },
-        Rotation = RimGovernor.Contracts.Wire.Placement.Rotation.North,
+        Roofed = false, RainVulnerable = false, FuelDefinitions = [], Turret = null, Conduit = RimGovernor.Brain.GameFacts.Observations.ConduitKind.None,
+        Building = new RimGovernor.Brain.GameFacts.Observations.EntityRef { Id = "platform", DefName = "HoldingPlatform", Label = "holding platform", Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(0, new RimGovernor.Brain.Domain.Cell { X = x, Z = z }) },
+        Rotation = RimGovernor.Brain.GameFacts.Placement.Rotation.North,
         Stuff = null,
         Faction = null,
-        Status = O.BuildingStatus.Built,
-        HitPoints = new O.BuildingHitPoints.Untracked(),
+        Status = RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Built,
+        HitPoints = new RimGovernor.Brain.GameFacts.Observations.BuildingHitPoints.Untracked(),
         Construction = null,
         Service = BuildingServiceWire.NoService,
-        Settings = new O.BuildingSettings { Forbidden = false, Control = new O.BuildingControl.None() },
+        Settings = new RimGovernor.Brain.GameFacts.Observations.BuildingSettings { Forbidden = false, Control = new RimGovernor.Brain.GameFacts.Observations.BuildingControl.None() },
         Burning = false,
-        Occupied = new O.Rectangle { Minimum = new RimGovernor.Brain.Domain.Cell { X = x, Z = z }, Maximum = new RimGovernor.Brain.Domain.Cell { X = x, Z = z } },
-        Anomaly = new O.AnomalyBuilding { Holder = new O.EntityHolderState { ContainmentStrength = strength, Available = false, HeldPawn = new C.Ref { Id = held }, Doors = [] } },
+        Occupied = new RimGovernor.Brain.GameFacts.Observations.Rectangle { Minimum = new RimGovernor.Brain.Domain.Cell { X = x, Z = z }, Maximum = new RimGovernor.Brain.Domain.Cell { X = x, Z = z } },
+        Anomaly = new RimGovernor.Brain.GameFacts.Observations.AnomalyBuilding { Holder = new RimGovernor.Brain.GameFacts.Observations.EntityHolderState { ContainmentStrength = strength, Available = false, HeldPawn = new RimGovernor.Brain.GameFacts.Common.Ref { Id = held }, Doors = [] } },
         Door = null,
     };
 }

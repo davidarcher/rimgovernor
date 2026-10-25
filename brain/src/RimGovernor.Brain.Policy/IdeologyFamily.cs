@@ -32,7 +32,7 @@ public sealed record IdeologyFacts
     public ConversionOwed Conversion { get; init; } = ConversionOwed.None;
 
     /// <summary>The ideoligion's development state: what a reform waiting for points reports. The reader fills it with the reform.</summary>
-    public RimGovernor.Contracts.Wire.Observations.IdeoDevelopment? Development { get; init; }
+    public RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment? Development { get; init; }
 }
 
 /// <summary>
@@ -129,7 +129,7 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
             {
                 if (facts.Reform is { Comparison.Decision: DesignDecision.Awaiting })
                 {
-                    var fluid = facts.Development as RimGovernor.Contracts.Wire.Observations.IdeoDevelopment.Fluid ?? throw new RequiredFactException("fluid ideoligion development");
+                    var fluid = facts.Development as RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment.Fluid ?? throw new RequiredFactException("fluid ideoligion development");
                     output.Add(NeedMethod.Held(Reform, FormattableString.Invariant($"{DevelopmentPoints}:{fluid.Points}/{fluid.NextReformPoints}"), "The next reform waits for development points."));
                     continue;
                 }
@@ -190,7 +190,7 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
 public static class IdeologyFamilyRules
 {
     /// <summary>Whether the Ideology expansion is active.</summary>
-    public static bool Installed(RoundsFacts f) => f.Ideology is IdeologyMode.Installed;
+    public static bool Installed(ReviewFacts f) => f.Ideology is IdeologyMode.Installed;
 
     /// <summary>
     /// The reform Need: met once the pending reform is observed, or while the choice is no reform (no memes, or not an

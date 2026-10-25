@@ -11,20 +11,19 @@ using RimGovernor.Brain.Bridge;
 using RimGovernor.Host.Sdk;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// The local HTTP/JSON control channel inside the mod (#3083), a test-only surface for the out-of-process acceptance
     /// harness. <c>POST /native/&lt;op&gt;</c> dispatches by an explicit table: each <see cref="NativeOps"/> entry runs its
-    /// <see cref="INativeFacade"/> method on the in-process facade (the same typed call the brain makes), the
+    /// <see cref="IGameApi"/> method on the in-process facade (the same typed call the brain makes), the
     /// harness's pull read of the newest frame runs its core here, the acceptance reads (<see cref="AcceptanceReadTools"/>) run theirs, and any other name is a tool of the host's own
-    /// registry (its lifecycle tools such as <c>rimgovernor/set_time_speed</c> and the <c>test/*</c> fixtures), run with
+    /// registry (its lifecycle tools such as <c>set_time_speed</c> and the <c>test/*</c> fixtures), run with
     /// a JSON object of named arguments. The channel itself (listener, guard, routes, endpoint file) is the game-free
     /// RimGovernor.Brain.HttpChannel; this file only adapts the mod to it and starts it.
     /// </summary>
     internal sealed class NativeOpTable : INativeOpInvoker
     {
-        private const string Prefix = NativeOp.ToolPrefix;
         private static readonly Dictionary<string, Func<string, CancellationToken, Task<string>>> Ops = Build();
 
         private static Dictionary<string, Func<string, CancellationToken, Task<string>>> Build()
@@ -32,10 +31,10 @@ namespace HomeBridge.BridgeTools
             var ops = new Dictionary<string, Func<string, CancellationToken, Task<string>>>(StringComparer.Ordinal);
             foreach (var op in NativeOps.All)
             {
-                if (op.OnFacade) ops.Add(op.Name, (body, ct) => op.InvokeJsonAsync(InProcessNativeFacade.Instance, body, ct));
+                if (op.OnFacade) ops.Add(op.Name, (body, ct) => op.InvokeJsonAsync(GameApi.Instance, body, ct));
             }
             ops.Add(NativeOps.ReadSnapshot.Name, (body, ct) => NativeOps.ReadSnapshot.InvokeJsonAsync(body,
-                (request, token) => ProtoBoundary.OnGameThread(NativeOps.ReadSnapshot.Tool, () => SnapshotStream.Read(request), token), ct));
+                (request, token) => GameThread.OnGameThread(NativeOps.ReadSnapshot.Name, () => SnapshotStream.Read(request), token), ct));
             foreach (var (name, read) in AcceptanceReadTools.Ops)
                 ops.Add(name, async (body, ct) => new JsonObject { ["payload"] = await read(Arguments(body), ct).ConfigureAwait(false) }.ToJsonString());
             return ops;
@@ -54,14 +53,10 @@ namespace HomeBridge.BridgeTools
             get
             {
                 var names = new HashSet<string>(Ops.Keys, StringComparer.Ordinal);
-                foreach (var name in RimBridgeToolAccess.Current?.ToolNames ?? Array.Empty<string>()) names.Add(RouteName(name));
+                foreach (var name in NativeToolAccess.Current?.ToolNames ?? Array.Empty<string>()) names.Add(name);
                 return names;
             }
         }
-
-        /// <summary>The route name of a canonical tool name: <c>rimgovernor/x</c> is <c>x</c>, any other name keeps its path.</summary>
-        private static string RouteName(string canonical) =>
-            canonical.StartsWith(Prefix, StringComparison.Ordinal) ? canonical.Substring(Prefix.Length) : canonical;
 
         public Task<string> InvokeAsync(string op, string body, CancellationToken cancellationToken) =>
             Ops.TryGetValue(op, out var run) ? run(body, cancellationToken) : InvokeRegisteredAsync(op, body, cancellationToken);
@@ -69,13 +64,12 @@ namespace HomeBridge.BridgeTools
         /// <summary>
         /// A host registry tool: the body is a JSON object of its arguments, the registry runs it as a wire call would,
         /// and the reply is its result as a JSON object (a non-object result is wrapped as <c>{"result": ...}</c>). The
-        /// registry alias is the canonical name, which is the route name with the <c>rimgovernor/</c> prefix put back
-        /// when the route had none of its own.
+        /// registry name is the route name.
         /// </summary>
         private static async Task<string> InvokeRegisteredAsync(string route, string argumentsJson, CancellationToken cancellationToken)
         {
-            var host = RimBridgeToolAccess.Current ?? throw new KeyNotFoundException(route);
-            var canonical = host.ToolNames.Contains(route, StringComparer.Ordinal) ? route : Prefix + route;
+            var host = NativeToolAccess.Current ?? throw new KeyNotFoundException(route);
+            var canonical = route;
             if (!host.ToolNames.Contains(canonical, StringComparer.Ordinal)) throw new KeyNotFoundException(route);
             var parsed = JToken.Parse(string.IsNullOrWhiteSpace(argumentsJson) ? "{}" : argumentsJson);
             if (parsed is not JObject body) throw new ArgumentException($"{canonical} takes a JSON object of arguments.");
@@ -144,7 +138,7 @@ namespace HomeBridge.BridgeTools
             {
                 try
                 {
-                    var registry = RimBridgeToolAccess.Published;
+                    var registry = NativeToolAccess.Published;
                     if (await Task.WhenAny(registry, Task.Delay(RegistryBudget)).ConfigureAwait(false) != registry)
                         throw new TimeoutException($"the host registry was not published within {RegistryBudget.TotalMinutes:0} minutes");
                     var routes = new RouteTable(IdleExit.Request);

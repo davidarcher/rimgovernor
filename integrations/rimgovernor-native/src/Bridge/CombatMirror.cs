@@ -9,12 +9,8 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 using Verse.AI.Group;
-using Clock = RimGovernor.Contracts.Wire.Clock;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Mirror = RimGovernor.Contracts.Wire.Mirror;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// Combat state for the snapshot stream: the combat_pawns
@@ -52,7 +48,7 @@ namespace HomeBridge.BridgeTools
             public int Tick;
             public uint Seq;
             public int CompareTo(Mark other) => Tick != other.Tick ? Tick.CompareTo(other.Tick) : Seq.CompareTo(other.Seq);
-            public Mirror.Watermark Wire() => new Mirror.Watermark { Tick = Tick, Seq = Seq };
+            public RimGovernor.Brain.GameFacts.Mirror.Watermark Wire() => new RimGovernor.Brain.GameFacts.Mirror.Watermark { Tick = Tick, Seq = Seq };
         }
         private static Mark _last = new Mark { Tick = int.MinValue };
         /// Next is a fresh mark, after every mark taken before it.
@@ -63,7 +59,7 @@ namespace HomeBridge.BridgeTools
             return _last;
         }
 
-        private struct Entry { public Mark Mark; public object? Game; public int MapId; public Mirror.CombatEventRow Row; }
+        private struct Entry { public Mark Mark; public object? Game; public int MapId; public RimGovernor.Brain.GameFacts.Mirror.CombatEventRow Row; }
         private static readonly List<Entry> Ring = new List<Entry>();
         // The event mark per pawn since the last capture: the newest event of
         // the highest rank, a downing or death (2) over another stop kind (1)
@@ -73,7 +69,7 @@ namespace HomeBridge.BridgeTools
         // Each pawn row's hash as last captured (without its changed mark),
         // by the shared row diff, and the mark of its last change,
         // keyed by load id.
-        private static readonly RowDiff<Mirror.CombatPawn> Compared = new RowDiff<Mirror.CombatPawn>();
+        private static readonly RowDiff<RimGovernor.Brain.GameFacts.Mirror.CombatPawn> Compared = new RowDiff<RimGovernor.Brain.GameFacts.Mirror.CombatPawn>();
         private static readonly Dictionary<string, Mark> ChangedAt = new Dictionary<string, Mark>();
         private static void Stamp(Thing? thing, Mark mark, int rank)
         {
@@ -151,15 +147,15 @@ namespace HomeBridge.BridgeTools
                     open = Math.Max(open, fall != null && delay != null && delay.FieldExists() ? now + fall.ticksToImpact + delay.GetValue<int>() : now + PodOpenFallbackTicks);
                 }
                 _active = true;
-                Record(Mirror.CombatLogKind.HostileArrived, null, pawns[0], null, "pods", row =>
-                    row with { Pods = new Mirror.PodLanding { OpenTick = open, LandingCells = [.. cells.Select(c => new RimGovernor.Brain.Domain.Cell { X = c.x, Z = c.z })] } });
+                Record(RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.HostileArrived, null, pawns[0], null, "pods", row =>
+                    row with { Pods = new RimGovernor.Brain.GameFacts.Mirror.PodLanding { OpenTick = open, LandingCells = [.. cells.Select(c => new RimGovernor.Brain.Domain.Cell { X = c.x, Z = c.z })] } });
             }
             catch { } // Harmony hook inside vanilla code, outside any tool call: a throw would reach the game (not probed in #1887)
         }
 
         /// Record appends an event row on thing's map while combat is active,
         /// stamping the pawns among thing and other with its mark.
-        internal static void Record(Mirror.CombatLogKind kind, Clock.CombatEvent? stop, Thing? thing, Thing? other, string? strategy = null, Func<Mirror.CombatEventRow, Mirror.CombatEventRow>? fill = null)
+        internal static void Record(RimGovernor.Brain.GameFacts.Mirror.CombatLogKind kind, RimGovernor.Brain.GameFacts.Clock.CombatEvent? stop, Thing? thing, Thing? other, string? strategy = null, Func<RimGovernor.Brain.GameFacts.Mirror.CombatEventRow, RimGovernor.Brain.GameFacts.Mirror.CombatEventRow>? fill = null)
         {
             if (!Active) return;
             try
@@ -167,15 +163,15 @@ namespace HomeBridge.BridgeTools
                 var map = thing?.MapHeld ?? other?.MapHeld;
                 if (map == null) return;
                 var mark = Next();
-                var row = new Mirror.CombatEventRow { At = mark.Wire(), Kind = kind };
-                if (stop is not null) row = row with { Stop = new Mirror.CombatStop { Kind = stop.Value } };
+                var row = new RimGovernor.Brain.GameFacts.Mirror.CombatEventRow { At = mark.Wire(), Kind = kind };
+                if (stop is not null) row = row with { Stop = new RimGovernor.Brain.GameFacts.Mirror.CombatStop { Kind = stop.Value } };
                 if (thing != null) row = row with { ThingId = LoadId(thing) };
                 if (other != null) row = row with { TargetId = LoadId(other) };
                 if (!string.IsNullOrEmpty(strategy)) row = row with { RaidStrategy = strategy };
                 if (fill != null) row = fill(row);
                 Ring.Add(new Entry { Mark = mark, Game = Verse.Current.Game, MapId = map.uniqueID, Row = row });
                 if (Ring.Count > RingSize) Ring.RemoveAt(0);
-                Stamp(thing, mark, kind == Mirror.CombatLogKind.Downed || kind == Mirror.CombatLogKind.Killed ? 2 : stop is not null ? 1 : 0);
+                Stamp(thing, mark, kind == RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.Downed || kind == RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.Killed ? 2 : stop is not null ? 1 : 0);
                 Stamp(other, mark, 0);
                 _dirty = true;
             }
@@ -188,31 +184,31 @@ namespace HomeBridge.BridgeTools
         /// map, oldest first. A pawn row's changed mark is the event that
         /// last concerned it (a downing outranks the damage around it), else
         /// the capture that first saw its current row.
-        internal static Observations.BundleSnapshot Capture(Map map, Observations.BundleSnapshot frame)
+        internal static RimGovernor.Brain.GameFacts.Observations.BundleSnapshot Capture(Map map, RimGovernor.Brain.GameFacts.Observations.BundleSnapshot frame)
         {
             // A load or lab restart sets the game's tick back: events stamped
             // past it belong to the earlier timeline.
             var now = Find.TickManager.TicksGame;
             Ring.RemoveAll(e => e.Mark.Tick > now || !ReferenceEquals(e.Game, Verse.Current.Game));
             var hostile = false;
-            var pawns = new List<(Pawn pawn, Mirror.CombatSide side)>();
+            var pawns = new List<(Pawn pawn, RimGovernor.Brain.GameFacts.Mirror.CombatSide side)>();
             var wild = new List<Pawn>();
             foreach (var p in map.mapPawns.AllPawnsSpawned)
             {
-                Mirror.CombatSide side;
-                if (p.IsColonist) side = Mirror.CombatSide.Colonist;
-                else if (p.HostFaction == Faction.OfPlayer && PrisonBreakUtility.IsPrisonBreaking(p)) { side = Mirror.CombatSide.Prisoner; if (!p.Downed) hostile = true; }
-                else if (p.HostileTo(Faction.OfPlayer)) { side = Mirror.CombatSide.Hostile; if (!p.Downed) hostile = true; }
-                else if (p.Faction == Faction.OfPlayer && p.RaceProps.Animal) side = Mirror.CombatSide.ColonyAnimal;
+                RimGovernor.Brain.GameFacts.Mirror.CombatSide side;
+                if (p.IsColonist) side = RimGovernor.Brain.GameFacts.Mirror.CombatSide.Colonist;
+                else if (p.HostFaction == Faction.OfPlayer && PrisonBreakUtility.IsPrisonBreaking(p)) { side = RimGovernor.Brain.GameFacts.Mirror.CombatSide.Prisoner; if (!p.Downed) hostile = true; }
+                else if (p.HostileTo(Faction.OfPlayer)) { side = RimGovernor.Brain.GameFacts.Mirror.CombatSide.Hostile; if (!p.Downed) hostile = true; }
+                else if (p.Faction == Faction.OfPlayer && p.RaceProps.Animal) side = RimGovernor.Brain.GameFacts.Mirror.CombatSide.ColonyAnimal;
                 else if (p.Faction == null && p.RaceProps.Animal && (p.RaceProps.predator || p.BodySize >= 1f)) { wild.Add(p); continue; }
                 else continue;
                 pawns.Add((p, side));
             }
             // Wild predators and large animals near an undowned hostile
             //: the policy may shoot one to enrage it at the raiders.
-            var raiders = pawns.Where(e => e.side == Mirror.CombatSide.Hostile && !e.pawn.Downed).Select(e => e.pawn.Position).ToList();
+            var raiders = pawns.Where(e => e.side == RimGovernor.Brain.GameFacts.Mirror.CombatSide.Hostile && !e.pawn.Downed).Select(e => e.pawn.Position).ToList();
             foreach (var w in wild)
-                if (raiders.Any(c => c.InHorDistOf(w.Position, WildRange))) pawns.Add((w, Mirror.CombatSide.WildAnimal));
+                if (raiders.Any(c => c.InHorDistOf(w.Position, WildRange))) pawns.Add((w, RimGovernor.Brain.GameFacts.Mirror.CombatSide.WildAnimal));
             // Raiders still in their drop pods are not spawned: a pods
             // arrival keeps combat active until its open tick.
             _active = hostile || Ring.Any(e => e.MapId == map.uniqueID && e.Row.Pods is { } pods && pods.OpenTick > now);
@@ -226,7 +222,7 @@ namespace HomeBridge.BridgeTools
             }
             Mark? capture = null;
             var rows = pawns.Select(e => (e.pawn, row: Project(e.pawn, e.side))).ToList();
-            var step = Compared.Step(rows.Select(e => new KeyValuePair<string, Mirror.CombatPawn>(e.row.Id.Value, e.row)));
+            var step = Compared.Step(rows.Select(e => new KeyValuePair<string, RimGovernor.Brain.GameFacts.Mirror.CombatPawn>(e.row.Id.Value, e.row)));
             foreach (var (pawn, projected) in rows)
             {
                 Mark changed;
@@ -257,9 +253,9 @@ namespace HomeBridge.BridgeTools
 
         /// The row as compared: its changed mark is the capture's to set, so
         /// the projection carries a fixed placeholder the comparison ignores.
-        private static readonly Mirror.Watermark Unmarked = new Mirror.Watermark { Tick = 0, Seq = 0 };
+        private static readonly RimGovernor.Brain.GameFacts.Mirror.Watermark Unmarked = new RimGovernor.Brain.GameFacts.Mirror.Watermark { Tick = 0, Seq = 0 };
 
-        internal static Mirror.CombatPawn Project(Pawn pawn, Mirror.CombatSide side)
+        internal static RimGovernor.Brain.GameFacts.Mirror.CombatPawn Project(Pawn pawn, RimGovernor.Brain.GameFacts.Mirror.CombatSide side)
         {
             var job = pawn.CurJob;
             var target = job?.targetA.Thing;
@@ -268,28 +264,28 @@ namespace HomeBridge.BridgeTools
             var stance = pawn.stances?.curStance;
             // A ranged pawn standing to shoot (Wait_Combat) holds no job target; the stance's focus is what it aims at.
             var aimed = target ?? (stance is Stance_Busy busy ? busy.focusTarg.Thing : null);
-            Mirror.CombatStance motion;
-            if (stance is Stance_Warmup) motion = Mirror.CombatStance.Warmup;
-            else if (stance is Stance_Cooldown) motion = Mirror.CombatStance.Cooldown;
-            else if (job != null && job.def == JobDefOf.AttackMelee) motion = Mirror.CombatStance.Melee;
-            else if (pawn.pather != null && pawn.pather.Moving) motion = Mirror.CombatStance.Moving;
-            else motion = Mirror.CombatStance.Idle;
+            RimGovernor.Brain.GameFacts.Mirror.CombatStance motion;
+            if (stance is Stance_Warmup) motion = RimGovernor.Brain.GameFacts.Mirror.CombatStance.Warmup;
+            else if (stance is Stance_Cooldown) motion = RimGovernor.Brain.GameFacts.Mirror.CombatStance.Cooldown;
+            else if (job != null && job.def == JobDefOf.AttackMelee) motion = RimGovernor.Brain.GameFacts.Mirror.CombatStance.Melee;
+            else if (pawn.pather != null && pawn.pather.Moving) motion = RimGovernor.Brain.GameFacts.Mirror.CombatStance.Moving;
+            else motion = RimGovernor.Brain.GameFacts.Mirror.CombatStance.Idle;
             var shield = pawn.apparel?.WornApparel.Select(a => a.GetComp<CompShield>()).FirstOrDefault(c => c != null);
-            Mirror.CombatShield? worn = null;
+            RimGovernor.Brain.GameFacts.Mirror.CombatShield? worn = null;
             if (shield != null)
             {
                 var max = shield.parent.GetStatValue(StatDefOf.EnergyShieldEnergyMax);
-                worn = new Mirror.CombatShield { Energy = max > 0 ? Step(Math.Max(0, Math.Min(1, shield.Energy / max)), 0.05) : 0 };
+                worn = new RimGovernor.Brain.GameFacts.Mirror.CombatShield { Energy = max > 0 ? Step(Math.Max(0, Math.Min(1, shield.Energy / max)), 0.05) : 0 };
             }
-            Mirror.CarriedDrugs? drugs = null;
-            if (side == Mirror.CombatSide.Colonist)
-                drugs = new Mirror.CarriedDrugs { Defs = pawn.inventory == null ? [] : [.. pawn.inventory.innerContainer
+            RimGovernor.Brain.GameFacts.Mirror.CarriedDrugs? drugs = null;
+            if (side == RimGovernor.Brain.GameFacts.Mirror.CombatSide.Colonist)
+                drugs = new RimGovernor.Brain.GameFacts.Mirror.CarriedDrugs { Defs = pawn.inventory == null ? [] : [.. pawn.inventory.innerContainer
                     .Where(t => t.stackCount > 0 && t.def.GetCompProperties<CompProperties_Drug>() != null)
                     .Select(t => t.def.defName).Distinct().OrderBy(name => name, StringComparer.Ordinal)] };
             var stun = pawn.stances?.stunner;
             var weapon = pawn.equipment?.Primary;
             var verb = pawn.equipment?.PrimaryEq?.PrimaryVerb;
-            return new Mirror.CombatPawn
+            return new RimGovernor.Brain.GameFacts.Mirror.CombatPawn
             {
                 Id = new RimGovernor.Brain.Domain.PawnId(LoadId(pawn)),
                 Side = side,
@@ -297,7 +293,7 @@ namespace HomeBridge.BridgeTools
                 Downed = pawn.Downed,
                 Dead = pawn.Dead,
                 Draft = pawn.drafter != null && pawn.drafter.Drafted
-                    ? new Mirror.CombatDraft { FireMode = pawn.drafter.FireAtWill ? RimGovernor.Contracts.Wire.Operations.CombatFireMode.AtWill : RimGovernor.Contracts.Wire.Operations.CombatFireMode.Hold }
+                    ? new RimGovernor.Brain.GameFacts.Mirror.CombatDraft { FireMode = pawn.drafter.FireAtWill ? RimGovernor.Brain.GameFacts.Operations.CombatFireMode.AtWill : RimGovernor.Brain.GameFacts.Operations.CombatFireMode.Hold }
                     : null,
                 Job = job?.def.defName,
                 TargetId = aimed != null ? LoadId(aimed) : null,
@@ -339,7 +335,7 @@ namespace HomeBridge.BridgeTools
                 var caster = __instance.caster;
                 if (caster == null || !caster.Spawned) return;
                 var target = __instance.CurrentTarget;
-                Record(Mirror.CombatLogKind.ShotFired, null, caster, target.Thing);
+                Record(RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.ShotFired, null, caster, target.Thing);
             }
             catch { } // Harmony hook inside vanilla code: a throw would reach the game (not probed in #1887)
         }
@@ -347,14 +343,14 @@ namespace HomeBridge.BridgeTools
         private static void OnExplosion(Explosion __instance)
         {
             if (!Active) return;
-            try { Record(Mirror.CombatLogKind.Explosion, null, __instance, __instance.instigator); }
+            try { Record(RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.Explosion, null, __instance, __instance.instigator); }
             catch { } // Harmony hook inside vanilla code: a throw would reach the game (not probed in #1887)
         }
 
         private static void OnFire(Fire __instance)
         {
             if (!Active) return;
-            try { Record(Mirror.CombatLogKind.FireStarted, null, __instance, __instance.parent); }
+            try { Record(RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.FireStarted, null, __instance, __instance.parent); }
             catch { } // Harmony hook inside vanilla code: a throw would reach the game (not probed in #1887)
         }
 
@@ -363,7 +359,7 @@ namespace HomeBridge.BridgeTools
         private static void OnDoorPostfix(Building_Door __instance, bool __state)
         {
             if (!Active || __instance == null || __instance.Open == __state) return;
-            Record(__instance.Open ? Mirror.CombatLogKind.DoorOpened : Mirror.CombatLogKind.DoorClosed, null, __instance, null, null);
+            Record(__instance.Open ? RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.DoorOpened : RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.DoorClosed, null, __instance, null, null);
         }
 
         private static void OnShieldReset(CompShield __instance)

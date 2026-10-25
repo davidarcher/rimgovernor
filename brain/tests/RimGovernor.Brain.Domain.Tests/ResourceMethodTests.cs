@@ -1,8 +1,8 @@
 using System.Text.Json;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
-using W = RimGovernor.Contracts.Wire.Placement;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -37,10 +37,10 @@ public sealed class ResourceMethodTests
     [Fact]
     public void APlacementMaterialRowCarriesItsCount()
     {
-        var row = new W.PlacementMaterialStock { DefName = "Steel", Available = 0 };
+        var row = new RimGovernor.Brain.GameFacts.Placement.PlacementMaterialStock { DefName = "Steel", Available = 0 };
 
-        Assert.Equal(row, WireJson.Deserialize<W.PlacementMaterialStock>(WireJson.Serialize(row)));
-        Assert.ThrowsAny<JsonException>(() => WireJson.Deserialize<W.PlacementMaterialStock>("""{"defName":"Steel"}"""));
+        Assert.Equal(row, OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Placement.PlacementMaterialStock>(OrdersJson.Serialize(row)));
+        Assert.ThrowsAny<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Placement.PlacementMaterialStock>("""{"defName":"Steel"}"""));
     }
 
     // #3877: resource demand reads a whole stock census: an absent key is zero, a present one spends the target once.

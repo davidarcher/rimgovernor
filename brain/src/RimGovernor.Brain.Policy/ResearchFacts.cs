@@ -1,4 +1,4 @@
-using TechLevel = RimGovernor.Contracts.Wire.Defs.TechLevel;
+using TechLevel = RimGovernor.Brain.GameFacts.Defs.TechLevel;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -36,7 +36,7 @@ public sealed record ResearchFacts
 public static partial class ResearchRules
 {
     /// <summary>Counts the available workers the colony's work applies to.</summary>
-    public static int RoundsWorkers(IReadOnlyList<WorkPawn> pawns)
+    public static int Workers(IReadOnlyList<WorkPawn> pawns)
     {
         var count = 0;
         foreach (var p in pawns)

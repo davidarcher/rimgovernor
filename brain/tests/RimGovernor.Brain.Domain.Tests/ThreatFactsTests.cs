@@ -1,7 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 using Pol = RimGovernor.Brain.Policy;
 
@@ -29,11 +31,11 @@ public sealed class ThreatFactsTests
     public void TheThreatSectionRoundTripsExactly()
     {
         var facts = ColonyFactsCoreTests.Snapshot() with { Threat = new ThreatSection { Observed = Raided } };
-        var json = WireJson.Serialize(facts);
+        var json = OrdersJson.Serialize(facts);
         Assert.Contains("\"trail\":[{\"x\":0,\"z\":40},{\"x\":3,\"z\":41}]", json);
-        var back = WireJson.Deserialize<ColonyFactsSnapshot>(json);
+        var back = OrdersJson.Deserialize<ColonyFactsSnapshot>(json);
 
-        Assert.Equal(json, WireJson.Serialize(back));
+        Assert.Equal(json, OrdersJson.Serialize(back));
         Assert.Equal(Raided, back.Threat.Observed);
     }
 
@@ -41,8 +43,8 @@ public sealed class ThreatFactsTests
     public void PlanningHerdAndMonolithKeepTheSameNativeThreatOwner()
     {
         var snapshot = ColonyFactsCoreTests.Snapshot() with { Threat = new ThreatSection { Observed = Raided } };
-        var facts = new Pol.RoundsFacts { Census = snapshot, DefenseCapacity = 621 };
-        var herd = Pol.RoundsFactsHerdPlanExtensions.HerdPlanInput(facts);
+        var facts = new Pol.ReviewFacts { Census = snapshot, DefenseCapacity = 621 };
+        var herd = Pol.FactsHerdPlanExtensions.HerdPlanInput(facts);
         var monolith = Pol.MonolithRules.MonolithGate(facts);
 
         Assert.Same(snapshot.Threat.Observed, facts.Census.Threat.Observed);
@@ -64,7 +66,7 @@ public sealed class ThreatFactsTests
             WorkResources = [worker], Threat = new() { Observed = Raided },
         };
         var facts = WorkResourceTestFacts.Create("pawn") with { Census = snapshot };
-        var shelter = Pol.ShelterFacts.From(facts, Pol.RoundsRules.DefaultRoundsPolicy());
+        var shelter = Pol.ShelterFacts.From(facts, Pol.Rules.DefaultPlannerSettings());
         var evidence = Pol.ProductionRules.WorkAdmissionEvidenceOf(facts, new Pol.ProductionBatchCensus.Read([]));
 
         Assert.Same(snapshot, facts.Census);
@@ -81,11 +83,11 @@ public sealed class ThreatFactsTests
     [Fact]
     public void MissingNativeCensusRefusesEveryPlanningConsumer()
     {
-        var facts = new Pol.RoundsFacts();
+        var facts = new Pol.ReviewFacts();
 
         Assert.Equal("colony census", Assert.Throws<Pol.RequiredFactException>(() => facts.Census.Threat.Observed).Fact);
         Assert.Throws<Pol.RequiredFactException>(() => Pol.RaidDefense.Of(facts));
-        Assert.Throws<Pol.RequiredFactException>(() => Pol.RoundsFactsHerdPlanExtensions.HerdPlanInput(facts));
+        Assert.Throws<Pol.RequiredFactException>(() => Pol.FactsHerdPlanExtensions.HerdPlanInput(facts));
         Assert.Throws<Pol.RequiredFactException>(() => Pol.MonolithRules.MonolithGate(facts));
         Assert.Equal("colony census", Assert.Throws<Pol.RequiredFactException>(() => Pol.ShelterRules.StandInsOwed(facts)).Fact);
         Assert.Equal("colony census", Assert.Throws<Pol.RequiredFactException>(() =>
@@ -102,9 +104,9 @@ public sealed class ThreatFactsTests
     public void AThreatMissingAMemberDoesNotDecode(string member)
     {
         var facts = ColonyFactsCoreTests.Snapshot() with { Threat = new ThreatSection { Observed = Raided } };
-        var node = JsonNode.Parse(WireJson.Serialize(facts))!.AsObject();
+        var node = JsonNode.Parse(OrdersJson.Serialize(facts))!.AsObject();
         Assert.True(node["threat"]!["observed"]!.AsObject().Remove(member));
 
-        Assert.ThrowsAny<JsonException>(() => WireJson.Deserialize<ColonyFactsSnapshot>(node.ToJsonString()));
+        Assert.ThrowsAny<JsonException>(() => OrdersJson.Deserialize<ColonyFactsSnapshot>(node.ToJsonString()));
     }
 }

@@ -13,18 +13,14 @@ internal static class NativeProtoRoomsProbe
     private const BindingFlags Flags = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
     private static int checks;
     private static void Check(bool value, string label) { if (!value) throw new Exception(label); checks++; }
-    private static object Wire(string name, string json)
+    private static object Wire(Type type, string json)
     {
-        return WireOf("RimGovernor.Contracts.Wire.Observations." + name, json);
-    }
-    private static object WireOf(string fullName, string json)
-    {
-        var type = typeof(RimGovernor.Contracts.Wire.Common.Ref).Assembly.GetType(fullName, true)!;
-        return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize", new[] { typeof(string) })!.MakeGenericMethod(type).Invoke(null, new object[] { json })!;
+
+        return typeof(RimGovernor.Brain.GameOrders.OrdersJson).GetMethod(nameof(RimGovernor.Brain.GameOrders.OrdersJson.Deserialize), new[] { typeof(string) })!.MakeGenericMethod(type).Invoke(null, new object[] { json })!;
     }
     private static object Get(object value, string property) => value.GetType().GetProperty(property)!.GetValue(value)!;
     private static object Call(string name, params object?[] values) => tools.GetMethod(name, Flags)!.Invoke(null, values)!;
-    private static bool Valid(string json) => (bool)Call("Validate", Wire("ListRoomsRequest", json), null);
+    private static bool Valid(string json) => (bool)Call("Validate", Wire(typeof(RimGovernor.Brain.GameOrders.Observations.ListRoomsRequest),  json), null);
     private static void Refused(Action action, string label) { try { action(); } catch (TargetInvocationException) { Check(true, label); return; } throw new Exception(label); }
     private static bool FalseResult(ref bool __result) { __result = false; return false; }
     private static bool SkipOriginal() => false;
@@ -52,7 +48,7 @@ internal static class NativeProtoRoomsProbe
         AppDomain.CurrentDomain.AssemblyResolve += (_, e) => { var path = directories.Select(d => Path.Combine(d, new AssemblyName(e.Name).Name + ".dll")).FirstOrDefault(File.Exists); return path == null ? null : Assembly.LoadFrom(path); };
         bridge = Assembly.LoadFrom(Path.GetFullPath(args[0]));
         foreach (var reference in bridge.GetReferencedAssemblies()) Assembly.Load(reference);
-        tools = bridge.GetType("HomeBridge.BridgeTools.NativeRoomObservationTools", true)!;
+        tools = bridge.GetType("RimGovernor.Native.NativeRoomObservationTools", true)!;
         const string scope = "\"scope\":{\"expectedIdentity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0}}";
         Func<string, string> request = fields => "{" + scope + (fields.Length == 0 ? "" : "," + fields) + "}";
         // N01.03: frozen paging is no longer refused outright -- a cursor within the
@@ -60,11 +56,11 @@ internal static class NativeProtoRoomsProbe
         // shared NativeObservationSnapshot.Cursor helper, not by Validate).
         foreach (var fields in new[] { "", "\"includeOutdoors\":false,\"includeBoundary\":false", "\"roomIds\":[\"0\",\"roomα\"]", "\"page\":{\"limit\":256}", "\"region\":{\"minimum\":{\"x\":0,\"z\":0},\"maximum\":{\"x\":0,\"z\":0}}", "\"page\":{\"cursor\":\"stale\"}" }) Check(Valid(request(fields)), "Valid bounded request");
         foreach (var bad in new[] { "{}", request("\"page\":{\"limit\":0}"), request("\"page\":{\"limit\":257}"), request("\"page\":{\"cursor\":\"" + new string('x', 4097) + "\"}"), request("\"roomIds\":[\"x\",\"x\"]"), request("\"roomIds\":[\"\"]"), request("\"roomIds\":[\"bad\\u0000id\"]"), request("\"region\":{\"minimum\":{\"x\":1,\"z\":0},\"maximum\":{\"x\":0,\"z\":1}}"), request("\"region\":{\"minimum\":{\"x\":0},\"maximum\":{\"x\":0,\"z\":1}}") }) Check(!Valid(bad), "Malformed bounded request refused");
-        var defaultRequest = Wire("ListRoomsRequest", request(""));
+        var defaultRequest = Wire(typeof(RimGovernor.Brain.GameOrders.Observations.ListRoomsRequest),  request(""));
         Check((bool)Call("Selected", defaultRequest, "0", false, false), "Ordinary room selected by default");
         Check(!(bool)Call("Selected", defaultRequest, "0", true, false), "Psychological outdoors excluded");
         Check(!(bool)Call("Selected", defaultRequest, "0", false, true), "Doorways excluded");
-        var exact = Wire("ListRoomsRequest", request("\"includeOutdoors\":true,\"roomIds\":[\"1\"]"));
+        var exact = Wire(typeof(RimGovernor.Brain.GameOrders.Observations.ListRoomsRequest),  request("\"includeOutdoors\":true,\"roomIds\":[\"1\"]"));
         Check((bool)Call("Selected", exact, "1", true, true), "Explicit outdoors includes matching doorway");
         Check(!(bool)Call("Selected", exact, "2", false, false), "Filters intersect rather than union");
         var game = Assembly.Load("Assembly-CSharp");
@@ -86,14 +82,14 @@ internal static class NativeProtoRoomsProbe
         var points = Array.CreateInstance(cellType, 3); points.SetValue(cell(0,0),0); points.SetValue(cell(2,0),1); points.SetValue(cell(0,2),2);
         var center = Call("Center", points);
         Check(points.Cast<object>().Contains(center), "Center stays within concave/disconnected input footprint");
-        var rectangle = Wire("Rectangle", "{\"minimum\":{\"x\":1,\"z\":1},\"maximum\":{\"x\":2,\"z\":2}}");
+        var rectangle = Wire(typeof(RimGovernor.Brain.GameFacts.Observations.Rectangle),  "{\"minimum\":{\"x\":1,\"z\":1},\"maximum\":{\"x\":2,\"z\":2}}");
         Check((bool)Call("Inside", rectangle, cell(2,2)), "Maximum edge inclusive");
         Check(!(bool)Call("Inside", rectangle, cell(0,2)), "Outside rectangle excluded");
         foreach (var value in new[] { -20d, 0d, 100d }) Check((double)Call("Finite", value) == value, "Negative temperature/cleanliness and known zero preserved");
         foreach (var value in new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity }) Refused(() => Call("Finite", value), "Nonfinite native fact cannot be a number");
-        Refused(() => Wire("ListRoomsRequest", "{\"set\":true}"), "Mutation-shaped unknown field rejected");
-        Refused(() => Wire("RoomsSnapshot", "{\"rooms\":[{\"id\":\"0\",\"temperatureC\":0,\"outdoors\":false}]}"), "A room row missing a member fails the read");
-        Refused(() => Wire("RoomStat", "{\"defName\":\"Wealth\"}"), "A stat without a value fails the read");
+        Refused(() => Wire(typeof(RimGovernor.Brain.GameOrders.Observations.ListRoomsRequest),  "{\"set\":true}"), "Mutation-shaped unknown field rejected");
+        Refused(() => Wire(typeof(RimGovernor.Brain.GameFacts.Observations.RoomsSnapshot),  "{\"rooms\":[{\"id\":\"0\",\"temperatureC\":0,\"outdoors\":false}]}"), "A room row missing a member fails the read");
+        Refused(() => Wire(typeof(RimGovernor.Brain.GameFacts.Observations.RoomStat),  "{\"defName\":\"Wealth\"}"), "A stat without a value fails the read");
 
         // ---- N01.03: Project() fixture -- bed/stockpile membership ----
         // Builds a minimal but real Room/District/Region/Map graph via reflection so
@@ -464,7 +460,7 @@ internal static class NativeProtoRoomsProbe
             var cellsListTyped = Activator.CreateInstance(typeof(List<>).MakeGenericType(cellType))!;
             foreach (var c in roomCells) ((IList)cellsListTyped).Add(c);
 
-            var projectRequest = Wire("ListRoomsRequest", request("\"includeBoundary\":true"));
+            var projectRequest = Wire(typeof(RimGovernor.Brain.GameOrders.Observations.ListRoomsRequest),  request("\"includeBoundary\":true"));
 
             object ProjectRow() => tools.GetMethod("Project", Flags)!.Invoke(null, new[] { fixRoom, fixMap, cellsListTyped, roomPawns, projectRequest })!;
 

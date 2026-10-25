@@ -1,4 +1,3 @@
-using Obs = RimGovernor.Contracts.Wire.Observations;
 using System.Globalization;
 
 namespace RimGovernor.Brain.Policy;
@@ -144,7 +143,7 @@ public sealed record StockpileRequest
     public EquatableArray<LootItem> Loot { get; init; }
 
     /// <summary>The native occupancy ring's samples of the zones' and built shelves' groups, read for each store's inflow (StoreInflow).</summary>
-    public Obs.StorageOccupancySnapshot Occupancy { get; init; } = null!;
+    public RimGovernor.Brain.GameFacts.Observations.StorageOccupancySnapshot Occupancy { get; init; } = null!;
 
     /// <summary>The catalog Shelf's build cost from the stuff it is built from (StorageOptions); required from the def and its cost row.</summary>
     public StorageBuildCost ShelfCost { get; init; } = null!;
@@ -313,7 +312,7 @@ public static partial class StockpileRules
     /// "Food storage exists": at least one standing owned zone of a food role kind (a zone the player flagged as
     /// food storage does not count).
     /// </summary>
-    public static bool FoodStorageStanding(RoundsFacts f) =>
+    public static bool FoodStorageStanding(ReviewFacts f) =>
         f.StockpileZones.Any(c => FoodStorageRoles.Contains(c.Role) && c.Zones > 0);
 
     /// <summary>Counts the owned zones by role kind, sorted by role.</summary>

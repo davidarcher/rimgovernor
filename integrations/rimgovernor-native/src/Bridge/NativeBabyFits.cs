@@ -6,12 +6,11 @@ using UnityEngine;
 using Verse;
 using Verse.AI;
 using RimGovernor.Brain.Domain;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 /// <summary>
-/// The baby fit mechanics the nursery credit prices (#3854, Obs.BabyFitsRead): the baby fit defs, and per baby the fits that can
+/// The baby fit mechanics the nursery credit prices (#3854, RimGovernor.Brain.GameFacts.Observations.BabyFitsRead): the baby fit defs, and per baby the fits that can
 /// start for it, whether it lies in a nursery and who hears it, with the doors as they are and with its nursery's doors open.
 /// Read-only: no mental state, memory or door changes.
 /// </summary>
@@ -20,7 +19,7 @@ internal static class NativeBabyFits
     /// <summary>GenClamor.DoClamor's maxRegions literal (decompiled 1.7; vanilla exposes no symbol for it).</summary>
     private const int ClamorMaxRegions = 15;
 
-    internal static Obs.BabyFitsRead Read(Map map, List<Pawn> people)
+    internal static RimGovernor.Brain.GameFacts.Observations.BabyFitsRead Read(Map map, List<Pawn> people)
     {
         var fits = DefDatabase<MentalFitDef>.AllDefsListForReading.Where(f => f.developmentalStageFilter.Has(DevelopmentalStage.Baby)).ToArray();
         var colonists = new HashSet<Pawn>(people);
@@ -30,17 +29,17 @@ internal static class NativeBabyFits
         return new()
         {
             CheckIntervalTicks = Const("CheckInterval"), RecoveryAwakeTicks = Const("MinTicksSinceRecoveryToHaveFit"),
-            Fits = EquatableArray.From(fits.Select(f => new Obs.BabyFitRead
+            Fits = EquatableArray.From(fits.Select(f => new RimGovernor.Brain.GameFacts.Observations.BabyFitRead
             {
                 Def = f.defName, DurationTicks = f.mentalState.maxTicksBeforeRecovery, Heard = Thoughts(f) != null,
                 MtbDaysByMood = EquatableArray.From((f.mtbDaysMoodCurve ?? throw new InvalidOperationException("mental fit without a mood curve: " + f.defName))
-                    .Points.Select(p => new Obs.CurvePointRead(p.x, p.y))),
+                    .Points.Select(p => new RimGovernor.Brain.GameFacts.Observations.CurvePointRead(p.x, p.y))),
             })),
             Babies = EquatableArray.From(babies),
         };
     }
 
-    private static Obs.BabyRead Baby(Pawn baby, Map map, MentalFitDef[] fits, HashSet<Pawn> colonists)
+    private static RimGovernor.Brain.GameFacts.Observations.BabyRead Baby(Pawn baby, Map map, MentalFitDef[] fits, HashSet<Pawn> colonists)
     {
         // A fit starts only for a humanlike pawn with a mood (MentalFitGenerator.CanDoRandomMentalFits, MentalFitDef.CalculateMTBDays)
         // whose stage the def admits and whose state its worker lets occur (MentalStateHandler.TryStartMentalState).
@@ -53,10 +52,10 @@ internal static class NativeBabyFits
         var open = nursery ? Reach(baby, map, doors) : now;
         var hearers = now.Concat(open).Distinct().Where(p => p != baby && colonists.Contains(p) && p.needs?.mood != null)
             .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)
-            .Select(p => new Obs.BabyHearerRead
+            .Select(p => new RimGovernor.Brain.GameFacts.Observations.BabyHearerRead
             {
                 Pawn = p.GetUniqueLoadID(), Now = now.Contains(p), NurseryOpen = open.Contains(p),
-                Memories = EquatableArray.From(fits.Select(f => Memory(f, baby, p)).OfType<Obs.HeardMemoryRead>()),
+                Memories = EquatableArray.From(fits.Select(f => Memory(f, baby, p)).OfType<RimGovernor.Brain.GameFacts.Observations.HeardMemoryRead>()),
             })
             .Where(h => h.Memories.Count != 0).ToArray();
         return new()
@@ -90,13 +89,13 @@ internal static class NativeBabyFits
 
     // The memory a fit's AuraEffect gives the hearer: the parent's def for the baby's mother or father, else anyone's. None when the
     // fit's state is not one the read knows, or the hearer cannot get the thought (MemoryThoughtHandler.TryGainMemory's first check).
-    private static Obs.HeardMemoryRead? Memory(MentalFitDef fit, Pawn baby, Pawn hearer)
+    private static RimGovernor.Brain.GameFacts.Observations.HeardMemoryRead? Memory(MentalFitDef fit, Pawn baby, Pawn hearer)
     {
         if (Thoughts(fit) is not var (anyone, parent)) return null;
         var def = hearer == baby.GetMother() || hearer == baby.GetFather() ? parent : anyone;
         if (!ThoughtUtility.CanGetThought(hearer, def)) return null;
         var memory = NativeNeedsForecast.Memory(hearer, def);
-        return new(fit.defName, def.defName, memory.Offset, ((Obs.MemoryLife.Expires)memory.Life).RemainingTicks, def.stackLimit, def.stackedEffectMultiplier);
+        return new(fit.defName, def.defName, memory.Offset, ((RimGovernor.Brain.GameFacts.Observations.MemoryLife.Expires)memory.Life).RemainingTicks, def.stackLimit, def.stackedEffectMultiplier);
     }
 
     // MentalState_BabyCry.AuraEffect and MentalState_BabyGiggle.AuraEffect: (anyone's, the parent's) memory.

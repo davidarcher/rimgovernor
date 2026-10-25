@@ -4,7 +4,7 @@ using RimWorld;
 using Verse;
 using Verse.AI.Group;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Observed hostile arrivals: every SampleInterval ticks each lord
     // of a faction hostile to the player is looked up; the first time one is

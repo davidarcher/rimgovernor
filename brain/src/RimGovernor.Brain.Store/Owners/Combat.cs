@@ -130,7 +130,7 @@ public sealed partial class Store
             throw new DomainException("combat method needs an id");
         }
         var owner = LoadNeedIn(tx, MilitaryFamily.Combat, current);
-        AdmitRoundsSafeguards(tx, owner);
+        AdmitReviewSafeguards(tx, owner);
         if (fightWork ? PlanOpenWork(tx, owner) : CombatOpenWork(tx, owner))
         {
             throw new CombatWorkOpenException();
@@ -283,7 +283,7 @@ public sealed partial class Store
                     throw new NotFoundException();
                 }
                 var owner = LoadNeedIn(tx, MilitaryFamily.Combat, current);
-                AdmitRoundsSafeguards(tx, owner);
+                AdmitReviewSafeguards(tx, owner);
                 BindOwnerMethodOrThrow(tx, owner, new MethodId("batch-" + plan.Id.Value), "", plan);
                 return LoadIn(tx, plan.Id);
             },

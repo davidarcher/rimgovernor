@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -11,7 +10,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class TradeAcquisitionTests
 {
-    private static readonly O.TradePackEstimate.Packed Safe = new(80, 200, 10, 12, new O.PackRoute.Reachable(GameTime.TicksPerDay * 2), new O.PackRoute.Reachable(GameTime.TicksPerDay * 3));
+    private static readonly RimGovernor.Brain.GameFacts.Observations.TradePackEstimate.Packed Safe = new(80, 200, 10, 12, new RimGovernor.Brain.GameFacts.Observations.PackRoute.Reachable(GameTime.TicksPerDay * 2), new RimGovernor.Brain.GameFacts.Observations.PackRoute.Reachable(GameTime.TicksPerDay * 3));
 
     private static readonly ResourceKey Steel = new() { Def = new Resource("Steel") };
 
@@ -52,8 +51,8 @@ public sealed class TradeAcquisitionTests
     {
         Assert.True(TradePolicyRules.SafeTradeMissionPack(Safe));
         Assert.Equal((5.0, true), TradePolicyRules.TradeMissionRouteDays(Safe));
-        Assert.False(TradePolicyRules.SafeTradeMissionPack(new O.TradePackEstimate.Unpackable()));
-        var homeless = Safe with { Home = new O.PackRoute.Unreachable() };
+        Assert.False(TradePolicyRules.SafeTradeMissionPack(new RimGovernor.Brain.GameFacts.Observations.TradePackEstimate.Unpackable()));
+        var homeless = Safe with { Home = new RimGovernor.Brain.GameFacts.Observations.PackRoute.Unreachable() };
         Assert.False(TradePolicyRules.SafeTradeMissionPack(homeless));
         Assert.Equal((0.0, false), TradePolicyRules.TradeMissionRouteDays(homeless));
         Assert.False(TradePolicyRules.SafeTradeMissionPack(Safe with { MassUsage = 201 }));
@@ -160,7 +159,7 @@ public sealed class TradeAcquisitionTests
     [Fact]
     public void FoodTradeRequiresTheSharedPlan()
     {
-        Assert.Equal("food plan", Assert.Throws<RequiredFactException>(() => TradePolicyRules.RoundsTradeFood(new RoundsFacts(), new RoundsPolicy())).Fact);
+        Assert.Equal("food plan", Assert.Throws<RequiredFactException>(() => TradePolicyRules.TradeFood(new ReviewFacts(), new PlannerSettings())).Fact);
     }
 
     [Fact]

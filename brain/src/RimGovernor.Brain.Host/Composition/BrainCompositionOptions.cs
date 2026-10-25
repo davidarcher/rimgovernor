@@ -22,7 +22,7 @@ public sealed record BrainCompositionOptions
     /// The speed the brain requests while it owns the clock, Normal through Hyperfast (default Ultrafast, the game's own 15x).
     /// Only the first run's speed: <c>POST /api/player/clock-speed</c> changes it live from the next run. Ignored with <see cref="ClockTestAcceleration"/>, which pins Hyperfast.
     /// </summary>
-    public PbClock.Speed TargetSpeed { get; init; } = PbClock.Speed.Ultrafast;
+    public RimGovernor.Brain.GameFacts.Clock.Speed TargetSpeed { get; init; } = RimGovernor.Brain.GameFacts.Clock.Speed.Ultrafast;
 
     /// <summary>Draws the colony layout plan as a native overlay.</summary>
     public bool LayoutOverlay { get; init; } = true;
@@ -32,16 +32,16 @@ public sealed record BrainCompositionOptions
 
     /// <summary>
     /// Builds the C# definition catalog of a load from its validated wire catalog and the game's Defs, which are not on the
-    /// wire (see <c>FacadeNativeClient.Create</c>). Null composes a client whose catalog reads refuse.
+    /// wire (see <c>GameClient.Create</c>). Null composes a client whose catalog reads refuse.
     /// </summary>
-    public Func<RimGovernor.Contracts.Wire.Common.Identity, DefinitionCatalog>? CatalogFactory { get; init; }
+    public Func<RimGovernor.Brain.GameFacts.Common.Identity, DefinitionCatalog>? CatalogFactory { get; init; }
 
     /// <summary>
     /// Resolves the ideoligion the governor chooses for a new colony's scenario (<c>CreationCatalog</c> then
     /// <c>StartingIdeoligion</c>), from the creation catalog over the game's Defs. Null refuses a new colony that asks for
     /// <c>governor_ideoligion</c> as unavailable; the mod host installs it with <see cref="CatalogFactory"/> (NativeCatalogFactory, #3116; #3115 wires both).
     /// </summary>
-    public Func<string, string?, CancellationToken, Task<RimGovernor.Contracts.Wire.Common.IdeoligionDesign>>? StartingIdeoligion { get; init; }
+    public Func<string, string?, CancellationToken, Task<RimGovernor.Brain.GameFacts.Common.IdeoligionDesign>>? StartingIdeoligion { get; init; }
 
     internal void Validate()
     {

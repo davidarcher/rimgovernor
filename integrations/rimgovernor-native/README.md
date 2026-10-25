@@ -1,7 +1,7 @@
 # RimGovernor native mod
 
 One RimWorld 1.7 package, `davidarcher.rimgovernor.native`, contains the runtime
-assembly, the host (a vendored fork of RimBridgeServer, source in
+assembly, the host (a vendored fork of NativeServer, source in
 `integrations/rimgovernor-host`) and the RimGovernor tools. Harmony loads first. The mod is
 incompatible with `brrainz.rimbridgeserver`: two hosts would double-patch Harmony.
 Headless presentation suppression activates only with `-Headless` (Waylith's
@@ -33,13 +33,13 @@ its Core/Contracts/Abstractions/Sdk assemblies and Newtonsoft.Json
 (notices under `Notices/host`). Source and retained notices are
 included under `Source` and `Notices`; game and Harmony DLLs are not
 bundled. The Bridge bundle ships the brain assemblies it shares with the in-process brain
-(`RimGovernor.Brain.Contracts` holds the wire records) and no NuGet runtime beyond what the
+(`RimGovernor.Brain.GameFacts` holds the wire records) and no NuGet runtime beyond what the
 host provides. MSBuild supplies the resolved runtime file list; the builder requires a retained
 license for each package/version and records each DLL hash in the manifest. Runtime
 dependencies stay beside `RimGovernor.Bridge.dll` for the host's scoped assembly resolver.
 
 The private build and bundled source include the brain projects the mod compiles against
-(`brain/src/RimGovernor.Brain.Contracts` and friends). Rebuild using the included native
+(`brain/src/RimGovernor.Brain.GameFacts` and friends). Rebuild using the included native
 script and your installed game/Harmony dependencies. Native restore is locked.
 Installed game loading and round trips require the fresh native acceptance run.
 
@@ -115,10 +115,13 @@ The acceptance harnesses (`RimGovernor.cmd acceptance`) cover the wire, service 
 paths against a real game ([#38](https://github.com/davidarcher/rimgovernor/issues/38)
 tracks gaps).
 
-The focused `native-proto-*` and `native-authority*` probes in
-`contracts/tests/NativeContractProbes.csproj` (run with `dotnet run --project
-contracts/tests/NativeContractProbes.csproj -- <probe-name>`) test parsing, SDK
-binding and authority semantics independent of a live game run.
+The focused probes in `contracts/tests/NativeContractProbes.csproj` test parsing,
+SDK binding and authority semantics. The pure selectors listed in `Gate.Probes`
+run in the normal gate without a live game. The game-dependent reflection
+selectors also compile there, but loading the production mod in a standalone
+process currently triggers game startup before their assertions
+([#4013](https://github.com/davidarcher/rimgovernor/issues/4013)); that invocation
+does not supply runtime evidence for those selectors.
 
 The headless GPL-3.0 notice and both upstream provenance records are in Notices.
 Companion provenance records the absence of an upstream redistribution license;

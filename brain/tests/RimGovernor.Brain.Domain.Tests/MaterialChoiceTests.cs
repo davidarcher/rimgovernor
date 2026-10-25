@@ -117,7 +117,7 @@ public sealed class MaterialChoiceTests
         var selection = LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible, Machine], View());
         var actual = selection.Selected.Select((p, i) => new ActualBill { Id = "bill-" + i, Bench = p.Bench, Spec = p.Spec }).ToArray();
         var declared = new[] { new Declared { Orders = [Flexible.Spec, Machine.Spec] } };
-        var plan = WorkRules.ReconcileLedger(declared, actual, actual.ToDictionary(b => b.Id, _ => WorkRules.OrphanGraceRounds), new Dictionary<string, int>());
+        var plan = WorkRules.ReconcileLedger(declared, actual, actual.ToDictionary(b => b.Id, _ => WorkRules.OrphanGraceReview), new Dictionary<string, int>());
         Assert.Empty(plan.Place);
         Assert.Empty(plan.Remove);
         Assert.Empty(plan.Orphans);
@@ -133,7 +133,7 @@ public sealed class MaterialChoiceTests
         var anchor = new ActualBill { Id = "private-execution", Bench = "tailoring", Spec = Flexible.Spec, Kind = LedgerBillKind.ActivityExecution };
         var ordinary = anchor with { Id = "ordinary-orphan", Spec = Machine.Spec, Kind = LedgerBillKind.Production };
         var plan = WorkRules.ReconcileLedger(declared ? [new Declared { Orders = [Flexible.Spec] }] : [],
-            [anchor, ordinary], new Dictionary<string, int> { [anchor.Id] = WorkRules.OrphanGraceRounds, [ordinary.Id] = WorkRules.OrphanGraceRounds }, new Dictionary<string, int>());
+            [anchor, ordinary], new Dictionary<string, int> { [anchor.Id] = WorkRules.OrphanGraceReview, [ordinary.Id] = WorkRules.OrphanGraceReview }, new Dictionary<string, int>());
         Assert.Equal(ordinary, Assert.Single(plan.Remove));
         Assert.Empty(plan.Orphans);
         Assert.Equal(declared ? 1 : 0, plan.Place.Count);
@@ -144,18 +144,18 @@ public sealed class MaterialChoiceTests
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-material-options-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var world = new GenerationSnapshot(new ColonyId("colony"), new MapId(1), new LoadId("load"), new PlanId("review"), new PlanRevision(1), default);
-        var facts = new RoundsFacts { Tick = new Tick(100),
+        var facts = new ReviewFacts { Tick = new Tick(100),
             MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } },
             Research = ResearchTestFacts.Read(),
             Comfort = ComfortTests.NoComfortObservation,
             BasicComfort = ComfortTests.NoComfortObservation,
             ForecastObserved = new() { WorkPawns = new WorkPawnsRead(default(EquatableArray<WorkPawn>)) },
-            Census = (ColonyFactsCoreTests.Snapshot() with { WorkResources = default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>) }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = Metal.Value, Units = 10 }, new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = Timber.Value, Units = 10 }] },
+            Census = (ColonyFactsCoreTests.Snapshot() with { WorkResources = default(EquatableArray<RimGovernor.Brain.GameFacts.Observations.WorkResourcePawn>) }) with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = Metal.Value, Units = 10 }, new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = Timber.Value, Units = 10 }] },
 
             Gear = ColonyModelFixtures.NoGear(), CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long>() },
             BillReservations = [],
             WorkAdmission = new() { Recipes = View().Recipes, Bills = default(EquatableArray<ProductionBatchState>) } };
-        var review = journal.ReviewRounds(new() { Current = world, Tick = facts.Tick, Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+        var review = journal.Review(new() { Current = world, Tick = facts.Tick, Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
         Assert.True(review.Review.Enabled);
         var selected = LedgerMaterialChoicesRules.SelectLedgerMaterials([Flexible, Machine], journal.ProductionMaterials(world, ct));
         var batches = selected.Selected.Select((p, i) => Batch(p, "action-" + i)).ToArray();

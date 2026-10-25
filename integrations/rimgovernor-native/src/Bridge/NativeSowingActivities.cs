@@ -5,8 +5,7 @@ using RimGovernor.Brain.Domain;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Obs = RimGovernor.Contracts.Wire.Observations;
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 /// <summary>
 /// Sowing as coupled work (#3528): the cells native sowing accepts now and the Sow job for one of them. Legality is the game's own
@@ -104,10 +103,10 @@ internal static class NativeSowingActivities
             || CellsOf(grower).All(c => c.GetThingList(map).Any(t => t.def == crop));
 
     /// <summary>Every free colonist's sowing of every growing zone or planter that has a crop set (#3528).</summary>
-    internal static Obs.SowingActivityRead Read(Map map, NativePathLegs? legs = null)
+    internal static RimGovernor.Brain.GameFacts.Observations.SowingActivityRead Read(Map map, NativePathLegs? legs = null)
     {
         legs ??= new(map);
-        var workers = new List<Obs.SowingWorker>();
+        var workers = new List<RimGovernor.Brain.GameFacts.Observations.SowingWorker>();
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var growers = map.zoneManager.AllZones.OfType<Zone_Growing>().Cast<IPlantToGrowSettable>()
             .Concat(map.listerBuildings.allBuildingsColonist.OfType<Building_PlantGrower>())

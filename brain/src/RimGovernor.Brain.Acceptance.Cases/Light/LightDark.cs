@@ -2,7 +2,6 @@ using System.Globalization;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -104,8 +103,8 @@ internal static class LightDark
             throw new AcceptanceException($"lighting-after: want exactly one lit lamp, got {string.Join("; ", after.Lamps)}");
         }
 
-        var rows = await s.BuildingsAsync("lamp", new Observations.ListBuildingsRequest { Ids = [lampId] }, cancellationToken).ConfigureAwait(false);
-        if (rows is not [{ Building: { DefName: var def, Place: RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap { Cell: { X: var x, Z: var z } } } }])
+        var rows = await s.BuildingsAsync("lamp", new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest { Ids = [lampId] }, cancellationToken).ConfigureAwait(false);
+        if (rows is not [{ Building: { DefName: var def, Place: RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap { Cell: { X: var x, Z: var z } } } }])
         {
             throw new AcceptanceException($"lamp {lampId}: want one placed building, got {string.Join("; ", rows)}");
         }
@@ -123,12 +122,12 @@ internal static class LightDark
         }
     }
 
-    private static Observations.WorkLightCell Bench(Observations.LightingFacts facts, string stoveId) =>
+    private static RimGovernor.Brain.GameFacts.Observations.WorkLightCell Bench(RimGovernor.Brain.GameFacts.Observations.LightingFacts facts, string stoveId) =>
         facts.WorkCells.FirstOrDefault(c => c.Bench == stoveId) ?? throw new AcceptanceException($"the lighting census lists no work cell for the stove {stoveId}");
 
-    private static async Task<Observations.LightingFacts> ReadAsync(TypedSession s, string label, CancellationToken cancellationToken)
+    private static async Task<RimGovernor.Brain.GameFacts.Observations.LightingFacts> ReadAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         return facts.Upkeep.Lighting;
     }
 }

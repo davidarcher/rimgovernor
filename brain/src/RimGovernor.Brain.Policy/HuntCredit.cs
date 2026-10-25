@@ -1,5 +1,5 @@
-using Butcher = RimGovernor.Contracts.Wire.Observations.Butcher;
-using Kill = RimGovernor.Contracts.Wire.Observations.Kill;
+using Butcher = RimGovernor.Brain.GameFacts.Observations.Butcher;
+using Kill = RimGovernor.Brain.GameFacts.Observations.Kill;
 
 namespace RimGovernor.Brain.Policy;
 

@@ -1,8 +1,10 @@
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -59,9 +61,9 @@ public sealed class PlanningDefinitionTotalTests
     [Fact]
     public void EveryColonyFrameRequiresTheCropDietSection()
     {
-        var json = JsonNode.Parse(WireJson.Serialize(ColonyFactsCoreTests.Snapshot()))!.AsObject();
+        var json = JsonNode.Parse(OrdersJson.Serialize(ColonyFactsCoreTests.Snapshot()))!.AsObject();
         Assert.True(json.Remove(System.Text.Json.JsonNamingPolicy.CamelCase.ConvertName(nameof(ColonyFactsSnapshot.Crops))));
-        Assert.Throws<System.Text.Json.JsonException>(() => WireJson.Deserialize<ColonyFactsSnapshot>(json.ToJsonString()));
+        Assert.Throws<System.Text.Json.JsonException>(() => OrdersJson.Deserialize<ColonyFactsSnapshot>(json.ToJsonString()));
     }
 
     [Fact]

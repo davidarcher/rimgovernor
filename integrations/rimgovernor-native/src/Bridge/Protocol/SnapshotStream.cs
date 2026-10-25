@@ -6,11 +6,10 @@ using System.Threading.Tasks;
 using RimGovernor.Host.Sdk;
 using UnityEngine;
 using Verse;
-using RimGovernor.Contracts.Wire;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// The snapshot stream: whole BundleSnapshot frames captured on the game
@@ -32,18 +31,18 @@ namespace HomeBridge.BridgeTools
 
         /// The in-process subscriber's slot (the native facade's frame channel): latest wins, whole frames.
         internal static readonly RimGovernor.Brain.Bridge.FrameHandoff Handoff = new RimGovernor.Brain.Bridge.FrameHandoff();
-        private static Obs.SnapshotStreamRequest subscription = new Obs.SnapshotStreamRequest { RoutePathBudget = new Obs.FrameBudget.Unlimited(), LinesOfFireBudget = new Obs.FrameBudget.Unlimited() };
+        private static RimGovernor.Brain.GameOrders.Observations.SnapshotStreamRequest subscription = new RimGovernor.Brain.GameOrders.Observations.SnapshotStreamRequest { RoutePathBudget = new RimGovernor.Brain.GameFacts.Observations.FrameBudget.Unlimited(), LinesOfFireBudget = new RimGovernor.Brain.GameFacts.Observations.FrameBudget.Unlimited() };
 
         // The pull subscriber (the acceptance harness's observations_read_snapshot tool): the newest published
         // frame and how many were published since the first read. Guarded by Gate.
         private static bool pull;
         private static ulong pullHead;
-        private static Obs.BundleSnapshot? pullFrame;
+        private static RimGovernor.Brain.GameFacts.Observations.BundleSnapshot? pullFrame;
         private static long pullFrameWrites;
 
         /// The shape the stream captures now (the default request until a
         /// controller subscribes); test/profile_capture profiles it.
-        internal static Obs.SnapshotStreamRequest Subscription { get { lock (Gate) return subscription; } }
+        internal static RimGovernor.Brain.GameOrders.Observations.SnapshotStreamRequest Subscription { get { lock (Gate) return subscription; } }
         // Game-thread state: what the last capture saw.
         private static long writes, capturedWrites = -1;
         // due: the write count the next frame must reflect. A deferred
@@ -83,7 +82,7 @@ namespace HomeBridge.BridgeTools
         }
 
         /// Opens (or resubscribes) the stream for the in-process subscriber: frames go to Handoff.
-        internal static Obs.SnapshotStreamReply Open(Obs.SnapshotStreamRequest request)
+        internal static RimGovernor.Brain.GameFacts.Observations.SnapshotStreamReply Open(RimGovernor.Brain.GameOrders.Observations.SnapshotStreamRequest request)
         {
             lock (Gate)
             {
@@ -96,17 +95,17 @@ namespace HomeBridge.BridgeTools
                 }
                 catch (Exception e)
                 {
-                    return new Obs.SnapshotStreamReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "Snapshot stream could not be opened: " + e.Message } };
+                    return new RimGovernor.Brain.GameFacts.Observations.SnapshotStreamReply { Unavailable = new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.NotLoaded, Detail = "Snapshot stream could not be opened: " + e.Message } };
                 }
                 subscription = request;
                 capturedWrites = -1; // the new subscription publishes at once
-                return new Obs.SnapshotStreamReply();
+                return new RimGovernor.Brain.GameFacts.Observations.SnapshotStreamReply();
             }
         }
 
         /// The newest published frame for a pull subscriber. The first read subscribes (the stream keeps the
         /// shape the brain set, else the default) and makes the next frame capture.
-        internal static Obs.SnapshotReadReply Read(Obs.SnapshotReadRequest request)
+        internal static RimGovernor.Brain.GameFacts.Observations.SnapshotReadReply Read(RimGovernor.Brain.GameOrders.Observations.SnapshotReadRequest request)
         {
             lock (Gate)
             {
@@ -115,15 +114,15 @@ namespace HomeBridge.BridgeTools
                     try { Supervisor.EnsurePatched(); }
                     catch (Exception e)
                     {
-                        return new Obs.SnapshotReadReply { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "Snapshot stream could not be opened: " + e.Message } };
+                        return new RimGovernor.Brain.GameFacts.Observations.SnapshotReadReply { Outcome = new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.NotLoaded, Detail = "Snapshot stream could not be opened: " + e.Message } };
                     }
                     pull = true;
                     capturedWrites = -1;
                 }
                 var newer = pullFrame != null && pullHead > request.AfterNumber;
-                return new Obs.SnapshotReadReply
+                return new RimGovernor.Brain.GameFacts.Observations.SnapshotReadReply
                 {
-                    Outcome = new Obs.SnapshotRead
+                    Outcome = new RimGovernor.Brain.GameFacts.Observations.SnapshotRead
                     {
                         Head = pullHead,
                         Writes = Interlocked.Read(ref writes),
@@ -167,8 +166,8 @@ namespace HomeBridge.BridgeTools
             // One frame in flight at a time: a slow publish delays the next
             // capture instead of queueing stale ones.
             if (Interlocked.CompareExchange(ref pending, 1, 0) != 0) return;
-            Obs.BundleSnapshot? frame;
-            Obs.SnapshotStreamRequest shape;
+            RimGovernor.Brain.GameFacts.Observations.BundleSnapshot? frame;
+            RimGovernor.Brain.GameOrders.Observations.SnapshotStreamRequest shape;
             lock (Gate) shape = subscription;
             var captureStarted = Stopwatch.GetTimestamp();
             GameThreadTrace.Mark("snapshot capture");

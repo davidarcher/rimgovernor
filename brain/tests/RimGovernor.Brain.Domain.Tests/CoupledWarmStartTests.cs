@@ -18,7 +18,7 @@ public sealed class CoupledWarmStartTests
             Room(37, PlannedRole.Bedroom, 31, 11), Room(40, PlannedRole.Kitchen, 10, 10)];
         EquatableArray<string> previous = ["planned/room5/door/Steel/composition/15", "planned/room6/Steel/Full/composition/2", "planned/room7/build/Bed/147/85/composition/6",
             "planned/room9/wall/composition/1", "service/rest/pawn/composition/3"];
-        var warm = RoundsRules.WarmStartOf(previous, before, after);
+        var warm = Rules.WarmStartOf(previous, before, after);
         Assert.Equal(["planned/room35/door/Steel/composition/15", "planned/room6/Steel/Full/composition/2", "planned/room37/build/Bed/147/85/composition/6",
             "planned/room9/wall/composition/1", "service/rest/pawn/composition/3"], warm);
     }
@@ -28,8 +28,8 @@ public sealed class CoupledWarmStartTests
     {
         EquatableArray<PlannedRoom> before = [Room(5, PlannedRole.Bedroom, 10, 10)];
         EquatableArray<string> previous = ["planned/room5/door/Steel/composition/15"];
-        Assert.Equal(previous, RoundsRules.WarmStartOf(previous, before, [Room(35, PlannedRole.Bedroom, 50, 50)]));
-        Assert.Equal(previous, RoundsRules.WarmStartOf(previous, before, []));
-        Assert.Equal(previous, RoundsRules.WarmStartOf(previous, [], [Room(35, PlannedRole.Bedroom, 10, 10)]));
+        Assert.Equal(previous, Rules.WarmStartOf(previous, before, [Room(35, PlannedRole.Bedroom, 50, 50)]));
+        Assert.Equal(previous, Rules.WarmStartOf(previous, before, []));
+        Assert.Equal(previous, Rules.WarmStartOf(previous, [], [Room(35, PlannedRole.Bedroom, 10, 10)]));
     }
 }

@@ -7,7 +7,7 @@ using RimGovernor.Brain.Domain;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// The load's <see cref="DefStatTable"/>: the game's own <c>StatWorker</c> evaluation of every declared catalog stat

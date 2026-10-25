@@ -1,5 +1,5 @@
-using TradePawnGuest = RimGovernor.Contracts.Wire.Observations.TradePawnGuest;
-using TradeThingGrade = RimGovernor.Contracts.Wire.Observations.TradeThingGrade;
+using TradePawnGuest = RimGovernor.Brain.GameFacts.Observations.TradePawnGuest;
+using TradeThingGrade = RimGovernor.Brain.GameFacts.Observations.TradeThingGrade;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -50,9 +50,9 @@ public sealed record TradeRowPawn
     /// <summary>The pawn's load id (the animal census id for a colony animal): the key a live-animal sale matches and a purchase can name.</summary>
     public string Id { get; init; } = "";
 
-    public RimGovernor.Contracts.Wire.Defs.Gender Gender { get; init; }
+    public RimGovernor.Brain.GameFacts.Defs.Gender Gender { get; init; }
 
-    public IReadOnlyList<RimGovernor.Contracts.Wire.Observations.Skill> Skills { get; init; } = [];
+    public IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.Skill> Skills { get; init; } = [];
 
     public bool ViolenceCapable { get; init; }
 
@@ -111,7 +111,7 @@ public sealed record TradeSelectionFacts
 
     public long FavorKeep { get; init; }
 
-    /// <summary>The surplus prisoners (RoundsFacts.SurplusPrisoners) a favor session sells.</summary>
+    /// <summary>The surplus prisoners (ReviewFacts.SurplusPrisoners) a favor session sells.</summary>
     public IReadOnlySet<PawnId> FavorPrisoners { get; init; } = new HashSet<PawnId>();
 }
 
@@ -155,7 +155,7 @@ public sealed record TradeReserveFacts
 
 public static partial class TradePolicyRules
 {
-    /// <summary>The surplus sale's MinSellPrice (RoundsTradeTargets): any positive price.</summary>
+    /// <summary>The surplus sale's MinSellPrice (TradeTargets): any positive price.</summary>
     internal const double ArtMinSellPrice = double.Epsilon;
 
     internal static bool Finite(double v) => !double.IsNaN(v) && !double.IsInfinity(v);

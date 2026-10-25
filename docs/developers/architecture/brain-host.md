@@ -24,7 +24,7 @@ collected and thrown together after everything else ran.
 
 ## Scheduler thread and authority
 
-One dedicated thread (`rimgovernor-brain-scheduler`) steps the `ClockScheduler` on the clock's cadence (#3556): the
+One dedicated thread (`rimgovernor-brain-scheduler`) steps the `PlannerScheduler` on the clock's cadence (#3556): the
 first step is Full, and every later step starts from a hold. Each `Run` names the review tick native holds at
 (`ClockRunConfig.ReviewEveryTicks`, 600); a hazard, a letter, a game pause or a brain hold is an early review; an
 authority change or a loss on the event queue wakes a step while the clock runs. A step that did not complete, or
@@ -44,28 +44,28 @@ reported in `BrainHost.Status()`.
 
 ## Native client and composition (#3113)
 
-`FacadeNativeClient` (`RimGovernor.Brain.BuildingRuntime/Client/`) is the planners' native client, with no transport: one class over `INativeFacade` that the planners take directly. Each `Client.ReadX` is one `ReadXAsync` core method
-(request, facade call, outcome unwrap, the reply validators). A BuildingRuntime interface survives only where a test
+`GameClient` (`RimGovernor.Brain.Runtime/Client/`) is the planners' native client, with no transport: one class over `IGameApi` that the planners take directly. Each `Client.ReadX` is one `ReadXAsync` core method
+(request, facade call, outcome unwrap, the reply validators). A Runtime interface survives only where a test
 fake or a second implementer satisfies it (the clock, boundary, colony-status and building-preview natives, the
 defense source, the writers, the session and player seams); those are bound to the core methods in
-`FacadeNativeClient.Interfaces*.cs`, with explicit implementations where the interface shape differs from the core method's. The PlayerApi seams (presentation, notifications, lifecycle) sit above BuildingRuntime, so Host binds them through the thin `FacadePlayerAdapter`. A failure or unavailable arm (or a converted facade read's own throw) is
+`GameClient.Interfaces*.cs`, with explicit implementations where the interface shape differs from the core method's. The PlayerApi seams (presentation, notifications, lifecycle) sit above Runtime, so Host binds them through the thin `FacadePlayerAdapter`. A failure or unavailable arm (or a converted facade read's own throw) is
 `NativeFailureException` / `NativeUnavailableException`; a malformed reply throws the contract exception. Writes go
 through `FacadeActionsWriter` (`IActionsWriter`) and `FacadeClockWriter` (`IClockWriter`). The native
-`InProcessNativeFacade` counts every call into the attached `ReadTally` in its Read/Write helpers
+`GameApi` counts every call into the attached `ReadTally` in its Read/Write helpers
 (`ReadTallyRules.CountNativeRead`, under the facade method name), which is how a scheduler step reports its reads.
 
-`ClockRunDriver` (#3178) is the hold state machine of the clock: after each planning step it keeps the clock Running at the target
+`PlannerRunDriver` (#3178) is the hold state machine of the clock: after each planning step it keeps the clock Running at the target
 speed under the watch policy the facts imply (`Run`), takes the brain's own holds (a coupled order, a review, an autosave),
-keeps the heartbeat and consumes the colony events native pushes (`ColonyEventConsumer`). The composition builds it with `ClockRunDriver.Create` over a
+keeps the heartbeat and consumes the colony events native pushes (`ColonyEventConsumer`). The composition builds it with `PlannerRunDriver.Create` over a
 `ClockCapabilities` session and an `IClockDriverNative` and returns it as
 `PlannerParts.Clock`. The composition (`startServiceClock` and
-`roundsCapabilities`) is `BrainComposition`; its family flags are all on by default and
+`reviewCapabilities`) is `BrainComposition`; its family flags are all on by default and
 `RIMGOVERNOR_ROUTINE_FAMILIES` narrows them.
 
 The player providers (#3114) are the client's `IPresentationReader`, `IPresentationMediaWriter`, `INotificationReader`
 and `ILifecycleWriter` (Save/Load/NewColony, with `StartingIdeoligion` as the seam for the `governor_ideoligion` choice),
 plus `HostSnapshots` (the cached brain snapshot, polled every `RefreshInterval`), `HostColonyStatus` and
-`RoundsDiagnostics`. `BrainHost` registers `PlayerRoutes`, `ReadRoutes`, `PresentationRoutes` and `LifecycleRoutes`
+`Diagnostics`. `BrainHost` registers `PlayerRoutes`, `ReadRoutes`, `PresentationRoutes` and `LifecycleRoutes`
 from `SessionParts.Player`. There is no Attention provider: the brain's acknowledgement had no facade method to port. The
 host wraps the lifecycle in `FlushedLifecycle` (the governor state is flushed before every save) and builds the
 `Autosaver` (five rotating `Autosave-N` slots; no cadence of its own), which the composition passes to the clock run
@@ -80,7 +80,7 @@ The catalog reads need `CatalogFactory` and the `governor_ideoligion` resolver `
 (`NativeCatalogFactory`), because only the mod may read the Def databases (rule 7): the catalog is built over the game's
 Def objects, the wire catalog's derived and race facts and the load's def stat table (`NativeStatTable`, built on the game
 thread by the catalog read), and the catalog reply carries no def rows or game constants. Both run off the game thread. Every
-`InProcessNativeFacade` operation is labelled by its `NativeOps` entry, so the label is compile-checked; `NativeOpsTests`
+`GameApi` operation is labelled by its `NativeOps` entry, so the label is compile-checked; `NativeOpsTests`
 (brain tests) checks that every facade method is bound by exactly one op.
 
 ## Watchdog thresholds
@@ -162,25 +162,25 @@ before the first Run are startup, the world rebuild and the first step). Each ro
 | read | 33 ms | 270 ms | 270 ms | 4.6 MB | the step read with clock status, scope and validity checks |
 | select | 0 ms | 1 ms | 1 ms | 8 KB | the due-queue selection |
 | refresh | 17 ms | 361 ms | 361 ms | 0.3 MB | entity sections and the zone census |
-| rounds | 4645 ms | 13054 ms | 13054 ms | 2.0 GB (max 5.8 GB) | the rounds review, stages below |
+| rounds | 4645 ms | 13054 ms | 13054 ms | 2.0 GB (max 5.8 GB) | the colony review, stages below |
 | extent | 0 ms | 152 ms | 152 ms | 0.4 MB | establishing the planning extent |
 | critical | 1500 ms | 2530 ms | 2530 ms | 332 MB | the critical planners (anomaly, shelter, admin, medical, people, disaster, defense) |
 | optional | 788 ms | 2262 ms | 2262 ms | 57 MB | the optional planners after the critical wave returned |
 | record | 2 ms | 22 ms | 22 ms | 3 MB | filing the wave on the due queue |
 | `clock_run` dur | 115 ms | 1433 ms | 1433 ms | | the driver's decision and the Run (1.4 s at the first Run; 2 of 9 refused on the hold serial) |
 
-| Rounds stage | p50 | p95 | max | Allocation p50 | What it is |
+| Colony review stage | p50 | p95 | max | Allocation p50 | What it is |
 | --- | --- | --- | --- | --- | --- |
 | acquisition | 1584 ms | 3956 ms | 3956 ms | 859 MB | `PlanFoodAcquisitionAsync` |
 | derive | 1169 ms | 2897 ms | 2897 ms | 261 MB | the reads and derivations between the layout plan and acquisition (stockpiles, planned sites, shelter reads, clearance, ledger) |
 | layout | 1005 ms | 9055 ms | 9055 ms | 387 MB (max 3.7 GB) | `ReviewLayoutPlanAsync`; 9 s once, at the step that planned the layout |
-| review | 328 ms | 1921 ms | 1921 ms | 336 MB | `ReviewRoundsAsync`; the policy inspection inside it is `inspect_ms` 324 ms p50, and the coupled search hit its 16384-expansion bound in every review after the first (`coupled_search_expansions`) |
-| observe | 29 ms | 420 ms | 420 ms | 28 MB | `ObserveRoundsAsync` |
+| review | 328 ms | 1921 ms | 1921 ms | 336 MB | `ReviewAsync`; the policy inspection inside it is `inspect_ms` 324 ms p50, and the coupled search hit its 16384-expansion bound in every review after the first (`coupled_search_expansions`) |
+| observe | 29 ms | 420 ms | 420 ms | 28 MB | `ObserveReviewAsync` |
 | journal, admit, record | 17, 1, 2 ms | 55, 46, 30 ms | | | journal loads and claims; admission; snapshot and overlays |
 
 What the profile says:
 
-- **Where the 7 s goes.** Rounds 4.6 s, of which 3.8 s is acquisition, derive and layout re-derived from the same facts at
+- **Where the 7 s goes.** Colony review 4.6 s, of which 3.8 s is acquisition, derive and layout re-derived from the same facts at
   every review and 0.3 s the review with the coupled search; then 2.3 s of planner waves and 0.35 s waiting for the
   Worker's gate. Read, select, refresh and record together are under 60 ms. The coupled search, assumed to be the cost
   of the rounds planner, is not: at the 16384-expansion bound it costs 0.3 s p50 (1.9 s once).
@@ -204,25 +204,25 @@ What the profile says:
   planners whose facts changed), and the full review must run at a coarser cadence or incrementally. With that split the
   average is a weighted one: at 1 full review (4 to 6 s) per 10 reviews the average is about 0.7 s, right at the budget;
   the planner cuts below decide whether it lands under.
-- **Three biggest cuts.** (1) Rounds derive, acquisition and layout: 3.8 s and 2.9 GB per review, re-derived from facts
+- **Three biggest cuts.** (1) Colony review derive, acquisition and layout: 3.8 s and 2.9 GB per review, re-derived from facts
   that rarely change between reviews; make them conditional on their inputs or run the full review on its own cadence.
   (2) Dirty-only planner waves: stop the settled step marking all, make `ReviewEvery` longer than the review cadence, and
   narrow the family entries' sections so a Pawns wake selects the planners that read pawns, not all 22; 73 % of Need rows
   do nothing today. (3) The game-thread reads: 0.8 to 3 s of serialized facade work per step with the heavy planners each
   waiting 0.7 to 1.2 s; fold the family reads into the step read, or read them once per step and share.
 
-#### Rounds cuts (#3556, 2026-10-18)
+#### Colony review cuts (#3556, 2026-10-18)
 
 The three rounds stages were cut in the order the profile ranked them and each cut was measured the same way on the same
 colony (one colony-review day; brain sessions `4d1d320821a7440cb5cb864ebcdd5746` after the acquisition cut and
-`2265830e199e476db78b7fb325b1a18c` after the derive cuts, 12 and 15 rounds reviews). The rounds row now laps the derive
+`2265830e199e476db78b7fb325b1a18c` after the derive cuts, 12 and 15 colony reviews). The rounds row now laps the derive
 chain (`d_owed`, `d_reads`, `d_stock`, `d_planned`, `d_file`, `d_work`, `d_clear`, then `derive` for the ledger and the
 colony model), the `layout_replan_tiled` row names the inputs that drifted since the last replan (`inputs_changed`) and
 the `clock_step` row carries `hop_run`, the game-thread run time per hop operation and, for the construction and the colony-facts
 reads, per part of it (`facade/construction_activity/<part>`, `facade/observations_read_colony_facts/cf.<section>`, not
 summed into `hop_run_ms`).
 
-| Rounds stage | Before p50 | After p50 | What changed |
+| Colony review stage | Before p50 | After p50 | What changed |
 | --- | --- | --- | --- |
 | acquisition | 1584 ms, 859 MB | 63 ms, 28 MB | the settlement loop asked every ThingDef three uncached catalog questions per settlement, one of them a stat read that threw per definition; the supply definitions are now built once per trader kind per catalog (`TradeAcquisitionMemory.SupplyDefinitions`) and the stat read asks `ShownStatValue` |
 | derive, all laps | 1169 ms | 1070 ms (`d_planned` 684, `derive` 154, `d_stock` 150, `d_file` 47, the rest under 20) | the owed diff over every built room (`PlannedOwedOf`) is taken once per review instead of four times (pricing, planned sites, and twice in the store-room report); the firebreak's tile reads go out in one frame and overlap the planned-site reads; the stockpile review overlaps the consumption window; the surface-ore reads go out in one frame |
@@ -253,7 +253,7 @@ What the second profile says:
   3.1 s the planner waves (critical 1.7 s, optional 0.8 s) are the larger half, cuts (2) and (3) above.
 
 The third cut, the path searches, measured on one colony-review day each of the same colony (sessions
-`47201e9f4881475c9c23ece9c1514fe3` before, 23 rounds reviews, and `6aa045a4ac324a6ea3e3d0f4bd0f0cba` after, 15):
+`47201e9f4881475c9c23ece9c1514fe3` before, 23 colony reviews, and `6aa045a4ac324a6ea3e3d0f4bd0f0cba` after, 15):
 
 - **Where the hop went.** The parts of `facade/construction_activity` before: 956 ms of the 993 ms hop p50 were path
   searches, one synchronous `FindPathNow` per leg, each clearing a grid-sized calc grid on the game thread (709 ms under
@@ -282,7 +282,7 @@ The third cut, the path searches, measured on one colony-review day each of the 
   5324 ms p50 (5994). The 0.23 s left is the batched searches themselves; the next cut is keeping the legs across
   reviews while the sites, roster and cells they depend on are unchanged.
 
-The fourth cut, the legs kept across reviews (session `b89e623bab264a5eb1a97f93899ac8ea`, 19 rounds reviews, one
+The fourth cut, the legs kept across reviews (session `b89e623bab264a5eb1a97f93899ac8ea`, 19 colony reviews, one
 passing colony-review day of the same colony):
 
 - **What changed.** `NativePathLegs` keeps every searched leg in a per-map store with the cells it crosses, so a read
@@ -292,7 +292,7 @@ passing colony-review day of the same colony):
   cells. Door open states are not watched: a leg through a door is priced at the door's state when it was searched, as
   every leg of one read already was. A colonist's own legs are keyed by its cell, so they are searched again once it
   has moved; the stack-to-site legs and the route probes, the bulk of a review's legs, are found.
-- **Reuse.** Over the day, 195 construction reads (the rounds review's three hops and the colony-facts forecast's)
+- **Reuse.** Over the day, 195 construction reads (the colony review's three hops and the colony-facts forecast's)
   asked 114 k legs and searched 21 k, 82 % kept. A planned-sites read asks about 3.6 k legs: the day's first searched
   all 2.5 k of its legs in 124 ms, the rest 500 to 1100 in 20 to 70 ms (77 % kept).
 - **After.** `d_planned` 143 ms p50 (p95 465, max 471), `facade/construction_activity` 74 ms p50 (p95 164: paths 37,
@@ -300,12 +300,12 @@ passing colony-review day of the same colony):
   building (both runs of the batched read, 3.6 k legs re-priced per colonist) now outweighs the searches; the next
   cut, if one is wanted, is there or in asking the three reads once per step.
 
-The layout cut (#3565; session `663cb825094049a88ab29cfc8fd70f6e`, 34 rounds reviews, one passing colony-review day
+The layout cut (#3565; session `663cb825094049a88ab29cfc8fd70f6e`, 34 colony reviews, one passing colony-review day
 of the same colony):
 
 - **What changed.** The hourly check ran the station chain twice (once for the inputs key, once in the replan) and
   tiled on the hold path. It now reads the replan's inputs purely (`StationInputsOf`: the facts and their key, no
-  chain) and, when they drifted, starts the replan on a worker (`Rounder.LayoutPending`: the catalog rows onto the
+  chain) and, when they drifted, starts the replan on a worker (`ColonyReview.LayoutPending`: the catalog rows onto the
   facts, `ReplanFacts`, the chain once, the tiler over its advice). The review that finds the run complete adopts it
   when the loaded world and the held plan are still the ones it started from (`layout_replan_tiled` attr `adopted`,
   the ticks since the start), else drops it (`skipped/superseded`), and drops it too when an open journal plan has
@@ -313,7 +313,7 @@ of the same colony):
   the run would otherwise be sited again elsewhere); no second replan starts while one is pending.
 - **After.** `layout` 45 ms p50 over every review (before: 1029 ms at the hourly check, 8 of 15 reviews, 5 ms
   otherwise); the hourly checks and the adoptions take 25 to 160 ms. 10 replans were adopted, 0 to 6037 ticks after
-  they started (median about 2400: the next review is usually the next hour's). Rounds 1559 ms p50 (2253 after the
+  they started (median about 2400: the next review is usually the next hour's). Colony review 1559 ms p50 (2253 after the
   legs cut), `clock_step` 3493 ms p50 (4212).
 - **What is left on the hold path.** The two adoptions that changed the perimeter (the first two, which added the
   bedrooms, kitchen and storage) took 1.3 and 1.6 s in `ColonyPlanCut.LogPerimeterCut`: the perimeter cut is computed
@@ -321,7 +321,7 @@ of the same colony):
   0.1 s. Every replan still records a plan (`changed=true`): the tiled plan differs from the held one even when no
   room moved, which is the next thing to read before the ~1 GB replan allocation is profiled.
 
-The search cut (#3563; session `9a713eed0644434a85ce035d96f7c5e9`, 22 rounds reviews, one passing colony-review day
+The search cut (#3563; session `9a713eed0644434a85ce035d96f7c5e9`, 22 colony reviews, one passing colony-review day
 of the same colony):
 
 - **What changed.** The coupled search ([portfolio selection](portfolio-selection.md)) ran to its 16,384-expansion
@@ -337,18 +337,18 @@ of the same colony):
   mean (10,734) and every extension reached the confirm pass (6 of 20 before; the other 14 ran out of budget in the
   extension). The 10 reviews whose baseline won ended at 238 to 6,837 expansions in 35 to 378 ms of `inspect_ms`; the
   12 the extension or the warm start won at 13,893 to 34,932 in 279 to 1263 ms. `inspect_ms` 378 ms p50, 1174 p95,
-  1263 max, 10.5 s over the day (647, 1570, 1697 and 23.1 s over 34 reviews). Rounds 1179 ms p50 (1559), `clock_step`
+  1263 max, 10.5 s over the day (647, 1570, 1697 and 23.1 s over 34 reviews). Colony review 1179 ms p50 (1559), `clock_step`
   3213 ms p50 (3493).
 - **What is left.** The warm start (`warm_start`) found no previous selection to seed from in 12 of the 19 reviews
   after the first two (`missing`; 7 `seeded`, 1 selection taken from it): the key the previous selection is filed
   under misses more often than the alternatives change, which is worth reading before the extension is tuned. The
   rounds allocation is unchanged at 898 MB p50 per review (the ~1 GB above): the search was 10 to 30 MB of it.
 
-The continuation that the inputs rule out (#3564; session `79a421bac6af4cc18eb7ea23acd7cc21`, 23 rounds reviews, one
+The continuation that the inputs rule out (#3564; session `79a421bac6af4cc18eb7ea23acd7cc21`, 23 colony reviews, one
 passing colony-review day of the same colony):
 
 - **What was measured.** #3564 proposed re-deriving only the laps whose inputs changed. Before any lap is skipped,
-  the row says which could be: each lap through `derive` leaves its reading with `RoundsLapInputs`, and the
+  the row says which could be: each lap through `derive` leaves its reading with `LapInputs`, and the
   `rounds_review` row names, per lap after `observe`, the properties of the reading it entered on (the one the lap
   before it left) that differ from the previous review's (`laps_changed`; `laps_same` the laps that entered on an
   identical reading; `laps_compare_ms` 1.6 ms p50, 105 ms at the first comparison, which reflects the properties).
@@ -363,16 +363,16 @@ passing colony-review day of the same colony):
 - **What follows.** A per-lap skip would need each lap's inputs declared by hand, with the tick, the pawn positions
   and the continuous facts (mood, temperature) left out or banded, and the laps that cost (the review's coupled
   search over the needs forecasts, the planned sites priced per colonist, the stock) are the ones that read exactly
-  those. The issue's fallback, a full rounds review on its own cadence with the common review reading the last
+  those. The issue's fallback, a full colony review on its own cadence with the common review reading the last
   committed one, is the remaining shape; it is not taken here (#3556 ruled it the fallback) and was taken once the
-  600-tick cadence had landed ([rounds cadence](#rounds-cadence-3556)). Rounds this day:
+  600-tick cadence had landed ([review cadence](#colony-review-cadence-3556)). Colony review this day:
   1409 ms p50 (review 529, derive 155, d_planned 119, d_stock 80). One lead outside rounds: the colony facts read
   (`hop_run` `facade/observations_read_colony_facts`) costs 614 ms p50 of game-thread time per step, 12.5 s over
   the day, more than any rounds lap.
 
 The derive and stock cuts (#3566; two colony-review days of the same colony, cuts `ca2768dee` and `03433bfcd`).
 
-The first cut (session `bb3d35cf81fb4e9887a452cc22484139`, 26 rounds reviews; the game exited at tick 59,085 of 60,000
+The first cut (session `bb3d35cf81fb4e9887a452cc22484139`, 26 colony reviews; the game exited at tick 59,085 of 60,000
 after a run of 7 s game-thread stalls, so the harness marked the day failed with its measurement complete):
 
 - **What changed.** The `d_stock` lap read the journal's zone claims and shelf plans twice (the zone census, whose
@@ -381,7 +381,7 @@ after a run of 7 s game-thread stalls, so the harness marked the day failed with
   review for a launcher tab removed long ago; the table and the dashboard view it flattened are deleted through every
   layer (the station planner keeps the status and the wanted orders). The rounds row gained `fine_ms` /
   `fine_alloc_kb`, `d_stock` and `derive` split further.
-- **After.** Rounds 1155 ms p50 (1409 the day before), `clock_step` 2828 ms p50 (3213). `derive` 158 ms p50
+- **After.** Colony review 1155 ms p50 (1409 the day before), `clock_step` 2828 ms p50 (3213). `derive` 158 ms p50
   (`derive/ledger` 129, p95 444, max 505, 4.3 s over the day; `derive/incumbents` 24; `derive/model` 5; `derive/bills`
   0), `d_stock` 87 (`d_stock/stockpile` 83, p95 309; `d_stock/zones` 3.6; meals and ore under 1), `review` 146 (p95
   1096), `d_planned` 136 (p95 742), `acquisition` 68, `d_file` 55, `layout` 33 (max 2148, one replan adopted). The
@@ -396,7 +396,7 @@ after a run of 7 s game-thread stalls, so the harness marked the day failed with
   nothing and one whose silver gap was open, over its eighteen reads). The next cut is in the number of frames the
   chain waits for, not in the game-thread work.
 
-The second cut (session `4a7c9e93e3ab45adb3a48cdf84781d5f`, 22 rounds reviews, one passing colony-review day):
+The second cut (session `4a7c9e93e3ab45adb3a48cdf84781d5f`, 22 colony reviews, one passing colony-review day):
 
 - **What changed.** The ledger's twelve declarers ran one after another, each waiting its own frames; they now start
   together from the same reading (each writes only its own memory) and are awaited in composition order, so the first
@@ -411,7 +411,7 @@ The second cut (session `4a7c9e93e3ab45adb3a48cdf84781d5f`, 22 rounds reviews, o
   83 (87) did not move: `d_stock/stockpile` 78 p50, of which `plan` 43 (47 MB p50), `occupancy` 12, `census` 11 p50
   but 271 p95 and 293 max (1.0 s over the day: the bench mirror refreshes with a fresh bills read, then one recipe
   hop per bench), `build` 5, `shelves` 2. `d_planned` 156 p50: `sites` 94 (p95 446; 43 MB p50, 288 MB p95),
-  `shelter` 19, `firebreak` 0. Rounds 1332 ms p50 (1155) and `clock_step` 3313 (2828): the difference is `review` at
+  `shelter` 19, `firebreak` 0. Colony review 1332 ms p50 (1155) and `clock_step` 3313 (2828): the difference is `review` at
   351 p50 (146; p95 1337, 11.1 s over the day) and `layout` at p95 811 with 7 replans adopted, the day's colony rather
   than the cut; the rounds allocation 908 MB p50 (512) is the sites and the replans. The hops read as on the first
   day: colony facts 12.0 s over 22 reads (1.45 GB), construction 1.9 s, every ledger and stockpile operation under
@@ -423,7 +423,7 @@ The second cut (session `4a7c9e93e3ab45adb3a48cdf84781d5f`, 22 rounds reviews, o
   and the census refresh spikes are the stock lap's remainder; the planned sites (94 ms, 288 MB p95) are
   `d_planned`'s.
 
-The third cut, the armory declarer (session `abf485a16823439d917e6be65f1991ee`, 31 rounds reviews, one passing
+The third cut, the armory declarer (session `abf485a16823439d917e6be65f1991ee`, 31 colony reviews, one passing
 colony-review day of the same colony):
 
 - **What changed.** The declarer's weapon demand starts the frame-things, combat-pawns and map-bounds reads together
@@ -436,13 +436,13 @@ colony-review day of the same colony):
   22 reviews). `derive/ledger` 28 p50 (53), p95 79 (119), 1.2 s over 31 reviews (1.3 s over 22); `derive/ledger/declare`
   28 p50, and the lap is no longer the armory's alone: `tradeexport` 18 p50 (p95 63, max 194, the lap's max of 205)
   runs the length of it on the reviews whose silver gap is open; `gear` 3, the rest under 1. `derive` 66 ms p50 (87),
-  p95 147. Rounds 1291 ms p50 (1332), p95 2970; `d_stock` 101 (83) and `d_planned` 159 (156) are the day's colony.
+  p95 147. Colony review 1291 ms p50 (1332), p95 2970; `d_stock` 101 (83) and `d_planned` 159 (156) are the day's colony.
 - **What is left.** The issue's mark is still not reached: `derive` 66 + `d_stock` 101 ms. The armory's 25 ms is two
   frame waits (the three reads together, then the weapons read the bounds gate) plus the pawn facts; the map bounds
   do not change within a load, so reading them once per load would collapse the two waits into one. The stock lap is
   now the larger half of the mark.
 
-The fourth cut, the stock lap and the armory's bounds (session `1e95d65fbaec4f0f992bc5307d59b742`, 35 rounds reviews,
+The fourth cut, the stock lap and the armory's bounds (session `1e95d65fbaec4f0f992bc5307d59b742`, 35 colony reviews,
 one passing colony-review day of the same colony):
 
 - **What changed.** The stockpile plan (`d_stock/stockpile/plan`, pure CPU) indexed the planning cells by cell once
@@ -462,7 +462,7 @@ one passing colony-review day of the same colony):
   `d_stock/stockpile/plan` 45 p50 (65), p95 100 (95); `occupancy` 0 (10); `census` 14 p50 (14), p95 57 (158), one
   278 ms refresh. `derive/ledger/armory` 17 p50 (25), p95 42 (70); `derive/ledger` 21 (28), p95 51 (79);
   `tradeexport` 17 p50, max 70 (194). `derive` 60 p50 (66), p95 221 (147) on `derive/incumbents` p95 136 reviews.
-  Rounds 1275 ms p50 (1291), p95 3047 (2970).
+  Colony review 1275 ms p50 (1291), p95 3047 (2970).
 - **What is left.** The mark (`derive` + `d_stock` under 100 ms p50) is at 137 ms. The plan's 45 ms is now the one
   index build plus the store owners' edits over the real colony's zones; the census refresh still costs a frame for
   the bills and one for the recipes when the bench table is stale. The trade export's gap-open reviews are two frame
@@ -544,7 +544,7 @@ What the day says:
   step read. The other 47 ran rounds (1.2 s) and the planner waves (1.0 s): the family entries were dirty in 32 reviews
   (pawn-section invalidations select every family entry, as the step profile found) and due in 12 (`ReviewEvery` 2500
   ticks is every fourth review).
-- **Where the 201 s goes.** Rounds 76 s (38 %), the planner waves 50 s, hold-to-step 45 s, Runs 17 s, the floor 4 s.
+- **Where the 201 s goes.** Colony review 76 s (38 %), the planner waves 50 s, hold-to-step 45 s, Runs 17 s, the floor 4 s.
   Per review that is 1.75 s against the 0.65 s the budget allows: 1.16 s of step, 0.16 s of Run, 0.43 s from the hold
   to the step's start.
 - **Hold-to-step is a new cost.** 400 ms from native's hold stamp to the step's first lap, 45 s a day, and unexplained:
@@ -553,15 +553,15 @@ What the day says:
   around a hold.
 - **The tick rate while running fell.** About 900 ticks/s against 1160 to 1280 on the wall-cadence day; the ceiling at
   the holds ranged 317 to 3563 ticks/s. A hundred holds a day is a hundred ramps.
-- **Next cuts, in order.** (1) The full rounds review on its own cadence (deferred until this item landed): rounds runs
+- **Next cuts, in order.** (1) The full colony review on its own cadence (deferred until this item landed): rounds runs
   at every review that selects a planner, 76 s a day, re-derived from facts that rarely change in 600 ticks. (2) The
   hold-to-step latency, 45 s. (3) The family entries' sections, so a pawn invalidation selects the planners that read
   pawns and not all 22: the waves are 50 s. With rounds and the latency cut the day is about 80 s, under the budget.
 
-### Rounds cadence (#3556)
+### Colony review cadence (#3556)
 
-Measured 2026-10-18 on the same colony and machine, revision 2ea666926 (the rounds review on its own cadence,
-`ClockSchedulerConfig.RoundsEveryTicks` 2500), brain session `d3ad27f717294951bfac61f9ce8b9c1f`, one passing
+Measured 2026-10-18 on the same colony and machine, revision 2ea666926 (the colony review on its own cadence,
+`PlannerSchedulerConfig.ReviewEveryTicks` 2500), brain session `d3ad27f717294951bfac61f9ce8b9c1f`, one passing
 colony-review day of 60530 ticks: 160.6 s of wall from the first step to the last, against 268 s on the 600-tick day
 above. The brain-held wall is 112 s: the day is under the 2-minute budget.
 
@@ -570,7 +570,7 @@ above. The brain-held wall is 112 s: the day is under the 2-minute budget.
 | `clock_step` rows | 105: 98 `review`, 5 `wake` (3 `ColonistNeed`, 1 `NotificationBatch`, 1 `SessionChanged`), 2 `full`; every one `planned` |
 | `clock_run` rows | 105: 104 `run`/`resumed` with `hold_at_tick` 600 past its tick; the same one refusal on the hold serial at the first review |
 | Steps that ran no planner | 59, p50 84 ms |
-| Steps that ran the rounder (`rounds` `due` 18, `wake` 4, `all` 3) | 25, p50 2114 ms: rounds 1126 ms p50 (3806 max, 34.4 s), then the waves |
+| Steps that ran the review coordinator (`rounds` `due` 18, `wake` 4, `all` 3) | 25, p50 2114 ms: rounds 1126 ms p50 (3806 max, 34.4 s), then the waves |
 | Steps on the last committed review (`rounds` `last`) | 21, p50 1078 ms, max 1589 ms, 20.7 s: critical wave 296 ms, optional wave 607 ms |
 | Review step wall | p50 86 ms, p95 2199 ms, max 3517 ms, 58.3 s over 98 |
 | `stop_latency_ms` (hold stamp to step start) | p50 141 ms, p95 220 ms, max 2534 ms, 17.6 s over 103 (was 397 ms p50, 44.6 s) |
@@ -580,9 +580,9 @@ above. The brain-held wall is 112 s: the day is under the 2-minute budget.
 
 What the day says:
 
-- **The rounder ran 25 times, not 55.** Every fifth review is a `due` one: the first review tick at or past 2500 ticks
-  from the last rounds review is 3000 ticks on, so the effective cadence is 3000 ticks, about 20 a day, plus the early
-  reviews (the four hazard holds) and the two full steps. Rounds itself is unchanged at 1.1 s p50 (34 s a day, was
+- **The review coordinator ran 25 times, not 55.** Every fifth review is a `due` one: the first review tick at or past 2500 ticks
+  from the last colony review is 3000 ticks on, so the effective cadence is 3000 ticks, about 20 a day, plus the early
+  reviews (the four hazard holds) and the two full steps. Colony review itself is unchanged at 1.1 s p50 (34 s a day, was
   76 s). The 21 steps between due ticks that had dirty or due planners ran them against the last review in 1.1 s.
 - **Where the 112 s goes.** The planner waves 46 s (critical 12.6 s, optional 21.3 s, refresh and record 1 s, in 46
   steps), rounds 34 s, hold-to-step 18 s, Runs 15 s, the floor 5 s. The waves are now the largest cost: the family
@@ -593,9 +593,9 @@ What the day says:
   with the rounds work and not with the hold path, which did not change; the remaining 141 ms is not explained.
 - **The tick rate while running recovered.** About 1260 ticks/s against about 900 on the 600-tick day (1160 to 1280 on
   the wall-cadence day); the ceiling at the holds ranged 273 to 5695 ticks/s.
-- **What a need waits.** A need that first appears between two rounds reviews is ranked at the next `due` review, up to
+- **What a need waits.** A need that first appears between two colony reviews is ranked at the next `due` review, up to
   3000 ticks (a little over an in-game hour) later, or at the next hazard hold, whichever comes first; the planners that
-  already hold a ranking act on it every 600 ticks. No case in the gate depends on a rounds review per step.
+  already hold a ranking act on it every 600 ticks. No case in the gate depends on a colony review per step.
 - **Next cuts, in order.** (1) The family entries' sections (#3556 item 3's third cut): a pawn invalidation selects
   every family entry, 46 s of waves a day; selecting the entries that read the dirtied section would leave the due
   ones. (2) The hold-to-step latency that remains, 18 s. The day is under the budget without either. The first is the
@@ -615,12 +615,12 @@ family entry's read consumes, and why the two could not be narrowed against each
 and Pawns, and `PlannerQueue.Wake` marked 17 of the 22 entries: the 16 families whose `IFamily.Reads` or
 `SeriousHarmReads` include Pawns (every family but People, Power, Layout, HomeUpkeep and FoodStores) and `defense`
 (`SectionsThreat`). Those marks are the 12 `last` steps with `dirty` 17 at 600, 1200, 3600, 4200 and on, and, since
-`Ran` sets an entry's next review 2500 ticks on, they moved the entries' due phase off the rounder's, which gave 9
+`Ran` sets an entry's next review 2500 ticks on, they moved the entries' due phase off the review coordinator's, which gave 9
 further due-only `last` steps (22200 to 42597) until the next `full` step realigned them.
 
-**What a family read consumes.** Every `Rounds*.ReadAsync` loads the committed rounds review and then observes
-through the shared `Rounder` (`ObserveRoomsAsync` / `ObserveOwnedAsync`, the generation-keyed `Census.Lookup`
-or a fresh `ObserveRoundsAsync`): one census, every section of every family the review files. The entry's declared
+**What a family read consumes.** Every `ReviewState*.ReadAsync` loads the committed colony review and then observes
+through the shared `ColonyReview` (`ObserveRoomsAsync` / `ObserveOwnedAsync`, the generation-keyed `Census.Lookup`
+or a fresh `ObserveReviewAsync`): one census, every section of every family the review files. The entry's declared
 sections (`FactStore.FamilySections` over `Reads` ∪ `SeriousHarmReads`) are therefore already what the read consumes;
 splitting Pawns from Population, or declaring fewer families, would mark fewer entries without changing what any of
 them reads, and `ReadNoteRules.NoteRead` (the `Undeclared` audit) sees only the held PlanningCells and Zones reads,
@@ -629,14 +629,14 @@ not the census. There was nothing to narrow on the brain side.
 **What changed.** The pawn-activity invalidation is gone from native (`Supervisor.ActivityChanged`, its `Reported`
 set and the three call sites). An order completing or failing is the brain's own attempt outcome, which the next
 review reads from the execution rows; a controlled colonist without an order runs vanilla work (#3669) and is in the census
-the next rounds review reads. Neither is an observed fact change. The medical invalidations
+the next colony review reads. Neither is an observed fact change. The medical invalidations
 (`InvalidateMedicalFacts`, Pawns and Emergency, rate-limited) and the Colony invalidations (zones, harvest, stockpile
 fill, game conditions) stay.
 
 Measured 2026-10-18, same colony and machine, brain session `62f7490da4cf41fda31ef1f5ae3e9b5e`, one passing
 colony-review day of 61074 ticks, against the rounds-cadence day above:
 
-| What | Rounds-cadence day | This day |
+| What | Colony review-cadence day | This day |
 | --- | --- | --- |
 | `clock_invalidation` rows | 26: 24 `pawn_activity`, 2 `stockpile fill` | 4: `stockpile fill` (8341, 16681, 30362, 33422) |
 | `clock_step` rows | 105 | 106: 98 `review`, 5 `wake`, 2 `full`; every one `planned` |
@@ -644,7 +644,7 @@ colony-review day of 61074 ticks, against the rounds-cadence day above:
 | Steps that ran a wave | 46 | 33 |
 | Wave wall (`stage_ms` `critical` + `optional`) | 12.6 s + 21.3 s = 33.9 s | 15.8 s + 14.1 s = 29.9 s |
 | Steps on the last committed review (`rounds` `last`) | 21, 20.7 s | 13, 14.1 s |
-| Rounder runs (`due` / `wake` / `all`), rounds wall | 25 (18 / 4 / 3), 34.4 s | 25 (18 / 4 / 3), 38.9 s |
+| ColonyReview runs (`due` / `wake` / `all`), rounds wall | 25 (18 / 4 / 3), 34.4 s | 25 (18 / 4 / 3), 38.9 s |
 | Step wall sum | 79.4 s | 79.7 s |
 | `clock_run` wall | 15.4 s | 14.4 s |
 | Hold-to-step (`stop_latency_ms`) | p50 141 ms, 17.6 s over 103 | p50 167 ms, p95 336 ms, 21.6 s over 104 |
@@ -657,21 +657,21 @@ What the day says:
   rounds wall rose 4.5 s with the day's own variance, and the day's four stockpile fills each marked 21 entries (every
   family declares Colony, and a zone id narrows to Zones, Buildings and Bills, which are Colony sections).
 - **The 13 `last` steps left are a cadence phase, not an invalidation.** An entry runs 2500 ticks after it last ran
-  (`ReviewEveryDefault`, one in-game hour) while the rounder runs at the first review tick 2500 past its last review,
-  3000 effective. Once a dirty step (8400, the first stockpile fill) ran the entries off the rounder's tick, they came
+  (`ReviewEveryDefault`, one in-game hour) while the review coordinator runs at the first review tick 2500 past its last review,
+  3000 effective. Once a dirty step (8400, the first stockpile fill) ran the entries off the review coordinator's tick, they came
   due at 11400, 14400, 19800, 22800, 25800, 28800 and on, each a 21-entry wave on the last review (1.1 to 1.3 s), while
-  the rounder's `due` steps ran 1 entry; the `full` step at 44401 realigned them and the rest of the day had no `last`
+  the review coordinator's `due` steps ran 1 entry; the `full` step at 44401 realigned them and the rest of the day had no `last`
   step. The 150 `dirty` are the 4 stockpile fills (84) and the 4 hazard wakes (66).
-- **Next cuts, in order.** (1) Run the family entries on the rounder's cadence (due when a new rounds review is
+- **Next cuts, in order.** (1) Run the family entries on the review coordinator's cadence (due when a new colony review is
   committed, not 2500 ticks after their own run): removes the `last` steps, 14 s, and the off-phase waves. (2) A
   stockpile fill marks 21 entries; declaring the zone and bill sections only on the families that read them (Food,
   FoodStores, Economy, Layout) would mark 4. (3) The hold-to-step latency, 22 s. The day is under the budget without
   any of them. Cuts 1 and 2 landed as 976dda3b1, measured in the next section.
 
-### Family entries on the rounder's cadence (#3556)
+### Family entries on the review coordinator's cadence (#3556)
 
 The fourth cut of item 3, the first two next cuts of the family-sections day: the family entries are due when the
-rounder is (`PlannerEntry.RoundsCadence`), and an invalidation narrowed to zone ids marks only the families whose
+review coordinator is (`PlannerEntry.Cadence`), and an invalidation narrowed to zone ids marks only the families whose
 schedule names the zone census (`FamilySchedule.Sections`, `Section.Keyed`). Landed 976dda3b1.
 
 **What the day before had hidden.** The section narrowing had never reached a family entry: `FamilyEntry` listed every
@@ -692,11 +692,11 @@ colony-review day of 60580 ticks, against the family-sections day above:
 | Entries a stockpile fill marked | 21 | 5 |
 | `clock_step` rows | 106: 98 `review`, 5 `wake`, 2 `full` | 105: 98 `review`, 5 `wake`, 2 `full`; every one `planned` |
 | `selection` words | `dirty` 150, `due` 354, `dirty+due` 22, `full` 44, `all` 22 | `dirty` 76, `due` 396, `dirty+due` 22, `full` 44, `all` 22 |
-| Steps that ran a wave | 33 | 27: the 25 rounder steps and the 2 `last` steps |
-| Entries a `due` rounder step ran | 1 | 22 |
+| Steps that ran a wave | 33 | 27: the 25 review coordinator steps and the 2 `last` steps |
+| Entries a `due` review coordinator step ran | 1 | 22 |
 | Wave wall (`stage_ms` `critical` + `optional`) | 15.8 s + 14.1 s = 29.9 s | 15.6 s + 15.1 s = 30.7 s |
 | Steps on the last committed review (`rounds` `last`) | 13, 14.1 s | 2, 1.4 s (the two stockpile fills, 5 entries each) |
-| Rounder runs (`due` / `wake` / `all`), rounds wall | 25 (18 / 4 / 3), 38.9 s | 25 (18 / 4 / 3), 37.3 s |
+| ColonyReview runs (`due` / `wake` / `all`), rounds wall | 25 (18 / 4 / 3), 38.9 s | 25 (18 / 4 / 3), 37.3 s |
 | Step wall sum | 79.7 s | 78.4 s |
 | `clock_run` wall | 14.4 s | 14.0 s |
 | Hold-to-step (`stop_latency_ms`) | p50 167 ms, 21.6 s over 104 | p50 166 ms, p95 347 ms, 22.7 s over 103 |
@@ -704,9 +704,9 @@ colony-review day of 60580 ticks, against the family-sections day above:
 
 What the day says:
 
-- **The phase is gone, the waves moved.** Every `due` rounder step (3000, 6000, 9000, ... 60580) ran all 22 entries, and
+- **The phase is gone, the waves moved.** Every `due` review coordinator step (3000, 6000, 9000, ... 60580) ran all 22 entries, and
   no entry came due between two reviews: the 13 `last` steps became 2, each a stockpile fill's 5 marked entries. But a
-  wave is the 22 entries' derivation, about 1.2 s whatever step carries it, so the 25 rounder steps now hold the 30 s
+  wave is the 22 entries' derivation, about 1.2 s whatever step carries it, so the 25 review coordinator steps now hold the 30 s
   the `last` steps and the 1-entry `due` steps shared before. The step wall fell 1.3 s.
 - **The `dirty` count is now the hazards.** 76 marks: the 4 hazard wakes (29856, 29941, 30001, 48580: 66, every entry,
   as a hold other than the review tick must) and the 2 stockpile fills (10). A fill no longer wakes the 16 families
@@ -721,7 +721,7 @@ What the day says:
 
 ### A cadence run keeps the waits (#3556)
 
-The first next cut of the entries-on-the-rounder day, redesigned on its measurement: derivation cost 0 ms everywhere
+The first next cut of the entries-on-the-review coordinator day, redesigned on its measurement: derivation cost 0 ms everywhere
 (`family.derive` spans), so skipping it would have saved nothing. The waves were the work hop: on the 18 `due` runs every
 heavy family's ready Needs returned the same wait or refusal each time (economy `held:no_source` x16, research x17,
 trade `export_bills` x15, admin `construction_labor` x17 and x15, food x17 and x17, rooms `no_space` x17, military x18),
@@ -734,19 +734,19 @@ the pawns finish a designated step, #3681), the immediate pass and another world
 are counted on the `clock_step` row (`kept`) and marked on their `planner_step` rows (`kept`). Landed 9adcf3d36.
 
 Measured 2026-10-18, same colony and machine, brain session `949d4fe485dc46faabaab1e5b3898289`, one passing
-colony-review day of 60000 ticks, against the entries-on-the-rounder day above:
+colony-review day of 60000 ticks, against the entries-on-the-review coordinator day above:
 
-| What | Entries-on-the-rounder day | This day |
+| What | Entries-on-the-review coordinator day | This day |
 | --- | --- | --- |
 | `clock_step` rows | 105: 98 `review`, 5 `wake`, 2 `full`; every one `planned` | 104: 98 `review`, 4 `wake`, 2 `full`; 103 `planned`, the last (60006) failed under the harness's end |
 | `selection` words | `dirty` 76, `due` 396, `dirty+due` 22, `full` 44, `all` 22 | `dirty` 54, `due` 396, `dirty+due` 22, `full` 44, `all` 22 |
-| Steps that ran a wave | 27: 25 rounder steps, 2 `last` | 26: 24 rounder steps, 2 `last` |
-| Needs kept on the 18 `due` rounder steps | 0 | 264: 11 at tick 3000 rising to 18 from 39006 on; 0 on every `wake`, `full`, `all` and `last` step |
+| Steps that ran a wave | 27: 25 review coordinator steps, 2 `last` | 26: 24 review coordinator steps, 2 `last` |
+| Needs kept on the 18 `due` review coordinator steps | 0 | 264: 11 at tick 3000 rising to 18 from 39006 on; 0 on every `wake`, `full`, `all` and `last` step |
 | Due-step `planner_ms` sum, 22 entries x 18 steps | 90 s | 48.6 s |
 | Due-run mean per heavy entry (economy, admin, food, shelter, rooms, medical) | 977, 566, 324, 286, 192, 161 ms | 191, 194, 121, 217, 223, 111 ms |
 | Wave wall (`stage_ms` `critical` + `optional`) | 15.6 s + 15.1 s = 30.7 s | 7.5 s + 6.0 s = 13.5 s |
 | Steps on the last committed review (`rounds` `last`) | 2, 1.4 s | 2, 1.9 s (stockpile fills at 30307 and 51067, 5 entries each, nothing kept) |
-| Rounder runs (`due` / `wake` / `all`), rounds wall | 25 (18 / 4 / 3), 37.3 s | 24 (18 / 3 / 3), 44.2 s |
+| ColonyReview runs (`due` / `wake` / `all`), rounds wall | 25 (18 / 4 / 3), 37.3 s | 24 (18 / 3 / 3), 44.2 s |
 | Step wall sum | 78.4 s | 68.3 s |
 | `clock_run` wall | 14.0 s | 13.3 s |
 | Hold-to-step (`stop_latency_ms`) | p50 166 ms, p95 347 ms, 22.7 s over 103 | p50 138 ms, p95 211 ms, 17.4 s over 102 |
@@ -782,7 +782,7 @@ The first next cut of the kept-waits day: on a `due` step each of the 22 family 
 of it one `lifecycle_read_tick` hop to the game thread (10 to 93 ms queued behind the other entries' hops, 23 to 25
 `ReadTickAsync` per entry per day) to fetch the observation scope its read validates against, while the clock step had
 already read that scope with its clock status. The step now decodes its clock-status context once
-(`ClockScheduler.StepIdentity`) and the catalog hands it to every family step (`FamilyStep.Scope`); the read scope
+(`PlannerScheduler.StepIdentity`) and the catalog hands it to every family step (`FamilyStep.Scope`); the read scope
 carries it (`FamilyReadScope.Scope`) and `StepScope.StepScopeAsync(scope, native, ct)` returns it instead of hopping.
 The game is held for the step, so the scope is fixed and the read sees the tick the hop would have returned. Outside a
 clock step the scope is null and a read hops as before; a family's work keeps its own scope reads. Landed 6564adcd8.
@@ -794,8 +794,8 @@ colony-review day of 60000 ticks, against the kept-waits day above:
 | --- | --- | --- |
 | `clock_step` rows | 104: 98 `review`, 4 `wake`, 2 `full`; 103 `planned` | 105: 99 `review`, 4 `wake`, 2 `full`; every one `planned`; the first `clock_run` (tick 600) failed, the harness's review hold entered after the step's read |
 | `selection` words | `dirty` 54, `due` 396, `dirty+due` 22, `full` 44, `all` 22 | `dirty` 54, `due` 413, `dirty+due` 27, `full` 44, `all` 22 |
-| Steps that ran a wave | 26: 24 rounder steps, 2 `last` | 27: 25 rounder steps, 2 `last` |
-| Needs kept on the `due` rounder steps | 264 over 18 | 292 over 19: 11 at tick 3000 rising to 18 from 41992 on |
+| Steps that ran a wave | 26: 24 review coordinator steps, 2 `last` | 27: 25 review coordinator steps, 2 `last` |
+| Needs kept on the `due` review coordinator steps | 264 over 18 | 292 over 19: 11 at tick 3000 rising to 18 from 41992 on |
 | Due-step `planner_ms` sum, 22 entries | 48.6 s over 18 steps | 22.0 s over 19 steps |
 | Due-run mean per heavy entry (admin, shelter, economy, military, people, medical) | 194, 217, 191, 103, 88, 111 ms | 191, 173, 167, 122, 109, 83 ms |
 | Due-run mean per light entry (rooms, layout, goals, power, ideology, anomaly, disaster) | 223, 216, 169, 167, 166, 30, 26 ms | 57, 50, 12, 9, 10, 3, 3 ms |
@@ -803,7 +803,7 @@ colony-review day of 60000 ticks, against the kept-waits day above:
 | `family.read` hop wait, per-run mean | home-upkeep 93, military 92, food 60, food-stores 62, economy 48, power 40, goals 36 ms | home-upkeep 92 (clearance targets), military 111 (census observe), economy 51, people 22 ms; every other entry 0 |
 | Wave wall (`stage_ms` `critical` + `optional`) | 7.5 s + 6.0 s = 13.5 s | 7.6 s + 5.4 s = 13.0 s |
 | Steps on the last committed review (`rounds` `last`) | 2, 1.9 s | 2, 1.4 s |
-| Rounder runs (`due` / `wake` / `all`), rounds wall | 24 (18 / 3 / 3), 44.2 s | 25 (19 / 3 / 3), 44.5 s, p50 1699 ms, p95 3738 ms |
+| ColonyReview runs (`due` / `wake` / `all`), rounds wall | 24 (18 / 3 / 3), 44.2 s | 25 (19 / 3 / 3), 44.5 s, p50 1699 ms, p95 3738 ms |
 | Step wall sum | 68.3 s | 68.1 s |
 | `clock_run` wall | 13.3 s | 13.7 s |
 | Hold-to-step (`stop_latency_ms`) | p50 138 ms, p95 211 ms, 17.4 s over 102 | p50 143 ms, p95 201 ms, 17.2 s over 103 |
@@ -820,7 +820,7 @@ What the day says:
   the step wall at 68 s and the brain-held wall at 99.0 s. The cut pays off once the heavy entries' work leaves the
   wave; it does not pay now.
 - **The rounds stage is 44 s on a second day.** 44.5 s over 25 reviews against 44.2 s over 24; p50 1699 ms, p95 3738 ms.
-  Against the entries-on-the-rounder day's 37.3 s the growth holds, so it is the colony's growth, not noise. It is now
+  Against the entries-on-the-review coordinator day's 37.3 s the growth holds, so it is the colony's growth, not noise. It is now
   65% of the step wall and the largest cut left.
 - **The empty steps cost about 23 s.** 78 of the 105 steps selected no planner (84 ms step wall each, 7.1 s), yet each
   still paid its hold-to-step latency (p50 143 ms) and its `clock_run` (p50 67 ms): about 23 s of the 99 s the brain
@@ -859,7 +859,7 @@ because a tiled replan (10 a day) hands an unbuilt planned room a new id (room5,
 alternative evaluated about 0.2 ms; a single-root screen evaluates about 11 alternatives, almost all of them then
 rejected as construction without supported relief.
 
-The cut: the rounder remembers the planned rooms with the selected ids, and `RoundsRules.WarmStartOf` points a
+The cut: the review coordinator remembers the planned rooms with the selected ids, and `Rules.WarmStartOf` points a
 previous id whose room left the plan at the current room of the same role whose floor overlaps the remembered one, the
 lowest id when several do, before the search (`warm_translated` on the row counts the ids moved). The search's clock
 is injected (`clockMs`), since Policy reads no clock. Landed 891337f0b.
@@ -869,7 +869,7 @@ colony-review day of 60000 ticks, against the shared-scope day and the profile d
 
 | What | Shared-scope day | Profile day | This day |
 | --- | --- | --- | --- |
-| Rounder runs, rounds wall | 25, 44.5 s, p50 1699 ms, p95 3738 ms | 26, 47.5 s, p50 1622 ms, p95 3237 ms | 25, 44.1 s, p50 1393 ms, p95 4377 ms |
+| ColonyReview runs, rounds wall | 25, 44.5 s, p50 1699 ms, p95 3738 ms | 26, 47.5 s, p50 1622 ms, p95 3237 ms | 25, 44.1 s, p50 1393 ms, p95 4377 ms |
 | `review` lap | 26.1 s, p50 900 ms | 27.6 s, p50 1014 ms | 25.8 s, p50 821 ms |
 | `warm_start` after the first two reviews | 11 `seeded`, 12 `missing` | 9 `seeded`, 15 `missing` | 23 `seeded`, 0 `missing`; 9 reviews moved 1 to 8 ids |
 | Warm leader screened / stood | 9 / 6 | 9 / 6 | 20 / 9 (11 infeasible: the remembered work is done or its pawn moved on) |
@@ -907,7 +907,7 @@ What the day says:
 Decided (user, 2026-10-13):
 
 - **Who starts it.** `BrainBootstrap.Start` (Bridge, `Protocol/`), called once by the mod's one startup,
-  `NativeStartup` ([native facade](native-facade.md)). Without `-rimgovernor-inproc`
+  `NativeStartup` ([game API](game-api.md)). Without `-rimgovernor-inproc`
   (`InProcLaunch.Requested(Environment.GetCommandLineArgs())`) it creates no brain thread, database or file; the engine-quit cleanup hook still runs. With it,
   one task polls the game thread (a facade hop, so it is also "not yet" until the host has set up game-thread access)
   until `PlayDataLoader.Loaded` and the Defs exist, for up to 20 minutes; resolves the environment; takes the route
@@ -963,20 +963,20 @@ Decided (user, 2026-10-13):
   `BridgeTools/RimGovernor/` (or `About.xml`) changed since its launch (`Harness.RelaunchFiles`); the lab start-cache
   stamp and report `package_files` stay on the narrower `Harness.StampFiles` (About.xml, Runtime.dll, Bridge.dll).
   The harness's journal reader (`CaseStore`) opens that file. The speed matrix and hazard cases call the mod's
-  read-only `rimgovernor/acceptance_read_*` tools (`capture_profile` and `clock_accounting`; `AcceptanceReadTools`)
+  read-only `acceptance_read_*` tools (`capture_profile` and `clock_accounting`; `AcceptanceReadTools`)
   through the generic native route. `capture_profile` times the brain's decode of a captured frame with
   `AcceptanceReads.FrameDecodeProfile` in the Host project; the tools return JSON in `payload`, record nothing and
   need no running brain.
 - **Catalog.** `BrainCompositionOptions.CatalogFactory` is `NativeCatalogFactory.Create` and `StartingIdeoligion` is
   `NativeCatalogFactory.StartingIdeoligion`; both run on the brain's threads, never the game thread.
-- **Clock native.** Nothing to build: `FacadeNativeClient` already implements `IClockDriverNative`.
+- **Clock native.** Nothing to build: `GameClient` already implements `IClockDriverNative`.
 - **Loading.** The default load context, with the brain assemblies beside the Bridge, not a collectible one. The
-  package ships the Host's whole graph (Observation, Store, Executor, BuildingRuntime, PlayerApi,
+  package ships the Host's whole graph (Observation, Store, Executor, Runtime, PlayerApi,
   Simulation) and Store's native SQLite as a flat `e_sqlite3.dll` (win-x64 only) in `BridgeTools/RimGovernor`, because
   the runtime probes the requesting assembly's own directory, not `runtimes/<rid>/native`. Verified on a stock .NET 10
   runtime; not yet on the game's own CLR.
 
 ## Open decisions
 
-What a suspended planner reports (today the whole brain is suspended, since `ClockScheduler` cannot drop one planner);
+What a suspended planner reports (today the whole brain is suspended, since `PlannerScheduler` cannot drop one planner);
 the shared-assembly binding assumption from #3080.

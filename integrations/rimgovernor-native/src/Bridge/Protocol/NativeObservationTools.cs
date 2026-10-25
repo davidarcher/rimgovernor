@@ -4,73 +4,70 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI.Group;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Defs = RimGovernor.Contracts.Wire.Defs;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class NativeObservationTools
     {
         // On the game thread: the typed core of the tool, shared with the in-process facade.
         // A refused request throws NativeRefusedException; a census that cannot be read completely throws an unavailable fault.
-        internal static Obs.StatusSnapshot HandleReadStatus(Obs.StatusRequest parsed)
+        internal static RimGovernor.Brain.GameFacts.Observations.StatusSnapshot HandleReadStatus(RimGovernor.Brain.GameOrders.Observations.StatusRequest parsed)
         {
             if (!ValidateStatus(parsed, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
-            if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
+            if (!GameThread.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
                 throw NativeFaults.Refused(failure);
             try { return Status(map, context); }
             catch (Exception readError)
             {
                 ModLog.Error("observe", "Status read failed: " + readError);
-                throw NativeFaults.Unavailable(Unavailable(Common.UnavailableReason.ReadFailed,
+                throw NativeFaults.Unavailable(Unavailable(RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed,
                     PlacementPreviewOperation.Diagnostic("Native status facts could not be read completely: " + readError.GetType().Name + ": " + readError.Message)));
             }
         }
 
         // On the game thread: the typed core of the tool, shared with the in-process facade: the rectangle as the
         // frame grid reads it. A refused request or a rectangle that cannot be read completely throws.
-        internal static Obs.CellsSnapshot HandleGetCells(Obs.GetCellsRequest parsed)
+        internal static RimGovernor.Brain.GameFacts.Observations.CellsSnapshot HandleGetCells(RimGovernor.Brain.GameOrders.Observations.GetCellsRequest parsed)
         {
             if (!ValidateCells(parsed, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
-            if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
+            if (!GameThread.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
                 throw NativeFaults.Refused(failure);
             var rectangle = parsed.Rectangle ?? throw new InvalidOperationException("Rectangle missing.");
             var min = rectangle.Minimum; var max = rectangle.Maximum;
             if (!new IntVec3(min.X, 0, min.Z).InBounds(map) || !new IntVec3(max.X, 0, max.Z).InBounds(map))
-                throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Selected cell is outside the current map."));
+                throw NativeFaults.Refused(GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Selected cell is outside the current map."));
             try
             {
-                return new Obs.CellsSnapshot { Context = context,
-                    MapSize = new Obs.MapSize { Width = checked((uint)map.Size.x), Height = checked((uint)map.Size.z) },
+                return new RimGovernor.Brain.GameFacts.Observations.CellsSnapshot { Context = context,
+                    MapSize = new RimGovernor.Brain.GameFacts.Observations.MapSize { Width = checked((uint)map.Size.x), Height = checked((uint)map.Size.z) },
                     Grid = CellGridReader.Read(map, min.X, min.Z, max.X - min.X + 1, max.Z - min.Z + 1) };
             }
             catch (Exception readError)
             {
                 ModLog.Error("observe", "Cell read failed: " + readError);
-                throw NativeFaults.Unavailable(Unavailable(Common.UnavailableReason.ReadFailed,
+                throw NativeFaults.Unavailable(Unavailable(RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed,
                     PlacementPreviewOperation.Diagnostic("Native cell facts could not be read completely: " + readError.GetType().Name + ": " + readError.Message)));
             }
         }
 
         // On the game thread: the typed core of the tool.
         // A refused request throws NativeRefusedException; a site that cannot be read completely throws an unavailable fault.
-        internal static Obs.ExcavationSiteSnapshot HandleReadExcavationSite(Obs.ExcavationSiteRequest parsed)
+        internal static RimGovernor.Brain.GameFacts.Observations.ExcavationSiteSnapshot HandleReadExcavationSite(RimGovernor.Brain.GameOrders.Observations.ExcavationSiteRequest parsed)
         {
             if (!NativeExcavationSite.Validate(parsed, out var invalid)) throw NativeFaults.Refused(invalid);
-            if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
+            if (!GameThread.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
                 throw NativeFaults.Refused(failure);
             if (!NativeExcavationSite.OnMap(parsed, map, out var offMap)) throw NativeFaults.Refused(offMap);
             try { return NativeExcavationSite.Read(map, parsed, context); }
             catch (Exception readError)
             {
                 ModLog.Error("observe", "Excavation site read failed: " + readError);
-                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
+                throw NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed,
                     Detail = PlacementPreviewOperation.Diagnostic("Native excavation site facts could not be read completely: " + readError.GetType().Name + ": " + readError.Message) });
             }
         }
@@ -80,14 +77,14 @@ namespace HomeBridge.BridgeTools
         // window view's capture.
         internal static bool CellDoorway(Map map, IntVec3 cell) => cell.GetDoor(map) != null || cell.GetThingList(map).Any(t => (t is Blueprint || t is Frame)
             && t.def.entityDefToBuild is ThingDef built && typeof(Building_Door).IsAssignableFrom(built.thingClass));
-        internal static bool ValidateStatus(Obs.StatusRequest request, out Common.Failure failure)
+        internal static bool ValidateStatus(RimGovernor.Brain.GameOrders.Observations.StatusRequest request, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity scope required.");
+            failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Valid identity scope required.");
             return request != null && request.Scope?.ExpectedIdentity != null;
         }
-        internal static bool ValidateCells(Obs.GetCellsRequest request, out Common.Failure failure)
+        internal static bool ValidateCells(RimGovernor.Brain.GameOrders.Observations.GetCellsRequest request, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity and an inclusive rectangle of at most 1048576 cells required.");
+            failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Valid identity and an inclusive rectangle of at most 1048576 cells required.");
             if (request == null || request.Scope?.ExpectedIdentity == null) return false;
             if (request.Rectangle == null) return false;
             var min = request.Rectangle.Minimum; var max = request.Rectangle.Maximum;
@@ -101,29 +98,29 @@ namespace HomeBridge.BridgeTools
 
         // The status census, whole: the free colonists, the dependent patients and every threat row. The status read and
         // the bundle's emergency section both read it; anything it cannot read throws.
-        internal static Obs.StatusSnapshot Status(Map map, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Observations.StatusSnapshot Status(Map map, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var spawned = map.mapPawns.AllPawnsSpawned.ToList();
             var colonists = spawned.Where(p => !p.Dead && p.IsFreeColonist).ToList();
             var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
-            var threats = new Obs.ThreatsSnapshot { Pawns = [], HostileBuildings = [] };
+            var threats = new RimGovernor.Brain.GameFacts.Observations.ThreatsSnapshot { Pawns = [], HostileBuildings = [] };
             var colonistCells = colonists.Select(p => (p.Position.x, p.Position.z)).ToList();
             NativeThreatClassifier.Collect(spawned.Where(p => !p.Dead && !p.IsColonist).ToList(), pawn => ThreatFactsOf(pawn, player),
                 colonistCells, PredatorRadius, NativePawnObservationTools.Ref, ref threats);
-            var buildings = new List<Obs.ThreatBuilding>();
+            var buildings = new List<RimGovernor.Brain.GameFacts.Observations.ThreatBuilding>();
             foreach (var building in HostileBuildings(map, player)) {
                 var rect = building.OccupiedRect();
-                buildings.Add(new Obs.ThreatBuilding {
+                buildings.Add(new RimGovernor.Brain.GameFacts.Observations.ThreatBuilding {
                     Building = Entity(building),
                     Snapshot = Token(context.Identity, building),
-                    NearestColonist = colonists.Count == 0 ? new Obs.ColonistDistance.NoColonist()
-                        : new Obs.ColonistDistance.Nearest(colonists.Min(p => Math.Max(Math.Abs(p.Position.x-building.Position.x),Math.Abs(p.Position.z-building.Position.z)))),
-                    Occupied = new Obs.Rectangle { Minimum = Cell(rect.minX, rect.minZ), Maximum = Cell(rect.maxX, rect.maxZ) },
+                    NearestColonist = colonists.Count == 0 ? new RimGovernor.Brain.GameFacts.Observations.ColonistDistance.NoColonist()
+                        : new RimGovernor.Brain.GameFacts.Observations.ColonistDistance.Nearest(colonists.Min(p => Math.Max(Math.Abs(p.Position.x-building.Position.x),Math.Abs(p.Position.z-building.Position.z)))),
+                    Occupied = new RimGovernor.Brain.GameFacts.Observations.Rectangle { Minimum = Cell(rect.minX, rect.minZ), Maximum = Cell(rect.maxX, rect.maxZ) },
                     Passive = building is Hive ? !HiveEngaging(building, colonists, spawned, player) : Dormant(building),
                     Fogged = building.Position.Fogged(map),
                 });
             }
-            return new Obs.StatusSnapshot {
+            return new RimGovernor.Brain.GameFacts.Observations.StatusSnapshot {
                 Context = context,
                 DependentPatients = NativeDependentPatients.Observe(map),
                 Colonists = [.. colonists.Select(NativePawnObservationTools.Ref)],
@@ -193,10 +190,10 @@ namespace HomeBridge.BridgeTools
         }
 
         // preemptible: controlled with no committed coupled order (NativePawnActivities.Standing, #3670).
-        internal static Obs.JobEvidence JobRow(Verse.AI.Job? job, int queuedJobs, bool preemptible)
+        internal static RimGovernor.Brain.GameFacts.Observations.JobEvidence JobRow(Verse.AI.Job? job, int queuedJobs, bool preemptible)
         {
             if (queuedJobs < 0) throw new InvalidOperationException("Negative native queued job count.");
-            var row = new Obs.JobEvidence { PlayerForced = job?.playerForced ?? false, QueuedJobs = (uint)queuedJobs, Preemptible = preemptible };
+            var row = new RimGovernor.Brain.GameFacts.Observations.JobEvidence { PlayerForced = job?.playerForced ?? false, QueuedJobs = (uint)queuedJobs, Preemptible = preemptible };
             if (job != null) {
                 row = row with { DefName = Identifier(job.def.defName) };
                 // The work giver's WorkTypeDef names the labor the job spends
@@ -212,23 +209,23 @@ namespace HomeBridge.BridgeTools
                 // targetA and works for the frame or bench in targetB.
                 var target = job.def == JobDefOf.HaulToContainer && job.targetB.HasThing ? job.targetB : job.targetA;
                 if (target.HasThing) {
-                    row = row with { TargetA = new Obs.TargetRef { Target = new Obs.TargetRefTarget.EntityCase(NativeRef.Thing(target.Thing), target.Thing.Spawned ? new Obs.EntityPlace.OnMap(target.Thing.Map.uniqueID, Cell(target.Thing.Position.x, target.Thing.Position.z)) : new Obs.EntityPlace.Unplaced()) } };
-                } else if (target.IsValid) row = row with { TargetA = new Obs.TargetRef { Target = Cell(target.Cell.x, target.Cell.z) } };
-                else row = row with { TargetA = new Obs.TargetRef { Target = new Common.Unavailable { Reason = Common.UnavailableReason.NotApplicable, Detail = "Job has no target." } } };
+                    row = row with { TargetA = new RimGovernor.Brain.GameFacts.Observations.TargetRef { Target = new RimGovernor.Brain.GameFacts.Observations.TargetRefTarget.EntityCase(NativeRef.Thing(target.Thing), target.Thing.Spawned ? new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(target.Thing.Map.uniqueID, Cell(target.Thing.Position.x, target.Thing.Position.z)) : new RimGovernor.Brain.GameFacts.Observations.EntityPlace.Unplaced()) } };
+                } else if (target.IsValid) row = row with { TargetA = new RimGovernor.Brain.GameFacts.Observations.TargetRef { Target = Cell(target.Cell.x, target.Cell.z) } };
+                else row = row with { TargetA = new RimGovernor.Brain.GameFacts.Observations.TargetRef { Target = new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.NotApplicable, Detail = "Job has no target." } } };
             }
             return row;
         }
 
-        private static Obs.EntityRef Entity(Thing thing)
+        private static RimGovernor.Brain.GameFacts.Observations.EntityRef Entity(Thing thing)
         {
             // A held thing (gear, a buried corpse) is at its holder's cell.
-            Obs.EntityPlace place = thing.MapHeld is { } map ? new Obs.EntityPlace.OnMap(map.uniqueID, Cell(thing.PositionHeld.x, thing.PositionHeld.z)) : new Obs.EntityPlace.Unplaced();
-            return new Obs.EntityRef { Id=Identifier(thing.GetUniqueLoadID()), DefName=Identifier(thing.def.defName), Label=Diagnostic(thing.LabelCap), Place=place };
+            RimGovernor.Brain.GameFacts.Observations.EntityPlace place = thing.MapHeld is { } map ? new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(map.uniqueID, Cell(thing.PositionHeld.x, thing.PositionHeld.z)) : new RimGovernor.Brain.GameFacts.Observations.EntityPlace.Unplaced();
+            return new RimGovernor.Brain.GameFacts.Observations.EntityRef { Id=Identifier(thing.GetUniqueLoadID()), DefName=Identifier(thing.def.defName), Label=Diagnostic(thing.LabelCap), Place=place };
         }
         // Self-checked CAS token for one thing (observation rows and combat
         // orders compare it): its version over def, cell, stack, forbidden,
         // rot stage and a corpse's faction and name.
-        internal static string Token(Common.Identity identity, Thing thing)
+        internal static string Token(RimGovernor.Brain.GameFacts.Common.Identity identity, Thing thing)
         {
             var rot = thing.TryGetComp<CompRottable>();
             var corpse = thing as Corpse;
@@ -242,25 +239,25 @@ namespace HomeBridge.BridgeTools
         }
         // ThingRow is the one thing row builder: the cells read's
         // things and the bundle's things table.
-        internal static Obs.Thing ThingRow(Thing thing, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Observations.Thing ThingRow(Thing thing, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
-            return new Obs.Thing { Entity = Entity(thing), Forbidden = thing.IsForbidden(Faction.OfPlayer), Corpse = thing is Corpse };
+            return new RimGovernor.Brain.GameFacts.Observations.Thing { Entity = Entity(thing), Forbidden = thing.IsForbidden(Faction.OfPlayer), Corpse = thing is Corpse };
         }
 
         // The bundle's things table: the rows of things, each once,
         // in id order.
-        internal static Obs.ThingsSnapshot Things(IEnumerable<Thing> things, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Observations.ThingsSnapshot Things(IEnumerable<Thing> things, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
-            var result = new Obs.ThingsSnapshot();
+            var result = new RimGovernor.Brain.GameFacts.Observations.ThingsSnapshot();
             foreach (var thing in things.GroupBy(t => t.GetUniqueLoadID()).Select(g => g.First()).OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal))
                 result = result with { Things = [.. result.Things, ThingRow(thing, context)] };
             return result;
         }
 
         private static RimGovernor.Brain.Domain.Cell Cell(int x,int z)=>new RimGovernor.Brain.Domain.Cell { X=x,Z=z };
-        private static string Identifier(string? value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
+        private static string Identifier(string? value) => GameThread.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
         private static string Diagnostic(string value)=>PlacementPreviewOperation.Diagnostic(value);
         private static double Finite(double value)=>double.IsNaN(value)||double.IsInfinity(value)?throw new InvalidOperationException("Nonfinite native fact."):value;
-        private static Common.Unavailable Unavailable(Common.UnavailableReason reason,string detail)=>new Common.Unavailable { Reason=reason,Detail=detail };
+        private static RimGovernor.Brain.GameFacts.Common.Unavailable Unavailable(RimGovernor.Brain.GameFacts.Common.UnavailableReason reason,string detail)=>new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason=reason,Detail=detail };
     }
 }

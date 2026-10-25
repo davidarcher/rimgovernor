@@ -2,17 +2,17 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// What the food family reads (#3254). For cooking: whether a meal can be cooked at the tier the meal policy picks
-/// (the review's <see cref="RoundsFacts.Cooking"/>), and whether a cooking campfire a stove kitchen supersedes still
+/// (the review's <see cref="ReviewFacts.Cooking"/>), and whether a cooking campfire a stove kitchen supersedes still
 /// waits to be taken down. For supply: the food plan's human-food routes, the food runway against the foothold and
 /// the seasonal reserve, the growing capacity, the field coverage and the butcher facility. For baby feeding: the
 /// review of the babies' food. For blight: the blighted-plant census and the plants the Need's own cuts were refused.
 /// </summary>
 public sealed record FoodFacts
 {
-    /// <summary>The babies' food against their need (<see cref="RoundsFacts.BabyFeeding"/>); the empty review without Biotech baby care.</summary>
+    /// <summary>The babies' food against their need (<see cref="ReviewFacts.BabyFeeding"/>); the empty review without Biotech baby care.</summary>
     public BabyFeeding BabyFeeding { get; init; } = new();
 
-    /// <summary>The total blighted-plant census on growing-zone or home ground (<see cref="RoundsFacts.Blight"/>).</summary>
+    /// <summary>The total blighted-plant census on growing-zone or home ground (<see cref="ReviewFacts.Blight"/>).</summary>
     public EquatableArray<BlightedPlant> Blight { get; init; }
 
     /// <summary>The plants a cut of the blight Need's open Methods could not designate; they are left out of the next cut.</summary>
@@ -43,7 +43,7 @@ public sealed record FoodFacts
     public bool ReserveCovered { get; init; }
 
     /// <summary>The facts a review already holds, the food thresholds read for the review's season.</summary>
-    public static FoodFacts From(RoundsFacts f, RoundsPolicy policy)
+    public static FoodFacts From(ReviewFacts f, PlannerSettings policy)
     {
         var p = policy.Seasonal(f.Calendar, f.DisasterConditions);
         return new()
@@ -51,11 +51,11 @@ public sealed record FoodFacts
             Cooking = f.Cooking,
             CampfireRetireOwed = f.CampfireRetireOwed,
             HumanFoodSettled = f.FoodPlan is not { } held || !HumanFoodPlanRules.HumanFoodPending(held),
-            FootholdFood = RoundsRules.FootholdFood(f, p),
-            FootholdProduction = RoundsRules.FootholdProduction(f),
+            FootholdFood = Rules.FootholdFood(f, p),
+            FootholdProduction = Rules.FootholdProduction(f),
             FieldsCovered = f.FieldCoverage >= 1 - 1e-9,
-            ButcherFacility = RoundsRules.ButcherFacilityMet(f),
-            ReserveCovered = RoundsRules.Reached(f.FoodDays, p.FoodTargetDays),
+            ButcherFacility = Rules.ButcherFacilityMet(f),
+            ReserveCovered = Rules.Reached(f.FoodDays, p.FoodTargetDays),
             BabyFeeding = f.BabyFeeding,
             Blight = f.Blight,
         };

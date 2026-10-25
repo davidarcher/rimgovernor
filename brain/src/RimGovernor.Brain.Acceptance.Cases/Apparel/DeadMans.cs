@@ -2,7 +2,8 @@ using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -74,11 +75,11 @@ internal static class DeadMans
             };
             GearOption[] items = [.. Enumerable.Range(0, Garments).Select(i => new GearOption
             {
-                Origin = new GearOptionOrigin.Observed(new RimGovernor.Contracts.Wire.Observations.GearLoadoutOption
+                Origin = new GearOptionOrigin.Observed(new RimGovernor.Brain.GameFacts.Observations.GearLoadoutOption
                 {
                     Id = "g" + i, DefName = "", Stuff = null,
-                    Quality = new RimGovernor.Contracts.Wire.Observations.ItemQuality.Qualityless(),
-                    Source = RimGovernor.Contracts.Wire.Observations.GearSource.Worn, Condition = 1, Tainted = i < tainted, Locked = false, Crafters = [],
+                    Quality = new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Qualityless(),
+                    Source = RimGovernor.Brain.GameFacts.Observations.GearSource.Worn, Condition = 1, Tainted = i < tainted, Locked = false, Crafters = [],
                 }),
             })];
             if (MechanicCardGuards.CardStageOffset(card, facts, items) is not CardOffset.Staged { Offset: var want })
@@ -95,7 +96,7 @@ internal static class DeadMans
                 ("stage", stage),
                 ("card", want),
                 ("settle_ticks", ticks),
-                ("row", row is null ? null : JsonNode.Parse(WireJson.Serialize(row)))));
+                ("row", row is null ? null : JsonNode.Parse(OrdersJson.Serialize(row)))));
             if (assert && offset != want)
             {
                 throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"{label}: observed {Thought} offset {offset} (stage {stage}), the card says {want}"));

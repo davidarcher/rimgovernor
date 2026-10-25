@@ -3,7 +3,7 @@ using System.Linq;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The open guarded designations: which designation a Designate
     // placed under which named guard. The guard's own rule is native code;

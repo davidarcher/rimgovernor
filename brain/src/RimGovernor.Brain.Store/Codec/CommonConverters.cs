@@ -17,7 +17,7 @@ public sealed class PawnIdConverter() : StringCodec<PawnId>(s => new PawnId(s), 
 
 public sealed class QuestIdConverter() : StringCodec<QuestId>(s => new QuestId(s), v => v.Value);
 
-public sealed class ConcernIdConverter() : StringCodec<ConcernId>(s => new ConcernId(s), v => v.Value);
+public sealed class FilingKeyConverter() : StringCodec<FilingKey>(s => new FilingKey(s), v => v.Value);
 
 public sealed class MethodIdConverter() : StringCodec<MethodId>(s => new MethodId(s), v => v.Value);
 

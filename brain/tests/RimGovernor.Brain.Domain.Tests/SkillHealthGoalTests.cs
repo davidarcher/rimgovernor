@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -16,9 +15,9 @@ public sealed class SkillHealthGoalTests
 
     private static WorkPawn Pawn(string id, int cooking, int building, bool cookingDisabled = false) => PawnFixtures.Worker(id) with
     { Work = PawnFixtures.WorkTable(true, [
-            new() { Observed = new O.WorkSetting { DefName = "Cooking", Priority = 3, Disabled = false }, Skill = "Cooking", Order = 10 },
-            new() { Observed = new O.WorkSetting { DefName = "Construction", Priority = 3, Disabled = false }, Skill = "Construction", Order = 5 }]), Observed = PawnFixtures.Row(id) with { Biography = PawnFixtures.Row(id).Biography with { Skills = [
-            new() { Passion = O.Passion.None, DefName = "Cooking", Level = cooking, Disabled = cookingDisabled }, new() { Passion = O.Passion.None, DefName = "Construction", Level = building }] }, Settings = PawnFixtures.Row(id).Settings with { Schedule = EquatableArray.From((EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24))).Select((assignment, hour) => new O.TimetableSlot { Hour = (uint)hour, AssignmentDefName = assignment })) } } };
+            new() { Observed = new RimGovernor.Brain.GameFacts.Observations.WorkSetting { DefName = "Cooking", Priority = 3, Disabled = false }, Skill = "Cooking", Order = 10 },
+            new() { Observed = new RimGovernor.Brain.GameFacts.Observations.WorkSetting { DefName = "Construction", Priority = 3, Disabled = false }, Skill = "Construction", Order = 5 }]), Observed = PawnFixtures.Row(id) with { Biography = PawnFixtures.Row(id).Biography with { Skills = [
+            new() { Passion = RimGovernor.Brain.GameFacts.Observations.Passion.None, DefName = "Cooking", Level = cooking, Disabled = cookingDisabled }, new() { Passion = RimGovernor.Brain.GameFacts.Observations.Passion.None, DefName = "Construction", Level = building }] }, Settings = PawnFixtures.Row(id).Settings with { Schedule = EquatableArray.From((EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24))).Select((assignment, hour) => new RimGovernor.Brain.GameFacts.Observations.TimetableSlot { Hour = (uint)hour, AssignmentDefName = assignment })) } } };
 
     private static GoalsFacts SkillFacts(GoalRecord goal, params WorkPawn[] pawns) =>
         new() { Goals = [goal], Pawns = new WorkPawnsRead(EquatableArray.From(pawns)) };
@@ -50,12 +49,12 @@ public sealed class SkillHealthGoalTests
         Assert.NotEqual(1, Priority(plain, "trainee", WorkType.Cooking));
 
         var goal = Goal(GoalKind.Skill, "trainee", "Cooking", 10);
-        var facts = GoalRules.Stamp(new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat } } }, GoalRules.DemandOf(SkillFacts(goal, chef, trainee)));
+        var facts = GoalRules.Stamp(new ReviewFacts { Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat } } }, GoalRules.DemandOf(SkillFacts(goal, chef, trainee)));
         Assert.Equal([new SkillGoal(new PawnId("trainee"), "Cooking")], facts.GoalTraining.Items);
         var trained = WorkRules.PlanWork([chef, trainee], [], new() { Training = facts.GoalTraining.Items });
         Assert.Equal(1, Priority(trained, "chef", WorkType.Cooking));
         Assert.Equal(1, Priority(trained, "trainee", WorkType.Cooking));
-        Assert.Equal(facts.GoalTraining.Items, WorkRules.RoundsWorkDemand(facts, false).Training);
+        Assert.Equal(facts.GoalTraining.Items, WorkRules.WorkDemand(facts, false).Training);
 
         // A met goal places no demand.
         Assert.Empty(GoalRules.DemandOf(SkillFacts(goal, chef, Pawn("trainee", 10, 18))).Training);
@@ -88,7 +87,7 @@ public sealed class SkillHealthGoalTests
     private static GoalsFacts HealthFacts(GoalRecord goal, CarePawn patient, bool bed = true) => new()
     {
         Goals = [goal],
-        Rounds = new RoundsFacts
+        ReviewState = new ReviewFacts
         {
             Recipes = new RecipeFacts { AddedHediffs = new Dictionary<string, string> { [Recipe] = "BionicEye" } },
             MedicalPawns = EquatableArray.From([patient]),
@@ -116,7 +115,7 @@ public sealed class SkillHealthGoalTests
     {
         var goal = Goal(GoalKind.Health, "colonist", Recipe);
         var stocked = HealthFacts(goal, Patient(true));
-        var facts = GoalRules.Stamp(stocked.Rounds, GoalRules.DemandOf(stocked));
+        var facts = GoalRules.Stamp(stocked.ReviewState, GoalRules.DemandOf(stocked));
         Assert.Equal([new SurgeryGoal(new PawnId("colonist"), Recipe)], facts.GoalSurgeries.Items);
         var ctx = facts.SurgeryContextOf() with { HospitalBed = true };
 

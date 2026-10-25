@@ -1,5 +1,6 @@
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -83,7 +84,7 @@ public sealed class PrisonCreditTests
         };
         facts = ForecastCoupledCandidates.ReviewCoupledActivities(facts);
         var coupled = facts.CoupledAlternatives!;
-        // The production review's selection (RoundsRules.InspectRounds): its outcome and chosen roots leave the construction short.
+        // The production review's selection (Rules.InspectReview): its outcome and chosen roots leave the construction short.
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new(100),
             ForecastCoupled.TierOneHorizonDays, facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), coupled);
         var chosen = selected.Selection.Selected.ToHashSet(StringComparer.Ordinal);
@@ -99,7 +100,7 @@ public sealed class PrisonCreditTests
             RoomCredits = PlannedRoomCredits.Shipped,
             Closures = [new(1, "", [], [], [], PlannedRoomPredictionTests.Closed("1", "", "PrisonCell", 40d, 3, 9, 0, false) with { Beds = ["Bed"] })],
         };
-        // The colonist's needs read as tier 2 models them (RoundsColonyModel.InputOf reads the model's needs from it), at bed effectiveness 1.
+        // The colonist's needs read as tier 2 models them (ReviewColonyModel.InputOf reads the model's needs from it), at bed effectiveness 1.
         EquatableArray<NeedRate> rates = [.. input.Pawns[0].Needs.Select(n => NeedsFixtures.Rate(n.Kind, 0.5, n.Fall, n.Threshold) with
         {
             OutdoorShareByTwelfth = n.OutdoorShares, GainPerTickPerEffectiveness = 1,

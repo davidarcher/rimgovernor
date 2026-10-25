@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -10,7 +11,7 @@ public sealed class ObservedShelterTests
     private static readonly EquatableArray<Cell> Interior = [new(1, 1), new(2, 1), new(1, 2), new(2, 2), new(1, 3), new(2, 3)];
     private static readonly (RoomState Room, IEnumerable<Cell> Cells) Physical = (RoomFixtures.State("room-7", enclosed: false, roofed: false, beds: ["bed"]), Interior);
 
-    private static RoundsFacts Facts()
+    private static ReviewFacts Facts()
     {
         var facts = ForecastCoupledTests.ConstructionReview();
         var cells = Enumerable.Range(0, 4).SelectMany(x => Enumerable.Range(0, 5).Select(z => new Cell(x, z)));
@@ -62,7 +63,7 @@ public sealed class ObservedShelterTests
     public void APlannedRoomsLastRoofCellIsExemptFromTheReliefGateButNotBuiltForDevelopmentWhenTheRoomHoldsItsHeat()
     {
         // One designated cell of six is open and the heater holds the room at 20°: closing it relieves no exposure.
-        static RoundsFacts Warm(RoundsFacts facts) => facts with { ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with
+        static ReviewFacts Warm(ReviewFacts facts) => facts with { ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with
         {
             Thermal = facts.ForecastObserved.Coupled!.Thermal! with
             {
@@ -74,7 +75,7 @@ public sealed class ObservedShelterTests
                 RoofRoutes = [new("pawn", new(1, 1), new RoofApproach.Path(1d))]
             }
         } } };
-        ForecastCoupledSelection Select(RoundsFacts facts)
+        ForecastCoupledSelection Select(ReviewFacts facts)
         {
             facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300) };
             return ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new(100), 300d / GameTime.TicksPerDay, facts,

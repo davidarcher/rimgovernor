@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
-using RimGovernor.Contracts.Wire.Clock;
+using RimGovernor.Brain.GameFacts.Clock;
+using RimGovernor.Brain.GameOrders.Clock;
 
 namespace RimGovernor.Brain.Policy;
 

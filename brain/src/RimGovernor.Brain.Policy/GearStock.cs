@@ -1,4 +1,4 @@
-using GearStock = RimGovernor.Contracts.Wire.Observations.GearStock;
+using GearStock = RimGovernor.Brain.GameFacts.Observations.GearStock;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>Claims against an actual native stock row; allocation never edits its observed count.</summary>
@@ -10,7 +10,7 @@ public sealed record GearStockBalance(GearStock Observed)
 
 public static class GearStockRules
 {
-    public static int QualityIndex(this GearStock row) => row.Quality is RimGovernor.Contracts.Wire.Observations.ItemQuality.Graded g ? (int)g.Category : 2;
+    public static int QualityIndex(this GearStock row) => row.Quality is RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded g ? (int)g.Category : 2;
     public static bool Serviceable(this GearStock row) => row.HpBand >= StockpileRolesConstants.GearHitPointFloor * 10 && row.QualityIndex() >= 2;
     /// <summary>
     /// Stored options assigned by the ensemble planner already satisfied one gap. Remove those physical units

@@ -8,7 +8,7 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Disposable test setup only. Stages the ground of a
     // plan the controller has already derived, so the plan-vs-ground
@@ -22,7 +22,7 @@ namespace HomeBridge.BridgeTools
     public sealed class PlanStageFixture
     {
         [Tool("test/plan_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable plan-staging fixture (#2118). action stage takes spec JSON {walls:[{x,z,stuff}], doors:[{x,z,rotation 0..3,stuff}], roof:[{minX,minZ,maxX,maxZ}], floor:[{def,cells:[{x,z}]}], things:[{def,stuff,x,z,rotation,quality 0..6,hitFraction 0..1,foreign (true leaves the thing unowned and a plant fully grown),filled (true loads an ancient casket with friendly contents)}], drops:[{def,count,x,z}], stockpile:{minX,minZ,maxX,maxZ}} and replies the staged things' load ids; walls, doors and things become finished player buildings, moving pawns and items off their cells. action audit takes {ids:[load id],cells:[{x,z}]} and replies each id's def, stuff, quality, hit points, cell and whether it is packed (a minified item) or spawned, and each cell's edifice (def, stuff, id), terrain, roof and room (id, role, enclosed).")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "stage", string spec = "{}")
+        public async Task<object> Run(INativeContext ctx, CancellationToken cancellationToken, string action = "stage", string spec = "{}")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap ?? throw new InvalidOperationException("Disposable map required.");

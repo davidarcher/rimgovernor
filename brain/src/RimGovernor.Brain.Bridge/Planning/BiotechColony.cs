@@ -1,8 +1,6 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
-using D = RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameAccess;
 namespace RimGovernor.Brain.Bridge;
 
 /// <summary>Catalog definitions used to plan a mech charger.</summary>

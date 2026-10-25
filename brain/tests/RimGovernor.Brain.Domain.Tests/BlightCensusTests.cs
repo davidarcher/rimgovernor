@@ -1,10 +1,9 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
-using C = RimGovernor.Contracts.Wire.Common;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -30,11 +29,11 @@ public sealed class BlightCensusTests
     {
         var snapshot = WithPlant(false);
         Assert.Throws<BridgeContractException>(() => ColonyFramesReads.BlightCensus(snapshot, Empty));
-        var things = Things.Of(Plant(new O.EntityPlace.Unplaced()));
+        var things = Things.Of(Plant(new RimGovernor.Brain.GameFacts.Observations.EntityPlace.Unplaced()));
         Assert.Throws<BridgeContractException>(() => ColonyFramesReads.BlightCensus(snapshot, Empty with { Things = things }));
-        var place = System.Text.Json.Nodes.JsonNode.Parse(WireJson.Serialize<O.EntityPlace>(new O.EntityPlace.OnMap(0, new(1, 2))))!.AsObject();
+        var place = System.Text.Json.Nodes.JsonNode.Parse(OrdersJson.Serialize<RimGovernor.Brain.GameFacts.Observations.EntityPlace>(new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(0, new(1, 2))))!.AsObject();
         Assert.True(place.Remove("cell"));
-        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<O.EntityPlace>(place.ToJsonString()));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.EntityPlace>(place.ToJsonString()));
     }
 
     [Theory]
@@ -43,7 +42,7 @@ public sealed class BlightCensusTests
     public void APlantOutsideThePlanningWindowStillProducesTheBlightNeed(bool designated)
     {
         var snapshot = WithPlant(designated);
-        var things = Things.Of(Plant(new O.EntityPlace.OnMap(0, new RimGovernor.Brain.Domain.Cell { X = 180, Z = 190 })));
+        var things = Things.Of(Plant(new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(0, new RimGovernor.Brain.Domain.Cell { X = 180, Z = 190 })));
         var census = ColonyFramesReads.BlightCensus(snapshot, Empty with { Things = things });
         var row = Assert.Single(census);
         Assert.Equal(("plant", "Plant_Rice", new Cell(180, 190), designated), (row.ID, row.Definition, row.Cell, row.Designated));
@@ -53,8 +52,8 @@ public sealed class BlightCensusTests
         var need = Assert.Single(family.Derive(facts));
         Assert.Equal(Satisfaction.Unmet, need.Satisfaction);
         Assert.Equal(designated ? 0 : 1, family.Propose([need], facts).Count);
-        var json = WireJson.Serialize(snapshot);
-        Assert.Equal(json, WireJson.Serialize(WireJson.Deserialize<O.ColonyFactsSnapshot>(json)));
+        var json = OrdersJson.Serialize(snapshot);
+        Assert.Equal(json, OrdersJson.Serialize(OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot>(json)));
     }
 
     [Theory]
@@ -62,18 +61,18 @@ public sealed class BlightCensusTests
     [InlineData("plants")]
     public void RequiredWireCensusMembersCannotBeOmitted(string member)
     {
-        var json = System.Text.Json.Nodes.JsonNode.Parse(WireJson.Serialize(ColonyFactsCoreTests.Snapshot()))!.AsObject();
+        var json = System.Text.Json.Nodes.JsonNode.Parse(OrdersJson.Serialize(ColonyFactsCoreTests.Snapshot()))!.AsObject();
         var parent = member == "blight" ? json : json["blight"]!.AsObject();
         Assert.True(parent.Remove(member));
-        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<O.ColonyFactsSnapshot>(json.ToJsonString()));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot>(json.ToJsonString()));
     }
 
-    private static O.ColonyFactsSnapshot WithPlant(bool designated) => ColonyFactsCoreTests.Snapshot() with
+    private static RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot WithPlant(bool designated) => ColonyFactsCoreTests.Snapshot() with
     {
         Blight = new() { Plants = [new() { Thing = new() { Id = "plant" }, Designated = designated }] },
     };
 
-    private static O.Thing Plant(O.EntityPlace place) => new()
+    private static RimGovernor.Brain.GameFacts.Observations.Thing Plant(RimGovernor.Brain.GameFacts.Observations.EntityPlace place) => new()
     {
         Entity = new() { Id = "plant", DefName = "Plant_Rice", Label = "rice plant", Place = place },
         Forbidden = false, Corpse = false,

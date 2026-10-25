@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -17,7 +16,7 @@ public sealed record ExpeditionSite
 
     public required int Layer { get; init; }
 
-    public required Pb.SiteRoute Route { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.SiteRoute Route { get; init; }
 
     public required ExpeditionThreat Threat { get; init; }
 
@@ -58,26 +57,26 @@ public abstract record ExpeditionTrip
 
     public abstract IReadOnlyList<PawnId> PawnIds { get; }
 
-    public sealed record Forming(Pb.CaravanAssembly Observed) : ExpeditionTrip
+    public sealed record Forming(RimGovernor.Brain.GameFacts.Observations.CaravanAssembly Observed) : ExpeditionTrip
     {
         public override IReadOnlyList<PawnId> PawnIds => Observed.Pawns;
     }
 
-    public sealed record OnWorld(Pb.CaravanState Observed) : ExpeditionTrip
+    public sealed record OnWorld(RimGovernor.Brain.GameFacts.Observations.CaravanState Observed) : ExpeditionTrip
     {
         public override IReadOnlyList<PawnId> PawnIds => [.. Observed.Pawns.Select(pawn => new PawnId(pawn.Pawn.Id))];
 
         public int Tile => Observed.Tile;
 
-        public Pb.CaravanCourse Course => Observed.Course;
+        public RimGovernor.Brain.GameFacts.Observations.CaravanCourse Course => Observed.Course;
 
-        public IReadOnlyList<Pb.WorldRoute> HomeRoutes => Observed.HomeRoutes;
+        public IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.WorldRoute> HomeRoutes => Observed.HomeRoutes;
     }
 }
 
 public static class QuestExpedition
 {
-    internal static bool QuestExpeditionSite(QuestState offer, RoundsFacts f, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out ExpeditionSite? site)
+    internal static bool QuestExpeditionSite(QuestState offer, ReviewFacts f, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out ExpeditionSite? site)
     {
         site = null;
         WorldSite? selected = null;
@@ -97,16 +96,16 @@ public static class QuestExpedition
         {
             return false;
         }
-        if (selected.State == Pb.WorldSiteState.Destroyed)
+        if (selected.State == RimGovernor.Brain.GameFacts.Observations.WorldSiteState.Destroyed)
         {
             return false;
         }
         int tile, layer;
-        if (selected.Place is Pb.SitePlace.OnTile on)
+        if (selected.Place is RimGovernor.Brain.GameFacts.Observations.SitePlace.OnTile on)
         {
             (tile, layer) = (on.Tile, on.Layer);
         }
-        else if (selected.Place is Pb.SitePlace.Loaded loaded)
+        else if (selected.Place is RimGovernor.Brain.GameFacts.Observations.SitePlace.Loaded loaded)
         {
             (tile, layer) = (loaded.Tile, loaded.Layer);
         }
@@ -121,7 +120,7 @@ public static class QuestExpedition
             Tile = tile,
             Layer = layer,
             Route = selected.Route,
-            Threat = selected.Security is Pb.SiteThreatBudget.Bounded b
+            Threat = selected.Security is RimGovernor.Brain.GameFacts.Observations.SiteThreatBudget.Bounded b
                 ? new ExpeditionThreat.Bounded(b.InitialPoints + b.PendingRaidPoints)
                 : new ExpeditionThreat.Unbounded(),
             HoldTicks = 0,
@@ -129,7 +128,7 @@ public static class QuestExpedition
         return true;
     }
 
-    public static bool ExpeditionDeficit(RoundsFacts f)
+    public static bool ExpeditionDeficit(ReviewFacts f)
     {
         foreach (var offer in f.QuestOffers)
         {
@@ -141,7 +140,7 @@ public static class QuestExpedition
                     {
                         continue;
                     }
-                    if (site.Place is Pb.SitePlace.Loaded { Map.Extraction: Pb.QuestSiteExtraction.Crew })
+                    if (site.Place is RimGovernor.Brain.GameFacts.Observations.SitePlace.Loaded { Map.Extraction: RimGovernor.Brain.GameFacts.Observations.QuestSiteExtraction.Crew })
                     {
                         return true;
                     }
@@ -159,7 +158,7 @@ public static class QuestExpedition
         return false;
     }
 
-    public static ExpeditionPlan SelectExpedition(RoundsFacts f, RoundsPolicy p)
+    public static ExpeditionPlan SelectExpedition(ReviewFacts f, PlannerSettings p)
     {
         foreach (var offer in f.QuestOffers.OrderBy(o => o.Id))
         {
@@ -175,7 +174,7 @@ public static class QuestExpedition
             {
                 if (trip is ExpeditionTrip.Forming
                     || trip is ExpeditionTrip.OnWorld { Tile: var tile } && tile == site.Tile
-                    || trip is ExpeditionTrip.OnWorld { Course: Pb.CaravanCourse.Moving { Destination: var destination } } && destination == site.Tile)
+                    || trip is ExpeditionTrip.OnWorld { Course: RimGovernor.Brain.GameFacts.Observations.CaravanCourse.Moving { Destination: var destination } } && destination == site.Tile)
                 {
                     return new ExpeditionPlan { Quest = offer.Id, Site = site.Id };
                 }
@@ -183,7 +182,7 @@ public static class QuestExpedition
             // A live site map proves arrival; its work belongs to the site driver.
             foreach (var row in f.QuestSites)
             {
-                if (row.Id == site.Id && row.Place is Pb.SitePlace.Loaded)
+                if (row.Id == site.Id && row.Place is RimGovernor.Brain.GameFacts.Observations.SitePlace.Loaded)
                 {
                     if (offer.ScriptDef == "SurveySite")
                     {
@@ -211,7 +210,7 @@ public static class QuestExpedition
         return new ExpeditionPlan();
     }
 
-    public static QuestSkipReason ExpeditionAdmission(QuestState offer, RoundsFacts f)
+    public static QuestSkipReason ExpeditionAdmission(QuestState offer, ReviewFacts f)
     {
         if (offer.ScriptDef == "SurveySite")
         {
@@ -225,7 +224,7 @@ public static class QuestExpedition
         {
             return "site_unknown";
         }
-        return PlanExpedition(offer, site, f, f.AnimalUpkeep.Food, RoundsRules.DefaultRoundsPolicy()).Reason;
+        return PlanExpedition(offer, site, f, f.AnimalUpkeep.Food, Rules.DefaultPlannerSettings()).Reason;
     }
 
     /// <summary>
@@ -233,14 +232,14 @@ public static class QuestExpedition
     /// food that every selected pawn eats, survives the round trip, and leaves the colony's diet-aware
     /// reserve intact.
     /// </summary>
-    public static ExpeditionPlan PlanExpedition(QuestState offer, ExpeditionSite site, RoundsFacts f, FoodSupply food, RoundsPolicy p) =>
+    public static ExpeditionPlan PlanExpedition(QuestState offer, ExpeditionSite site, ReviewFacts f, FoodSupply food, PlannerSettings p) =>
         PlanExpeditionOf(offer, site, f, food, p, null);
 
     /// <summary>
     /// Validates a specialized crew through the common staffing, route, mass and food gates. Diplomacy may
     /// select noncombatant colonists.
     /// </summary>
-    public static ExpeditionPlan PlanExpeditionCrew(QuestState offer, ExpeditionSite site, RoundsFacts f, FoodSupply food, RoundsPolicy p, IReadOnlyList<PawnId> crew)
+    public static ExpeditionPlan PlanExpeditionCrew(QuestState offer, ExpeditionSite site, ReviewFacts f, FoodSupply food, PlannerSettings p, IReadOnlyList<PawnId> crew)
     {
         if (crew.Count == 0)
         {
@@ -249,7 +248,7 @@ public static class QuestExpedition
         return PlanExpeditionOf(offer, site, f, food, p, crew);
     }
 
-    private static ExpeditionPlan PlanExpeditionOf(QuestState offer, ExpeditionSite site, RoundsFacts f, FoodSupply food, RoundsPolicy p, IReadOnlyList<PawnId>? explicitCrew)
+    private static ExpeditionPlan PlanExpeditionOf(QuestState offer, ExpeditionSite site, ReviewFacts f, FoodSupply food, PlannerSettings p, IReadOnlyList<PawnId>? explicitCrew)
     {
         var result = new ExpeditionPlan { Quest = offer.Id, Site = site.Id };
         ExpeditionPlan Fail(QuestSkipReason reason) => result with { Reason = reason };
@@ -258,16 +257,16 @@ public static class QuestExpedition
         {
             return Fail("site_unknown");
         }
-        if (site.Layer != 0 || site.Route is Pb.SiteRoute.OffSurface)
+        if (site.Layer != 0 || site.Route is RimGovernor.Brain.GameFacts.Observations.SiteRoute.OffSurface)
         {
             return Fail("ship_only");
         }
-        if (site.Route is Pb.SiteRoute.Unreachable)
+        if (site.Route is RimGovernor.Brain.GameFacts.Observations.SiteRoute.Unreachable)
         {
             return Fail("route_unreachable");
         }
         var hold = site.HoldTicks;
-        if (site.Route is not Pb.SiteRoute.Reachable route || route.TravelTicks < 0 || hold < 0)
+        if (site.Route is not RimGovernor.Brain.GameFacts.Observations.SiteRoute.Reachable route || route.TravelTicks < 0 || hold < 0)
         {
             return Fail("route_unknown");
         }
@@ -281,7 +280,7 @@ public static class QuestExpedition
         // acceptance.
         foreach (var objective in offer.Objectives)
         {
-            if (objective.Timing is Pb.QuestObjectiveTiming.Deadline due && (double)due.Tick - f.QuestObservedTick.Value <= (double)ticks + hold)
+            if (objective.Timing is RimGovernor.Brain.GameFacts.Observations.QuestObjectiveTiming.Deadline due && (double)due.Tick - f.QuestObservedTick.Value <= (double)ticks + hold)
             {
                 return Fail("deadline_capacity");
             }

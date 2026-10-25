@@ -3,7 +3,6 @@ using System.Threading.Channels;
 using RimGovernor.Brain.Host;
 using RimGovernor.Brain.Bridge;
 using Xunit;
-using PbObservations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -23,13 +22,13 @@ public sealed class BrainHostStopTests
     {
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
-            if (targetMethod!.Name == "get_" + nameof(INativeFacade.Frames))
+            if (targetMethod!.Name == "get_" + nameof(IGameApi.Frames))
             {
                 return Channel.CreateUnbounded<NativeFrame>().Reader;
             }
-            if (targetMethod.Name == nameof(INativeFacade.OpenFramesAsync))
+            if (targetMethod.Name == nameof(IGameApi.OpenFramesAsync))
             {
-                return Task.FromResult(new PbObservations.SnapshotStreamReply());
+                return Task.FromResult(new RimGovernor.Brain.GameFacts.Observations.SnapshotStreamReply());
             }
 
             // Every other call waits for its caller to give up, as a game that never answers does.
@@ -62,7 +61,7 @@ public sealed class BrainHostStopTests
                     Timings = BrainTimings.Standard(TimeSpan.FromSeconds(5)) with { ShutdownAttempts = 1 },
                     Watchdog = BrainWatchdog.Standard(),
                     Composition = new BrainComposition(new BrainCompositionOptions()),
-                    Facade = DispatchProxy.Create<INativeFacade, SilentGame>(),
+                    Facade = DispatchProxy.Create<IGameApi, SilentGame>(),
                 },
                 Ct);
 

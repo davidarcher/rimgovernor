@@ -7,7 +7,7 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Disposable test setup only. Acceptance scenarios rerun for
     // reasons unrelated to their assertion: a raid, a manhunter pack, a cold
@@ -123,7 +123,7 @@ namespace HomeBridge.BridgeTools
     public sealed class QuietWorldFixture
     {
         [Tool("test/quiet_world", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: mark the loaded game quiet-world so, under -rimgovernor-test-acceleration, wild plants and animals outside the home area stop ticking and the wild spawners stop. Persists across save and reload. Farm, husbandry and hunting harnesses must not call it.")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> Run(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "apply (default), release or inspect.")] string action = "apply")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -146,7 +146,7 @@ namespace HomeBridge.BridgeTools
         public QuietStorytellerFixture() { QuietStoryteller.EnsurePatched(); }
 
         [Tool("test/quiet_storyteller", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: Custom difficulty at zero threat scale with no big/intro threats, violent quests or humanlike-hunting predators, no storyteller comps, queued incidents or storyteller ticks, and every non-colony pawn and insect hive removed from the current map. Persists across save and reload. Interruption harnesses must not call it.")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> Run(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "apply (default) or inspect, which only reads the current storyteller state.")] string action = "apply")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {

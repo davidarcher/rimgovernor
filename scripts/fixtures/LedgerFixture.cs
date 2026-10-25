@@ -8,7 +8,7 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // A disposable coast with a rice field and a cow, not a production operation.
     // Only the initial state is staged; fishing, harvesting and milking are native.
@@ -23,7 +23,7 @@ namespace HomeBridge.BridgeTools
         private static ThingDef Rice => DefDatabase<ThingDef>.GetNamed("Plant_Rice");
 
         [Tool("test/ledger_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage two colonists on an Odyssey coast with Fishing research, a mature rice field and a full-milk cow, and start counting catches, rice harvests and milk gathers.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Prepare(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -132,7 +132,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/ledger_observe", Description = "Read the fixture's independent catch, rice yield and milk gather tallies; no mutations.")]
-        public async Task<object> Observe(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Observe(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => FixtureKit.Reply(new LedgerTally { Catches = catches, RiceYield = riceYield, Gathers = gathers }), cancellationToken);
         }

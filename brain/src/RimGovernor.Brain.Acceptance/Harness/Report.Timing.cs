@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Telemetry.Otlp;
 
 namespace RimGovernor.Brain.Acceptance;
@@ -157,7 +158,7 @@ public static class TickStats
     /// <summary>Feeds <see cref="Observe"/> with the tick a reply carried and re-baselines after a load or start.</summary>
     public static void ObserveReply(string tool, ulong? tick)
     {
-        if (tool is Harness.LoadGameReadyTool or "rimgovernor/lifecycle_load")
+        if (tool is Harness.LoadGameReadyTool or "lifecycle_load")
         {
             ResetBaseline();
             return;
@@ -170,13 +171,13 @@ public static class TickStats
     }
 
     /// <summary>
-    /// The game tick a decoded reply carries, when it does: any <c>rimgovernor/*</c> wire reply whose payload is a
+    /// The game tick a decoded native operation reply carries, when it does: a payload with a
     /// lifecycle <c>loaded</c> context (an identity read, a load, an authority acquisition) or an <c>observed</c>
     /// snapshot context (the typed colony facts).
     /// </summary>
     public static ulong? ReplyTick(string tool, JsonObject? payload)
     {
-        if (!tool.StartsWith("rimgovernor/", StringComparison.Ordinal) || payload is null)
+        if (!NativeOps.TryGet(tool, out _) || payload is null)
         {
             return null;
         }

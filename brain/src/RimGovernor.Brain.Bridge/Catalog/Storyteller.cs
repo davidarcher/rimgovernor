@@ -1,6 +1,5 @@
 using RimWorld;
 using Verse;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
@@ -225,9 +224,9 @@ public sealed partial class DefinitionCatalog
                         MinWealth = Decimal32(interaction.minWealth),
                         MinDanger = interaction.minDanger switch
                         {
-                            StoryDanger.High => Obs.StoryDangerLevel.High,
-                            StoryDanger.Low => Obs.StoryDangerLevel.Low,
-                            _ => Obs.StoryDangerLevel.None,
+                            StoryDanger.High => RimGovernor.Brain.GameFacts.Observations.StoryDangerLevel.High,
+                            StoryDanger.Low => RimGovernor.Brain.GameFacts.Observations.StoryDangerLevel.Low,
+                            _ => RimGovernor.Brain.GameFacts.Observations.StoryDangerLevel.None,
                         },
                     });
                     break;

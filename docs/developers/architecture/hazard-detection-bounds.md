@@ -29,7 +29,7 @@ ticks, at Fast every 18, at Superfast the tick gate fires first. At Hyperfast
 the tick hook calls the frame path itself, so the same gates apply.
 
 The acceptance-only clock accounting read
-(`rimgovernor/acceptance_read_clock_accounting`) reports the widest gap
+(`acceptance_read_clock_accounting`) reports the widest gap
 observed in the loaded game as `sessionMaxProbeTickGap`, and per class beside
 the declared bound as `hazardGaps`. Each governed `acceptance speedmatrix` row
 reports them as `max_probe_tick_gap` and `hazard_gaps` without checking them;

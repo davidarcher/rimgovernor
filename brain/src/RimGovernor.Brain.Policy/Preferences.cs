@@ -14,7 +14,7 @@ public static class PreferenceRules
     /// <see cref="ForbiddenMethod.HumanLeather"/>, the stuff catalog and every pawn's apparel options without human
     /// leather.
     /// </summary>
-    public static RoundsFacts WithPreferences(this RoundsFacts f, PreferencesRecord preferences)
+    public static ReviewFacts WithPreferences(this ReviewFacts f, PreferencesRecord preferences)
     {
         f = f with { Preferences = preferences };
         f = f with { Population = f.Population with { Colony = f.Population.Colony with { Preferences = preferences } } };

@@ -8,7 +8,8 @@
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <NativeSourceRoot Condition="'$(NativeSourceRoot)' == ''">$(MSBuildThisFileDirectory)../../integrations/rimgovernor-native/src</NativeSourceRoot>
-    <BrainBinDir Condition="'$(BrainBinDir)' == ''">$(MSBuildThisFileDirectory)../../brain/src/RimGovernor.Brain.Contracts/bin/Release</BrainBinDir>
+    <BrainBinDir Condition="'$(BrainBinDir)' == ''">$(MSBuildThisFileDirectory)../../brain/src/RimGovernor.Brain.GameFacts/bin/Release</BrainBinDir>
+    <OrdersBinDir Condition="'$(OrdersBinDir)' == ''">$(MSBuildThisFileDirectory)../../brain/src/RimGovernor.Brain.GameOrders/bin/Release</OrdersBinDir>
     <ChannelBinDir Condition="'$(ChannelBinDir)' == ''">$(MSBuildThisFileDirectory)../../brain/src/RimGovernor.Brain.HttpChannel/bin/Release</ChannelBinDir>
     <HostSourceRoot Condition="'$(HostSourceRoot)' == ''">$(MSBuildThisFileDirectory)../../integrations/rimgovernor-host/src</HostSourceRoot>
   </PropertyGroup>
@@ -29,10 +30,11 @@
   <ItemGroup>
     <!-- The wire records (#3100) come from the built brain assemblies: a ProjectReference would restore them into this
          build's BaseIntermediateOutputPath and overwrite its project.assets.json. The gate (tools/repo/Commands/Gate.cs) builds them first. -->
-    <Reference Include="RimGovernor.Brain.Contracts"><HintPath>$(BrainBinDir)/RimGovernor.Brain.Contracts.dll</HintPath></Reference>
+    <Reference Include="RimGovernor.Brain.GameFacts"><HintPath>$(BrainBinDir)/RimGovernor.Brain.GameFacts.dll</HintPath></Reference>
+    <Reference Include="RimGovernor.Brain.GameOrders"><HintPath>$(OrdersBinDir)/RimGovernor.Brain.GameOrders.dll</HintPath></Reference>
     <Reference Include="RimGovernor.Brain.Domain"><HintPath>$(BrainBinDir)/RimGovernor.Brain.Domain.dll</HintPath></Reference>
     <Reference Include="RimGovernor.Brain.HttpChannel"><HintPath>$(ChannelBinDir)/RimGovernor.Brain.HttpChannel.dll</HintPath></Reference>
-    <Reference Include="RimGovernor.Brain.Bridge.Contracts"><HintPath>$(ChannelBinDir)/RimGovernor.Brain.Bridge.Contracts.dll</HintPath></Reference>
+    <Reference Include="RimGovernor.Brain.GameAccess"><HintPath>$(ChannelBinDir)/RimGovernor.Brain.GameAccess.dll</HintPath></Reference>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
 
@@ -77,7 +79,7 @@
   </ItemGroup>
 
   <!-- The real host SDK, compiled from the vendored source with no game inputs: the probes'
-       contexts implement the real IRimBridgeContext. A
+       contexts implement the real INativeContext. A
        ProjectReference would share this build's BaseIntermediateOutputPath (one project.assets.json). -->
   <ItemGroup>
     <Compile Include="$(HostSourceRoot)/Sdk/*.cs" Link="Host/Sdk/%(Filename)%(Extension)" />
@@ -101,10 +103,10 @@
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeAuthorityTools.cs" Link="Production/NativeAuthorityTools.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeAuthorityControlTools.cs" Link="Production/NativeAuthorityControlTools.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeQuestTargetIdentity.cs" Link="Production/NativeQuestTargetIdentity.cs" />
-    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/ProtoBoundary.cs" Link="Production/ProtoBoundary.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/GameThread.cs" Link="Production/GameThread.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/MainThreadWatchdog.cs" Link="Production/MainThreadWatchdog.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/GameThreadStall.cs" Link="Production/GameThreadStall.cs" />
-    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/MainThreadAdmission.cs" Link="Production/MainThreadAdmission.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/GameThreadQueue.cs" Link="Production/GameThreadQueue.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/ObservationWorkAccounting.cs" Link="Production/ObservationWorkAccounting.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/SnapshotSections.cs" Link="Production/SnapshotSections.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeConstructionWork.cs" Link="Production/NativeConstructionWork.cs" />
@@ -130,9 +132,9 @@
     <Compile Include="$(NativeSourceRoot)/Bridge/LoadIdIndex.cs" Link="Production/LoadIdIndex.cs" />
   </ItemGroup>
 
-  <!-- Category 4 (hybrid): reuses the same unified fake stub + real ProtoBoundary/NativeControlAuthority above. -->
+  <!-- Category 4 (hybrid): reuses the same unified fake stub + real GameThread/NativeControlAuthority above. -->
   <ItemGroup>
-    <Compile Include="NativeContractProbes/native-proto-boundary/Program.cs" />
+    <Compile Include="NativeContractProbes/native-game-thread/Program.cs" />
   </ItemGroup>
 
   <!-- Category 3 (reflection-over-real-compiled-DLL): compile NO production source directly,
@@ -142,7 +144,6 @@
     <Compile Include="NativeContractProbes/native-movement-operations/Program.cs" />
     <Compile Include="NativeContractProbes/native-pawn-control-state/Program.cs" />
     <Compile Include="NativeContractProbes/native-pawn-observations/Program.cs" />
-    <Compile Include="NativeContractProbes/native-pawn-observations/AcquisitionProof.cs" />
     <Compile Include="NativeContractProbes/native-pawn-observations/WorkSettingsProof.cs" />
     <Compile Include="NativeContractProbes/native-pawn-observations/ZoneProof.cs" />
     <Compile Include="NativeContractProbes/native-proto-buildings/Program.cs" />

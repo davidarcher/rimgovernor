@@ -1,19 +1,21 @@
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
 /// An animal's read is total (#3786): its pregnancy is an <see cref="AnimalPregnancy"/> and its next life stage an
-/// <see cref="AnimalNextLifeStage"/>, and every setting is a plain value. It round-trips through <c>WireJsonContext</c>
+/// <see cref="AnimalNextLifeStage"/>, and every setting is a plain value. It round-trips through <c>OrdersJsonContext</c>
 /// exactly. A food-channels gather row names its <see cref="AnimalYield"/> the same way.
 /// </summary>
 public sealed class AnimalStateWireTests
 {
     private static readonly AnimalState Cow = new()
     {
-        Gender = RimGovernor.Contracts.Wire.Defs.Gender.Female,
+        Gender = RimGovernor.Brain.GameFacts.Defs.Gender.Female,
         AgeYears = 3.5,
         Pregnancy = new AnimalPregnancy.Gestating(120000),
         PenId = "CompAnimalPenMarker_1",
@@ -53,21 +55,21 @@ public sealed class AnimalStateWireTests
             (Cow with { Pregnancy = new AnimalPregnancy.Stalled(), NextLifeStage = new AnimalNextLifeStage.NotAging() }, """{"type":"stalled"}""", """{"type":"not_aging"}"""),
         })
         {
-            var json = WireJson.Serialize(state);
+            var json = OrdersJson.Serialize(state);
 
             Assert.Contains("\"pregnancy\":" + pregnancy, json);
             Assert.Contains("\"nextLifeStage\":" + stage, json);
             Assert.Contains("\"masterId\":\"\"", json);
-            Assert.Equal(json, WireJson.Serialize(WireJson.Deserialize<AnimalState>(json)));
+            Assert.Equal(json, OrdersJson.Serialize(OrdersJson.Deserialize<AnimalState>(json)));
         }
     }
 
     [Fact]
     public void AnAnimalWithoutItsPregnancyDoesNotDecode()
     {
-        var json = WireJson.Serialize(Cow).Replace("\"pregnancy\":{\"type\":\"gestating\",\"ticksToBirth\":120000},", "", StringComparison.Ordinal);
+        var json = OrdersJson.Serialize(Cow).Replace("\"pregnancy\":{\"type\":\"gestating\",\"ticksToBirth\":120000},", "", StringComparison.Ordinal);
 
-        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<AnimalState>(json));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => OrdersJson.Deserialize<AnimalState>(json));
     }
 
     [Fact]
@@ -81,10 +83,10 @@ public sealed class AnimalStateWireTests
             (milk with { Yield = new AnimalYield.Inactive() }, """{"type":"inactive"}"""),
         })
         {
-            var json = WireJson.Serialize(row);
+            var json = OrdersJson.Serialize(row);
 
             Assert.Contains("\"yield\":" + yield, json);
-            Assert.Equal(json, WireJson.Serialize(WireJson.Deserialize<GatherableAnimal>(json)));
+            Assert.Equal(json, OrdersJson.Serialize(OrdersJson.Deserialize<GatherableAnimal>(json)));
         }
     }
 }

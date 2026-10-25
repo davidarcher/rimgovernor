@@ -1,4 +1,5 @@
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -30,7 +31,7 @@ public static partial class TrainingRules
     /// Shooting trainee wants a training range; two or more Melee trainees want a sparring ring, one alone having nobody to
     /// train with. Unlocked ceilings constrain feasibility. Raises <see cref="RequiredFactException"/> while the work pawns are unread.
     /// </summary>
-    public static TrainingReview ReviewTraining(RoundsFacts facts)
+    public static TrainingReview ReviewTraining(ReviewFacts facts)
     {
         var pawns = facts.ForecastObserved.WorkPawns.Pawns;
         var shooting = new HashSet<string>(StringComparer.Ordinal); var melee = new HashSet<string>(StringComparer.Ordinal);

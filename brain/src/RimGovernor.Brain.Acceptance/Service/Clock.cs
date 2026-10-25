@@ -1,6 +1,5 @@
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -19,7 +18,7 @@ public static class ClockFixture
         var reply = await h.CallAsync(
             label,
             NativeOps.ListPawns,
-            new Observations.ListPawnsRequest { Scope = TypedReads.Scope(Harness.IdentityOf(identity)), Filter = new() { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only } },
+            new RimGovernor.Brain.GameOrders.Observations.ListPawnsRequest { Scope = TypedReads.Scope(Harness.IdentityOf(identity)), Filter = new() { Colonist = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Only } },
             cancellationToken).ConfigureAwait(false);
         var pawns = reply.Pawns;
         if (pawns.Count == 0)

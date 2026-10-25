@@ -1,9 +1,6 @@
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
-using C = RimGovernor.Contracts.Wire.Common;
-using K = RimGovernor.Contracts.Wire.Clock;
-using M = RimGovernor.Contracts.Wire.Mirror;
-using Op = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -13,23 +10,23 @@ public sealed class CombatRowsWireTests
 {
     private static void RoundTrips<T>(T payload)
     {
-        var json = WireJson.Serialize(payload);
-        Assert.Equal(json, WireJson.Serialize(WireJson.Deserialize<T>(json)));
-        Assert.Equal(payload, WireJson.Deserialize<T>(json));
+        var json = OrdersJson.Serialize(payload);
+        Assert.Equal(json, OrdersJson.Serialize(OrdersJson.Deserialize<T>(json)));
+        Assert.Equal(payload, OrdersJson.Deserialize<T>(json));
     }
 
-    private static M.CombatPawn Pawn(M.CombatSide side) => new()
+    private static RimGovernor.Brain.GameFacts.Mirror.CombatPawn Pawn(RimGovernor.Brain.GameFacts.Mirror.CombatSide side) => new()
     {
         Id = new PawnId("Thing_Human1"),
         Side = side,
         Cell = new RimGovernor.Brain.Domain.Cell { X = 3, Z = 4 },
         Downed = false,
         Dead = false,
-        Stance = M.CombatStance.Warmup,
+        Stance = RimGovernor.Brain.GameFacts.Mirror.CombatStance.Warmup,
         Health = 0.75,
         MoveSpeed = 4.6,
         Armor = 0.35,
-        Changed = new M.Watermark { Tick = 1200, Seq = 3 },
+        Changed = new RimGovernor.Brain.GameFacts.Mirror.Watermark { Tick = 1200, Seq = 3 },
         MedicalSkill = 0,
         GoJuiceHigh = false,
         LuciferiumAddicted = false,
@@ -38,15 +35,15 @@ public sealed class CombatRowsWireTests
     };
 
     [Fact]
-    public void ABarePawnRowRoundTripsExactly() => RoundTrips(Pawn(M.CombatSide.WildAnimal));
+    public void ABarePawnRowRoundTripsExactly() => RoundTrips(Pawn(RimGovernor.Brain.GameFacts.Mirror.CombatSide.WildAnimal));
 
     [Fact]
     public void ADraftedShieldedColonistRowRoundTripsExactly() =>
-        RoundTrips(Pawn(M.CombatSide.Colonist) with
+        RoundTrips(Pawn(RimGovernor.Brain.GameFacts.Mirror.CombatSide.Colonist) with
         {
-            Draft = new M.CombatDraft { FireMode = Op.CombatFireMode.Hold },
-            Shield = new M.CombatShield { Energy = 0.4 },
-            CarriedDrugs = new M.CarriedDrugs { Defs = ["GoJuice", "Yayo"] },
+            Draft = new RimGovernor.Brain.GameFacts.Mirror.CombatDraft { FireMode = RimGovernor.Brain.GameFacts.Operations.CombatFireMode.Hold },
+            Shield = new RimGovernor.Brain.GameFacts.Mirror.CombatShield { Energy = 0.4 },
+            CarriedDrugs = new RimGovernor.Brain.GameFacts.Mirror.CarriedDrugs { Defs = ["GoJuice", "Yayo"] },
             Job = "AttackStatic",
             TargetId = "Thing_Raider1",
             Weapon = "Gun_AssaultRifle",
@@ -57,27 +54,27 @@ public sealed class CombatRowsWireTests
     [Fact]
     public void TheDoorAndMortarRowsRoundTripExactly()
     {
-        RoundTrips(new M.CombatDoorRow { Cell = new RimGovernor.Brain.Domain.Cell { X = 1, Z = 1 } });
-        RoundTrips(new M.CombatMortarRow { Id = "Turret_Mortar1", Cell = new RimGovernor.Brain.Domain.Cell { X = 5, Z = 5 }, MinRange = 29.9f, MaxRange = 500f });
-        RoundTrips(new M.CombatMortarRow { Id = "Turret_Mortar2", Cell = new RimGovernor.Brain.Domain.Cell { X = 6, Z = 5 }, MinRange = 29.9f, MaxRange = 500f, LoadedShell = "Shell_HighExplosive" });
+        RoundTrips(new RimGovernor.Brain.GameFacts.Mirror.CombatDoorRow { Cell = new RimGovernor.Brain.Domain.Cell { X = 1, Z = 1 } });
+        RoundTrips(new RimGovernor.Brain.GameFacts.Mirror.CombatMortarRow { Id = "Turret_Mortar1", Cell = new RimGovernor.Brain.Domain.Cell { X = 5, Z = 5 }, MinRange = 29.9f, MaxRange = 500f });
+        RoundTrips(new RimGovernor.Brain.GameFacts.Mirror.CombatMortarRow { Id = "Turret_Mortar2", Cell = new RimGovernor.Brain.Domain.Cell { X = 6, Z = 5 }, MinRange = 29.9f, MaxRange = 500f, LoadedShell = "Shell_HighExplosive" });
     }
 
     [Fact]
     public void EventRowsRoundTripExactly()
     {
-        var at = new M.Watermark { Tick = 900, Seq = 1 };
-        RoundTrips(new M.CombatEventRow { At = at, Kind = M.CombatLogKind.ShotFired, ThingId = "Thing_Human1" });
-        RoundTrips(new M.CombatEventRow { At = at, Kind = M.CombatLogKind.Downed, Stop = new M.CombatStop { Kind = K.CombatEvent.Downed }, ThingId = "Thing_Raider1" });
-        RoundTrips(new M.CombatEventRow
+        var at = new RimGovernor.Brain.GameFacts.Mirror.Watermark { Tick = 900, Seq = 1 };
+        RoundTrips(new RimGovernor.Brain.GameFacts.Mirror.CombatEventRow { At = at, Kind = RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.ShotFired, ThingId = "Thing_Human1" });
+        RoundTrips(new RimGovernor.Brain.GameFacts.Mirror.CombatEventRow { At = at, Kind = RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.Downed, Stop = new RimGovernor.Brain.GameFacts.Mirror.CombatStop { Kind = RimGovernor.Brain.GameFacts.Clock.CombatEvent.Downed }, ThingId = "Thing_Raider1" });
+        RoundTrips(new RimGovernor.Brain.GameFacts.Mirror.CombatEventRow
         {
             At = at,
-            Kind = M.CombatLogKind.HostileArrived,
+            Kind = RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.HostileArrived,
             RaidStrategy = "pods",
-            Pods = new M.PodLanding { OpenTick = 1100, LandingCells = [new RimGovernor.Brain.Domain.Cell { X = 8, Z = 8 }, new RimGovernor.Brain.Domain.Cell { X = 9, Z = 8 }] },
+            Pods = new RimGovernor.Brain.GameFacts.Mirror.PodLanding { OpenTick = 1100, LandingCells = [new RimGovernor.Brain.Domain.Cell { X = 8, Z = 8 }, new RimGovernor.Brain.Domain.Cell { X = 9, Z = 8 }] },
         });
     }
 
     [Fact]
     public void ARowWithoutARequiredFieldIsRefused() =>
-        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<M.CombatEventRow>("{\"kind\":\"COMBAT_LOG_KIND_DOWNED\"}"));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Mirror.CombatEventRow>("{\"kind\":\"COMBAT_LOG_KIND_DOWNED\"}"));
 }

@@ -1,7 +1,4 @@
 using RimGovernor.Brain.Bridge;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -9,12 +6,12 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 internal static class TypedPawnOps
 {
     /// <summary>Applies <paramref name="intent"/> as the one action <paramref name="key"/>; anything but Applied fails the case.</summary>
-    public static async Task<Operations.ActionResult> ApplyAsync(TypedSession s, string key, Operations.ActionIntent intent, CancellationToken cancellationToken)
+    public static async Task<RimGovernor.Brain.GameFacts.Operations.ActionResult> ApplyAsync(TypedSession s, string key, RimGovernor.Brain.GameOrders.Operations.ActionIntent intent, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
+        var reply = await s.CallAsync(key, NativeOps.Apply, new RimGovernor.Brain.GameOrders.Operations.ApplyRequest
         {
             Identity = s.Identity,
-            Actions = [new Operations.Action { Key = key, Intent = intent }], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
+            Actions = [new RimGovernor.Brain.GameOrders.Operations.Action { Key = key, Intent = intent }], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
         var results = reply.Results.ToList();
         if (results is not [{ Outcome.Applied: not null } result])
         {
@@ -29,12 +26,12 @@ internal static class TypedPawnOps
     /// Applies <paramref name="intent"/> as the one action <paramref name="key"/> and requires a native refusal whose reason
     /// names <paramref name="reason"/>.
     /// </summary>
-    public static async Task RefusedAsync(TypedSession s, string key, Operations.ActionIntent intent, string reason, CancellationToken cancellationToken)
+    public static async Task RefusedAsync(TypedSession s, string key, RimGovernor.Brain.GameOrders.Operations.ActionIntent intent, string reason, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
+        var reply = await s.CallAsync(key, NativeOps.Apply, new RimGovernor.Brain.GameOrders.Operations.ApplyRequest
         {
             Identity = s.Identity,
-            Actions = [new Operations.Action { Key = key, Intent = intent }], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
+            Actions = [new RimGovernor.Brain.GameOrders.Operations.Action { Key = key, Intent = intent }], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
         var results = reply.Results.ToList();
         if (results is not [{ Outcome.Refused: { } refusal } result] || refusal.Reason?.Contains(reason, StringComparison.OrdinalIgnoreCase) != true)
         {
@@ -45,23 +42,23 @@ internal static class TypedPawnOps
     }
 
     /// <summary>The draft intent for <paramref name="pawnId"/>.</summary>
-    public static Operations.ActionIntent Draft(string pawnId) => new Operations.DraftIntent { PawnId = pawnId, Drafted = true };
+    public static RimGovernor.Brain.GameOrders.Operations.ActionIntent Draft(string pawnId) => new RimGovernor.Brain.GameOrders.Operations.DraftIntent { PawnId = pawnId, Drafted = true };
 
     /// <summary>The GiveJob intent ordering <paramref name="pawnId"/> to run <paramref name="job"/> on <paramref name="targets"/>.</summary>
-    public static Operations.ActionIntent GiveJob(string pawnId, string job, params string[] targets) => new Operations.GiveJobIntent
+    public static RimGovernor.Brain.GameOrders.Operations.ActionIntent GiveJob(string pawnId, string job, params string[] targets) => new RimGovernor.Brain.GameOrders.Operations.GiveJobIntent
     {
-        Pawn = new Common.Ref { Id = pawnId },
+        Pawn = new RimGovernor.Brain.GameFacts.Common.Ref { Id = pawnId },
         Job = job,
-        Targets = [.. targets.Select(id => new Common.Ref { Id = id })],
+        Targets = [.. targets.Select(id => new RimGovernor.Brain.GameFacts.Common.Ref { Id = id })],
     };
 
     /// <summary>The one <c>observations_list_pawns</c> row of <paramref name="pawnId"/>, dead included, with health; no row is null.</summary>
-    public static async Task<Observations.PawnState?> PawnAsync(TypedSession s, string label, string pawnId, CancellationToken cancellationToken)
+    public static async Task<RimGovernor.Brain.GameFacts.Observations.PawnState?> PawnAsync(TypedSession s, string label, string pawnId, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ListPawns, new Observations.ListPawnsRequest
+        var reply = await s.CallAsync(label, NativeOps.ListPawns, new RimGovernor.Brain.GameOrders.Observations.ListPawnsRequest
         {
             Scope = s.Scope,
-            Filter = new Observations.PawnFilter { Ids = [pawnId], IncludeDead = true },
+            Filter = new RimGovernor.Brain.GameFacts.Observations.PawnFilter { Ids = [pawnId], IncludeDead = true },
         }, cancellationToken).ConfigureAwait(false);
         var rows = reply.Pawns.ToList();
         return rows switch

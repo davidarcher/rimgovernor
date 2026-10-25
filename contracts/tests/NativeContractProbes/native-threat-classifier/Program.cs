@@ -1,8 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using HomeBridge.BridgeTools;
-using Obs = RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Native;
 
 // Filter-first threat fact rows. Which pawns get a row, its
 // facts and its nearest-colonist distance are written out here case by case
@@ -20,19 +19,19 @@ internal static class NativeThreatClassifierProbe
     private static int projected;
     private static readonly List<string> ProjectedIds = new List<string>();
 
-    private static (Obs.ThreatsSnapshot, NativeThreatClassifier.Scan) Run(List<P> pawns, List<(int X, int Z)> colonists, double radius)
+    private static (RimGovernor.Brain.GameFacts.Observations.ThreatsSnapshot, NativeThreatClassifier.Scan) Run(List<P> pawns, List<(int X, int Z)> colonists, double radius)
     {
         projected = 0; ProjectedIds.Clear();
-        var threats = new Obs.ThreatsSnapshot { Pawns = [], HostileBuildings = [] };
+        var threats = new RimGovernor.Brain.GameFacts.Observations.ThreatsSnapshot { Pawns = [], HostileBuildings = [] };
         var scan = NativeThreatClassifier.Collect(pawns, p => p.F, colonists, radius,
-            p => { projected++; ProjectedIds.Add(p.Id); return new RimGovernor.Contracts.Wire.Common.Ref { Id = p.Id }; }, ref threats);
+            p => { projected++; ProjectedIds.Add(p.Id); return new RimGovernor.Brain.GameFacts.Common.Ref { Id = p.Id }; }, ref threats);
         return (threats, scan);
     }
 
-    private static string Ids(IEnumerable<Obs.ThreatPawn> rows) { return string.Join(",", rows.Select(r => r.Pawn.Id)); }
-    private static Obs.ThreatPawn Row(Obs.ThreatsSnapshot t, string id) { return t.Pawns.Single(r => r.Pawn.Id == id); }
+    private static string Ids(IEnumerable<RimGovernor.Brain.GameFacts.Observations.ThreatPawn> rows) { return string.Join(",", rows.Select(r => r.Pawn.Id)); }
+    private static RimGovernor.Brain.GameFacts.Observations.ThreatPawn Row(RimGovernor.Brain.GameFacts.Observations.ThreatsSnapshot t, string id) { return t.Pawns.Single(r => r.Pawn.Id == id); }
     // The row's nearest-colonist distance, null when the map has no colonist.
-    private static int? Dist(Obs.ThreatPawn row) { return row.NearestColonist is Obs.ColonistDistance.Nearest n ? n.Cells : null; }
+    private static int? Dist(RimGovernor.Brain.GameFacts.Observations.ThreatPawn row) { return row.NearestColonist is RimGovernor.Brain.GameFacts.Observations.ColonistDistance.Nearest n ? n.Cells : null; }
 
     internal static void Invoke()
     {
@@ -118,7 +117,7 @@ internal static class NativeThreatClassifierProbe
             Pawn("downedPredator", new ThreatFacts { Downed = true, Predator = true }),
         };
         var (t, scan) = Run(pawns, new List<(int X, int Z)>(), 30);
-        Check(Ids(t.Pawns) == "raider,wildNoPrey" && t.Pawns.All(r => r.NearestColonist is Obs.ColonistDistance.NoColonist), "no distance without colonists");
+        Check(Ids(t.Pawns) == "raider,wildNoPrey" && t.Pawns.All(r => r.NearestColonist is RimGovernor.Brain.GameFacts.Observations.ColonistDistance.NoColonist), "no distance without colonists");
         Check(projected == 2 && scan.ProximityChecks == 0, "no projection or scan for the unplaceable");
     }
 

@@ -8,7 +8,7 @@ using RimWorld;
 using RimWorld.Planet;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class ColonyNamingTools
     {

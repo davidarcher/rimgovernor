@@ -1,5 +1,5 @@
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
@@ -101,11 +101,11 @@ public sealed class AdminFamilyTests
         var ct = TestContext.Current.CancellationToken;
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-admin-supply-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        LootItem Unsafe(StartingSupply s) => LootFixtures.Stack(s.Thing, s.Definition, s.Cell, false, new RimGovernor.Contracts.Wire.Observations.HaulSafety.Unsafe(), 0, 0, [], null);
+        LootItem Unsafe(StartingSupply s) => LootFixtures.Stack(s.Thing, s.Definition, s.Cell, false, new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Unsafe(), 0, 0, [], null);
         var stacks = new[] { Stack("s1", 1, true), Stack("s2", 2, true), Stack("s3", 3, true) };
         var facts = WorkResourceTestFacts.Create("a", "b", "c") with { EventLoot = EquatableArray.From(stacks.Select(Unsafe)) };
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
-        Assert.Equal(["s1", "s2", "s3"], journal.LoadRounds(ct).EventLoot.Pending.Select(p => p.Thing));
+        journal.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
+        Assert.Equal(["s1", "s2", "s3"], journal.LoadReview(ct).EventLoot.Pending.Select(p => p.Thing));
 
         var first = journal.CommitClaimedMethod(AdminFamily.SupplySafety, World, new MethodId("supply-a"), "", Forbid(stacks[0]), ct);
         var second = journal.CommitClaimedMethod(AdminFamily.SupplySafety, World, new MethodId("supply-b"), "", Forbid(stacks[1]), ct);
@@ -166,7 +166,7 @@ public sealed class AdminFamilyTests
         var ct = TestContext.Current.CancellationToken;
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-admin-stockpiles-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
+        journal.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
 
         var create = journal.CommitClaimedMethod(AdminFamily.Stockpiles, World, new MethodId("stockpile-create-a"), "", Bills(Store((1, 1), (1, 2))), ct);
         Assert.Equal(ClaimOutcome.Admitted, create.Outcome);
@@ -178,7 +178,7 @@ public sealed class AdminFamilyTests
         Assert.ThrowsAny<Exception>(() => journal.CommitClaimedMethod(AdminFamily.Burial, World, new MethodId("store"), "", Bills(Store((5, 5))), ct));
 
         // A zone edit claims its zone: another edit of the same zone is held, another zone's is admitted.
-        Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(AdminFamily.Stockpiles, World, RoundsStockpilePlanner.EditsMethod, "", Bills(Patch("Zone_1")), ct).Outcome);
+        Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(AdminFamily.Stockpiles, World, StockpilePlanner.EditsMethod, "", Bills(Patch("Zone_1")), ct).Outcome);
         var held = journal.CommitClaimedMethod(AdminFamily.Stockpiles, World, new MethodId("stockpile-edits-other"), "", Bills(Patch("Zone_1")), ct);
         Assert.Equal(ClaimOutcome.Conflict, held.Outcome);
         Assert.Equal("zone/Zone_1", held.Conflict!.Claim);
@@ -197,18 +197,18 @@ public sealed class AdminFamilyTests
         var ct = TestContext.Current.CancellationToken;
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-admin-ledger-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
+        journal.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
         Func<ActionId, DomainAction> Place(string bench) => a => DomainAction.NewProductionBillAction(a, new ProductionBill(bench, "TestRecipe", BillMode.StockTarget, 1, "Rice"));
         Func<ActionId, DomainAction> Remove(string bench, string bill) => a => DomainAction.NewRemoveProductionBillAction(a, new RemoveProductionBill(bench, bill));
 
-        var place = journal.CommitClaimedMethod(AdminFamily.WorkLedger, World, AdminRounds.LedgerMethod("place-a"), "", Bills(Place("bench-a")), ct);
-        var remove = journal.CommitClaimedMethod(AdminFamily.WorkLedger, World, AdminRounds.LedgerMethod("remove-b"), "", Bills(Remove("bench-b", "bill-1")), ct);
+        var place = journal.CommitClaimedMethod(AdminFamily.WorkLedger, World, AdminReview.LedgerMethod("place-a"), "", Bills(Place("bench-a")), ct);
+        var remove = journal.CommitClaimedMethod(AdminFamily.WorkLedger, World, AdminReview.LedgerMethod("remove-b"), "", Bills(Remove("bench-b", "bill-1")), ct);
         Assert.Equal((ClaimOutcome.Admitted, ClaimOutcome.Admitted), (place.Outcome, remove.Outcome));
         Assert.Equal(AdminFamily.WorkLedger.FilingKey, journal.PlanMethod(place.Owner.Methods[0].Plan, ct)!.Concern);
 
         // The same diff continues; another diff placing the same recipe on the same bench waits on that bill's claim.
-        Assert.Equal(ClaimOutcome.Continued, journal.CommitClaimedMethod(AdminFamily.WorkLedger, World, AdminRounds.LedgerMethod("place-a"), "", Bills(Place("bench-a")), ct).Outcome);
-        var overlap = journal.CommitClaimedMethod(AdminFamily.WorkLedger, World, AdminRounds.LedgerMethod("place-a-and-more"), "", Bills(Place("bench-a")), ct);
+        Assert.Equal(ClaimOutcome.Continued, journal.CommitClaimedMethod(AdminFamily.WorkLedger, World, AdminReview.LedgerMethod("place-a"), "", Bills(Place("bench-a")), ct).Outcome);
+        var overlap = journal.CommitClaimedMethod(AdminFamily.WorkLedger, World, AdminReview.LedgerMethod("place-a-and-more"), "", Bills(Place("bench-a")), ct);
         Assert.Equal(ClaimOutcome.Conflict, overlap.Outcome);
         Assert.Equal("bill/bench-a/TestRecipe", overlap.Conflict!.Claim);
         Assert.Equal(2, journal.LoadNeed(AdminFamily.WorkLedger, World, ct).Methods.Count);
@@ -243,7 +243,7 @@ public sealed class AdminFamilyTests
         public CreepJoinerRecord Record() => Journal.LoadCreepJoiners(new(World.Colony, World.Load, World.Map), TestContext.Current.CancellationToken);
 
         public void File(FamilyRun run) =>
-            Journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(), [PlannerWave.NeedProgressOf(AdminFamily.FamilyId, run)!], TestContext.Current.CancellationToken);
+            Journal.RecordPlannerReasons(new Dictionary<FilingKey, PlannerNote>(), [PlannerWave.NeedProgressOf(AdminFamily.FamilyId, run)!], TestContext.Current.CancellationToken);
     }
 
     private static Colony Open(string name = "rg-admin-")
@@ -252,10 +252,10 @@ public sealed class AdminFamilyTests
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), name + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
         Colony? colony = null;
-        var runner = new FamilyRunner<AdminFacts>(new AdminFamily(), (_, _) => Task.FromResult(new AdminFacts { CreepJoiners = colony!.Work }), AdminRounds.Schedule,
-            (work, facts, call) => Task.FromResult(AdminRounds.CreepJoinerStep(colony!.Journal, work, facts.CreepJoiners!, call)));
+        var runner = new FamilyRunner<AdminFacts>(new AdminFamily(), (_, _) => Task.FromResult(new AdminFacts { CreepJoiners = colony!.Work }), AdminReview.Schedule,
+            (work, facts, call) => Task.FromResult(AdminReview.CreepJoinerStep(colony!.Journal, work, facts.CreepJoiners!, call)));
         colony = new Colony { Journal = journal, Runner = runner };
         return colony;
     }
@@ -281,7 +281,7 @@ public sealed class AdminFamilyTests
         Assert.Equal(2, colony.Journal.LoadNeed(AdminFamily.CreepJoiners, World, ct).Methods.Count);
 
         colony.File(run);
-        Assert.Contains(colony.Journal.LoadRounds(ct).Progress, p => p.Concern == AdminFamily.CreepJoiners.FilingKey);
+        Assert.Contains(colony.Journal.LoadReview(ct).Progress, p => p.Concern == AdminFamily.CreepJoiners.FilingKey);
     }
 
     [Fact]
@@ -336,7 +336,7 @@ public sealed class AdminFamilyTests
 
         using var loaded = Open("rg-admin-load-");
         loaded.Journal.RebuildFamilies(saved, ct);
-        loaded.Journal.ResetRounds(ct);
+        loaded.Journal.ResetReview(ct);
         // The reload's load token differs; the same colony and map read the record back.
         var reloaded = loaded.Journal.LoadCreepJoiners(world with { Load = new("load-2") }, ct);
         Assert.Equal(record.Encode(), reloaded.Encode());

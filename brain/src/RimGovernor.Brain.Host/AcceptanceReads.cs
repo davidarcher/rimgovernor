@@ -1,4 +1,4 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 
 namespace RimGovernor.Brain.Host;
 
@@ -13,7 +13,7 @@ public static class AcceptanceReads
     /// whole-map planning window over the frame's grid, each <paramref name="iterations"/> times on the calling thread.
     /// Returns (span, ms, allocated bytes) samples; nothing is kept.
     /// </summary>
-    public static IReadOnlyList<(string Span, double Ms, long Bytes)> FrameDecodeProfile(RimGovernor.Contracts.Wire.Observations.BundleSnapshot frame, int iterations)
+    public static IReadOnlyList<(string Span, double Ms, long Bytes)> FrameDecodeProfile(RimGovernor.Brain.GameFacts.Observations.BundleSnapshot frame, int iterations)
     {
         ArgumentNullException.ThrowIfNull(frame);
         var samples = new List<(string, double, long)>();

@@ -2,9 +2,8 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Contracts.Wire;
-using Wa = RimGovernor.Contracts.Wire.Authority;
-using Wo = RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -521,7 +520,7 @@ public sealed class GameReuse : IAsyncDisposable
 
     private static string GameIdOf(Config config) => config.GameId.Length > 0 ? config.GameId : HeadlessProfile.TrialGameId;
 
-    // Every load goes through the harness-level rimgovernor/load_game_ready. The trusted rimgovernor/lifecycle_load path is
+    // Every load goes through the harness-level load_game_ready. The trusted lifecycle_load path is
     // not usable here: it requires the expected identity to survive the load, but a fixture save that was never written by
     // the mod carries no persisted colony id, so native mints a fresh one per load and lifecycle_load reports the load as
     // superseded. loadaccept covers that path with a save it wrote itself.
@@ -539,14 +538,14 @@ public sealed class GameReuse : IAsyncDisposable
         var loaded = await h.LoadedAsync(label + "-identity", cancellationToken).ConfigureAwait(false);
         var context = Harness.Context(loaded, label + "-identity");
         var identity = context.Identity;
-        var scope = new Wo.ReadScope { ExpectedIdentity = identity };
+        var scope = new RimGovernor.Brain.GameFacts.Observations.ReadScope { ExpectedIdentity = identity };
 
-        var status = await h.CallAsync(label + "-authority", NativeOps.ReadAuthorityStatus, new Wa.StatusRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
+        var status = await h.CallAsync(label + "-authority", NativeOps.ReadAuthorityStatus, new RimGovernor.Brain.GameOrders.Authority.StatusRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
 
         var pawnsReply = await h.CallAsync(
             label + "-pawns",
             NativeOps.ListPawns,
-            new Wo.ListPawnsRequest { Scope = scope, Filter = new() { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only } },
+            new RimGovernor.Brain.GameOrders.Observations.ListPawnsRequest { Scope = scope, Filter = new() { Colonist = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Only } },
             cancellationToken).ConfigureAwait(false);
         var pawns = pawnsReply;
 
@@ -556,7 +555,7 @@ public sealed class GameReuse : IAsyncDisposable
         var facts = await h.CallAsync(
             label + "-stock",
             NativeOps.ReadColonyFacts,
-            new Wo.ColonyFactsRequest { Scope = scope },
+            new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = scope },
             cancellationToken).ConfigureAwait(false);
         var stock = new Dictionary<string, StockCounts>(StringComparer.Ordinal);
         foreach (var row in facts.Resources)
@@ -572,10 +571,10 @@ public sealed class GameReuse : IAsyncDisposable
             var supplies = await h.CallAsync(
                 label + "-forbidden",
                 NativeOps.ListSupplies,
-                new Wo.ListSuppliesRequest
+                new RimGovernor.Brain.GameOrders.Observations.ListSuppliesRequest
                 {
                     Scope = scope,
-                    Filter = new() { DefNames = [.. stock.Keys], Category = Wo.StockCategory.Haulable, Ownership = Wo.StockOwnership.All, IncludeHeld = true },
+                    Filter = new() { DefNames = [.. stock.Keys], Category = RimGovernor.Brain.GameFacts.Observations.StockCategory.Haulable, Ownership = RimGovernor.Brain.GameFacts.Observations.StockOwnership.All, IncludeHeld = true },
                 },
                 cancellationToken).ConfigureAwait(false);
             foreach (var row in supplies.Stocks)

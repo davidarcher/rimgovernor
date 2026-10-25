@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -50,7 +49,7 @@ public static partial class RitualRules
     /// penalty must be off and the pattern's own cooldown (the minimum of its free start interval, in days)
     /// must have passed since the raw lastFinishedTick.
     /// </summary>
-    internal static bool RitualDue(RitualDef def, O.IdeoRitual held, Tick tick)
+    internal static bool RitualDue(RitualDef def, RimGovernor.Brain.GameFacts.Observations.IdeoRitual held, Tick tick)
     {
         if (held.Running)
         {
@@ -79,7 +78,7 @@ public static partial class RitualRules
     /// catalog lacks, or that names no required building, is not planned: nothing says where to hold it.
     /// </summary>
     public static EquatableArray<RitualPlan> PlanRituals(
-        Ideoligion ideo, EquatableArray<WorkPawn> rows, EquatableArray<O.BuildingState> sites, Tick tick, bool calm)
+        Ideoligion ideo, EquatableArray<WorkPawn> rows, EquatableArray<RimGovernor.Brain.GameFacts.Observations.BuildingState> sites, Tick tick, bool calm)
     {
         var output = new List<RitualPlan>();
         if (!calm)
@@ -104,7 +103,7 @@ public static partial class RitualRules
             {
                 continue;
             }
-            var at = sites.Where(site => site.Status == O.BuildingStatus.Built && def.RequiredBuildings.Contains(site.Building.DefName))
+            var at = sites.Where(site => site.Status == RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Built && def.RequiredBuildings.Contains(site.Building.DefName))
                 .OrderBy(site => site.Building.Id, StringComparer.Ordinal).ToList();
             if (at.Count == 0)
             {

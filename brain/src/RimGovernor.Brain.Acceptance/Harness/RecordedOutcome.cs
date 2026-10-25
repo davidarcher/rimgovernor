@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The <c>outcome</c> choice of a recorded <c>rimgovernor/*</c> reply payload, read without knowing the op: every reply
+/// The <c>outcome</c> choice of a recorded <c>*</c> reply payload, read without knowing the op: every reply
 /// record carries its result as <c>{"outcome": {"type": case, "value": body}}</c>. Evidence readers (the tick tracker, the
 /// post-mortem refusal scan) use it over rows of any op; a case reads a typed reply instead.
 /// </summary>

@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Policy;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -12,8 +11,8 @@ internal static class MoodFixtures
         var pawn = PawnFixtures.Row(id);
         return new MoodPawn
         {
-            Pawn = pawn with { Needs = pawn.Needs with { Mood = new O.NeedLevel.Has(mood), BreakThresholdMinor = threshold } },
-            Forecast = new O.PatientForecast { PawnId = id, MoodTarget = target },
+            Pawn = pawn with { Needs = pawn.Needs with { Mood = new RimGovernor.Brain.GameFacts.Observations.NeedLevel.Has(mood), BreakThresholdMinor = threshold } },
+            Forecast = new RimGovernor.Brain.GameFacts.Observations.PatientForecast { PawnId = id, MoodTarget = target },
             Thoughts = [],
         };
     }

@@ -1,13 +1,12 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 // #3843: an Anomaly knowledge point is priced through the project graph, per knowledge category, the way a research point is. The
 // research read, the catalog's projects and overflow categories go through the census and the review summary into the model's input
-// (RoundsRead.FrameResearch, RoundsColonyModel.InputOf), the standing graph and the perturbation. #3848: the point is worth what the
+// (Read.FrameResearch, ReviewColonyModel.InputOf), the standing graph and the perturbation. #3848: the point is worth what the
 // project unlocks that the colony value prices (a garment), and each other unlock is named.
 public sealed class KnowledgeValueTests
 {
@@ -20,9 +19,9 @@ public sealed class KnowledgeValueTests
     // What the colony gains by the knowledge project finishing: the stand-in valuation pays this for its completion inside the run.
     private const double Worth = 6;
 
-    private static readonly Obs.ResearchSnapshot FreshRead = new()
+    private static readonly RimGovernor.Brain.GameFacts.Observations.ResearchSnapshot FreshRead = new()
     {
-        Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 1 },
+        Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 1 },
         Slots = [new() { Category = "", CurrentProject = "" }],
         Projects = [],
         Finished = [],
@@ -40,7 +39,7 @@ public sealed class KnowledgeValueTests
     }
 
     // The production way: the census of the read over the catalog, its review summary on the frame, the model input, the standing graph.
-    private static (ColonyModelInput Input, ProjectMarginals Marginals) Review(Obs.ResearchSnapshot read, IReadOnlyDictionary<string, ResearchProjectDefinition> catalog,
+    private static (ColonyModelInput Input, ProjectMarginals Marginals) Review(RimGovernor.Brain.GameFacts.Observations.ResearchSnapshot read, IReadOnlyDictionary<string, ResearchProjectDefinition> catalog,
         IReadOnlyDictionary<string, string> overflow)
     {
         var summary = EconomyRules.ResearchSummary(EconomyRules.ResearchCensusOf(read, catalog, overflow));
@@ -50,7 +49,7 @@ public sealed class KnowledgeValueTests
         return (input, ProjectMarginalValue.Of(input, policy, new Completion(ProjectGraph.ResearchId(new ResearchProjectId(Bioferrite)))));
     }
 
-    internal static Obs.ResearchSnapshot AnomalyRead(params string[] locks) => FreshRead with
+    internal static RimGovernor.Brain.GameFacts.Observations.ResearchSnapshot AnomalyRead(params string[] locks) => FreshRead with
     {
         Slots = [new() { Category = "", CurrentProject = "" }, new() { Category = Advanced, CurrentProject = "" }, new() { Category = Basic, CurrentProject = "" }],
         Projects = [new() { Project = new() { DefName = Bioferrite }, ProgressFraction = 0.25, Finished = false, Current = false, LockReasons = [.. locks] }],
@@ -109,7 +108,7 @@ public sealed class KnowledgeValueTests
             new Dictionary<string, string>(StringComparer.Ordinal) { [Basic] = "", [Advanced] = Basic }, options);
 
     /// <summary>The production way as <see cref="Review"/>, with the colony value itself: the stock covers <see cref="Unlocked"/> and a recipe makes it.</summary>
-    internal static ProjectMarginals Priced(Obs.ResearchSnapshot read, IReadOnlyDictionary<string, ResearchProjectDefinition> catalog, IReadOnlyDictionary<string, string> overflow, IReadOnlyList<GearOption> options)
+    internal static ProjectMarginals Priced(RimGovernor.Brain.GameFacts.Observations.ResearchSnapshot read, IReadOnlyDictionary<string, ResearchProjectDefinition> catalog, IReadOnlyDictionary<string, string> overflow, IReadOnlyList<GearOption> options)
     {
         var summary = EconomyRules.ResearchSummary(EconomyRules.ResearchCensusOf(read, catalog, overflow));
         var research = ColonyModelFixtures.ReadyOf(ColonyModelFixtures.Reading() with { Facts = ColonyModelFixtures.Reading().Facts with { Research = summary } }).Research;

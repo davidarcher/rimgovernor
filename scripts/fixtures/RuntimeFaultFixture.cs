@@ -7,7 +7,7 @@ using RimGovernor.Fixtures.Contracts;
 using RimGovernor.Host.Sdk;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Disposable fixture only: injects the runtime fault the lifecycle/
     // runtime-fault case recovers from. Unpatch removes one required authority
@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
     public sealed class RuntimeFaultFixture
     {
         [Tool("test/runtime_fault_unpatch", Description = "Disposable fixture: removes the named required authority hook (a NativeAuthorityHooks status name) from the live game so authority reports HooksUnavailable. Recovery is production behavior, not this fixture's.")]
-        public async Task<object> Unpatch(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> Unpatch(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Exact required authority hook name (NativeAuthorityHooks).")] string hook)
         {
             return await ctx.MainThread.InvokeAsync<object>(() =>

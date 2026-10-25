@@ -1,6 +1,6 @@
 using System.Reflection;
 using RimGovernor.Brain.Acceptance;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Telemetry;
@@ -27,7 +27,7 @@ public sealed class RequiredFactTests
         var path = Path.Combine(Path.GetTempPath(), "rg-required-fact-" + Guid.NewGuid().ToString("N") + ".db");
         using var journal = Journal.Open(path, ct);
         using var player = Player.Create(new PlayerConfig(TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10)), journal, new Session(), new Worlds(), ct);
-        var scheduler = new ClockScheduler(player, DispatchProxy.Create<IClockStepNative, Unreached>(), new ClockSchedulerConfig { MaxAge = TimeSpan.FromSeconds(30) }, new Clock());
+        var scheduler = new PlannerScheduler(player, DispatchProxy.Create<IPlannerStepNative, Unreached>(), new PlannerSchedulerConfig { MaxAge = TimeSpan.FromSeconds(30) }, new Clock());
         var ran = 0;
         var unread = new PlannerEntry { Name = "test-unread", Configured = _ => true, Run = (_, _, _, _, _, _) => throw new RequiredFactException("outdoor_curve") };
         var peer = new PlannerEntry

@@ -186,7 +186,7 @@ public readonly record struct QuestId(string Value) : IComparable<QuestId>
 }
 
 /// <summary>Names a Concern (what a Round inspects).</summary>
-public readonly record struct ConcernId(string Value) : IComparable<ConcernId>
+public readonly record struct FilingKey(string Value) : IComparable<FilingKey>
 {
     public string Value { get => field ?? string.Empty; } = Value;
 
@@ -194,21 +194,21 @@ public readonly record struct ConcernId(string Value) : IComparable<ConcernId>
 
     public bool IsValid => IdText.IsValidText(Value);
 
-    public bool Equals(ConcernId other) => string.Equals(Value, other.Value, StringComparison.Ordinal);
+    public bool Equals(FilingKey other) => string.Equals(Value, other.Value, StringComparison.Ordinal);
 
     public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(Value);
 
-    public int CompareTo(ConcernId other) => string.CompareOrdinal(Value, other.Value);
+    public int CompareTo(FilingKey other) => string.CompareOrdinal(Value, other.Value);
 
     public override string ToString() => Value;
 
-    public static bool operator <(ConcernId left, ConcernId right) => left.CompareTo(right) < 0;
+    public static bool operator <(FilingKey left, FilingKey right) => left.CompareTo(right) < 0;
 
-    public static bool operator >(ConcernId left, ConcernId right) => left.CompareTo(right) > 0;
+    public static bool operator >(FilingKey left, FilingKey right) => left.CompareTo(right) > 0;
 
-    public static bool operator <=(ConcernId left, ConcernId right) => left.CompareTo(right) <= 0;
+    public static bool operator <=(FilingKey left, FilingKey right) => left.CompareTo(right) <= 0;
 
-    public static bool operator >=(ConcernId left, ConcernId right) => left.CompareTo(right) >= 0;
+    public static bool operator >=(FilingKey left, FilingKey right) => left.CompareTo(right) >= 0;
 }
 
 /// <summary>Names a selected method.</summary>

@@ -1,6 +1,6 @@
 using System.Text;
 using System.Text.Json;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 
 namespace RimGovernor.Brain.HttpChannel;
 
@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.HttpChannel;
 /// </summary>
 public interface INativeOpInvoker
 {
-    /// <summary>The op names a route exists for, without the <c>rimgovernor/</c> prefix.</summary>
+    /// <summary>The registered operation names a route exists for.</summary>
     IReadOnlyCollection<string> Names { get; }
 
     /// <summary>
@@ -135,7 +135,7 @@ public static class NativeRoutes
         }
         catch (NotLoadedException e)
         {
-            return ChannelResponse.Failure(UnavailableStatus, nameof(RimGovernor.Contracts.Wire.Common.UnavailableReason.NotLoaded), e.Message);
+            return ChannelResponse.Failure(UnavailableStatus, nameof(RimGovernor.Brain.GameFacts.Common.UnavailableReason.NotLoaded), e.Message);
         }
 #pragma warning disable CA1031 // The op's own failure text goes back to the caller as a 500.
         catch (Exception e)
@@ -159,7 +159,7 @@ public static class NativeRoutes
 
     /// <summary>
     /// A route name is one or more <c>/</c>-separated segments of lowercase letters, digits and <c>_ - .</c>, none
-    /// empty: <c>operations_apply</c> for a <c>rimgovernor/</c> tool, <c>test/lab_start</c> for a fixture op.
+    /// empty: <c>operations_apply</c> for a native operation, <c>test/lab_start</c> for a fixture operation.
     /// </summary>
     internal static bool IsToolName(string name)
     {

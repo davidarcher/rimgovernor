@@ -1,7 +1,8 @@
 using System.Runtime.CompilerServices;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using RimWorld;
 using Verse;
 using Xunit;
@@ -125,7 +126,7 @@ public sealed class PartLossCatalogTests
         // The production way (#3822): the faction defs' rifle gives the raid bin its Bullet damage def, the catalog's rule for it and
         // the arm's tier price the loss on a colonist as the native read fills it (a natural arm on the map, one doctor).
         var catalog = Catalog();
-        var inputs = HarmInputs.Of(new RoundsFacts
+        var inputs = HarmInputs.Of(new ReviewFacts
         {
             Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { RaidPoints = 200d, HostileFactions = ["Pirate"] } } },
             HarmCatalog = new() { Raid = catalog.RaidFactions(), Parts = new() { Rules = catalog.PartHitRules(), Recipes = catalog.PartReplacementRecipes() } },

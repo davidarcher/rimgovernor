@@ -21,12 +21,12 @@ internal static class RimWorldWaits
             state,
             version = new
             {
-                bridgeVersion = GetInformationalVersion(typeof(RimBridgeTools).Assembly),
-                bridgeAssemblyVersion = typeof(RimBridgeTools).Assembly.GetName().Version?.ToString() ?? string.Empty,
+                bridgeVersion = GetInformationalVersion(typeof(NativeTools).Assembly),
+                bridgeAssemblyVersion = typeof(NativeTools).Assembly.GetName().Version?.ToString() ?? string.Empty,
                 sdkVersion = typeof(ToolAttribute).Assembly.GetName().Version?.ToString() ?? string.Empty,
                 sdkInformationalVersion = GetInformationalVersion(typeof(ToolAttribute).Assembly)
             },
-            patches = RimBridgePatches.DescribeStatus(),
+            patches = NativePatches.DescribeStatus(),
             recentOperationCount = journal.OperationCount,
             trackedOperationCount = journal.OperationCount,
             operationJournalCapacity = journal.MaxOperations,

@@ -55,7 +55,7 @@ public sealed record ContainmentPlanning
     public ContainmentDemand Demand { get; init; } = new();
 
     /// <summary>The standing platforms.</summary>
-    public EquatableArray<RimGovernor.Contracts.Wire.Observations.EntityHolderState> Holders { get; init; } = [];
+    public EquatableArray<RimGovernor.Brain.GameFacts.Observations.EntityHolderState> Holders { get; init; } = [];
 
     /// <summary>The prediction's inputs.</summary>
     public ContainmentDefsRead Defs { get; init; } = new ContainmentDefsRead.Inactive();

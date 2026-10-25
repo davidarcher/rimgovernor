@@ -72,12 +72,12 @@ public sealed partial class Store
 
     private static NeedCommit CommitClaimedNeedMethodIn(StoreTransaction tx, NeedId need, GenerationSnapshot current, MethodId method, string reason, PlanSpec plan)
     {
-        var review = LoadRounds(tx);
+        var review = LoadReview(tx);
         var owner = LoadNeedIn(tx, need, current);
         if (!review.Enabled || review.Snapshot != current)
             return new(ClaimOutcome.Refused, owner, Refusal: new(RefusalKind.SharedAdmission, $"need {need.Value} has no current enabled review"));
         if (owner.BoundPlan(tx, method) is not null) return new(ClaimOutcome.Continued, owner);
-        if (RoundsSafeguardRefusal(tx, owner) is { } vetoed) return new(ClaimOutcome.Refused, owner, Refusal: vetoed);
+        if (SafeguardRefusal(tx, owner) is { } vetoed) return new(ClaimOutcome.Refused, owner, Refusal: vetoed);
         var (conflict, truncated) = ClaimOverlapIn(tx, current, plan);
         if (truncated) return new(ClaimOutcome.Refused, owner, Refusal: new(RefusalKind.SharedAdmission, "claim_census_truncated"));
         if (conflict is not null) return new(ClaimOutcome.Conflict, owner, conflict);
@@ -92,7 +92,7 @@ public sealed partial class Store
     /// </summary>
     private static (ClaimConflict? Conflict, bool Truncated) ClaimOverlapIn(StoreTransaction tx, GenerationSnapshot current, PlanSpec plan)
     {
-        var review = LoadRounds(tx);
+        var review = LoadReview(tx);
         var evidence = review.Snapshot == current && review.WorkEvidence is { } known ? known : new WorkAdmissionEvidence();
         var candidate = MethodClaimsRules.MethodClaimsOf(evidence,
             [.. plan.Actions.Select(a => new WorkAction(plan.Id, a, new ProgressView { Action = a.Id, Stage = Stage.Pending }))]);

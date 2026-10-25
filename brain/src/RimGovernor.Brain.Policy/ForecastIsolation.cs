@@ -292,7 +292,7 @@ public static class ForecastIsolation
     /// Disappears ticks; each stretch costs (1 − the share its pain leaves, <see cref="HarmConsequences.PainFactor"/>) of its
     /// length.
     /// </summary>
-    public static double PulseLoss(RimGovernor.Contracts.Wire.Observations.NeedsForecastPawn pawn, AgonyPulse agony)
+    public static double PulseLoss(RimGovernor.Brain.GameFacts.Observations.NeedsForecastPawn pawn, AgonyPulse agony)
     {
         var (consciousness, shock) = (pawn.Consciousness, pawn.PainShockThreshold);
         var (lo, hi) = agony.SeverityPerSecond;

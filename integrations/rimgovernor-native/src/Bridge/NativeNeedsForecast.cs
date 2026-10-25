@@ -6,19 +6,18 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 using RimGovernor.Brain.Domain;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 /// <summary>Read-only needs mechanics/targets for every colonist given, every target of each kind (#3341). No priority, timetable or trigger preselection.</summary>
 internal static class NativeNeedsForecast
 {
-    internal static Obs.NeedsForecastRead Read(Map map, List<Pawn> people, NativePathLegs? legs = null)
+    internal static RimGovernor.Brain.GameFacts.Observations.NeedsForecastRead Read(Map map, List<Pawn> people, NativePathLegs? legs = null)
     {
         legs ??= new(map);
         // The organ replacement reads (#3830) share one capture's surgery facts.
         using var surgery = new NativePawnDetails.SurgeryScope();
-        var rows = new List<Obs.NeedsForecastPawn>();
+        var rows = new List<RimGovernor.Brain.GameFacts.Observations.NeedsForecastPawn>();
         var sightings = map.GetComponent<TrafficState>()?.Sightings;
         var now = Find.TickManager.TicksGame;
         // The candidates, read once for every colonist; only each pawn's survivors are sorted, by id then grouped by kind.
@@ -36,7 +35,7 @@ internal static class NativeNeedsForecast
             if (state == "eligible" && blockers.Count != 0) state = "unsupported_voluntary_state";
             // A blocked pawn's supported needs stay the brain's to serve (#3557): its targets are read like an eligible pawn's.
             var voluntary = state is "eligible" or "unsupported_voluntary_state";
-            var targets = new List<Obs.NeedTarget>();
+            var targets = new List<RimGovernor.Brain.GameFacts.Observations.NeedTarget>();
             if (voluntary)
             {
                 possible ??= map.listerThings.AllThings.Where(t => t.Spawned &&
@@ -65,28 +64,28 @@ internal static class NativeNeedsForecast
                         var thoughts = FoodUtility.ThoughtsFromIngesting(pawn, target, target.def)
                             .Select(t => MealMemory(pawn, t)).ToArray();
                         targets.Add(new(target.GetUniqueLoadID(), "food", target.def.defName, target.def.ingestible.maxNumToIngestAtOnce > 0 ? Math.Min(target.stackCount, target.def.ingestible.maxNumToIngestAtOnce) : target.stackCount,
-                            travel, new Obs.NeedRecovery.Ingest(F(service, "ingest ticks"), F(nutrition, "nutrition")))
-                            { MealThoughts = EquatableArray.From(thoughts), Location = new(target.Position.x, target.Position.z), Stock = new Obs.NeedStock.Stacked(target.stackCount, NativeCoupledFood.StackFreshness(target)), MaxPawns = Claimants(maxPawns, target),
+                            travel, new RimGovernor.Brain.GameFacts.Observations.NeedRecovery.Ingest(F(service, "ingest ticks"), F(nutrition, "nutrition")))
+                            { MealThoughts = EquatableArray.From(thoughts), Location = new(target.Position.x, target.Position.z), Stock = new RimGovernor.Brain.GameFacts.Observations.NeedStock.Stacked(target.stackCount, NativeCoupledFood.StackFreshness(target)), MaxPawns = Claimants(maxPawns, target),
                             Cell = CellAt(map, target.Position), Bed = null, Deterioration = DeteriorationOf(map, target),
                             Unsupported = ["chew_spot_travel", "ingestion_outcomes_and_poisoning", "meal_memory_stacking"] });
                     }
                     else if (group == "rest") targets.Add(new(target.GetUniqueLoadID(), "rest", "", 1, travel,
-                        new Obs.NeedRecovery.Rate(F(Need_Rest.BaseRestGainPerTick * RestEffectiveness((Building_Bed)target) * pawn.GetStatValue(StatDefOf.RestRateMultiplier), "bed rest gain")))
-                        { MealThoughts = [], Location = new(target.Position.x,target.Position.z), Stock = new Obs.NeedStock.NotStacked(), MaxPawns = Claimants(maxPawns, target),
+                        new RimGovernor.Brain.GameFacts.Observations.NeedRecovery.Rate(F(Need_Rest.BaseRestGainPerTick * RestEffectiveness((Building_Bed)target) * pawn.GetStatValue(StatDefOf.RestRateMultiplier), "bed rest gain")))
+                        { MealThoughts = [], Location = new(target.Position.x,target.Position.z), Stock = new RimGovernor.Brain.GameFacts.Observations.NeedStock.NotStacked(), MaxPawns = Claimants(maxPawns, target),
                             Cell = CellAt(map, target.Position), Bed = BedRoomOf((Building_Bed)target), Deterioration = null, Unsupported = [] });
                     else
                     {
                         var job = (NativeRecreation.GiverFor(target) ?? throw new System.InvalidOperationException("Required native value is unavailable: NativeRecreation.GiverFor(target).")).jobDef;
                         // Native JoyTickCheckEnd conversion, projected at observed tolerance only; future tolerance is explicit.
-                        targets.Add(new(target.GetUniqueLoadID(), "joy", "", 1, travel, new Obs.NeedRecovery.Rate(F(NativeRecreation.GainPerTick(pawn, target, job), "joy gain")))
-                            { MealThoughts = [], Location = new(target.Position.x,target.Position.z), Stock = new Obs.NeedStock.NotStacked(), MaxPawns = Claimants(maxPawns, target), Cell = CellAt(map, target.Position),
+                        targets.Add(new(target.GetUniqueLoadID(), "joy", "", 1, travel, new RimGovernor.Brain.GameFacts.Observations.NeedRecovery.Rate(F(NativeRecreation.GainPerTick(pawn, target, job), "joy gain")))
+                            { MealThoughts = [], Location = new(target.Position.x,target.Position.z), Stock = new RimGovernor.Brain.GameFacts.Observations.NeedStock.NotStacked(), MaxPawns = Claimants(maxPawns, target), Cell = CellAt(map, target.Position),
                                 Bed = null, Deterioration = null, Unsupported = ["play_position_travel", "future_tolerance_changes"] });
                     }
                 }
             }
             var live = PawnSettingsRead.LiveMemories(pawn);
-            var memories = (live ?? new List<Thought>()).OfType<Thought_Memory>().Select(m => new Obs.NeedMemory(m.def.defName,
-                F(m.MoodOffset(), "memory offset"), m.permanent ? new Obs.MemoryLife.Permanent() : new Obs.MemoryLife.Expires(Math.Max(0, m.DurationTicks - m.age)),
+            var memories = (live ?? new List<Thought>()).OfType<Thought_Memory>().Select(m => new RimGovernor.Brain.GameFacts.Observations.NeedMemory(m.def.defName,
+                F(m.MoodOffset(), "memory offset"), m.permanent ? new RimGovernor.Brain.GameFacts.Observations.MemoryLife.Permanent() : new RimGovernor.Brain.GameFacts.Observations.MemoryLife.Expires(Math.Max(0, m.DurationTicks - m.age)),
                 m.def.lerpMoodToZero) { StackLimit = m.def.stackLimit });
             var unsupported = pawn.needs?.AllNeeds.Where(n => n is not Need_Food && n is not Need_Rest && n is not Need_Joy && n is not Need_Mood)
                 .Select(n => "unsupported_need:" + n.def.defName).ToList() ?? new List<string>();
@@ -103,7 +102,7 @@ internal static class NativeNeedsForecast
                 SleepComfortableMin = SleepComfortable(pawn, StatDefOf.ComfyTemperatureMin), SleepComfortableMax = SleepComfortable(pawn, StatDefOf.ComfyTemperatureMax),
                 Sleep = SleepOf(pawn, map), LyingIn = LyingInOf(pawn, map), Needs = EquatableArray.From(needs),
                 Targets = EquatableArray.From(targets.OrderBy(t => t.Id, StringComparer.Ordinal).GroupBy(t => t.Kind).SelectMany(g => g)), Unsupported = EquatableArray.From(unsupported), VoluntaryControlBlockers = blockers,
-                Outdoors = pawn.needs?.outdoors is { } outdoors ? new Obs.NeedLevel.Has(F(outdoors.CurLevel, "outdoors level")) : new Obs.NeedLevel.Lacks(),
+                Outdoors = pawn.needs?.outdoors is { } outdoors ? new RimGovernor.Brain.GameFacts.Observations.NeedLevel.Has(F(outdoors.CurLevel, "outdoors level")) : new RimGovernor.Brain.GameFacts.Observations.NeedLevel.Lacks(),
                 OutdoorsDisabled = pawn.needs?.outdoors != null && pawn.needs.PrefersIndoors,
                 OwnedBed = pawn.ownership?.OwnedBed?.GetUniqueLoadID() ?? "",
                 OwnedBedRoom = pawn.ownership?.OwnedBed is { } ownedBed ? BedRoomOf(ownedBed) : null,
@@ -128,7 +127,7 @@ internal static class NativeNeedsForecast
         var benches = map.listerBuildings.AllBuildingsColonistOfClass<Building_ResearchBench>()
             .Where(b => b.Spawned && (b.GetComp<CompPowerTrader>()?.PowerOn ?? true))
             .OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal)
-            .Select(b => new Obs.ResearchBenchRead(b.GetUniqueLoadID(), b.def.defName, new(b.Position.x, b.Position.z), b.GetStatValue(StatDefOf.ResearchSpeedFactor))).ToArray();
+            .Select(b => new RimGovernor.Brain.GameFacts.Observations.ResearchBenchRead(b.GetUniqueLoadID(), b.def.defName, new(b.Position.x, b.Position.z), b.GetStatValue(StatDefOf.ResearchSpeedFactor))).ToArray();
         var weather = map.weatherManager.CurWeatherLerped;
         return new() { Tick = new(Find.TickManager.TicksGame), Pawns = EquatableArray.From(rows),
             WeatherThought = weather?.weatherThought?.defName ?? "", WeatherThoughtStages = weather?.weatherThought?.stages?.Count ?? 0,
@@ -136,12 +135,12 @@ internal static class NativeNeedsForecast
             Corpses = CorpsesInSight(map, people, sightings, now), Deathrest = DeathrestDefs(), Prison = NativePrisonRecruit.Read(map, people, Climate), School = NativeSchool.Read(map, people), Babies = NativeBabyFits.Read(map, people) };
     }
     /// <summary>
-    /// The pawn's food, rest and joy rates (Obs.NeedRate), each need it has; joy from <paramref name="joy"/>, the pawn's own or a
+    /// The pawn's food, rest and joy rates (RimGovernor.Brain.GameFacts.Observations.NeedRate), each need it has; joy from <paramref name="joy"/>, the pawn's own or a
     /// detached one of a pawn that lacks it now (the joiner read, #3805), none when null.
     /// </summary>
-    internal static List<Obs.NeedRate> NeedRatesOf(Pawn pawn, Map map, Func<NativeRecreation.OutdoorClimate> climate, Need_Joy? joy)
+    internal static List<RimGovernor.Brain.GameFacts.Observations.NeedRate> NeedRatesOf(Pawn pawn, Map map, Func<NativeRecreation.OutdoorClimate> climate, Need_Joy? joy)
     {
-        var needs = new List<Obs.NeedRate>();
+        var needs = new List<RimGovernor.Brain.GameFacts.Observations.NeedRate>();
         if (pawn.needs?.food is { } food) needs.Add(new("food", F(food.CurLevelPercentage, "food level"),
             F(food.FoodFallPerTick / food.MaxLevel, "food fall"), F(food.PercentageThreshHungry, "hungry threshold"))
             { UnservedGainPerTick = 0, GainPerTickPerEffectiveness = 0, Unsupported = ["food_category_and_bed_rate_changes"] });
@@ -177,7 +176,7 @@ internal static class NativeNeedsForecast
     /// over every spawned bound building, not only the ones usable from the bed it lies in now (BoundComps), so a deathrester awake
     /// reads the casket and accelerators its next deathrest binds again.
     /// </summary>
-    private static Obs.DeathresterRead? DeathresterOf(Pawn pawn)
+    private static RimGovernor.Brain.GameFacts.Observations.DeathresterRead? DeathresterOf(Pawn pawn)
     {
         if (pawn.genes?.GetFirstGeneOfType<Gene_Deathrest>() is not Gene_Deathrest gene) return null;
         var efficiency = 1d;
@@ -187,13 +186,13 @@ internal static class NativeNeedsForecast
         return new(gene.DeathrestCapacity, efficiency, gene.chamberThoughtIndex);
     }
     /// <summary>The deathrest defs (#3810); null without Biotech. Read-only def data.</summary>
-    private static Obs.DeathrestDefsRead? DeathrestDefs()
+    private static RimGovernor.Brain.GameFacts.Observations.DeathrestDefsRead? DeathrestDefs()
     {
         if (!ModsConfig.BiotechActive) return null;
         var bindables = DefDatabase<ThingDef>.AllDefsListForReading
             .Select(d => (Def: d, Props: d.GetCompProperties<CompProperties_DeathrestBindable>())).Where(d => d.Props is not null)
             .OrderBy(d => d.Def.defName, StringComparer.Ordinal)
-            .Select(d => new Obs.DeathrestBindableRead(d.Def.defName, d.Props.deathrestEffectivenessFactor, d.Props.stackLimit, d.Props.countsTowardsBuildingLimit, d.Props.mustBeLayingInToBind));
+            .Select(d => new RimGovernor.Brain.GameFacts.Observations.DeathrestBindableRead(d.Def.defName, d.Props.deathrestEffectivenessFactor, d.Props.stackLimit, d.Props.countsTowardsBuildingLimit, d.Props.mustBeLayingInToBind));
         var stages = RoomStatDefOf.Impressiveness.scoreStages?.Select(s => (double)s.minScore)
             ?? throw new InvalidOperationException("RoomStatDefOf.Impressiveness has no score stages");
         return new(Need_Deathrest.FallPerDay, Need_Deathrest.GainPerDayDeathresting, EquatableArray.From(bindables), EquatableArray.From(stages));
@@ -201,16 +200,16 @@ internal static class NativeNeedsForecast
     /// <summary>PawnObserver.ObservationRadius (a private const in 1.7): the observer sees a thing within this many cells (InHorDistOf).</summary>
     internal const float ObservationRadius = 5f;
     /// <summary>
-    /// The pawn's value reads (#3825, Obs.PawnUpkeepRead): its speed at each work speed stat the catalog maps and its move speed and carrying capacity (#3849), 0 where the stat is
+    /// The pawn's value reads (#3825, RimGovernor.Brain.GameFacts.Observations.PawnUpkeepRead): its speed at each work speed stat the catalog maps and its move speed and carrying capacity (#3849), 0 where the stat is
     /// disabled for it; the work types it is incapable of; its food fall at the Fed category over a day; its mood target and minor
     /// break threshold, null without a mood need or a mental breaker. A mood need whose target was not read is a broken read.
     /// </summary>
-    internal static Obs.PawnUpkeepRead UpkeepOf(Pawn pawn, Obs.NeedMood? needMood)
+    internal static RimGovernor.Brain.GameFacts.Observations.PawnUpkeepRead UpkeepOf(Pawn pawn, RimGovernor.Brain.GameFacts.Observations.NeedMood? needMood)
     {
         var speeds = WorkSpeeds(pawn);
         var incapable = DefDatabase<WorkTypeDef>.AllDefsListForReading.Where(pawn.WorkTypeIsDisabled).Select(w => w.defName).OrderBy(n => n, StringComparer.Ordinal);
         var food = pawn.needs?.food is { } need ? need.FoodFallPerTickAssumingCategory(HungerCategory.Fed) * GenDate.TicksPerDay : 0;
-        var mood = needMood is null ? null : new Obs.PawnMoodRead(needMood.UnclampedTarget, needMood.BreakThreshold);
+        var mood = needMood is null ? null : new RimGovernor.Brain.GameFacts.Observations.PawnMoodRead(needMood.UnclampedTarget, needMood.BreakThreshold);
         return new() { Speeds = speeds, SkillSpeeds = SkillSpeeds(pawn), IncapableWork = EquatableArray.From(incapable), FoodPerDay = food, Mood = mood };
     }
     /// <summary>
@@ -218,9 +217,9 @@ internal static class NativeNeedsForecast
     /// (#3912, <see cref="NativeSkillStat.OneLevelUp"/>): what one more level adds to the pawn's speed. Throws where the stat's
     /// pipeline cannot hold that value exact.
     /// </summary>
-    internal static EquatableArray<Obs.SkillSpeedRead> SkillSpeeds(Pawn pawn)
+    internal static EquatableArray<RimGovernor.Brain.GameFacts.Observations.SkillSpeedRead> SkillSpeeds(Pawn pawn)
     {
-        var rows = new List<Obs.SkillSpeedRead>();
+        var rows = new List<RimGovernor.Brain.GameFacts.Observations.SkillSpeedRead>();
         if (pawn.skills is null) return default;
         var names = RimGovernor.Brain.Bridge.DefinitionCatalog.UpkeepStatNames(DefDatabase<RecipeDef>.AllDefsListForReading);
         foreach (var record in pawn.skills.skills.OrderBy(s => s.def.defName, StringComparer.Ordinal))
@@ -235,10 +234,10 @@ internal static class NativeNeedsForecast
     /// The pawn's value of each work speed stat the catalog maps (<c>DefinitionCatalog.UpkeepStatNames</c>), 0 where the stat is
     /// disabled for it: the needs forecast's upkeep and the biography's work speeds (#3868) read the same rows.
     /// </summary>
-    internal static EquatableArray<Obs.WorkSpeedRead> WorkSpeeds(Pawn pawn)
+    internal static EquatableArray<RimGovernor.Brain.GameFacts.Observations.WorkSpeedRead> WorkSpeeds(Pawn pawn)
     {
         var names = RimGovernor.Brain.Bridge.DefinitionCatalog.UpkeepStatNames(DefDatabase<RecipeDef>.AllDefsListForReading);
-        var speeds = new List<Obs.WorkSpeedRead>();
+        var speeds = new List<RimGovernor.Brain.GameFacts.Observations.WorkSpeedRead>();
         foreach (var name in names)
         {
             var stat = DefDatabase<StatDef>.GetNamedSilentFail(name) ?? throw new InvalidOperationException("upkeep stat not loaded: " + name);
@@ -251,10 +250,10 @@ internal static class NativeNeedsForecast
     /// colonist's recorded observer passes (<see cref="SightingLog"/>) from whose cell PawnObserver.PossibleToObserve sees the
     /// corpse where it lies now. Corpse.GiveObservedHistoryEvent ignores its observer; the first colonist is passed.
     /// </summary>
-    private static EquatableArray<Obs.CorpseSightingRead> CorpsesInSight(Map map, List<Pawn> people, SightingLog? log, int now)
+    private static EquatableArray<RimGovernor.Brain.GameFacts.Observations.CorpseSightingRead> CorpsesInSight(Map map, List<Pawn> people, SightingLog? log, int now)
     {
         if (people.Count == 0) return default;
-        var rows = new List<Obs.CorpseSightingRead>();
+        var rows = new List<RimGovernor.Brain.GameFacts.Observations.CorpseSightingRead>();
         var corpses = map.listerThings.ThingsInGroup(ThingRequestGroup.Corpse).OfType<Corpse>()
             .Where(c => c.Spawned && c.InnerPawn != null && !c.Position.Fogged(map)).OrderBy(c => c.GetUniqueLoadID(), StringComparer.Ordinal);
         var passes = people.ToDictionary(p => p, p => log?.Passes(p.thingIDNumber, now) ?? new List<(int Tick, int Cell)>());
@@ -262,7 +261,7 @@ internal static class NativeNeedsForecast
         {
             var ev = corpse.GiveObservedHistoryEvent(people[0]);
             if (ev != HistoryEventDefOf.ObservedLayingCorpse && ev != HistoryEventDefOf.ObservedLayingRottingCorpse) continue;
-            var seen = new List<Obs.CorpseSightings>();
+            var seen = new List<RimGovernor.Brain.GameFacts.Observations.CorpseSightings>();
             foreach (var pawn in people.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal))
             {
                 var ago = new List<int>();
@@ -284,10 +283,10 @@ internal static class NativeNeedsForecast
     /// Notify_MemberTookAction would (no mood, a slave under onlyForNonSlaves, below the thought's minExpectation), priced by the
     /// game's MoodOffset of the unattached memory (zero where MemoryThoughtHandler.TryGainMemory's CanGetThought refuses it).
     /// </summary>
-    private static EquatableArray<Obs.CorpseThoughtRead> CorpseThoughtsOf(Pawn pawn)
+    private static EquatableArray<RimGovernor.Brain.GameFacts.Observations.CorpseThoughtRead> CorpseThoughtsOf(Pawn pawn)
     {
         if (pawn.needs?.mood == null || pawn.Ideo is not { } ideo) return default;
-        var rows = new List<Obs.CorpseThoughtRead>();
+        var rows = new List<RimGovernor.Brain.GameFacts.Observations.CorpseThoughtRead>();
         foreach (var precept in ideo.PreceptsListForReading)
             foreach (var comp in precept.def.comps.OfType<PreceptComp_SelfTookMemoryThought>())
             {
@@ -305,7 +304,7 @@ internal static class NativeNeedsForecast
         return EquatableArray.From(rows);
     }
     /// <summary>The cell's roof and room as Need_Outdoors, the undergrounder workers, ApplyBedThoughts and SteadyEnvironmentEffects read them (#3339).</summary>
-    internal static Obs.NeedCell CellAt(Map map, IntVec3 cell)
+    internal static RimGovernor.Brain.GameFacts.Observations.NeedCell CellAt(Map map, IntVec3 cell)
     {
         var roof = map.roofGrid.RoofAt(cell);
         return new(roof != null, roof?.isThickRoof == true, roof?.isNatural == true,
@@ -316,7 +315,7 @@ internal static class NativeNeedsForecast
     /// and the care a patient lying in it gets (#3804): whether it is costless (ApplyBedThoughts' SleptOnGround), the room's PsychologicallyOutdoors and InfectionChanceFactor (the roomless
     /// score without a room), the bed's SurgerySuccessChanceFactor and ImmunityGainSpeedFactor. Read-only.
     /// </summary>
-    private static Obs.NeedBedRoom BedRoomOf(Building_Bed bed)
+    private static RimGovernor.Brain.GameFacts.Observations.NeedBedRoom BedRoomOf(Building_Bed bed)
     {
         var room = bed.GetRoom();
         var stage = room == null ? throw new InvalidOperationException("bed without a room: " + bed.GetUniqueLoadID())
@@ -330,60 +329,60 @@ internal static class NativeNeedsForecast
         };
     }
     /// <summary>
-    /// When the pawn's current lie-down gives its bed thoughts (Obs.BedThoughtOnset, #3871), from the two Pawn_MindState fields
+    /// When the pawn's current lie-down gives its bed thoughts (RimGovernor.Brain.GameFacts.Observations.BedThoughtOnset, #3871), from the two Pawn_MindState fields
     /// Toils_LayDown reads: applyBedThoughtsTick 0 (reset whenever the pawn is not laying) draws a fresh onset at the next
     /// lie-down; applyBedThoughtsOnLeave is set once ApplyBedRelatedEffects gave them, so FinalizeLayingJob gives them again; else
     /// they are given once the drawn tick passes. Read-only.
     /// </summary>
-    private static Obs.BedThoughtOnset BedThoughtsOf(Pawn pawn)
+    private static RimGovernor.Brain.GameFacts.Observations.BedThoughtOnset BedThoughtsOf(Pawn pawn)
     {
         var mind = pawn.mindState;
-        if (mind.applyBedThoughtsTick == 0) return new Obs.BedThoughtOnset.None();
-        return mind.applyBedThoughtsOnLeave ? new Obs.BedThoughtOnset.Given()
-            : new Obs.BedThoughtOnset.Due(Math.Max(0, mind.applyBedThoughtsTick - Find.TickManager.TicksGame));
+        if (mind.applyBedThoughtsTick == 0) return new RimGovernor.Brain.GameFacts.Observations.BedThoughtOnset.None();
+        return mind.applyBedThoughtsOnLeave ? new RimGovernor.Brain.GameFacts.Observations.BedThoughtOnset.Given()
+            : new RimGovernor.Brain.GameFacts.Observations.BedThoughtOnset.Due(Math.Max(0, mind.applyBedThoughtsTick - Find.TickManager.TicksGame));
     }
     /// <summary>
-    /// Where JobGiver_GetRest lays <paramref name="pawn"/> now and what Toils_LayDown gives it there (#3840, Obs.NeedSleep): the
+    /// Where JobGiver_GetRest lays <paramref name="pawn"/> now and what Toils_LayDown gives it there (#3840, RimGovernor.Brain.GameFacts.Observations.NeedSleep): the
     /// bed RestUtility.FindBedFor picks, else the ground at its cell. Null for a wild man (it never rests in a bed and gets no
     /// SleptOutside), a pawn without a rest need or one not spawned.
     /// </summary>
-    private static Obs.NeedSleep? SleepOf(Pawn pawn, Map map)
+    private static RimGovernor.Brain.GameFacts.Observations.NeedSleep? SleepOf(Pawn pawn, Map map)
     {
         if (pawn.needs?.rest == null || !pawn.Spawned || pawn.IsWildMan()) return null;
         var bed = RestUtility.FindBedFor(pawn);
         return SleepAt(pawn, map, bed, bed?.Position ?? pawn.Position);
     }
     /// <summary>
-    /// The lie-down <paramref name="pawn"/> is in now (#3882, Obs.NeedLyingIn): its CurrentBed, else the ground, at its own cell,
+    /// The lie-down <paramref name="pawn"/> is in now (#3882, RimGovernor.Brain.GameFacts.Observations.NeedLyingIn): its CurrentBed, else the ground, at its own cell,
     /// and the two facts besides its rest level RestUtility.ShouldWakeUp reads: a hediff that blocks sleeping and its deathrest
     /// (#3883). Null when it is not laying (GetPosture), has no rest need or is not spawned.
     /// </summary>
-    private static Obs.NeedLyingIn? LyingInOf(Pawn pawn, Map map) => pawn.needs?.rest == null || !pawn.Spawned || !pawn.GetPosture().Laying() ? null
+    private static RimGovernor.Brain.GameFacts.Observations.NeedLyingIn? LyingInOf(Pawn pawn, Map map) => pawn.needs?.rest == null || !pawn.Spawned || !pawn.GetPosture().Laying() ? null
         : new(SleepAt(pawn, map, pawn.CurrentBed(), pawn.Position), pawn.health.hediffSet.HasHediffBlocksSleeping(), DeathrestOf(pawn, map));
     /// <summary>
-    /// The deathrest the pawn lies in now (#3883, Obs.LyingInDeathrest), as Hediff_Deathrest.PostTickInterval runs
+    /// The deathrest the pawn lies in now (#3883, RimGovernor.Brain.GameFacts.Observations.LyingInDeathrest), as Hediff_Deathrest.PostTickInterval runs
     /// Gene_Deathrest.TickDeathresting: paused while SanguophageUtility.ShouldBeDeathrestingOrInComaInsteadOfDead (Hediff_Deathrest.Paused's
     /// test, called directly so the read leaves the hediff's pause cache alone); else it ends at MinDeathrestTicks when autoWake is
     /// set and notifiedWakeOK (private) is not, and is held otherwise, either way until its bed touches sunlight. Read-only.
     /// </summary>
-    private static Obs.LyingInDeathrest DeathrestOf(Pawn pawn, Map map)
+    private static RimGovernor.Brain.GameFacts.Observations.LyingInDeathrest DeathrestOf(Pawn pawn, Map map)
     {
-        if (!pawn.Deathresting) return new Obs.LyingInDeathrest.None();
-        if (SanguophageUtility.ShouldBeDeathrestingOrInComaInsteadOfDead(pawn)) return new Obs.LyingInDeathrest.Paused();
+        if (!pawn.Deathresting) return new RimGovernor.Brain.GameFacts.Observations.LyingInDeathrest.None();
+        if (SanguophageUtility.ShouldBeDeathrestingOrInComaInsteadOfDead(pawn)) return new RimGovernor.Brain.GameFacts.Observations.LyingInDeathrest.Paused();
         var gene = pawn.genes?.GetFirstGeneOfType<Gene_Deathrest>()
             ?? throw new InvalidOperationException("deathresting without a Gene_Deathrest: " + pawn.GetUniqueLoadID());
         var notified = BridgeCommon.PrivateInstanceField(typeof(Gene_Deathrest), "notifiedWakeOK")?.GetValue(gene) as bool?
             ?? throw new InvalidOperationException("Gene_Deathrest.notifiedWakeOK is not readable.");
         var sunlight = SunlightOf(pawn, map);
-        return gene.autoWake && !notified ? new Obs.LyingInDeathrest.Wakes(Math.Max(0, gene.MinDeathrestTicks - gene.deathrestTicks), sunlight)
-            : new Obs.LyingInDeathrest.Held(sunlight);
+        return gene.autoWake && !notified ? new RimGovernor.Brain.GameFacts.Observations.LyingInDeathrest.Wakes(Math.Max(0, gene.MinDeathrestTicks - gene.deathrestTicks), sunlight)
+            : new RimGovernor.Brain.GameFacts.Observations.LyingInDeathrest.Held(sunlight);
     }
     /// <summary>Gene_Deathrest.SunlightCheckInterval (private const): TickDeathresting checks sunlight on this hash interval.</summary>
     private const int SunlightCheckInterval = 150;
     /// <summary>IntVec3.InSunlight's glow limit, a literal in the game's code (SkyManager.CurSkyGlow above 0.1).</summary>
     private const float SunlightGlow = 0.1f;
     /// <summary>
-    /// When the deathrester's bed first touches sunlight (#3883, Obs.DeathrestSunlight), within a year: shaded without a bed
+    /// When the deathrester's bed first touches sunlight (#3883, RimGovernor.Brain.GameFacts.Observations.DeathrestSunlight), within a year: shaded without a bed
     /// (Gene_Deathrest.PawnOrBedTouchingSunlight reads only CurrentBed) or with every bed cell roofed; else the first of the pawn's
     /// sunlight checks (IsHashIntervalTick(150): the ticks where TicksGame plus thingIDNumber.HashOffset() is a multiple of 150) whose
     /// sky glow is above 0.1. That glow is GenCelestial.CelestialSunGlow at the check's absolute tick, darkened as
@@ -394,11 +393,11 @@ internal static class NativeNeedsForecast
     /// above 0.1 down to it (LerpDarken moves toward the lower glow), so only those are read. The weather (its maxGlow and
     /// transition, weather events) and CompAffectsSky things are left out: the forecast names them.
     /// </summary>
-    private static Obs.DeathrestSunlight SunlightOf(Pawn pawn, Map map)
+    private static RimGovernor.Brain.GameFacts.Observations.DeathrestSunlight SunlightOf(Pawn pawn, Map map)
     {
-        if (pawn.CurrentBed() is not { } bed) return new Obs.DeathrestSunlight.Shaded();
+        if (pawn.CurrentBed() is not { } bed) return new RimGovernor.Brain.GameFacts.Observations.DeathrestSunlight.Shaded();
         var open = bed.OccupiedRect().Cells.Where(c => c.InBounds(map) && !map.roofGrid.Roofed(c)).Select(c => new Cell(c.x, c.z)).ToArray();
-        if (open.Length == 0) return new Obs.DeathrestSunlight.Shaded();
+        if (open.Length == 0) return new RimGovernor.Brain.GameFacts.Observations.DeathrestSunlight.Shaded();
         var affecting = new List<GameCondition>();
         map.gameConditionManager.GetAllGameConditionsAffectingMap(map, affecting);
         var darkening = new List<(GameCondition Condition, float Glow, float Target)>();
@@ -423,11 +422,11 @@ internal static class NativeNeedsForecast
                 var factor = GameConditionUtility.LerpInOutValue(condition.TicksPassed + ahead, left, condition.TransitionTicks, target);
                 glow = UnityEngine.Mathf.Lerp(glow, Math.Min(glow, sky), factor);
             }
-            if (glow > SunlightGlow) return new Obs.DeathrestSunlight.Sunlit(EquatableArray.From(open), ahead);
+            if (glow > SunlightGlow) return new RimGovernor.Brain.GameFacts.Observations.DeathrestSunlight.Sunlit(EquatableArray.From(open), ahead);
         }
-        return new Obs.DeathrestSunlight.Unlit(GenDate.TicksPerYear);
+        return new RimGovernor.Brain.GameFacts.Observations.DeathrestSunlight.Unlit(GenDate.TicksPerYear);
     }
-    private static Obs.NeedSleep SleepAt(Pawn pawn, Map map, Building_Bed? bed, IntVec3 cell) =>
+    private static RimGovernor.Brain.GameFacts.Observations.NeedSleep SleepAt(Pawn pawn, Map map, Building_Bed? bed, IntVec3 cell) =>
         new(bed?.GetUniqueLoadID() ?? "", cell.GetRoom(map)?.PsychologicallyOutdoors ?? true, bed == null || bed.CostListAdjusted().Count == 0,
             Need_Rest.BaseRestGainPerTick * RestEffectiveness(bed) * pawn.GetStatValue(StatDefOf.RestRateMultiplier),
             bed?.GetStatValue(StatDefOf.Comfort) ?? 0f, cell.GetTemperature(map));
@@ -451,7 +450,7 @@ internal static class NativeNeedsForecast
         return value;
     }
     /// <summary>StatPart_EnvironmentalEffects def data on the DeteriorationRate stat, read by reflection (private fields); null without the part.</summary>
-    internal static Obs.NeedDeteriorationPart? DeteriorationPart()
+    internal static RimGovernor.Brain.GameFacts.Observations.NeedDeteriorationPart? DeteriorationPart()
     {
         var part = StatDefOf.DeteriorationRate.parts?.OfType<StatPart_EnvironmentalEffects>().FirstOrDefault();
         if (part == null) return null;
@@ -464,7 +463,7 @@ internal static class NativeNeedsForecast
     /// rate is the game's own SteadyEnvironmentEffects.FinalDeteriorationRate now, every stat part applied at the stack's
     /// cell; the brain rescales its StatPart_EnvironmentalEffects factor when a planned room changes the cell.
     /// </summary>
-    private static Obs.NeedDeterioration? DeteriorationOf(Map map, Thing thing)
+    private static RimGovernor.Brain.GameFacts.Observations.NeedDeterioration? DeteriorationOf(Map map, Thing thing)
     {
         if (!thing.def.useHitPoints || !thing.def.CanEverDeteriorate) return null;
         return new(thing.HitPoints, F(SteadyEnvironmentEffects.FinalDeteriorationRate(thing), "deterioration rate"), thing.def.deteriorateFromEnvironmentalEffects,
@@ -477,9 +476,9 @@ internal static class NativeNeedsForecast
     /// room stage (SleptInBedroom's dull stage, #3822), and ThoughtWorker_Ascetic leaves the thought inactive at those stages;
     /// so do the dining and rec room memories (#3803), which no meal or joy activity gains at a null stage.
     /// </summary>
-    private static EquatableArray<Obs.NeedThoughtStage> ThoughtStagesOf(Pawn pawn, Map map)
+    private static EquatableArray<RimGovernor.Brain.GameFacts.Observations.NeedThoughtStage> ThoughtStagesOf(Pawn pawn, Map map)
     {
-        var rows = new List<Obs.NeedThoughtStage>();
+        var rows = new List<RimGovernor.Brain.GameFacts.Observations.NeedThoughtStage>();
         void Rows(ThoughtDef? def, string role, bool nullStagesInactive = false) => StageRows(rows, pawn, def, role, nullStagesInactive);
         Rows(ThoughtDefOf.SleptOutside, "slept_outside");
         Rows(ThoughtDefOf.SleptOnGround, "slept_on_ground");
@@ -543,8 +542,8 @@ internal static class NativeNeedsForecast
         return EquatableArray.From(rows);
     }
     /// <summary>How long a thought of <paramref name="def"/> lasts: a memory's DurationTicks, lerpMoodToZero and stackLimit, else situational.</summary>
-    private static Obs.ThoughtLasting Lasting(ThoughtDef def) => def.IsMemory
-        ? new Obs.ThoughtLasting.Memory(def.DurationTicks, def.lerpMoodToZero, def.stackLimit) : new Obs.ThoughtLasting.Situational();
+    private static RimGovernor.Brain.GameFacts.Observations.ThoughtLasting Lasting(ThoughtDef def) => def.IsMemory
+        ? new RimGovernor.Brain.GameFacts.Observations.ThoughtLasting.Memory(def.DurationTicks, def.lerpMoodToZero, def.stackLimit) : new RimGovernor.Brain.GameFacts.Observations.ThoughtLasting.Situational();
     /// <summary>
     /// The Impressiveness of each room another pawn owns, as ThoughtWorker_BedroomJealous compares the pawn's own room against
     /// them (#3826): every spawned pawn of the player faction but this one, without a host faction, by its ownership.OwnedRoom,
@@ -556,7 +555,7 @@ internal static class NativeNeedsForecast
     /// unattached thought, 0 when ThoughtUtility.CanGetThought refuses it; a null stage a 0 row with <paramref name="nullStagesInactive"/>
     /// (the worker inactive there), else left out, as is a stage the game cannot price.
     /// </summary>
-    private static void StageRows(List<Obs.NeedThoughtStage> rows, Pawn pawn, ThoughtDef? def, string role, bool nullStagesInactive)
+    private static void StageRows(List<RimGovernor.Brain.GameFacts.Observations.NeedThoughtStage> rows, Pawn pawn, ThoughtDef? def, string role, bool nullStagesInactive)
     {
         if (def?.stages == null) return;
         var can = ThoughtUtility.CanGetThought(pawn, def);
@@ -579,9 +578,9 @@ internal static class NativeNeedsForecast
     /// staged by that stage + 1, stage 0 without an owned room; its null stages are the worker inactive, rows at 0) and Jealous
     /// (ThoughtWorker_BedroomJealous). No ThoughtDefOf field names them; their worker classes are the typed route.
     /// </summary>
-    internal static List<Obs.NeedThoughtStage> RoomTraitStages(Pawn pawn, Func<ThoughtDef, bool> include)
+    internal static List<RimGovernor.Brain.GameFacts.Observations.NeedThoughtStage> RoomTraitStages(Pawn pawn, Func<ThoughtDef, bool> include)
     {
-        var rows = new List<Obs.NeedThoughtStage>();
+        var rows = new List<RimGovernor.Brain.GameFacts.Observations.NeedThoughtStage>();
         foreach (var (worker, role, nullStagesInactive) in RoomTraitWorkers)
             foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == worker && include(d)))
                 StageRows(rows, pawn, def, role, nullStagesInactive);
@@ -594,8 +593,8 @@ internal static class NativeNeedsForecast
         (typeof(ThoughtWorker_Ascetic), "ascetic", true), (typeof(ThoughtWorker_Greedy), "greedy", true), (typeof(ThoughtWorker_BedroomJealous), "jealous", false),
     ];
 
-    /// <summary>The pawn's own room (Obs.NeedOwnedRoom, #3899): Pawn_Ownership.OwnedRoom's Impressiveness and its score stage; null without one.</summary>
-    private static Obs.NeedOwnedRoom? OwnedRoomOf(Pawn pawn)
+    /// <summary>The pawn's own room (RimGovernor.Brain.GameFacts.Observations.NeedOwnedRoom, #3899): Pawn_Ownership.OwnedRoom's Impressiveness and its score stage; null without one.</summary>
+    private static RimGovernor.Brain.GameFacts.Observations.NeedOwnedRoom? OwnedRoomOf(Pawn pawn)
     {
         if (pawn.ownership?.OwnedRoom is not { } room) return null;
         var impressiveness = F(room.GetStat(RoomStatDefOf.Impressiveness), "owned room impressiveness");
@@ -629,12 +628,12 @@ internal static class NativeNeedsForecast
         return ideo.cachedPossibleSituationalThoughts.Contains(def);
     }
     /// <summary>The pawn facts the apparel workers read beside the worn apparel (#3816); null without an apparel tracker.</summary>
-    private static Obs.NeedApparel? ApparelOf(Pawn pawn)
+    private static RimGovernor.Brain.GameFacts.Observations.NeedApparel? ApparelOf(Pawn pawn)
     {
         if (pawn.apparel == null) return null;
         var legs = pawn.health.hediffSet.GetNotMissingParts().Any(p => p.IsInGroup(BodyPartGroupDefOf.Legs));
         var safe = GenTemperature.SafeTemperatureRange(pawn.def).Includes(pawn.AmbientTemperature);
-        return new((RimGovernor.Contracts.Wire.Defs.Gender)(int)pawn.gender, legs, safe)
+        return new((RimGovernor.Brain.GameFacts.Defs.Gender)(int)pawn.gender, legs, safe)
             { KindRequired = EquatableArray.From((pawn.kindDef?.apparelRequired ?? new List<ThingDef>()).Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal)),
               Requirements = ApparelRequirementsOf(pawn, out var minimum), MinimumQuality = minimum };
     }
@@ -648,13 +647,13 @@ internal static class NativeNeedsForecast
     /// ThoughtWorker_RoyalTitleApparelMinQualityNotMet.Validate holds every worn garment to each title's, ungated by
     /// allowApparelRequirements; Awful with no title.
     /// </summary>
-    private static EquatableArray<Obs.NeedApparelRequirement> ApparelRequirementsOf(Pawn pawn, out RimGovernor.Contracts.Wire.Defs.QualityCategory minimum)
+    private static EquatableArray<RimGovernor.Brain.GameFacts.Observations.NeedApparelRequirement> ApparelRequirementsOf(Pawn pawn, out RimGovernor.Brain.GameFacts.Defs.QualityCategory minimum)
     {
         var least = QualityCategory.Awful;
         foreach (var title in pawn.royalty?.AllTitlesInEffectForReading ?? new List<RoyalTitle>())
             if (title.def.requiredMinimumApparelQuality > least) least = title.def.requiredMinimumApparelQuality;
-        minimum = (RimGovernor.Contracts.Wire.Defs.QualityCategory)(int)least;
-        var rows = new List<Obs.NeedApparelRequirement>();
+        minimum = (RimGovernor.Brain.GameFacts.Defs.QualityCategory)(int)least;
+        var rows = new List<RimGovernor.Brain.GameFacts.Observations.NeedApparelRequirement>();
         var active = pawn.apparel.ActiveRequirementsForReading;
         void Add(ApparelRequirement requirement, string thought)
         {
@@ -694,7 +693,7 @@ internal static class NativeNeedsForecast
         thought.pawn = pawn;
         return thought.MoodOffset();
     }
-    private static Obs.NeedCurrentService? CurrentService(Pawn pawn)
+    private static RimGovernor.Brain.GameFacts.Observations.NeedCurrentService? CurrentService(Pawn pawn)
     {
         var execution = NativePawnActivities.Read(pawn);
         var step = NativePawnActivities.ActiveStep(pawn);
@@ -756,14 +755,14 @@ internal static class NativeNeedsForecast
             }
         return EquatableArray.From(blockers);
     }
-    internal static Obs.NeedMemory MealMemory(Pawn pawn, FoodUtility.ThoughtFromIngesting source) => Memory(pawn, source.thought, source.fromPrecept);
+    internal static RimGovernor.Brain.GameFacts.Observations.NeedMemory MealMemory(Pawn pawn, FoodUtility.ThoughtFromIngesting source) => Memory(pawn, source.thought, source.fromPrecept);
     /// <summary>The memory <paramref name="def"/> would be on the pawn: an unattached native memory, so the native stage, stat
     /// and trait multipliers price it; it is never added to the pawn.</summary>
-    internal static Obs.NeedMemory Memory(Pawn pawn, ThoughtDef def, Precept? precept = null)
+    internal static RimGovernor.Brain.GameFacts.Observations.NeedMemory Memory(Pawn pawn, ThoughtDef def, Precept? precept = null)
     {
         var thought = ThoughtMaker.MakeThought(def, precept);
         thought.pawn = pawn;
-        return new(def.defName, F(thought.MoodOffset(), "memory offset"), new Obs.MemoryLife.Expires(thought.DurationTicks), def.lerpMoodToZero) { StackLimit = def.stackLimit };
+        return new(def.defName, F(thought.MoodOffset(), "memory offset"), new RimGovernor.Brain.GameFacts.Observations.MemoryLife.Expires(thought.DurationTicks), def.lerpMoodToZero) { StackLimit = def.stackLimit };
     }
     /// <summary>The maxPawns literal JobDriver_Ingest passes to Reserve for a meal stack (decompiled 1.7; vanilla exposes no symbol for it).</summary>
     internal const int IngestMaxPawns = 10;

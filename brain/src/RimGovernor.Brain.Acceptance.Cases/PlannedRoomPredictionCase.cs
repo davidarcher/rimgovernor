@@ -1,9 +1,7 @@
 using System.Globalization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Bridge;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -45,7 +43,7 @@ internal static class PlannedRoomPredictionCase
             + "wall ring with a door, predicts the role, impressiveness and cleanliness (within 1e-3), cell and open-roof counts the game's own "
             + "room reports through observations_list_rooms once test/stage builds that ring, and lists the bed; asked again with sterile tile "
             + "floor pieces on the interior, it predicts the same impressiveness and the cleanliness the built room reports once test/stage lays "
-            + "that floor. Does not prove Rounds composition, the bed thought or selection.",
+            + "that floor. Does not prove ReviewState composition, the bed thought or selection.",
         Ticks = 0,
         Tier = CaseTier.OnDemand,
         Start = new LabStart { Colonists = 1 },
@@ -64,13 +62,13 @@ internal static class PlannedRoomPredictionCase
         var door = At(3, 1);
         var interior = (from z in Enumerable.Range(2, 3) from x in Enumerable.Range(2, 3) select At(x, z)).ToList();
         var ring = (from z in Enumerable.Range(1, 5) from x in Enumerable.Range(1, 5) where x is 1 or 5 || z is 1 or 5 select At(x, z)).ToList();
-        var pieces = ring.Select(c => new Observations.PlannedRoomPiece(c, c == door ? "Door" : "Wall", Stuff)).ToList();
-        var floored = pieces.Concat(interior.Select(c => new Observations.PlannedRoomPiece(c, Floor, "")));
+        var pieces = ring.Select(c => new RimGovernor.Brain.GameOrders.Observations.PlannedRoomPiece(c, c == door ? "Door" : "Wall", Stuff)).ToList();
+        var floored = pieces.Concat(interior.Select(c => new RimGovernor.Brain.GameOrders.Observations.PlannedRoomPiece(c, Floor, "")));
 
         var read = await s.CallAsync(
             "predict",
             NativeOps.ReadConstructionActivity,
-            new Observations.ConstructionActivityRequest(s.Identity, default)
+            new RimGovernor.Brain.GameOrders.Observations.ConstructionActivityRequest(s.Identity, default)
             {
                 RoomPredictions =
                 [
@@ -91,12 +89,12 @@ internal static class PlannedRoomPredictionCase
             cancellationToken).ConfigureAwait(false);
 
         var corner = new RimGovernor.Brain.Domain.Cell { X = interior[0].X, Z = interior[0].Z };
-        async Task<Observations.RoomState> RoomAsync(string step)
+        async Task<RimGovernor.Brain.GameFacts.Observations.RoomState> RoomAsync(string step)
         {
             var rooms = await s.CallAsync(
                 step,
                 NativeOps.ListRooms,
-                new Observations.ListRoomsRequest { Scope = s.Scope, Region = new Observations.Rectangle { Minimum = corner, Maximum = corner } },
+                new RimGovernor.Brain.GameOrders.Observations.ListRoomsRequest { Scope = s.Scope, Region = new RimGovernor.Brain.GameFacts.Observations.Rectangle { Minimum = corner, Maximum = corner } },
                 cancellationToken).ConfigureAwait(false);
             var observed = rooms;
             return observed.Rooms is [var one] ? one : throw new AcceptanceException($"{step}: want the one built room at {corner.X},{corner.Z}, got {observed.Rooms.Count}");
@@ -112,7 +110,7 @@ internal static class PlannedRoomPredictionCase
 
         var actual = room.Stats.FirstOrDefault(st => st.DefName == Impressiveness)?.Value;
         var problems = new List<string>();
-        void Near(string what, double predicted, Observations.RoomState built, string stat)
+        void Near(string what, double predicted, RimGovernor.Brain.GameFacts.Observations.RoomState built, string stat)
         {
             if (built.Stats.FirstOrDefault(st => st.DefName == stat)?.Value is not double value || Math.Abs(predicted - value) > 1e-3)
             {

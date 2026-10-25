@@ -6,6 +6,13 @@ Control, clock and transport contracts the launcher and other clients rely on. T
 player surface ([launcher](../architecture/launcher.md)); [the player API](player-api.md)
 lists the routes the in-process host offers.
 
+The host registry's save, load and time-speed tools take named primitive
+arguments. `HostJson.Arguments` maps their typed GameOrders requests to those
+arguments explicitly, including the requested readiness and mod compatibility
+choice. Host replies use their source-generated JSON context. Native game
+operations use the GameFacts and GameOrders contexts and the same records as the
+in-process Game API.
+
 ## Observation scope
 
 The brain's observation identity retains the native `ObservationContext` reference;
@@ -79,13 +86,13 @@ speed and its clamp relies on.
     `paced_ticks_per_second`, `ceiling_ticks_per_second` (0 = none) and `effective_ticks_per_second` feed the
     `clock_step` row and the Observe tab's Now view. `Status` carries no other accounting: the frame account,
     the pause/run split, the probe and digest work and the hazard gaps are the acceptance-only
-    `rimgovernor/acceptance_read_clock_accounting` read (`AcceptanceReadTools`), which production never calls.
+    `acceptance_read_clock_accounting` read (`AcceptanceReadTools`), which production never calls.
   - The over-budget frame share and the queued-command dispatch wait (the manual-command dispatch bound) have no
     check; the hazard gaps are checked only by the `hazard/*` cases (one staged Hyperfast run per class).
 
-## Native facade refusals
+## Game API refusals
 
-How an `INativeFacade` call reports that it did not answer ([native facade](../architecture/native-facade.md)).
+How an `IGameApi` call reports that it did not answer ([game API](../architecture/game-api.md)).
 
 - **Reads throw.** A converted read (identity, tick, governor state, authority status, the clock calls and the
   presentation reads) returns its payload, and a refusal throws `NativeFailureException` with the wire `Failure`, an
@@ -101,15 +108,20 @@ How a colony fact travels from native to the planner once its family is total (e
 is the first, #3763). There is no unknown: a fact is read, or it is a named state, or the planner does not plan
 the option.
 
-- **One record per concept, in Contracts.** The record lives in `brain/src/RimGovernor.Brain.Contracts`
-  (`RimGovernor.Contracts.Wire.Observations`), named in the planner's vocabulary (`DeliveryLedger`, `Kill`,
-  `Butcher`). Native builds it, `WireJsonContext` carries it over `/native/<op>`, and Policy reads it directly.
+- **One record per concept, in GameFacts.** The record lives in `brain/src/RimGovernor.Brain.GameFacts`
+  (`RimGovernor.Brain.GameFacts.Observations`), named in the planner's vocabulary (`DeliveryLedger`, `Kill`,
+  `Butcher`). Native builds it, `FactsJsonContext` carries it over `/native/<op>`, and Policy reads it directly.
   There is no Policy or Observation copy and no decoder; a Policy rule over it is a function taking the record.
 - **Every member `required`, none nullable.** A record built without a member does not compile (CS9035), and
   JSON without one does not decode. Measured values are plain (`long`, `double`, `string`); a nullable reference
   is allowed only for a real relation (a pawn's equipped weapon). Domain types replace wire shapes: `Tick`,
   `PawnId` and `Cell`, written as a bare number, a bare id string and `{x,z}`.
-- **Enums.** One enum per concept, declared in Contracts (or in Domain when a Domain record already carries it, as with `StockpilePriority`, `FilterBase` and `Quality`) and used by Policy and native alike, with no `Unknown`
+- **Direction.** `GameFacts` owns observed state, outcomes and their shared value types; it depends only on Domain.
+  `GameOrders` owns requests and intent, including observation queries, placement, lifecycle and clock control.
+  Orders may reference Facts. `FactsJsonContext` registers only Facts and Domain types; `OrdersJsonContext`
+  additionally registers requests and intent and reuses the Facts converters. Both use generated metadata,
+  reject unmapped fields, preserve polymorphism and named floating-point values, and never use reflection serialization.
+- **Enums.** One enum per concept, declared in GameFacts or GameOrders according to direction (or in Domain when a Domain record already carries it, as with `StockpilePriority`, `FilterBase` and `Quality`) and used by Policy and native alike, with no `Unknown`
   or `Unspecified` member. A genuine native state such as `Passion.None` remains explicit. `Wire.Name` uses the
   declared wire name when present and otherwise derives snake_case; removing a redundant attribute must preserve
   that serialized value.
@@ -118,7 +130,7 @@ the option.
   (`NativeColonyObservationTools.Read`); there is no per-section "absent" wrapper.
 - **The container holds the record.** `ColonyFactsSnapshot` carries the section as a `required` member of the
   record's type. `ColonyReading` retains that snapshot, its canonical tables and observation identity; readers
-  access those native records directly. Derived planning inputs belong to the existing `RoundsFacts` review,
+  access those native records directly. Derived planning inputs belong to the existing `ReviewFacts` review,
   and geometry planning requires the reading's observed planning window. The review retains the native `ThreatFacts`
   census through its canonical `ColonyFactsSnapshot` reference. Population, beds, temperature and work-resource
   inputs come from that same snapshot; raid points, wealth, factions, storyteller, disease and trader inputs
@@ -131,7 +143,7 @@ the option.
   named case: the sleeping range is `Indoor` or
   `NoIndoorBed`; a pawn's need is `NeedLevel.Has(level)` or `Lacks` (an animal has no joy), and its food need
   `FoodNeed.Has(level, hunger)` or `Lacks` ([rule 9](../architecture/rules.md#review-items)).
-- **A typed read returns its payload.** `INativeFacade` returns the record (`ListPawnsAsync` returns
+- **A typed read returns its payload.** `IGameApi` returns the record (`ListPawnsAsync` returns
   `PawnSnapshot`) and the native side throws `NativeFaults.Refused` or `NativeFaults.Unavailable`; there is no
   reply-outcome union.
 

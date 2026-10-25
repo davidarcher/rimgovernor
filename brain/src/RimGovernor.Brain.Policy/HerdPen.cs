@@ -12,10 +12,10 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record PenWant(string Race, int Cells);
 
-public static class RoundsFactsPenExtensions
+public static class FactsPenExtensions
 {
     /// <summary>The pens the layout gives the herd, from the routine reading.</summary>
-    public static IReadOnlyList<PenWant> PenWants(this RoundsFacts f) =>
+    public static IReadOnlyList<PenWant> PenWants(this ReviewFacts f) =>
         HerdPlanRules.PlanHerd(f.HerdPlanInput()).PenWants(f.AnimalUpkeep.Animals, f.AnimalUpkeep.AnimalRaces, f.Pasture);
 }
 

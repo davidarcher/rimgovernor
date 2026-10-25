@@ -1,4 +1,5 @@
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -16,10 +17,10 @@ public sealed record SurgeryContext
     public IReadOnlyList<SurgeryGoal> Goals { get; init; } = [];
 }
 
-public static class RoundsFactsSurgeryExtensions
+public static class FactsSurgeryExtensions
 {
     /// <summary>The surgery ranking context over f: the hospital bed, the work profiles and the health goals.</summary>
-    public static SurgeryContext SurgeryContextOf(this RoundsFacts f)
+    public static SurgeryContext SurgeryContextOf(this ReviewFacts f)
     {
         var profiles = f.WorkProfiles;
         return new SurgeryContext

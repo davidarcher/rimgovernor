@@ -6,7 +6,7 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Private disposable acceptance only. Builds one enclosed, roofed 6x4
     // stockpile room holding warm raw meat, a fuelled wood-fired generator
@@ -33,7 +33,7 @@ namespace HomeBridge.BridgeTools
     public sealed class RefrigerationFixture
     {
         [Tool("test/refrigeration_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: build one enclosed roofed stockpile room with warm raw meat, a fuelled generator and wall-ring conduits, finish Cooler research, force a hot room and a heat wave; optionally an existing warm-setpoint Cooler, optionally disconnected from the generator; one meat stack starts part-way to rotting; season ramps the heat waves in from now instead of arriving fully ramped; coolerTargetC is the existing cooler's setpoint; foodDef is the stocked raw food and rotStacks how many of its three stacks start part-way to rotting; roomWidth x roomHeight (at least 6x4) sizes the room including its walls.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, bool existingCooler = false, bool disconnected = false, float roomTemperatureC = 30f, float rotProgressFraction = 0.25f, bool season = false, float coolerTargetC = 21f, string foodDef = "Meat_Muffalo", int rotStacks = 1, int roomWidth = 6, int roomHeight = 4, bool corpseLarder = false)
+        public async Task<object> Prepare(INativeContext ctx, CancellationToken cancellationToken, bool existingCooler = false, bool disconnected = false, float roomTemperatureC = 30f, float rotProgressFraction = 0.25f, bool season = false, float coolerTargetC = 21f, string foodDef = "Meat_Muffalo", int rotStacks = 1, int roomWidth = 6, int roomHeight = 4, bool corpseLarder = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
@@ -282,7 +282,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/refrigeration_rot", Description = "Private read-only probe: rot progress, stage, runway, ambient temperature and pawns sharing the room of one thing by unique load id, with the game tick.")]
-        public async Task<object> Rot(IRimBridgeContext ctx, CancellationToken cancellationToken, string id)
+        public async Task<object> Rot(INativeContext ctx, CancellationToken cancellationToken, string id)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;

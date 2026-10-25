@@ -1,4 +1,4 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimWorld;
@@ -55,7 +55,7 @@ public sealed class DefenseStage(Rotation toward, int defenders, double minRange
         Entry = killbox.Entry;
         var d = Directions[(int)killbox.Toward];
         var p = new Cell(-d.Z, d.X);
-        var names = RoundsDefenseLayoutPlanner.DefenseDefinitionNames;
+        var names = DefenseLayoutPlanner.DefenseDefinitionNames;
 
         // The ring: PerimeterThick rows from the entry inward, across the whole map but for the opening.
         var ring = new List<Cell>();

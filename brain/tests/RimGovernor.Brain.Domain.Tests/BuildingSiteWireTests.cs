@@ -2,10 +2,9 @@ using RimGovernor.Brain.Policy;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
-using C = RimGovernor.Contracts.Wire.Common;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -13,56 +12,56 @@ namespace RimGovernor.Brain.Domain.Tests;
 // of answering an unknown, so a row missing a member does not decode.
 public sealed class BuildingSiteWireTests
 {
-    private static readonly C.ObservationContext Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 10 };
+    private static readonly RimGovernor.Brain.GameFacts.Common.ObservationContext Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new RimGovernor.Brain.GameFacts.Common.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 10 };
 
-    private static O.ClearanceTarget Target(string id, O.ClearanceSalvage salvage) => new()
+    private static RimGovernor.Brain.GameFacts.Observations.ClearanceTarget Target(string id, RimGovernor.Brain.GameFacts.Observations.ClearanceSalvage salvage) => new()
     {
         EntityId = id, DefName = "AncientConcreteWall", Minimum = new Cell(3, 4), Maximum = new Cell(3, 4),
-        Class = O.ClearanceClass.AncientWallDoor, RoofBlocker = null, AncientDanger = false, Designated = false,
+        Class = RimGovernor.Brain.GameFacts.Observations.ClearanceClass.AncientWallDoor, RoofBlocker = null, AncientDanger = false, Designated = false,
         Player = false, EnclosesRoom = false, Salvage = salvage,
     };
 
-    private static readonly O.ClearanceTargetsSnapshot Census = new()
+    private static readonly RimGovernor.Brain.GameFacts.Observations.ClearanceTargetsSnapshot Census = new()
     {
         Context = Context,
         Targets =
         [
-            Target("wall-1", new O.ClearanceSalvage.NotRequested()),
-            Target("wall-2", new O.ClearanceSalvage.Skipped()),
-            Target("wall-3", new O.ClearanceSalvage.Computed(
-                new O.SalvageEvidence
+            Target("wall-1", new RimGovernor.Brain.GameFacts.Observations.ClearanceSalvage.NotRequested()),
+            Target("wall-2", new RimGovernor.Brain.GameFacts.Observations.ClearanceSalvage.Skipped()),
+            Target("wall-3", new RimGovernor.Brain.GameFacts.Observations.ClearanceSalvage.Computed(
+                new RimGovernor.Brain.GameFacts.Observations.SalvageEvidence
                 {
                     Safe = true, PathLength = 12.5, Labor = 300,
-                    Yields = [new O.SalvageYield { DefName = "Steel", Count = 20, UnitValue = 1.9, StorageHeadroom = 400 }],
+                    Yields = [new RimGovernor.Brain.GameFacts.Observations.SalvageYield { DefName = "Steel", Count = 20, UnitValue = 1.9, StorageHeadroom = 400 }],
                 })),
         ],
-        Floors = [new O.ClearanceFloor { Cell = new Cell(5, 5), DefName = "WoodPlankFloor", Designated = true }],
+        Floors = [new RimGovernor.Brain.GameFacts.Observations.ClearanceFloor { Cell = new Cell(5, 5), DefName = "WoodPlankFloor", Designated = true }],
     };
 
-    private static readonly O.ExcavationSiteSnapshot Site = new()
+    private static readonly RimGovernor.Brain.GameFacts.Observations.ExcavationSiteSnapshot Site = new()
     {
         Context = Context,
         Cells =
         [
-            new O.ExcavationCell { Cell = new Cell(7, 7), Fogged = false, Definition = "Granite", Walkable = false, MineDesignated = true, Eligible = true },
-            new O.ExcavationCell { Cell = new Cell(7, 8), Fogged = false, Definition = null, Walkable = true, MineDesignated = false, Eligible = false },
+            new RimGovernor.Brain.GameFacts.Observations.ExcavationCell { Cell = new Cell(7, 7), Fogged = false, Definition = "Granite", Walkable = false, MineDesignated = true, Eligible = true },
+            new RimGovernor.Brain.GameFacts.Observations.ExcavationCell { Cell = new Cell(7, 8), Fogged = false, Definition = null, Walkable = true, MineDesignated = false, Eligible = false },
         ],
-        Support = O.ExcavationSupport.Unsupported, SupportBlocker = "Roof collapse is already pending",
+        Support = RimGovernor.Brain.GameFacts.Observations.ExcavationSupport.Unsupported, SupportBlocker = "Roof collapse is already pending",
         CollapsePending = true, Workers = ["Human1"], AccessReachable = true,
     };
 
-    private static readonly O.WallUpgradeSnapshot Walls = new()
+    private static readonly RimGovernor.Brain.GameFacts.Observations.WallUpgradeSnapshot Walls = new()
     {
         Context = Context,
         Sites =
         [
-            new O.WallUpgradeSite
+            new RimGovernor.Brain.GameFacts.Observations.WallUpgradeSite
             {
-                Target = new C.Ref { Id = "wall-9" }, Origin = new Cell(10, 10), Normal = new Cell(0, 1),
+                Target = new RimGovernor.Brain.GameFacts.Common.Ref { Id = "wall-9" }, Origin = new Cell(10, 10), Normal = new Cell(0, 1),
                 BackupCells = [new Cell(9, 11), new Cell(10, 11), new Cell(11, 11)], Blocker = null, Designated = false,
-                RemovalId = null, Original = new C.Ref { Id = "wall-9" }, LeftSupport = new C.Ref { Id = "wall-8" },
-                RightSupport = new C.Ref { Id = "wall-10" }, CompletedBackups = [], Replacement = null,
-                TargetSnapshot = new O.SnapshotRef { Context = Context, EntityId = "wall-9", Token = "t" },
+                RemovalId = null, Original = new RimGovernor.Brain.GameFacts.Common.Ref { Id = "wall-9" }, LeftSupport = new RimGovernor.Brain.GameFacts.Common.Ref { Id = "wall-8" },
+                RightSupport = new RimGovernor.Brain.GameFacts.Common.Ref { Id = "wall-10" }, CompletedBackups = [], Replacement = null,
+                TargetSnapshot = new RimGovernor.Brain.GameFacts.Observations.SnapshotRef { Context = Context, EntityId = "wall-9", Token = "t" },
             },
         ],
     };
@@ -70,11 +69,11 @@ public sealed class BuildingSiteWireTests
     [Fact]
     public void TheClearanceCensusRoundTripsExactly()
     {
-        var json = WireJson.Serialize(Census);
+        var json = OrdersJson.Serialize(Census);
         Assert.Contains("\"type\":\"skipped\"", json);
-        var back = WireJson.Deserialize<O.ClearanceTargetsSnapshot>(json);
+        var back = OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.ClearanceTargetsSnapshot>(json);
 
-        Assert.Equal(json, WireJson.Serialize(back));
+        Assert.Equal(json, OrdersJson.Serialize(back));
         Assert.Equal(Census, back);
     }
 
@@ -93,20 +92,20 @@ public sealed class BuildingSiteWireTests
     [Fact]
     public void TheExcavationSiteRoundTripsExactly()
     {
-        var json = WireJson.Serialize(Site);
-        var back = WireJson.Deserialize<O.ExcavationSiteSnapshot>(json);
+        var json = OrdersJson.Serialize(Site);
+        var back = OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.ExcavationSiteSnapshot>(json);
 
-        Assert.Equal(json, WireJson.Serialize(back));
+        Assert.Equal(json, OrdersJson.Serialize(back));
         Assert.Equal(Site, back);
     }
 
     [Fact]
     public void TheWallUpgradeCensusRoundTripsExactly()
     {
-        var json = WireJson.Serialize(Walls);
-        var back = WireJson.Deserialize<O.WallUpgradeSnapshot>(json);
+        var json = OrdersJson.Serialize(Walls);
+        var back = OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.WallUpgradeSnapshot>(json);
 
-        Assert.Equal(json, WireJson.Serialize(back));
+        Assert.Equal(json, OrdersJson.Serialize(back));
         Assert.Equal(Walls, back);
     }
 
@@ -117,10 +116,10 @@ public sealed class BuildingSiteWireTests
     [InlineData("class")]
     public void AClearanceRowMissingAMemberDoesNotDecode(string member)
     {
-        var node = JsonNode.Parse(WireJson.Serialize(Census))!.AsObject();
+        var node = JsonNode.Parse(OrdersJson.Serialize(Census))!.AsObject();
         Assert.True(node["targets"]![0]!.AsObject().Remove(member));
 
-        Assert.ThrowsAny<JsonException>(() => WireJson.Deserialize<O.ClearanceTargetsSnapshot>(node.ToJsonString()));
+        Assert.ThrowsAny<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.ClearanceTargetsSnapshot>(node.ToJsonString()));
     }
 
     [Theory]
@@ -129,10 +128,10 @@ public sealed class BuildingSiteWireTests
     [InlineData("accessReachable")]
     public void AnExcavationSiteMissingAMemberDoesNotDecode(string member)
     {
-        var node = JsonNode.Parse(WireJson.Serialize(Site))!.AsObject();
+        var node = JsonNode.Parse(OrdersJson.Serialize(Site))!.AsObject();
         Assert.True(node.Remove(member));
 
-        Assert.ThrowsAny<JsonException>(() => WireJson.Deserialize<O.ExcavationSiteSnapshot>(node.ToJsonString()));
+        Assert.ThrowsAny<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.ExcavationSiteSnapshot>(node.ToJsonString()));
     }
 
     [Theory]
@@ -141,9 +140,9 @@ public sealed class BuildingSiteWireTests
     [InlineData("targetSnapshot")]
     public void AWallUpgradeSiteMissingAMemberDoesNotDecode(string member)
     {
-        var node = JsonNode.Parse(WireJson.Serialize(Walls))!.AsObject();
+        var node = JsonNode.Parse(OrdersJson.Serialize(Walls))!.AsObject();
         Assert.True(node["sites"]![0]!.AsObject().Remove(member));
 
-        Assert.ThrowsAny<JsonException>(() => WireJson.Deserialize<O.WallUpgradeSnapshot>(node.ToJsonString()));
+        Assert.ThrowsAny<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.WallUpgradeSnapshot>(node.ToJsonString()));
     }
 }

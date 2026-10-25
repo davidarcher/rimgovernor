@@ -86,7 +86,9 @@ public sealed class ActivityStagesAnalyzer : DiagnosticAnalyzer
         else if (stage != "Binding" && ns == "RimGovernor.Brain.Domain"
             && (!lifecycle || target is IMethodSymbol)
             && type.Name is "PawnActivities" or "PawnActivityOrder" or "PawnActivityStep" or "DomainAction") allowed = false;
-        else if (stage == "Evaluation" && ns.StartsWith("RimGovernor.Contracts", StringComparison.Ordinal)) allowed = false;
+        else if (stage == "Evaluation"
+            && (ns.StartsWith("RimGovernor.Brain.GameFacts", StringComparison.Ordinal)
+                || ns.StartsWith("RimGovernor.Brain.GameOrders", StringComparison.Ordinal))) allowed = false;
         if (!allowed) report(Diagnostic.Create(Descriptor, location, stage, target.ToDisplayString()));
     }
 

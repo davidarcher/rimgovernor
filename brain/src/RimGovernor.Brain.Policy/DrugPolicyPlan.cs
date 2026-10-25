@@ -1,4 +1,4 @@
-using RimGovernor.Contracts.Wire.Defs;
+using RimGovernor.Brain.GameFacts.Defs;
 
 namespace RimGovernor.Brain.Policy;
 

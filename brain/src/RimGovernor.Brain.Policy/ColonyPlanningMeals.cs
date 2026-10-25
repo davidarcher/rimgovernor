@@ -7,7 +7,7 @@ public static partial class ColonyPlanningRules
     /// Builds the meal tier request from observed work priorities, never a proposed roster. The raw forecast
     /// keeps competing consumers, private ownership and spoilage deadlines.
     /// </summary>
-    public static MealTierRequest MealRequest(RoundsFacts facts, ControlledEnvironment environment, double minDays, double targetDays)
+    public static MealTierRequest MealRequest(ReviewFacts facts, ControlledEnvironment environment, double minDays, double targetDays)
     {
         var r = new MealTierRequest { Plan = facts.FoodPlan, MinDays = minDays, TargetDays = targetDays, Environment = environment };
         var kept = new List<FoodStock>();

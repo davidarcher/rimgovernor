@@ -4,11 +4,8 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The single-target jobs a GiveJobIntent names, each validated and built
     // by its own operations class against live state.
@@ -43,12 +40,12 @@ namespace HomeBridge.BridgeTools
         // (NativeDropOperations): the job whose driver is JobDriver_DropEquipment.
         internal const string DropWeapon = "DropWeapon";
 
-        private static string? Id(Common.Ref? r) => r != null && r.Id is not null && ProtoBoundary.IsIdentifier(r.Id) ? (r.Id ?? "") : null;
+        private static string? Id(RimGovernor.Brain.GameFacts.Common.Ref? r) => r != null && r.Id is not null && GameThread.IsIdentifier(r.Id) ? (r.Id ?? "") : null;
 
         // The intent's shape, before any live check: which arm applies it.
         internal enum Arm { Invalid, Order, Use, Prioritized }
 
-        internal static Arm Classify(Operations.GiveJobIntent? intent, out JobOrder? order, out string? refusal)
+        internal static Arm Classify(RimGovernor.Brain.GameOrders.Operations.GiveJobIntent? intent, out JobOrder? order, out string? refusal)
         {
             order = null; refusal = null;
             var pawn = Id(intent?.Pawn);
@@ -58,7 +55,7 @@ namespace HomeBridge.BridgeTools
             var selfOk = (intent.Job ?? "") == UseItem;
             if (targets.Any(t => t == null || t == pawn && !selfOk)) { refusal = "Give job targets must be exact and distinct from the pawn."; return Arm.Invalid; }
             var options = intent.Options;
-            if (intent.Job is null || !ProtoBoundary.IsIdentifier(intent.Job)) { refusal = "Give job requires a JobDef name."; return Arm.Invalid; }
+            if (intent.Job is null || !GameThread.IsIdentifier(intent.Job)) { refusal = "Give job requires a JobDef name."; return Arm.Invalid; }
             if ((intent.Job ?? "") == UseItem)
             {
                 if (targets.Count != 2 || targets[0] == targets[1] || targets[0] == pawn) { refusal = "UseItem requires targets [item, target pawn]."; return Arm.Invalid; }
@@ -81,23 +78,23 @@ namespace HomeBridge.BridgeTools
         }
 
         // The spawned pawn the order names and its live control snapshot.
-        internal static bool TryPawn(JobOrder intent, Common.ObservationContext context,
+        internal static bool TryPawn(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context,
             [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Pawn? pawn,
             [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out NativePawnSnapshot? snapshot,
-            [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out Common.Failure? failure)
+            [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out RimGovernor.Brain.GameFacts.Common.Failure? failure)
         {
             pawn = null; snapshot = null; failure = null;
             if (!NativePawnControlState.IsReady)
             {
-                failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
+                failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
                 return false;
             }
-            var map = ProtoBoundary.LoadedMap(context);
+            var map = GameThread.LoadedMap(context);
             var identity = new NativeControlIdentity(Current.Game, map, (context.Identity?.ColonyId ?? ""), (context.Identity?.LoadToken ?? ""));
             pawn = map.mapPawns.AllPawnsSpawned.ById(intent.PawnId);
             if (pawn == null)
             {
-                failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact pawn is not spawned on this map.");
+                failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact pawn is not spawned on this map.");
                 return false;
             }
             var control = NativePawnControlState.Observe(identity, pawn, out snapshot);
@@ -109,17 +106,17 @@ namespace HomeBridge.BridgeTools
             return true;
         }
 
-        internal static Receipts.EffectEvidence Evidence(Pawn pawn, Thing target, Job job, bool issued) => new Receipts.EffectEvidence
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Evidence(Pawn pawn, Thing target, Job job, bool issued) => new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence
         {
-            Effect = new Receipts.JobEffect
+            Effect = new RimGovernor.Brain.GameFacts.Receipts.JobEffect
             {
                 PawnId = pawn.GetUniqueLoadID(), JobDef = job.def?.defName ?? "",
-                TargetA = new Receipts.JobTarget { Target = new Receipts.JobTargetTarget.ThingIdCase(target.GetUniqueLoadID()) },
+                TargetA = new RimGovernor.Brain.GameFacts.Receipts.JobTarget { Target = new RimGovernor.Brain.GameFacts.Receipts.JobTargetTarget.ThingIdCase(target.GetUniqueLoadID()) },
                 Issued = issued,
             }
         };
 
-        internal static Common.Failure? ValidateOrder(JobOrder order, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? ValidateOrder(JobOrder order, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             switch (order.Kind)
             {
@@ -136,11 +133,11 @@ namespace HomeBridge.BridgeTools
                 case JobOrderKind.InteractThing: return NativeInteractOperations.Validate(order, context);
                 case JobOrderKind.InspectGravEngine: return NativeGravEngineInspectionOperations.Validate(order, context);
                 case JobOrderKind.OfferHelp: return NativeQuestJoinerOperations.Validate(order, context);
-                default: return ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Unsupported job order.");
+                default: return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unsupported, "Unsupported job order.");
             }
         }
 
-        internal static Receipts.EffectEvidence ApplyOrder(JobOrder order, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence ApplyOrder(JobOrder order, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             switch (order.Kind)
             {
@@ -170,18 +167,18 @@ namespace HomeBridge.BridgeTools
     // pawn takes it through TryTakeOrderedJobPrioritizedWork, player-forced.
     internal static class NativePrioritizedJob
     {
-        private static Common.Failure? Resolve(Operations.GiveJobIntent intent, Common.ObservationContext context, out Pawn? pawn, out Thing? target, out JobDef? def, out bool running)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(RimGovernor.Brain.GameOrders.Operations.GiveJobIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Pawn? pawn, out Thing? target, out JobDef? def, out bool running)
         {
             pawn = null; target = null; running = false;
             def = DefDatabase<JobDef>.GetNamedSilentFail((intent.Job ?? ""));
-            if (def == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Job " + (intent.Job ?? "") + " is not a JobDef.");
-            var map = ProtoBoundary.LoadedMap(context);
+            if (def == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Job " + (intent.Job ?? "") + " is not a JobDef.");
+            var map = GameThread.LoadedMap(context);
             pawn = map.mapPawns.FreeColonistsSpawned.ById(intent.Pawn?.Id ?? "");
-            if (pawn == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact colonist is not spawned on this map.");
+            if (pawn == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact colonist is not spawned on this map.");
             if (pawn.Dead || pawn.Downed || pawn.Drafted || pawn.InMentalState || !pawn.IsColonistPlayerControlled)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Colonist is unavailable, drafted or in a mental state.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Colonist is unavailable, drafted or in a mental state.");
             target = RefIndex.Thing(map, intent.Targets[0].Id ?? "");
-            if (target == null || !target.Spawned) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact target is not spawned on this map.");
+            if (target == null || !target.Spawned) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact target is not spawned on this map.");
             var job = pawn.CurJob;
             running = job != null && job.def == def && job.targetA.Thing == target;
             return null;
@@ -195,13 +192,13 @@ namespace HomeBridge.BridgeTools
                 out reason, def);
         }
 
-        internal static Common.Failure? Validate(Operations.GiveJobIntent intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.GiveJobIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var target, out var def, out var running);
             if (failure != null || running) return failure;
-            if (pawn == null || target == null || def == null) return ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Prioritized job prerequisites are unavailable.");
+            if (pawn == null || target == null || def == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NativeFailure, "Prioritized job prerequisites are unavailable.");
             if (Build(pawn, target, def, out var reason) == null)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "No work giver the colonist may do builds " + def.defName + " on the target" + (reason != null ? ": " + reason : "."));
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "No work giver the colonist may do builds " + def.defName + " on the target" + (reason != null ? ": " + reason : "."));
             return null;
         }
 
@@ -219,7 +216,7 @@ namespace HomeBridge.BridgeTools
         // Whether a work giver the pawn may do builds the job on the target (nothing is taken).
         internal static bool CanTake(Pawn pawn, Thing target, JobDef def) => Build(pawn, target, def, out _) != null;
 
-        internal static Receipts.EffectEvidence Apply(Operations.GiveJobIntent intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.GiveJobIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var target, out var def, out var running);
             if (failure != null) throw new ApplyRefusedException(failure);
@@ -233,7 +230,7 @@ namespace HomeBridge.BridgeTools
 
     internal sealed class GiveJobActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
+        public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var intent = action.Intent?.GiveJob;
             switch (NativeGiveJob.Classify(intent, out var order, out var refusal))
@@ -241,11 +238,11 @@ namespace HomeBridge.BridgeTools
                 case NativeGiveJob.Arm.Order: return NativeGiveJob.ValidateOrder((order ?? throw new System.InvalidOperationException("Required native value is unavailable: order.")), context);
                 case NativeGiveJob.Arm.Use: return NativeUseItemOperations.Validate(((intent ?? throw new System.InvalidOperationException("Required native value is unavailable: intent.")).Pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: (intent ?? throw new System.InvalidOperationException(\"Required native value is unavailable: intent.\")).Pawn.")).Id ?? "", intent.Targets[0].Id ?? "", intent.Targets[1].Id ?? "", context);
                 case NativeGiveJob.Arm.Prioritized: return NativePrioritizedJob.Validate((intent ?? throw new System.InvalidOperationException("Required native value is unavailable: intent.")), context);
-                default: return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, refusal ?? "Invalid give job intent.");
+                default: return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, refusal ?? "Invalid give job intent.");
             }
         }
 
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
+        public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var intent = action.Intent?.GiveJob;
             switch (NativeGiveJob.Classify(intent, out var order, out var refusal))

@@ -3,7 +3,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text.Json;
 using RimGovernor.Brain.Acceptance;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 
 namespace RimGovernor.Launcher;
 

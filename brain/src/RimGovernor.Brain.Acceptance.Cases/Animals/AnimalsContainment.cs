@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -75,12 +74,12 @@ internal static class AnimalsContainment
         var cowId = s.Staged!.Pawns[Cow].Id;
         var petId = s.Staged.Pawns[Pet].Id;
 
-        Observations.AnimalState? cow = null;
+        RimGovernor.Brain.GameFacts.Observations.AnimalState? cow = null;
         _ = await s.RunUntilAsync("roped-in", s.TicksLeft, async ct =>
         {
-            var request = new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [cowId] } };
+            var request = new RimGovernor.Brain.GameOrders.Observations.ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [cowId] } };
             var reply = await s.CallAsync("cow-animal", NativeOps.ListPawns, request, ct).ConfigureAwait(false);
-            cow = reply.Pawns.FirstOrDefault(p => p.Pawn?.Id == cowId)?.AnimalState is Observations.PawnAnimalState.Animal animal
+            cow = reply.Pawns.FirstOrDefault(p => p.Pawn?.Id == cowId)?.AnimalState is RimGovernor.Brain.GameFacts.Observations.PawnAnimalState.Animal animal
                 ? animal.State
                 : throw new AcceptanceException($"cow-animal: the staged cow {cowId} is not read as an animal");
             return (Wait.Signature(cow.PenId), cow is { PenId.Length: > 0 });
@@ -91,11 +90,11 @@ internal static class AnimalsContainment
             throw new AcceptanceException($"the contained cow carries a release or slaughter designation: {cow}");
         }
 
-        var facts = await s.CallAsync("pet-upkeep", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var facts = await s.CallAsync("pet-upkeep", NativeOps.ReadColonyFacts, new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var pet = facts.Upkeep.Animals.FirstOrDefault(a => a.Pawn.Value == petId)
             ?? throw new AcceptanceException($"pet-upkeep: the staged pet {petId} is not in the upkeep census");
         s.RecordWire("pet", pet);
-        if (pet.Roping is not Observations.AnimalRoping.Unroped)
+        if (pet.Roping is not RimGovernor.Brain.GameFacts.Observations.AnimalRoping.Unroped)
         {
             throw new AcceptanceException($"pet-upkeep: the pet should need no pen and have none: {pet}");
         }

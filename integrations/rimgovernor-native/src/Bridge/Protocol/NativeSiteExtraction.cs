@@ -7,18 +7,17 @@ using Verse;
 using Verse.AI;
 using Cell = RimGovernor.Brain.Domain.Cell;
 using MapId = RimGovernor.Brain.Domain.MapId;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 using PawnId = RimGovernor.Brain.Domain.PawnId;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class NativeSiteExtraction
     {
         // The able crew and the vanilla reform dialog's view of them, read whole; a food estimate the dialog cannot give throws.
-        internal static Obs.QuestSiteExtraction Read(Map map)
+        internal static RimGovernor.Brain.GameFacts.Observations.QuestSiteExtraction Read(Map map)
         {
             var crew = Dialog_FormCaravan.AllSendablePawns(map, reform: true).Where(p => p.IsFreeColonist && p.Spawned && !p.Dead && !p.Downed && !p.InMentalState).OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
-            if (crew.Count == 0) return new Obs.QuestSiteExtraction.NoCrew();
+            if (crew.Count == 0) return new RimGovernor.Brain.GameFacts.Observations.QuestSiteExtraction.NoCrew();
             var exits = CellRect.WholeMap(map).EdgeCells.Where(c => map.exitMapGrid.IsExitCell(c)
                 && crew.All(p => p.CanReach(c, PathEndMode.OnCell, Danger.Deadly))).OrderBy(c => crew.Sum(p => p.Position.DistanceToSquared(c))).ThenBy(c => c.x).ThenBy(c => c.z)
                 .Select(c => new Cell(c.x, c.z)).ToList();
@@ -32,7 +31,7 @@ namespace HomeBridge.BridgeTools
             if (!float.IsNaN(estimate.tillRot) && estimate.tillRot >= 0) food = System.Math.Min(food, estimate.tillRot);
             if (double.IsNaN(food) || double.IsInfinity(food) || food < 0)
                 throw new InvalidOperationException("The reform dialog gave no food-days estimate for the crew on map " + map.uniqueID + ".");
-            var cargo = new List<Obs.QuestSiteCargo>();
+            var cargo = new List<RimGovernor.Brain.GameFacts.Observations.QuestSiteCargo>();
             foreach (var thing in dialog.transferables.Where(t => !(t.AnyThing is Pawn)).SelectMany(t => t.things).Distinct().OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal))
             {
                 if (thing.def.category != ThingCategory.Item || thing.stackCount <= 0) continue;
@@ -41,21 +40,21 @@ namespace HomeBridge.BridgeTools
                     || !crew.Any(p => p.CanReach(thing, PathEndMode.Touch, Danger.None)))) continue;
                 var eaten = thing.TryGetComp<CompRottable>() == null && FoodSupplyFacts.SharedFood(thing) && !thing.def.IsMeat && !HumanFoodFacts.ContainsHumanMeat(thing) && thing.def.ingestible != null
                     && thing.def.ingestible.preferability >= FoodPreferability.MealAwful && crew.All(p => FoodUtility.WillEat(p, thing));
-                cargo.Add(new Obs.QuestSiteCargo { Id = thing.GetUniqueLoadID(), Def = thing.def.defName, Count = thing.stackCount,
+                cargo.Add(new RimGovernor.Brain.GameFacts.Observations.QuestSiteCargo { Id = thing.GetUniqueLoadID(), Def = thing.def.defName, Count = thing.stackCount,
                     UnitMass = thing.GetStatValue(StatDefOf.Mass), MarketValue = thing.MarketValue, Held = held,
                     Nutrition = eaten ? crew.Min(p => FoodUtility.NutritionForEater(p, thing)) : 0 });
             }
-            var routes = new List<Obs.QuestSiteHomeRoute>();
+            var routes = new List<RimGovernor.Brain.GameFacts.Observations.QuestSiteHomeRoute>();
             foreach (var home in Find.Maps.Where(m => map.Tile.Valid && map.Tile.Layer.IsRootSurface && m.IsPlayerHome && m.Tile.Valid && m.Tile.Layer == map.Tile.Layer).OrderBy(m => m.uniqueID))
             {
                 using var path = map.Tile.Layer.Pather.FindPath(map.Tile, home.Tile, null);
-                Obs.SiteTravel travel = path.Found
-                    ? new Obs.SiteTravel.Reachable(CaravanArrivalTimeEstimator.EstimatedTicksToArrive(map.Tile, home.Tile, path, 0,
+                RimGovernor.Brain.GameFacts.Observations.SiteTravel travel = path.Found
+                    ? new RimGovernor.Brain.GameFacts.Observations.SiteTravel.Reachable(CaravanArrivalTimeEstimator.EstimatedTicksToArrive(map.Tile, home.Tile, path, 0,
                         crew.Max(p => CaravanTicksPerMoveUtility.GetTicksPerMove(new List<Pawn> { p }, 1, 1)), GenTicks.TicksAbs))
-                    : new Obs.SiteTravel.Unreachable();
-                routes.Add(new Obs.QuestSiteHomeRoute { Map = new MapId(home.uniqueID), Tile = home.Tile.tileId, Travel = travel });
+                    : new RimGovernor.Brain.GameFacts.Observations.SiteTravel.Unreachable();
+                routes.Add(new RimGovernor.Brain.GameFacts.Observations.QuestSiteHomeRoute { Map = new MapId(home.uniqueID), Tile = home.Tile.tileId, Travel = travel });
             }
-            return new Obs.QuestSiteExtraction.Crew(new Obs.ExtractionCrew
+            return new RimGovernor.Brain.GameFacts.Observations.QuestSiteExtraction.Crew(new RimGovernor.Brain.GameFacts.Observations.ExtractionCrew
             {
                 CanReform = map.Parent.GetComponent<FormCaravanComp>()?.CanReformNow() == true,
                 Crew = [.. crew.Select(p => new PawnId(p.GetUniqueLoadID()))],

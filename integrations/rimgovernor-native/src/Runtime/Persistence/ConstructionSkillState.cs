@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Settings of the exact unfinished thing (finishing-skill floor and construction
     // tier), not a controller receipt or reservation. Each lives only while the

@@ -1,4 +1,5 @@
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -99,57 +100,57 @@ public sealed record ForecastCoupledContext
     /// <summary>The connectors among the planned rooms (#3815, epic #3650 P4): each circulation corridor or airlock, by room, and
     /// the rooms it reaches or seals (PlannedRoomCredits.ConnectorsOf). Its owed work is part of each of those rooms'.</summary>
     public IReadOnlyDictionary<int, EquatableArray<int>> Connectors { get; init; } = new Dictionary<int, EquatableArray<int>>();
-    /// <summary>The open planned rooms (#3744, #3754): observed started (RoundsBuildingPlanner.PlannedRoomStartedOf) and not
+    /// <summary>The open planned rooms (#3744, #3754): observed started (BuildingPlanner.PlannedRoomStartedOf) and not
     /// done (PlannedRules.PlannedRoomDone, as their latest reconcile found). Their owed work is done first in the service-day
     /// projection (#3796). Set by the round beside <see cref="InvestmentHorizonDays"/>; none by default.</summary>
     public IReadOnlySet<int> OpenRooms { get; init; } = new HashSet<int>();
     /// <summary>The owed placed sites that are blocked pieces (#3827): the one blocked predicate of PlannedRules.PlannedRoomDone
-    /// (RoundsBuildingPlanner.DefinitionBlockedOf, read evidence only, #3819), resolved by the round beside <see cref="OpenRooms"/>.
+    /// (BuildingPlanner.DefinitionBlockedOf, read evidence only, #3819), resolved by the round beside <see cref="OpenRooms"/>.
     /// A blocked item does not delay its room's service day (PlannedRoomCredits.ServiceDays); none by default. A planned site of
     /// a blocked piece is never generated (PlannedBuildSite.Blocked, #3838).</summary>
     public IReadOnlySet<string> BlockedItems { get; init; } = new HashSet<string>(StringComparer.Ordinal);
     /// <summary>Per planned bedroom, the colonists the bedroom step would move into it (SleepingRules.PlannedBedroomOccupants,
     /// #3655, #3656: one, or a couple), by pawn id; a bedroom without a row houses nobody and earns no credit.</summary>
     public IReadOnlyDictionary<int, EquatableArray<string>> BedroomOccupants { get; init; } = new Dictionary<int, EquatableArray<string>>();
-    /// <summary>Per planned storage room, yard and meal closet, the stock it would keep (RoundsFacts.PlannedStoreStock, #3798);
+    /// <summary>Per planned storage room, yard and meal closet, the stock it would keep (ReviewFacts.PlannedStoreStock, #3798);
     /// null when the stockpile review did not read it, which leaves those rooms' credit unassessed.</summary>
     public IReadOnlyDictionary<int, PlannedStock>? StoreStock { get; init; }
     /// <summary>Per planned throne room or suite, the colonist it would serve (titled for a throne room; any suite occupant,
-    /// #3826) and its title's requirement of that room (#3807, RoundsSleepingUpkeepPlanner.PlannedOccupantsOf); a room without a
+    /// #3826) and its title's requirement of that room (#3807, SleepingUpkeepPlanner.PlannedOccupantsOf); a room without a
     /// row serves nobody and earns no credit.</summary>
     public IReadOnlyDictionary<int, RoyalRoomNeed> RoyalRooms { get; init; } = new Dictionary<int, RoyalRoomNeed>();
-    /// <summary>The layout plan's rooms by id (RoundsFacts.PlannedShelters, #3800): what a planned room's predicted
+    /// <summary>The layout plan's rooms by id (ReviewFacts.PlannedShelters, #3800): what a planned room's predicted
     /// cleanliness reads beside its closure prediction (PlannedRoomCleanlinessRules.Steady); the kitchen and butchery credits
     /// read their stations' meals and filth runs (#3802).</summary>
     public IReadOnlyDictionary<int, PlannedRoom> LayoutRooms { get; init; } = new Dictionary<int, PlannedRoom>();
-    /// <summary>The catalog's filth model (RoundsFacts.Filth) a planned room's predicted cleanliness and its poisoning chance read (#3797, #3800, #3802).</summary>
+    /// <summary>The catalog's filth model (ReviewFacts.Filth) a planned room's predicted cleanliness and its poisoning chance read (#3797, #3800, #3802).</summary>
     public FilthModel Filth { get; init; } = new();
-    /// <summary>Per research bench def, its ResearchSpeedFactor from the def data (RoundsFacts.ResearchBenchSpeeds, #3800).</summary>
+    /// <summary>Per research bench def, its ResearchSpeedFactor from the def data (ReviewFacts.ResearchBenchSpeeds, #3800).</summary>
     public IReadOnlyDictionary<string, BenchSpeedModel> ResearchBenchSpeeds { get; init; } = new Dictionary<string, BenchSpeedModel>();
-    /// <summary>The worship room's believers, presence demands and rituals (RoundsFacts.Worship, #3808).</summary>
+    /// <summary>The worship room's believers, presence demands and rituals (ReviewFacts.Worship, #3808).</summary>
     public WorshipFacts Worship { get; init; } = new();
-    /// <summary>The planned pens by room id, each its herd's key (RoundsFacts.PlannedPens, #3812).</summary>
+    /// <summary>The planned pens by room id, each its herd's key (ReviewFacts.PlannedPens, #3812).</summary>
     public IReadOnlyDictionary<int, string> PenHerds { get; init; } = new Dictionary<int, string>();
     /// <summary>The player's roamers (AnimalUpkeepObservation.Roamers, #3812); null when native could not read the animal census,
     /// which a served pen's credit raises as a required fact.</summary>
-    public IReadOnlyList<RimGovernor.Contracts.Wire.Observations.ColonyAnimal>? Roamers { get; init; }
+    public IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.ColonyAnimal>? Roamers { get; init; }
     /// <summary>The pawns a sparring ring trains (PracticeMethodCandidates.TraineesOf, #3813); null when the work pawns were not
     /// read, which a served ring's credit raises as a required fact.</summary>
     public PracticeTrainees? Sparring { get; init; }
     /// <summary>The pawns a training range trains (PracticeMethodCandidates.TraineesOf, #3846); null when the work pawns were not
     /// read, which a served range's credit raises as a required fact.</summary>
     public PracticeTrainees? Range { get; init; }
-    /// <summary>The bench a planned laboratory is furnished with (RoundsFacts.LaboratoryBench, #3800); "" none.</summary>
+    /// <summary>The bench a planned laboratory is furnished with (ReviewFacts.LaboratoryBench, #3800); "" none.</summary>
     public string LaboratoryBench { get; init; } = "";
     /// <summary>
     /// Per planned room, its planned beds in site id order, one per anchor (#3840): the sleeping facts of each Build site whose
-    /// def is a sleeping bed (RoundsFacts.SleepingBeds), null for a bed def whose stuff has no row. A room without a row plans no bed.
+    /// def is a sleeping bed (ReviewFacts.SleepingBeds), null for a bed def whose stuff has no row. A room without a row plans no bed.
     /// </summary>
     public IReadOnlyDictionary<int, IReadOnlyList<SleepingBedFacts?>> PlannedBeds { get; init; } = new Dictionary<int, IReadOnlyList<SleepingBedFacts?>>();
-    /// <summary>The comfort need's NeedDef curve (RoundsFacts.ComfortCurve, #3840) the bedroom credit's comfort term runs; unknown by default.</summary>
+    /// <summary>The comfort need's NeedDef curve (ReviewFacts.ComfortCurve, #3840) the bedroom credit's comfort term runs; unknown by default.</summary>
     public NeedCurve ComfortCurve { get; init; }
     /// <summary>The planned deathrest chamber's caskets and other deathrest buildings as the staging resolves them (#3810,
-    /// RoundsSleepingUpkeepPlanner.DeathrestFurnitureOf); none while no deathrester owes a chamber. Set by the round beside
+    /// SleepingUpkeepPlanner.DeathrestFurnitureOf); none while no deathrester owes a chamber. Set by the round beside
     /// <see cref="RoyalRooms"/>.</summary>
     public EquatableArray<DeathrestPiece> DeathrestFurniture { get; init; }
     /// <summary>The planned containment cells, their predicted strength and the entity each already holds (#3811,
@@ -254,14 +255,14 @@ public sealed record ForecastCoupledScenario(EquatableArray<ForecastCoupledOutco
 public static partial class ForecastCoupled
 {
     /// <summary>
-    /// The tier-1 horizon: the exact near-term schedule normal Rounds forecast over (at most one game day). A gear bill
+    /// The tier-1 horizon: the exact near-term schedule normal ReviewState forecast over (at most one game day). A gear bill
     /// whose stuff arrives later is not offered in tier 1 (<see cref="StuffArrival"/>).
     /// </summary>
     public const double TierOneHorizonDays = 1.0;
 
-    /// <summary>Composition boundary used by normal Rounds facts: one observed frame, stock owner and horizon.</summary>
+    /// <summary>Composition boundary used by normal ReviewState facts: one observed frame, stock owner and horizon.</summary>
     public static ColonyForecastRequest CoupledForecastRequestOf(ColonyForecastOrigin origin, double horizonDays,
-        RoundsFacts facts, DerivedDemand demand, ForecastActivityProblem activities,
+        ReviewFacts facts, DerivedDemand demand, ForecastActivityProblem activities,
         EquatableArray<ForecastNeedTask> needTasks, EquatableArray<ForecastCommitment> commitments)
     {
         if (facts.Tick.Value != origin.ObservedTick || demand.Work.Tick != facts.Tick
@@ -280,7 +281,7 @@ public static partial class ForecastCoupled
     }
 
     public static ColonyForecastRequest CoupledForecastRequestOf(ColonyForecastOrigin origin, double horizonDays,
-        RoundsFacts facts, DerivedDemand demand, EquatableArray<ForecastCommitment> commitments)
+        ReviewFacts facts, DerivedDemand demand, EquatableArray<ForecastCommitment> commitments)
     {
         var generated = facts.CoupledAlternatives ?? throw new DomainException("coupled observed review unavailable");
         return CoupledForecastRequestOf(origin, horizonDays, facts, demand, generated.Context.Activities,

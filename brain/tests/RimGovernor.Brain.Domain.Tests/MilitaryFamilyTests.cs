@@ -1,5 +1,4 @@
-using O = RimGovernor.Contracts.Wire.Observations;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
@@ -86,10 +85,10 @@ public sealed class MilitaryFamilyTests
 
         Assert.Equal("hostiles", Assert.Throws<RequiredFactException>(() => Derive(new MilitaryFacts(), MilitaryFamily.Combat)).Fact);
 
-        Assert.Equal(Situation.Active, RoundsRules.CombatSituation(new HostileCensus.Active(1), 0));
-        Assert.Equal(Situation.Active, RoundsRules.CombatSituation(new HostileCensus.Quiet(), 1));
-        Assert.Equal(Situation.Clear, RoundsRules.CombatSituation(new HostileCensus.Quiet(), 0));
-        Assert.Equal(Situation.Unclear, RoundsRules.CombatSituation(new HostileCensus.AwaitingEmergency(), 0));
+        Assert.Equal(Situation.Active, Rules.CombatSituation(new HostileCensus.Active(1), 0));
+        Assert.Equal(Situation.Active, Rules.CombatSituation(new HostileCensus.Quiet(), 1));
+        Assert.Equal(Situation.Clear, Rules.CombatSituation(new HostileCensus.Quiet(), 0));
+        Assert.Equal(Situation.Unclear, Rules.CombatSituation(new HostileCensus.AwaitingEmergency(), 0));
     }
 
     [Fact]
@@ -172,16 +171,16 @@ public sealed class MilitaryFamilyTests
     {
         var spot = Verdict.BuildingReasonNoDeficit;
         var bench = Verdict.BuildingReasonAdmitted;
-        Assert.Equal(bench, MilitaryRounds.EquipmentVerdict([spot, bench], false));
-        var held = MilitaryRounds.EquipmentVerdict([spot, Verdict.BuildingReasonDisabled], false);
+        Assert.Equal(bench, MilitaryReview.EquipmentVerdict([spot, bench], false));
+        var held = MilitaryReview.EquipmentVerdict([spot, Verdict.BuildingReasonDisabled], false);
         Assert.True(held.Is(Cause.AwaitingPlan));
         Assert.Equal(MilitaryFamily.UnsupportedApparelReplacement, held.Refusal.Subject);
-        Assert.Equal(MilitaryFamily.Equipment.Value, MilitaryRounds.EquipmentVerdict([spot], true).Refusal.Subject);
+        Assert.Equal(MilitaryFamily.Equipment.Value, MilitaryReview.EquipmentVerdict([spot], true).Refusal.Subject);
     }
 
     private static AcquisitionSource Pest(string id, int x) =>
-        new() { Observed = new() { Source = new() { Id = id }, Token = id, Resource = "Meat_Rat", Yield = 1, Designation = new O.AcquisitionDesignation.Open(), Taken = false, Kind = new O.AcquisitionKind.Hunt(82, 1, false, false, false, false) },
-        Entity = new() { Id = id, DefName = "Rat", Label = "Rat", Place = new O.EntityPlace.OnMap(1, new Cell(x, 5)) }, Pest = true };
+        new() { Observed = new() { Source = new() { Id = id }, Token = id, Resource = "Meat_Rat", Yield = 1, Designation = new RimGovernor.Brain.GameFacts.Observations.AcquisitionDesignation.Open(), Taken = false, Kind = new RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Hunt(82, 1, false, false, false, false) },
+        Entity = new() { Id = id, DefName = "Rat", Label = "Rat", Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(1, new Cell(x, 5)) }, Pest = true };
 
     private static PestHunt Hunt(string method, params AcquisitionSource[] rows) => new(new MethodId(method), [.. rows]);
 
@@ -191,10 +190,10 @@ public sealed class MilitaryFamilyTests
         public required FamilyRunner<MilitaryFacts> Runner { get; init; }
         public MilitaryFacts Facts { get; set; } = new();
 
-        public ConcernProgress? Row(NeedId need) => Journal.LoadRounds(TestContext.Current.CancellationToken).Progress.SingleOrDefault(p => p.Concern == need.FilingKey);
+        public ConcernProgress? Row(NeedId need) => Journal.LoadReview(TestContext.Current.CancellationToken).Progress.SingleOrDefault(p => p.Concern == need.FilingKey);
 
         public void File(FamilyRun run) =>
-            Journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(), [PlannerWave.NeedProgressOf(MilitaryFamily.FamilyId, run)!], TestContext.Current.CancellationToken);
+            Journal.RecordPlannerReasons(new Dictionary<FilingKey, PlannerNote>(), [PlannerWave.NeedProgressOf(MilitaryFamily.FamilyId, run)!], TestContext.Current.CancellationToken);
 
         public void Dispose() => Journal.Dispose();
 
@@ -210,10 +209,10 @@ public sealed class MilitaryFamilyTests
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-military-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
         facts = facts with { Census = facts.Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 },   FieldCoverage = 1.0};
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
         Colony? colony = null;
         // The runs read no gear census, so equipment (which would raise on it) is not composed.
-        var runner = new FamilyRunner<MilitaryFacts>(new MilitaryFamily(equipment: false), (_, _) => Task.FromResult(colony!.Facts), MilitaryRounds.Schedule);
+        var runner = new FamilyRunner<MilitaryFacts>(new MilitaryFamily(equipment: false), (_, _) => Task.FromResult(colony!.Facts), MilitaryReview.Schedule);
         colony = new Colony { Journal = journal, Runner = runner };
         return colony;
     }
@@ -321,19 +320,19 @@ public sealed class MilitaryFamilyTests
     [Fact]
     public void TheFamilyIsOneDueQueueEntryReplacingTheEquipPestAndTrainingPlanners()
     {
-        var entry = ClockPlannerCatalog.FamilyEntry(new FamilyRunner<MilitaryFacts>(new MilitaryFamily(), (_, _) => Task.FromResult(new MilitaryFacts()), MilitaryRounds.Schedule));
+        var entry = PlannerCatalog.FamilyEntry(new FamilyRunner<MilitaryFacts>(new MilitaryFamily(), (_, _) => Task.FromResult(new MilitaryFacts()), MilitaryReview.Schedule));
         Assert.Equal("military", entry.Name);
         Assert.Contains(ActionKind.Acquisition, entry.Kinds);
         Assert.Contains(ActionKind.Building, entry.Kinds);
         Assert.Contains(ActionKind.Equip, entry.Kinds);
         Assert.Contains(RimGovernor.Brain.Facts.Section.Emergency, entry.Sections);
-        Assert.DoesNotContain(ClockPlannerCatalog.Entries, e => e.Name is "equip" or "pestAcquisition" or "training" or "gear" or "armory");
+        Assert.DoesNotContain(PlannerCatalog.Entries, e => e.Name is "equip" or "pestAcquisition" or "training" or "gear" or "armory");
         Assert.Contains(ActionKind.ApparelPolicy, entry.Kinds);
         Assert.Contains(ActionKind.PolicyPrune, entry.Kinds);
         // Restore-workers is a SeriousHarm Need: the family runs in the immediate pass, woken by any draft's end,
         // and replaced the undraft planner (#3311).
         Assert.True(entry.Immediate);
         Assert.Contains(ActionKind.OwnedDraft, entry.Kinds);
-        Assert.DoesNotContain(ClockPlannerCatalog.Entries, e => e.Name == "undraft");
+        Assert.DoesNotContain(PlannerCatalog.Entries, e => e.Name == "undraft");
     }
 }

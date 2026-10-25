@@ -1,10 +1,8 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Cell = RimGovernor.Brain.Domain.Cell;
-using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Executor;
 
 /// <summary>
@@ -20,7 +18,7 @@ public sealed class SnapshotPlanner
 
     public Tick Tick { get; set; }
 
-    public ConcernId Concern { get; set; }
+    public FilingKey Concern { get; set; }
 
     /// <summary>The tunnel corridor search the step ran, if any.</summary>
     public List<ExcavationSiteRequest> Excavation { get; } = [];
@@ -38,7 +36,7 @@ public sealed class SnapshotPlanner
 }
 
 /// <summary>One native excavation site read: what was asked (Purpose names the planner's question) and the reply.</summary>
-public sealed record ExcavationRead(string Purpose, ExcavationTarget Target, IReadOnlyList<Cell> Cells, O.ExcavationSiteSnapshot Site);
+public sealed record ExcavationRead(string Purpose, ExcavationTarget Target, IReadOnlyList<Cell> Cells, RimGovernor.Brain.GameFacts.Observations.ExcavationSiteSnapshot Site);
 
 /// <summary>Collects one step's <see cref="SnapshotPlanner"/>; the recording scope of the step that started it.</summary>
 public sealed class PlannerRecorder : IDisposable
@@ -48,7 +46,7 @@ public sealed class PlannerRecorder : IDisposable
     private readonly PlannerRecorder? _previous;
     private bool _disposed;
 
-    internal PlannerRecorder(ConcernId goal, PlannerRecorder? previous)
+    internal PlannerRecorder(FilingKey goal, PlannerRecorder? previous)
     {
         _planner = new SnapshotPlanner { Concern = goal };
         _previous = previous;
@@ -101,7 +99,7 @@ public static class SnapshotPlannerReplay
     /// and pass it to <see cref="Finish"/> to write what the step recorded. With the variable unset it records
     /// nothing and the result is a no-op scope.
     /// </summary>
-    public static IDisposable StartPlanner(ConcernId goal)
+    public static IDisposable StartPlanner(FilingKey goal)
     {
         if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(SnapshotRecorder.DirEnv)))
         {
@@ -141,7 +139,7 @@ public static class SnapshotPlannerReplay
     public static void NoteExcavation(ExcavationSiteRequest r) => Add(p => p.Excavation.Add(r));
 
     /// <summary>Records a native excavation site read.</summary>
-    public static void NoteSite(string purpose, ExcavationTarget target, IReadOnlyList<Cell> cells, O.ExcavationSiteSnapshot site) =>
+    public static void NoteSite(string purpose, ExcavationTarget target, IReadOnlyList<Cell> cells, RimGovernor.Brain.GameFacts.Observations.ExcavationSiteSnapshot site) =>
         Add(p => p.Sites.Add(new ExcavationRead(purpose, target, [.. cells], site)));
 
     /// <summary>Records a production bill selection's request.</summary>

@@ -41,7 +41,7 @@ public static partial class RemoteRules
     /// Known true while a colonist is an urgent patient (bleeding, or downed with a tend outstanding) or a
     /// disaster still disrupts a colony service. The patient census is required; the dispatch-time emergency check uses the same evidence.
     /// </summary>
-    public static bool UrgentWorkCompeting(RoundsFacts f)
+    public static bool UrgentWorkCompeting(ReviewFacts f)
     {
         var patients = f.UrgentPatients;
         if (patients > 0)
@@ -70,7 +70,7 @@ public static partial class RemoteRules
     /// <summary>
     /// Turns the urgent work verdict into the scoring competition: the urgent-patient census is required for the comparison.
     /// </summary>
-    public static AcquisitionCompetition RemoteCompetition(RoundsFacts f)
+    public static AcquisitionCompetition RemoteCompetition(ReviewFacts f)
     {
         if (UrgentWorkCompeting(f))
         {

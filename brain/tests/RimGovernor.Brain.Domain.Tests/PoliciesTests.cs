@@ -1,8 +1,8 @@
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
-using Op = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// The policy census, the stockpile filter read, the outfit read and the stockpile settings order are total
 /// (#3767): every fact member is <c>required</c>, the order's priority and preset are the brain's own
 /// <see cref="StockpilePriority"/> and <see cref="FilterBase"/> (no Unspecified arm), and each round-trips through
-/// <c>WireJsonContext</c> exactly.
+/// <c>OrdersJsonContext</c> exactly.
 /// </summary>
 public sealed class PoliciesTests
 {
@@ -45,52 +45,52 @@ public sealed class PoliciesTests
                 new PolicyEntry
                 {
                     Id = "DrugPolicy_1", Label = "Social", Pawns = [new PawnId("Thing_Human5")], AllowedDefs = [],
-                    DrugEntries = [new Op.DrugPolicyEntry { DrugDef = "Beer", AllowedForJoy = true, AllowedForAddiction = false, AllowScheduled = false, DaysFrequency = 1, OnlyIfMoodBelow = 1, OnlyIfJoyBelow = 0.5f, TakeToInventory = 0 }],
+                    DrugEntries = [new RimGovernor.Brain.GameFacts.Operations.DrugPolicyEntry { DrugDef = "Beer", AllowedForJoy = true, AllowedForAddiction = false, AllowScheduled = false, DaysFrequency = 1, OnlyIfMoodBelow = 1, OnlyIfJoyBelow = 0.5f, TakeToInventory = 0 }],
                 },
             ],
             AllowedAreas = [new AllowedArea { Id = "Area_3", Label = "Safe", Pawns = [], CellCount = 40 }],
             FoodEaters = [new FoodEater { Pawn = new PawnId("Thing_Human9"), Kind = FoodEaterKind.Prisoner, Precepts = ["Cannibalism_Preferred"], Traits = [new Trait { DefName = "Ascetic", Degree = 0 }] }],
         };
 
-        var json = WireJson.Serialize(policies);
+        var json = OrdersJson.Serialize(policies);
 
         Assert.Equal(
             """{"outfit":[],"drug":[{"id":"DrugPolicy_1","label":"Social","pawns":["Thing_Human5"],"allowedDefs":[],"drugEntries":[{"drugDef":"Beer","allowedForJoy":true,"allowedForAddiction":false,"allowScheduled":false,"daysFrequency":1,"onlyIfMoodBelow":1,"onlyIfJoyBelow":0.5,"takeToInventory":0}]}],"food":[],"reading":[],"allowedAreas":[{"id":"Area_3","label":"Safe","pawns":[],"cellCount":40}],"foodEaters":[{"pawn":"Thing_Human9","kind":"prisoner","precepts":["Cannibalism_Preferred"],"traits":[{"defName":"Ascetic","degree":0}]}]}""",
             json);
-        Assert.Equal(policies, WireJson.Deserialize<Policies>(json));
+        Assert.Equal(policies, OrdersJson.Deserialize<Policies>(json));
     }
 
     [Fact]
     public void StockpileFilterRoundTripIsExact()
     {
-        var filter = new O.StockpileFilter { AllowedDefNames = ["Steel"], HitPointsMin = 0.25, HitPointsMax = 1, QualityMin = Quality.Normal, QualityMax = Quality.Legendary, AllowFresh = false, AllowRotten = true };
+        var filter = new RimGovernor.Brain.GameFacts.Observations.StockpileFilter { AllowedDefNames = ["Steel"], HitPointsMin = 0.25, HitPointsMax = 1, QualityMin = Quality.Normal, QualityMax = Quality.Legendary, AllowFresh = false, AllowRotten = true };
 
-        var json = WireJson.Serialize(filter);
+        var json = OrdersJson.Serialize(filter);
 
         Assert.Equal("""{"allowedDefNames":["Steel"],"hitPointsMin":0.25,"hitPointsMax":1,"qualityMin":"Normal","qualityMax":"Legendary","allowFresh":false,"allowRotten":true}""", json);
-        Assert.Equal(filter, WireJson.Deserialize<O.StockpileFilter>(json));
+        Assert.Equal(filter, OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.StockpileFilter>(json));
     }
 
     [Fact]
     public void StockpileSettingsCarryTheBrainEnums()
     {
-        var settings = new Op.StockpileSettings { Priority = new Op.StockpilePriorityChange.Selected(StockpilePriority.Important), Preset = new Op.StockpilePresetChange.Selected(FilterBase.OutdoorSafeWaste)};
+        var settings = new RimGovernor.Brain.GameOrders.Operations.StockpileSettings { Priority = new RimGovernor.Brain.GameOrders.Operations.StockpilePriorityChange.Selected(StockpilePriority.Important), Preset = new RimGovernor.Brain.GameOrders.Operations.StockpilePresetChange.Selected(FilterBase.OutdoorSafeWaste)};
 
-        var json = WireJson.Serialize(settings);
+        var json = OrdersJson.Serialize(settings);
 
         Assert.Equal("""{"priority":{"type":"set","value":"important"},"preset":{"type":"set","value":"outdoor_safe_waste"},"filter":null}""", json);
-        Assert.Equal(settings, WireJson.Deserialize<Op.StockpileSettings>(json));
-        Assert.Equal(new Op.StockpileSettings { Priority = new Op.StockpilePriorityChange.Preserve(), Preset = new Op.StockpilePresetChange.Preserve() }, WireJson.Deserialize<Op.StockpileSettings>("""{"priority":{"type":"preserve"},"preset":{"type":"preserve"},"filter":null}"""));
+        Assert.Equal(settings, OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.StockpileSettings>(json));
+        Assert.Equal(new RimGovernor.Brain.GameOrders.Operations.StockpileSettings { Priority = new RimGovernor.Brain.GameOrders.Operations.StockpilePriorityChange.Preserve(), Preset = new RimGovernor.Brain.GameOrders.Operations.StockpilePresetChange.Preserve() }, OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.StockpileSettings>("""{"priority":{"type":"preserve"},"preset":{"type":"preserve"},"filter":null}"""));
     }
 
     [Fact]
     public void OutfitRoundTripIsExact()
     {
-        var json = WireJson.Serialize(EmptyOutfit);
+        var json = OrdersJson.Serialize(EmptyOutfit);
 
         Assert.Equal(
             """{"token":"","name":"","allowedDefs":[],"minHitPoints":0,"maxHitPoints":1,"minQuality":0,"maxQuality":6,"excludesTainted":false,"slave":false,"pawnName":"","policyId":"","requiredDefs":[],"nude":false}""",
             json);
-        Assert.Equal(EmptyOutfit, WireJson.Deserialize<ApparelPolicyState>(json));
+        Assert.Equal(EmptyOutfit, OrdersJson.Deserialize<ApparelPolicyState>(json));
     }
 }

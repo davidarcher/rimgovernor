@@ -1,18 +1,17 @@
 using RimGovernor.Brain.Policy;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 internal static class ProductionBenchFixtures
 {
     internal static RecipeAccess Recipe(string name, bool available = true, bool onBench = true) =>
-        new RecipeAccess.OnBench(new O.RecipeState { Recipe = name, AvailableNow = available, AvailableOnBench = onBench });
+        new RecipeAccess.OnBench(new RimGovernor.Brain.GameFacts.Observations.RecipeState { Recipe = name, AvailableNow = available, AvailableOnBench = onBench });
 
-    internal static O.BillStackRow Observed(string id, string definition, string token, bool usable, string? room = null) => new()
+    internal static RimGovernor.Brain.GameFacts.Observations.BillStackRow Observed(string id, string definition, string token, bool usable, string? room = null) => new()
     {
         Bench = id, BenchDef = definition, Snapshot = new() { EntityId = id, Token = token },
         Usable = usable, Room = room is null ? null : new() { Id = room }, WorkSpeed = 1, Bills = [],
-        AutoRefuel = new O.BenchAutoRefuel.NotRefuelable(),
+        AutoRefuel = new RimGovernor.Brain.GameFacts.Observations.BenchAutoRefuel.NotRefuelable(),
     };
 
     internal static ProductionBench Ordinary(string id, string definition, string token, bool usable, string? room = null) => new()

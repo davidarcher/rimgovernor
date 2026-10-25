@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 // Fuel runway. A refuelable building (a generator, a turret barrel) holds fuel units and burns them at its def's
 // rate; the runway is the fuel it holds and the stock behind it over that burn, against MaintenanceHorizonDays.
 // The shortfall is a forward-projector domain and the items to stock ahead of it are an economy/resource level in
-// the Rounder's construction memory, like ClothingRunway.
+// the ColonyReview's construction memory, like ClothingRunway.
 
 /// <summary>What the fuel runway is computed from.</summary>
 public sealed record FuelInputs
@@ -33,10 +33,10 @@ public sealed record FuelRunway
     public required FuelProjection Projection { get; init; }
 }
 
-public static class RoundsFactsFuelExtensions
+public static class FactsFuelExtensions
 {
     /// <summary><see cref="FuelRunwayRules.PlanFuelRunway"/> of the review's facts.</summary>
-    public static FuelRunway FuelRunway(this RoundsFacts f) =>
+    public static FuelRunway FuelRunway(this ReviewFacts f) =>
         FuelRunwayRules.PlanFuelRunway(new FuelInputs { Consumers = f.Fuel, Stock = new StockReader(f.ObservedStock(), f.WoodStock()) });
 }
 

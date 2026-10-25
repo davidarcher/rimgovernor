@@ -132,7 +132,7 @@ public static partial class ShelterRules
     /// outside the sleeping comfort range, or hostiles on the map (a raid or manhunter pack). Names absent
     /// indoor beds during weather and the emergency census before it is observed.
     /// </summary>
-    public static ShelterTrigger ShelterTriggerOf(RoundsFacts f)
+    public static ShelterTrigger ShelterTriggerOf(ReviewFacts f)
     {
         var conditions = f.DisasterConditions;
         var weather = false;
@@ -147,7 +147,7 @@ public static partial class ShelterRules
                 weather = true;
             }
         }
-        if (weather && f.Census.SleepingTemperature is RimGovernor.Contracts.Wire.Observations.SleepingTemperature.Indoor indoor &&
+        if (weather && f.Census.SleepingTemperature is RimGovernor.Brain.GameFacts.Observations.SleepingTemperature.Indoor indoor &&
             (f.Census.OutdoorTemperatureC < indoor.MinC || f.Census.OutdoorTemperatureC > indoor.MaxC))
         {
             return ShelterTrigger.Temperature;
@@ -157,7 +157,7 @@ public static partial class ShelterRules
             return ShelterTrigger.Threat;
         }
         if (f.Hostiles is HostileCensus.AwaitingEmergency) return ShelterTrigger.AwaitingEmergency;
-        if (f.Hostiles is HostileCensus.Quiet && weather && f.Census.SleepingTemperature is RimGovernor.Contracts.Wire.Observations.SleepingTemperature.NoIndoorBed) return ShelterTrigger.NoIndoorBed;
+        if (f.Hostiles is HostileCensus.Quiet && weather && f.Census.SleepingTemperature is RimGovernor.Brain.GameFacts.Observations.SleepingTemperature.NoIndoorBed) return ShelterTrigger.NoIndoorBed;
         if (f.Hostiles is HostileCensus.Quiet or HostileCensus.Active) return ShelterTrigger.None;
         throw new DomainException("unrecognized hostile census");
     }
@@ -172,7 +172,7 @@ public static partial class ShelterRules
     /// areas are left to their own planners. It keeps no history: the same facts give the same moves after a
     /// restart or reload.
     /// </summary>
-    public static List<AllowedAreaChange> PlanSheltering(RoundsFacts f)
+    public static List<AllowedAreaChange> PlanSheltering(ReviewFacts f)
     {
         var safe = f.ShelterArea;
         var trigger = ShelterTriggerOf(f);
@@ -261,7 +261,7 @@ public static partial class ShelterRules
     /// undowned, undrafted, sane colonist (at least one) is restricted to the Safe area. The clock run then
     /// watches the threat instead of refusing it: sheltered colonists wait it out on game time.
     /// </summary>
-    public static bool ShelterHeld(RoundsFacts f)
+    public static bool ShelterHeld(ReviewFacts f)
     {
         var trigger = ShelterTriggerOf(f);
         var safe = f.ShelterArea;

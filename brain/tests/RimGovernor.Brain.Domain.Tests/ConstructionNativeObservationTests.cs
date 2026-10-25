@@ -1,9 +1,8 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -44,8 +43,8 @@ public sealed class ConstructionNativeObservationTests
         Assert.Null(site.Minimum);
         Assert.Equal("minimum_not_set", site.FinishingBlocker);
 
-        var minimum = new O.FinishingMinimum { Skill = 6, EligibleFinishers = 0 };
-        var gate = new O.ConstructionGate.Tiered { Tier = ConstructionTier.Comfort };
+        var minimum = new RimGovernor.Brain.GameFacts.Observations.FinishingMinimum { Skill = 6, EligibleFinishers = 0 };
+        var gate = new RimGovernor.Brain.GameFacts.Observations.ConstructionGate.Tiered { Tier = ConstructionTier.Comfort };
         var guarded = site with { Observed = row with { Construction = site.Construction with { Minimum = minimum, Gate = gate } } };
         Assert.Same(minimum, guarded.Minimum);
         Assert.Same(gate, guarded.Gate);
@@ -74,7 +73,7 @@ public sealed class ConstructionNativeObservationTests
         Assert.Equal("", initial.FinishingBlocker);
         var missing = initial with { Observed = initial.Observed with { Construction = null } };
         Assert.Throws<DomainException>(() => missing.Construction);
-        var built = initial with { Observed = initial.Observed with { Status = O.BuildingStatus.Built } };
+        var built = initial with { Observed = initial.Observed with { Status = RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Built } };
         Assert.Throws<DomainException>(() => built.Stage);
     }
 }

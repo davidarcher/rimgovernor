@@ -5,7 +5,7 @@ using System.IO;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Storage occupancy: a ring of hourly samples (2500-tick hours, 15 days)
     // of the item stacks each of the player's storage groups holds (stockpile

@@ -15,17 +15,17 @@ flowchart LR
     Facts --> Policy[Pure policy]
     Policy --> Plan[Concerns, Methods and actions]
     Plan --> Hands[Hands executor]
-    Hands --> Facade[Native facade]
+    Hands --> Facade[Game API]
     Facade --> Native
     Native --> Game
     Runtime --> Policy
     Native -. colony events .-> Runtime
 ```
 
-Native observations have one record owner in Contracts. Policy reads those records
+Native observations have one record owner in GameFacts. Policy reads those records
 through the canonical colony census and keyed tables; catalog joins retain references
 to those rows and add derived policy values. `ColonyReading.Snapshot` reads the same
-census owned by `RoundsFacts.Census`. A review can update its derived facts without
+census owned by `ReviewFacts.Census`. A review can update its derived facts without
 copying native observations into another projection. Required native reads fail the
 read; real absence uses the contract's named state. The former Observation project,
 generic fact wrappers and hand-decoder layer are removed.
@@ -39,7 +39,7 @@ generic fact wrappers and hand-decoder layer are removed.
 | Store | Method admission, action identity, session journal and continuation ownership | Candidate valuation or game orders |
 | Hands | Dispatch of admitted actions and write reconciliation | Which Method best serves a Concern |
 | Native bridge | Typed observations, operation guards and clock supervision | Colony strategy |
-| Native facade | In-process calls into the mod (typed, no serialization) and main-thread dispatch; the loopback HTTP channel serves the launcher and tools | Colony policy |
+| Game API | In-process calls into the mod (typed, no serialization) and main-thread dispatch; the loopback HTTP channel serves the launcher and tools | Colony policy |
 | RimWorld | Legality, pathing, pawn jobs and physical outcomes | Governor intent |
 | Launcher | Starts/stops sessions and presents observed state | Planner execution |
 
@@ -47,6 +47,8 @@ Combat batches use the same Hands ownership: the planner commits the batch to
 the journal, then calls `hands.RunBatch`. Uncertain receipts remain explicit.
 [#2502](https://github.com/davidarcher/rimgovernor/issues/2502) completed this
 unification. New writers must also use Hands.
+
+The `RimGovernor.Brain.Runtime` project owns `PlannerScheduler`, `PlannerQueue`, `PlannerWindow` and `PlannerRunDriver`. `ColonyReview` coordinates the review; `BuildingPlanner` reconciles selected construction. Clock terminology describes native game-speed Run/Hold control.
 
 ## The control cycle
 
@@ -115,7 +117,7 @@ protective effect are distinct measurements.
 flowchart TD
     Save[RimWorld save: GovernorState intent] --> Views[Rebuilt brain views]
     World[Live native facts] --> Views
-    Views --> Review[Rounds and planners]
+    Views --> Review[ColonyReview and planners]
     Review --> Journal[SQLite session actions and receipts]
     Review --> Flush[Flush intent before save]
     Flush --> Save
@@ -131,7 +133,7 @@ Concern still waits for a finished building. Unknown facts never prove recovery.
 
 ## Read next
 
-- [Control loop](control-loop.md): the Need/Family/claimed-Method target model and its migration, legacy Rounds, scheduling, native events and Manual.
+- [Control loop](control-loop.md): the Need/Family/claimed-Method target model and its migration, review state, scheduling, native events and Manual.
 - [Plans and Hands](plans-and-hands.md): admission, dispatch and completion.
 - [Sessions and recovery](sessions-and-recovery.md): saves, authority and uncertain writes.
 - [Space and resources](space-and-resources.md), [supply](supply-model.md),

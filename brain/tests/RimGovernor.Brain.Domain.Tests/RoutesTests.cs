@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class RoutesTests
 {
-    private static RimGovernor.Contracts.Wire.Observations.RoutesFacts Census(params RouteTravel[] travel) => new()
+    private static RimGovernor.Brain.GameFacts.Observations.RoutesFacts Census(params RouteTravel[] travel) => new()
     {
         PawnIds = [.. travel.Select(t => t.Pawn)],
         Facilities =

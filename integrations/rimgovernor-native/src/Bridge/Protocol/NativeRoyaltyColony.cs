@@ -5,10 +5,8 @@ using RimGovernor.Brain.Domain;
 using RimWorld;
 using Verse;
 using Verse.AI.Group;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Royalty colony facts, a keyed colony section: the neuroformer
     // stock, the pending bestowing ceremonies and the standing player thrones
@@ -16,10 +14,10 @@ namespace HomeBridge.BridgeTools
     // and fails the colony read.
     internal static class NativeRoyaltyColony
     {
-        internal static Obs.RoyaltySection Read()
+        internal static RimGovernor.Brain.GameFacts.Observations.RoyaltySection Read()
         {
-            if (!ModsConfig.RoyaltyActive) return new Obs.RoyaltySection.Inactive();
-            return new Obs.RoyaltySection.Active(new Obs.RoyaltyColonyFacts
+            if (!ModsConfig.RoyaltyActive) return new RimGovernor.Brain.GameFacts.Observations.RoyaltySection.Inactive();
+            return new RimGovernor.Brain.GameFacts.Observations.RoyaltySection.Active(new RimGovernor.Brain.GameFacts.Observations.RoyaltyColonyFacts
             {
                 Neuroformers = [.. Neuroformers()],
                 Ceremonies = [.. Ceremonies()],
@@ -30,16 +28,16 @@ namespace HomeBridge.BridgeTools
         // Throne ownership: every spawned player throne on the home
         // maps with its assigned colonist (Building_Throne.AssignedPawn), so
         // the planner can tell when a throne's assignment is done.
-        private static IEnumerable<Obs.RoyalThrone> Thrones()
+        private static IEnumerable<RimGovernor.Brain.GameFacts.Observations.RoyalThrone> Thrones()
         {
             foreach (var map in Find.Maps.Where(m => m.IsPlayerHome))
                 foreach (var throne in map.listerBuildings.AllBuildingsColonistOfClass<Building_Throne>().OrderBy(t => t.thingIDNumber))
                 {
                     var owner = throne.AssignedPawn;
-                    yield return new Obs.RoyalThrone
+                    yield return new RimGovernor.Brain.GameFacts.Observations.RoyalThrone
                     {
-                        Thing = new Common.Ref { Id = throne.GetUniqueLoadID() },
-                        Owner = owner == null ? null : new Common.Ref { Id = owner.GetUniqueLoadID() },
+                        Thing = new RimGovernor.Brain.GameFacts.Common.Ref { Id = throne.GetUniqueLoadID() },
+                        Owner = owner == null ? null : new RimGovernor.Brain.GameFacts.Common.Ref { Id = owner.GetUniqueLoadID() },
                     };
                 }
         }
@@ -49,10 +47,10 @@ namespace HomeBridge.BridgeTools
         // ended one). The lord is the bestower's: its Wait toil is the
         // ceremony waiting for the player's command, its job holds the
         // started flag; with no ceremony lord job the ritual has not started.
-        private static IEnumerable<Obs.BestowingCeremony> Ceremonies()
+        private static IEnumerable<RimGovernor.Brain.GameFacts.Observations.BestowingCeremony> Ceremonies()
         {
             var royalFactions = Find.FactionManager.AllFactionsListForReading
-                .Where(f => f?.def != null && f.def.HasRoyalTitles && ProtoBoundary.IsIdentifier(f.def.defName))
+                .Where(f => f?.def != null && f.def.HasRoyalTitles && GameThread.IsIdentifier(f.def.defName))
                 .OrderBy(f => f.def.defName, StringComparer.Ordinal).ToList();
             foreach (var pawn in PawnsFinder.AllMaps_FreeColonists.Where(p => p.royalty != null).OrderBy(p => p.thingIDNumber))
             {
@@ -65,7 +63,7 @@ namespace HomeBridge.BridgeTools
                     var bestower = part?.bestower;
                     var lord = bestower?.GetLord();
                     var job = lord?.LordJob as LordJob_BestowingCeremony;
-                    yield return new Obs.BestowingCeremony
+                    yield return new RimGovernor.Brain.GameFacts.Observations.BestowingCeremony
                     {
                         Quest = quest.GetUniqueLoadID(),
                         Pawn = new PawnId(pawn.GetUniqueLoadID()),
@@ -80,15 +78,15 @@ namespace HomeBridge.BridgeTools
 
         // The psylink neuroformer and every psycast neurotrainer. held counts
         // unforbidden spawned stacks on the player's home maps.
-        private static IEnumerable<Obs.NeuroformerStock> Neuroformers()
+        private static IEnumerable<RimGovernor.Brain.GameFacts.Observations.NeuroformerStock> Neuroformers()
         {
             var defs = DefDatabase<ThingDef>.AllDefsListForReading
-                .Where(d => ProtoBoundary.IsIdentifier(d.defName) && (d == ThingDefOf.PsychicAmplifier || d.thingCategories?.Contains(ThingCategoryDefOf.NeurotrainersPsycast) == true))
+                .Where(d => GameThread.IsIdentifier(d.defName) && (d == ThingDefOf.PsychicAmplifier || d.thingCategories?.Contains(ThingCategoryDefOf.NeurotrainersPsycast) == true))
                 .OrderBy(d => d.defName, StringComparer.Ordinal);
             var maps = Find.Maps.Where(m => m.IsPlayerHome).ToList();
             foreach (var def in defs)
             {
-                yield return new Obs.NeuroformerStock
+                yield return new RimGovernor.Brain.GameFacts.Observations.NeuroformerStock
                 {
                     DefName = def.defName,
                     Held = maps.Sum(m => m.listerThings.ThingsOfDef(def).Where(t => !t.IsForbidden(Faction.OfPlayer)).Sum(t => t.stackCount)),

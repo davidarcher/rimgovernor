@@ -1,6 +1,6 @@
 using System;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The one ceiling on an epoch's tick rate (#3171): the lower of two inputs.
     //   frame budget  a frame whose tick work ran over the budget lowers the ceiling

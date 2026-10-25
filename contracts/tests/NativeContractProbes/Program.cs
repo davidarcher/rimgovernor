@@ -50,7 +50,7 @@ internal static class NativeContractProbesDispatcher
                 case "native-ref-index": NativeRefIndexProbe.Invoke(); return 0;
 
                 // ---- Category 4: hybrid fake-Verse + real-DLL reflection ----
-                case "native-proto-boundary": NativeProtoBoundaryProbe.Invoke(); return 0;
+                case "native-game-thread": NativeGameThreadProbe.Invoke(); return 0;
 
                 // ---- Category 3: reflection-over-real-compiled-DLL (args[0] = bridge DLL path) ----
                 case "native-movement-operations": NativeMovementOperationsProbe.Invoke(rest); return 0;
@@ -90,7 +90,7 @@ internal static class NativeContractProbesDispatcher
         {
             "native-authority", "native-authority-control", "native-authority-status",
             "native-threat-classifier", "native-acquisition-token",
-            "native-proto-boundary",
+            "native-game-thread",
             "native-movement-operations",
             "native-pawn-control-state", "native-pawn-observations", "native-proto-buildings",
             "native-proto-observations", "native-proto-placement", "native-proto-presentation",

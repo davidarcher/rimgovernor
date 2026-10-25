@@ -130,9 +130,9 @@ publish a private winning assignment before shared comparison.
 
 The repository still has independently used provisioning calculations:
 
-- `Rounder.ReviewMeals` calls `ReviewMealTier` to derive cooking readiness;
-  `RoundsPaste` and `PasteSite` also use meal-tier review for dispenser planning.
-- `RoundsFoodPlan` calls `SupplyFoodPlan`; `RoundsResourceSupply` calls
+- `ColonyReview.ReviewMeals` calls `ReviewMealTier` to derive cooking readiness;
+  `Paste` and `PasteSite` also use meal-tier review for dispenser planning.
+- `FoodPlan` calls `SupplyFoodPlan`; `ResourceSupply` calls
   `PlanResourceSupply`. Both use `PlanSupply` for resource channels including
   farming, mining, chopping, trade and bills.
 

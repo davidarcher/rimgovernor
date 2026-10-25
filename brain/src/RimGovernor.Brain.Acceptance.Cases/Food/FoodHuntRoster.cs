@@ -4,7 +4,6 @@ using RimGovernor.Brain.Bridge;
 using MilitaryFamily = RimGovernor.Brain.Policy.MilitaryFamily;
 using RimGovernor.Brain.Telemetry;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -119,7 +118,7 @@ internal static class FoodHuntRoster
         s.Record("prey", new JsonObject(prey.Select(p => KeyValuePair.Create(p.Key, (JsonNode?)p.Value))));
 
         // The service log outlives a served window on a reused root: the reviews of this window are the rows after the ones it starts with.
-        var run = new HuntRun(s, hunters, prey, s.Telemetry(TelemetryKinds.RoundsReview).Select(r => r.Sequence).DefaultIfEmpty(0UL).Max());
+        var run = new HuntRun(s, hunters, prey, s.Telemetry(TelemetryKinds.ReviewStep).Select(r => r.Sequence).DefaultIfEmpty(0UL).Max());
         _ = await s.ServeUntilAsync("hunt", s.TicksLeft, run.ProbeAsync, cancellationToken).ConfigureAwait(false);
     }
 
@@ -162,7 +161,7 @@ internal static class FoodHuntRoster
         private string _note = "";
         private HashSet<string> _roster = new(StringComparer.Ordinal);
         private HashSet<string> _admitted = new(StringComparer.Ordinal);
-        private Observations.Kill? _kill;
+        private RimGovernor.Brain.GameFacts.Observations.Kill? _kill;
         private string _corpseCell = "";
         private long _meat;
 
@@ -194,18 +193,18 @@ internal static class FoodHuntRoster
         }
 
         /// <summary>This window's rounds_review rows with a hunt note, oldest first; empty before the first review that saw the hunt read.</summary>
-        private IEnumerable<LogRow> Choices() => s.Telemetry(TelemetryKinds.RoundsReview).Where(r => r.Sequence > before && r.Payload.ContainsKey(RoundsReviewTelemetry.HuntChoiceKey));
+        private IEnumerable<LogRow> Choices() => s.Telemetry(TelemetryKinds.ReviewStep).Where(r => r.Sequence > before && r.Payload.ContainsKey(ReviewTelemetry.HuntChoiceKey));
 
         /// <summary>Reads the row's chosen roster key; empty until the comparison has chosen a roster.</summary>
         private static string Chosen(LogRow row)
         {
-            var chosen = Field(Text(row, RoundsReviewTelemetry.HuntChoiceKey), "chosen=");
+            var chosen = Field(Text(row, ReviewTelemetry.HuntChoiceKey), "chosen=");
             return chosen is "" or "none" ? "" : chosen;
         }
 
         /// <summary>The roster of the food plan's hunt/roster channel in the row: the admitted formation's once one stands (the comparison then goes on among the free hunters), the chosen roster's before.</summary>
         private static string Channel(LogRow row) =>
-            Text(row, RoundsReviewTelemetry.FoodPlanKey).Split('\n').Select(l => Field(l.Trim(), "hunt/roster:")).FirstOrDefault(k => k.Length > 0) ?? "";
+            Text(row, ReviewTelemetry.FoodPlanKey).Split('\n').Select(l => Field(l.Trim(), "hunt/roster:")).FirstOrDefault(k => k.Length > 0) ?? "";
 
         // Comparison made: the first review whose note names a chosen roster. The first one, not the probe's latest: once
         // the formation stands, the review compares the free hunters again.
@@ -217,14 +216,14 @@ internal static class FoodHuntRoster
             }
 
             _chosen = Chosen(row);
-            _note = Text(row, RoundsReviewTelemetry.HuntChoiceKey);
+            _note = Text(row, ReviewTelemetry.HuntChoiceKey);
             s.Record("comparison", CombatLabKit.Obj(
                 ("tick", tick),
                 ("review_tick", row.Tick),
-                (RoundsReviewTelemetry.HuntChoiceKey, _note),
-                (RoundsReviewTelemetry.HuntReadKey, Text(row, RoundsReviewTelemetry.HuntReadKey))));
+                (ReviewTelemetry.HuntChoiceKey, _note),
+                (ReviewTelemetry.HuntReadKey, Text(row, ReviewTelemetry.HuntReadKey))));
             // The chosen roster's estimate terms (hunt_* chances): its hunt/roster line of the food plan.
-            var terms = Text(row, RoundsReviewTelemetry.FoodPlanKey).Split('\n').FirstOrDefault(l => l.Contains("hunt/roster:" + _chosen, StringComparison.Ordinal)) ?? "";
+            var terms = Text(row, ReviewTelemetry.FoodPlanKey).Split('\n').FirstOrDefault(l => l.Contains("hunt/roster:" + _chosen, StringComparison.Ordinal)) ?? "";
             s.Record("estimate_terms", terms.Trim());
             _phase = Phase.Draft;
         }
@@ -334,7 +333,7 @@ internal static class FoodHuntRoster
                 return;
             }
 
-            var note = Choices().LastOrDefault() is { } row ? Text(row, RoundsReviewTelemetry.HuntChoiceKey) : "";
+            var note = Choices().LastOrDefault() is { } row ? Text(row, ReviewTelemetry.HuntChoiceKey) : "";
             s.Record("release", CombatLabKit.Obj(
                 ("tick", tick),
                 ("need", latest.Need),
@@ -342,7 +341,7 @@ internal static class FoodHuntRoster
                 ("previous", latest.Previous),
                 ("held", latest.Held),
                 ("transition_tick", latest.Tick),
-                (RoundsReviewTelemetry.HuntChoiceKey, note)));
+                (ReviewTelemetry.HuntChoiceKey, note)));
             _phase = Phase.Butcher;
         }
 
@@ -350,11 +349,11 @@ internal static class FoodHuntRoster
         private async Task ButcherAsync(long tick, CancellationToken ct)
         {
             var corpseId = _kill!.CorpseId;
-            var corpses = await SuppliesAsync("corpses", new Observations.StockFilter
+            var corpses = await SuppliesAsync("corpses", new RimGovernor.Brain.GameFacts.Observations.StockFilter
             {
                 DefNames = ["Corpse_" + BigGame, "Corpse_" + SmallGame],
-                Category = Observations.StockCategory.Haulable,
-                Ownership = Observations.StockOwnership.All,
+                Category = RimGovernor.Brain.GameFacts.Observations.StockCategory.Haulable,
+                Ownership = RimGovernor.Brain.GameFacts.Observations.StockOwnership.All,
                 IncludeHeld = true,
                 Corpses = true,
             }, ct).ConfigureAwait(false);
@@ -374,7 +373,7 @@ internal static class FoodHuntRoster
                 return;
             }
 
-            var food = await SuppliesAsync("meat", new Observations.StockFilter { Category = Observations.StockCategory.Food, Ownership = Observations.StockOwnership.All, IncludeHeld = true }, ct).ConfigureAwait(false);
+            var food = await SuppliesAsync("meat", new RimGovernor.Brain.GameFacts.Observations.StockFilter { Category = RimGovernor.Brain.GameFacts.Observations.StockCategory.Food, Ownership = RimGovernor.Brain.GameFacts.Observations.StockOwnership.All, IncludeHeld = true }, ct).ConfigureAwait(false);
             var meat = food.Stocks.Where(st => st.DefName.StartsWith(MeatPrefix, StringComparison.Ordinal)).ToList();
             _meat = meat.Sum(st => st.Units);
             if (_meat <= 0)
@@ -393,18 +392,18 @@ internal static class FoodHuntRoster
 
         private async Task<HashSet<string>> DraftedAsync(CancellationToken ct)
         {
-            var reply = await s.CallAsync("drafted", NativeOps.ListPawns, new Observations.ListPawnsRequest
+            var reply = await s.CallAsync("drafted", NativeOps.ListPawns, new RimGovernor.Brain.GameOrders.Observations.ListPawnsRequest
             {
                 Scope = s.Scope,
-                Filter = new Observations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only, Drafted = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only },
+                Filter = new RimGovernor.Brain.GameFacts.Observations.PawnFilter { Colonist = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Only, Drafted = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Only },
             }, ct).ConfigureAwait(false);
             var snapshot = reply;
             return snapshot.Pawns.Select(p => p.Pawn.Id).ToHashSet(StringComparer.Ordinal);
         }
 
-        private async Task<Observations.SuppliesSnapshot> SuppliesAsync(string label, Observations.StockFilter filter, CancellationToken ct)
+        private async Task<RimGovernor.Brain.GameFacts.Observations.SuppliesSnapshot> SuppliesAsync(string label, RimGovernor.Brain.GameFacts.Observations.StockFilter filter, CancellationToken ct)
         {
-            return await s.CallAsync(label, NativeOps.ListSupplies, new Observations.ListSuppliesRequest { Scope = s.Scope, Filter = filter }, ct).ConfigureAwait(false);
+            return await s.CallAsync(label, NativeOps.ListSupplies, new RimGovernor.Brain.GameOrders.Observations.ListSuppliesRequest { Scope = s.Scope, Filter = filter }, ct).ConfigureAwait(false);
         }
     }
 }

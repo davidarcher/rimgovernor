@@ -1,12 +1,10 @@
 using System.Text;
 using System.Text.Json;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.HttpChannel;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.PlayerApi;
 using Xunit;
-using PbCommon = RimGovernor.Contracts.Wire.Common;
-using PbLifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -28,46 +26,46 @@ public sealed class LifecycleMenuRouteTests
             {
                 Connected = true,
                 Mode = "manual",
-                World = new ControllerWorld.Observed(new RimGovernor.Brain.Bridge.Contracts.ObservationIdentity { Context = new() { Identity = new() { ColonyId = Colony, LoadToken = Load, MapId = Map }, Tick = 10, NativeGeneration = new PbCommon.ObservedGeneration.UnclaimedCase() } }, false, default),
+                World = new ControllerWorld.Observed(new RimGovernor.Brain.GameAccess.ObservationIdentity { Context = new() { Identity = new() { ColonyId = Colony, LoadToken = Load, MapId = Map }, Tick = 10, NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase() } }, false, default),
                 Control = new ControllerControl.Matching(new GenerationSnapshot()),
             }
             : new ControllerSnapshot { Connected = false, Stale = true, Mode = "manual", World = new ControllerWorld.Unobserved(), Control = new ControllerControl.Unmatched() });
     }
 
-    private sealed class Writer(Func<PbLifecycle.MenuReply> reply) : ILifecycleWriter
+    private sealed class Writer(Func<RimGovernor.Brain.GameFacts.Lifecycle.MenuReply> reply) : ILifecycleWriter
     {
-        public List<PbLifecycle.MenuRequest> Started { get; } = [];
+        public List<RimGovernor.Brain.GameOrders.Lifecycle.MenuRequest> Started { get; } = [];
 
         public List<string> Read { get; } = [];
 
-        public Task<PbLifecycle.MenuReply> MenuAsync(PbLifecycle.MenuRequest request, CancellationToken cancellationToken)
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.MenuReply> MenuAsync(RimGovernor.Brain.GameOrders.Lifecycle.MenuRequest request, CancellationToken cancellationToken)
         {
             Started.Add(request);
             return Task.FromResult(reply());
         }
 
-        public Task<PbLifecycle.MenuReply> ReadMenuAsync(string requestId, CancellationToken cancellationToken)
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.MenuReply> ReadMenuAsync(string requestId, CancellationToken cancellationToken)
         {
             Read.Add(requestId);
             return Task.FromResult(reply());
         }
 
-        public Task<PbLifecycle.SaveReply> SaveAsync(PbLifecycle.SaveRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.SaveReply> SaveAsync(RimGovernor.Brain.GameOrders.Lifecycle.SaveRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public Task<PbLifecycle.SaveReply> ReadSaveAsync(string requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.SaveReply> ReadSaveAsync(string requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public Task<PbLifecycle.LoadReply> LoadAsync(PbLifecycle.LoadRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.LoadReply> LoadAsync(RimGovernor.Brain.GameOrders.Lifecycle.LoadRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public Task<PbLifecycle.LoadReply> ReadLoadAsync(string requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.LoadReply> ReadLoadAsync(string requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public Task<PbLifecycle.NewColonyReply> NewColonyAsync(PbLifecycle.NewColonyRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.NewColonyReply> NewColonyAsync(RimGovernor.Brain.GameOrders.Lifecycle.NewColonyRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public Task<PbLifecycle.NewColonyReply> ReadNewColonyAsync(string requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.NewColonyReply> ReadNewColonyAsync(string requestId, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
-    private static PbLifecycle.MenuReply Pending(string id) => new() { Outcome = new PbLifecycle.MenuPending { RequestId = id, Detail = "Unloading the game." } };
+    private static RimGovernor.Brain.GameFacts.Lifecycle.MenuReply Pending(string id) => new() { Outcome = new RimGovernor.Brain.GameFacts.Lifecycle.MenuPending { RequestId = id, Detail = "Unloading the game." } };
 
-    private static PbLifecycle.MenuReply Completed(string id, bool unloaded) => new() { Outcome = new PbLifecycle.MenuCompleted { RequestId = id, Unloaded = unloaded } };
+    private static RimGovernor.Brain.GameFacts.Lifecycle.MenuReply Completed(string id, bool unloaded) => new() { Outcome = new RimGovernor.Brain.GameFacts.Lifecycle.MenuCompleted { RequestId = id, Unloaded = unloaded } };
 
     private static async Task<(int Status, JsonElement Body)> SendAsync(ISnapshotProvider snapshots, ILifecycleWriter writer, string method, string target, string? body)
     {
@@ -97,7 +95,7 @@ public sealed class LifecycleMenuRouteTests
         Assert.Equal("menu-1", body.GetProperty("requestId").GetString());
         var request = Assert.Single(writer.Started);
         Assert.Equal("menu-1", request.RequestId);
-        Assert.Equal(new PbCommon.Identity { ColonyId = Colony, LoadToken = Load, MapId = Map }, request.ExpectedPlayer?.Identity);
+        Assert.Equal(new RimGovernor.Brain.GameFacts.Common.Identity { ColonyId = Colony, LoadToken = Load, MapId = Map }, request.ExpectedPlayer?.Identity);
         Assert.NotEqual(0UL, request.ExpectedPlayer?.PlayerDirection);
     }
 
@@ -116,7 +114,7 @@ public sealed class LifecycleMenuRouteTests
     [Fact]
     public async Task TheRecoveryReadAnswersPendingAndCompletedWith200()
     {
-        var replies = new Queue<PbLifecycle.MenuReply>([Pending("menu-3"), Completed("menu-3", unloaded: true)]);
+        var replies = new Queue<RimGovernor.Brain.GameFacts.Lifecycle.MenuReply>([Pending("menu-3"), Completed("menu-3", unloaded: true)]);
         var writer = new Writer(replies.Dequeue);
         var snapshots = new Snapshots(loaded: false);
 
@@ -151,9 +149,9 @@ public sealed class LifecycleMenuRouteTests
     [Fact]
     public async Task ANativeRefusalIsShownByItsCode()
     {
-        var writer = new Writer(() => new PbLifecycle.MenuReply
+        var writer = new Writer(() => new RimGovernor.Brain.GameFacts.Lifecycle.MenuReply
         {
-            Outcome = new PbCommon.Failure { RefusalClass = RimGovernor.Contracts.Wire.Common.RefusalClass.Unclassified, Code = PbCommon.FailureCode.InvalidRequest, Detail = "Ending a live map requires a matching expected player identity and direction." },
+            Outcome = new RimGovernor.Brain.GameFacts.Common.Failure { RefusalClass = RimGovernor.Brain.GameFacts.Common.RefusalClass.Unclassified, Code = RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, Detail = "Ending a live map requires a matching expected player identity and direction." },
         });
         var (status, body) = await SendAsync(new Snapshots(loaded: true), writer, "POST", LifecycleRoutes.MenuPath, """{"requestId":"menu-5"}""");
 
@@ -165,9 +163,9 @@ public sealed class LifecycleMenuRouteTests
     public void ATickReadAtTheMainMenuIsTheExpectedNotLoadedState()
     {
         // The facade's tick read throws what NativeFaults builds from the native unavailable state.
-        _ = Assert.IsType<NotLoadedException>(NativeFaults.Unavailable(new PbCommon.Unavailable { Reason = PbCommon.UnavailableReason.NotLoaded, Detail = "No current colony map is loaded." }));
+        _ = Assert.IsType<NotLoadedException>(NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.NotLoaded, Detail = "No current colony map is loaded." }));
 
-        var other = NativeFaults.Unavailable(new PbCommon.Unavailable { Reason = PbCommon.UnavailableReason.Stale });
+        var other = NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.Stale });
         Assert.IsNotType<NotLoadedException>(other);
     }
 }

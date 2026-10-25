@@ -4,7 +4,7 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Cheaper fixture worlds for the headless acceptance profiles.
     // Everything here is gated on the -rimgovernor-test-acceleration launch

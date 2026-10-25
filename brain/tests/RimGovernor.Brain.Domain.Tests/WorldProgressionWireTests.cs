@@ -1,7 +1,6 @@
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
-using C = RimGovernor.Contracts.Wire.Common;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -12,7 +11,7 @@ public sealed class WorldProgressionWireTests
     [Fact]
     public void ExpeditionTripsRetainNativeCaravansAndOnlyTheHomeAssembly()
     {
-        var away = new O.CaravanAssembly { MapId = 2, Pawns = [new PawnId("away")] };
+        var away = new RimGovernor.Brain.GameFacts.Observations.CaravanAssembly { MapId = 2, Pawns = [new PawnId("away")] };
         var trips = RimGovernor.Brain.Bridge.QuestReads.FrameExpeditionTrips(Snapshot with { Assemblies = [Snapshot.Assemblies[0], away] }, new(0));
         Assert.Equal(3, trips.Count);
         var caravan = Assert.IsType<RimGovernor.Brain.Policy.ExpeditionTrip.OnWorld>(trips[0]);
@@ -26,11 +25,11 @@ public sealed class WorldProgressionWireTests
         Assert.Equal(new PawnId("Human3"), Assert.Single(forming.PawnIds));
     }
 
-    private static readonly C.ObservationContext Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 10 };
+    private static readonly RimGovernor.Brain.GameFacts.Common.ObservationContext Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new RimGovernor.Brain.GameFacts.Common.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 10 };
 
-    private static O.CaravanState Caravan(string id, O.CaravanCourse course) => new()
+    private static RimGovernor.Brain.GameFacts.Observations.CaravanState Caravan(string id, RimGovernor.Brain.GameFacts.Observations.CaravanCourse course) => new()
     {
-        Caravan = new O.EntityRef { Id = id, DefName = "Caravan", Label = "Caravan " + id, Place = new O.EntityPlace.Unplaced() },
+        Caravan = new RimGovernor.Brain.GameFacts.Observations.EntityRef { Id = id, DefName = "Caravan", Label = "Caravan " + id, Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.Unplaced() },
         Tile = 42,
         Course = course,
         MassUsage = 84.5,
@@ -40,28 +39,28 @@ public sealed class WorldProgressionWireTests
         Pawns = [PawnFixtures.Row("Human1")],
         HomeRoutes =
         [
-            new O.WorldRoute { Destination = 7, Route = new O.PackRoute.Reachable(90000) },
-            new O.WorldRoute { Destination = 9, Route = new O.PackRoute.Unreachable() },
+            new RimGovernor.Brain.GameFacts.Observations.WorldRoute { Destination = 7, Route = new RimGovernor.Brain.GameFacts.Observations.PackRoute.Reachable(90000) },
+            new RimGovernor.Brain.GameFacts.Observations.WorldRoute { Destination = 9, Route = new RimGovernor.Brain.GameFacts.Observations.PackRoute.Unreachable() },
         ],
-        Inventory = [new O.Quantity { DefName = "Silver", Units = 120 }],
+        Inventory = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Silver", Units = 120 }],
     };
 
-    private static readonly O.WorldProgressionSnapshot Snapshot = new()
+    private static readonly RimGovernor.Brain.GameFacts.Observations.WorldProgressionSnapshot Snapshot = new()
     {
         Context = Context,
-        Maps = [new O.WorldMap { Id = 0, Tile = 7, Home = true, Pawns = [PawnFixtures.Row("Human2")], QuestWorkers = [] }],
-        Caravans = [Caravan("Caravan_1", new O.CaravanCourse.Moving(7)), Caravan("Caravan_2", new O.CaravanCourse.Stopped())],
-        Assemblies = [new O.CaravanAssembly { MapId = 0, Pawns = [new PawnId("Human3")] }],
+        Maps = [new RimGovernor.Brain.GameFacts.Observations.WorldMap { Id = 0, Tile = 7, Home = true, Pawns = [PawnFixtures.Row("Human2")], QuestWorkers = [] }],
+        Caravans = [Caravan("Caravan_1", new RimGovernor.Brain.GameFacts.Observations.CaravanCourse.Moving(7)), Caravan("Caravan_2", new RimGovernor.Brain.GameFacts.Observations.CaravanCourse.Stopped())],
+        Assemblies = [new RimGovernor.Brain.GameFacts.Observations.CaravanAssembly { MapId = 0, Pawns = [new PawnId("Human3")] }],
         Quests = [],
         Sites = [],
     };
 
     private static void RoundTrips<T>(T payload)
     {
-        var json = WireJson.Serialize(payload);
-        var back = WireJson.Deserialize<T>(json);
+        var json = OrdersJson.Serialize(payload);
+        var back = OrdersJson.Deserialize<T>(json);
 
-        Assert.Equal(json, WireJson.Serialize(back));
+        Assert.Equal(json, OrdersJson.Serialize(back));
         Assert.Equal(payload, back);
     }
 
@@ -69,7 +68,7 @@ public sealed class WorldProgressionWireTests
     public void TheWorldCensusWithEveryCourseAndRouteStateRoundTripsExactly()
     {
         RoundTrips(Snapshot);
-        var json = WireJson.Serialize(Snapshot);
+        var json = OrdersJson.Serialize(Snapshot);
         Assert.Contains("\"type\":\"moving\"", json);
         Assert.Contains("\"type\":\"stopped\"", json);
         Assert.Contains("\"type\":\"reachable\"", json);
@@ -85,11 +84,11 @@ public sealed class WorldProgressionWireTests
     [InlineData("sites")]
     public void MissingWorldCensusSectionsCannotBecomeEmptyCollections(string member)
     {
-        var node = System.Text.Json.Nodes.JsonNode.Parse(WireJson.Serialize(Snapshot))!.AsObject();
+        var node = System.Text.Json.Nodes.JsonNode.Parse(OrdersJson.Serialize(Snapshot))!.AsObject();
         Assert.True(node.Remove(member));
-        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<O.WorldProgressionSnapshot>(node.ToJsonString()));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.WorldProgressionSnapshot>(node.ToJsonString()));
     }
     [Fact]
     public void ThePeaceTalksRangeRoundTripsExactly() =>
-        RoundTrips(new O.QuestPeaceTalks { WorstGoodwillLoss = 40, BestGoodwillGain = 25, IdeologyActive = true });
+        RoundTrips(new RimGovernor.Brain.GameFacts.Observations.QuestPeaceTalks { WorstGoodwillLoss = 40, BestGoodwillGain = 25, IdeologyActive = true });
 }

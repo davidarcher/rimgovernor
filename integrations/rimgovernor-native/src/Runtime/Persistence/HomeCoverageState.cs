@@ -1,6 +1,6 @@
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// Every native Home edit advances this map's freshness token. Autonomous

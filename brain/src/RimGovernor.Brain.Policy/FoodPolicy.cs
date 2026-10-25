@@ -119,7 +119,7 @@ public sealed record Diet
 /// </summary>
 public sealed record FoodEaterDiet
 {
-    public required RimGovernor.Contracts.Wire.Observations.FoodEater Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.FoodEater Observed { get; init; }
 
     /// <summary>The prisoner's diet inputs (DietOf).</summary>
     public IReadOnlyList<PawnTrait> Traits { get; init; } = [];
@@ -340,7 +340,7 @@ public static class FoodPolicyRules
             {
                 continue;
             }
-            if (pawn.PolicyInputs.Guest is GuestState.Hosted { Status: RimGovernor.Contracts.Wire.Defs.GuestStatus.Slave or RimGovernor.Contracts.Wire.Defs.GuestStatus.Prisoner })
+            if (pawn.PolicyInputs.Guest is GuestState.Hosted { Status: RimGovernor.Brain.GameFacts.Defs.GuestStatus.Slave or RimGovernor.Brain.GameFacts.Defs.GuestStatus.Prisoner })
             {
                 rows.Add((pawn.Id, CaptiveFoods(diet, foods)));
             }
@@ -351,11 +351,11 @@ public static class FoodPolicyRules
         }
         foreach (var e in eaters)
         {
-            if (e.Observed.Kind == RimGovernor.Contracts.Wire.Observations.FoodEaterKind.Animal)
+            if (e.Observed.Kind == RimGovernor.Brain.GameFacts.Observations.FoodEaterKind.Animal)
             {
                 rows.Add((e.Observed.Pawn, AnimalFoods(e.Edible, foods)));
             }
-            else if (e.Observed.Kind == RimGovernor.Contracts.Wire.Observations.FoodEaterKind.Prisoner)
+            else if (e.Observed.Kind == RimGovernor.Brain.GameFacts.Observations.FoodEaterKind.Prisoner)
             {
                 var (diet, ok) = DietOf(e.Traits, e.Observed.Precepts, ideology, preferences);
                 if (!ok)

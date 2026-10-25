@@ -13,7 +13,7 @@ public sealed class CapabilityRegistry
 {
     private sealed class StartedInvocation
     {
-        public RimBridgeCapabilityRegistration Registration { get; set; }
+        public NativeCapabilityRegistration Registration { get; set; }
 
         public CapabilityDescriptor Descriptor { get; set; }
 
@@ -22,7 +22,7 @@ public sealed class CapabilityRegistry
         public DateTimeOffset RequestedAtUtc { get; set; }
     }
 
-    private readonly Dictionary<string, RimBridgeCapabilityRegistration> _registrationsById = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, NativeCapabilityRegistration> _registrationsById = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _idsByAlias = new(StringComparer.OrdinalIgnoreCase);
     private readonly OperationJournal _journal;
 
@@ -31,12 +31,12 @@ public sealed class CapabilityRegistry
         _journal = journal;
     }
 
-    public void RegisterProvider(IRimBridgeCapabilityProvider provider)
+    public void RegisterProvider(INativeCapabilityProvider provider)
     {
         if (provider == null)
             throw new ArgumentNullException(nameof(provider));
 
-        foreach (var registration in provider.GetCapabilities() ?? Array.Empty<RimBridgeCapabilityRegistration>())
+        foreach (var registration in provider.GetCapabilities() ?? Array.Empty<NativeCapabilityRegistration>())
         {
             Register(registration);
         }
@@ -198,7 +198,7 @@ public sealed class CapabilityRegistry
         }
     }
 
-    private void Register(RimBridgeCapabilityRegistration registration)
+    private void Register(NativeCapabilityRegistration registration)
     {
         if (registration == null)
             throw new ArgumentNullException(nameof(registration));
@@ -228,7 +228,7 @@ public sealed class CapabilityRegistry
         _idsByAlias[alias] = descriptorId;
     }
 
-    private RimBridgeCapabilityRegistration ResolveRegistration(string idOrAlias)
+    private NativeCapabilityRegistration ResolveRegistration(string idOrAlias)
     {
         if (string.IsNullOrWhiteSpace(idOrAlias))
             throw new ArgumentException("A capability id or alias is required.", nameof(idOrAlias));

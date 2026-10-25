@@ -113,7 +113,7 @@ internal sealed class LifecycleCapabilityModule
 
     // Native's time-control click handler (#3608), the one a button or key runs. The host has no compile reference to
     // the native Bridge, which it loads by file, so the type and its button enum are reached by name.
-    private const string TimeControlsRowType = "HomeBridge.BridgeTools.TimeControlsRow";
+    private const string TimeControlsRowType = "RimGovernor.Native.TimeControlsRow";
     private const string TimeControlsPress = "Press";
 
     public object PressTimeSpeed(string speed = "Normal")
@@ -212,8 +212,8 @@ internal sealed class LifecycleCapabilityModule
                 durationMs,
                 pollIntervalMs,
                 getElapsedMs: () => stopwatch?.ElapsedMilliseconds ?? 0L,
-                readState: () => RimBridgeMainThread.Invoke(CapturePlaybackState, timeoutMs: 5000),
-                startPlayback: () => RimBridgeMainThread.Invoke(() =>
+                readState: () => NativeMainThread.Invoke(CapturePlaybackState, timeoutMs: 5000),
+                startPlayback: () => NativeMainThread.Invoke(() =>
                 {
                     if (forceRequestedSpeed && previousNeverForceNormalSpeed == null)
                     {
@@ -224,7 +224,7 @@ internal sealed class LifecycleCapabilityModule
                     ApplyBoost(boost);
                     EnsurePlaybackRunning(parsedSpeed);
                 }, timeoutMs: 5000),
-                pausePlayback: () => RimBridgeMainThread.Invoke(() =>
+                pausePlayback: () => NativeMainThread.Invoke(() =>
                 {
                     try
                     {
@@ -236,11 +236,11 @@ internal sealed class LifecycleCapabilityModule
                     }
                 }, timeoutMs: 5000));
 
-            restoredNeverForceNormalSpeed ??= RimBridgeMainThread.Invoke(
+            restoredNeverForceNormalSpeed ??= NativeMainThread.Invoke(
                 () => RestoreNeverForceNormalSpeed(previousNeverForceNormalSpeed),
                 timeoutMs: 5000);
-            var finalNeverForceNormalSpeed = RimBridgeMainThread.Invoke(() => DebugViewSettings.neverForceNormalSpeed, timeoutMs: 5000);
-            var finalTimeSpeed = RimBridgeMainThread.Invoke(() => Find.TickManager?.CurTimeSpeed.ToString(), timeoutMs: 5000);
+            var finalNeverForceNormalSpeed = NativeMainThread.Invoke(() => DebugViewSettings.neverForceNormalSpeed, timeoutMs: 5000);
+            var finalTimeSpeed = NativeMainThread.Invoke(() => Find.TickManager?.CurTimeSpeed.ToString(), timeoutMs: 5000);
 
             return new
             {
@@ -272,7 +272,7 @@ internal sealed class LifecycleCapabilityModule
             {
                 try
                 {
-                    restoredNeverForceNormalSpeed = RimBridgeMainThread.Invoke(
+                    restoredNeverForceNormalSpeed = NativeMainThread.Invoke(
                         () => RestoreNeverForceNormalSpeed(previousNeverForceNormalSpeed),
                         timeoutMs: 5000);
                 }
@@ -326,14 +326,14 @@ internal sealed class LifecycleCapabilityModule
             };
         }
 
-        var start = RimBridgeMainThread.Invoke(() => RimWorldTickStepper.Start(ticks, timeoutMs, pauseFirst, playSound), timeoutMs: 5000);
+        var start = NativeMainThread.Invoke(() => RimWorldTickStepper.Start(ticks, timeoutMs, pauseFirst, playSound), timeoutMs: 5000);
         if (start.Status != "active")
             return start.ToToolResponse();
 
         var waiter = new ConditionWaiter();
         var outcome = waiter.WaitUntil(() =>
         {
-            var current = RimBridgeMainThread.Invoke(() => RimWorldTickStepper.GetSnapshot(start.StepId), timeoutMs: 5000);
+            var current = NativeMainThread.Invoke(() => RimWorldTickStepper.GetSnapshot(start.StepId), timeoutMs: 5000);
             var terminal = current.Status != "active";
             return new WaitProbeResult
             {
@@ -358,7 +358,7 @@ internal sealed class LifecycleCapabilityModule
         if (outcome.Satisfied && outcome.Snapshot is RimWorldTickStepper.StepSnapshot completed)
             return completed.ToToolResponse();
 
-        return RimBridgeMainThread.Invoke(() => RimWorldTickStepper.Cancel(start.StepId, outcome.Message), timeoutMs: 5000).ToToolResponse();
+        return NativeMainThread.Invoke(() => RimWorldTickStepper.Cancel(start.StepId, outcome.Message), timeoutMs: 5000).ToToolResponse();
     }
 
     public object SaveGame(string saveName)

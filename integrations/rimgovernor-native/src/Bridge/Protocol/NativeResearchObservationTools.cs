@@ -2,38 +2,36 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class NativeResearchObservationTools
     {
         // On the game thread: the typed core of the tool, shared with the in-process facade. A refused request
         // or a research state that cannot be read completely throws.
-        internal static Obs.ResearchSnapshot HandleReadResearch(Obs.ResearchRequest parsed)
+        internal static RimGovernor.Brain.GameFacts.Observations.ResearchSnapshot HandleReadResearch(RimGovernor.Brain.GameOrders.Observations.ResearchRequest parsed)
         {
             if (!Validate(parsed, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
-            if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out _, out var context, out var error))
+            if (!GameThread.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out _, out var context, out var error))
                 throw NativeFaults.Refused(error);
             var manager = Find.ResearchManager;
             if (manager == null || Faction.OfPlayerSilentFail?.def == null)
-                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.NativeComponentMissing, Detail = "Research manager or player faction is unavailable." });
+                throw NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.NativeComponentMissing, Detail = "Research manager or player faction is unavailable." });
             try { return Read(parsed, context, manager); }
             catch (Exception thrown)
             {
                 ModLog.Error("observe", "Research read failed: " + thrown);
-                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
+                throw NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed,
                     Detail = PlacementPreviewOperation.Diagnostic("Research state or required native eligibility facts could not be read completely: " + thrown.GetType().Name + ": " + thrown.Message) });
             }
         }
 
         // The research state as a frame section: a read that throws fails the frame.
-        internal static Obs.ResearchSnapshot Section(Map map, Obs.ResearchRequest request, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Observations.ResearchSnapshot Section(Map map, RimGovernor.Brain.GameOrders.Observations.ResearchRequest request, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var manager = Find.ResearchManager;
             var player = Faction.OfPlayerSilentFail;
@@ -41,11 +39,11 @@ namespace HomeBridge.BridgeTools
             return Read(request, context, manager);
         }
 
-        internal static bool Validate(Obs.ResearchRequest request, out Common.Failure failure)
+        internal static bool Validate(RimGovernor.Brain.GameOrders.Observations.ResearchRequest request, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Expected identity required; name_contains must be an identifier.");
+            failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Expected identity required; name_contains must be an identifier.");
             return request?.Scope?.ExpectedIdentity != null
-                && (request.NameContains is null || request.NameContains.Length == 0 || ProtoBoundary.IsIdentifier(request.NameContains));
+                && (request.NameContains is null || request.NameContains.Length == 0 || GameThread.IsIdentifier(request.NameContains));
         }
 
         // These exact backing fields avoid GetProgress's saved zero insertion and
@@ -71,16 +69,16 @@ namespace HomeBridge.BridgeTools
             return cost <= 0 ? 1 : Math.Min(1, progress / cost);
         }
 
-        private static Obs.ResearchSnapshot Read(Obs.ResearchRequest request, Common.ObservationContext context, ResearchManager manager)
+        private static RimGovernor.Brain.GameFacts.Observations.ResearchSnapshot Read(RimGovernor.Brain.GameOrders.Observations.ResearchRequest request, RimGovernor.Brain.GameFacts.Common.ObservationContext context, ResearchManager manager)
         {
             var progress = Backing<Dictionary<ResearchProjectDef, float>>(manager, "progress");
             var knowledge = Backing<Dictionary<ResearchProjectDef, float>>(manager, "anomalyKnowledge");
             var anomaly = ModsConfig.AnomalyActive;
             var current = manager.GetProject(); // Null-category overload reads only currentProj.
             var selected = new HashSet<ResearchProjectDef>();
-            var slots = new List<Obs.ResearchSlot>();
+            var slots = new List<RimGovernor.Brain.GameFacts.Observations.ResearchSlot>();
             if (current != null) selected.Add(current);
-            slots.Add(new Obs.ResearchSlot { Category = "", CurrentProject = current != null ? Id(current.defName) : "" });
+            slots.Add(new RimGovernor.Brain.GameFacts.Observations.ResearchSlot { Category = "", CurrentProject = current != null ? Id(current.defName) : "" });
             if (anomaly)
             {
                 var field = typeof(ResearchManager).GetField("currentAnomalyKnowledgeProjects", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -93,12 +91,12 @@ namespace HomeBridge.BridgeTools
                     if (matches != null && matches.Count > 1) throw new InvalidOperationException();
                     var project = matches?.SingleOrDefault()?.project;
                     if (project != null) selected.Add(project);
-                    slots.Add(new Obs.ResearchSlot { Category = Id(category.defName), CurrentProject = project != null ? Id(project.defName) : "" });
+                    slots.Add(new RimGovernor.Brain.GameFacts.Observations.ResearchSlot { Category = Id(category.defName), CurrentProject = project != null ? Id(project.defName) : "" });
                 }
                 if (saved != null && saved.Any(s => s == null || !categories.Contains(s.category))) throw new InvalidOperationException();
             }
             var finishedNames = new List<string>();
-            var built = new List<Obs.ResearchProject>();
+            var built = new List<RimGovernor.Brain.GameFacts.Observations.ResearchProject>();
             foreach (var def in DefDatabase<ResearchProjectDef>.AllDefsListForReading.OrderBy(d => d.defName, StringComparer.Ordinal))
             {
                 var reached = Progress(def, progress, knowledge, anomaly);
@@ -126,10 +124,10 @@ namespace HomeBridge.BridgeTools
                 if (!finished && row.LockReasons.Count != 0 && !request.IncludeLocked) continue;
                 built.Add(row);
             }
-            return new Obs.ResearchSnapshot { Context = context, Slots = [.. slots], Projects = [.. built], Finished = [.. finishedNames] };
+            return new RimGovernor.Brain.GameFacts.Observations.ResearchSnapshot { Context = context, Slots = [.. slots], Projects = [.. built], Finished = [.. finishedNames] };
         }
 
-        private static Obs.ResearchProject Project(ResearchProjectDef def, ResearchManager manager,
+        private static RimGovernor.Brain.GameFacts.Observations.ResearchProject Project(ResearchProjectDef def, ResearchManager manager,
             IDictionary<ResearchProjectDef, float> progress, IDictionary<ResearchProjectDef, float> knowledge,
             bool anomaly, float points, float cost, bool finished, bool current)
         {
@@ -155,7 +153,7 @@ namespace HomeBridge.BridgeTools
             if (!def.AnalyzedThingsRequirementsMet) locks.Add("analysis");
             if (!def.InspectionRequirementsMet) locks.Add("inspection");
             if (finished) locks.Add("finished");
-            return new Obs.ResearchProject
+            return new RimGovernor.Brain.GameFacts.Observations.ResearchProject
             {
                 Project = Definition(def),
                 ProgressFraction = Fraction(points, cost),
@@ -166,7 +164,7 @@ namespace HomeBridge.BridgeTools
         }
 
         private static void Number(double value) { if (double.IsNaN(value) || double.IsInfinity(value) || value < 0) throw new InvalidOperationException("Invalid research quantity."); }
-        private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Invalid research identifier.");
-        private static Obs.DefinitionRef Definition(Def def) => new Obs.DefinitionRef { DefName = Id(def.defName) };
+        private static string Id(string value) => GameThread.IsIdentifier(value) ? value : throw new InvalidOperationException("Invalid research identifier.");
+        private static RimGovernor.Brain.GameFacts.Observations.DefinitionRef Definition(Def def) => new RimGovernor.Brain.GameFacts.Observations.DefinitionRef { DefName = Id(def.defName) };
     }
 }

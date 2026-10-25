@@ -13,7 +13,7 @@ public readonly record struct RaidDefense(double RaidPoints, double Capacity)
     /// The raid threat a routine frame read. The raid size comes from the wire threat and the capacity from the
     /// defender roster; a frame without either throws (D3).
     /// </summary>
-    public static RaidDefense Of(RoundsFacts f)
+    public static RaidDefense Of(ReviewFacts f)
     {
         return new RaidDefense(f.Census.Threat.Observed.RaidPoints, f.DefenseCapacity);
     }

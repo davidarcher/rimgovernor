@@ -1,9 +1,11 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -11,7 +13,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>
 /// The comfort census is one total facts record (#3771): every member is set, a recreation source's room a named
 /// <see cref="ComfortHost"/> and the joy boredom matrix always read. On the wire it round-trips through
-/// <c>WireJsonContext</c> exactly.
+/// <c>OrdersJsonContext</c> exactly.
 /// </summary>
 public sealed class ComfortTests
 {
@@ -34,8 +36,8 @@ public sealed class ComfortTests
     [Fact]
     public void PartialProjectionsMustReadTheCensusBeforePlanning()
     {
-        Assert.Equal("comfort census", Assert.Throws<RequiredFactException>(() => new RoundsFacts().RequireComfort()).Fact);
-        Assert.Equal("basic comfort census", Assert.Throws<RequiredFactException>(() => new RoundsFacts().RequireBasicComfort()).Fact);
+        Assert.Equal("comfort census", Assert.Throws<RequiredFactException>(() => new ReviewFacts().RequireComfort()).Fact);
+        Assert.Equal("basic comfort census", Assert.Throws<RequiredFactException>(() => new ReviewFacts().RequireBasicComfort()).Fact);
     }
 
     [Fact]
@@ -78,9 +80,9 @@ public sealed class ComfortTests
                 BasicComfort = basic
             }
         };
-        var frame = new RoundsFrame { Rooms = new() { Context = ColonyFactsCoreTests.Snapshot().Context!, Rooms = [] } };
+        var frame = new ReviewFrame { Rooms = new() { Context = ColonyFactsCoreTests.Snapshot().Context!, Rooms = [] } };
 
-        var read = RoundsFrameReads.WithFrameRooms(projection, frame, new DiningFurniture());
+        var read = FrameReads.WithFrameRooms(projection, frame, new DiningFurniture());
 
         Assert.Same(basic, read.Facts.RequireBasicComfort());
         Assert.Empty(read.Facts.RequireComfort().Census.Dining);
@@ -92,10 +94,10 @@ public sealed class ComfortTests
     public void RoomJoinsPreserveTheNativeSleepingTemperature()
     {
         var initial = ColonyFactsCoreTests.Reading();
-        var measured = new RimGovernor.Contracts.Wire.Observations.SleepingTemperature.Indoor(-25, -10);
+        var measured = new RimGovernor.Brain.GameFacts.Observations.SleepingTemperature.Indoor(-25, -10);
         initial = initial with { Facts = initial.Facts with { BasicComfort = NoComfortObservation, Census = initial.Snapshot with { SleepingTemperature = measured } } };
-        var frame = new RoundsFrame { Rooms = new() { Context = initial.Snapshot.Context, Rooms = [] } };
-        var joined = RoundsFrameReads.WithFrameRooms(initial, frame, new DiningFurniture());
+        var frame = new ReviewFrame { Rooms = new() { Context = initial.Snapshot.Context, Rooms = [] } };
+        var joined = FrameReads.WithFrameRooms(initial, frame, new DiningFurniture());
         Assert.Same(initial.Snapshot, joined.Snapshot);
         Assert.Same(measured, joined.Facts.Census.SleepingTemperature);
     }
@@ -111,7 +113,7 @@ public sealed class ComfortTests
                 BasicComfort = NoComfortObservation
             }
         };
-        Assert.Throws<ObservationContractException>(() => RoundsFrameReads.WithFrameRooms(projection, new RoundsFrame(), new DiningFurniture()));
+        Assert.Throws<ObservationContractException>(() => FrameReads.WithFrameRooms(projection, new ReviewFrame(), new DiningFurniture()));
     }
     [Theory]
     [InlineData("comfort")]
@@ -122,11 +124,11 @@ public sealed class ComfortTests
     [InlineData("joy")]
     public void RequiredWireCensusMembersCannotBeOmitted(string member)
     {
-        var json = System.Text.Json.Nodes.JsonNode.Parse(WireJson.Serialize(ColonyFactsCoreTests.Snapshot()))!.AsObject();
+        var json = System.Text.Json.Nodes.JsonNode.Parse(OrdersJson.Serialize(ColonyFactsCoreTests.Snapshot()))!.AsObject();
         var upkeep = json["upkeep"]!.AsObject();
         var parent = member == "comfort" ? upkeep : upkeep["comfort"]!.AsObject();
         Assert.True(parent.Remove(member));
-        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<ColonyFactsSnapshot>(json.ToJsonString()));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => OrdersJson.Deserialize<ColonyFactsSnapshot>(json.ToJsonString()));
     }
     [Fact]
     public void JsonRoundTripIsExact()
@@ -144,11 +146,11 @@ public sealed class ComfortTests
             Joy = new(["Gaming_Cerebral", "Gaming_Dexterity"], [new JoyTolerance(new PawnId("Thing_Human1"), [false, true])]),
         };
 
-        var json = WireJson.Serialize(census);
+        var json = OrdersJson.Serialize(census);
 
         Assert.Equal(
             """{"people":["Thing_Human1"],"surfaces":[{"room":"7","adjacent":[{"x":3,"z":4}]}],"dining":[{"id":"Thing_Chair3","room":"7","accessibleTo":["Thing_Human1"],"users":[]}],"recreation":[{"id":"Thing_Horseshoes4","kind":"Gaming_Dexterity","host":{"type":"outdoors"},"accessibleTo":["Thing_Human1"],"users":["Thing_Human1"]},{"id":"Thing_Chess5","kind":"Gaming_Cerebral","host":{"type":"indoors","room":"7"},"accessibleTo":[],"users":[]}],"joy":{"kinds":["Gaming_Cerebral","Gaming_Dexterity"],"pawns":[{"pawn":"Thing_Human1","bored":[false,true]}]}}""",
             json);
-        Assert.Equal(census, WireJson.Deserialize<ComfortFacts>(json));
+        Assert.Equal(census, OrdersJson.Deserialize<ComfortFacts>(json));
     }
 }

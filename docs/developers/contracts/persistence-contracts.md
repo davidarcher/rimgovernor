@@ -25,7 +25,7 @@ there is no adoption path.
 
 The C# brain's journal (`RimGovernor.Brain.Store`, Microsoft.Data.Sqlite on the SourceGear `e_sqlite3` provider)
 keeps the same ownership rules in its own file format: `PRAGMA user_version` follows `Store.SchemaVersion`, with the same `application_id`.
-Domain payloads (actions, admissions, transitions, Rounds and the family records) are
+Domain payloads (actions, admissions, transitions, Colony review and the family records) are
 JSON text written by hand-written codecs under `Codec/` with fixed field names and no reflection
 serializer; the clock evidence records stay canonical wire blobs (`ClockCodec`). The per-kind column checks the brain kept in SQL `CHECK`
 constraints live in the C# domain constructors a payload is rebuilt through. The journal is disposable on
@@ -54,7 +54,7 @@ copy of a fact is a bug, not a cache.
 | Native save, `GovernorState` blobs | Brain intent the world cannot show: family plans (`family/*`; the layout plan, `family/layout_plan`, keys each pen room with its herd's race in `Herd`, #2226) the soldier squad (`family/soldier_squad`), original temporary combat settings (`family/combat_restoration`), the creepjoiner inspection record (`family/admin/creep_joiners`: the pawns ordered and done, keyed by colony and map, so it is read back after a reload; #3264), the settlement trade missions under way (`family/economy/trade_missions`: each mission's minted id and intent, keyed by colony and map; a mission leaves it once delivered or ended; #3316) the ideology family's pending reform (`family/ideology/reform`, #3260) and the player's goals, themes and preferences (`family/goals`, #3489); written by the brain at save time, opaque to native | Follows the save's timeline; the brain rebuilds its in-memory views from the blobs |
 | Native save, other components | Exact non-autonomous `Bill_GovernorRecipe` intents and native unfinished garments (recipe, stuff, ingredients, remaining work and bound bill); only Hands provisions these after selecting a Method, and only owned bills without unfinished work are cleaned up. Colony identity, per-target construction settings, the finishing-skill floor (the brain chooses once; native transfers blueprint to frame and enforces every finishing order) and the mutable [construction tier](construction-tiers.md), and native tick guards (the guarded designations of `GuardState`: enclosure, mine safety, wall upgrade and acquisition; home coverage), and in the same ledger the haul-out records of the reconcile's HaulOut on ordinary stacks (a removal with no designation, finished by its last carry or cancelled once its stack leaves its cell otherwise, #3625). Native observation rings, each one packed, versioned, append-only string: realized consumption (`ConsumptionState`, hourly spend per definition and reason, 60 days) and storage occupancy (`StorageOccupancyState`, hourly stacks held per player storage group by load id, 15 days); the brain derives rates from them and keeps no copy past the load | Follows the save; construction settings disappear with the exact cancelled/completed target, never transfer by cell |
 | SQLite, one database per launch (`RIMGOVERNOR_STATE`) | The session journal: actions (including selected productive task service-time bounds), transitions, admissions, request-ID replay; no clock events (native buffers them in memory only, #3417) | Not restored; read across launches only by postmortem |
-| memory, or SQLite tables replaced wholesale on every world change | Coupled-search activity indexes and validated route lookup, owned by the existing `CoupledSearchCache` for one search over immutable observed arrays (discarded after selection, never persisted); everything derivable: plans, receipts, snapshots, the review frame's colony facts held by reference in the retained review census (`RoundsCensusStore`; a planner read inside the reuse window is served that same immutable instance, otherwise it reads native; no split or stored copy, #3760), the definition catalog (read per load token), the def stat table (def-level stat values, allowed stuffs and adjusted costs; owned by the mod's `NativeStatTable`, built once per load on the game thread by the catalog read and read immutable by the brain catalog; [stat evaluation](stat-classes.md)), the animal race catalog derived from its race rows, the material budget (free stock less construction and live bill-job holds, `policy.MaterialBudget`), equipment-owned requirement estimates on transient clothing candidates (derived from the current census, not bill identity or reservations); the family tables are such views of the save blobs (`RebuildFamilies`; `RebuildOwners` retires the previous world's owned plans in one orphan pass) | Rebuilt from the save and the live world |
+| memory, or SQLite tables replaced wholesale on every world change | Coupled-search activity indexes and validated route lookup, owned by the existing `CoupledSearchCache` for one search over immutable observed arrays (discarded after selection, never persisted); everything derivable: plans, receipts, snapshots, the review frame's colony facts held by reference in the retained review census (`CensusStore`; a planner read inside the reuse window is served that same immutable instance, otherwise it reads native; no split or stored copy, #3760), the definition catalog (read per load token), the def stat table (def-level stat values, allowed stuffs and adjusted costs; owned by the mod's `NativeStatTable`, built once per load on the game thread by the catalog read and read immutable by the brain catalog; [stat evaluation](stat-classes.md)), the animal race catalog derived from its race rows, the material budget (free stock less construction and live bill-job holds, `policy.MaterialBudget`), equipment-owned requirement estimates on transient clothing candidates (derived from the current census, not bill identity or reservations); the family tables are such views of the save blobs (`RebuildFamilies`; `RebuildOwners` retires the previous world's owned plans in one orphan pass) | Rebuilt from the save and the live world |
 | Host memory, forecast residual pending evidence | One Player-owned `ForecastEvidencePending`, shared by review and existing task readback. At most 4096 compact predictions, no contexts or candidate graphs; rows expire one game day after their target. OTLP alone owns emitted history. Capacity, expiry and scope retirement emit explicit observation gaps. | Discarded on load/map change or authoritative review tick rewind; no saved or journal copy |
 | Refusal budget ledger (`policy.RefusalBudget.Entries`) | A planner's refusals by subject and reason, each with its class and the `GenerationSnapshot` it was met in. A pure value: the store that owns the subject persists it. Every planner that retries a refused write (medical, repair, equip, mood, drill, clearance, husbandry, population, quest, ideology, ritual, permit, defense, firebreak, mine, sleeping, trade and psylink) derives its ledger from the refusals journaled on its plans each step and keeps nothing of its own | With its owner: a session-scoped planner's ledger is derived and rebuilt |
 | OTLP files `otlp/traces.jsonl`, `logs.jsonl`, `metrics.jsonl` | All brain telemetry and acceptance-only `acceptance_case` evidence (owned by the running case; partial/final rows are diagnostics, not resumable test state), one log record per thing that happened ([OTEL signals](otel-signals.md)), the only log: always on in the host, nothing else is written to stderr but the startup banner, fatals and panics; snapshot dumps and the acceptance harness's replay transcript are opt-in recordings | Diagnostics only |
@@ -78,7 +78,7 @@ an embedded-material ledger. The existing native production record's configurati
 fingerprint excludes mutable remaining count; no second tracker is added.
 
 Fixed-batch admission uses a replaceable material-evidence field in the existing
-Rounds record: observed stock, known construction census, native ingredient holds,
+Colony review record: observed stock, known construction census, native ingredient holds,
 catalog recipe inputs and the reviewed batch claims. Journal actions remain the
 only commitment owner. Standing sites retain demand diagnostics but reserve no stock;
 admitted construction supply tasks claim their remaining inputs once across revisions.
@@ -103,7 +103,7 @@ the save it is the blob `family/layout_plan` (`GovernorState.cs`,
 restores as no plan the same way. The runtime records a plan only
 when it derives one, a replan succeeds (`reviewLayoutPlan`, `ColonyPlan.cs`; a replan keeps the defense tier nodes over the same killbox), the census finds retired ground cleared, or the defense round sites new defense tier nodes into it (`SiteTiersAsync`, #3583); a failed
 replan keeps the saved plan. The `StationAdvice` that produced it (graph, groups, embedding,
-comfort and matched rooms) is not persisted: the Rounder holds it in memory and recomputes it
+comfort and matched rooms) is not persisted: the ColonyReview holds it in memory and recomputes it
 at each layout review. The urgent builds waiting for a review (`UrgentBuilds`, #3537) and a failed carry's dropped
 stack (native `Entry.Dropped`) are in memory only: a restart empties them, and the next review reads the placed sites afresh.
 The latest review's pawn values (`PawnValueMemory`, #3825), which the next review's creepjoiner term prices a leaving creepjoiner
@@ -190,8 +190,8 @@ whether or not routes are served, and there is no HTTP goals route.
 the `GoalStatusBoard` that the family's full read fills (#3497); they are not stored or sent, and a goal added since the
 last review has none yet.
 
-The preferences reach the policies as `RoundsFacts.Preferences` (#3495), stamped once where the review facts are observed
-(`ObserveRoundsAsync`, with the combat inputs and the break responders loading the same record). There is no veto layer:
+The preferences reach the policies as `ReviewFacts.Preferences` (#3495), stamped once where the review facts are observed
+(`ObserveReviewAsync`, with the combat inputs and the break responders loading the same record). There is no veto layer:
 the owning policy reads them and never proposes what they forbid. Diet overrides and `Forbidden` human butchery and insect
 meat shape `FoodPolicyRules.DietOf`, `Forbidden` human butchery empties `SelectHumanButcher`, organ harvest and part
 recovery return nothing under `Forbidden` organ harvest, slavery is refused under `Forbidden` slavery,
@@ -213,7 +213,7 @@ token, so after a reload a phase may be attempted once more.
 Native saves no the brain bookkeeping (receipts, lineage, purpose tags), and the brain keeps no durable copy of what
 the save holds. The rest of this page details the session journal.
 
-The Ledger view is built live each Round from the Rounder's ledger memory (`Rounder.WorkLedgerView`) and is not
+The Ledger view is built live each Round from the ColonyReview's ledger memory (`ColonyReview.WorkLedgerView`) and is not
 persisted: the derived `ledger_rows` copy that #2805 wrote after every review (for a launcher Ledger tab and an
 `/api/ledger` since removed) had no reader, and was deleted with its table under #3566. The in-memory ledger
 stays the only input.
@@ -235,7 +235,7 @@ journal; this schema change does not invalidate game saves.
   that ran, and cancellation reaches only a hop still queued. The brain journals each
   receipt (a stockpile's created zone IDs and footprint included) and derives ownership from it;
   no ownership metadata is saved natively.
-- **The Rounds cursor and policy inputs.** Latches, recovery histories and the Needs' progress rows let the
+- **The Colony review cursor and policy inputs.** Latches, recovery histories and the Needs' progress rows let the
   next review continue where the last stopped; population and resource policies and
   per-pawn decisions are what the reviewer reads.
 - **Colony extent history.** Established extent regions (with provenance and the tick and native
@@ -244,22 +244,22 @@ journal; this schema change does not invalidate game saves.
   change empties it and the new session re-establishes the extent from the live world; another colony
   or map sees nothing. Historical Home exclusions are not recorded: they are current restorable
   state, not player vetoes. Ownership and consumer contract: [colony extent](colony-extent.md).
-- **Pawn first-seen record (memory only).** The Rounder remembers, per world (colony, map, load),
+- **Pawn first-seen record (memory only).** The ColonyReview remembers, per world (colony, map, load),
   the tick, faction def, royal title, host faction and guest status at which each humanlike pawn
   (colonist, visitor, envoy, lodger) first appeared in the pawn table. It is not saved: a
   restart or a world change empties it, and a pawn present at reload looks new once.
-- **Planned-room selection (memory only).** The Rounder remembers, per world, the latest known coupled
-  comparison's assessed planned rooms and selected planned sites (`Rounder.RoomSelection`); the room
+- **Planned-room selection (memory only).** The ColonyReview remembers, per world, the latest known coupled
+  comparison's assessed planned rooms and selected planned sites (`ColonyReview.RoomSelection`); the room
   reconcile gates unstarted rooms on it. It is not saved: a restart or a world change empties it, and
   unstarted ringed rooms are held until the next comparison
   ([planned rooms](../architecture/portfolio-selection.md#planned-rooms)).
-- **Planned-room done record (memory only).** The Rounder remembers, per world, the planned rooms whose
-  latest reconcile owed nothing a builder can do now (`Rounder.DoneRooms`, #3754); a started room not in
+- **Planned-room done record (memory only).** The ColonyReview remembers, per world, the planned rooms whose
+  latest reconcile owed nothing a builder can do now (`ColonyReview.DoneRooms`, #3754); a started room not in
   it is open, and the forecast orders open rings first. It is not saved: a restart or a world change
   empties it, and every started room is open until its next reconcile.
-- **Defense verification (memory only).** The Rounder remembers, per world (colony, load, map), whether
+- **Defense verification (memory only).** The ColonyReview remembers, per world (colony, load, map), whether
   the `layout/defense` step verified the stored layout complete, at which tick and against which fight,
-  and when it last probed the turret siting (`Rounder.DefenseVerification`, #3008). It drives the Need's
+  and when it last probed the turret siting (`ColonyReview.DefenseVerification`, #3008). It drives the Need's
   Verified fact and the re-verify and siting cadence. It is not saved: a restart or a world change
   empties it and the layout re-verifies. Combat does not read it.
 - **Sighting log (game save).** Native keeps each free colonist's observer passes of the last two days
@@ -376,13 +376,13 @@ Fresh observations are ephemeral. Predecessor
 plans retain cleanup responsibility after a positively refused replacement.
 This adds no independent stock ledger or saved production workflow.
 
-Needs candidates and projected timelines are derived from the current Rounds
-frame and selected forecast inputs, in memory only; `RoundsFacts.NeedsAlternatives`
+Needs candidates and projected timelines are derived from the current Colony review
+frame and selected forecast inputs, in memory only; `ReviewFacts.NeedsAlternatives`
 is not admitted intent. It adds no persistence owner or second progress record.
 The existing Method/Plan journal owns any subsequently selected execution.
 
 Essential-service coverage, bounded stress checks and development proposals in
-`RoundsFindings.EssentialServices` are likewise transient full-review evidence.
+`Findings.EssentialServices` are likewise transient full-review evidence.
 They reference existing Concern-owned predicates and shared demand, never own a
 second stock target, saved goal queue or progress journal. Missing/partial review
 evidence cannot establish satisfaction. See [essential services](essential-services.md).

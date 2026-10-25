@@ -1,9 +1,9 @@
 namespace RimGovernor.Brain.Policy;
 
-public static class RoundsFactsSaleExtensions
+public static class FactsSaleExtensions
 {
     /// <summary><see cref="HerdSaleRules.HerdSaleAnimals"/> over the herd plan of f.</summary>
-    public static IReadOnlySet<PawnId> SaleAnimals(this RoundsFacts f) => HerdSaleRules.HerdSaleAnimals(f.AnimalUpkeep.Animals, f.HerdPolicy());
+    public static IReadOnlySet<PawnId> SaleAnimals(this ReviewFacts f) => HerdSaleRules.HerdSaleAnimals(f.AnimalUpkeep.Animals, f.HerdPolicy());
 }
 
 public static class HerdSaleRules

@@ -20,7 +20,7 @@ public abstract record BiotechFacts
     /// <summary>The Biotech expansion is active.</summary>
     public sealed record Active : BiotechFacts
     {
-        public required RimGovernor.Contracts.Wire.Observations.BiotechColonyFacts Colony { get; init; }
+        public required RimGovernor.Brain.GameFacts.Observations.BiotechColonyFacts Colony { get; init; }
 
         /// <summary>Whether the mechanitors are owed one more mech; false when the mechs Need is not composed (it is then never derived).</summary>
         public required bool MechsOwed { get; init; }

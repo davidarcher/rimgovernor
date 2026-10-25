@@ -3,8 +3,8 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>The facts one projection reads. Observed diagnostics are separate from proposed inventory changes.</summary>
 public sealed record ColonyForecastFacts
 {
-    private RimGovernor.Contracts.Wire.Observations.ColonyFactsSnapshot? census;
-    public RimGovernor.Contracts.Wire.Observations.ColonyFactsSnapshot Census { get => census ?? throw new RequiredFactException("colony census"); init => census = value; }
+    private RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot? census;
+    public RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot Census { get => census ?? throw new RequiredFactException("colony census"); init => census = value; }
 
     public FoodSupply Food { get; init; } = new() { Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] } };
 

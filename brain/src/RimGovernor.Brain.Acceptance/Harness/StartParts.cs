@@ -1,4 +1,5 @@
-using RimGovernor.Contracts.Wire.Lifecycle;
+using RimGovernor.Brain.GameFacts.Lifecycle;
+using RimGovernor.Brain.GameOrders.Lifecycle;
 
 namespace RimGovernor.Brain.Acceptance;
 

@@ -1,0 +1,50 @@
+namespace RimGovernor.Brain.Runtime;
+
+internal static class Mech
+{
+    internal static MechCatalog MechCatalogOf(DefinitionCatalog? catalog) =>
+        catalog?.Biotech is { } biotech ? biotech.MechCatalog() : new MechCatalog();
+
+    internal static IReadOnlyList<PawnSettings> MechSettings(ReviewReading read)
+    {
+        var fleet = read.Reading.Facts.Mechs;
+        if (fleet.Mechanitors.Count == 0)
+        {
+            return [];
+        }
+
+        var hostile = false;
+        foreach (var t in read.Emergency.Threats)
+        {
+            hostile = hostile || (t.Kind == ThreatKind.Hostile && !t.Dead && !t.Downed);
+        }
+
+        var chargerReady = read.Reading.Snapshot.Biotech is RimGovernor.Brain.GameFacts.Observations.BiotechSection.Active { Facts: var biotech } && MechRules.MechChargerReady(biotech.Chargers);
+        return MechRules.PlanMechControl(MechCatalogOf(read.Catalog), fleet.Mechanitors, fleet.Mechs, hostile, chargerReady);
+    }
+
+    internal static MechGuardPlan CombatMechGuards(Combat combat, IReadOnlyList<string> hostileIds, IReadOnlyDictionary<string, RimGovernor.Brain.GameFacts.Observations.PawnState> rows)
+    {
+        var fleet = ContainmentReads.MechFleetOf(combat.Detail.Table.Values());
+        if (fleet.Mechanitors.Count == 0 || fleet.Mechs.Count == 0)
+        {
+            return new MechGuardPlan();
+        }
+
+        var hostiles = new List<MechHostile>();
+        foreach (var id in hostileIds)
+        {
+            if (!rows.TryGetValue(id, out var row) || row is null || row.Dead || row.Downed)
+            {
+                continue;
+            }
+
+            if (row.Pawn.Place is RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap { Cell: var at })
+            {
+                hostiles.Add(new MechHostile { Id = new PawnId(id), Cell = new Cell(at.X, at.Z) });
+            }
+        }
+
+        return MechRules.PlanMechGuards(MechCatalogOf(combat.Catalog), fleet.OverseerCells, fleet.Mechs, hostiles);
+    }
+}

@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -263,7 +264,7 @@ public sealed class ForecastNeedsTests
         {
             Pawn = "owl", Mood = Pawn().Mood! with { Conditional = new ConditionalMood.Unmodeled(["NightOwl"]) },
         }, Pawn() with { Pawn = "moodless", Mood = null, Targets = [NeedsFixtures.Food("rice", "Rice", 3, 40, 500, .9)] }] };
-        var text = RimGovernor.Contracts.Wire.WireJson.Serialize(source);
-        Assert.Equal(source, RimGovernor.Contracts.Wire.WireJson.Deserialize<NeedsForecastRead>(text));
+        var text = RimGovernor.Brain.GameOrders.OrdersJson.Serialize(source);
+        Assert.Equal(source, RimGovernor.Brain.GameOrders.OrdersJson.Deserialize<NeedsForecastRead>(text));
     }
 }

@@ -1,10 +1,9 @@
 using RimGovernor.Brain.Bridge;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>One snapshot frame pulled over the tool channel: its number, the applied-write count it was captured at, and the frame.</summary>
-public sealed record SnapshotPulled(ulong Number, long Writes, Obs.BundleSnapshot Frame);
+public sealed record SnapshotPulled(ulong Number, long Writes, RimGovernor.Brain.GameFacts.Observations.BundleSnapshot Frame);
 
 /// <summary>
 /// Reads the native snapshot stream's frames over the tool channel (<c>observations_read_snapshot</c>): the newest
@@ -55,9 +54,9 @@ public sealed class SnapshotPoller
         }
     }
 
-    private async Task<Obs.SnapshotRead> ReadAsync(ulong after, CancellationToken cancellationToken)
+    private async Task<RimGovernor.Brain.GameFacts.Observations.SnapshotRead> ReadAsync(ulong after, CancellationToken cancellationToken)
     {
-        var reply = await _harness.CallAsync("snapshot-read", NativeOps.ReadSnapshot, new Obs.SnapshotReadRequest { AfterNumber = after }, cancellationToken).ConfigureAwait(false);
+        var reply = await _harness.CallAsync("snapshot-read", NativeOps.ReadSnapshot, new RimGovernor.Brain.GameOrders.Observations.SnapshotReadRequest { AfterNumber = after }, cancellationToken).ConfigureAwait(false);
         return reply.Outcome?.Read
             ?? throw new AcceptanceException($"observations_read_snapshot: {(reply.Outcome?.Unavailable is { } unavailable ? "unavailable: " + unavailable.Detail : "no outcome")}");
     }

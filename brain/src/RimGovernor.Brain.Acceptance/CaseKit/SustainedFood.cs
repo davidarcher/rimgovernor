@@ -129,7 +129,7 @@ public static class SustainedFood
         // Keeps player authority granted for the full watch window.
         service.KeepAuthority(cancellationToken);
 
-        // Confirm the scheduler actually reaches automate and a Rounds pass gets persisted before starting the real
+        // Confirm the scheduler actually reaches automate and a ReviewState pass gets persisted before starting the real
         // observation window.
         var diagDeadline = DateTimeOffset.UtcNow.AddSeconds(60);
         var sawAutomate = false;
@@ -145,7 +145,7 @@ public static class SustainedFood
 
                 try
                 {
-                    revision = await verifyStore.RoundsRevisionAsync(cancellationToken).ConfigureAwait(false);
+                    revision = await verifyStore.RevisionAsync(cancellationToken).ConfigureAwait(false);
                     if (revision > 0)
                     {
                         break;
@@ -167,7 +167,7 @@ public static class SustainedFood
 
         if (revision == 0)
         {
-            throw new AcceptanceException("service reached automate mode but the Rounds pass was never persisted");
+            throw new AcceptanceException("service reached automate mode but the ReviewState pass was never persisted");
         }
 
         // The observation window: sample the goal's state and the stage of every one of its committed methods' plans,

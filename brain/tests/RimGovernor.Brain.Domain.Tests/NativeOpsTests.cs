@@ -6,16 +6,16 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
 /// <see cref="NativeOps"/> is the one name table of the native operations (the facade's hop labels, the read tally,
-/// the acceptance harness's HTTP route). Every <see cref="INativeFacade"/> call is bound by exactly one op, and names
+/// the acceptance harness's HTTP route). Every <see cref="IGameApi"/> call is bound by exactly one op, and names
 /// are unique, so a facade method cannot go unrouted or two methods share a label. The one exception is
-/// <see cref="INativeFacade.OpenColonyEventsAsync"/>, whose reply is an in-process channel reader.
+/// <see cref="IGameApi.OpenColonyEventsAsync"/>, whose reply is an in-process channel reader.
 /// </summary>
 public sealed class NativeOpsTests
 {
     [Fact]
     public async Task EveryFacadeCallIsBoundByExactlyOneOp()
     {
-        var facade = DispatchProxy.Create<INativeFacade, RecordingFacade>();
+        var facade = DispatchProxy.Create<IGameApi, RecordingFacade>();
         var recorder = (RecordingFacade)(object)facade;
         foreach (var op in NativeOps.All.Where(op => op.OnFacade))
         {
@@ -50,8 +50,8 @@ public sealed class NativeOpsTests
         }
 
         // Opening the colony events hands over an in-process reader, so no op routes it.
-        var calls = typeof(INativeFacade).GetMethods()
-            .Where(m => typeof(Task).IsAssignableFrom(m.ReturnType) && m.Name != nameof(INativeFacade.OpenColonyEventsAsync))
+        var calls = typeof(IGameApi).GetMethods()
+            .Where(m => typeof(Task).IsAssignableFrom(m.ReturnType) && m.Name != nameof(IGameApi.OpenColonyEventsAsync))
             .ToList();
         Assert.Equal(calls.Count, NativeOps.All.Count(op => op.OnFacade));
         Assert.Equal([.. calls.Select(m => m.Name).Order(StringComparer.Ordinal)], [.. recorder.Called.Order(StringComparer.Ordinal)]);
@@ -59,16 +59,16 @@ public sealed class NativeOpsTests
     }
 
     [Fact]
-    public void NamesAreUniqueAndResolveWithOrWithoutThePrefix()
+    public void NamesAreUniqueAndResolveExactly()
     {
         Assert.Equal(NativeOps.All.Count, NativeOps.All.Select(op => op.Name).Distinct(StringComparer.Ordinal).Count());
         foreach (var op in NativeOps.All)
         {
             Assert.True(NativeOps.TryGet(op.Name, out var byName) && ReferenceEquals(op, byName));
-            Assert.True(NativeOps.TryGet(op.Tool, out var byTool) && ReferenceEquals(op, byTool));
+            Assert.False(NativeOps.TryGet("rimgovernor/" + op.Name, out _));
         }
 
-        Assert.False(NativeOps.TryGet("rimgovernor/no_such_op", out _));
+        Assert.False(NativeOps.TryGet("no_such_op", out _));
     }
 
     /// <summary>Records which facade method each call reached; its fault proves deserialization reached the facade.</summary>

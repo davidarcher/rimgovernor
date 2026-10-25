@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// Where the supervisor's main-thread time goes and how far apart its
     /// hazard probes ran, cumulative for the loaded game session like

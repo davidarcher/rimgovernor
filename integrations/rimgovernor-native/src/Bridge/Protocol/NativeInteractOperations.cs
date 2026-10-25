@@ -3,10 +3,8 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // GiveJobIntent job InteractThing: order one colonist to interact
     // with a void structure, the Gleaming monolith or the void node, the job
@@ -20,37 +18,37 @@ namespace HomeBridge.BridgeTools
     // and is answered as a dialog.
     internal static class NativeInteractOperations
     {
-        private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Thing? target, out bool running)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Pawn? pawn, out Thing? target, out bool running)
         {
             pawn = null; target = null; running = false;
-            if (!NativePawnControlState.IsReady) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
+            if (!NativePawnControlState.IsReady) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
             foreach (var map in Find.Maps)
                 if (RefIndex.Thing(map, intent.TargetId) is Thing found) { target = found; break; }
             if (target == null || !target.Spawned || target.Destroyed || target.Map == null)
-                return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact interactable thing is not spawned on a loaded map.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact interactable thing is not spawned on a loaded map.");
             var comp = target.TryGetComp<CompInteractable>();
             if (comp is not CompVoidStructure && comp is not CompVoidNode)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Only a void structure, the Gleaming monolith or the void node can be interacted with.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Only a void structure, the Gleaming monolith or the void node can be interacted with.");
             var map2 = target.Map;
             pawn = map2.mapPawns.AllPawnsSpawned.ById(intent.PawnId);
-            if (pawn == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact pawn is not spawned on the target's map.");
+            if (pawn == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact pawn is not spawned on the target's map.");
             var identity = new NativeControlIdentity(Current.Game, map2, (context.Identity?.ColonyId ?? ""), (context.Identity?.LoadToken ?? ""));
             var control = NativePawnControlState.Observe(identity, pawn, out var snapshot);
             if (control != NativePawnControlResult.Ready || snapshot == null) return NativeDraftProtocol.Failure(control, context);
             if (!snapshot.Eligible || snapshot.Drafted && comp is not CompVoidNode)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An interaction requires an eligible pawn, undrafted unless it is the void node's.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "An interaction requires an eligible pawn, undrafted unless it is the void node's.");
             var current = pawn.CurJob;
             running = current != null && current.def == JobDefOf.InteractThing && current.targetA.Thing == target;
             if (running) return null;
             var verdict = comp.CanInteract(pawn);
             if (!verdict.Accepted)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The pawn cannot interact now" + (verdict.Reason.NullOrEmpty() ? "." : ": " + verdict.Reason));
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The pawn cannot interact now" + (verdict.Reason.NullOrEmpty() ? "." : ": " + verdict.Reason));
             return null;
         }
 
-        internal static Common.Failure? Validate(JobOrder intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var target, out var running);
             if (failure != null) throw new InvalidOperationException(failure.Detail);

@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Traffic heat counters, free of game types so the contract
     // probes can check counting, decay and crossing detection. One ushort

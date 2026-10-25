@@ -1,10 +1,9 @@
-using D = RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
-using Gender = RimGovernor.Contracts.Wire.Defs.Gender;
+using Gender = RimGovernor.Brain.GameFacts.Defs.Gender;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -170,12 +169,12 @@ public sealed class ApparelCreditTests
     // title in effect (ThoughtWorker_RoyalTitleApparelMinQualityNotMet).
     private static readonly NeedThoughtStage[] QualityThought = [Stage("TitleApparelMinQualityNotMet", ForecastApparel.TitleApparelQuality, 0, -4)];
 
-    private static readonly NeedApparel Knight = Warm with { MinimumQuality = D.QualityCategory.Normal };
+    private static readonly NeedApparel Knight = Warm with { MinimumQuality = RimGovernor.Brain.GameFacts.Defs.QualityCategory.Normal };
 
     [Fact]
     public void ATitledPawnInBelowMinimumApparelGainsTheMinimumQualityThoughtsMoodWhenAGarmentAtTheMinimumIsDelivered()
     {
-        var context = Context(Pawn(Knight, QualityThought), Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { Quality = new O.ItemQuality.Graded(D.QualityCategory.Poor) }) });
+        var context = Context(Pawn(Knight, QualityThought), Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { Quality = new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded(RimGovernor.Brain.GameFacts.Defs.QualityCategory.Poor) }) });
         Assert.Equal(4, ForecastApparel.MoodDelta(context.Needs.Pawns[0], context.Outfits["pawn"], [Shirt(1)]));
         Assert.True(ForecastApparel.ChangesThoughts(context.Outfits["pawn"], [Shirt(1)]));
         Assert.Equal([0.04], ForecastApparel.BreakShifts(context.Needs, context.Outfits, [Craft(Shirt(1))])["pawn"]);
@@ -184,25 +183,25 @@ public sealed class ApparelCreditTests
         Assert.Equal((ForecastApparel.CreditKey("pawn", "Apparel_BasicShirt"), Horizon - 0.5), (row.Key, row.Units));
         Assert.Equal(-perDay * (Horizon - 0.5), row.Value, 12);
         // Without a title in effect the minimum is Awful, which no garment is below.
-        Assert.Equal(0, ForecastApparel.MoodDelta(Pawn(Warm, QualityThought), [Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { Quality = new O.ItemQuality.Graded(D.QualityCategory.Awful) }) }], [Shirt(1)]));
+        Assert.Equal(0, ForecastApparel.MoodDelta(Pawn(Warm, QualityThought), [Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { Quality = new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded(RimGovernor.Brain.GameFacts.Defs.QualityCategory.Awful) }) }], [Shirt(1)]));
     }
 
     [Fact]
     public void AQualitylessGarmentChangesNothing()
     {
         // TryGetQuality fails for a def without CompQuality: the worker skips it, so it neither raises nor lifts the thought.
-        var crown = Crown() with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Crown()).Origin).Value) with { Quality = new O.ItemQuality.Qualityless() }) };
+        var crown = Crown() with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Crown()).Origin).Value) with { Quality = new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Qualityless() }) };
         var pawn = Pawn(Knight, QualityThought);
         Assert.Equal(0, ForecastApparel.MoodOf(pawn, [crown]));
         Assert.Equal(0, ForecastApparel.MoodDelta(pawn, [Shirt(1)], [crown]));
-        Assert.Equal(0, ForecastApparel.MoodDelta(pawn, [Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { Quality = new O.ItemQuality.Graded(D.QualityCategory.Poor) }) }, Crown() with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Crown()).Origin).Value) with { Id = "old", Quality = new O.ItemQuality.Qualityless() }) }], [crown]));
-        Assert.Equal(-4, ForecastApparel.MoodOf(pawn, [Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { Quality = new O.ItemQuality.Graded(D.QualityCategory.Poor) }) }, crown]));
+        Assert.Equal(0, ForecastApparel.MoodDelta(pawn, [Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { Quality = new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded(RimGovernor.Brain.GameFacts.Defs.QualityCategory.Poor) }) }, Crown() with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Crown()).Origin).Value) with { Id = "old", Quality = new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Qualityless() }) }], [crown]));
+        Assert.Equal(-4, ForecastApparel.MoodOf(pawn, [Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { Quality = new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded(RimGovernor.Brain.GameFacts.Defs.QualityCategory.Poor) }) }, crown]));
     }
 
     // #3850: a crafted garment comes out at its crafter's quality odds (QualityUtility.GenerateQualityCreatedByPawn).
     private static GearOption Crafted(int skill) => Shirt(1) with { QualityOdds = EquatableArray.From(CraftedQualityRules.Odds(new(skill, false, 0))) };
 
-    private static readonly NeedApparel Count = Warm with { MinimumQuality = D.QualityCategory.Excellent };
+    private static readonly NeedApparel Count = Warm with { MinimumQuality = RimGovernor.Brain.GameFacts.Defs.QualityCategory.Excellent };
 
     [Fact]
     public void ATitleMinimumOfExcellentIsLiftedOnlyWithTheChanceTheCrafterReachesIt()
@@ -211,7 +210,7 @@ public sealed class ApparelCreditTests
         var reach = bill.QualityOdds[4] + bill.QualityOdds[5] + bill.QualityOdds[6];
         Assert.InRange(reach, 0.05, 0.95);
         // A Good shirt is below Excellent: the thought holds unless the crafted one reaches it.
-        var context = Context(Pawn(Count, QualityThought), Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { Quality = new O.ItemQuality.Graded(D.QualityCategory.Good) }) });
+        var context = Context(Pawn(Count, QualityThought), Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { Quality = new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded(RimGovernor.Brain.GameFacts.Defs.QualityCategory.Good) }) });
         var pawn = context.Needs.Pawns[0];
         var outcomes = ForecastApparel.MoodOutcomes(pawn, [bill])!;
         Assert.Equal([-4.0, 0.0], outcomes.Select(o => o.Mood));
@@ -229,7 +228,7 @@ public sealed class ApparelCreditTests
     [Fact]
     public void ASkillThreeCraftersBillIsWorthLessThanASkillFifteenCrafters()
     {
-        var context = Context(Pawn(Count, QualityThought), Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { Quality = new O.ItemQuality.Graded(D.QualityCategory.Good) }) });
+        var context = Context(Pawn(Count, QualityThought), Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { Quality = new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded(RimGovernor.Brain.GameFacts.Defs.QualityCategory.Good) }) });
         double Credit(GearOption bill) =>
             Assert.Single(Value(context, bill, shift: 0.04).InvestmentContributions, r => r.Key.StartsWith("apparel/", StringComparison.Ordinal)).Value;
         // Credits are gains, negative: the skilled crafter's shirt lifts the thought more often.

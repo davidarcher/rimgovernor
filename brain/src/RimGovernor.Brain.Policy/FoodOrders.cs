@@ -37,7 +37,7 @@ public sealed record FoodOrderRequest
 
     public required EquatableArray<ProductionBench> Benches { get; init; }
 
-    public RoundsFacts Facts { get; init; } = new();
+    public ReviewFacts Facts { get; init; } = new();
 
     public required FoodSupply Supply { get; init; }
 

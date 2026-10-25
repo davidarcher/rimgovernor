@@ -1,4 +1,3 @@
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -41,7 +40,7 @@ internal static class CombatLabCombatDrug
 
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
         await CombatLabKit.DraftAsync(s, colonists, cancellationToken).ConfigureAwait(false);
-        var results = await CombatLabKit.OrdersAsync(s, "combat-drug", cancellationToken, [.. colonists.Select(c => CombatLabKit.Order(c, new Operations.CombatOrderOrder.CombatDrugCase("GoJuice")))]).ConfigureAwait(false);
+        var results = await CombatLabKit.OrdersAsync(s, "combat-drug", cancellationToken, [.. colonists.Select(c => CombatLabKit.Order(c, new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.CombatDrugCase("GoJuice")))]).ConfigureAwait(false);
         CombatLabKit.Applied("colonist 0", results[0], "Ingest");
         CombatLabKit.Refused("colonist 1", results[1], "no_drug");
         CombatLabKit.Refused("colonist 2", results[2], "no_drug");

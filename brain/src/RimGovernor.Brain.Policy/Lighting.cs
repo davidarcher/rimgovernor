@@ -1,8 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
-using LightingCensus = RimGovernor.Contracts.Wire.Observations.LightingFacts;
-using WorkLightCell = RimGovernor.Contracts.Wire.Observations.WorkLightCell;
-using O = RimGovernor.Contracts.Wire.Observations;
+using LightingCensus = RimGovernor.Brain.GameFacts.Observations.LightingFacts;
+using WorkLightCell = RimGovernor.Brain.GameFacts.Observations.WorkLightCell;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -78,11 +77,11 @@ public sealed record LightingObservation
 /// <summary>A census lamp joined with its building row and its def's glow radius.</summary>
 public sealed record Lamp
 {
-    public required O.LampState Observed { get; init; }
-    public required O.BuildingState Building { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.LampState Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.BuildingState Building { get; init; }
     public string Id => Building.Building.Id;
     public string Definition => Building.Building.DefName;
-    public Cell Cell => Building.Building.Place is O.EntityPlace.OnMap at ? at.Cell : throw new DomainException("lamp building is unplaced");
+    public Cell Cell => Building.Building.Place is RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap at ? at.Cell : throw new DomainException("lamp building is unplaced");
     public required double Radius { get; init; }
 
     /// <summary>Native's own "currently emits light" flag, false while the fixture is unpowered, out of fuel, switched off or broken down.</summary>
@@ -90,7 +89,7 @@ public sealed record Lamp
 
     public bool SwitchedOn => Building.Service.SwitchedOn;
     public bool BrokenDown => Building.Service.BrokenDown;
-    public LampFuel Fuel => Building.Service.Fuel is O.BuildingFuel.Refuelable fuel
+    public LampFuel Fuel => Building.Service.Fuel is RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable fuel
         ? (fuel.OutOfFuel ? LampFuel.Empty : LampFuel.Fueled) : LampFuel.Unfueled;
 }
 

@@ -3,11 +3,8 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // GiveJobIntent DropWeapon: the colonist drops the weapon in its
     // hands, the job a player's float-menu "Drop" click on a held weapon
@@ -35,31 +32,31 @@ namespace HomeBridge.BridgeTools
         private static bool Holds(Pawn pawn, Thing weapon) => ReferenceEquals(pawn.equipment?.Primary, weapon);
         private static bool Running(Pawn pawn, Thing weapon, JobDef def) => pawn.CurJob != null && pawn.CurJob.def == def && pawn.CurJob.targetA.Thing == weapon;
 
-        private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Thing? weapon, out JobDef? def)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Pawn? pawn, out Thing? weapon, out JobDef? def)
         {
             weapon = null;
             def = Def(out var missing);
             if (def == null)
             {
                 pawn = null;
-                return ProtoBoundary.Fail(Common.FailureCode.Unsupported, (missing ?? throw new System.InvalidOperationException("Required native value is unavailable: missing.")));
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unsupported, (missing ?? throw new System.InvalidOperationException("Required native value is unavailable: missing.")));
             }
             if (!NativeGiveJob.TryPawn(intent, context, out pawn, out var snapshot, out var failure)) return failure;
-            if (!snapshot.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Drop requires an eligible pawn.");
+            if (!snapshot.Eligible) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Drop requires an eligible pawn.");
             if (pawn.equipment == null)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn has no equipment tracker and holds no weapon.");
-            var map = ProtoBoundary.LoadedMap(context);
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Pawn has no equipment tracker and holds no weapon.");
+            var map = GameThread.LoadedMap(context);
             weapon = RefIndex.Is(pawn.equipment.Primary, intent.TargetId) ? pawn.equipment.Primary : RefIndex.Thing(map, intent.TargetId);
-            if (weapon == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact weapon is unavailable.");
+            if (weapon == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact weapon is unavailable.");
             if (Holds(pawn, weapon) || Running(pawn, weapon, def)) return null;
             // A weapon already on the ground is a drop that happened.
             if (weapon.Spawned) return null;
-            return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Pawn does not hold that weapon.");
+            return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Pawn does not hold that weapon.");
         }
 
-        internal static Common.Failure? Validate(JobOrder intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var weapon, out var def);
             if (failure != null || pawn == null || weapon == null || def == null) throw new InvalidOperationException(failure?.Detail);

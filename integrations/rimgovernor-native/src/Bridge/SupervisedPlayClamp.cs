@@ -2,7 +2,7 @@ using System;
 using HarmonyLib;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The tick-rate clamp. The game reads TickManager.TickRateMultiplier once
     // per frame for the tick loop's per-frame cap and per-tick real time, so a

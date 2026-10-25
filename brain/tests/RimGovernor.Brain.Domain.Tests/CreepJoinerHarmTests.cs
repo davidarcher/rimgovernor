@@ -1,13 +1,11 @@
-using D = RimGovernor.Contracts.Wire.Defs;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimWorld;
 using Verse;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
-using DiseasePartRead = RimGovernor.Contracts.Wire.Observations.DiseasePartRead;
-using NeedsForecastPawn = RimGovernor.Contracts.Wire.Observations.NeedsForecastPawn;
+using DiseasePartRead = RimGovernor.Brain.GameFacts.Observations.DiseasePartRead;
+using NeedsForecastPawn = RimGovernor.Brain.GameFacts.Observations.NeedsForecastPawn;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -53,9 +51,9 @@ public sealed class CreepJoinerHarmTests
         Unshown = [new UnshownCreepJoiner("cj", Joined, Points)], Table = table ?? Table(), Values = valued ? [Value] : [],
     };
 
-    internal static readonly GearOption Rifle = new() { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("rifle", "", "", GearSource.Worn) with { Condition = 0, Quality = new O.ItemQuality.Graded(D.QualityCategory.Awful) }), Slot = GearSlot.Primary, Ranged = true };
+    internal static readonly GearOption Rifle = new() { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("rifle", "", "", GearSource.Worn) with { Condition = 0, Quality = new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded(RimGovernor.Brain.GameFacts.Defs.QualityCategory.Awful) }), Slot = GearSlot.Primary, Ranged = true };
 
-    internal static readonly GearOption Longsword = new() { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("longsword", "", "", GearSource.Worn) with { Condition = 0, Quality = new O.ItemQuality.Graded(D.QualityCategory.Awful) }), Slot = GearSlot.Primary };
+    internal static readonly GearOption Longsword = new() { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("longsword", "", "", GearSource.Worn) with { Condition = 0, Quality = new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded(RimGovernor.Brain.GameFacts.Defs.QualityCategory.Awful) }), Slot = GearSlot.Primary };
 
     private static NeedsForecastPawn Cj =>ForecastValueTests.HarmPawn() with { Pawn = "cj" };
 
@@ -224,20 +222,20 @@ public sealed class CreepJoinerHarmTests
         return defs;
     }
 
-    private static O.PawnState Row(string id, bool creepjoiner) => PawnFixtures.Row(id) with
+    private static RimGovernor.Brain.GameFacts.Observations.PawnState Row(string id, bool creepjoiner) => PawnFixtures.Row(id) with
     {
         Anomaly = creepjoiner
-            ? new O.PawnAnomalyState.Active(new O.PawnAnomaly
+            ? new RimGovernor.Brain.GameFacts.Observations.PawnAnomalyState.Active(new RimGovernor.Brain.GameFacts.Observations.PawnAnomaly
             {
                 Entity = false, Mutant = false, MinContainmentStrength = 0, HiddenFromPlayer = false, PsychicRitualInvoker = false, MeleeOnly = false,
-                Creepjoiner = new O.CreepJoinerState { DownsideTriggered = false, JoinedTick = (int)Day, CombatPower = Points }, Held = null, Study = null,
+                Creepjoiner = new RimGovernor.Brain.GameFacts.Observations.CreepJoinerState { DownsideTriggered = false, JoinedTick = (int)Day, CombatPower = Points }, Held = null, Study = null,
             })
             : PawnFixtures.Row(id).Anomaly,
     };
 
-    private static RimGovernor.Brain.Bridge.Contracts.RoundsFrame Frame(params O.PawnState[] rows) => new()
+    private static RimGovernor.Brain.GameAccess.ReviewFrame Frame(params RimGovernor.Brain.GameFacts.Observations.PawnState[] rows) => new()
     {
-        Pawns = new O.PawnSnapshot { Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 0 }, Pawns = [.. rows] },
+        Pawns = new RimGovernor.Brain.GameFacts.Observations.PawnSnapshot { Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 0 }, Pawns = [.. rows] },
         Emergency = new(null, new EmergencyFacts { Colonists = [.. rows.Select(r => new EmergencyPawn { Observed = r })] }),
     };
 
@@ -261,7 +259,7 @@ public sealed class CreepJoinerHarmTests
         // The native tracker row gives the creepjoiner's joinedTick and combat power; the other colonist is none.
         var projection = ColonyFactsCoreTests.Reading(new() { Context = ColonyFactsCoreTests.Snapshot().Context with { Tick = (long)(3.5 * Day) } });
         var frame = Frame(Row("cj", creepjoiner: true), Row("pawn", creepjoiner: false));
-        var inputs = RoundsCreepJoiner.CreepJoinerHarmOf(projection, frame, catalog);
+        var inputs = CreepJoiner.CreepJoinerHarmOf(projection, frame, catalog);
         Assert.Equal("", inputs.Unread);
         Assert.Equal([new UnshownCreepJoiner("cj", 2.5, Points)], inputs.Unshown);
         Assert.Empty(inputs.Shown);
@@ -313,38 +311,38 @@ public sealed class CreepJoinerHarmTests
         Assert.Throws<RequiredFactException>(() => Term(Context(inputs, Cj)));
 
         // A fresh colony has no creepjoiner: nothing priced, nothing thrown.
-        var fresh = RoundsCreepJoiner.CreepJoinerHarmOf(projection, Frame(Row("pawn", creepjoiner: false)), catalog);
+        var fresh = CreepJoiner.CreepJoinerHarmOf(projection, Frame(Row("pawn", creepjoiner: false)), catalog);
         Assert.Equal(("", 0, 0), (fresh.Unread, fresh.Unshown.Count, fresh.Shown.Count));
         Assert.Equal(0, Term(Context(fresh)).Loss);
         // An incomplete colonist census is unread.
         var unseen = frame with { Emergency = new(null, new EmergencyFacts { Colonists = [EmergencyFixtures.Colonist("cj")] }) };
-        Assert.NotEqual("", RoundsCreepJoiner.CreepJoinerHarmOf(projection, unseen, catalog).Unread);
+        Assert.NotEqual("", CreepJoiner.CreepJoinerHarmOf(projection, unseen, catalog).Unread);
     }
 
     [Fact]
     public void AHandReadsItsWeaponAndHungerWholeAndAnUnrevealedCreepjoinerDropsItsWeapon()
     {
-        var hungry = new O.FoodNeed.Has(0.1, D.HungerCategory.Hungry);
-        var fed = new O.FoodNeed.Has(0.9, D.HungerCategory.Fed);
-        O.PawnState With(O.PawnState row, bool armed, string? primary, O.FoodNeed food) =>
+        var hungry = new RimGovernor.Brain.GameFacts.Observations.FoodNeed.Has(0.1, RimGovernor.Brain.GameFacts.Defs.HungerCategory.Hungry);
+        var fed = new RimGovernor.Brain.GameFacts.Observations.FoodNeed.Has(0.9, RimGovernor.Brain.GameFacts.Defs.HungerCategory.Fed);
+        RimGovernor.Brain.GameFacts.Observations.PawnState With(RimGovernor.Brain.GameFacts.Observations.PawnState row, bool armed, string? primary, RimGovernor.Brain.GameFacts.Observations.FoodNeed food) =>
             row with { Equipment = row.Equipment with { Armed = armed, PrimaryId = primary }, Needs = row.Needs with { Food = food } };
         var cj = Row("cj", creepjoiner: true);
 
         // The weapon is the primary's thing id, null for none; a pawn is hungry below the fed band and never without a food need.
         var armedRow = With(cj, true, "Thing_Gun1", hungry);
-        var armed = RoundsCreepJoiner.CreepJoinerHandOf(armedRow);
+        var armed = CreepJoiner.CreepJoinerHandOf(armedRow);
         Assert.Same(armedRow, armed.Observed);
         Assert.Same(armedRow.Health.Surgery, armed.Surgery);
         Assert.Equal(("Thing_Gun1", true), (armed.Weapon, armed.Hungry));
-        var unarmed = RoundsCreepJoiner.CreepJoinerHandOf(With(cj, false, null, new O.FoodNeed.Lacks()));
+        var unarmed = CreepJoiner.CreepJoinerHandOf(With(cj, false, null, new RimGovernor.Brain.GameFacts.Observations.FoodNeed.Lacks()));
         Assert.Equal(((string?)null, false), (unarmed.Weapon, unarmed.Hungry));
-        Assert.False(RoundsCreepJoiner.CreepJoinerHandOf(With(cj, false, null, fed)).Hungry);
+        Assert.False(CreepJoiner.CreepJoinerHandOf(With(cj, false, null, fed)).Hungry);
         // An armed pawn without a primary id breaks the contract.
-        Assert.Throws<RequiredFactException>(() => RoundsCreepJoiner.CreepJoinerHandOf(With(cj, true, null, fed)));
+        Assert.Throws<RequiredFactException>(() => CreepJoiner.CreepJoinerHandOf(With(cj, true, null, fed)));
 
         // An unrevealed creepjoiner holding a weapon drops it; an unarmed one or a plain colonist does not.
         var downsides = new CreepJoinerDownsides();
-        var colonist = RoundsCreepJoiner.CreepJoinerHandOf(With(Row("pawn", creepjoiner: false), true, "Thing_Gun2", fed));
+        var colonist = CreepJoiner.CreepJoinerHandOf(With(Row("pawn", creepjoiner: false), true, "Thing_Gun2", fed));
         Assert.Equal([new WeaponDrop(armed.Pawn)], downsides.WeaponDrops([armed, unarmed with { Observed = unarmed.Observed with { Pawn = unarmed.Observed.Pawn with { Id = "cj2" } } }, colonist]));
         Assert.Empty(downsides.WeaponDrops([unarmed, colonist]));
         Assert.Empty(downsides.WeaponDrops([armed with { Observed = armedRow with { Drafted = true } }]));
@@ -372,7 +370,7 @@ public sealed class CreepJoinerHarmTests
         row = row with { Health = row.Health with { Hediffs = [condition] } };
         Assert.Equal(visible, downsides.Revealed(row));
         Assert.Equal(!visible, downsides.Unrevealed(row));
-        var traitRow = row with { Biography = row.Biography with { Traits = [new O.Trait { DefName = "DownsideTrait" }] } };
+        var traitRow = row with { Biography = row.Biography with { Traits = [new RimGovernor.Brain.GameFacts.Observations.Trait { DefName = "DownsideTrait" }] } };
         Assert.True(downsides.Revealed(traitRow));
         Assert.Empty(downsides.ArmsHold(traitRow));
         Assert.False(downsides.Revealed(traitRow with { Anomaly = Row("ordinary", creepjoiner: false).Anomaly }));
@@ -382,10 +380,10 @@ public sealed class CreepJoinerHarmTests
     public void InspectionUsesTheObservedOperationAndBillRatherThanCopiedSurgeryMetadata()
     {
         var row = Row("cj", creepjoiner: true);
-        var operation = CareFixtures.Operation(O.SurgeryKind.Other, "Inspection", 4, "Torso", stocked: true).Operation;
+        var operation = CareFixtures.Operation(RimGovernor.Brain.GameFacts.Observations.SurgeryKind.Other, "Inspection", 4, "Torso", stocked: true).Operation;
         var surgery = row.Health.Surgery! with { Operations = [operation with { Part = operation.Part! with { Index = 7 } }, operation] };
         row = row with { Health = row.Health with { Surgery = surgery } };
-        var hand = RoundsCreepJoiner.CreepJoinerHandOf(row);
+        var hand = CreepJoiner.CreepJoinerHandOf(row);
         Assert.Same(row, hand.Observed);
         Assert.Same(surgery, hand.Surgery);
         Assert.Same(operation, hand.Operations[1]);
@@ -394,7 +392,7 @@ public sealed class CreepJoinerHarmTests
         var inspection = downsides.Inspections([hand], recipes, new());
         Assert.Equal(new InspectionOrder(new("cj"), "Inspection", 4), Assert.Single(inspection.Orders));
 
-        var queued = surgery with { SurgeryBills = [new O.SurgeryBill { Id = "bill", Recipe = "Inspection", Part = operation.Part }] };
+        var queued = surgery with { SurgeryBills = [new RimGovernor.Brain.GameFacts.Observations.SurgeryBill { Id = "bill", Recipe = "Inspection", Part = operation.Part }] };
         var queuedHand = hand with { Observed = row with { Health = row.Health with { Surgery = queued } } };
         Assert.Empty(downsides.Inspections([queuedHand], recipes, new()).Orders);
         Assert.Equal(InspectionStage.Ordered, downsides.Inspections([queuedHand], recipes, inspection.Record).Record.Inspections[hand.Pawn]);
@@ -408,8 +406,8 @@ public sealed class CreepJoinerHarmTests
         Assert.Contains("no eligible doctor", Assert.Single(downsides.Inspections([blocked], recipes, new()).Waiting));
 
         var unread = row with { Health = row.Health with { Surgery = null } };
-        Assert.Throws<RequiredFactException>(() => RoundsCreepJoiner.CreepJoinerHandOf(unread));
-        var dead = RoundsCreepJoiner.CreepJoinerHandOf(unread with { Dead = true });
+        Assert.Throws<RequiredFactException>(() => CreepJoiner.CreepJoinerHandOf(unread));
+        var dead = CreepJoiner.CreepJoinerHandOf(unread with { Dead = true });
         Assert.Null(dead.Surgery);
         Assert.Empty(dead.Operations);
         Assert.False(dead.Available);

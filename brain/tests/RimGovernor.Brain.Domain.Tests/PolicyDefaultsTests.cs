@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using System.Buffers;
 using System.Text.Json;
@@ -14,10 +13,10 @@ public sealed class PolicyDefaultsTests
     [Fact]
     public void ResourceDemandRequiresConstructionCensus()
     {
-        var f = new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot(), Gear = ColonyModelFixtures.NoGear() };
+        var f = new ReviewFacts { Census = ColonyFactsCoreTests.Snapshot(), Gear = ColonyModelFixtures.NoGear() };
         Assert.NotNull(f.ResourceNeeds);
-        Assert.Throws<RequiredFactException>(() => ResourceRules.ResourceDemandOf(f, RoundsRules.DefaultRoundsPolicy(), new RoundsLatches()));
-        var demand = ResourceRules.ResourceDemandOf(f with { CurrentConstruction = CurrentConstruction.Empty }, RoundsRules.DefaultRoundsPolicy(), new RoundsLatches());
+        Assert.Throws<RequiredFactException>(() => ResourceRules.ResourceDemandOf(f, Rules.DefaultPlannerSettings(), new Latches()));
+        var demand = ResourceRules.ResourceDemandOf(f with { CurrentConstruction = CurrentConstruction.Empty }, Rules.DefaultPlannerSettings(), new Latches());
         Assert.NotNull(demand.Needs);
     }
 
@@ -38,8 +37,8 @@ public sealed class PolicyDefaultsTests
     [Fact]
     public void AnAbsentRecordSurvivesTheJournalCodec()
     {
-        var mech = new O.PawnMech { Overseer = null, WorkMode = null, Energy = new O.PawnMechEnergy.NoEnergyNeed(), Group = null };
-        var biotech = new PawnBiotech { Observed = new O.PawnBiotech { DevelopmentalStage = default, Genes = [], Mechanitor = null, Mech = mech, Deathrest = null } };
+        var mech = new RimGovernor.Brain.GameFacts.Observations.PawnMech { Overseer = null, WorkMode = null, Energy = new RimGovernor.Brain.GameFacts.Observations.PawnMechEnergy.NoEnergyNeed(), Group = null };
+        var biotech = new PawnBiotech { Observed = new RimGovernor.Brain.GameFacts.Observations.PawnBiotech { DevelopmentalStage = default, Genes = [], Mechanitor = null, Mech = mech, Deathrest = null } };
         var buffer = new ArrayBufferWriter<byte>();
         using (var writer = new Utf8JsonWriter(buffer))
         {

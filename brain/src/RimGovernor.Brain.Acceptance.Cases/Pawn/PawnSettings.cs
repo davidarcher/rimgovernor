@@ -1,7 +1,4 @@
 using RimGovernor.Brain.Bridge;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -53,44 +50,44 @@ internal static class PawnSettings
     });
 
     /// <summary>Applies one setting arm and returns its field outcomes.</summary>
-    private static async Task<IReadOnlyList<Receipts.FieldOutcome>> ApplyAsync(TypedSession s, string key, string pawn, Operations.PawnSettingsIntentSetting setting, CancellationToken cancellationToken)
+    private static async Task<IReadOnlyList<RimGovernor.Brain.GameFacts.Receipts.FieldOutcome>> ApplyAsync(TypedSession s, string key, string pawn, RimGovernor.Brain.GameOrders.Operations.PawnSettingsIntentSetting setting, CancellationToken cancellationToken)
     {
-        var effect = await TypedPawns.AppliedAsync(s, key, new Operations.PawnSettingsIntent { PawnId = pawn, Setting = setting }, cancellationToken).ConfigureAwait(false);
+        var effect = await TypedPawns.AppliedAsync(s, key, new RimGovernor.Brain.GameOrders.Operations.PawnSettingsIntent { PawnId = pawn, Setting = setting }, cancellationToken).ConfigureAwait(false);
         var fields = effect?.Settings?.Fields.Select(f => f.Outcome).ToList();
         return fields is { Count: > 0 } ? fields : throw new AcceptanceException($"{key}: no settings field in {effect}");
     }
 
-    private static async Task ExpectUnchangedAsync(TypedSession s, string key, string pawn, Operations.PawnSettingsIntentSetting setting, CancellationToken cancellationToken)
+    private static async Task ExpectUnchangedAsync(TypedSession s, string key, string pawn, RimGovernor.Brain.GameOrders.Operations.PawnSettingsIntentSetting setting, CancellationToken cancellationToken)
     {
         var again = await ApplyAsync(s, key, pawn, setting, cancellationToken).ConfigureAwait(false);
-        if (again.Any(o => o != Receipts.FieldOutcome.Unchanged))
+        if (again.Any(o => o != RimGovernor.Brain.GameFacts.Receipts.FieldOutcome.Unchanged))
         {
             throw new AcceptanceException($"{key}: want UNCHANGED, got [{string.Join(' ', again)}]");
         }
     }
 
-    private static Task<Observations.PawnState> ReadAsync(TypedSession s, string label, string pawn, CancellationToken cancellationToken) =>
+    private static Task<RimGovernor.Brain.GameFacts.Observations.PawnState> ReadAsync(TypedSession s, string label, string pawn, CancellationToken cancellationToken) =>
         TypedPawns.OneAsync(s, label, pawn, cancellationToken);
 
     /// <summary>The pawn's configured care policy; a colonist always has one.</summary>
-    private static Observations.PawnCare.Configured Care(Observations.PawnState pawn) =>
-        pawn.Settings.Care as Observations.PawnCare.Configured ?? throw new AcceptanceException($"{pawn.Pawn.Id} reads no care policy");
+    private static RimGovernor.Brain.GameFacts.Observations.PawnCare.Configured Care(RimGovernor.Brain.GameFacts.Observations.PawnState pawn) =>
+        pawn.Settings.Care as RimGovernor.Brain.GameFacts.Observations.PawnCare.Configured ?? throw new AcceptanceException($"{pawn.Pawn.Id} reads no care policy");
 
     private static async Task HostilityAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var pawn = await TypedPawns.FirstColonistAsync(s, "colonist", cancellationToken).ConfigureAwait(false);
         var id = pawn.Pawn.Id;
-        if (Care(pawn).HostilityResponse == Operations.HostilityResponse.Flee)
+        if (Care(pawn).HostilityResponse == RimGovernor.Brain.GameFacts.Operations.HostilityResponse.Flee)
         {
             throw new AcceptanceException($"{id} already flees: the write would prove nothing");
         }
 
-        var flee = new Operations.PawnSettingsIntentSetting.HostilityResponseCase(Operations.HostilityResponse.Flee);
+        var flee = new RimGovernor.Brain.GameOrders.Operations.PawnSettingsIntentSetting.HostilityResponseCase(RimGovernor.Brain.GameFacts.Operations.HostilityResponse.Flee);
         _ = await ApplyAsync(s, "flee", id, flee, cancellationToken).ConfigureAwait(false);
         var read = await ReadAsync(s, "flee-readback", id, cancellationToken).ConfigureAwait(false);
         var hostility = Care(read).HostilityResponse;
         s.RecordWire("hostility", hostility);
-        if (hostility != Operations.HostilityResponse.Flee)
+        if (hostility != RimGovernor.Brain.GameFacts.Operations.HostilityResponse.Flee)
         {
             throw new AcceptanceException($"{id} reads hostility {hostility}, want Flee");
         }
@@ -100,15 +97,15 @@ internal static class PawnSettings
 
     private static async Task SelfTendAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        var colonists = await TypedPawns.ListAsync(s, "colonists", new Observations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only, Downed = RimGovernor.Contracts.Wire.Observations.PawnMembership.Excluded }, cancellationToken).ConfigureAwait(false);
+        var colonists = await TypedPawns.ListAsync(s, "colonists", new RimGovernor.Brain.GameFacts.Observations.PawnFilter { Colonist = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Only, Downed = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Excluded }, cancellationToken).ConfigureAwait(false);
         var doctor = colonists.OrderBy(p => p.Pawn.Id, StringComparer.Ordinal)
-            .FirstOrDefault(p => p.Settings.Work is Observations.PawnWork.Works { Rows: var rows } && rows.Any(w => w.DefName == "Doctor" && !w.Disabled))
+            .FirstOrDefault(p => p.Settings.Work is RimGovernor.Brain.GameFacts.Observations.PawnWork.Works { Rows: var rows } && rows.Any(w => w.DefName == "Doctor" && !w.Disabled))
             ?? throw new AcceptanceException("no doctor-capable colonist");
         var id = doctor.Pawn.Id;
         foreach (var on in new[] { false, true })
         {
             var key = on ? "self-tend-on" : "self-tend-off";
-            _ = await ApplyAsync(s, key, id, new Operations.PawnSettingsIntentSetting.SelfTendCase(on), cancellationToken).ConfigureAwait(false);
+            _ = await ApplyAsync(s, key, id, new RimGovernor.Brain.GameOrders.Operations.PawnSettingsIntentSetting.SelfTendCase(on), cancellationToken).ConfigureAwait(false);
             var read = await ReadAsync(s, key + "-readback", id, cancellationToken).ConfigureAwait(false);
             if (Care(read).SelfTend != on)
             {
@@ -122,7 +119,7 @@ internal static class PawnSettings
         const int Count = 2;
         var pawn = await TypedPawns.FirstColonistAsync(s, "colonist", cancellationToken).ConfigureAwait(false);
         var id = pawn.Pawn.Id;
-        var carry = new Operations.PawnSettingsIntentSetting.MedicineCarryCase(Count);
+        var carry = new RimGovernor.Brain.GameOrders.Operations.PawnSettingsIntentSetting.MedicineCarryCase(Count);
         _ = await ApplyAsync(s, "medicine-carry", id, carry, cancellationToken).ConfigureAwait(false);
         var read = await ReadAsync(s, "medicine-carry-readback", id, cancellationToken).ConfigureAwait(false);
         var stock = read.Settings.PolicyInputs.InventoryStock.FirstOrDefault(i => i.Group == "Medicine");
@@ -139,7 +136,7 @@ internal static class PawnSettings
     {
         async Task<Dictionary<string, string>> NamesAsync(string label)
         {
-            var population = await s.CallAsync(label, NativeOps.ReadPopulation, new Observations.PopulationRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+            var population = await s.CallAsync(label, NativeOps.ReadPopulation, new RimGovernor.Brain.GameOrders.Observations.PopulationRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
             return population.OwnedNames.ToDictionary(n => n.PawnId.Value, n => n.ShortName, StringComparer.Ordinal);
         }
 
@@ -147,7 +144,7 @@ internal static class PawnSettings
         var id = pawn.Pawn.Id;
         var before = await NamesAsync("names-before").ConfigureAwait(false);
         var old = before.GetValueOrDefault(id) ?? throw new AcceptanceException($"{id} has no owned name");
-        var leave = new Operations.PawnSettingsIntentSetting.NicknameCase(old);
+        var leave = new RimGovernor.Brain.GameOrders.Operations.PawnSettingsIntentSetting.NicknameCase(old);
         _ = await ApplyAsync(s, "nickname", id, leave, cancellationToken).ConfigureAwait(false);
         var after = await NamesAsync("names-after").ConfigureAwait(false);
         var fresh = after.GetValueOrDefault(id, "");

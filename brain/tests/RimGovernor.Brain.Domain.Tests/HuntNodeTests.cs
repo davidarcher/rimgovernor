@@ -1,5 +1,4 @@
-using O = RimGovernor.Contracts.Wire.Observations;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -23,8 +22,8 @@ public sealed class HuntNodeTests
     // A census row as the acquisition decode makes it from the race row: the meat's nutrition and the race's butchery products.
     private static AcquisitionSource Animal(AnimalRace race, int i) => new()
     {
-        Observed = new() { Source = new() { Id = $"{race.Def}{i}" }, Token = $"{race.Def}{i}", Resource = race.Def.Value, Yield = 1, Designation = new O.AcquisitionDesignation.Open(), Taken = false, Kind = new O.AcquisitionKind.Hunt(82, 1, false, false, false, false) },
-        Entity = new() { Id = $"{race.Def}{i}", DefName = race.Def.Value, Label = race.Def.Value, Place = new O.EntityPlace.OnMap(1, new Cell(i, 0)) },
+        Observed = new() { Source = new() { Id = $"{race.Def}{i}" }, Token = $"{race.Def}{i}", Resource = race.Def.Value, Yield = 1, Designation = new RimGovernor.Brain.GameFacts.Observations.AcquisitionDesignation.Open(), Taken = false, Kind = new RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Hunt(82, 1, false, false, false, false) },
+        Entity = new() { Id = $"{race.Def}{i}", DefName = race.Def.Value, Label = race.Def.Value, Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(1, new Cell(i, 0)) },
         NutritionYield = MeatNutrition(race),
         Products = race.Butchery,
     };
@@ -92,8 +91,8 @@ public sealed class HuntNodeTests
         var pest = animal with { Observed = animal.Observed with { Source = new() { Id = "boomrat" }, Token = "boomrat", Resource = "Boomrat" }, Entity = animal.Entity with { Id = "boomrat", DefName = "Boomrat", Label = "boomrat" }, Pest = true, NutritionYield = 0 };
         var bush = new AcquisitionSource
         {
-            Observed = new() { Source = new() { Id = "berry" }, Token = "berry", Resource = "RawBerries", Yield = 10, Designation = new O.AcquisitionDesignation.Open(), Taken = false, Kind = new O.AcquisitionKind.Plant(true, 1, false) },
-            Entity = new() { Id = "berry", DefName = "Plant_Berry", Label = "berry bush", Place = new O.EntityPlace.OnMap(1, new Cell(0, 0)) },
+            Observed = new() { Source = new() { Id = "berry" }, Token = "berry", Resource = "RawBerries", Yield = 10, Designation = new RimGovernor.Brain.GameFacts.Observations.AcquisitionDesignation.Open(), Taken = false, Kind = new RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Plant(true, 1, false) },
+            Entity = new() { Id = "berry", DefName = "Plant_Berry", Label = "berry bush", Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(1, new Cell(0, 0)) },
             NutritionYield = 0.5,
         };
         var input = Colony(pest, bush);

@@ -1,11 +1,12 @@
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
-using PbClock = RimGovernor.Contracts.Wire.Clock;
-using RimGovernor.Contracts.Wire.Lifecycle;
-using RimGovernor.Contracts.Wire.Presentation;
+using RimGovernor.Brain.GameFacts.Lifecycle;
+using RimGovernor.Brain.GameOrders.Lifecycle;
+using RimGovernor.Brain.GameFacts.Presentation;
+using RimGovernor.Brain.GameOrders.Presentation;
 
 namespace RimGovernor.Brain.PlayerApi;
 
@@ -35,10 +36,10 @@ public interface IControlReader
 /// <summary>The speed the brain requests while it owns the clock; a change applies from the next run.</summary>
 public interface IClockSpeedControl
 {
-    PbClock.Speed Speed { get; }
+    RimGovernor.Brain.GameFacts.Clock.Speed Speed { get; }
 
     /// <summary>Sets the target speed (Normal through Hyperfast).</summary>
-    void Change(PbClock.Speed speed);
+    void Change(RimGovernor.Brain.GameFacts.Clock.Speed speed);
 }
 
 /// <summary>
@@ -137,7 +138,7 @@ public interface IPlanReader
 /// pending work; <see cref="LastReviewTick"/> is the durable review cursor's most recent reviewed tick, known once
 /// a review has run.
 /// </summary>
-public sealed record RoundsStatus
+public sealed record ReviewStatus
 {
     public ExtentEligibilityView ExtentEligibility { get; init; } = ExtentEligibilityView.NoHistory;
 
@@ -168,9 +169,9 @@ public sealed record RoundsStatus
 }
 
 /// <summary>Reports the composed routine runtime. Implementations must not trigger native calls or mutate state.</summary>
-public interface IRoundsProvider
+public interface IReviewProvider
 {
-    Task<RoundsStatus> RoundsStatusAsync(CancellationToken cancellationToken);
+    Task<ReviewStatus> ReviewStatusAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>The read-only live colony census the colony route fronts: food stock and runway plus every living home colonist's state.</summary>

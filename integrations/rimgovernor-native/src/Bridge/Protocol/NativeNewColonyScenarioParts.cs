@@ -4,9 +4,8 @@ using System.Linq;
 using HarmonyLib;
 using RimWorld;
 using Verse;
-using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The typed scenario parts of a NewColonySpec (contracts/proto/lifecycle.proto),
     // built into game ScenParts and put on the copy of the base scenario, where a
@@ -55,7 +54,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Resolves and builds the spec's parts against the base scenario. Call on the game thread.
-        internal static Plan Build(Lifecycle.NewColonySpec spec, Scenario baseScenario)
+        internal static Plan Build(RimGovernor.Brain.GameOrders.Lifecycle.NewColonySpec spec, Scenario baseScenario)
         {
             var plan = new Plan();
             if (spec.StartingThings.Count > 0) plan.ReplacedPartDefs.UnionWith(ThingPartDefs);
@@ -102,15 +101,15 @@ namespace HomeBridge.BridgeTools
                 Set(part, "incident", Named<IncidentDef>(spec.DisabledIncidents[i], "disabled_incidents[" + i + "]"));
                 plan.Parts.Add(part);
             }
-            if (spec.PlayerFaction != Lifecycle.ScenarioPlayerFaction.Base)
+            if (spec.PlayerFaction != RimGovernor.Brain.GameOrders.Lifecycle.ScenarioPlayerFaction.Base)
             {
-                var name = spec.PlayerFaction == Lifecycle.ScenarioPlayerFaction.NewTribe ? "PlayerTribe" : "PlayerColony";
+                var name = spec.PlayerFaction == RimGovernor.Brain.GameOrders.Lifecycle.ScenarioPlayerFaction.NewTribe ? "PlayerTribe" : "PlayerColony";
                 var faction = Named<FactionDef>(name, "player_faction");
                 if (!faction.isPlayer) throw new PartRefusal("player_faction " + name + " is not a player faction.");
                 plan.PlayerFaction = faction;
             }
-            if (spec.ArrivalMethod != Lifecycle.ScenarioArrivalMethod.Base)
-                plan.ArrivalMethod = spec.ArrivalMethod == Lifecycle.ScenarioArrivalMethod.DropPods ? PlayerPawnsArriveMethod.DropPods : PlayerPawnsArriveMethod.Standing;
+            if (spec.ArrivalMethod != RimGovernor.Brain.GameOrders.Lifecycle.ScenarioArrivalMethod.Base)
+                plan.ArrivalMethod = spec.ArrivalMethod == RimGovernor.Brain.GameOrders.Lifecycle.ScenarioArrivalMethod.DropPods ? PlayerPawnsArriveMethod.DropPods : PlayerPawnsArriveMethod.Standing;
 
             // The editor drops a part that cannot coexist with another (the same
             // trait for overlapping pawns, clashing conditions); here it is a refusal.
@@ -146,15 +145,15 @@ namespace HomeBridge.BridgeTools
 
         private static bool Replaced(Plan plan, ScenPart? part) => part?.def != null && plan.ReplacedPartDefs.Contains(part.def.defName);
 
-        private static ScenPart Thing(Lifecycle.StartingThing thing, string field)
+        private static ScenPart Thing(RimGovernor.Brain.GameOrders.Lifecycle.StartingThing thing, string field)
         {
             var definition = Named<ThingDef>((thing.ThingDef ?? ""), field + ".thing_def");
             if (definition.category != ThingCategory.Item && definition.category != ThingCategory.Building)
                 throw new PartRefusal(field + ".thing_def " + definition.defName + " is neither an item nor a building.");
-            var name = thing.Placement == Lifecycle.StartingThingPlacement.StartWith ? "StartingThing_Defined"
-                : thing.Placement == Lifecycle.StartingThingPlacement.StartNear ? "ScatterThingsNearPlayerStart"
+            var name = thing.Placement == RimGovernor.Brain.GameOrders.Lifecycle.StartingThingPlacement.StartWith ? "StartingThing_Defined"
+                : thing.Placement == RimGovernor.Brain.GameOrders.Lifecycle.StartingThingPlacement.StartNear ? "ScatterThingsNearPlayerStart"
                 : "ScatterThingsAnywhere";
-            if (thing.Placement == Lifecycle.StartingThingPlacement.StartWith && definition.category == ThingCategory.Building && !definition.Minifiable)
+            if (thing.Placement == RimGovernor.Brain.GameOrders.Lifecycle.StartingThingPlacement.StartWith && definition.category == ThingCategory.Building && !definition.Minifiable)
                 throw new PartRefusal(field + ".thing_def " + definition.defName + " is a building that cannot be minified, so it cannot be a starting item.");
             ThingDef? stuff = null;
             if (definition.MadeFromStuff)
@@ -179,12 +178,12 @@ namespace HomeBridge.BridgeTools
             Set(part, "stuff", stuff);
             Set(part, "count", (int)thing.Count);
             Set(part, "quality", quality);
-            if (part is ScenPart_ScatterThings scatter && (thing.Placement == Lifecycle.StartingThingPlacement.Scattered || thing.Placement == Lifecycle.StartingThingPlacement.ScatteredRoofed))
-                scatter.allowRoofed = thing.Placement == Lifecycle.StartingThingPlacement.ScatteredRoofed;
+            if (part is ScenPart_ScatterThings scatter && (thing.Placement == RimGovernor.Brain.GameOrders.Lifecycle.StartingThingPlacement.Scattered || thing.Placement == RimGovernor.Brain.GameOrders.Lifecycle.StartingThingPlacement.ScatteredRoofed))
+                scatter.allowRoofed = thing.Placement == RimGovernor.Brain.GameOrders.Lifecycle.StartingThingPlacement.ScatteredRoofed;
             return part;
         }
 
-        private static ScenPart Trait(Lifecycle.ForcedTrait forced, string field)
+        private static ScenPart Trait(RimGovernor.Brain.GameOrders.Lifecycle.ForcedTrait forced, string field)
         {
             var trait = Named<TraitDef>((forced.Trait ?? ""), field + ".trait");
             if (!trait.degreeDatas.Any(d => d.degree == forced.Degree))
@@ -197,7 +196,7 @@ namespace HomeBridge.BridgeTools
             return part;
         }
 
-        private static ScenPart Hediff(Lifecycle.ForcedHediff forced, string field)
+        private static ScenPart Hediff(RimGovernor.Brain.GameOrders.Lifecycle.ForcedHediff forced, string field)
         {
             var hediff = Named<HediffDef>((forced.Hediff ?? ""), field + ".hediff");
             if (!hediff.scenarioCanAdd)
@@ -212,7 +211,7 @@ namespace HomeBridge.BridgeTools
             return part;
         }
 
-        private static ScenPart Need(Lifecycle.SetNeedLevel set, string field)
+        private static ScenPart Need(RimGovernor.Brain.GameOrders.Lifecycle.SetNeedLevel set, string field)
         {
             var need = Named<NeedDef>((set.Need ?? ""), field + ".need");
             if (!need.major)
@@ -224,11 +223,11 @@ namespace HomeBridge.BridgeTools
             return part;
         }
 
-        private static void SetModifier(ScenPart part, float chance, Lifecycle.ScenarioPawnContext context)
+        private static void SetModifier(ScenPart part, float chance, RimGovernor.Brain.GameOrders.Lifecycle.ScenarioPawnContext context)
         {
             Set(part, "chance", chance);
-            Set(part, "context", context == Lifecycle.ScenarioPawnContext.PlayerStarter ? PawnGenerationContext.PlayerStarter
-                : context == Lifecycle.ScenarioPawnContext.NonPlayer ? PawnGenerationContext.NonPlayer : PawnGenerationContext.All);
+            Set(part, "context", context == RimGovernor.Brain.GameOrders.Lifecycle.ScenarioPawnContext.PlayerStarter ? PawnGenerationContext.PlayerStarter
+                : context == RimGovernor.Brain.GameOrders.Lifecycle.ScenarioPawnContext.NonPlayer ? PawnGenerationContext.NonPlayer : PawnGenerationContext.All);
         }
 
         private static ScenPart Make(string scenPartDefName)

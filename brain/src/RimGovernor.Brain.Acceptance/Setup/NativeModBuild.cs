@@ -48,8 +48,8 @@ public static class NativeModBuild
     /// <summary>The brain assemblies the package must carry beside the Bridge.</summary>
     private static readonly string[] BrainAssemblies =
     [
-        "Domain", "Policy", "Contracts", "Bridge", "Bridge.Contracts", "HttpChannel", "Telemetry", "Host",
-        "Store", "Executor", "BuildingRuntime", "PlayerApi", "Simulation",
+        "Domain", "Policy", "GameFacts", "GameOrders", "Bridge", "GameAccess", "HttpChannel", "Telemetry", "Host",
+        "Store", "Executor", "Runtime", "PlayerApi", "Simulation",
     ];
 
     /// <summary>The fixture list a build asked for <paramref name="wanted"/> records: none, or those plus <see cref="AlwaysFixtures"/>, sorted.</summary>
@@ -326,7 +326,7 @@ public static class NativeModBuild
     /// <summary>The contract projects every other assembly compiles against; a change to any of them is a change to what the incremental state was built from.</summary>
     private static readonly string[] ContractRoots =
     [
-        "brain/src/RimGovernor.Brain.Contracts/", "brain/src/RimGovernor.Brain.Bridge.Contracts/", "brain/src/RimGovernor.Fixtures.Contracts/",
+        "brain/src/RimGovernor.Brain.GameFacts/", "brain/src/RimGovernor.Brain.GameOrders/", "brain/src/RimGovernor.Brain.GameAccess/", "brain/src/RimGovernor.Fixtures.Contracts/",
     ];
 
     /// <summary>

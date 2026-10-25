@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Policy;
 // Ready work describes stages that can consume worker time. Unmet needs and unresolved effects alone do not
 // occupy workers.
 //
-// ProjectReadyWork is a pure projection stored as Rounds.ReadyWork diagnostics; admission does not consume it.
+// ProjectReadyWork is a pure projection stored as ReviewState.ReadyWork diagnostics; admission does not consume it.
 // Explicit adapters identify stages, work, claims and parallelism. An action kind without one reports
 // Awaiting with reason eligibility_unknown and no work: its eligibility is not observed.
 
@@ -48,7 +48,7 @@ public sealed record ReadyWork
     public ReadyWorkId ID { get; init; }
 
     /// <summary>Concerns served; more than one when shared work was deduplicated.</summary>
-    public EquatableArray<ConcernId> Concerns { get; init; }
+    public EquatableArray<FilingKey> Concerns { get; init; }
 
     public MethodId Method { get; init; }
 
@@ -78,7 +78,7 @@ public sealed record ReadyWork
 /// <summary>Caps one projection pass.</summary>
 public readonly record struct ReadyBounds(int Candidates, int PerConcern, int Discovery);
 
-public sealed record ReadyDeferral(ConcernId Concern, string Reason, int Count);
+public sealed record ReadyDeferral(FilingKey Concern, string Reason, int Count);
 
 public sealed record ReadyWorkReport
 {
@@ -105,7 +105,7 @@ public sealed record ReadyWorkReport
 /// <summary>One existing plan with its progress.</summary>
 public sealed record ReadyPlan
 {
-    public ConcernId Concern { get; init; }
+    public FilingKey Concern { get; init; }
 
     public MethodId Method { get; init; }
 
@@ -123,7 +123,7 @@ public sealed record ReadyRequest
     public IReadOnlyList<ReadyPlan> Plans { get; init; } = [];
 
     /// <summary>Goals that have no plan; each reads no_method.</summary>
-    public IReadOnlyList<ConcernId> Unserved { get; init; } = [];
+    public IReadOnlyList<FilingKey> Unserved { get; init; } = [];
 
     public ReadyBounds Bounds { get; init; }
 
@@ -162,7 +162,7 @@ public static partial class ReadyWorkRules
         var b = r.Bounds == default ? DefaultReadyBounds() : r.Bounds;
         var continuation = "";
         var deferred = new Dictionary<(string Concern, string Reason), int>();
-        var perConcern = new Dictionary<ConcernId, int>();
+        var perConcern = new Dictionary<FilingKey, int>();
         var byId = new Dictionary<ReadyWorkId, int>();
         var output = new List<ReadyWork>();
         var examined = 0;
@@ -247,7 +247,7 @@ public static partial class ReadyWorkRules
             kept = kept.Take(b.Candidates).ToList();
         }
         var deferrals = deferred
-            .Select(kv => new ReadyDeferral(new ConcernId(kv.Key.Concern), kv.Key.Reason, kv.Value))
+            .Select(kv => new ReadyDeferral(new FilingKey(kv.Key.Concern), kv.Key.Reason, kv.Value))
             .OrderBy(d => d.Concern)
             .ThenBy(d => d.Reason, StringComparer.Ordinal)
             .ToList();
@@ -429,10 +429,10 @@ public static partial class ReadyWorkRules
         return (Runnable("designated"), true);
     }
 
-    private static List<ConcernId> SortedConcerns(IEnumerable<ConcernId> goals)
+    private static List<FilingKey> SortedConcerns(IEnumerable<FilingKey> goals)
     {
-        var seen = new HashSet<ConcernId>();
-        var output = new List<ConcernId>();
+        var seen = new HashSet<FilingKey>();
+        var output = new List<FilingKey>();
         foreach (var g in goals)
         {
             if (seen.Add(g))

@@ -1,6 +1,6 @@
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
@@ -40,7 +40,7 @@ public sealed class ColonyModelInputTests
                 Gear = null !
             }
         };
-        Assert.Equal("gear census", Assert.Throws<RequiredFactException>(() => RoundsColonyModel.InputOf(projection)).Fact);
+        Assert.Equal("gear census", Assert.Throws<RequiredFactException>(() => ReviewColonyModel.InputOf(projection)).Fact);
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public sealed class ColonyModelInputTests
     [Fact]
     public void TheCropRowCarriesTheGrowthTemperatureBandAndTheRestingFraction()
     {
-        var crop = Assert.Single(RoundsFieldPlanner.CropChoices(ColonyModelFixtures.Reading()));
+        var crop = Assert.Single(FieldPlanner.CropChoices(ColonyModelFixtures.Reading()));
 
         Assert.Equal([0.0, 10, 42, 58], new[] { crop.MinGrowthTemperature, crop.MinOptimalGrowthTemperature, crop.MaxOptimalGrowthTemperature, crop.MaxGrowthTemperature });
         Assert.Equal(0.45, crop.RestingDayFraction, 9);
@@ -170,7 +170,7 @@ public sealed class ColonyModelInputTests
     {
         var review = projection.Facts.NeedsAlternatives!;
         var pawn = review.Observation.Pawns[0] with { ResearchSpeed = researchSpeed, PlantWorkSpeed = plantWorkSpeed };
-        var observation = review.Observation with { Pawns = [pawn], ResearchBenches = EquatableArray.From(benchFactors.Select((factor, i) => new RimGovernor.Contracts.Wire.Observations.ResearchBenchRead("bench" + i, "SimpleResearchBench", new(i, 0), factor))) };
+        var observation = review.Observation with { Pawns = [pawn], ResearchBenches = EquatableArray.From(benchFactors.Select((factor, i) => new RimGovernor.Brain.GameFacts.Observations.ResearchBenchRead("bench" + i, "SimpleResearchBench", new(i, 0), factor))) };
         return projection with
         {
             Facts = projection.Facts with
@@ -249,7 +249,7 @@ public sealed class ColonyModelInputTests
             }
         };
 
-        Assert.Throws<RequiredFactException>(() => RoundsColonyModel.InputOf(projection));
+        Assert.Throws<RequiredFactException>(() => ReviewColonyModel.InputOf(projection));
     }
 
     /// <summary>GoForWalk's gain a tick at tolerance factor 1: joyGainRate 1 × 0.36 / 2500 (JoyUtility.JoyTickCheckEnd).</summary>

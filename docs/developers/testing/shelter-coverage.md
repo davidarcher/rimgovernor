@@ -9,7 +9,7 @@ one honest end-to-end path, and staged fixtures for recovery.
 ## Below the game boundary
 
 The shelter planners are pure policy functions over recorded or built facts
-(`brain/src/RimGovernor.Brain.Policy`, `brain/src/RimGovernor.Brain.BuildingRuntime`). xUnit in
+(`brain/src/RimGovernor.Brain.Policy`, `brain/src/RimGovernor.Brain.Runtime`). xUnit in
 `brain/tests/RimGovernor.Brain.Domain.Tests` holds the plan-level claims: `FirstLayoutPlanTests` (the first plan
 latches Cold or Hot from the outdoor curve and hosts research at the catalog's research bench), `FirstRoomPlanTests`
 (a first plan's rooms are the station graph's: bedrooms on a temperate map, one barracks on an ice sheet),

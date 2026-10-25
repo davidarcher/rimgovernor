@@ -6,7 +6,7 @@ using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Disposable test setup only. The native surface reads the
     // letter stack but never removes from it; the acceptance advance loop
@@ -17,7 +17,7 @@ namespace HomeBridge.BridgeTools
     public sealed class LetterFixture
     {
         [Tool("test/dismiss_letter", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test cleanup: remove one letter from the letter stack by id without choosing anything. Reports the letter's def and type; a missing id is reported, not an error.")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> Run(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Letter id as home/status letters[].id reports it.")] string letterId)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -33,7 +33,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/deliver_letter", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: deliver a plain letter of the given LetterDef through the real LetterStack callback, now or delayTicks (1..600) game ticks from now, so an advance window meets a letter of a known def.")]
-        public async Task<object> Deliver(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> Deliver(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "LetterDef name, e.g. PositiveEvent or ThreatBig.")] string definition = "PositiveEvent",
             [ToolParameter(Description = "Letter label.")] string label = "Letter acceptance",
             [ToolParameter(Description = "0 delivers now; 1..600 schedules that many ticks ahead.")] int delayTicks = 0)
@@ -61,7 +61,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/letter_pause_mode", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: read or set Prefs.AutomaticPauseMode for this process (Never, MajorThreat, AnyThreat, AnyLetter), which decides which letters pause the clock. Not saved to Prefs.xml.")]
-        public async Task<object> PauseMode(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> PauseMode(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Mode to set; empty only reads.")] string mode = "")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {

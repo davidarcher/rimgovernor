@@ -11,7 +11,7 @@ using RimWorld.Planet;
 using Verse;
 using Verse.AI.Group;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     public sealed class LabStartFixture
     {
@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools
         public LabStartFixture() { LabStart.EnsurePatched(); }
 
         [Tool("test/lab_crew", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: staff the loaded map with a crew of superpawns. Tops the free colonists up to size with fixture-made adults beside the first colonist (a larger colony is left as it is), then makes every free colonist capable of every work type (backstory work restrictions dropped), sets every skill to level (or only skill when it names one SkillDef) with no passion lost, and replaces the traits with the traits list of TraitDef[:degree] (empty leaves traits alone). Replies the colonist count and how many were added.")]
-        public async Task<object> Crew(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> Crew(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Colonists the crew holds at least; 0 adds none.")] int size = 0,
             [ToolParameter(Description = "Level 0..20 for the skills.")] int level = 20,
             [ToolParameter(Description = "One SkillDef name to set; empty sets every skill.")] string skill = "",
@@ -67,7 +67,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/lab_start", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#730): wipe the loaded map to bare Soil (no things, plants, filth, zones, roofs, snow or fog; every pawn removed), spawn N fixture-made adult colonists (fixed skills, every work type on, no traits) at the centre, lock clear weather and a 21 C outdoor temperature, and quiet the storyteller. Persists across save and reload. Replies the map size, colonist ids, centre cell and a digest of the map.")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> Run(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Fixture colonists to spawn, 1..8 (default 3).")] int colonists = LabStart.DefaultColonists,
             [ToolParameter(Description = "wipe (default), or digest, which only reads the current map's digest.")] string action = "wipe")
         {
@@ -80,7 +80,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/lab_spawn", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#743): spawn one finished thing at a cell of the loaded map, the lab contract runner's single-building or single-pawn helper. def is a PawnKindDef (a generated pawn) or a ThingDef (a building, or an item stack of count). A pawn may be given a fixed gender and age. Replies the spawned thing's load id, kind and cell.")]
-        public async Task<object> Spawn(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> Spawn(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "PawnKindDef or ThingDef name.")] string def,
             [ToolParameter(Description = "Cell x.")] int x,
             [ToolParameter(Description = "Cell z.")] int z,
@@ -325,7 +325,7 @@ namespace HomeBridge.BridgeTools
         public LabStageFixture() { LabDamageLedger.EnsurePatched(); LabShotLedger.EnsurePatched(); }
 
         [Tool("test/lab_stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#854): read, tick or reseed a combat lab fight test/stage staged. action read replies every pawn's cell, side, downed/dead state, current job (def, playerForced, target cell or thing), drafted and fire-at-will, worn shield energy, hediff defs, every player door's hold-open and forbidden flag, the damage ledger since the last staging, and the tick.")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> Run(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Action spec JSON (reseed and orphan-animal).")] string spec = "{}",
             [ToolParameter(Description = "read (default), reseed (spec {seed: non-zero}: set the game Rand seed from a run seed after the pinned staging, reply the next four draws; #2849), orphan-animal (spec animal and mode: despawn, dead or foreign), shots (the shot tap since the last staging: launches, impacts, jobs, stances, draft changes and each pawn's first think ticks, #2917), or tick: run ticks synchronous game ticks on the paused game, then read.")] string action = "read",
             [ToolParameter(Description = "Ticks for action tick, 1..2000.")] int ticks = 0)

@@ -8,7 +8,7 @@ using RimWorld.Planet;
 using UnityEngine;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Realized consumption: what the colony's stock was spent on, counted
     // into the saved ConsumptionState. Hybrid: per-reason hooks count and set a

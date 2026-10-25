@@ -2,11 +2,8 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // HaulIntent on Actions/Apply: order one undrafted colonist to haul
     // one loose item with the job a player's "Prioritize hauling" click would
@@ -31,17 +28,17 @@ namespace HomeBridge.BridgeTools
 
         // Resolve finds the pawn and item and checks them, one rule at a time
         // (action-contracts.md "Apply-time preconditions").
-        private static Common.Failure? Resolve(Operations.HaulIntent? intent, Common.ObservationContext context, out Pawn? pawn, out Thing? thing)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(RimGovernor.Brain.GameOrders.Operations.HaulIntent? intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Pawn? pawn, out Thing? thing)
         {
             pawn = null; thing = null;
-            if (intent == null || !ProtoBoundary.IsIdentifier(intent.PawnId) || !ProtoBoundary.IsIdentifier(intent.ThingId) || (intent.PawnId ?? "") == (intent.ThingId ?? ""))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Haul requires an exact pawn id and item id.");
+            if (intent == null || !GameThread.IsIdentifier(intent.PawnId) || !GameThread.IsIdentifier(intent.ThingId) || (intent.PawnId ?? "") == (intent.ThingId ?? ""))
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Haul requires an exact pawn id and item id.");
             if (!NativePawnControlState.IsReady)
-                return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
-            var map = ProtoBoundary.LoadedMap(context);
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
+            var map = GameThread.LoadedMap(context);
             var identity = new NativeControlIdentity(Current.Game, map, (context.Identity?.ColonyId ?? ""), (context.Identity?.LoadToken ?? ""));
             var foundPawn = map.mapPawns.AllPawnsSpawned.ById(intent.PawnId);
-            if (foundPawn == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, ApplyPreconditions.Detail(Kind, "the exact pawn is not spawned on this map"));
+            if (foundPawn == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, ApplyPreconditions.Detail(Kind, "the exact pawn is not spawned on this map"));
             var control = NativePawnControlState.Observe(identity, foundPawn, out var observed);
             if (control != NativePawnControlResult.Ready || observed == null) return NativeDraftProtocol.Failure(control, context);
             var carried = foundPawn.carryTracker?.CarriedThing;
@@ -59,29 +56,29 @@ namespace HomeBridge.BridgeTools
             if (!rules.Holds || foundThing == null) return rules.Failure();
             pawn = foundPawn; thing = foundThing;
             if (Hauling(pawn, thing)) return null;
-            if (!thing.Spawned || !ProtoBoundary.IsLoaded(thing.Map))
-                return ProtoBoundary.Fail(Common.FailureCode.NotFound, ApplyPreconditions.Detail(Kind, "the item is not spawned on this map"));
+            if (!thing.Spawned || !GameThread.IsLoaded(thing.Map))
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, ApplyPreconditions.Detail(Kind, "the item is not spawned on this map"));
             if (thing.Position.Fogged(thing.Map))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, ApplyPreconditions.Detail(Kind, "the item's cell is fogged"));
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, ApplyPreconditions.Detail(Kind, "the item's cell is fogged"));
             if (Job(pawn, thing, out var reason) == null)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, ApplyPreconditions.Detail(Kind, "no hauling job is available for this pawn and item" + (string.IsNullOrEmpty(reason) ? "" : ": " + reason)));
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, ApplyPreconditions.Detail(Kind, "no hauling job is available for this pawn and item" + (string.IsNullOrEmpty(reason) ? "" : ": " + reason)));
             return null;
         }
 
-        private static Receipts.EffectEvidence Evidence(Pawn pawn, Thing thing, Job? job, bool issued) => new Receipts.EffectEvidence
+        private static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Evidence(Pawn pawn, Thing thing, Job? job, bool issued) => new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence
         {
-            Effect = new Receipts.JobEffect
+            Effect = new RimGovernor.Brain.GameFacts.Receipts.JobEffect
             {
                 PawnId = pawn.GetUniqueLoadID(), JobDef = job?.def?.defName ?? "HaulToCell",
-                TargetA = new Receipts.JobTarget { Target = new Receipts.JobTargetTarget.ThingIdCase(thing.GetUniqueLoadID()) },
+                TargetA = new RimGovernor.Brain.GameFacts.Receipts.JobTarget { Target = new RimGovernor.Brain.GameFacts.Receipts.JobTargetTarget.ThingIdCase(thing.GetUniqueLoadID()) },
                 Issued = issued,
             }
         };
 
-        internal static Common.Failure? Validate(Operations.HaulIntent? intent, Common.ObservationContext context) =>
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.HaulIntent? intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context) =>
             Resolve(intent, context, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.HaulIntent? intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.HaulIntent? intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var thing);
             if (failure != null || pawn == null || thing == null) throw new System.InvalidOperationException(failure?.Detail);
@@ -95,7 +92,7 @@ namespace HomeBridge.BridgeTools
 
     internal sealed class HaulActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => NativeHaulOperations.Validate(action.Intent?.Haul, context);
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) => NativeHaulOperations.Apply(action.Intent?.Haul, context);
+        public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => NativeHaulOperations.Validate(action.Intent?.Haul, context);
+        public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => NativeHaulOperations.Apply(action.Intent?.Haul, context);
     }
 }

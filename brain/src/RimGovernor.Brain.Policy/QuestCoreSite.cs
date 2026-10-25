@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -22,7 +21,7 @@ public static class QuestCoreSite
     /// Follows only the exact quest-linked site and native targets. A designation starts work; the
     /// mineable disappearing is its completion evidence.
     /// </summary>
-    public static CoreSiteWork PlanCoreSiteWork(QuestState offer, WorldSite site, RoundsFacts f, MapId currentMap)
+    public static CoreSiteWork PlanCoreSiteWork(QuestState offer, WorldSite site, ReviewFacts f, MapId currentMap)
     {
         var result = new CoreSiteWork();
         if (f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile }
@@ -34,11 +33,11 @@ public static class QuestCoreSite
             return result;
         }
         result = result with { Kind = "wait" };
-        if (site.Place is not Pb.SitePlace.Loaded { Map: var map } || map.Id != currentMap)
+        if (site.Place is not RimGovernor.Brain.GameFacts.Observations.SitePlace.Loaded { Map: var map } || map.Id != currentMap)
         {
             return result with { Reason = "site_map_unavailable" };
         }
-        if (map.Threat is Pb.SiteThreat.Active or Pb.SiteThreat.Dormant)
+        if (map.Threat is RimGovernor.Brain.GameFacts.Observations.SiteThreat.Active or RimGovernor.Brain.GameFacts.Observations.SiteThreat.Dormant)
         {
             return result with { Reason = "site_security" };
         }
@@ -76,12 +75,12 @@ public static class QuestCoreSite
         return result with { Kind = "return" };
     }
 
-    private static CoreSiteWork CoreSiteJoiner(QuestState offer, Pb.SiteMap map, RoundsFacts f, CoreSiteWork result)
+    private static CoreSiteWork CoreSiteJoiner(QuestState offer, RimGovernor.Brain.GameFacts.Observations.SiteMap map, ReviewFacts f, CoreSiteWork result)
     {
         var ids = new List<PawnId>();
         foreach (var objective in offer.Objectives)
         {
-            if (objective.Kind == Pb.QuestObjectiveKind.RescuePawns)
+            if (objective.Kind == RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.RescuePawns)
             {
                 ids.AddRange(objective.PawnIds);
             }
@@ -109,7 +108,7 @@ public static class QuestCoreSite
             }
             if (row.WillJoinIfRescued)
             {
-                if (map.Extraction is Pb.QuestSiteExtraction.Crew { Value: var extraction })
+                if (map.Extraction is RimGovernor.Brain.GameFacts.Observations.QuestSiteExtraction.Crew { Value: var extraction })
                 {
                     foreach (var actor in extraction.Crew.OrderBy(a => a))
                     {

@@ -7,7 +7,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Prepared starting conditions only. Capture, care and recruitment run normally afterward.
     public sealed class PopulationFixture
@@ -15,7 +15,7 @@ namespace HomeBridge.BridgeTools
         private static Pawn? candidate;
 
         [Tool("test/population_setup", Description = "Disposable population fixture, excluded from production and model access. Prepares a downed hostile candidate, prison, spare housing and supplies. Does not capture or recruit.")]
-        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Setup(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 if (candidate != null || Find.CurrentMap == null || !Find.TickManager.Paused)

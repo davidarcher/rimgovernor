@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -24,7 +23,7 @@ public static class QuestCapacityForecast
     /// scheduled work/Anything hours per day, and half that time for useful work; the remainder funds
     /// hauling, walking and normal upkeep.
     /// </summary>
-    public static QuestSkipReason QuestDeadlineFeasibility(QuestState offer, RoundsFacts f)
+    public static QuestSkipReason QuestDeadlineFeasibility(QuestState offer, ReviewFacts f)
     {
         long now = f.QuestObservedTick.Value;
         var (tasks, reason) = QuestDeadlineTasks(offer, now, f.Recipes);
@@ -82,7 +81,7 @@ public static class QuestCapacityForecast
             byId[p.Id] = p;
         }
         var allowed = new HashSet<PawnId>(spare);
-        var eligible = new List<Pb.QuestWorker>();
+        var eligible = new List<RimGovernor.Brain.GameFacts.Observations.QuestWorker>();
         foreach (var p in capacities.Select(c => c.Observed).OrderBy(c => c.PawnId))
         {
             if (!allowed.Contains(p.PawnId))
@@ -159,21 +158,21 @@ public static class QuestCapacityForecast
         var tasks = new List<QuestTimedWork>();
         foreach (var objective in offer.Objectives)
         {
-            if (objective.Kind == Pb.QuestObjectiveKind.Expiry)
+            if (objective.Kind == RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.Expiry)
             {
                 continue;
             }
             if (offer.State == QuestStatus.Ongoing
-                && !objective.Active && objective.Kind != Pb.QuestObjectiveKind.Monument)
+                && !objective.Active && objective.Kind != RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.Monument)
             {
                 continue;
             }
             long deadline;
-            if (objective.Timing is Pb.QuestObjectiveTiming.Deadline due)
+            if (objective.Timing is RimGovernor.Brain.GameFacts.Observations.QuestObjectiveTiming.Deadline due)
             {
                 deadline = due.Tick;
             }
-            else if (objective.Timing is Pb.QuestObjectiveTiming.Duration { Ticks: var duration })
+            else if (objective.Timing is RimGovernor.Brain.GameFacts.Observations.QuestObjectiveTiming.Duration { Ticks: var duration })
             {
                 if (duration > long.MaxValue - now)
                 {
@@ -186,14 +185,14 @@ public static class QuestCapacityForecast
                 // An untimed objective sets no deadline.
                 continue;
             }
-            if (objective.Goal is Pb.QuestObjectiveGoal.Things things && things.Done >= things.Count)
+            if (objective.Goal is RimGovernor.Brain.GameFacts.Observations.QuestObjectiveGoal.Things things && things.Done >= things.Count)
             {
                 continue;
             }
             var work = objective.Workload is { } load ? WorkloadOf(load, recipes) : null;
             if (objective.Monument is { } marker)
             {
-                if (marker.State is Pb.QuestMonumentState.Installed { AllDone: true })
+                if (marker.State is RimGovernor.Brain.GameFacts.Observations.QuestMonumentState.Installed { AllDone: true })
                 {
                     continue;
                 }
@@ -236,7 +235,7 @@ public static class QuestCapacityForecast
     /// recipe for a bill. Native names the recipe only from a usable bench, so a recipe the catalog's benches do not host
     /// raises <see cref="RequiredFactException"/>.
     /// </summary>
-    internal static QuestWorkload WorkloadOf(Pb.QuestWorkload load, RecipeFacts recipes)
+    internal static QuestWorkload WorkloadOf(RimGovernor.Brain.GameFacts.Observations.QuestWorkload load, RecipeFacts recipes)
     {
         var work = WorkType.PlantCutting;
         if (load.Recipe is { } recipe)

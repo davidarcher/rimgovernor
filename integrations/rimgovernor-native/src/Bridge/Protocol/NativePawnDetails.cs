@@ -4,12 +4,9 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Defs = RimGovernor.Contracts.Wire.Defs;
-using Obs = RimGovernor.Contracts.Wire.Observations;
-using static HomeBridge.BridgeTools.NativePawnObservationTools;
+using static RimGovernor.Native.NativePawnObservationTools;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class NativePawnDetails
     {
@@ -18,7 +15,7 @@ namespace HomeBridge.BridgeTools
         // behind "Tend requires an eligible doctor"), WorkGiver_Tend's required
         // capacities, and CanReach(ClosestTouch, Deadly) to every other
         // requested pawn -- the candidate patients.
-        internal static System.Collections.Generic.List<Obs.TendDoctor> Tend(System.Collections.Generic.List<Pawn> pawns,uint reachBudgetMs)
+        internal static System.Collections.Generic.List<RimGovernor.Brain.GameFacts.Observations.TendDoctor> Tend(System.Collections.Generic.List<Pawn> pawns,uint reachBudgetMs)
         {
             var giver=DefDatabase<WorkGiverDef>.AllDefsListForReading
                 .Where(d => d.giverClass!=null && typeof(WorkGiver_Tend).IsAssignableFrom(d.giverClass))
@@ -29,60 +26,60 @@ namespace HomeBridge.BridgeTools
             // reach_skipped, never a partial list.
             var budgetTicks=reachBudgetMs*System.Diagnostics.Stopwatch.Frequency/1000;
             var began=System.Diagnostics.Stopwatch.GetTimestamp();
-            var result=new System.Collections.Generic.List<Obs.TendDoctor>(pawns.Count);
+            var result=new System.Collections.Generic.List<RimGovernor.Brain.GameFacts.Observations.TendDoctor>(pawns.Count);
             foreach(var pawn in pawns) {
-                Obs.TendReach reach;
-                if(!pawn.Spawned || pawn.Dead) reach=new Obs.TendReach.Read([]);
-                else if(System.Diagnostics.Stopwatch.GetTimestamp()-began>=budgetTicks) reach=new Obs.TendReach.Skipped();
-                else reach=new Obs.TendReach.Read([.. pawns
+                RimGovernor.Brain.GameFacts.Observations.TendReach reach;
+                if(!pawn.Spawned || pawn.Dead) reach=new RimGovernor.Brain.GameFacts.Observations.TendReach.Read([]);
+                else if(System.Diagnostics.Stopwatch.GetTimestamp()-began>=budgetTicks) reach=new RimGovernor.Brain.GameFacts.Observations.TendReach.Skipped();
+                else reach=new RimGovernor.Brain.GameFacts.Observations.TendReach.Read([.. pawns
                     .Where(other => !ReferenceEquals(other,pawn) && other.Spawned && !other.Dead && pawn.CanReach(other,PathEndMode.ClosestTouch,Danger.Deadly))
                     .Select(other => Id(other.GetUniqueLoadID()))]);
-                result.Add(new Obs.TendDoctor { PawnId = Id(pawn.GetUniqueLoadID()), Spawned = pawn.Spawned, HasDrafter = pawn.drafter!=null,
+                result.Add(new RimGovernor.Brain.GameFacts.Observations.TendDoctor { PawnId = Id(pawn.GetUniqueLoadID()), Spawned = pawn.Spawned, HasDrafter = pawn.drafter!=null,
                     ControlEligible = pawn.drafter!=null && pawn.Spawned && !pawn.Dead && !pawn.Downed && !pawn.InMentalState && pawn.IsColonistPlayerControlled,
                     CapacitiesOk = giver.MissingRequiredCapacity(pawn)==null, Reach = reach });
             }
             return result;
         }
         // One hediff row of a health read.
-        private static Obs.Hediff HediffRow(Pawn pawn,Hediff h)
+        private static RimGovernor.Brain.GameFacts.Observations.Hediff HediffRow(Pawn pawn,Hediff h)
         {
             var immune=h.TryGetComp<HediffComp_Immunizable>();
-            Obs.HediffImmunity? immunity=null;
+            RimGovernor.Brain.GameFacts.Observations.HediffImmunity? immunity=null;
             if(immune!=null) {
                 var record=pawn.health.immunity.GetImmunityRecord(h.def);
-                immunity=new Obs.HediffImmunity {
+                immunity=new RimGovernor.Brain.GameFacts.Observations.HediffImmunity {
                     Immunity=Number(immune.Immunity),
                     // Include tending's severity modifier, as well as the disease's
                     // randomized native progression. Read only: never create immunity records.
                     SeverityPerDay=Number(((HediffWithComps)h).comps.OfType<HediffComp_SeverityModifierBase>().Sum(comp=>comp.SeverityChangePerDay())),
-                    Gain=pawn.Dead?new Obs.ImmunityGain.Dead()
-                        :record==null?new Obs.ImmunityGain.NoRecord()
-                        :new Obs.ImmunityGain.PerDay(Number(GameTime.PerDay(record.ImmunityChangePerTick(pawn,true,h)))) };
+                    Gain=pawn.Dead?new RimGovernor.Brain.GameFacts.Observations.ImmunityGain.Dead()
+                        :record==null?new RimGovernor.Brain.GameFacts.Observations.ImmunityGain.NoRecord()
+                        :new RimGovernor.Brain.GameFacts.Observations.ImmunityGain.PerDay(Number(GameTime.PerDay(record.ImmunityChangePerTick(pawn,true,h)))) };
             }
             // Only a hediff with a tend duration is ever tended (HediffUtility.IsTended).
-            Obs.HediffTend tend=h.IsTended()
-                ?new Obs.HediffTend.Tended(Number((h.TryGetComp<HediffComp_TendDuration>()
+            RimGovernor.Brain.GameFacts.Observations.HediffTend tend=h.IsTended()
+                ?new RimGovernor.Brain.GameFacts.Observations.HediffTend.Tended(Number((h.TryGetComp<HediffComp_TendDuration>()
                     ?? throw new InvalidOperationException("A tended hediff has no tend duration.")).tendQuality))
-                :new Obs.HediffTend.Untended();
-            return new Obs.Hediff {DefName=Id(h.def.defName),Part=h.Part!=null?PartRef(pawn,h.Part,"Hediff"):null,Severity=Number(h.Severity),
+                :new RimGovernor.Brain.GameFacts.Observations.HediffTend.Untended();
+            return new RimGovernor.Brain.GameFacts.Observations.Hediff {DefName=Id(h.def.defName),Part=h.Part!=null?PartRef(pawn,h.Part,"Hediff"):null,Severity=Number(h.Severity),
                 Visible=h.Visible,Tend=tend,Immunizable=immunity};
         }
 
         // A part of the pawn's race body; one outside it is a broken read.
-        private static Obs.BodyPartRef PartRef(Pawn pawn,BodyPartRecord part,string what)
+        private static RimGovernor.Brain.GameFacts.Observations.BodyPartRef PartRef(Pawn pawn,BodyPartRecord part,string what)
         {
             var index=pawn.RaceProps.body.AllParts.IndexOf(part);
             if(index<0) throw new InvalidOperationException(what+" body part is not in this pawn's body.");
-            return new Obs.BodyPartRef { Index=index, DefName=Id(part.def.defName) };
+            return new RimGovernor.Brain.GameFacts.Observations.BodyPartRef { Index=index, DefName=Id(part.def.defName) };
         }
 
         // The need levels; a need the pawn lacks is Lacks.
-        internal static Obs.PawnNeeds Needs(Pawn pawn)
+        internal static RimGovernor.Brain.GameFacts.Observations.PawnNeeds Needs(Pawn pawn)
         {
             var food = pawn.needs?.food;
-            return new Obs.PawnNeeds
+            return new RimGovernor.Brain.GameFacts.Observations.PawnNeeds
             {
-                Food = food != null ? new Obs.FoodNeed.Has(Number(food.CurLevelPercentage), (Defs.HungerCategory)(int)food.CurCategory) : new Obs.FoodNeed.Lacks(),
+                Food = food != null ? new RimGovernor.Brain.GameFacts.Observations.FoodNeed.Has(Number(food.CurLevelPercentage), (RimGovernor.Brain.GameFacts.Defs.HungerCategory)(int)food.CurCategory) : new RimGovernor.Brain.GameFacts.Observations.FoodNeed.Lacks(),
                 Rest = Level(pawn.needs?.rest),
                 Mood = Level(pawn.needs?.mood),
                 Joy = Level(pawn.needs?.joy),
@@ -92,24 +89,24 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static Obs.NeedLevel Level(Need? need) =>
-            need != null ? new Obs.NeedLevel.Has(Number(need.CurLevelPercentage)) : new Obs.NeedLevel.Lacks();
+        private static RimGovernor.Brain.GameFacts.Observations.NeedLevel Level(Need? need) =>
+            need != null ? new RimGovernor.Brain.GameFacts.Observations.NeedLevel.Has(Number(need.CurLevelPercentage)) : new RimGovernor.Brain.GameFacts.Observations.NeedLevel.Lacks();
 
-        internal static Obs.PawnHealth Health(Pawn pawn,Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Observations.PawnHealth Health(Pawn pawn,RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var set=pawn.health.hediffSet;
             var all=set.hediffs.ToList();
             var bleeding=set.BleedRateTotal>0;
-            Obs.BleedOut bleedOut=new Obs.BleedOut.NotBleedingOut();
+            RimGovernor.Brain.GameFacts.Observations.BleedOut bleedOut=new RimGovernor.Brain.GameFacts.Observations.BleedOut.NotBleedingOut();
             if(bleeding && !pawn.Dead) {
                 var ticks=HealthUtility.TicksUntilDeathDueToBloodLoss(pawn);
-                if(ticks>0 && ticks<int.MaxValue) bleedOut=new Obs.BleedOut.Within(GameTime.Hours((double)ticks));
+                if(ticks>0 && ticks<int.MaxValue) bleedOut=new RimGovernor.Brain.GameFacts.Observations.BleedOut.Within(GameTime.Hours((double)ticks));
             }
             var lifeThreatening=all.Any(h=>h.IsCurrentlyLifeThreatening);
             var bloodLoss=Number(all.Where(h=>h.def==HediffDefOf.BloodLoss).Sum(h=>(double)h.Severity));
             var seekRest=HealthAIUtility.ShouldSeekMedicalRest(pawn);
             var bedId=pawn.CurrentBed() is { } bed ? Id(bed.GetUniqueLoadID()) : null;
-            return new Obs.PawnHealth { SummaryFraction=Number(pawn.health.summaryHealth.SummaryHealthPercent), NeedsTend=pawn.health.HasHediffsNeedingTend(false),
+            return new RimGovernor.Brain.GameFacts.Observations.PawnHealth { SummaryFraction=Number(pawn.health.summaryHealth.SummaryHealthPercent), NeedsTend=pawn.health.HasHediffsNeedingTend(false),
                 BleedRatePerDay=Number(set.BleedRateTotal), Bleeding=bleeding, BleedOut=bleedOut,
                 LifeThreatening=lifeThreatening, BloodLoss=bloodLoss,
                 ShouldSeekMedicalRest=seekRest, Hediffs=[.. all.Select(h=>HediffRow(pawn,h))], Surgery=Surgery(pawn), BedId=bedId,
@@ -128,15 +125,15 @@ namespace HomeBridge.BridgeTools
         // retired home/medical_operations tool, success chance from the recipe's
         // own SurgeryOutcomeEffectDef comps. The brain never recomputes any of it.
         // Absent for a dead pawn or one off every map.
-        internal static Obs.PawnSurgery? Surgery(Pawn pawn)
+        internal static RimGovernor.Brain.GameFacts.Observations.PawnSurgery? Surgery(Pawn pawn)
         {
             var map=pawn.MapHeld;
             if(pawn.Dead || map==null) return null;
-            var bills=pawn.BillStack.Bills.Select(bill => new Obs.SurgeryBill {Id=Id(bill.GetUniqueLoadID()),Recipe=Id(bill.recipe.defName),
+            var bills=pawn.BillStack.Bills.Select(bill => new RimGovernor.Brain.GameFacts.Observations.SurgeryBill {Id=Id(bill.GetUniqueLoadID()),Recipe=Id(bill.recipe.defName),
                 Part=bill is Bill_Medical { Part: { } part } ? PartRef(pawn,part,"Surgery") : null}).ToList();
             var missingParts=pawn.health.hediffSet.GetMissingPartsCommonAncestors().Where(m => m.Part!=null)
-                .Select(m => new Obs.MissingBodyPart {Part=PartRef(pawn,m.Part,"Missing")}).ToList();
-            var operations=new System.Collections.Generic.List<Obs.SurgeryOperation>();
+                .Select(m => new RimGovernor.Brain.GameFacts.Observations.MissingBodyPart {Part=PartRef(pawn,m.Part,"Missing")}).ToList();
+            var operations=new System.Collections.Generic.List<RimGovernor.Brain.GameFacts.Observations.SurgeryOperation>();
             var facts=SurgeryScope.Facts(map);
             var bestBed=facts.BestBed; var bedFactor=facts.BedFactor; var idealFactor=facts.IdealFactor;
             foreach(var def in pawn.def.AllRecipes) {
@@ -158,16 +155,16 @@ namespace HomeBridge.BridgeTools
                         careLimited=others && usesMedicine && medicine==null && facts.Medicine(pawn,def,false)!=null;
                     }
                     var kind=Kind(pawn,def,part);
-                    Obs.SurgeryYield? yield=null; string? addedPart=null;
-                    if(kind==Obs.SurgeryKind.Harvest && part?.def.spawnThingOnRemoved is { } organ)
-                        yield=new Obs.SurgeryYield { ThingDef=Id(organ.defName), MarketValue=Number(organ.BaseMarketValue) };
+                    RimGovernor.Brain.GameFacts.Observations.SurgeryYield? yield=null; string? addedPart=null;
+                    if(kind==RimGovernor.Brain.GameFacts.Observations.SurgeryKind.Harvest && part?.def.spawnThingOnRemoved is { } organ)
+                        yield=new RimGovernor.Brain.GameFacts.Observations.SurgeryYield { ThingDef=Id(organ.defName), MarketValue=Number(organ.BaseMarketValue) };
                     // Artificial part removal: the added part on the
                     // target and the thing its removal spawns.
                     if(def.Worker is Recipe_RemoveBodyPart && part!=null) {
                         var added=pawn.health.hediffSet.hediffs.OfType<Hediff_AddedPart>().FirstOrDefault(h => h.Part==part);
                         if(added!=null) {
                             addedPart=Id(added.def.defName);
-                            if(added.def.spawnThingOnRemoved is { } spawn) yield=new Obs.SurgeryYield { ThingDef=Id(spawn.defName), MarketValue=Number(spawn.BaseMarketValue) };
+                            if(added.def.spawnThingOnRemoved is { } spawn) yield=new RimGovernor.Brain.GameFacts.Observations.SurgeryYield { ThingDef=Id(spawn.defName), MarketValue=Number(spawn.BaseMarketValue) };
                         }
                     }
                     double medicineValue=0;
@@ -175,17 +172,17 @@ namespace HomeBridge.BridgeTools
                         var count=def.ingredients.Where(i => i.filter.Allows(medicine)).Sum(i => i.CountRequiredOfFor(medicine,def));
                         if(count>0) medicineValue=Number(medicine.BaseMarketValue*count);
                     }
-                    Obs.SurgeryChance chance;
-                    if(def.surgeryOutcomeEffect==null) chance=new Obs.SurgeryChance.NoOutcomeEffect();
-                    else if(doctors.Count==0) chance=new Obs.SurgeryChance.NoEligibleDoctor();
+                    RimGovernor.Brain.GameFacts.Observations.SurgeryChance chance;
+                    if(def.surgeryOutcomeEffect==null) chance=new RimGovernor.Brain.GameFacts.Observations.SurgeryChance.NoOutcomeEffect();
+                    else if(doctors.Count==0) chance=new RimGovernor.Brain.GameFacts.Observations.SurgeryChance.NoEligibleDoctor();
                     else {
                         float? real=pawn.InBed()?(float?)null:bestBed?.GetStatValue(StatDefOf.SurgerySuccessChanceFactor) ?? 1f;
                         // each doctor's chance, so training can name one.
                         var chances=new System.Collections.Generic.Dictionary<string,double>();
                         foreach(var d in doctors) chances[d.GetUniqueLoadID()]=Number(Chance(def,d,pawn,part,medicine,real));
-                        chance=new Obs.SurgeryChance.Rated(chances.Values.Max(),Number(doctors.Max(d => Chance(def,d,pawn,part,medicine,idealFactor))),chances);
+                        chance=new RimGovernor.Brain.GameFacts.Observations.SurgeryChance.Rated(chances.Values.Max(),Number(doctors.Max(d => Chance(def,d,pawn,part,medicine,idealFactor))),chances);
                     }
-                    operations.Add(new Obs.SurgeryOperation {Recipe=Id(def.defName),Part=part!=null?PartRef(pawn,part,"Surgery"):null,Kind=kind,
+                    operations.Add(new RimGovernor.Brain.GameFacts.Observations.SurgeryOperation {Recipe=Id(def.defName),Part=part!=null?PartRef(pawn,part,"Surgery"):null,Kind=kind,
                         Chance=chance,
                         EligibleDoctors=doctors.Count,
                         IngredientsOnMap=others && (!usesMedicine || medicine!=null),
@@ -195,13 +192,13 @@ namespace HomeBridge.BridgeTools
                         Yield=yield, AddedPartHediff=addedPart, MedicineMarketValue=medicineValue});
                 }
             }
-            return new Obs.PawnSurgery { SurgeryBills=[.. bills], MissingParts=[.. missingParts], Operations=[.. operations] };
+            return new RimGovernor.Brain.GameFacts.Observations.PawnSurgery { SurgeryBills=[.. bills], MissingParts=[.. missingParts], Operations=[.. operations] };
         }
 
         // #3830: an install recipe on a part as if it were missing, read as Surgery reads an operation (a patient not yet in bed is
         // scored in the colony's best medical bed), with the outcome model a queued bill's demand carries and the best eligible
         // doctor's quality before the bed and the clamp (NativeSupportActivities).
-        internal static Obs.OrganReplacementRead Replacement(Pawn pawn,RecipeDef def,BodyPartRecord part,MapFacts facts,Map map)
+        internal static RimGovernor.Brain.GameFacts.Observations.OrganReplacementRead Replacement(Pawn pawn,RecipeDef def,BodyPartRecord part,MapFacts facts,Map map)
         {
             var recipe=facts.Recipe(def,map);
             var doctors=recipe.Doctors.Where(p => p!=pawn).ToList();
@@ -213,7 +210,7 @@ namespace HomeBridge.BridgeTools
                 1 when parts[0].IsFixedIngredient => parts[0].FixedIngredient,
                 _ => throw new InvalidOperationException("install recipe "+def.defName+" takes ingredients other than one fixed part and medicine") };
             var medicineCount=(int)System.Math.Ceiling(def.ingredients.Where(i => i.filter.AllowedThingDefs.Any(d => d.IsMedicine)).Sum(i => i.GetBaseCount()));
-            var row=new Obs.OrganReplacementRead(part.def.defName,def.defName) {
+            var row=new RimGovernor.Brain.GameFacts.Observations.OrganReplacementRead(part.def.defName,def.defName) {
                 PartThing=partThing==null?null:Id(partThing.defName),
                 PartOnMap=partThing==null || !recipe.Missing.Contains(partThing),
                 MedicineOnMap=!recipe.UsesMedicine || medicine!=null, MedicineCount=medicineCount, EligibleDoctors=doctors.Count,
@@ -338,17 +335,17 @@ namespace HomeBridge.BridgeTools
             return quality;
         }
 
-        private static Obs.SurgeryKind Kind(Pawn pawn,RecipeDef def,BodyPartRecord? part)
+        private static RimGovernor.Brain.GameFacts.Observations.SurgeryKind Kind(Pawn pawn,RecipeDef def,BodyPartRecord? part)
         {
             var worker=def.Worker;
             if(worker is Recipe_RemoveBodyPart)
                 return part!=null && HealthUtility.PartRemovalIntent(pawn,part)==BodyPartRemovalIntent.Harvest
-                    && !pawn.health.hediffSet.HasDirectlyAddedPartFor(part)?Obs.SurgeryKind.Harvest:Obs.SurgeryKind.Amputate;
+                    && !pawn.health.hediffSet.HasDirectlyAddedPartFor(part)?RimGovernor.Brain.GameFacts.Observations.SurgeryKind.Harvest:RimGovernor.Brain.GameFacts.Observations.SurgeryKind.Amputate;
             if(worker is Recipe_InstallArtificialBodyPart || worker is Recipe_InstallNaturalBodyPart)
-                return part!=null && pawn.health.hediffSet.PartIsMissing(part)?Obs.SurgeryKind.Restore:Obs.SurgeryKind.Install;
-            if(worker is Recipe_InstallImplant) return Obs.SurgeryKind.Install;
-            if(def.removesHediff!=null || worker is Recipe_RemoveHediff) return Obs.SurgeryKind.Cure;
-            return Obs.SurgeryKind.Other;
+                return part!=null && pawn.health.hediffSet.PartIsMissing(part)?RimGovernor.Brain.GameFacts.Observations.SurgeryKind.Restore:RimGovernor.Brain.GameFacts.Observations.SurgeryKind.Install;
+            if(worker is Recipe_InstallImplant) return RimGovernor.Brain.GameFacts.Observations.SurgeryKind.Install;
+            if(def.removesHediff!=null || worker is Recipe_RemoveHediff) return RimGovernor.Brain.GameFacts.Observations.SurgeryKind.Cure;
+            return RimGovernor.Brain.GameFacts.Observations.SurgeryKind.Other;
         }
 
         private static bool Lethal(Pawn pawn,RecipeDef def,BodyPartRecord? part)
@@ -359,7 +356,7 @@ namespace HomeBridge.BridgeTools
             return def.addsHediff!=null && pawn.health.WouldDieAfterAddingHediff(def.addsHediff,part,def.addsHediff.initialSeverity);
         }
 
-        internal static Obs.PawnEquipment Equipment(Pawn pawn)
+        internal static RimGovernor.Brain.GameFacts.Observations.PawnEquipment Equipment(Pawn pawn)
         {
             var row=NativeGearFacts.Equipment(pawn);
             // Defense capacity: the ranged hit factor the observed damage per second counts for (#3845).
@@ -370,16 +367,16 @@ namespace HomeBridge.BridgeTools
         private static readonly WorkTags[] SingleWorkTags=((WorkTags[])Enum.GetValues(typeof(WorkTags)))
             .Where(tag => tag!=WorkTags.None && ((int)tag&((int)tag-1))==0).ToArray();
 
-        internal static Obs.PawnBiography Biography(Pawn pawn)
+        internal static RimGovernor.Brain.GameFacts.Observations.PawnBiography Biography(Pawn pawn)
         {
-            var row=new Obs.PawnBiography { BiologicalAgeYears = Number(pawn.ageTracker.AgeBiologicalYearsFloat), Traits = [], Skills = [], SkillStatCurves = [], SkillStatFindings = [], DisabledWorkTags = [], IncapableWorkTypes = [], WorkSpeeds = [] };
+            var row=new RimGovernor.Brain.GameFacts.Observations.PawnBiography { BiologicalAgeYears = Number(pawn.ageTracker.AgeBiologicalYearsFloat), Traits = [], Skills = [], SkillStatCurves = [], SkillStatFindings = [], DisabledWorkTags = [], IncapableWorkTypes = [], WorkSpeeds = [] };
             // A pawn without a story or skill tracker (an animal) has no traits or skills.
             if(pawn.story?.traits!=null)
-                foreach(var trait in pawn.story.traits.allTraits) row = row with { Traits = [.. row.Traits, new Obs.Trait {DefName=Id(trait.def.defName),Degree=trait.Degree}] };
+                foreach(var trait in pawn.story.traits.allTraits) row = row with { Traits = [.. row.Traits, new RimGovernor.Brain.GameFacts.Observations.Trait {DefName=Id(trait.def.defName),Degree=trait.Degree}] };
             if(pawn.skills!=null)
             {
                 foreach(var skill in pawn.skills.skills)
-                    row = row with { Skills = [.. row.Skills, new Obs.Skill {Learning=pawn.story?.traits!=null ? NativeSkillLearning.Read(pawn,skill) : null,DefName=Id(skill.def.defName),Level=skill.Level,StoredLevel=skill.levelInt,Passion=NativeEnums.Passion(skill.passion),Disabled=skill.TotallyDisabled}] };
+                    row = row with { Skills = [.. row.Skills, new RimGovernor.Brain.GameFacts.Observations.Skill {Learning=pawn.story?.traits!=null ? NativeSkillLearning.Read(pawn,skill) : null,DefName=Id(skill.def.defName),Level=skill.Level,StoredLevel=skill.levelInt,Passion=NativeEnums.Passion(skill.passion),Disabled=skill.TotallyDisabled}] };
                 row = NativeSkillStat.Curves(pawn,row);
                 // The work speeds a crafter and a builder work at (#3868), the rows the needs forecast's upkeep reads.
                 row = row with { WorkSpeeds = NativeNeedsForecast.WorkSpeeds(pawn) };
@@ -391,10 +388,10 @@ namespace HomeBridge.BridgeTools
         }
 
         // The pawn's player settings, every member read for every pawn.
-        internal static Obs.PawnSettings Settings(Pawn pawn)
+        internal static RimGovernor.Brain.GameFacts.Observations.PawnSettings Settings(Pawn pawn)
         {
             var settings=pawn.playerSettings;
-            return new Obs.PawnSettings {
+            return new RimGovernor.Brain.GameFacts.Observations.PawnSettings {
                 Care = Care(pawn),
                 // The current-map restriction WorkSettingsIntent writes alongside the priorities;
                 // null when unrestricted (the AllowedArea{Clear} write) or without player settings.
@@ -408,34 +405,34 @@ namespace HomeBridge.BridgeTools
         }
 
         // The care policy PawnSettingsIntent writes; none without player settings.
-        private static Obs.PawnCare Care(Pawn pawn)
+        private static RimGovernor.Brain.GameFacts.Observations.PawnCare Care(Pawn pawn)
         {
             var settings=pawn.playerSettings;
-            if(settings==null) return new Obs.PawnCare.None();
-            return new Obs.PawnCare.Configured(NativeEnums.Care(settings.medCare), settings.selfTend,
+            if(settings==null) return new RimGovernor.Brain.GameFacts.Observations.PawnCare.None();
+            return new RimGovernor.Brain.GameFacts.Observations.PawnCare.Configured(NativeEnums.Care(settings.medCare), settings.selfTend,
                 NativeEnums.Hostility(settings.hostilityResponse));
         }
 
         // The pawn's work settings: it never works without a tracker or EverWork; an uninitialized tracker is read
         // no further, since GetPriority can initialize it; an initialized one carries the game's manual-priorities
         // setting and one row per work type.
-        private static Obs.PawnWork Work(Pawn pawn)
+        private static RimGovernor.Brain.GameFacts.Observations.PawnWork Work(Pawn pawn)
         {
             var work=pawn.workSettings;
-            if(work==null || !work.EverWork) return new Obs.PawnWork.NeverWorks();
-            if(!work.Initialized) return new Obs.PawnWork.Uninitialized();
+            if(work==null || !work.EverWork) return new RimGovernor.Brain.GameFacts.Observations.PawnWork.NeverWorks();
+            if(!work.Initialized) return new RimGovernor.Brain.GameFacts.Observations.PawnWork.Uninitialized();
             var manual=PawnSettingsRead.ManualPriorities() ?? throw new InvalidOperationException("A pawn read has no game play settings.");
-            return new Obs.PawnWork.Works(manual, [.. DefDatabase<WorkTypeDef>.AllDefsListForReading
-                .Select(def => new Obs.WorkSetting {DefName=Id(def.defName),Priority=work.GetPriority(def),Disabled=pawn.WorkTypeIsDisabled(def)})]);
+            return new RimGovernor.Brain.GameFacts.Observations.PawnWork.Works(manual, [.. DefDatabase<WorkTypeDef>.AllDefsListForReading
+                .Select(def => new RimGovernor.Brain.GameFacts.Observations.WorkSetting {DefName=Id(def.defName),Priority=work.GetPriority(def),Disabled=pawn.WorkTypeIsDisabled(def)})]);
         }
 
         // The body stats the outdoor dash planner reads: the game's own stat
         // and hediff values, at the pawn's cell or its holder's.
-        private static Obs.PawnBodyStats BodyStats(Pawn pawn)
+        private static RimGovernor.Brain.GameFacts.Observations.PawnBodyStats BodyStats(Pawn pawn)
         {
             var hypothermia=0.0;
             foreach(var h in pawn.health.hediffSet.hediffs) if(h.def==HediffDefOf.Hypothermia) hypothermia=Math.Max(hypothermia,h.Severity);
-            return new Obs.PawnBodyStats {
+            return new RimGovernor.Brain.GameFacts.Observations.PawnBodyStats {
                 ComfortableMinC=Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin)),
                 ComfortableMaxC=Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax)),
                 MoveSpeed=Number(pawn.GetStatValue(StatDefOf.MoveSpeed)),
@@ -447,23 +444,23 @@ namespace HomeBridge.BridgeTools
         // first), the exact list RimWorld's Pawn_TimetableTracker resolves
         // CurrentAssignment from. A pawn without a timetable (an animal,
         // another faction's pawn) has no slots.
-        private static RimGovernor.Brain.Domain.EquatableArray<Obs.TimetableSlot> Schedule(Pawn pawn)
+        private static RimGovernor.Brain.Domain.EquatableArray<RimGovernor.Brain.GameFacts.Observations.TimetableSlot> Schedule(Pawn pawn)
         {
             var times=pawn.timetable?.times;
             if(times==null) return [];
             if(times.Count!=24 || times.Any(t=>t==null)) throw new InvalidOperationException("The pawn's timetable is not 24 assigned hours.");
-            return [.. times.Select((t,hour) => new Obs.TimetableSlot {Hour=(uint)hour,AssignmentDefName=Id(t.defName)})];
+            return [.. times.Select((t,hour) => new RimGovernor.Brain.GameFacts.Observations.TimetableSlot {Hour=(uint)hour,AssignmentDefName=Id(t.defName)})];
         }
         // The one animal state builder: body, herd and training
         // facts for every animal; for a player animal its pen, area, care
         // and the release/slaughter guards; for a wild one its tame facts.
-        internal static Obs.AnimalState Animal(Pawn pawn)
+        internal static RimGovernor.Brain.GameFacts.Observations.AnimalState Animal(Pawn pawn)
         {
-            var training=new List<Obs.TrainingEntry>();
+            var training=new List<RimGovernor.Brain.GameFacts.Observations.TrainingEntry>();
             if(pawn.training!=null) {
                 foreach(var def in DefDatabase<TrainableDef>.AllDefsListForReading) {
                     var report=pawn.training.CanAssignToTrain(def,out var visible);
-                    training.Add(new Obs.TrainingEntry {DefName=Id(def.defName),Learned=pawn.training.HasLearned(def),Wanted=pawn.training.GetWanted(def),Available=report.Accepted && visible});
+                    training.Add(new RimGovernor.Brain.GameFacts.Observations.TrainingEntry {DefName=Id(def.defName),Learned=pawn.training.HasLearned(def),Wanted=pawn.training.GetWanted(def),Available=report.Accepted && visible});
                 }
             }
             var designations=pawn.MapHeld?.designationManager?.AllDesignationsOn(pawn).ToList() ?? [];
@@ -473,8 +470,8 @@ namespace HomeBridge.BridgeTools
             var eligible=live && NativeHusbandryOperations.Eligible(pawn);
             var roped=live && AnimalPenUtility.NeedsToBeManagedByRope(pawn);
             var pen=roped ? AnimalPenUtility.GetCurrentPenOf(pawn,false) : null;
-            return new Obs.AnimalState {
-                Gender=(RimGovernor.Contracts.Wire.Defs.Gender)(int)pawn.gender,
+            return new RimGovernor.Brain.GameFacts.Observations.AnimalState {
+                Gender=(RimGovernor.Brain.GameFacts.Defs.Gender)(int)pawn.gender,
                 AgeYears=pawn.ageTracker.AgeBiologicalYearsFloat,
                 Adult=pawn.ageTracker.Adult,
                 Pregnancy=NativeHusbandryOperations.Pregnancy(pawn),
@@ -508,11 +505,11 @@ namespace HomeBridge.BridgeTools
         // recalculates situational social thoughts -- see PawnConfigTool's class
         // remarks for why (Thought_Situational.Notify_BecameActive deletes memories
         // of the def it produces). Ported from PawnSettingsRead.RelationsBlock/OpinionRow.
-        internal static Obs.PawnSocial Social(Pawn pawn)
+        internal static RimGovernor.Brain.GameFacts.Observations.PawnSocial Social(Pawn pawn)
         {
             var current=ExpectationsUtility.CurrentExpectationFor(pawn) ?? throw new InvalidOperationException("The pawn has no current expectation.");
             var (situational,stale)=PawnSettingsRead.LiveSituational(pawn);
-            return new Obs.PawnSocial
+            return new RimGovernor.Brain.GameFacts.Observations.PawnSocial
             {
                 HighExpectations = current.order>=ExpectationDefOf.High.order,
                 ExpectationDefName = Id(current.defName),
@@ -522,8 +519,8 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static Obs.Thought ThoughtRow(string? defName,int count,double total)=>
-            new Obs.Thought {DefName=defName ?? throw new InvalidOperationException("A thought has no def."),MoodOffsetTotal=Number(total)};
+        private static RimGovernor.Brain.GameFacts.Observations.Thought ThoughtRow(string? defName,int count,double total)=>
+            new RimGovernor.Brain.GameFacts.Observations.Thought {DefName=defName ?? throw new InvalidOperationException("A thought has no def."),MoodOffsetTotal=Number(total)};
 
     }
 }

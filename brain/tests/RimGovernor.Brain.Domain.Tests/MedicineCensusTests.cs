@@ -1,9 +1,8 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimWorld;
 using Verse;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -20,10 +19,10 @@ public sealed class MedicineCensusTests
         var catalog = new DefinitionCatalog(
             [medicine, new ThingDef { defName = "Silver" }, new TerrainDef { defName = "Soil" }],
             DefStatTable.Empty, new CatalogDerived("Silver", "Wort", 10f));
-        var row = new O.UpkeepItem
+        var row = new RimGovernor.Brain.GameFacts.Observations.UpkeepItem
         {
             Id = "medicine", Definition = medicine.defName, Count = 4,
-            Forbidden = true, Rot = new O.ItemRot.Rotting(120),
+            Forbidden = true, Rot = new RimGovernor.Brain.GameFacts.Observations.ItemRot.Rotting(120),
         };
         var census = ColonyFactsCoreTests.Snapshot();
         census = census with { Upkeep = census.Upkeep with { Items = [row] } };

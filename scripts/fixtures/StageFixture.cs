@@ -10,7 +10,7 @@ using RimWorld;
 using Verse;
 using Verse.AI.Group;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The Rand states of the combat lab: every staging runs under the pinned state, and test/lab_stage reseed sets the
     // game's seed from a run seed after it, so a run seed is one RNG start.
@@ -473,7 +473,7 @@ namespace HomeBridge.BridgeTools
     public sealed class StageFixture
     {
         [Tool("test/stage", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#3393, #3395): stage a StageSpec (RimGovernor.Fixtures.Contracts) on the current game in one call: finish or set research, pin the outdoor temperature and move the clock, find a site, clear areas, set cells, build rooms, place buildings, add production bills to them, spawn items, spawn plants at a growth, spawn or set pawns (generated or existing colonists, gear, wounds, work, timetable, needs, mental state, inspiration) with a raid's arrival and lords, lay zones and fire incidents. Resets the lab damage and shot ledgers. Replies a StageReply: the ids and cells of everything made, keyed by the spec's names, and a name-free digest.")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> Run(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "The StageSpec as JSON (FixtureJson).")] string spec)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {

@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 
-namespace HomeBridge.BridgeTools {
+namespace RimGovernor.Native {
  // Names annotate the binary hash input; they never change its bytes.
  internal sealed class NativeBillConfiguration {
   private readonly BinaryWriter writer;

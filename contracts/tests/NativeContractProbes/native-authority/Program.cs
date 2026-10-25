@@ -1,6 +1,6 @@
 using System;
 using System.Threading;
-using HomeBridge.BridgeTools;
+using RimGovernor.Native;
 using Verse;
 
 // Exercises the production NativeControlAuthority with an injected clock and

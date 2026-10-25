@@ -6,12 +6,8 @@ using System.Text;
 using System.Security.Cryptography;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class NativeZoneCreation
     {
@@ -25,25 +21,25 @@ namespace HomeBridge.BridgeTools
             RimGovernor.Brain.Domain.StockpilePriority.Important => RimWorld.StoragePriority.Important,
             RimGovernor.Brain.Domain.StockpilePriority.Critical => RimWorld.StoragePriority.Critical,
             _ => throw new ArgumentOutOfRangeException(nameof(priority), priority, "Unknown stockpile priority."),
-        };        internal static bool Valid([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] Operations.ZoneIntent? command)
+        };        internal static bool Valid([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] RimGovernor.Brain.GameOrders.Operations.ZoneIntent? command)
         {
-            if (command == null || command.Kind == Operations.ZoneType.Existing || command.RemoveCells != null || command.Delete) return false;
+            if (command == null || command.Kind == RimGovernor.Brain.GameOrders.Operations.ZoneType.Existing || command.RemoveCells != null || command.Delete) return false;
             if (command.AddCells?.Selection?.ExplicitCells is not { } cellList || cellList.Cells.Count == 0) return false;
             var cells = cellList.Cells;
             if (!cells.All(c => c.X >= 0 && c.Z >= 0) || cells.Select(c => Tuple.Create(c.X, c.Z)).Distinct().Count() != cells.Count) return false;
-            if (command.Kind == Operations.ZoneType.Fishing)
+            if (command.Kind == RimGovernor.Brain.GameOrders.Operations.ZoneType.Fishing)
                 return (command.Label ?? "") == "Fishing" && command.Stockpile == null && command.Growing == null && !command.RequireCoveredEmpty
                     && command.Fishing != null && command.Fishing.PopulationFloor >= 0 && command.Fishing.PopulationFloor <= 1
-                    && (command.Zone == null || ProtoBoundary.IsIdentifier(command.Zone.Id));
+                    && (command.Zone == null || GameThread.IsIdentifier(command.Zone.Id));
             if (command.Fishing != null || command.Zone != null) return false;
-            if (command.Kind == Operations.ZoneType.Growing)
+            if (command.Kind == RimGovernor.Brain.GameOrders.Operations.ZoneType.Growing)
                 return (command.Label ?? "") == "Crops" && command.Stockpile == null && !command.RequireCoveredEmpty
-                    && command.Growing != null && command.Growing.PlantDef is not null && ProtoBoundary.IsIdentifier(command.Growing.PlantDef);
+                    && command.Growing != null && command.Growing.PlantDef is not null && GameThread.IsIdentifier(command.Growing.PlantDef);
             return false;
         }
         internal const string Kind = "Zone creation";
         private static string At(IntVec3 c) => "(" + c.x + ", " + c.z + ")";
-        private static IntVec3[] Cells(Operations.ZoneIntent command) => (command.AddCells?.Selection?.ExplicitCells?.Cells ?? default(RimGovernor.Brain.Domain.EquatableArray<RimGovernor.Brain.Domain.Cell>)).Select(c => new IntVec3(c.X, 0, c.Z)).ToArray();
+        private static IntVec3[] Cells(RimGovernor.Brain.GameOrders.Operations.ZoneIntent command) => (command.AddCells?.Selection?.ExplicitCells?.Cells ?? default(RimGovernor.Brain.Domain.EquatableArray<RimGovernor.Brain.Domain.Cell>)).Select(c => new IntVec3(c.X, 0, c.Z)).ToArray();
         // Prepare separates a request that cannot be evaluated (malformed,
         // stale map snapshot, unresolvable configuration) from ground that
         // refuses the zone (ground true): the failure always names the rule,
@@ -52,23 +48,23 @@ namespace HomeBridge.BridgeTools
         // rules are the apply-time precondition list (action-contracts.md),
         // one rule per cell so a refusal names the cell that moved; a sent
         // whole-map zone census token is compared after them.
-        internal static bool Prepare(Operations.ZoneIntent? command, Common.ObservationContext context, out ThingDef? crop, out Common.Failure failure, out bool ground)
+        internal static bool Prepare(RimGovernor.Brain.GameOrders.Operations.ZoneIntent? command, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out ThingDef? crop, out RimGovernor.Brain.GameFacts.Common.Failure failure, out bool ground)
         {
-            crop = null; ground = false; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires an available configuration and explicit cells.");
+            crop = null; ground = false; failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Zone creation requires an available configuration and explicit cells.");
             if (!Valid(command)) return false;
-            var map = ProtoBoundary.LoadedMap(context);
+            var map = GameThread.LoadedMap(context);
             var cells = Cells(command);
             var selected = new HashSet<IntVec3>(cells);
             var rules = new ApplyPreconditions(Kind);
-            if (command.Kind == Operations.ZoneType.Fishing)
+            if (command.Kind == RimGovernor.Brain.GameOrders.Operations.ZoneType.Fishing)
             {
                 if (!ModsConfig.OdysseyActive || !ResearchProjectDefOf.Fishing.IsFinished)
-                { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Fishing requires Odyssey and completed Fishing research."); return false; }
+                { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Fishing requires Odyssey and completed Fishing research."); return false; }
                 var body = cells[0].InBounds(map) ? cells[0].GetWaterBody(map) : null;
                 var existing = command.Zone != null ? RefIndex.Zone<Zone_Fishing>(map, command.Zone.Id) : null;
                 if (command.Zone != null && (existing == null || existing.label != (command.Label ?? "") || !existing.Allowed || existing.Cells.Count >= cells.Length
                     || existing.Cells.Any(c => !selected.Contains(c) || map.zoneManager.ZoneAt(c) != existing || c.GetWaterBody(map) != body)))
-                { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Fishing extension requires the exact zone and a larger complete footprint in the same body."); return false; }
+                { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Fishing extension requires the exact zone and a larger complete footprint in the same body."); return false; }
                 ground = true;
                 foreach (var cell in cells)
                 {
@@ -76,11 +72,11 @@ namespace HomeBridge.BridgeTools
                     rules.Require(() => existing != null && existing.Cells.Contains(c) || FishableCell(c, map, body), "cell " + At(c) + " is not free shallow fish-bearing water in this body");
                 }
             }
-            else if (command.Kind == Operations.ZoneType.Growing)
+            else if (command.Kind == RimGovernor.Brain.GameOrders.Operations.ZoneType.Growing)
             {
                 crop = DefDatabase<ThingDef>.GetNamedSilentFail((command.Growing?.PlantDef ?? ""));
                 if (crop?.plant == null || !crop.plant.Sowable || !crop.plant.sowTags.Contains("Ground")
-                    || crop.researchPrerequisites?.Any(r => !r.IsFinished) == true || !Command_SetPlantToGrow.IsPlantAvailable(crop, map)) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires an available crop."); return false; }
+                    || crop.researchPrerequisites?.Any(r => !r.IsFinished) == true || !Command_SetPlantToGrow.IsPlantAvailable(crop, map)) { failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Zone creation requires an available crop."); return false; }
                 var designator = new Designator_ZoneAdd_Growing();
                 ground = true;
                 // Legality is the game's own designator. Growing season,
@@ -117,34 +113,34 @@ namespace HomeBridge.BridgeTools
         // A refused site is an evaluation with Accepted false, as placement
         // previews report one, so a site search previews per candidate and
         // moves on; only an unevaluable request is a failure.
-        internal static Operations.ZonePreviewReply Preview(Operations.ZoneIntent command, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Operations.ZonePreviewReply Preview(RimGovernor.Brain.GameOrders.Operations.ZoneIntent command, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var accepted = Prepare(command, context, out _, out var failure, out var ground);
-            if (!accepted && !ground) return new Operations.ZonePreviewReply { Outcome = failure };
-            var evaluated = new Operations.ZonePreview { Context = context, Accepted = accepted };
+            if (!accepted && !ground) return new RimGovernor.Brain.GameFacts.Operations.ZonePreviewReply { Outcome = failure };
+            var evaluated = new RimGovernor.Brain.GameFacts.Operations.ZonePreview { Context = context, Accepted = accepted };
             if (!accepted) evaluated = evaluated with { Reason = failure.Detail };
-            return new Operations.ZonePreviewReply { Outcome = evaluated };
+            return new RimGovernor.Brain.GameFacts.Operations.ZonePreviewReply { Outcome = evaluated };
         }
 
         // Standing is the zone that already is the request: the zone on the
         // first cell covers exactly the requested cells (the grid agreeing),
         // under the requested label and configuration. A fishing extension
         // stands once the named zone covers the larger footprint.
-        internal static Zone? Standing(Operations.ZoneIntent? command, Common.ObservationContext context)
+        internal static Zone? Standing(RimGovernor.Brain.GameOrders.Operations.ZoneIntent? command, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             if (!Valid(command)) return null;
-            var map = ProtoBoundary.LoadedMap(context);
+            var map = GameThread.LoadedMap(context);
             var cells = Cells(command);
             if (!cells[0].InBounds(map)) return null;
             var zone = map.zoneManager.ZoneAt(cells[0]);
             if (zone == null || zone.label != (command.Label ?? "") || zone.Cells.Count != cells.Length || !cells.All(c => c.InBounds(map) && map.zoneManager.ZoneAt(c) == zone)) return null;
             switch (command.Kind)
             {
-                case Operations.ZoneType.Fishing:
+                case RimGovernor.Brain.GameOrders.Operations.ZoneType.Fishing:
                     return zone is Zone_Fishing fishing && fishing.Allowed && fishing.repeatMode == FishRepeatMode.DoForever
                         && Math.Abs(fishing.targetPopulationPct - (command.Fishing ?? throw new System.InvalidOperationException("Required native value is unavailable: command.Fishing.")).PopulationFloor) < 0.000001
                         && (command.Zone == null || RefIndex.Is(zone, command.Zone.Id)) ? zone : null;
-                case Operations.ZoneType.Growing:
+                case RimGovernor.Brain.GameOrders.Operations.ZoneType.Growing:
                     if (!(zone is Zone_Growing growing) || !growing.allowSow || !growing.allowCut) return null;
                     var crop = (BridgeCommon.PrivateInstanceField(typeof(Zone_Growing), "plantDefToGrow") ?? throw new InvalidOperationException("Zone_Growing.plantDefToGrow is unavailable.")).GetValue(growing) as ThingDef;
                     return crop?.defName == (command.Growing?.PlantDef ?? "") ? zone : null;
@@ -152,17 +148,17 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        internal static Zone Create(Operations.ZoneIntent command, Map map, ThingDef? crop)
+        internal static Zone Create(RimGovernor.Brain.GameOrders.Operations.ZoneIntent command, Map map, ThingDef? crop)
         {
             var cells = Cells(command);
-            if (command.Kind == Operations.ZoneType.Fishing) {
+            if (command.Kind == RimGovernor.Brain.GameOrders.Operations.ZoneType.Fishing) {
                 var fishing = command.Zone != null ? RefIndex.Zone<Zone_Fishing>(map, command.Zone.Id ?? "") ?? throw new InvalidOperationException("The fishing zone is unavailable.") : new Zone_Fishing(map.zoneManager);
                 if (command.Zone == null) map.zoneManager.RegisterZone(fishing);
                 fishing.label = command.Label; fishing.repeatMode = FishRepeatMode.DoForever; fishing.targetPopulationPct = (float)(command.Fishing ?? throw new System.InvalidOperationException("Required native value is unavailable: command.Fishing.")).PopulationFloor;
                 foreach (var cell in cells) if (!fishing.Cells.Contains(cell)) fishing.AddCell(cell);
                 return fishing;
             }
-            if (command.Kind == Operations.ZoneType.Growing) {
+            if (command.Kind == RimGovernor.Brain.GameOrders.Operations.ZoneType.Growing) {
                 var growing = new Zone_Growing(map.zoneManager);
                 map.zoneManager.RegisterZone(growing); growing.label = command.Label;
                 foreach (var cell in cells) growing.AddCell(cell);
@@ -173,11 +169,11 @@ namespace HomeBridge.BridgeTools
         }
 
         // Evidence is one zone's identity, presence and cell count.
-        internal static Receipts.EffectEvidence Evidence(string id, Zone? zone, Map map)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Evidence(string id, Zone? zone, Map map)
         {
             var present = zone != null && map.zoneManager.AllZones.Contains(zone);
-            var effect = new Receipts.ZoneEffect.ZoneCase(id, present, present ? (zone ?? throw new System.InvalidOperationException("Required native value is unavailable: zone.")).Cells.Count : 0);
-            return new Receipts.EffectEvidence { Effect = effect };
+            var effect = new RimGovernor.Brain.GameFacts.Receipts.ZoneEffect.ZoneCase(id, present, present ? (zone ?? throw new System.InvalidOperationException("Required native value is unavailable: zone.")).Cells.Count : 0);
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = effect };
         }
     }
 
@@ -185,17 +181,17 @@ namespace HomeBridge.BridgeTools
     // a zone that already is the request applies again.
     internal sealed class ZoneCreationActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
+        public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             if (NativeZoneCreation.Standing(action.Intent?.Zone, context) != null) return null;
             return NativeZoneCreation.Prepare(action.Intent?.Zone, context, out _, out var failure, out _) ? null : failure;
         }
 
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
+        public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var command = action.Intent?.Zone;
             if (command is null) throw new InvalidOperationException("Zone creation requires an intent.");
-            var map = ProtoBoundary.LoadedMap(context);
+            var map = GameThread.LoadedMap(context);
             var zone = NativeZoneCreation.Standing(command, context);
             if (zone == null)
             {

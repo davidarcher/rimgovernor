@@ -1,11 +1,9 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
-using C = RimGovernor.Contracts.Wire.Common;
-using O = RimGovernor.Contracts.Wire.Observations;
-using Ops = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -29,17 +27,17 @@ public sealed class WorkPlanningStatesTests
         ],
         DefStatTable.Empty, new CatalogDerived("Silver", "Wort", 10f));
 
-    private static WorkPawn Lift(O.PawnState row) => RoundsWorkReads.WorkPawnRow(row, Catalog, Things.Of());
+    private static WorkPawn Lift(RimGovernor.Brain.GameFacts.Observations.PawnState row) => WorkReads.WorkPawnRow(row, Catalog, Things.Of());
 
     [Fact]
     public void WorkPawnRetainsTheNativePawnAndItsSkillEvidence()
     {
-        var skill = new O.Skill { DefName = "Construction", Level = 9, StoredLevel = 7, Passion = O.Passion.Major,
+        var skill = new RimGovernor.Brain.GameFacts.Observations.Skill { DefName = "Construction", Level = 9, StoredLevel = 7, Passion = RimGovernor.Brain.GameFacts.Observations.Passion.Major,
             Learning = SkillStockTests.Mechanics(7, 12) };
         var original = PawnFixtures.Row("builder");
         var row = original with { Biography = original.Biography with { Skills = [skill], BiologicalAgeYears = 41 },
             Health = original.Health with { SummaryFraction = .6, BloodLoss = .2 },
-            Needs = original.Needs with { Mood = new O.NeedLevel.Has(.4), BreakThresholdMinor = .25 } };
+            Needs = original.Needs with { Mood = new RimGovernor.Brain.GameFacts.Observations.NeedLevel.Has(.4), BreakThresholdMinor = .25 } };
 
         var pawn = Lift(row);
 
@@ -58,7 +56,7 @@ public sealed class WorkPlanningStatesTests
         Assert.Same(skill, Assert.Single(pawn.Skills));
     }
 
-    private static O.PawnState WithWork(O.PawnWork work)
+    private static RimGovernor.Brain.GameFacts.Observations.PawnState WithWork(RimGovernor.Brain.GameFacts.Observations.PawnWork work)
     {
         var row = PawnFixtures.Row("pawn");
         return row with { Settings = row.Settings with { Work = work } };
@@ -67,44 +65,44 @@ public sealed class WorkPlanningStatesTests
     [Fact]
     public void EachPawnWorkStateRoundTripsThroughTheWire()
     {
-        foreach (var (work, json) in new (O.PawnWork, string)[]
+        foreach (var (work, json) in new (RimGovernor.Brain.GameFacts.Observations.PawnWork, string)[]
         {
-            (new O.PawnWork.NeverWorks(), """{"type":"never_works"}"""),
-            (new O.PawnWork.Uninitialized(), """{"type":"uninitialized"}"""),
-            (new O.PawnWork.Works(true, [new O.WorkSetting { DefName = "Cooking", Priority = 1, Disabled = false }]),
+            (new RimGovernor.Brain.GameFacts.Observations.PawnWork.NeverWorks(), """{"type":"never_works"}"""),
+            (new RimGovernor.Brain.GameFacts.Observations.PawnWork.Uninitialized(), """{"type":"uninitialized"}"""),
+            (new RimGovernor.Brain.GameFacts.Observations.PawnWork.Works(true, [new RimGovernor.Brain.GameFacts.Observations.WorkSetting { DefName = "Cooking", Priority = 1, Disabled = false }]),
                 """{"type":"works","manualPriorities":true,"rows":[{"defName":"Cooking","priority":1,"disabled":false}]}"""),
         })
         {
             var settings = WithWork(work).Settings;
-            var text = WireJson.Serialize(settings);
+            var text = OrdersJson.Serialize(settings);
 
             Assert.Contains("\"work\":" + json, text);
-            Assert.Equal(text, WireJson.Serialize(WireJson.Deserialize<O.PawnSettings>(text)));
+            Assert.Equal(text, OrdersJson.Serialize(OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.PawnSettings>(text)));
         }
     }
 
     [Fact]
     public void APawnThatNeverWorksOrIsUninitializedHasNoRowsToPlan()
     {
-        var never = Lift(WithWork(new O.PawnWork.NeverWorks()));
+        var never = Lift(WithWork(new RimGovernor.Brain.GameFacts.Observations.PawnWork.NeverWorks()));
         Assert.IsType<PawnWorkTable.NeverWorks>(never.Work);
         Assert.False(never.Applies);
         Assert.Empty(never.Work.Priorities());
 
-        var fresh = Lift(WithWork(new O.PawnWork.Uninitialized()));
+        var fresh = Lift(WithWork(new RimGovernor.Brain.GameFacts.Observations.PawnWork.Uninitialized()));
         Assert.IsType<PawnWorkTable.Uninitialized>(fresh.Work);
         Assert.True(fresh.Applies);
         Assert.Empty(fresh.Work.Priorities());
 
         // Another mod's work type has no planner meaning and nothing to write back.
-        var modded = Lift(WithWork(new O.PawnWork.Works(false, [new O.WorkSetting { DefName = "ModdedWork", Priority = 2, Disabled = false }])));
+        var modded = Lift(WithWork(new RimGovernor.Brain.GameFacts.Observations.PawnWork.Works(false, [new RimGovernor.Brain.GameFacts.Observations.WorkSetting { DefName = "ModdedWork", Priority = 2, Disabled = false }])));
         var moddedWork = Assert.IsType<PawnWorkTable.Works>(modded.Work);
         Assert.False(moddedWork.Manual);
         Assert.Empty(moddedWork.Rows);
         Assert.Equal("ModdedWork", Assert.Single(moddedWork.Observed.Rows).DefName);
 
         // Neither is planned; the working pawn beside them still is.
-        var worker = PawnFixtures.Worker("worker") with { Work = PawnFixtures.WorkTable(true, [new() { Observed = new O.WorkSetting { DefName = "Cooking", Priority = 3, Disabled = false }, Skill = "Cooking", Order = 1 }]) };
+        var worker = PawnFixtures.Worker("worker") with { Work = PawnFixtures.WorkTable(true, [new() { Observed = new RimGovernor.Brain.GameFacts.Observations.WorkSetting { DefName = "Cooking", Priority = 3, Disabled = false }, Skill = "Cooking", Order = 1 }]) };
         var decision = WorkRules.PlanWork([never with { Observed = never.Observed with { Pawn = never.Observed.Pawn with { Id = "never" } } }, fresh with { Observed = fresh.Observed with { Pawn = fresh.Observed.Pawn with { Id = "fresh" } } }, worker], [], new());
         Assert.Equal(WorkDecisionState.Planned, decision.State);
         Assert.Equal([worker.Id], decision.Assignments.Select(a => a.Pawn));
@@ -113,7 +111,7 @@ public sealed class WorkPlanningStatesTests
     [Fact]
     public void ACheckboxModeReadbackOrTruncatedClaimsLeaveTheWorkUnplanned()
     {
-        var checkbox = PawnFixtures.Worker("pawn") with { Work = PawnFixtures.WorkTable(false, [new() { Observed = new O.WorkSetting { DefName = "Cooking", Priority = 3, Disabled = false }, Skill = "Cooking", Order = 1 }]) };
+        var checkbox = PawnFixtures.Worker("pawn") with { Work = PawnFixtures.WorkTable(false, [new() { Observed = new RimGovernor.Brain.GameFacts.Observations.WorkSetting { DefName = "Cooking", Priority = 3, Disabled = false }, Skill = "Cooking", Order = 1 }]) };
         var waiting = WorkRules.PlanWork([checkbox], [], new());
         Assert.Equal(WorkDecisionState.CheckboxMode, waiting.State);
         Assert.False(waiting.Planned);
@@ -127,26 +125,26 @@ public sealed class WorkPlanningStatesTests
     [Fact]
     public void AJobsTargetANamesTheThingOrCellItWorks()
     {
-        static PawnJob Job(O.JobEvidence job) => Lift(PawnFixtures.Row("pawn") with { Job = job }).Job;
-        var thing = new C.Ref { Id = "Thing_Steel1" };
+        static PawnJob Job(RimGovernor.Brain.GameFacts.Observations.JobEvidence job) => Lift(PawnFixtures.Row("pawn") with { Job = job }).Job;
+        var thing = new RimGovernor.Brain.GameFacts.Common.Ref { Id = "Thing_Steel1" };
 
-        Assert.Equal(new JobTarget.None(), Job(new O.JobEvidence()).Target);
-        var spawned = Job(new O.JobEvidence { DefName = "HaulToCell", TargetA = new() { Target = new O.TargetRefTarget.EntityCase(thing, new O.EntityPlace.OnMap(0, new Cell(3, 4))) } }).Target;
+        Assert.Equal(new JobTarget.None(), Job(new RimGovernor.Brain.GameFacts.Observations.JobEvidence()).Target);
+        var spawned = Job(new RimGovernor.Brain.GameFacts.Observations.JobEvidence { DefName = "HaulToCell", TargetA = new() { Target = new RimGovernor.Brain.GameFacts.Observations.TargetRefTarget.EntityCase(thing, new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(0, new Cell(3, 4))) } }).Target;
         Assert.Equal(new JobTarget.Spawned("Thing_Steel1", new Cell(3, 4)), spawned);
         Assert.True(spawned.CellOf(out var at));
         Assert.Equal(new Cell(3, 4), at);
-        var held = Job(new O.JobEvidence { DefName = "Ingest", TargetA = new() { Target = new O.TargetRefTarget.EntityCase(thing, new O.EntityPlace.Unplaced()) } }).Target;
+        var held = Job(new RimGovernor.Brain.GameFacts.Observations.JobEvidence { DefName = "Ingest", TargetA = new() { Target = new RimGovernor.Brain.GameFacts.Observations.TargetRefTarget.EntityCase(thing, new RimGovernor.Brain.GameFacts.Observations.EntityPlace.Unplaced()) } }).Target;
         Assert.Equal(new JobTarget.Held("Thing_Steel1"), held);
         Assert.Equal("Thing_Steel1", held.Thing);
         Assert.False(held.CellOf(out _));
-        var ground = Job(new O.JobEvidence { DefName = "Goto", TargetA = new() { Target = new RimGovernor.Brain.Domain.Cell { X = 7, Z = 8 } } }).Target;
+        var ground = Job(new RimGovernor.Brain.GameFacts.Observations.JobEvidence { DefName = "Goto", TargetA = new() { Target = new RimGovernor.Brain.Domain.Cell { X = 7, Z = 8 } } }).Target;
         Assert.Equal(new JobTarget.Ground(new Cell(7, 8)), ground);
         Assert.Equal("", ground.Thing);
-        Assert.Equal(new JobTarget.None(), Job(new O.JobEvidence { DefName = "Wait", TargetA = new() { Target = new C.Unavailable { Reason = C.UnavailableReason.NotLoaded } } }).Target);
+        Assert.Equal(new JobTarget.None(), Job(new RimGovernor.Brain.GameFacts.Observations.JobEvidence { DefName = "Wait", TargetA = new() { Target = new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.NotLoaded } } }).Target);
 
         // Native writes targetA on every job.
-        Assert.Throws<RequiredFactException>(() => Job(new O.JobEvidence { DefName = "Wait" }).Target);
-        Assert.Throws<RequiredFactException>(() => Job(new O.JobEvidence { DefName = "Wait", TargetA = new() }).Target);
+        Assert.Throws<RequiredFactException>(() => Job(new RimGovernor.Brain.GameFacts.Observations.JobEvidence { DefName = "Wait" }).Target);
+        Assert.Throws<RequiredFactException>(() => Job(new RimGovernor.Brain.GameFacts.Observations.JobEvidence { DefName = "Wait", TargetA = new() }).Target);
     }
 
     [Fact]
@@ -156,12 +154,12 @@ public sealed class WorkPlanningStatesTests
         Assert.IsType<PawnBiotechStatus.Inactive>(plain.Biotech);
         Assert.True(plain.Available);
 
-        O.PawnState Deathrest(bool resting) => PawnFixtures.Row("pawn") with
+        RimGovernor.Brain.GameFacts.Observations.PawnState Deathrest(bool resting) => PawnFixtures.Row("pawn") with
         {
-            Biotech = new O.PawnBiotechState.Active(new O.PawnBiotech
+            Biotech = new RimGovernor.Brain.GameFacts.Observations.PawnBiotechState.Active(new RimGovernor.Brain.GameFacts.Observations.PawnBiotech
             {
-                DevelopmentalStage = RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Adult, Genes = [], Mechanitor = null, Mech = null,
-                Deathrest = new O.PawnDeathrest { Deathresting = resting, Capacity = 1 },
+                DevelopmentalStage = RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Adult, Genes = [], Mechanitor = null, Mech = null,
+                Deathrest = new RimGovernor.Brain.GameFacts.Observations.PawnDeathrest { Deathresting = resting, Capacity = 1 },
             }),
         };
         var awake = Lift(Deathrest(false));
@@ -176,21 +174,21 @@ public sealed class WorkPlanningStatesTests
         Assert.Equal(0.5, Lift(PawnFixtures.Row("pawn")).SeriousBloodLoss);
         var bare = new DefinitionCatalog([new Verse.ThingDef { defName = "Silver" }, new Verse.TerrainDef { defName = "Soil" }], DefStatTable.Empty, new CatalogDerived("Silver", "Wort", 10f));
         Assert.Throws<CatalogException>(() => bare.SeriousBloodLoss());
-        Assert.Throws<CatalogException>(() => RoundsWorkReads.WorkPawnRow(PawnFixtures.Row("pawn"), bare, Things.Of()));
+        Assert.Throws<CatalogException>(() => WorkReads.WorkPawnRow(PawnFixtures.Row("pawn"), bare, Things.Of()));
     }
 
     [Fact]
     public void ACarePolicyMapsToTheDomainsModesAndAnUnspecifiedOneThrows()
     {
-        Assert.Equal(MedicalCare.Herbal, WorkRules.MedicalCareOf(Ops.MedicalCare.HerbalOrWorse));
-        Assert.Equal(HostilityResponse.Flee, WorkRules.HostilityOf(Ops.HostilityResponse.Flee));
-        Assert.Throws<DomainException>(() => WorkRules.MedicalCareOf((Ops.MedicalCare)0));
-        Assert.Throws<DomainException>(() => WorkRules.HostilityOf((Ops.HostilityResponse)0));
+        Assert.Equal(MedicalCare.Herbal, WorkRules.MedicalCareOf(RimGovernor.Brain.GameFacts.Operations.MedicalCare.HerbalOrWorse));
+        Assert.Equal(HostilityResponse.Flee, WorkRules.HostilityOf(RimGovernor.Brain.GameFacts.Operations.HostilityResponse.Flee));
+        Assert.Throws<DomainException>(() => WorkRules.MedicalCareOf((RimGovernor.Brain.GameFacts.Operations.MedicalCare)0));
+        Assert.Throws<DomainException>(() => WorkRules.HostilityOf((RimGovernor.Brain.GameFacts.Operations.HostilityResponse)0));
 
         // A pawn without care settings has no hostility row: it has no response to change.
         var pawn = PawnFixtures.Worker("pawn");
         Assert.Null(pawn.HostilityPawn());
-        var flees = pawn with { Observed = pawn.Observed with { Settings = pawn.Observed.Settings with { Care = new O.PawnCare.Configured(Ops.MedicalCare.Best, false, Ops.HostilityResponse.Flee) } } };
+        var flees = pawn with { Observed = pawn.Observed with { Settings = pawn.Observed.Settings with { Care = new RimGovernor.Brain.GameFacts.Observations.PawnCare.Configured(RimGovernor.Brain.GameFacts.Operations.MedicalCare.Best, false, RimGovernor.Brain.GameFacts.Operations.HostilityResponse.Flee) } } };
         Assert.Equal(HostilityResponse.Flee, flees.HostilityPawn()!.Current);
         Assert.Same(flees, flees.HostilityPawn()!.Pawn);
         Assert.Same(flees.Observed.Job, flees.HostilityPawn()!.Job.Observed);

@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -50,12 +49,12 @@ internal static class StorageStrandedLoot
         var zone = staged.Zones["store"];
         var wood = staged.Things["wood"].Ids.Single();
 
-        var facts = await s.CallAsync("stranded-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var facts = await s.CallAsync("stranded-facts", NativeOps.ReadColonyFacts, new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var row = facts.EventLoot.FirstOrDefault(i => i.Item.Id == wood)
             ?? throw new AcceptanceException($"the loot census lists no row for the WoodLog stack {wood}: {string.Join("; ", facts.EventLoot)}");
         s.RecordWire("wood-row", row);
 
-        if (row is not { Forbidden: false, Safety: Observations.HaulSafety.Safe, StorageHeadroom: 0 })
+        if (row is not { Forbidden: false, Safety: RimGovernor.Brain.GameFacts.Observations.HaulSafety.Safe, StorageHeadroom: 0 })
         {
             throw new AcceptanceException($"want an unforbidden safe WoodLog stack with zero storage headroom, got {row}");
         }

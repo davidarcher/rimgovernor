@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Telemetry;
 
 /// <summary>
-/// The Rounder's per-review <c>layout_progress</c> event (docs/developers/contracts/otel-signals.md#kinds, #3751): how far
+/// The ColonyReview's per-review <c>layout_progress</c> event (docs/developers/contracts/otel-signals.md#kinds, #3751): how far
 /// the held layout plan has come and how many rings stand open against the builders. Reader: colonyreview's layout section.
 /// </summary>
 public static class LayoutProgressTelemetry

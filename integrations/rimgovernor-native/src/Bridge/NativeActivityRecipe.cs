@@ -6,7 +6,7 @@ using Verse;
 using Verse.AI;
 using RimGovernor.Brain.Domain;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class NativeActivityRecipe
     {

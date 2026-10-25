@@ -5,7 +5,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 /// <summary>
 /// A set step (#3613): a Work step that repeats over its <see cref="PawnActivityStep.Targets"/> (things) or its

@@ -1,7 +1,5 @@
 using RimGovernor.Brain.Policy;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -57,10 +55,10 @@ internal static class Gathering
     {
         var organizer = s.Staged!.Pawns["organizer"].Id;
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
-        _ = await TypedPawnOps.ApplyAsync(s, "explicit-party", new Operations.GatheringIntent
+        _ = await TypedPawnOps.ApplyAsync(s, "explicit-party", new RimGovernor.Brain.GameOrders.Operations.GatheringIntent
         {
             GatheringDef = GatheringRules.PartyGatheringDef,
-            Organizer = new Common.Ref { Id = organizer },
+            Organizer = new RimGovernor.Brain.GameFacts.Common.Ref { Id = organizer },
         }, cancellationToken).ConfigureAwait(false);
         _ = await s.RunUntilAsync("party-lord", s.TicksLeft, async ct =>
         {

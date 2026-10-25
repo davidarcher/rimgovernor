@@ -1,7 +1,4 @@
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -14,12 +11,12 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// </summary>
 internal static class TradeRequest
 {
-    private sealed record Row(string Channel, Common.TradeRequestKind Kind, int MinDelay, int MaxDelay, bool Arrives, int Ticks);
+    private sealed record Row(string Channel, RimGovernor.Brain.GameFacts.Common.TradeRequestKind Kind, int MinDelay, int MaxDelay, bool Arrives, int Ticks);
 
     private static readonly Row[] Rows =
     [
-        new("caravan", Common.TradeRequestKind.Caravan, 120_000, 120_000, Arrives: false, Ticks: 3_000),
-        new("orbital", Common.TradeRequestKind.Orbital, 2_500, 5_000, Arrives: true, Ticks: 11_000),
+        new("caravan", RimGovernor.Brain.GameFacts.Common.TradeRequestKind.Caravan, 120_000, 120_000, Arrives: false, Ticks: 3_000),
+        new("orbital", RimGovernor.Brain.GameFacts.Common.TradeRequestKind.Orbital, 2_500, 5_000, Arrives: true, Ticks: 11_000),
     ];
 
     internal static IEnumerable<TypedCase> Cases() => Rows.Select(row => new TypedCase
@@ -31,7 +28,7 @@ internal static class TradeRequest
         Ticks = row.Ticks,
         Tier = CaseTier.OnDemand,
         Ops = [TradeKit.Tool],
-        Expansions = row.Kind == Common.TradeRequestKind.Orbital ? ["ludeon.rimworld.odyssey"] : [],
+        Expansions = row.Kind == RimGovernor.Brain.GameFacts.Common.TradeRequestKind.Orbital ? ["ludeon.rimworld.odyssey"] : [],
         Run = (s, ct) => RunAsync(s, row, ct),
     });
 
@@ -44,7 +41,7 @@ internal static class TradeRequest
         s.Record("prepared", ServedOps.Json(p));
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 
-        Task<Operations.ActionResult> Apply(string key, long tick) => TradeKit.ApplyAsync(s, key, new Operations.CommsTradeRequestIntent
+        Task<RimGovernor.Brain.GameFacts.Operations.ActionResult> Apply(string key, long tick) => TradeKit.ApplyAsync(s, key, new RimGovernor.Brain.GameOrders.Operations.CommsTradeRequestIntent
         {
             Kind = row.Kind,
             FactionId = p.Faction,
@@ -54,7 +51,7 @@ internal static class TradeRequest
             ExpectedLastRequestTick = tick,
         }, cancellationToken);
 
-        async Task<(Observations.TradeAcquisition Facts, Observations.TradeRequestOption? Request, Observations.TradeRequestArrival? Arrival)> Read(string label, CancellationToken ct)
+        async Task<(RimGovernor.Brain.GameFacts.Observations.TradeAcquisition Facts, RimGovernor.Brain.GameFacts.Observations.TradeRequestOption? Request, RimGovernor.Brain.GameFacts.Observations.TradeRequestArrival? Arrival)> Read(string label, CancellationToken ct)
         {
             var facts = await TradeKit.AcquisitionAsync(s, label, null, ct).ConfigureAwait(false);
             return (
@@ -75,7 +72,7 @@ internal static class TradeRequest
         async Task Refusal(string label, long tick)
         {
             var result = await Apply(label, tick).ConfigureAwait(false);
-            if (TradeKit.RefusedCode(result) != Common.FailureCode.InvalidRequest)
+            if (TradeKit.RefusedCode(result) != RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest)
             {
                 throw new AcceptanceException($"{label}: expected an INVALID_REQUEST refusal, got {result}");
             }
@@ -117,8 +114,8 @@ internal static class TradeRequest
         _ = await Control("request_restore_goodwill", p).ConfigureAwait(false);
         await Queued("paid-request").ConfigureAwait(false);
 
-        Observations.TradeRequestOption? applied = null;
-        Observations.TradeRequestArrival? arrival = null;
+        RimGovernor.Brain.GameFacts.Observations.TradeRequestOption? applied = null;
+        RimGovernor.Brain.GameFacts.Observations.TradeRequestArrival? arrival = null;
         _ = await s.RunUntilAsync("request-contact", 2_500, async ct =>
         {
             (_, applied, arrival) = await Read("request-contact-facts", ct).ConfigureAwait(false);

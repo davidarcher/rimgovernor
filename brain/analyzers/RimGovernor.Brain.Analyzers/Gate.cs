@@ -21,7 +21,7 @@ internal static class Arch
 
     internal static string BaselineFile(int rule) => rule == 7 ? "worldstate.txt" : "rule" + rule.ToString(CultureInfo.InvariantCulture) + ".txt";
 
-    /// <summary>The assembly name without the RimGovernor.Brain. prefix ("Policy", "Bridge.Contracts").</summary>
+    /// <summary>The assembly name without the RimGovernor.Brain. prefix ("Policy", "GameAccess").</summary>
     internal static string ShortName(string? assembly)
     {
         var name = assembly ?? "";

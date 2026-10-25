@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using System.Globalization;
 
 namespace RimGovernor.Brain.Policy;
@@ -9,9 +8,9 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record CapturableEntity
 {
-    public required O.PawnState Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PawnState Observed { get; init; }
 
-    private O.PawnAnomaly Anomaly => Observed.Anomaly is O.PawnAnomalyState.Active active
+    private RimGovernor.Brain.GameFacts.Observations.PawnAnomaly Anomaly => Observed.Anomaly is RimGovernor.Brain.GameFacts.Observations.PawnAnomalyState.Active active
         ? active.Facts : throw new RequiredFactException("capturable entity anomaly facts");
 
     public Domain.PawnId Pawn => new(Observed.Pawn.Id);
@@ -28,7 +27,7 @@ public sealed record CapturableEntity
     /// <summary>CompStudiable.CurrentlyStudiable; false for an entity with no study block.</summary>
     public bool CurrentlyStudiable => Anomaly.Study is { CurrentlyStudiable: true };
 
-    public O.HeldState? Target => Anomaly.Held;
+    public RimGovernor.Brain.GameFacts.Observations.HeldState? Target => Anomaly.Held;
 
     /// <summary>The holding-platform target's CompHoldingPlatformTarget.CanBeCaptured; false without a target block.</summary>
     public bool CanBeCaptured => Target is { CanBeCaptured: true };

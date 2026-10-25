@@ -463,7 +463,7 @@ The capability-days ledger ([forecast value](../architecture/forecast-value.md#c
 with the game's own tables (#3519, #3520, #3521). Hypothermia and heatstroke are priced from the
 pawn's `ForecastThermalExposure.Spans`: exact piecewise integration of the givers' severity (quadratic gain under a linear temperature, exponential recovery), the stage path priced as the other terms are, and a severity reaching the table's lethal severity charging the remaining horizon plus `DeathTerminalValue`. A pawn with unknown occupancy has the term unassessed, with `unassessed_thermal_exposure`. Exhaustion collapse (#3598) reads the rest zero spans of the pawn's timeline and its observed `WakeThreshold` and rest `NeedRate.UnservedGainPerTick` (the ground sleep a collapse takes).
 
-- `RoundsFacts.CapacityPenalties` (`CapacityPenaltyTables`): one
+- `ReviewFacts.CapacityPenalties` (`CapacityPenaltyTables`): one
   `HediffPenaltyTable` each for `Malnutrition` and `FoodPoisoning`, decoded by
   `Catalog/CapacityPenalties.cs` from the `HediffDef` rows, and
   `MovingMinForCapable` (the Moving `PawnCapacityDef`'s `minForCapable`; a catalog without that def has every table unknown). A table
@@ -475,7 +475,7 @@ pawn's `ForecastThermalExposure.Spans`: exact piecewise integration of the giver
   `Valid()` is true for a known, ordered, finite table. Modifiers on a capacity
   outside the five a pawn-day is counted in (food poisoning's Eating) are left
   out.
-- `RoundsFacts.MoodBreak` (`MoodBreakModel`): the catalog's break curve, whose
+- `ReviewFacts.MoodBreak` (`MoodBreakModel`): the catalog's break curve, whose
   tier mixes give the mean days a break of each tier lasts.
 - `NeedsForecastPawn`: `Consciousness`, `Moving`, `Manipulation`, `Sight` and
   `Talking` (`health.capacities.GetLevel`), and `MalnutritionSeverity`, `HypothermiaSeverity`, `HeatstrokeSeverity` and
@@ -540,7 +540,7 @@ The harm model's fifth step ([harm model](../architecture/forecast-value.md#harm
 ### Stock arrival (#3868)
 
 `StockArrival` (Policy) answers when a stock a rule waits on arrives once it is wanted: a replacement part or organ, or a medicine
-kind. It is built once per review at the read boundary (`StockArrivalReads.Of` into `RoundsFacts.StockArrival`) from native observations and catalog rates
+kind. It is built once per review at the read boundary (`StockArrivalReads.Of` into `ReviewFacts.StockArrival`) from native observations and catalog rates
 and carried on `ForecastCoupledContext.Stock` to the harm term, the hospital credit and the colony model. Each `StockSource` makes
 `Batch` units an iteration at `PerDay` units a day up to `Units`; its not-arrived chance for n units at t days is a step, 1 until
 ceil(n / Batch) × Batch / PerDay (never past `Units`). Independent sources of one need multiply their not-arrived chances; a
@@ -631,12 +631,12 @@ nothing. `net[Medicine] = FixedProduction + inflow − tends`.
 `RequiredFactException` when that input is absent. Apparel comparisons require both daily harm losses to be priced.
 
 The ledger's `Harm` term and the `Death` floor read `ForecastCoupledContext.Harm` (`HarmInputs`, assembled per review by
-`HarmInputs.Of(RoundsFacts)`) and `Outfits`:
+`HarmInputs.Of(ReviewFacts)`) and `Outfits`:
 
 - `HarmInputs`: `Schedule` (`ThreatSchedule.Of` at the observed storyteller, days passed and raid points), `Composition`
-  (`RaidCompositionRules.Of` at the observed `RaidPoints` and `HostileFactions`, over `RoundsFacts.HarmCatalog.Raid`), `RaidPoints`,
+  (`RaidCompositionRules.Of` at the observed `RaidPoints` and `HostileFactions`, over `ReviewFacts.HarmCatalog.Raid`), `RaidPoints`,
   `DefenseCapacity`, `Exposure` (the embedded `exposure.json` unless injected), `Coverage`, `Natural` and `Parts` (`HarmCatalog`, from the
-  catalog), and `Illness` (`IllnessSchedule.Of` over `RoundsFacts.DiseaseTable` and `RoundsFacts.Disease`; see
+  catalog), and `Illness` (`IllnessSchedule.Of` over `ReviewFacts.DiseaseTable` and `ReviewFacts.Disease`; see
   [illness term](#illness-term-3824)), and `Containment` (`ContainmentPlanning.Forecast`; see [escape term](#escape-term-3811)).
   Each defaults to unknown, `Containment` to no entity. The hediff tables are `CapacityPenalties`.
 - `Harm` = raids per day (major threats per day × raid fraction) × horizon days × Σ over the outcome's pawns of
@@ -700,8 +700,8 @@ costs each pawn.
   for: not missing, no added part on it or an ancestor, the hediff not already on it); and per `DestroyOrgan` part def each install
   recipe the autopilot could queue (`AvailableNow`, an install-part worker, `AvailableOnNow`) as an `OrganReplacementRead`: its part and
   medicine on the map, eligible doctors, the best-bed and ideal success chances, the violation and lethal flags, and the surgery
-  outcome model #3804 reads for a queued bill (#3830)). The colony decode carries `ThreatFacts.Disease` to `RoundsFacts.Disease`.
-- `RoundsFacts.DiseaseTable` (`DiseaseTable`, `Catalog/Disease.cs`): per storyteller its home-map `StorytellerCompProperties_Disease`
+  outcome model #3804 reads for a queued bill (#3830)). The colony decode carries `ThreatFacts.Disease` to `ReviewFacts.Disease`.
+- `ReviewFacts.DiseaseTable` (`DiseaseTable`, `Catalog/Disease.cs`): per storyteller its home-map `StorytellerCompProperties_Disease`
   comps of `DiseaseHuman` (their `minDaysPassed`; any other comp that can send the category is unmodelled), per biome its
   `diseaseMtbDays` and commonalities (its own records, then the incidents' `diseaseBiomeRecords`), and per incident its victim rules,
   gates and its hediff's course (`DiseaseCourse`: the penalty table, severity clamp, `SeverityPerDay` range, not-immune random factor,
@@ -762,7 +762,7 @@ The harm term's held-entity part: how often an entity held on a holding platform
   `ContainmentUtility.CanParticipateInEscape`); and in the study block `StudyState.Yield` (`StudyYieldState`: `AnomalyKnowledge`, the
   `KnowledgeCategory` defName, `Props.frequencyTicks`). The catalog reads `ContainmentUtility`'s three private curves by name
   (`DefinitionCatalog.ContainmentCurves`: escape interval and study knowledge over the strength margin, escape factor over days held).
-- `RoundsContainmentReads.ContainmentForecastOf` joins each `ContainmentForecast.Entities` entry (`ContainedEntity`) to its required
+- `ContainmentReads.ContainmentForecastOf` joins each `ContainmentForecast.Entities` entry (`ContainedEntity`) to its required
   canonical `PawnState` and optional actual `BuildingState` whose holder holds it. Identity, minimum strength, escape and study
   yield are computed getters into those same native records; the platform's cell and strength come from the joined building.
   Each entry is a living entity held on a platform or one the game lets the colony capture. A waiting entity has no building join;
@@ -792,11 +792,11 @@ The harm term's creepjoiner part (D12): what a colonist creepjoiner's hidden dow
   or `Other`), and per downside hediff with one manually triggered `ReplaceHediff` its `TriggeredHediff`s as `CreepJoinerHediff`
   (the course, `countRange`, `severityRange`, and the hediff a non-manual `ReplaceHediff` turns it into at its severity: CrumblingMind
   into CrumbledMind at 1). Another worker, an ability, a hediff without that comp and a stage's `disabledWorkTags` are named.
-- `RoundsCreepJoiner.CreepJoinerHarmOf` lifts the complete colonist census into `RoundsFacts.CreepJoiners`
+- `CreepJoiner.CreepJoinerHarmOf` lifts the complete colonist census into `ReviewFacts.CreepJoiners`
   (`CreepJoinerHarmInputs`): each creepjoiner whose downside has not shown (`CreepJoinerDownsides.Unrevealed`), with the days since
   `joined_tick` and its combat power, the ones whose downside has, and the catalog table. An incomplete census is `Unread`, raised as
-  `RequiredFactException("creepjoiner census: …")`. `RoundsFacts.PreviousPawnValues` is the latest review's `PawnValues` (#3825,
-  the Rounder's memory-only `PawnValueMemory`); `HarmInputs.CreepJoiners` carries both.
+  `RequiredFactException("creepjoiner census: …")`. `ReviewFacts.PreviousPawnValues` is the latest review's `PawnValues` (#3825,
+  the ColonyReview's memory-only `PawnValueMemory`); `HarmInputs.CreepJoiners` carries both.
 - `CreepJoinerHarm.Term`, per unshown creepjoiner among the forecast's pawns: each drawable downside that adds no trait first fires in
   one of 12 stretches of the horizon with chance w × (S(from) − S(to)) ÷ Σ w × S(now) (`Firings`, the isolation credit's draw and
   survival, D11), and costs from the stretch's middle to the horizon:
@@ -822,9 +822,9 @@ The harm term's creepjoiner part (D12): what a colonist creepjoiner's hidden dow
 
 The harm model's first step ([harm model](../architecture/forecast-value.md#harm-model)) reads the storyteller the game is running.
 
-- `ThreatFacts.Storyteller` (`Find.Storyteller.def.defName`), `DaysPassed` (`GenDate.DaysPassedFloat`) are read beside `RaidPoints` and decoded onto `RoundsFacts.Storyteller` and `DaysPassed`; the section is required, and a threat read the native cannot complete fails the census. Raid points stay the observed `RaidPoints`
+- `ThreatFacts.Storyteller` (`Find.Storyteller.def.defName`), `DaysPassed` (`GenDate.DaysPassedFloat`) are read beside `RaidPoints` and decoded onto `ReviewFacts.Storyteller` and `DaysPassed`; the section is required, and a threat read the native cannot complete fails the census. Raid points stay the observed `RaidPoints`
   (adaptation and difficulty are inside it); the schedule does not model their growth.
-- `RoundsFacts.ThreatTable` (`ThreatScheduleTable`): per `StorytellerDef`, its home-map threat comps decoded by comp class in
+- `ReviewFacts.ThreatTable` (`ThreatScheduleTable`): per `StorytellerDef`, its home-map threat comps decoded by comp class in
   `Catalog/Storyteller.cs` (#3859): on-off cycles of `ThreatBig` with their accept curves by days passed and threat points, and MTB
   comps (random mains with their `ThreatBig` weight share, `ThreatBig` category MTBs with their days-passed factor, single MTBs of a
   `ThreatBig` incident), and the comps it does not model. Empty without a catalog.
@@ -922,8 +922,8 @@ roster becomes one formation channel (`HuntRosterChannel`) naming its gunners, r
 (`SupplyCandidate.Hunters`, `Retrievers`, `Prey`), with the estimate's nutrition, labor (and its `hunt_return_ticks`
 and `hunt_haul_ticks` parts) and harm chance as its risk, and `hunt_risk_estimated`, `hunt_harm_chance`,
 `hunt_death_chance` and `hunt_downed_chance` as terms; every other animal stays a lone channel. The plan's open
-formation channel files the prey and the selected gunners on the `military/combat` standing (`RoundsCombat.Prey`,
-`RoundsCombat.Hunters`), and `HuntFormation` sends exactly those defenders, however many. A hauler is not sent:
+formation channel files the prey and the selected gunners on the `military/combat` standing (`ReviewCombat.Prey`,
+`ReviewCombat.Hunters`), and `HuntFormation` sends exactly those defenders, however many. A hauler is not sent:
 `WorkRules.ReviewWorkResources` adds the open channels' retrievers (`HuntRequestRetrievers`) to the shared pawn claims,
 so no other voluntary work takes them for the trip, and the corpse is hauled as native hauling work with the existing
 delivery credit. For this the coupled read's routes hold, for each available hunter, a leg from each prey to its
@@ -968,7 +968,7 @@ the read. It runs locally and on remote CI like any case: the estimate needs no 
 the former `HuntingSafety.RouteSafe` verdict (a route within a margin of any wild predator was unsafe, the prey
 included, so a grizzly was never a hunt source and a wandering wolf held every hunt) went with #3515. It asserts in
 order: the comparison made (the `rounds_review` row's `hunt_choice` names a chosen roster) and the drafted colonists
-exactly the chosen roster's gunners (`RoundsCombat.Hunters`); a kill of an admitted prey in the delivery ledger; the
+exactly the chosen roster's gunners (`ReviewCombat.Hunters`); a kill of an admitted prey in the delivery ledger; the
 release afterwards (no standing hunters, `military/combat` cleared, nobody drafted); and the corpse butchered into
 meat in stock. It records the roster, the chosen channel's `hunt_*` terms, the kill tick and the meat tally. Roster
 size is the comparison's: a lone-gunner roster passes on the same evidence. The lab's quiet storyteller zeroes
@@ -1103,7 +1103,7 @@ probe out of bounds has no row (finding `planned_route_out_of_bounds`).
 A read covers every free spawned colonist (#3341). Its only bound is on input: at
 most 16 placed sites, 16 planned sites and 16 route probes; a longer list sets
 `Truncated` and the caller batches. Rows, sources, positions
-and colonists are not capped. The coupled census passes no planned sites; Rounds ask
+and colonists are not capped. The coupled census passes no planned sites; Colony review ask
 them per round ([planned-site facts](../architecture/colony-forecast.md#planned-site-facts)).
 
 ### Standing removals
@@ -1189,7 +1189,7 @@ roof exchange rates are `RoomTempTracker`'s private constants, and the read thro
 when a game version lacks one.
 
 The caps are 4 rooms, 16 heaters and 1,024 cells; anything past them sets `Truncated`.
-Rounds ask once per round
+Colony review ask once per round
 ([planned shelter](../architecture/colony-forecast.md#planned-shelter-and-occupancy)).
 
 A fueled heat pusher (#3673) is a def with a `CompProperties_HeatPusher` of positive
@@ -1213,7 +1213,7 @@ cell of the room's planned `FloorIn` sites (the floor's `TerrainDef`, no stuff, 
 every ring stuff, #3797), and its `Furniture` (#3840): one `PlannedRoomFurniture`
 (anchor cell, definition, stuff, rotation) per interior anchor of the room's planned
 Build sites, in every ring stuff, which native counts standing in the closed room so
-the stage is the furnished room's. Rounds ask it in the
+the stage is the furnished room's. Colony review ask it in the
 same read as the thermal read, for every enclosed unplaced planned room with ring
 sites, and every planned kitchen even with none (its cleanliness is priced, #3802; a
 ringless prediction owes no work), once per ring stuff (`PlannedRoomPredictionRequestOf`); nothing is capped.
@@ -1267,7 +1267,7 @@ but excludes it from runway and usable nutrition. Other forbidden food is
 dropped from the food census by the decoder.
 
 `ReviewFoodReserve` budgets `reserveDays × observed daily demand`
-(`RoundsPolicy.FoodReserveDays`, fixed at `policy.DefaultFoodReserveDays`, five
+(`PlannerSettings.FoodReserveDays`, fixed at `policy.DefaultFoodReserveDays`, five
 days). It proposes whole-stack holds
 only after roofed storage is observed, up to the target rounded by the final
 stack. Release requires runway below the supplied food minimum and a complete
@@ -1346,7 +1346,7 @@ checks the fine-to-simple tier decision once raw stock is drained.
 
 ## Shared food portfolio
 
-The rounder retains one complete FoodPlan per observed tick and fact
+The review coordinator retains one complete FoodPlan per observed tick and fact
 invalidation generation. It budgets combined human and animal demand, seasonal
 thresholds, native forage/hunt sources and field estimates. Unknown inputs do not
 certify surplus. Field harvest ETA remains an optimistic native bound; projected
@@ -1555,7 +1555,7 @@ purchase has been selected. Unknown protection flags still refuse export;
 retained targets and economic floors take their maximum. No purchase budget
 means no protected crop sale.
 
-Rounds and fresh trade selection both use the shared per-tick food
+Colony review and fresh trade selection both use the shared per-tick food
 plan with seasonal runway thresholds. Active fine or lavish meal bills supply
 the desired ingredient slots; existing raw protein stock reduces the purchase
 quantity.
@@ -1662,7 +1662,7 @@ error. Normal replanning alone does not establish that the relevant work changed
 
 Live capture runs after the existing coupled admission decision, retaining the
 original selected portfolio even when dispatch filters protected incumbents.
-Each Rounds revision is captured once; review identity includes a reset epoch so
+Each Colony review revision is captured once; review identity includes a reset epoch so
 rewinds cannot reuse an old correlation key. Task rows carry the actual Method and
 revision when a binding exists. Deferred/unplaced tasks without that binding
 report `task_execution_identity_unavailable`. Refused proposal tasks remain
@@ -1799,7 +1799,7 @@ remain explicit. Initial recovery and continuation ranking are separate stages.
 
 ## Storage capacity observations
 
-Storage reviews require native zone and shelf stack counts, shelf costs and storage occupancy history. `StorageLayout.AwaitingFirstPlan` names the first review before layout is derived at its end; it reads the census and inflow but produces no shelf or room option. `StorageLayout.Planned` carries valid walkways and required planned-room costs for geometry-dependent candidates. Missing required observations raise `RequiredFactException`; they never become empty history, zero capacity or an unpriced option. The ordinary review and direct stockpile step use `IRoundsStorageSource` for the same native occupancy read.
+Storage reviews require native zone and shelf stack counts, shelf costs and storage occupancy history. `StorageLayout.AwaitingFirstPlan` names the first review before layout is derived at its end; it reads the census and inflow but produces no shelf or room option. `StorageLayout.Planned` carries valid walkways and required planned-room costs for geometry-dependent candidates. Missing required observations raise `RequiredFactException`; they never become empty history, zero capacity or an unpriced option. The ordinary review and direct stockpile step use `IReviewStorageSource` for the same native occupancy read.
 
 `StorageInflow.Unestablished` means no standing group serves the store. `StorageInflow.Accumulating` means at least one group's observed history spans less than one day; it is a history state, not a failed read. `StorageInflow.Measured` carries signed stacks per day. A yard still accumulating history can ask for room from safe, reached stranded stacks; runway comparison requires measured history.
 

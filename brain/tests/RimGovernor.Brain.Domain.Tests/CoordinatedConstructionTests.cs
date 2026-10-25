@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -13,7 +14,7 @@ public sealed class CoordinatedConstructionTests
     private static WorkResourceView Resources()
     {
         var facts = WorkResourceTestFacts.Create("producer", "helper") with
-        { Census = (WorkResourceTestFacts.Create("producer", "helper")).Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "WoodLog", Units = 20 }] }};
+        { Census = (WorkResourceTestFacts.Create("producer", "helper")).Census with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "WoodLog", Units = 20 }] }};
         return WorkRules.WorkResourcesOf(ProductionRules.WorkAdmissionEvidenceOf(facts, new ProductionBatchCensus.Read([])),
             new ProductionBatchCensus.Read([]), []);
     }
@@ -26,7 +27,7 @@ public sealed class CoordinatedConstructionTests
         facts = facts with { WorkView = Resources(), ForecastObserved = facts.ForecastObserved with
         {
             Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "producer" }, template with { Pawn = "helper" }] },
-            Coupled = CoupledFixtures.Empty with { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Tick = 100, Construction = ConstructionFixtures.NoConstruction() with { Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options), Routes = EquatableArray.From(routes) } }
+            Coupled = CoupledFixtures.Empty with { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Tick = 100, Construction = ConstructionFixtures.NoConstruction() with { Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options), Routes = EquatableArray.From(routes) } }
         } };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
@@ -54,7 +55,7 @@ public sealed class CoordinatedConstructionTests
         facts = facts with { WorkView = Resources(), ForecastObserved = facts.ForecastObserved with
         {
             Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "producer" }, template with { Pawn = "helper" }] },
-            Coupled = CoupledFixtures.Empty with { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Tick = 100, Construction = ConstructionFixtures.NoConstruction() with { Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = [option] } }
+            Coupled = CoupledFixtures.Empty with { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Tick = 100, Construction = ConstructionFixtures.NoConstruction() with { Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = [option] } }
         } };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
         var outcome = Assert.Single(generated.Alternatives, c => c.ExclusiveOutcome.StartsWith("construction/", StringComparison.Ordinal)).Outcome!;
@@ -62,14 +63,14 @@ public sealed class CoordinatedConstructionTests
         else Assert.Null(outcome.Requirements);
     }
 
-    private static RoundsFacts RemovalFacts(params PlannedSiteClearing[] removals)
+    private static ReviewFacts RemovalFacts(params PlannedSiteClearing[] removals)
     {
         var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0);
         var template = facts.ForecastObserved.Needs!.Pawns[0];
         return facts with { WorkView = Resources(), ForecastObserved = facts.ForecastObserved with
         {
             Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "producer" }, template with { Pawn = "helper" }] },
-            Coupled = CoupledFixtures.Empty with { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Tick = 100, Construction = ConstructionFixtures.NoConstruction() with { Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
+            Coupled = CoupledFixtures.Empty with { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Tick = 100, Construction = ConstructionFixtures.NoConstruction() with { Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
                 Removals = EquatableArray.From(removals) } }
         } };
     }
@@ -215,7 +216,7 @@ public sealed class CoordinatedConstructionTests
         Assert.Equal(cells, order.Steps[0].Cells);
         batch.Validate();
         // The cell set rides the wire (#3615): the native side deserialises orders' steps with the wire context.
-        var info = RimGovernor.Contracts.Wire.WireJsonContext.Default.GetTypeInfo(typeof(PawnActivities))!;
+        var info = RimGovernor.Brain.GameOrders.OrdersJsonContext.Default.GetTypeInfo(typeof(PawnActivities))!;
         var copy = (PawnActivities)System.Text.Json.JsonSerializer.Deserialize(System.Text.Json.JsonSerializer.Serialize(batch, info), info)!;
         Assert.Equal(cells, copy.Orders.Single(o => o.Task == task.Id).Steps[0].Cells);
 
@@ -241,7 +242,7 @@ public sealed class CoordinatedConstructionTests
         var task = Assert.Single(batch.Tasks);
         ActivityTaskRead Read(PawnActivities current, string state, params ActivityTaskBinding[] bindings) => ConstructionFixtures.NoTasks() with
         {
-            Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 300 }, Bindings = EquatableArray.From(bindings),
+            Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 300 }, Bindings = EquatableArray.From(bindings),
             Pawns = EquatableArray.From(current.Orders.Select(o => new ActivityTaskObservation(o.Pawn, new(o.Assignment, o.Method, o.Revision, 0, state, "", 300))))
         };
         var remaining = task.Step with { Targets = EquatableArray.From(trees.Skip(1)), Count = 2 };
@@ -328,7 +329,7 @@ public sealed class CoordinatedConstructionTests
 
         ActivityTaskRead Read(PawnActivities current, string state, params ActivityTaskBinding[] bindings) => ConstructionFixtures.NoTasks() with
         {
-            Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 300 }, Bindings = EquatableArray.From(bindings),
+            Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 300 }, Bindings = EquatableArray.From(bindings),
             Pawns = EquatableArray.From(current.Orders.Select(o => new ActivityTaskObservation(o.Pawn, new(o.Assignment, o.Method, o.Revision, 0, state, "", 300))))
         };
         var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "completed",
@@ -374,7 +375,7 @@ public sealed class CoordinatedConstructionTests
                 : NeedsFixtures.Food("target-pawn", "MealSimple", 1, 10d, 10d, .9) with { Location = new(1, 1) }]
         };
         var helper = pawn with { Pawn = "helper", Targets = [pawn.Targets[0] with { Id = "target-helper" }] };
-        facts = facts with { Census = (facts.Census with { WorkResources = roster.Census.WorkResources }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "WoodLog", Units = 20 }] },
+        facts = facts with { Census = (facts.Census with { WorkResources = roster.Census.WorkResources }) with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "WoodLog", Units = 20 }] },
             ForecastObserved = facts.ForecastObserved with
             {
                 WorkPawns = roster.ForecastObserved.WorkPawns,
@@ -382,7 +383,7 @@ public sealed class CoordinatedConstructionTests
                 Coupled = facts.ForecastObserved.Coupled! with
                 {
                     Food = facts.ForecastObserved.Coupled.Food with { Options = [] }, FoodUses = [],
-                    Construction = ConstructionFixtures.NoConstruction() with { Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
+                    Construction = ConstructionFixtures.NoConstruction() with { Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
                         Options = [Option("pawn", 0, 20, 20), Option("helper", 0, 20, 20)] }
                 }
             } };
@@ -438,7 +439,7 @@ public sealed class CoordinatedConstructionTests
         var supply = batch.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Supply);
         ActivityTaskRead Read(PawnActivities current, string state, params ActivityTaskBinding[] bindings) => ConstructionFixtures.NoTasks() with
         {
-            Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 300 }, Bindings = EquatableArray.From(bindings),
+            Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 300 }, Bindings = EquatableArray.From(bindings),
             Pawns = EquatableArray.From(current.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
                 new(o.Assignment, o.Method, o.Revision, 0, state, "", 300))))
         };

@@ -1,6 +1,5 @@
 using System.Globalization;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -61,8 +60,8 @@ internal static class WallDoorSwap
                 throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"the room lost roof during the swap: {roofed} of {interior.Count} roofed"));
             }
 
-            var built = await s.BuildingsAsync("swap-probe", new Observations.ListBuildingsRequest { DefNames = ["Wall", "Door"], Statuses = [Observations.BuildingStatus.Built] }, ct).ConfigureAwait(false);
-            var here = built.Where(b => b.Building.Place is RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap { Cell: { X: var x, Z: var z } } && x == at.X && z == at.Z).ToList();
+            var built = await s.BuildingsAsync("swap-probe", new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest { DefNames = ["Wall", "Door"], Statuses = [RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Built] }, ct).ConfigureAwait(false);
+            var here = built.Where(b => b.Building.Place is RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap { Cell: { X: var x, Z: var z } } && x == at.X && z == at.Z).ToList();
             var wall = here.Any(b => b.Building.DefName == "Wall" && b.Stuff == "WoodLog");
             var doorStands = here.Any(b => b.Building.DefName == "Door");
             return (Wait.Signature(wall, doorStands), wall && !doorStands);

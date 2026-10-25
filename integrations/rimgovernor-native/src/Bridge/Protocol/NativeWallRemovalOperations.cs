@@ -3,12 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The wall_upgrade guard's resolver: a DECONSTRUCT
     // Designate on a wall cell admits one native deconstruct designation
@@ -30,13 +26,13 @@ namespace HomeBridge.BridgeTools
         private sealed class Candidate
         {
             internal required WallRemovalRecord Record;
-            internal required Obs.WallUpgradeSite Site;
-            internal required Func<Obs.WallUpgradeSite?> Reread;
+            internal required RimGovernor.Brain.GameFacts.Observations.WallUpgradeSite Site;
+            internal required Func<RimGovernor.Brain.GameFacts.Observations.WallUpgradeSite?> Reread;
         }
 
         [ThreadStatic] private static string? lastBlocker;
 
-        private static Candidate? Try(WallRemovalRecord record, Obs.WallUpgradeSite? site, Func<Obs.WallUpgradeSite?> reread)
+        private static Candidate? Try(WallRemovalRecord record, RimGovernor.Brain.GameFacts.Observations.WallUpgradeSite? site, Func<RimGovernor.Brain.GameFacts.Observations.WallUpgradeSite?> reread)
         {
             if (site == null) return null;
             // A standing demolition designation no record claims is no veto:
@@ -49,7 +45,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Every admissible site of one wall, best class first.
-        private static List<List<Candidate>> Resolve(Map map, Building wall, Common.ObservationContext context)
+        private static List<List<Candidate>> Resolve(Map map, Building wall, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var id = wall.GetUniqueLoadID();
             var materials = NativeWallUpgradeObservationTools.StonyStuffs();
@@ -57,7 +53,7 @@ namespace HomeBridge.BridgeTools
             foreach (var normal in WallUpgradeSafety.Directions)
             {
                 var n = normal;
-                Func<Obs.WallUpgradeSite?> reread = () => NativeWallUpgradeObservationTools.Replacement(map, wall, n, context);
+                Func<RimGovernor.Brain.GameFacts.Observations.WallUpgradeSite?> reread = () => NativeWallUpgradeObservationTools.Replacement(map, wall, n, context);
                 var site = reread();
                 if (site == null) continue;
                 var left = (site.LeftSupport.Id ?? ""); var right = (site.RightSupport.Id ?? "");
@@ -86,7 +82,7 @@ namespace HomeBridge.BridgeTools
                         var permanent = NativeWallUpgradeObservationTools.ColonistWall(map, origin);
                         if (permanent == null || !WallUpgradeSafety.Stone(permanent) || permanent.Stuff != wall.Stuff) continue;
                         var n = normal; var p = permanent;
-                        Func<Obs.WallUpgradeSite?> reread = () => NativeWallUpgradeObservationTools.Cleanup(map, p, n, context);
+                        Func<RimGovernor.Brain.GameFacts.Observations.WallUpgradeSite?> reread = () => NativeWallUpgradeObservationTools.Cleanup(map, p, n, context);
                         var site = reread();
                         if (site == null || !site.CompletedBackups.Any(b => (b.Id ?? "") == id)) continue;
                         var record = WallUpgradeSafety.NewRecord(map, id, permanent.GetUniqueLoadID(), (site.LeftSupport.Id ?? ""), (site.RightSupport.Id ?? ""),
@@ -102,23 +98,23 @@ namespace HomeBridge.BridgeTools
         // again); pending is the ledger's open removal of the wall, which
         // applies again with its evidence; otherwise candidate is the one
         // admissible site.
-        private static string? Refusal(Operations.DesignateIntent intent, Common.ObservationContext context,
-            out Building? wall, out GuardedDesignation? pending, out Candidate? candidate, out Common.FailureCode code)
+        private static string? Refusal(RimGovernor.Brain.GameOrders.Operations.DesignateIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context,
+            out Building? wall, out GuardedDesignation? pending, out Candidate? candidate, out RimGovernor.Brain.GameFacts.Common.FailureCode code)
         {
-            wall = null; pending = null; candidate = null; code = Common.FailureCode.InvalidRequest;
+            wall = null; pending = null; candidate = null; code = RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest;
             var expected = (intent.Target?.Id ?? "");
-            if (intent.Location is not Operations.DesignationLocation.At location || intent.Target != null && !ProtoBoundary.IsIdentifier(expected))
+            if (intent.Location is not RimGovernor.Brain.GameOrders.Operations.DesignationLocation.At location || intent.Target != null && !GameThread.IsIdentifier(expected))
                 return "The wall_upgrade guard requires one wall cell.";
-            if (intent.Designation != Operations.ThingDesignation.Deconstruct || intent.ReplaceWithWall || intent.ExpectedDef is not null || intent.ThingId is not null)
+            if (intent.Designation != RimGovernor.Brain.GameOrders.Operations.ThingDesignation.Deconstruct || intent.ReplaceWithWall || intent.ExpectedDef is not null || intent.ThingId is not null)
                 return "The wall_upgrade guard takes DECONSTRUCT on a cell and an optional target only.";
-            var map = ProtoBoundary.ResolveMap(context);
+            var map = GameThread.ResolveMap(context);
             if (map == null) return "Loaded map required.";
             var cell = new IntVec3(location.Cell.X, 0, location.Cell.Z);
             if (!cell.InBounds(map)) return "Wall cell is outside the map.";
             wall = NativeWallUpgradeObservationTools.ColonistWall(map, cell);
             if (wall == null) return null;
             if (expected != null && wall.GetUniqueLoadID() != expected)
-            { code = Common.FailureCode.StaleIdentity; return "A different wall stands at the cell."; }
+            { code = RimGovernor.Brain.GameFacts.Common.FailureCode.StaleIdentity; return "A different wall stands at the cell."; }
             pending = WallUpgradeSafety.Pending(wall);
             if (pending != null) return null;
             lastBlocker = null;
@@ -130,30 +126,30 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        internal static Common.Failure? Validate(Operations.DesignateIntent intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.DesignateIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var refusal = Refusal(intent, context, out _, out _, out _, out var code);
-            return refusal == null ? null : ProtoBoundary.Fail(code, refusal);
+            return refusal == null ? null : GameThread.Fail(code, refusal);
         }
 
-        internal static Receipts.EffectEvidence Apply(Operations.DesignateIntent intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.DesignateIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var refusal = Refusal(intent, context, out var wall, out var pending, out var candidate, out _);
             if (refusal != null) throw new InvalidOperationException("Wall removal prerequisites changed before apply: " + refusal);
             if (wall == null)
-                return new Receipts.EffectEvidence { Effect = new Receipts.WallEffect { TargetId = intent.Target?.Id ?? "" } };
+                return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.WallEffect { TargetId = intent.Target?.Id ?? "" } };
             var id = wall.GetUniqueLoadID();
             if (pending != null)
-                return new Receipts.EffectEvidence { Effect = new Receipts.WallEffect { TargetId = id, RemovalId = pending.Id } };
+                return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.WallEffect { TargetId = id, RemovalId = pending.Id } };
             var chosen = candidate ?? throw new InvalidOperationException("The wall removal candidate is unavailable.");
             var before = NativeWallUpgradeObservationTools.SiteToken(chosen.Site, context);
             if (WallUpgradeSafety.Prepare(chosen.Record) != null) throw new InvalidOperationException("Wall removal site changed before designation.");
             var blocker = WallUpgradeSafety.Commit(chosen.Record);
             if (blocker != null) throw new InvalidOperationException(blocker);
             var after = chosen.Reread();
-            var effect = new Receipts.WallEffect { TargetId = id, RemovalId = chosen.Record.Id,
-                Site = new Receipts.SnapshotEvidence { EntityId = id, BeforeToken = before, AfterToken = after != null ? NativeWallUpgradeObservationTools.SiteToken(after, context) : null } };
-            return new Receipts.EffectEvidence { Effect = effect };
+            var effect = new RimGovernor.Brain.GameFacts.Receipts.WallEffect { TargetId = id, RemovalId = chosen.Record.Id,
+                Site = new RimGovernor.Brain.GameFacts.Receipts.SnapshotEvidence { EntityId = id, BeforeToken = before, AfterToken = after != null ? NativeWallUpgradeObservationTools.SiteToken(after, context) : null } };
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = effect };
         }
     }
 }

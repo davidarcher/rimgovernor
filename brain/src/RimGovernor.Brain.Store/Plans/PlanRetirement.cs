@@ -37,7 +37,7 @@ public sealed partial class Store
     /// work keep their complete catalog entries. <paramref name="floors"/> collects the newest settled tick per
     /// world; the caller raises the shared floors with it once the transaction commits.
     /// </summary>
-    internal static void RetireRoundsPlans(
+    internal static void RetireReviewPlans(
         StoreTransaction tx,
         GenerationSnapshot current,
         Tick tick,

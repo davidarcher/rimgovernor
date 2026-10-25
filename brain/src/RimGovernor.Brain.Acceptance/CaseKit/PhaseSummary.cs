@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Telemetry;
 using RimGovernor.Brain.Telemetry.Otlp;
-using RimGovernor.Contracts.Wire.Clock;
+using RimGovernor.Brain.GameFacts.Clock;
+using RimGovernor.Brain.GameOrders.Clock;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -156,7 +157,7 @@ public sealed class PhaseSummary
         {
             switch (row.Kind)
             {
-                case TelemetryKinds.ClockStepKind:
+                case TelemetryKinds.SchedulerStepKind:
                     StepRow(summary.Steps, SpeedMatrix.StepFields(row), ref holdWakeMs, ref maxHoldWakeMs, ref latencySamples);
                     break;
 

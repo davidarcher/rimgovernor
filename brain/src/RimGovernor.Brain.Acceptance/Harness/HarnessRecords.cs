@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Acceptance;
 // context a reply carries, and the summary rows the harness writes and later reads. Each mirrors only the fields its
 // reader uses and ignores the rest.
 
-/// <summary>A <c>rimgovernor/*</c> reply record's <c>outcome</c> choice, read without knowing the op.</summary>
+/// <summary>A <c>*</c> reply record's <c>outcome</c> choice, read without knowing the op.</summary>
 internal sealed record RecordedReply
 {
     public RecordedChoice? Outcome { get; init; }

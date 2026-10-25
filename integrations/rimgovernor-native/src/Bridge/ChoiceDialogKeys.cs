@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Language-neutral names for a choice dialog's options. RimWorld
     // translates an option's key before the DiaOption is built ("OK".Translate(),

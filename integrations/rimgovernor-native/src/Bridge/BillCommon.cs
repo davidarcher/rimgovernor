@@ -2,7 +2,7 @@
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>Bill facts the typed production and hunt reads share.</summary>
     internal static class BillCommon

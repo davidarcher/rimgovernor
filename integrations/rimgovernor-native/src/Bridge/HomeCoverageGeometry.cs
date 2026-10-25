@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Geometry is independent of Home mutation. Traversable cells come only
     // from visible enclosed roofed rooms and internal doors.

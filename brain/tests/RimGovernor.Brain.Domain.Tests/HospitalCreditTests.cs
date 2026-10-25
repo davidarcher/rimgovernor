@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Policy.Methods;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -134,7 +135,7 @@ public sealed class HospitalCreditTests
         // named, and the hospital is credited without throwing.
         var catalog = Game.ThreatScheduleTests.Catalog(Game.ThreatScheduleTests.Teller("Modded", Game.ThreatScheduleTests.Cycle(0, 5, 5, 1, 1),
             new Game.ThreatScheduleTests.StorytellerCompProperties_Test()));
-        var schedule = HarmInputs.Of(new RoundsFacts
+        var schedule = HarmInputs.Of(new ReviewFacts
         {
             ThreatTable = catalog.ThreatSchedule(), Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { Storyteller = "Modded", DaysPassed = 30.0, RaidPoints = 500.0 } } },
         }).Schedule;
@@ -305,7 +306,7 @@ public sealed class HospitalCreditTests
     [Fact]
     public void AFreshColonysProductionContextCarriesTheHospitalBedWithoutThrowing()
     {
-        // The production path (#3822): RoundsRead furnishes the planned hospital with the catalog's first hospital bed (a bedroll
+        // The production path (#3822): Read furnishes the planned hospital with the catalog's first hospital bed (a bedroll
         // never), and GenerateCoupledActivities carries it into the context; tier 2 adds the tending (ColonyValue.TendingOverHorizon).
         var furniture = new RoomFurniture
         {

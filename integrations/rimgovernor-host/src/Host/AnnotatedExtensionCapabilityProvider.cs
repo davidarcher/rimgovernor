@@ -18,7 +18,7 @@ using SdkToolResponseAttribute = RimGovernor.Host.Sdk.ToolResponseAttribute;
 
 namespace RimGovernor.Host;
 
-internal sealed class AnnotatedExtensionCapabilityProvider : IRimBridgeCapabilityProvider
+internal sealed class AnnotatedExtensionCapabilityProvider : INativeCapabilityProvider
 {
     private const int DefaultExtensionToolTimeoutMs = 60000;
     private const int MinimumExtensionToolTimeoutMs = 1000;
@@ -44,7 +44,7 @@ internal sealed class AnnotatedExtensionCapabilityProvider : IRimBridgeCapabilit
     private readonly string _category;
     private readonly OperationRunner _runner;
     private readonly IReadOnlyList<ToolClass> _toolClasses;
-    private readonly List<RimBridgeCapabilityRegistration> _registrations;
+    private readonly List<NativeCapabilityRegistration> _registrations;
 
     public AnnotatedExtensionCapabilityProvider(string providerId, string category, IReadOnlyList<ToolClass> toolClasses)
     {
@@ -61,14 +61,14 @@ internal sealed class AnnotatedExtensionCapabilityProvider : IRimBridgeCapabilit
     public IReadOnlyList<DiscoveredTool> Tools { get; }
 
 
-    public IEnumerable<RimBridgeCapabilityRegistration> GetCapabilities()
+    public IEnumerable<NativeCapabilityRegistration> GetCapabilities()
     {
         return _registrations;
     }
 
-    private List<RimBridgeCapabilityRegistration> BuildRegistrations()
+    private List<NativeCapabilityRegistration> BuildRegistrations()
     {
-        var registrations = new List<RimBridgeCapabilityRegistration>();
+        var registrations = new List<NativeCapabilityRegistration>();
         var usedIds = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var toolClass in _toolClasses.OrderBy(entry => entry.Type.FullName ?? entry.Type.Name, StringComparer.Ordinal))
@@ -101,7 +101,7 @@ internal sealed class AnnotatedExtensionCapabilityProvider : IRimBridgeCapabilit
                         .ToList()
                 };
 
-                registrations.Add(new RimBridgeCapabilityRegistration(
+                registrations.Add(new NativeCapabilityRegistration(
                     descriptor,
                     (invocation, cancellationToken) => InvokeAsync(toolClass, method, descriptor, invocation, cancellationToken)));
             }
@@ -174,11 +174,11 @@ internal sealed class AnnotatedExtensionCapabilityProvider : IRimBridgeCapabilit
         cancellationToken.ThrowIfCancellationRequested();
 
         var operationContext = OperationContext.Capture();
-        var sdkContext = RimBridgeSdkHost.CreateContext(operationContext, CallerArguments(invocation.Arguments));
+        var sdkContext = NativeSdkHost.CreateContext(operationContext, CallerArguments(invocation.Arguments));
         var timeoutMs = ResolveExecutionTimeoutMs(invocation.Arguments);
 
         return _runner.RunAsync(
-            () => RimBridgeAsyncScheduler.RunAsync(
+            () => NativeAsyncScheduler.RunAsync(
                 () => InvokeMethodAsync(toolClass, method, invocation.Arguments, sdkContext, cancellationToken),
                 sdkContext,
                 operationContext,
@@ -200,7 +200,7 @@ internal sealed class AnnotatedExtensionCapabilityProvider : IRimBridgeCapabilit
         ToolClass toolClass,
         MethodInfo method,
         IDictionary<string, object> arguments,
-        IRimBridgeContext sdkContext,
+        INativeContext sdkContext,
         CancellationToken cancellationToken)
     {
         var result = method.Invoke(
@@ -293,7 +293,7 @@ internal sealed class AnnotatedExtensionCapabilityProvider : IRimBridgeCapabilit
 
     private static bool IsInjectedParameter(ParameterInfo parameter)
     {
-        return typeof(IRimBridgeContext).IsAssignableFrom(parameter.ParameterType)
+        return typeof(INativeContext).IsAssignableFrom(parameter.ParameterType)
             || parameter.ParameterType == typeof(CancellationToken);
     }
 
@@ -342,7 +342,7 @@ internal sealed class AnnotatedExtensionCapabilityProvider : IRimBridgeCapabilit
     private static object[] BindArguments(
         MethodInfo method,
         IDictionary<string, object> arguments,
-        IRimBridgeContext sdkContext,
+        INativeContext sdkContext,
         CancellationToken cancellationToken)
     {
         var parameters = method.GetParameters();
@@ -351,7 +351,7 @@ internal sealed class AnnotatedExtensionCapabilityProvider : IRimBridgeCapabilit
         for (var i = 0; i < parameters.Length; i++)
         {
             var parameter = parameters[i];
-            if (typeof(IRimBridgeContext).IsAssignableFrom(parameter.ParameterType))
+            if (typeof(INativeContext).IsAssignableFrom(parameter.ParameterType))
             {
                 result[i] = sdkContext;
                 continue;

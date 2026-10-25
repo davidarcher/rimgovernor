@@ -4,7 +4,7 @@ using System.Reflection;
 using HarmonyLib;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>Attribute a pause to the actual synchronous letter callback.
     /// Any subsequent non-letter speed assignment invalidates this attribution.</summary>

@@ -13,14 +13,14 @@ public sealed class BelieverConversionTests
 
     private static readonly GoalRecord Everyone = new() { Id = 4, Kind = GoalKind.Believers };
 
-    private static WorkPawn Colonist(string id, string ideo, double certainty, RimGovernor.Contracts.Wire.Defs.GuestStatus? guest = null, bool available = true, double age = 30) => PawnFixtures.Worker(id) with
+    private static WorkPawn Colonist(string id, string ideo, double certainty, RimGovernor.Brain.GameFacts.Defs.GuestStatus? guest = null, bool available = true, double age = 30) => PawnFixtures.Worker(id) with
     { Observed = PawnFixtures.Row(id) with { Biography = PawnFixtures.Row(id).Biography with { BiologicalAgeYears = age }, Settings = PawnFixtures.Row(id).Settings with { PolicyInputs = PawnFixtures.Inputs(ideo, certainty, guest: guest) }, Downed = !available } };
 
     private static WorkPawnsRead Pawns(params WorkPawn[] rows) => new WorkPawnsRead(EquatableArray.From(rows));
 
-    private static IdeologyMode.Installed Ideo(params RimGovernor.Contracts.Wire.Observations.IdeoRole[] roles) => new IdeologyMode.Installed(new Ideoligion(new IdeologyDefs(), new IdeoligionFacts { Observed = IdeologyReadsTests.NoPrecepts with { IdeoId = Ours, Roles = [.. roles] } }));
+    private static IdeologyMode.Installed Ideo(params RimGovernor.Brain.GameFacts.Observations.IdeoRole[] roles) => new IdeologyMode.Installed(new Ideoligion(new IdeologyDefs(), new IdeoligionFacts { Observed = IdeologyReadsTests.NoPrecepts with { IdeoId = Ours, Roles = [.. roles] } }));
 
-    private static RimGovernor.Contracts.Wire.Observations.IdeoRole Guide(string pawn, bool ready = true, bool active = true) =>
+    private static RimGovernor.Brain.GameFacts.Observations.IdeoRole Guide(string pawn, bool ready = true, bool active = true) =>
         IdeologyTestRows.Role("role-1", "IdeoRole_Moralist", active, pawn.Length == 0 ? [] : [new PawnId(pawn)], converts: true, ready: ready);
 
     private static IdeologyFacts Facts(IdeologyMode ideo, WorkPawnsRead pawns, params GoalRecord[] goals) =>
@@ -65,7 +65,7 @@ public sealed class BelieverConversionTests
     {
         var pawns = Pawns(
             Believer,
-            Colonist("slave", "Ideo_other", 0.1, RimGovernor.Contracts.Wire.Defs.GuestStatus.Slave),
+            Colonist("slave", "Ideo_other", 0.1, RimGovernor.Brain.GameFacts.Defs.GuestStatus.Slave),
             Colonist("baby", "Ideo_other", 0.1, age: 1),
             Colonist("down", "Ideo_other", 0.1, available: false),
             Colonist("ok", "Ideo_other", 0.9));
@@ -149,7 +149,7 @@ public sealed class BelieverConversionTests
         Assert.False(GoalRules.DemandOf(GoalFacts(Ideo(Guide("guide")), Pawns(Believer))).Believers);
 
         var census = new PrisonerCensus { Prisoners = [], Custody = [], Colony = new PrisonerColony(), Guests = [], Names = [] };
-        var facts = GoalRules.Stamp(new RoundsFacts { Population = census }, new GoalDemand { Believers = true });
+        var facts = GoalRules.Stamp(new ReviewFacts { Population = census }, new GoalDemand { Believers = true });
         Assert.True(facts.Population.Colony.BelieversWanted);
     }
 

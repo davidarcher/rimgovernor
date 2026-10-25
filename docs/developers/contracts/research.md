@@ -6,7 +6,7 @@ The `economy/research` Need (#3263; was EnsureResearch) shares ColonyPlan, prior
 research orders.
 
 Every routine frame carries its research census. Decoding a frame without that
-section fails the read. The review retains a total `RoundsFacts.Research` record;
+section fails the read. The review retains a total `ReviewFacts.Research` record;
 an observed empty finished-project list is valid, while a synthetic projection
 that never supplied the census throws before research-dependent planning.
 The census retains its actual native snapshot, listed project rows and knowledge
@@ -23,7 +23,7 @@ Review summaries compute native values from the retained census.
 1. The project a maintained production target's workshop ladder recorded as gating its bench.
 2. The fishing request and ComplexFurniture, from the census.
 3. Every project a planner reported waiting on (`awaiting_plan:research:<project>`): a planner that
-   cannot proceed for want of research is the evidence that the research is owed (`Rounder.NoteResearchWait`).
+   cannot proceed for want of research is the evidence that the research is owed (`ColonyReview.NoteResearchWait`).
 
 There is no fixed roadmap: with no need recorded nothing is researched and the concern is disabled. The
 planner lends the clock ticks until the target finishes, and skips projects the installed game does not list.

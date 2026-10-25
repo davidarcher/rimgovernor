@@ -7,7 +7,7 @@ using Verse;
 using RimGovernor.Brain.Domain;
 using P = RimGovernor.Brain.Policy;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// Reads the things on a map's cells for CellGridReader as the policy's thing records. One instance serves one
@@ -130,7 +130,7 @@ namespace HomeBridge.BridgeTools
         }
 
         private static float Q(float x) => (float)Math.Round(Math.Max(0f, Math.Min(1f, float.IsNaN(x) ? 0f : x)) * 100f) / 100f;
-        private static string Identifier(string? value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
+        private static string Identifier(string? value) => GameThread.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
 
         private P.Thing Record(Thing thing, IntVec3 cell)
         {

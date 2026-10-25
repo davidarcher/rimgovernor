@@ -6,7 +6,7 @@ using RimWorld;
 using Verse;
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The EnvironmentCold/EnvironmentHot probe (#3328) and the hypothermia
     // growth probe (#2797): the first colonist
@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools
         private const int Box = 5;
 
         [Tool("test/environment_temperature", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture (#3328): seal the first colonist in a doorless roofed room and hold its ambient temperature `deficit` past its comfy band (cold or hot side), or mid-band at 0, through the lab outdoor pin; Temperature_Tough on or off under Ideology. Test builds only.")]
-        public async Task<object> Hold(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> Hold(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "cold (below ComfyTemperatureMin) or hot (above ComfyTemperatureMax).")] string side = "cold",
             [ToolParameter(Description = "Degrees past the comfy bound; 0 holds the middle of the band.")] float deficit = 0f,
             [ToolParameter(Description = "Give the colony ideoligion Temperature_Tough (true) or strip it (false); true needs Ideology.")] bool tough = false)
@@ -67,7 +67,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
 
         [Tool("test/hypothermia_tuning", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture (#2797): the Verse.HealthTuning hypothermia constants and the first colonist's comfortable-to-safe minimum offset, the onset HediffGiver_Hypothermia applies. Test builds only.")]
-        public async Task<object> Tuning(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Tuning(INativeContext ctx, CancellationToken cancellationToken)
             => await ctx.MainThread.InvokeAsync<object>(() =>
             {
                 var map = Find.CurrentMap ?? throw new System.InvalidOperationException("A loaded map is required.");

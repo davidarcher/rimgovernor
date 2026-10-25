@@ -1,6 +1,6 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -17,8 +17,8 @@ public sealed class HuntPlanningTests
         Meat = 100, MeatNutrition = 0.05, CorpseStore = new HuntCorpseStore.Store(Store),
     };
     static AcquisitionSource Source(string id, bool designated = false, bool downed = false) =>
-        new() { Observed = new() { Source = new() { Id = id }, Token = id, Resource = "Meat_Boar", Yield = 1, Designation = (designated ? new O.AcquisitionDesignation.Designated(new(0)) : new O.AcquisitionDesignation.Open()), Taken = false, Kind = new O.AcquisitionKind.Hunt(100, 1, downed, false, false, false) },
-        Entity = new() { Id = id, DefName = "Boar", Label = "Boar", Place = new O.EntityPlace.OnMap(1, new Cell(10, 10)) } };
+        new() { Observed = new() { Source = new() { Id = id }, Token = id, Resource = "Meat_Boar", Yield = 1, Designation = (designated ? new RimGovernor.Brain.GameFacts.Observations.AcquisitionDesignation.Designated(new(0)) : new RimGovernor.Brain.GameFacts.Observations.AcquisitionDesignation.Open()), Taken = false, Kind = new RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Hunt(100, 1, downed, false, false, false) },
+        Entity = new() { Id = id, DefName = "Boar", Label = "Boar", Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(1, new Cell(10, 10)) } };
     static HuntActivityRead Read() => HuntFixtures.NoHunt with
     {
         Hunters = [Hunter("a"), Hunter("b")], Prey = [Prey("boar", 10), Prey("far", 60)],
@@ -194,13 +194,13 @@ public sealed class HuntPlanningTests
     public void AColonistIsTooHungryToHuntFromTheClocksHungerHold()
     {
         static WorkPawn Pawn(string id, FoodNeed food) => PawnFixtures.Worker(id) with { Observed = PawnFixtures.Row(id) with { Needs = PawnFixtures.Row(id).Needs with { Food = food } } };
-        static FoodNeed Has(RimGovernor.Contracts.Wire.Defs.HungerCategory hunger) => new FoodNeed.Has(0.2, hunger);
+        static FoodNeed Has(RimGovernor.Brain.GameFacts.Defs.HungerCategory hunger) => new FoodNeed.Has(0.2, hunger);
         var hungry = HuntPlanningRules.Hungry(
         [
-            Pawn("fed", Has(RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed)),
-            Pawn("peckish", Has(RimGovernor.Contracts.Wire.Defs.HungerCategory.Hungry)),
+            Pawn("fed", Has(RimGovernor.Brain.GameFacts.Defs.HungerCategory.Fed)),
+            Pawn("peckish", Has(RimGovernor.Brain.GameFacts.Defs.HungerCategory.Hungry)),
             Pawn("urgent", Has(HazardThresholdsRules.HungerHoldCategory)),
-            Pawn("starving", Has(RimGovernor.Contracts.Wire.Defs.HungerCategory.Starving)),
+            Pawn("starving", Has(RimGovernor.Brain.GameFacts.Defs.HungerCategory.Starving)),
             Pawn("no-food-need", new FoodNeed.Lacks()),
         ]);
         Assert.Equal(["starving", "urgent"], hungry.Order(StringComparer.Ordinal));

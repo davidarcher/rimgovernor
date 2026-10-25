@@ -1,5 +1,5 @@
-using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.Runtime;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Store;
@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Host;
 internal static class FacadeReplies
 {
     /// <summary>The refusal a reply's failure arm is.</summary>
-    public static BridgeRefusedException Refused(string call, PbCommon.Failure? failure) =>
+    public static BridgeRefusedException Refused(string call, RimGovernor.Brain.GameFacts.Common.Failure? failure) =>
         new(failure is null
             ? $"{call}: native reply carried no outcome"
             : failure.Detail is not null && (failure.Detail ?? "").Length != 0
@@ -22,28 +22,28 @@ internal static class FacadeReplies
 /// The control's native authority over the facade. The
 /// facade's replies are the wire replies, so this only wraps the two calls into the requests they take.
 /// </summary>
-internal sealed class FacadeAuthority(INativeFacade facade) : INativeAuthority
+internal sealed class FacadeAuthority(IGameApi facade) : INativeAuthority
 {
-    public Task<PbAuthority.Status> ReadAuthorityAsync(PbCommon.Identity identity, CancellationToken ct) =>
-        facade.ReadAuthorityStatusAsync(new PbAuthority.StatusRequest { Identity = identity }, ct);
+    public Task<RimGovernor.Brain.GameFacts.Authority.Status> ReadAuthorityAsync(RimGovernor.Brain.GameFacts.Common.Identity identity, CancellationToken ct) =>
+        facade.ReadAuthorityStatusAsync(new RimGovernor.Brain.GameOrders.Authority.StatusRequest { Identity = identity }, ct);
 
-    public Task<PbAuthority.ControlReply> SetModeAsync(PbAuthority.SetMode request, CancellationToken ct) =>
-        facade.ControlAuthorityAsync(new PbAuthority.ControlRequest { Operation = request }, ct);
+    public Task<RimGovernor.Brain.GameFacts.Authority.ControlReply> SetModeAsync(RimGovernor.Brain.GameOrders.Authority.SetMode request, CancellationToken ct) =>
+        facade.ControlAuthorityAsync(new RimGovernor.Brain.GameOrders.Authority.ControlRequest { Operation = request }, ct);
 
-    public Task<PbAuthority.ControlReply> RevokeAsync(PbAuthority.Revoke request, CancellationToken ct) =>
-        facade.ControlAuthorityAsync(new PbAuthority.ControlRequest { Operation = request }, ct);
+    public Task<RimGovernor.Brain.GameFacts.Authority.ControlReply> RevokeAsync(RimGovernor.Brain.GameOrders.Authority.Revoke request, CancellationToken ct) =>
+        facade.ControlAuthorityAsync(new RimGovernor.Brain.GameOrders.Authority.ControlRequest { Operation = request }, ct);
 }
 
 /// <summary>
 /// The actual native identity of the loaded world: the bare tick read, so it
 /// neither enters the control gate nor waits for capture work.
 /// </summary>
-internal sealed class FacadeWorldSource(INativeFacade facade) : IWorldSource
+internal sealed class FacadeWorldSource(IGameApi facade) : IWorldSource
 {
     /// <summary>The observation context of the loaded game: its identity, tick and native generation.</summary>
-    public async Task<PbCommon.ObservationContext> ReadContextAsync(CancellationToken ct)
+    public async Task<RimGovernor.Brain.GameFacts.Common.ObservationContext> ReadContextAsync(CancellationToken ct)
     {
-        var loaded = await facade.ReadTickAsync(new PbLifecycle.TickRequest(), ct).ConfigureAwait(false);
+        var loaded = await facade.ReadTickAsync(new RimGovernor.Brain.GameOrders.Lifecycle.TickRequest(), ct).ConfigureAwait(false);
         return loaded.Context ?? throw new BridgeContractException("ReadTick reply carried no context");
     }
 
@@ -62,17 +62,17 @@ internal sealed class FacadeWorldSource(INativeFacade facade) : IWorldSource
 /// The save's governor state component: read when a world changes, written whole
 /// at save time.
 /// </summary>
-internal sealed class FacadeGovernorState(INativeFacade facade)
+internal sealed class FacadeGovernorState(IGameApi facade)
 {
     public async Task<IReadOnlyDictionary<string, string>> ReadAsync(CancellationToken ct)
     {
-        var loaded = await facade.ReadGovernorStateAsync(new PbLifecycle.GovernorStateRequest(), ct).ConfigureAwait(false);
+        var loaded = await facade.ReadGovernorStateAsync(new RimGovernor.Brain.GameOrders.Lifecycle.GovernorStateRequest(), ct).ConfigureAwait(false);
         return new Dictionary<string, string>(loaded.Blobs, StringComparer.Ordinal);
     }
 
     public async Task PutAsync(IReadOnlyDictionary<string, string> blobs, CancellationToken ct)
     {
-        var request = new PbLifecycle.PutGovernorStateBatchRequest { Blobs = new Dictionary<string, string>(blobs, StringComparer.Ordinal) };
+        var request = new RimGovernor.Brain.GameOrders.Lifecycle.PutGovernorStateBatchRequest { Blobs = new Dictionary<string, string>(blobs, StringComparer.Ordinal) };
         var reply = await facade.PutGovernorStateBatchAsync(request, ct).ConfigureAwait(false);
         if (reply.Loaded is null)
         {

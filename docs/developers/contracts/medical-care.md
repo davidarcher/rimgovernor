@@ -28,7 +28,7 @@ clock still advances under the standing deficit.
 
 ## the brain planning
 
-The `medical` family (`Medical.cs`, runtime `MedicalRounds`, #3258) derives one
+The `medical` family (`Medical.cs`, runtime `MedicalReview`, #3258) derives one
 `medical/critical/<pawn>` Need (SeriousHarm) per critical patient: a living colonist
 or dependent who is bleeding, downed or needs a tend, or whom a life-saving
 amputation would save. The pawn and medical censuses are total. Native reads every spawned colonist each frame, without a cap; missing sections, unresolved colonist references and disagreeing rosters fail the read. A stale emergency census fails the planner boundary. The Needs run in the immediate pass on the emergency census
@@ -212,7 +212,7 @@ the items some usable bench fabricates, appended after the served parts, so the 
 fabricates yields no demand there. `ElectiveSurgeryOwed` keeps `medical/surgery` unmet
 for a chosen elective only while it is fabricable. Demand clears when the part is
 stocked, installed or queued. The trade side
-(`RoundsTrade.cs`) sees served parts only.
+(`Trade.cs`) sees served parts only.
 
 **Elective part purchase.** For each chosen elective no item of which can be fabricated,
 `policy.SurgeryPurchaseParts` adds its part to the trade part demand beside the served

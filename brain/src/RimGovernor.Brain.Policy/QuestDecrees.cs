@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -37,7 +36,7 @@ public sealed record DecreeRecipe
 /// </summary>
 public sealed record DecreeOrderRequest
 {
-    public required RoundsFacts Facts { get; init; }
+    public required ReviewFacts Facts { get; init; }
 
     public long Now { get; init; }
 
@@ -61,17 +60,17 @@ public sealed record DecreeDue
 
 public static class QuestDecrees
 {
-    private static readonly Dictionary<QuestFamily, Pb.QuestObjectiveKind> DecreeKinds = new()
+    private static readonly Dictionary<QuestFamily, RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind> DecreeKinds = new()
     {
-        [QuestFamily.DecreeProduce] = Pb.QuestObjectiveKind.ProduceItem,
-        [QuestFamily.DecreeHarvest] = Pb.QuestObjectiveKind.HarvestPlant,
-        [QuestFamily.DecreeHunt] = Pb.QuestObjectiveKind.KillAnimals,
+        [QuestFamily.DecreeProduce] = RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.ProduceItem,
+        [QuestFamily.DecreeHarvest] = RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.HarvestPlant,
+        [QuestFamily.DecreeHunt] = RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.KillAnimals,
     };
 
     /// <summary>
     /// Identifies outstanding native progress; inventory is never progress for a production or harvest decree.
     /// </summary>
-    public static DecreeDue? DecreeObjective(QuestState offer, RoundsFacts f)
+    public static DecreeDue? DecreeObjective(QuestState offer, ReviewFacts f)
     {
         if (offer.State != QuestStatus.Ongoing || f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile })
         {
@@ -83,7 +82,7 @@ public static class QuestDecrees
         }
         foreach (var objective in offer.Objectives)
         {
-            if (objective.Kind == kind && objective.Active && objective.Goal is Pb.QuestObjectiveGoal.Things things && things.Count > things.Done)
+            if (objective.Kind == kind && objective.Active && objective.Goal is RimGovernor.Brain.GameFacts.Observations.QuestObjectiveGoal.Things things && things.Count > things.Done)
             {
                 return new DecreeDue { Objective = objective, Def = things.Def, Stuff = things.Stuff ?? "", Remaining = things.Count - things.Done };
             }
@@ -91,7 +90,7 @@ public static class QuestDecrees
         return null;
     }
 
-    public static bool DecreeDeficit(RoundsFacts f)
+    public static bool DecreeDeficit(ReviewFacts f)
     {
         foreach (var offer in f.QuestOffers)
         {
@@ -274,12 +273,12 @@ public static class QuestDecrees
         var output = new Declared();
         foreach (var offer in r.Facts.QuestOffers.OrderBy(o => o.Id))
         {
-            if (DecreeObjective(offer, r.Facts) is not { } objective || objective.Objective.Kind != Pb.QuestObjectiveKind.ProduceItem)
+            if (DecreeObjective(offer, r.Facts) is not { } objective || objective.Objective.Kind != RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.ProduceItem)
             {
                 continue;
             }
-            if (offer.Asker != Pb.DecreeAsker.PlayerFaction
-                || (objective.Objective.Timing is Pb.QuestObjectiveTiming.Deadline due && due.Tick <= r.Now))
+            if (offer.Asker != RimGovernor.Brain.GameFacts.Observations.DecreeAsker.PlayerFaction
+                || (objective.Objective.Timing is RimGovernor.Brain.GameFacts.Observations.QuestObjectiveTiming.Deadline due && due.Tick <= r.Now))
             {
                 continue;
             }

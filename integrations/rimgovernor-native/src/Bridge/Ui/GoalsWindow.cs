@@ -9,7 +9,7 @@ using RimGovernor.Brain.Policy;
 using UnityEngine;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// The player's goals, in game (#3497): a table of goals grouped under their theme with each goal's state and reason,

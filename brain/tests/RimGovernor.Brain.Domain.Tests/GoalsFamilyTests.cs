@@ -1,10 +1,10 @@
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using Journal = RimGovernor.Brain.Store.Store;
-using QuestStatus = RimGovernor.Contracts.Wire.Receipts.QuestStatus;
+using QuestStatus = RimGovernor.Brain.GameFacts.Receipts.QuestStatus;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -38,7 +38,7 @@ public sealed class GoalsFamilyTests
         Observed = IdeologyReadsTests.NoPrecepts with
         {
             Precepts = [.. precepts.Select((p, i) => IdeologyTestRows.Precept("p" + i, p))],
-            Development = fluid ? new RimGovernor.Contracts.Wire.Observations.IdeoDevelopment.Fluid(true, 0, 0, 0) : new RimGovernor.Contracts.Wire.Observations.IdeoDevelopment.Fixed(),
+            Development = fluid ? new RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment.Fluid(true, 0, 0, 0) : new RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment.Fixed(),
         },
     });
 
@@ -81,7 +81,7 @@ public sealed class GoalsFamilyTests
         Assert.Equal(Satisfaction.Unmet, Derive(facts with { Tier = TechTier.Camp }, goal).Satisfaction);
     }
 
-    private static GoalsFacts WithLevels(GoalsFacts facts, string[] finished, params (string Project, RimGovernor.Contracts.Wire.Defs.TechLevel Level)[] levels) => facts with
+    private static GoalsFacts WithLevels(GoalsFacts facts, string[] finished, params (string Project, RimGovernor.Brain.GameFacts.Defs.TechLevel Level)[] levels) => facts with
     {
         Research = ResearchTestFacts.Read(finished: finished, levels: levels.ToDictionary(l => l.Project, l => l.Level)),
     };
@@ -91,11 +91,11 @@ public sealed class GoalsFamilyTests
     {
         var goal = Goal(1, GoalKind.ResearchTier, "Industrial");
         var facts = WithLevels(Facts(goal), ["Smithing", "Machining"],
-            ("Smithing", RimGovernor.Contracts.Wire.Defs.TechLevel.Medieval),
-            ("Machining", RimGovernor.Contracts.Wire.Defs.TechLevel.Industrial),
-            ("Fabrication", RimGovernor.Contracts.Wire.Defs.TechLevel.Industrial),
-            ("Geothermal", RimGovernor.Contracts.Wire.Defs.TechLevel.Industrial),
-            ("Cryptosleep", RimGovernor.Contracts.Wire.Defs.TechLevel.Spacer));
+            ("Smithing", RimGovernor.Brain.GameFacts.Defs.TechLevel.Medieval),
+            ("Machining", RimGovernor.Brain.GameFacts.Defs.TechLevel.Industrial),
+            ("Fabrication", RimGovernor.Brain.GameFacts.Defs.TechLevel.Industrial),
+            ("Geothermal", RimGovernor.Brain.GameFacts.Defs.TechLevel.Industrial),
+            ("Cryptosleep", RimGovernor.Brain.GameFacts.Defs.TechLevel.Spacer));
         Assert.Equal(["Electricity", "Fabrication", "Geothermal", "Machining", "Stonecutting"], GoalRules.DemandOf(facts).Research);
         Assert.DoesNotContain("Cryptosleep", GoalRules.DemandOf(facts).Research);
         Assert.DoesNotContain("Smithing", GoalRules.DemandOf(facts).Research);
@@ -107,8 +107,8 @@ public sealed class GoalsFamilyTests
     public void ATechLevelThatIsNoConstructionTierIsMetOnceItsProjectsAreFinished()
     {
         var goal = Goal(1, GoalKind.ResearchTier, "Medieval");
-        var medieval = RimGovernor.Contracts.Wire.Defs.TechLevel.Medieval;
-        var open = WithLevels(Facts(goal), ["Smithing"], ("Smithing", medieval), ("Smelting", medieval), ("Machining", RimGovernor.Contracts.Wire.Defs.TechLevel.Industrial));
+        var medieval = RimGovernor.Brain.GameFacts.Defs.TechLevel.Medieval;
+        var open = WithLevels(Facts(goal), ["Smithing"], ("Smithing", medieval), ("Smelting", medieval), ("Machining", RimGovernor.Brain.GameFacts.Defs.TechLevel.Industrial));
         Assert.Equal(["Smelting"], GoalRules.DemandOf(open).Research);
         Assert.Equal((Satisfaction.Unmet, 1.0), (Derive(open, goal).Satisfaction, Derive(open, goal).Deficit));
         var done = WithLevels(open, ["Smithing", "Smelting"], ("Smithing", medieval), ("Smelting", medieval));
@@ -128,7 +128,7 @@ public sealed class GoalsFamilyTests
 
         var demand = GoalRules.DemandOf(facts);
         Assert.Equal(new Dictionary<Resource, long> { [new Resource("Steel")] = 100 }, demand.Stock);
-        var applied = GoalRules.Apply(new RoundsFacts { ResourceNeeds = new Dictionary<Resource, long> { [new Resource("Steel")] = 30, [new Resource("Wood")] = 50 } }, demand);
+        var applied = GoalRules.Apply(new ReviewFacts { ResourceNeeds = new Dictionary<Resource, long> { [new Resource("Steel")] = 30, [new Resource("Wood")] = 50 } }, demand);
         Assert.Equal(new Dictionary<Resource, long> { [new Resource("Steel")] = 100, [new Resource("Wood")] = 50 }, applied.ResourceNeeds);
     }
 
@@ -158,7 +158,7 @@ public sealed class GoalsFamilyTests
         Assert.Equal(150, GoalRules.DemandOf(facts).Colonists);
 
         // A full hundred hosted people: the bot's own target admits no more; the goal does.
-        var full = new RoundsFacts
+        var full = new ReviewFacts
         {
             Population = PopulationFixtures.Census(custody: Enumerable.Range(0, 100).Select(i => PopulationFixtures.Admitted("c" + i))),
             FoodDays = new FoodRunway.Days(30.0),
@@ -179,7 +179,7 @@ public sealed class GoalsFamilyTests
         var goal = Goal(4, GoalKind.Animals, "Muffalo", 6);
         var facts = Facts(goal);
         Assert.Equal((Satisfaction.Unmet, 5.0), (Derive(facts, goal).Satisfaction, Derive(facts, goal).Deficit));
-        var applied = GoalRules.Apply(new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat } } }, GoalRules.DemandOf(facts));
+        var applied = GoalRules.Apply(new ReviewFacts { Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat } } }, GoalRules.DemandOf(facts));
         Assert.Equal(new Dictionary<Resource, long> { [new Resource("Muffalo")] = 6 }, applied.AnimalGoals);
         Assert.Equal(applied.AnimalGoals, applied.HerdPlanInput().Goals);
     }
@@ -215,7 +215,7 @@ public sealed class GoalsFamilyTests
     private static CustodyFacts Colonist(string pawn) => PopulationFixtures.Admitted(pawn);
 
     private static GoalsFacts PrisonersCensus(IEnumerable<PrisonerFacts> prisoners, params CustodyFacts[] custody) =>
-        new() { Rounds = new RoundsFacts { Population = PopulationFixtures.Census(prisoners, custody) } };
+        new() { ReviewState = new ReviewFacts { Population = PopulationFixtures.Census(prisoners, custody) } };
 
     [Fact]
     public void ANamedPrisonerIsPursuedWhileHeldMetOnceAColonistAndHasNoMethodOtherwise()
@@ -232,34 +232,34 @@ public sealed class GoalsFamilyTests
 
         var demand = GoalRules.DemandOf(PrisonersCensus([Held("p1")]) with { Goals = [goal] });
         Assert.Equal([new PawnId("p1")], demand.Prisoners);
-        var stamped = GoalRules.Stamp(new RoundsFacts { Population = PopulationFixtures.Census() }, demand);
+        var stamped = GoalRules.Stamp(new ReviewFacts { Population = PopulationFixtures.Census() }, demand);
         Assert.Equal(demand.Prisoners, stamped.Population.Colony.NamedPrisoners);
     }
 
     private static (GoalState, Satisfaction) Pair(GoalStatus s) => (s.State, s.Satisfaction);
 
     /// <summary>An Odyssey ground quest offer whose root costs cost: a free root and a pawn-cost root are two script defs.</summary>
-    private static RimGovernor.Contracts.Wire.Observations.QuestState Offer(string quest, QuestStatus state = QuestStatus.NotYetAccepted, QuestCost cost = QuestCost.Free) =>
+    private static RimGovernor.Brain.GameFacts.Observations.QuestState Offer(string quest, QuestStatus state = QuestStatus.NotYetAccepted, QuestCost cost = QuestCost.Free) =>
         QuestStateTests.NoQuest with { Id = new(quest), ScriptDef = "MechanoidSignal_" + cost, State = state };
 
     private static QuestRoot SignalRoot(QuestCost cost) =>
         QuestStateTests.Root("MechanoidSignal_" + cost, new QuestProfile { Family = QuestFamily.OdysseyGround, Cost = cost, Disposition = QuestDisposition.Decide });
 
-    private static GoalsFacts QuestFacts(params RimGovernor.Contracts.Wire.Observations.QuestState[] offers) =>
-        new() { Rounds = QuestStateTests.WithQuests(new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot(), CurrentConstruction = CurrentConstruction.Empty }, offers, SignalRoot(QuestCost.Free), SignalRoot(QuestCost.Pawns)) };
+    private static GoalsFacts QuestFacts(params RimGovernor.Brain.GameFacts.Observations.QuestState[] offers) =>
+        new() { ReviewState = QuestStateTests.WithQuests(new ReviewFacts { Census = ColonyFactsCoreTests.Snapshot(), CurrentConstruction = CurrentConstruction.Empty }, offers, SignalRoot(QuestCost.Free), SignalRoot(QuestCost.Pawns)) };
 
     [Fact]
     public void ANamedQuestIsConsideredFirstAndAcceptedWhenFeasible()
     {
         var facts = QuestFacts(Offer("q1"), Offer("q9"));
-        Assert.Equal(new QuestId("q1"), QuestSelection.SelectQuestMethod(facts.Rounds).Quest);
+        Assert.Equal(new QuestId("q1"), QuestSelection.SelectQuestMethod(facts.ReviewState).Quest);
 
-        var named = GoalRules.Stamp(facts.Rounds, GoalRules.DemandOf(facts with { Goals = [Goal(1, GoalKind.NamedQuest, "q9")] }));
+        var named = GoalRules.Stamp(facts.ReviewState, GoalRules.DemandOf(facts with { Goals = [Goal(1, GoalKind.NamedQuest, "q9")] }));
         var choice = QuestSelection.SelectQuestMethod(named);
         Assert.Equal((JoinerPlanReason.None, new QuestId("q9")), (choice.Reason, choice.Quest));
 
         // An infeasible named quest does not displace the others.
-        var blocked = GoalRules.Stamp(QuestFacts(Offer("q1"), Offer("q9", cost: QuestCost.Pawns)).Rounds, new GoalDemand { Quests = [new QuestId("q9")] });
+        var blocked = GoalRules.Stamp(QuestFacts(Offer("q1"), Offer("q9", cost: QuestCost.Pawns)).ReviewState, new GoalDemand { Quests = [new QuestId("q9")] });
         Assert.Equal(new QuestId("q1"), QuestSelection.SelectQuestMethod(blocked).Quest);
     }
 
@@ -275,7 +275,7 @@ public sealed class GoalsFamilyTests
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, QuestFacts(Offer("q9", QuestStatus.EndedSuccess))).State);
         var expired = GoalRules.Evaluate(goal, QuestFacts(Offer("q9", QuestStatus.EndedOfferExpired)));
         Assert.Equal((GoalState.NoMethod, "expired"), (expired.State, expired.Reason));
-        var lapsed = GoalRules.Evaluate(goal, QuestFacts(Offer("q9") with { Expiry = new RimGovernor.Contracts.Wire.Observations.QuestExpiry.ExpiresIn(0) }));
+        var lapsed = GoalRules.Evaluate(goal, QuestFacts(Offer("q9") with { Expiry = new RimGovernor.Brain.GameFacts.Observations.QuestExpiry.ExpiresIn(0) }));
         Assert.Equal((GoalState.NoMethod, "expired"), (lapsed.State, lapsed.Reason));
         Assert.Equal(GoalState.NoMethod, GoalRules.Evaluate(goal, QuestFacts(Offer("q1"))).State);
     }
@@ -288,8 +288,8 @@ public sealed class GoalsFamilyTests
         var loose = Goal(3, GoalKind.Caravan);
         var facts = Facts(met, open, loose) with { Themes = [new ThemeRecord { Id = 9, Name = "Start", Members = [1, 2] }] };
 
-        var (statuses, themeStatuses) = GoalsRounds.Evaluate(facts);
-        var rows = GoalsRounds.ReviewDecisions(statuses, themeStatuses);
+        var (statuses, themeStatuses) = GoalsReview.Evaluate(facts);
+        var rows = GoalsReview.ReviewDecisions(statuses, themeStatuses);
         Assert.Equal(["1", "2", "3"], rows.Select(r => r.Target));
         Assert.All(rows, r => Assert.Equal("goal_review", r.Kind));
         Assert.Equal(["met", "pursuing", "no_method"], rows.Select(r => r.Verdict));
@@ -308,14 +308,14 @@ public sealed class GoalsFamilyTests
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-goals-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a");
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
 
         var skill = Goal(5, GoalKind.Skill, "pawn1", 10, "Shooting");
         var stock = Goal(2, GoalKind.StockCount, "Steel", 100);
         var done = Goal(1, GoalKind.Colonists, count: 3);
         var owners = new Dictionary<NeedId, OwnerProgress> { [EconomyFamily.Resource] = new OwnerProgress(true, "") };
         var current = Facts(stock, done) with { Owners = owners };
-        var runner = new FamilyRunner<GoalsFacts>(new GoalsFamily(), (_, _) => Task.FromResult(current), GoalsRounds.Schedule);
+        var runner = new FamilyRunner<GoalsFacts>(new GoalsFamily(), (_, _) => Task.FromResult(current), GoalsReview.Schedule);
         var run = await runner.RunAsync(new FamilyStep { Journal = journal, World = World }, ct);
 
         Assert.Empty(run.UndeclaredReads);
@@ -334,7 +334,7 @@ public sealed class GoalsFamilyTests
     [Fact]
     public void TheFamilyIsOneOptionalQueueEntryWokenByBuildings()
     {
-        var entry = ClockPlannerCatalog.FamilyEntry(new FamilyRunner<GoalsFacts>(new GoalsFamily(), (_, _) => Task.FromResult(new GoalsFacts()), GoalsRounds.Schedule));
+        var entry = PlannerCatalog.FamilyEntry(new FamilyRunner<GoalsFacts>(new GoalsFamily(), (_, _) => Task.FromResult(new GoalsFacts()), GoalsReview.Schedule));
         Assert.Equal(GoalsFamily.FamilyId, entry.Name);
         Assert.Equal([ActionKind.Building], entry.Kinds);
         Assert.False(entry.Immediate);

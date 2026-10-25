@@ -5,7 +5,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Staged room/corridor excavation. Unlike surface mining (MiningBlocker),
     // roofed cells are admissible: the safety question is whether every roof

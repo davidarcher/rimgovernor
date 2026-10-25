@@ -2,8 +2,6 @@ using System.Globalization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -59,22 +57,22 @@ internal static class ControlUninstall
         var piece = staged.Buildings["piece"].Ids.Single();
         var cell = staged.Buildings["piece"].Cells.Single();
         var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
-        _ = await TypedApply.AppliedAsync(s, "uninstall", new Operations.RelocateIntent { ThingId = piece, Mode = new Operations.RelocationMode.Uninstall() }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "uninstall", new RimGovernor.Brain.GameOrders.Operations.RelocateIntent { ThingId = piece, Mode = new RimGovernor.Brain.GameOrders.Operations.RelocationMode.Uninstall() }, cancellationToken).ConfigureAwait(false);
 
         var step = new PawnActivityStep(PawnActivityKind.Work, piece, Giver, "Uninstall", 0, int.MaxValue);
         var batch = new PawnActivities(generation, [new PawnActivityOrder(worker, TaskId, TaskId, 0, 1, false, [step]) { Task = TaskId }])
         {
             Tasks = [new SelectedActivityTask(TaskId, worker, [], step, new Cell(cell.X, cell.Z), 0)],
         };
-        _ = await TypedApply.AppliedAsync(s, "order", new Operations.PawnActivitiesIntent { Batch = batch }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "order", new RimGovernor.Brain.GameOrders.Operations.PawnActivitiesIntent { Batch = batch }, cancellationToken).ConfigureAwait(false);
 
-        IReadOnlyList<Observations.BuildingState> standing = [];
+        IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.BuildingState> standing = [];
         _ = await s.RunUntilAsync(
             "uninstall",
             Budget,
             async ct =>
             {
-                standing = await s.BuildingsAsync("piece", new Observations.ListBuildingsRequest { Ids = [piece], Statuses = [Observations.BuildingStatus.Built] }, ct).ConfigureAwait(false);
+                standing = await s.BuildingsAsync("piece", new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest { Ids = [piece], Statuses = [RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Built] }, ct).ConfigureAwait(false);
                 return (string.Create(CultureInfo.InvariantCulture, $"standing={standing.Count}"), standing.Count == 0);
             },
             cancellationToken).ConfigureAwait(false);

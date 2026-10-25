@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -22,7 +21,7 @@ public abstract record BatchPricing(ProductionBatch Batch)
 /// Current native bill lifecycle; disappearance is evidence only in a complete census. RepeatCount is the iterations
 /// left, which bind only a Count bill.
 /// </summary>
-public sealed record ProductionBatchState(O.BillState Observed)
+public sealed record ProductionBatchState(RimGovernor.Brain.GameFacts.Observations.BillState Observed)
 {
     public string Id => Observed.Id;
     public bool Unchanged => Observed.ManagedUnchanged;
@@ -30,7 +29,7 @@ public sealed record ProductionBatchState(O.BillState Observed)
     public int RepeatCount => Observed.RepeatCount;
     public bool Suspended => Observed.Suspended;
     public bool Finished => Observed.Finished;
-    public O.BillUnfinishedWork UnfinishedWork => Observed.UnfinishedWork;
+    public RimGovernor.Brain.GameFacts.Observations.BillUnfinishedWork UnfinishedWork => Observed.UnfinishedWork;
 }
 
 public static partial class ProductionRules
@@ -69,8 +68,8 @@ public static partial class ProductionRules
             )
                 continue;
             int? remaining = order.Target;
-            O.BillUnfinishedWork? unfinishedWork = unplaced
-                ? new O.BillUnfinishedWork.None()
+            RimGovernor.Brain.GameFacts.Observations.BillUnfinishedWork? unfinishedWork = unplaced
+                ? new RimGovernor.Brain.GameFacts.Observations.BillUnfinishedWork.None()
                 : null;
             var link = unplaced ? "" : progress.Bill ?? "";
             if (!unplaced)
@@ -97,7 +96,7 @@ public static partial class ProductionRules
             if (batch.UsesUnfinishedItem)
             {
                 if (unfinishedWork is not { } work) remaining = default;
-                else if (work is O.BillUnfinishedWork.Bound bound)
+                else if (work is RimGovernor.Brain.GameFacts.Observations.BillUnfinishedWork.Bound bound)
                 {
                     if (string.IsNullOrWhiteSpace(bound.Item)) throw new DomainException("unfinished item without identity");
                     if (!unfinishedItems.Add(bound.Item)) throw new DomainException("unfinished item linked to multiple production promises");

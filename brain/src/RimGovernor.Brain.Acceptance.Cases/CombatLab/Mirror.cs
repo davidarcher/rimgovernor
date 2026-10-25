@@ -1,6 +1,4 @@
 using System.Text.Json.Nodes;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Mirror = RimGovernor.Contracts.Wire.Mirror;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -89,7 +87,7 @@ internal static class CombatLabMirror
         var at = lab.At(rifleman.X, rifleman.Z);
         var hostiles = lab.Hostiles();
         var colonists = lab.Colonists();
-        var g = await CombatLabKit.GeometryAsync(s, "geometry", new Mirror.CombatGeometryRequest
+        var g = await CombatLabKit.GeometryAsync(s, "geometry", new RimGovernor.Brain.GameOrders.Mirror.CombatGeometryRequest
         {
             Identity = s.Identity,
             Cells = [at, Offset(at, -12, 0), Offset(at, 0, -2)],
@@ -114,7 +112,7 @@ internal static class CombatLabMirror
             }
         }
 
-        var worst = await WorstMsAsync(s, "geometry-cap", new Mirror.CombatGeometryRequest { Identity = s.Identity, Cells = [.. cells], HostileIds = CombatLabKit.PawnIds(targets) }, _ => { }, cancellationToken).ConfigureAwait(false);
+        var worst = await WorstMsAsync(s, "geometry-cap", new RimGovernor.Brain.GameOrders.Mirror.CombatGeometryRequest { Identity = s.Identity, Cells = [.. cells], HostileIds = CombatLabKit.PawnIds(targets) }, _ => { }, cancellationToken).ConfigureAwait(false);
         var projected = worst / (cells.Count * targets.Count) * CombatGeometryContract.MaxCells * CombatGeometryContract.MaxHostiles;
         s.Record("geometry_timing", CombatLabKit.Obj(("cells", cells.Count), ("targets", targets.Count), ("worst_ms", worst), ("projected_at_caps_ms", projected)));
         if (projected > CombatGeometryContract.BudgetMs)
@@ -128,12 +126,12 @@ internal static class CombatLabMirror
     private static async Task ProposeAsync(TypedSession s, StagedLab lab, CancellationToken cancellationToken)
     {
         var line = Fixture.Things.Where(t => t.Def == "Sandbags").Select(t => lab.At(t.X, t.Z)).ToList();
-        var cover = await CombatLabKit.GeometryAsync(s, "propose-cover", new Mirror.CombatGeometryRequest
+        var cover = await CombatLabKit.GeometryAsync(s, "propose-cover", new RimGovernor.Brain.GameOrders.Mirror.CombatGeometryRequest
         {
             Identity = s.Identity,
             Cells = [],
             HostileIds = CombatLabKit.PawnIds(lab.Hostiles()),
-            Propose = new Mirror.CombatGeometryPropose.CoverBehindLine { Line = [.. line] },
+            Propose = new RimGovernor.Brain.GameFacts.Mirror.CombatGeometryPropose.CoverBehindLine { Line = [.. line] },
         }, cancellationToken).ConfigureAwait(false);
         var proposed = CombatGeometryContract.Cells(cover.Proposed);
         var missed = line.Select(c => (c.X, c.Z - 1)).Where(c => !proposed.Contains(c)).ToList();
@@ -144,12 +142,12 @@ internal static class CombatLabMirror
 
         var rifleman = Fixture.Pawns.First(p => p.Side == CombatFixtures.Colonist);
         var pawns = lab.Hostiles().Concat(lab.Colonists()).ToList();
-        var firing = new Mirror.CombatGeometryRequest
+        var firing = new RimGovernor.Brain.GameOrders.Mirror.CombatGeometryRequest
         {
             Identity = s.Identity,
             Cells = [],
             HostileIds = CombatLabKit.PawnIds(pawns),
-            Propose = new Mirror.CombatGeometryPropose.FiringCells
+            Propose = new RimGovernor.Brain.GameFacts.Mirror.CombatGeometryPropose.FiringCells
             {
                 Targets = [.. Fixture.Pawns.Select(p => lab.At(p.X, p.Z))],
                 From = lab.At(rifleman.X, rifleman.Z - 3),
@@ -178,12 +176,12 @@ internal static class CombatLabMirror
     private static async Task ChokeAsync(TypedSession s, StagedLab lab, CancellationToken cancellationToken)
     {
         var gap = lab.Cell(ChokeDx, ChokeDz + CombatFixtures.ChokeHalf);
-        var g = await CombatLabKit.GeometryAsync(s, "propose-choke", new Mirror.CombatGeometryRequest
+        var g = await CombatLabKit.GeometryAsync(s, "propose-choke", new RimGovernor.Brain.GameOrders.Mirror.CombatGeometryRequest
         {
             Identity = s.Identity,
             Cells = [],
             HostileIds = CombatLabKit.PawnIds(lab.Hostiles()),
-            Propose = new Mirror.CombatGeometryPropose.AdjacentToChoke { Choke = gap, OurSide = Offset(gap, 0, -3) },
+            Propose = new RimGovernor.Brain.GameFacts.Mirror.CombatGeometryPropose.AdjacentToChoke { Choke = gap, OurSide = Offset(gap, 0, -3) },
         }, cancellationToken).ConfigureAwait(false);
         var inside = Offset(gap, 0, -1);
         var want = new HashSet<(int, int)> { CombatGeometryContract.Key(inside), CombatGeometryContract.Key(Offset(inside, -1, 0)), CombatGeometryContract.Key(Offset(inside, 1, 0)) };
@@ -195,7 +193,7 @@ internal static class CombatLabMirror
     }
 
     // Reads request Samples times, each checked by check, and returns the worst main-thread time.
-    private static async Task<double> WorstMsAsync(TypedSession s, string label, Mirror.CombatGeometryRequest request, Action<Mirror.CombatGeometry> check, CancellationToken cancellationToken)
+    private static async Task<double> WorstMsAsync(TypedSession s, string label, RimGovernor.Brain.GameOrders.Mirror.CombatGeometryRequest request, Action<RimGovernor.Brain.GameFacts.Mirror.CombatGeometry> check, CancellationToken cancellationToken)
     {
         var worst = 0.0;
         for (var i = 0; i < Samples; i++)
@@ -212,10 +210,10 @@ internal static class CombatLabMirror
     // downed (changed at or after the event) or, for a death or a downing then death between frames, no row.
     private static async Task FightAsync(TypedSession s, LabFrames frames, CancellationToken cancellationToken)
     {
-        Mirror.CombatEventRow? down = null;
+        RimGovernor.Brain.GameFacts.Mirror.CombatEventRow? down = null;
         var frame = await frames.UntilAsync("fight", FightTicks, 0, f =>
         {
-            down = frames.Events.FirstOrDefault(e => e.Kind is Mirror.CombatLogKind.Downed or Mirror.CombatLogKind.Killed);
+            down = frames.Events.FirstOrDefault(e => e.Kind is RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.Downed or RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.Killed);
             return down is not null;
         }, cancellationToken).ConfigureAwait(false);
         var kinds = frames.Events.GroupBy(e => e.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
@@ -223,7 +221,7 @@ internal static class CombatLabMirror
         s.RecordWire("down", down);
         var row = LabFrames.Row(frame, down!.ThingId ?? "");
         s.RecordWire("down_row", row);
-        if (down.Kind == Mirror.CombatLogKind.Killed && row is not null)
+        if (down.Kind == RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.Killed && row is not null)
         {
             throw new AcceptanceException($"death {down} with its pawn row still in the same frame: {row}");
         }
@@ -233,7 +231,7 @@ internal static class CombatLabMirror
             throw new AcceptanceException($"downing {down} without its pawn row downed at or after the event: {row}");
         }
 
-        if (!kinds.ContainsKey(nameof(Mirror.CombatLogKind.ShotFired)))
+        if (!kinds.ContainsKey(nameof(RimGovernor.Brain.GameFacts.Mirror.CombatLogKind.ShotFired)))
         {
             throw new AcceptanceException($"a pawn went down but no shot_fired event was recorded: {string.Join(", ", kinds)}");
         }

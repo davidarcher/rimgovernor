@@ -1,4 +1,4 @@
-using TechLevel = RimGovernor.Contracts.Wire.Defs.TechLevel;
+using TechLevel = RimGovernor.Brain.GameFacts.Defs.TechLevel;
 
 namespace RimGovernor.Brain.Policy;
 

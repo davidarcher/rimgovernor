@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Canonical read tables, source interfaces, observation validators and game-action adapters.
+       Deliberately free of the game assemblies: the catalog derivations (#3056) live in RimGovernor.Brain.Bridge. -->
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Brain.GameAccess</RootNamespace>
+    <AssemblyName>RimGovernor.Brain.GameAccess</AssemblyName>
+    <!-- tools/rg publishes win-x64 ReadyToRun and restores this project with that RID; declaring it keeps the lock file stable. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Policy/RimGovernor.Brain.Policy.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.GameFacts/RimGovernor.Brain.GameFacts.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.GameOrders/RimGovernor.Brain.GameOrders.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="RimGovernor.Brain.Domain" />
+    <!-- The wire messages share these names with domain values; this project names the wire message. -->
+    <Using Include="RimGovernor.Brain.GameFacts.Common.Identity" Alias="Identity" />
+    <Using Include="RimGovernor.Brain.Domain.Cell" Alias="Cell" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The host's native client (#3113) decodes and validates the replies this assembly's read models describe. -->
+    <InternalsVisibleTo Include="RimGovernor.Brain.Runtime" />
+  </ItemGroup>
+</Project>

@@ -1,9 +1,7 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Executor;
 
@@ -27,7 +25,7 @@ public sealed class SnapshotLayout
     public DefenseLayout? Layout { get; set; }
 
     /// <summary>The defense-site read's cells, which the cover selection consults beside the request (LayoutCover only).</summary>
-    public IReadOnlyList<O.DefenseCell> Site { get; set; } = [];
+    public IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.DefenseCell> Site { get; set; } = [];
 }
 
 public static class SnapshotLayoutReplay

@@ -63,7 +63,7 @@ public static class ConstructionTierRules
     /// promotion is DefenseBuildTier). Power takes the tier of what it serves: the refrigeration planner's
     /// builds stay Sustain, and the generic power planner proposes no consumer, so it is Expand.
     /// </summary>
-    public static ConstructionTier PlannerTier(ConcernId concern, Phase phase)
+    public static ConstructionTier PlannerTier(FilingKey concern, Phase phase)
     {
         // The shelter family's stand-in sleeping spots (the day-one floor, #3659) are Survive; bed
         // ownership and bedrooms Sustain.

@@ -11,7 +11,7 @@ namespace RimGovernor.Tools.Workflow.Tests;
 public sealed class ContractOrphansTests : IDisposable
 {
     private const string ContractsSource = """
-        namespace RimGovernor.Contracts.Wire.Observations
+        namespace RimGovernor.Brain.GameFacts.Observations
         {
             public sealed record HuntCensus(int Hunters, int Benches)
             {
@@ -28,6 +28,29 @@ public sealed class ContractOrphansTests : IDisposable
         """;
 
     [Fact]
+    public void FactsOutsideItsRootNamespaceAreCheckedAndSerializerReadsDoNotCount()
+    {
+        var facts = Compile("RimGovernor.Brain.GameFacts", """
+            namespace System.Text.Json.Serialization { public abstract class JsonSerializerContext; }
+            namespace RimGovernor.Brain.Policy
+            {
+                public sealed record Thing(int Count);
+                public sealed class GeneratedMetadata : System.Text.Json.Serialization.JsonSerializerContext
+                {
+                    public static int Serialize(Thing thing) => thing.Count;
+                }
+            }
+            """);
+        var native = Compile("RimGovernor.Bridge", """
+            public static class Native { public static RimGovernor.Brain.Policy.Thing Read() => new(2); }
+            """, facts);
+
+        var orphans = ContractOrphans.Find(ContractOrphans.Facts, facts, [], [native], out var count);
+        Assert.Equal(1, count);
+        Assert.Equal([("GameFacts|RimGovernor.Brain.Policy.Thing.Count", "written by the native side, never read by the brain")], orphans);
+    }
+
+    [Fact]
     public void ACalledAbstractGetterIsLiveWithoutHidingAnUnreadSibling()
     {
         var policy = Compile("RimGovernor.Brain.Policy", """
@@ -38,7 +61,7 @@ public sealed class ContractOrphansTests : IDisposable
                 public int Spare { get; init; }
             }
             """);
-        var runtime = Compile("RimGovernor.Brain.BuildingRuntime", """
+        var runtime = Compile("RimGovernor.Brain.Runtime", """
             using RimGovernor.Brain.Policy;
             public static class Reader
             {
@@ -58,7 +81,7 @@ public sealed class ContractOrphansTests : IDisposable
     {
         var orphans = Find(
             brain: """
-                using RimGovernor.Contracts.Wire.Observations;
+                using RimGovernor.Brain.GameFacts.Observations;
                 public static class Planner
                 {
                     public static int Plan(HuntCensus census) => census.Total;
@@ -66,7 +89,7 @@ public sealed class ContractOrphansTests : IDisposable
                 }
                 """,
             native: """
-                using RimGovernor.Contracts.Wire.Observations;
+                using RimGovernor.Brain.GameFacts.Observations;
                 public static class Reader
                 {
                     public static HuntCensus Read() => new(2, 1) { Prey = 3, Spare = 1 };
@@ -78,65 +101,68 @@ public sealed class ContractOrphansTests : IDisposable
         Assert.Equal(7, checkedCount);
         // Total reads Hunters and Prey, a property pattern reads Spare, the brain writes Order for the native side
         // to read; only Benches is written and never read.
-        Assert.Equal(["Contracts|Observations.HuntCensus.Benches: written by the native side, never read by the brain"], orphans);
+        Assert.Equal(["GameFacts|Observations.HuntCensus.Benches: written by the native side, never read by the brain"], orphans);
     }
 
     [Fact]
     public void AnIntentRecordTheNativeSideReadsAndConstructsIsLiveButAnObservationItWritesIsNot()
     {
-        var contracts = Compile("RimGovernor.Brain.Contracts", """
-            namespace RimGovernor.Contracts.Wire.Operations
+        var orders = Compile("RimGovernor.Brain.GameOrders", """
+            namespace RimGovernor.Brain.GameOrders.Operations
             {
                 public sealed record Setting { public int Count { get; init; } public string Name { get; init; } = ""; public int Spare { get; init; } }
             }
-            namespace RimGovernor.Contracts.Wire.Observations
+            """);
+        var facts = Compile("RimGovernor.Brain.GameFacts", """
+            namespace RimGovernor.Brain.GameFacts.Observations
             {
                 public sealed record Reading { public int Value { get; init; } }
             }
             """);
         var brain = Compile("RimGovernor.Brain.Policy", """
-            using RimGovernor.Contracts.Wire.Operations;
+            using RimGovernor.Brain.GameOrders.Operations;
             public static class Planner
             {
                 public static Setting Plan() => new() { Count = 3, Name = "bill", Spare = 1 };
             }
-            """, contracts);
+            """, orders);
         var native = Compile("RimGovernor.Bridge", """
-            using RimGovernor.Contracts.Wire.Observations;
-            using RimGovernor.Contracts.Wire.Operations;
+            using RimGovernor.Brain.GameFacts.Observations;
+            using RimGovernor.Brain.GameOrders.Operations;
             public static class Reader
             {
                 public static bool Verify(Setting actual) => actual.Count == new Setting { Count = 3, Name = "bill" }.Count && actual.Name.Length > 0;
                 public static Reading Read() => new() { Value = 1 };
             }
-            """, contracts);
+            """, orders, facts);
 
-        var orphans = ContractOrphans.Find(ContractOrphans.Wire, contracts, [brain], [native], out _);
+        var orderOrphans = ContractOrphans.Find(ContractOrphans.Orders, orders, [brain], [native], out _);
+        var factOrphans = ContractOrphans.Find(ContractOrphans.Facts, facts, [brain], [native], out _);
 
         // Count and Name are intent the native side reads (its own copy's writes do not flag them); Spare is never read.
         Assert.Equal(
-            [("Contracts|Observations.Reading.Value", "written by the native side, never read by the brain"), ("Contracts|Operations.Setting.Spare", "written, never read")],
-            orphans);
+            [("GameFacts|Observations.Reading.Value", "written by the native side, never read by the brain")], factOrphans);
+        Assert.Equal([("GameOrders|Operations.Setting.Spare", "written, never read")], orderOrphans);
     }
 
     [Fact]
-    public void AnObservationRequestTheBrainSendsIsLiveWhenTheNativeSideAlsoBuildsOne()
+    public void ADataMemberTheBrainWritesIsLiveButNativeOnlyWritesStillNeedBrainReads()
     {
-        var contracts = Compile("RimGovernor.Brain.Contracts", """
-            namespace RimGovernor.Contracts.Wire.Observations
+        var contracts = Compile("RimGovernor.Brain.GameFacts", """
+            namespace RimGovernor.Brain.GameFacts.Observations
             {
                 public sealed record Query { public bool Planning { get; init; } public bool Extra { get; init; } }
             }
             """);
         var brain = Compile("RimGovernor.Brain.Policy", """
-            using RimGovernor.Contracts.Wire.Observations;
+            using RimGovernor.Brain.GameFacts.Observations;
             public static class Asker
             {
                 public static Query Ask() => new() { Planning = false };
             }
             """, contracts);
         var native = Compile("RimGovernor.Bridge", """
-            using RimGovernor.Contracts.Wire.Observations;
+            using RimGovernor.Brain.GameFacts.Observations;
             public static class Reader
             {
                 public static Query Frame() => new() { Planning = true, Extra = true };
@@ -144,10 +170,10 @@ public sealed class ContractOrphansTests : IDisposable
             }
             """, contracts);
 
-        var orphans = ContractOrphans.Find(ContractOrphans.Wire, contracts, [brain], [native], out _);
+        var orphans = ContractOrphans.Find(ContractOrphans.Facts, contracts, [brain], [native], out _);
 
         // The brain sends Planning and the native side reads it; Extra only the native side's own frame request sets.
-        Assert.Equal([("Contracts|Observations.Query.Extra", "written by the native side, never read by the brain")], orphans);
+        Assert.Equal([("GameFacts|Observations.Query.Extra", "written by the native side, never read by the brain")], orphans);
     }
 
     [Fact]
@@ -155,7 +181,7 @@ public sealed class ContractOrphansTests : IDisposable
     {
         var orphans = Find(
             brain: """
-                using RimGovernor.Contracts.Wire.Observations;
+                using RimGovernor.Brain.GameFacts.Observations;
                 public static class Planner
                 {
                     public static bool Same(HuntCensus a, HuntCensus b) => a == b && a.GetHashCode() == b.GetHashCode() && a.ToString() == b.ToString();
@@ -164,7 +190,7 @@ public sealed class ContractOrphansTests : IDisposable
                 }
                 """,
             native: """
-                using RimGovernor.Contracts.Wire.Observations;
+                using RimGovernor.Brain.GameFacts.Observations;
                 public static class Reader
                 {
                     public static HuntCensus Read() => new(2, 1) { Prey = 3, Spare = 1 };
@@ -173,7 +199,7 @@ public sealed class ContractOrphansTests : IDisposable
             out _);
 
         Assert.Equal(
-            ["Contracts|Observations.Order.Pawn: not referenced outside its declaration", "Contracts|Observations.Order.Priority: not referenced outside its declaration"],
+            ["GameFacts|Observations.Order.Pawn: not referenced outside its declaration", "GameFacts|Observations.Order.Priority: not referenced outside its declaration"],
             orphans);
     }
 
@@ -212,10 +238,10 @@ public sealed class ContractOrphansTests : IDisposable
                 }
             }
             """);
-        var runtime = Compile("RimGovernor.Brain.BuildingRuntime", """
+        var runtime = Compile("RimGovernor.Brain.Runtime", """
             using System.Linq;
             using RimGovernor.Brain.Policy;
-            public static class Rounds
+            public static class ReviewState
             {
                 public static int Count() => HuntGate.Ready([new HuntBench("b1", true) { CookingActive = true }]).Count();
             }
@@ -251,9 +277,9 @@ public sealed class ContractOrphansTests : IDisposable
                 public static int Apply(HuntRoom room) => Rules.Value["hunt"](room);
             }
             """);
-        var runtime = Compile("RimGovernor.Brain.BuildingRuntime", """
+        var runtime = Compile("RimGovernor.Brain.Runtime", """
             using RimGovernor.Brain.Policy;
-            public static class Rounds
+            public static class ReviewState
             {
                 public static int Count() => HuntRules.Apply(new HuntRoom("r1") { Hunters = 2, Spare = 1 });
             }
@@ -345,9 +371,9 @@ public sealed class ContractOrphansTests : IDisposable
 
     private IReadOnlyList<string> Find(string brain, string native, out int checkedCount)
     {
-        var contracts = Compile("RimGovernor.Brain.Contracts", ContractsSource);
+        var contracts = Compile("RimGovernor.Brain.GameFacts", ContractsSource);
         return [.. ContractOrphans.Find(
-            ContractOrphans.Wire,
+            ContractOrphans.Facts,
             contracts,
             [Compile("RimGovernor.Brain.Policy", brain, contracts)],
             [Compile("RimGovernor.Bridge", native, contracts)],

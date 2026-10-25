@@ -1,10 +1,9 @@
-using HomeBridge.BridgeTools;
+using RimGovernor.Native;
 using RimGovernor.Brain.Acceptance;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Telemetry;
 using RimGovernor.Brain.Telemetry.Otlp;
 using Xunit;
-using Clock = RimGovernor.Contracts.Wire.Clock;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -14,10 +13,10 @@ public sealed class ColonyEventRowTests
 {
     private static ColonyEventOrigin Origin(long tick, long observedAt) => new("colony", "load", 0, tick, observedAt);
 
-    private static HoldEntered Hold(long tick, long observedAt) => new(Origin(tick, observedAt), "Colonist downed.", Clock.HoldReason.ColonistDowned,
+    private static HoldEntered Hold(long tick, long observedAt) => new(Origin(tick, observedAt), "Colonist downed.", RimGovernor.Brain.GameFacts.Clock.HoldReason.ColonistDowned,
         new PawnEvidence(new EventPawn("Human12", "Ann", 5, 6, null)), DetectedTick: tick - 4, OccurrenceTick: tick - 10, StopAtUnixMs: 49_990, Run: new RunSegment(600, 1000, 12, 1, 9000));
 
-    private static Resumed Resume(long tick, long observedAt) => new(Origin(tick, observedAt), "Clock resumed at Fast.", Clock.Speed.Fast, Clock.HoldReason.ColonistDowned);
+    private static Resumed Resume(long tick, long observedAt) => new(Origin(tick, observedAt), "Clock resumed at Fast.", RimGovernor.Brain.GameFacts.Clock.Speed.Fast, RimGovernor.Brain.GameFacts.Clock.HoldReason.ColonistDowned);
 
     [Fact]
     public async Task HoldAndResumeEachWriteOneRowThatTheStopSummaryPairs()
@@ -78,20 +77,20 @@ public sealed class ColonyEventRowTests
             (new MessageNotified(o, "", "Message1", "Visitors"), TelemetryKinds.ClockNotification),
             (new InjuryObserved(o, "", new EventInjury(pawn, 0, 1)), TelemetryKinds.ClockInjury),
             (new HostilesCleared(o, ""), TelemetryKinds.ClockHostilesCleared),
-            (new ObservationInvalidated(o, "", [Clock.FactFamily.Research], "research", [], null), TelemetryKinds.ClockInvalidation),
+            (new ObservationInvalidated(o, "", [RimGovernor.Brain.GameFacts.Clock.FactFamily.Research], "research", [], null), TelemetryKinds.ClockInvalidation),
             (new ForcePauseWaiting(o, ""), TelemetryKinds.ClockLongEvent),
             (new ForcePauseCleared(o, ""), TelemetryKinds.ClockLongEvent),
-            (new PauseFailed(o, "", Clock.HoldReason.LetterPause), TelemetryKinds.ClockPauseFailed),
-            (new SpeedRequested(o, "", Clock.Speed.Hyperfast), TelemetryKinds.ClockSpeedRequest),
-            (new HoldEntered(o, "", Clock.HoldReason.CombatEvent, new CombatEvidence(Clock.CombatEvent.Downed, "Human1", "downed"), 5, null, 1, new RunSegment(600, 1000, 12, 1, 9000)), TelemetryKinds.ClockHold),
+            (new PauseFailed(o, "", RimGovernor.Brain.GameFacts.Clock.HoldReason.LetterPause), TelemetryKinds.ClockPauseFailed),
+            (new SpeedRequested(o, "", RimGovernor.Brain.GameFacts.Clock.Speed.Hyperfast), TelemetryKinds.ClockSpeedRequest),
+            (new HoldEntered(o, "", RimGovernor.Brain.GameFacts.Clock.HoldReason.CombatEvent, new CombatEvidence(RimGovernor.Brain.GameFacts.Clock.CombatEvent.Downed, "Human1", "downed"), 5, null, 1, new RunSegment(600, 1000, 12, 1, 9000)), TelemetryKinds.ClockHold),
         };
         foreach (var (e, kind) in cases)
         {
             Assert.Same(kind, ColonyEventRows.Row(e).Kind);
         }
 
-        var invalidation = ColonyEventRows.Row(new ObservationInvalidated(o, "", [Clock.FactFamily.Research, Clock.FactFamily.Definitions], "research", [], null)).Payload;
+        var invalidation = ColonyEventRows.Row(new ObservationInvalidated(o, "", [RimGovernor.Brain.GameFacts.Clock.FactFamily.Research, RimGovernor.Brain.GameFacts.Clock.FactFamily.Definitions], "research", [], null)).Payload;
         Assert.Equal(["Research", "Definitions"], (List<object?>)invalidation["families"]!);
-        Assert.Equal("Hyperfast", ColonyEventRows.Row(new SpeedRequested(o, "", Clock.Speed.Hyperfast)).Payload["speed"]);
+        Assert.Equal("Hyperfast", ColonyEventRows.Row(new SpeedRequested(o, "", RimGovernor.Brain.GameFacts.Clock.Speed.Hyperfast)).Payload["speed"]);
     }
 }

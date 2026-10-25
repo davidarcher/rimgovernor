@@ -96,10 +96,10 @@ public sealed record ThroughputWindow
     /// <summary>Set once the stock reached target in the window: a stopped bill is not a shortfall.</summary>
     public bool Met { get; init; }
 
-    /// <summary>Rounds sampled.</summary>
+    /// <summary>ReviewState sampled.</summary>
     public int Samples { get; init; }
 
-    /// <summary>Rounds a pawn worked a carrying bench.</summary>
+    /// <summary>ReviewState a pawn worked a carrying bench.</summary>
     public int Busy { get; init; }
 
     /// <summary>Set when a carrying bill was not known active.</summary>

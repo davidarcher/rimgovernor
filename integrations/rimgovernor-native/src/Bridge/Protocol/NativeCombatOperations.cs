@@ -2,7 +2,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The attack rules of a combat order's attack: melee or ranged is
     // the vanilla float menu's choice for the pawn's weapon, and the job is

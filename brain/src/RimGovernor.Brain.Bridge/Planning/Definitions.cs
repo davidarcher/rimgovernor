@@ -1,10 +1,7 @@
-using Identity = RimGovernor.Brain.Bridge.Contracts.ObservationIdentity;
+using Identity = RimGovernor.Brain.GameAccess.ObservationIdentity;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using DefinitionCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
-using C = RimGovernor.Contracts.Wire.Common;
-using D = RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
@@ -12,7 +9,7 @@ namespace RimGovernor.Brain.Bridge;
 public interface IDefinitionSource
 {
     /// <summary>The load's catalog; a catalog that cannot be read throws.</summary>
-    Task<DefinitionCatalog> DefinitionCatalogAsync(C.Identity id, CancellationToken cancellationToken);
+    Task<DefinitionCatalog> DefinitionCatalogAsync(RimGovernor.Brain.GameFacts.Common.Identity id, CancellationToken cancellationToken);
 }
 
 /// <summary>The research read whose finished projects make a definition available.</summary>
@@ -23,7 +20,7 @@ internal sealed class DefinitionFacts
 {
     public required DefinitionCatalog Catalog { get; init; }
     public required IReadOnlySet<string> Finished { get; init; }
-    public required IReadOnlyDictionary<string, O.EdibleCrop> Crops { get; init; }
+    public required IReadOnlyDictionary<string, RimGovernor.Brain.GameFacts.Observations.EdibleCrop> Crops { get; init; }
 
     /// <summary>Appends to <paramref name = "held"/> the resolved row of every name it does not already hold.</summary>
     public List<PlanningDefinition> AppendDefinitions(List<PlanningDefinition> held, IEnumerable<string> names)
@@ -103,5 +100,5 @@ public static class DefinitionsReads
     /// definitions. A failed research read raises; an unread project set cannot authorize availability.
     /// </summary>
     internal static IReadOnlySet<string> FinishedSet(IEnumerable<string> names) => new HashSet<string>(names, StringComparer.Ordinal);
-    internal static Dictionary<string, O.EdibleCrop> CropRows(IEnumerable<O.EdibleCrop> crops) => crops.ToDictionary(crop => crop.DefName, StringComparer.Ordinal);
+    internal static Dictionary<string, RimGovernor.Brain.GameFacts.Observations.EdibleCrop> CropRows(IEnumerable<RimGovernor.Brain.GameFacts.Observations.EdibleCrop> crops) => crops.ToDictionary(crop => crop.DefName, StringComparer.Ordinal);
 }

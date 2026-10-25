@@ -83,8 +83,8 @@ public static class TelemetryKinds
     /// <summary>One tiled replan's verdict (<see cref="LayoutReplanTiledKind"/>): its room diff against the held plan.</summary>
     public static readonly TelemetryKind LayoutReplanTiled = new(LayoutReplanTiledKind);
 
-    /// <summary>One rounds review's summary row (<see cref="RoundsReviewTelemetry.Kind"/>): the food plan and the hunt comparison's note.</summary>
-    public static readonly TelemetryKind RoundsReview = new(RoundsReviewTelemetry.Kind);
+    /// <summary>One rounds review's summary row (<see cref="ReviewTelemetry.Kind"/>): the food plan and the hunt comparison's note.</summary>
+    public static readonly TelemetryKind ReviewStep = new(ReviewTelemetry.Kind);
 
     /// <summary>One review's tier-2 colony model run (<see cref="ColonyModelTelemetry.Kind"/>): horizon, events, runway, per-project dV/dt, truncation and findings.</summary>
     public static readonly TelemetryKind ColonyModel = new(ColonyModelTelemetry.Kind);
@@ -123,10 +123,10 @@ public static class TelemetryKinds
     public static readonly TelemetryKind ClockSpeedRequest = new(ColonyEventTelemetry.SpeedRequestKind);
 
     /// <summary>The clock scheduler's step decision row's kind.</summary>
-    public const string ClockStepKind = "clock_step";
+    public const string SchedulerStepKind = "clock_step";
 
-    /// <summary>One clock scheduler step (<see cref="ClockStepKind"/>).</summary>
-    public static readonly TelemetryKind ClockStep = new(ClockStepKind);
+    /// <summary>One clock scheduler step (<see cref="SchedulerStepKind"/>).</summary>
+    public static readonly TelemetryKind SchedulerStep = new(SchedulerStepKind);
 
     /// <summary>The clock run driver's decision row's kind.</summary>
     public const string ClockRunKind = "clock_run";

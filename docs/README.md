@@ -37,7 +37,8 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | History: which native reads copied def data | [Static-data census (history)](developers/static-data-census.md) |
 | History: why the Go brain was ported by hand rather than with go2cs | [Port spike (history)](developers/architecture/go-to-csharp-port-spike.md) |
 | History: layout and idiom map of the Go-to-C# port | [Port conventions (history)](developers/architecture/go-to-csharp-port-conventions.md) |
-| Call the native mod from the in-process brain (facade, frame handoff, def stat table) | [Native facade](developers/architecture/native-facade.md) |
+| Call the native mod from the in-process brain (facade, frame handoff, def stat table) | [Game API](developers/architecture/game-api.md) |
+| Own observed facts and requests across the native boundary | [Interface contracts](developers/contracts/interface-contracts.md), [record orphan gate](developers/architecture/rules.md#record-orphans) |
 | Host the brain inside the mod (lifecycle, scheduler thread, watchdog, fault isolation) | [Brain host](developers/architecture/brain-host.md) |
 | Check native arena lifetime and repeated hunting outcomes | [Real engine](../integrations/rimgovernor-realcombat/README.md#arena-lifetime-and-repeatability) |
 | Request bounded hypothetical encounter estimates and interpret qualification | [Encounter prediction](developers/contracts/encounter-prediction.md) |

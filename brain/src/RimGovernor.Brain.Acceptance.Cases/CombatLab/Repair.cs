@@ -1,5 +1,3 @@
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -44,7 +42,7 @@ internal static class CombatLabRepair
         var tried = new List<RimGovernor.Brain.Domain.CombatResult>();
         for (var i = 0; i < brawlers.Count && repairer is null; i++)
         {
-            var r = (await CombatLabKit.OrdersAsync(s, $"repair-{i}", cancellationToken, CombatLabKit.Order(brawlers[i], new Operations.CombatOrderOrder.RepairCase(new Operations.CombatRepair { Cell = cell }))).ConfigureAwait(false))[0];
+            var r = (await CombatLabKit.OrdersAsync(s, $"repair-{i}", cancellationToken, CombatLabKit.Order(brawlers[i], new RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.RepairCase(new RimGovernor.Brain.GameOrders.Operations.CombatRepair { Cell = cell }))).ConfigureAwait(false))[0];
             tried.Add(r);
             if (r.Applied == true)
             {

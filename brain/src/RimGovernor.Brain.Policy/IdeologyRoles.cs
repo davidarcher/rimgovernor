@@ -38,7 +38,7 @@ public static class IdeologyRolesRules
     /// of that requirement. Ok is false when the pawn fails a skill requirement (no listed skill is enabled
     /// and at the minimum). Requirements without skills are the game's to judge when the assignment applies.
     /// </summary>
-    internal static (int Score, bool Ok) RoleFit(RoleDef def, IReadOnlyList<RimGovernor.Contracts.Wire.Observations.Skill> skills)
+    internal static (int Score, bool Ok) RoleFit(RoleDef def, IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.Skill> skills)
     {
         var score = 0;
         foreach (var requirement in def.Requirements)
@@ -160,7 +160,7 @@ public static class IdeologyRolesRules
     /// </summary>
     public static EquatableArray<RoleAssignment> RoleAssignments(Ideoligion ideo, EquatableArray<WorkPawn> rows, WorkCommitments selected)
     {
-        var pool = new List<(PawnId Id, IReadOnlyList<RimGovernor.Contracts.Wire.Observations.Skill> Skills, double Certainty, HashSet<WorkType>? Work)>();
+        var pool = new List<(PawnId Id, IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.Skill> Skills, double Certainty, HashSet<WorkType>? Work)>();
         foreach (var row in rows)
         {
             if (row.Available && row.PolicyInputs.Ideo is PawnIdeo.Member { Role: null } member && member.IdeoId == ideo.Facts.IdeoId)
@@ -186,7 +186,7 @@ public static class IdeologyRolesRules
             {
                 continue;
             }
-            (PawnId Id, IReadOnlyList<RimGovernor.Contracts.Wire.Observations.Skill> Skills, double Certainty, HashSet<WorkType>? Work) best = default;
+            (PawnId Id, IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.Skill> Skills, double Certainty, HashSet<WorkType>? Work) best = default;
             var bestScore = 0;
             var found = false;
             foreach (var c in pool)

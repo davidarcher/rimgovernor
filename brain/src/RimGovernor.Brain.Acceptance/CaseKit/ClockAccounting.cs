@@ -20,7 +20,7 @@ public sealed record HazardGap
 }
 
 /// <summary>
-/// The clock's acceptance-only accounting (#3416), read through the mod's <c>rimgovernor/acceptance_read_clock_accounting</c>
+/// The clock's acceptance-only accounting (#3416), read through the mod's <c>acceptance_read_clock_accounting</c>
 /// tool; every counter is cumulative for the loaded game session and resets when the loaded game changes. Production reads
 /// none of it: the clock status keeps only the effective tick rate the pacing reads. The members carry the payload's
 /// camelCase names.
@@ -28,7 +28,7 @@ public sealed record HazardGap
 public sealed record ClockAccounting
 {
     /// <summary>The tool's route name.</summary>
-    public const string Tool = "rimgovernor/acceptance_read_clock_accounting";
+    public const string Tool = "acceptance_read_clock_accounting";
 
     /// <summary>Wall time the supervisor's own hold/run transitions account for, on a monotonic clock (the open gap included while held).</summary>
     public ulong PausedMs { get; init; }

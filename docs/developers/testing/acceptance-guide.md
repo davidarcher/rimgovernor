@@ -17,7 +17,7 @@ Every case follows these rules. Each one can be checked from the case declaratio
    guard: budget ÷ 300 ticks/s + 1 minute.
 4. **Wait on the game.** Every wait ends on a tick, a progress signature or an event. No `Task.Delay`,
    `Thread.Sleep` or wall-clock polling.
-5. **Typed reads.** Replies are read as `RimGovernor.Brain.Contracts` or `Fixtures.Contracts` records, never by
+5. **Typed reads.** Replies are read as `RimGovernor.Brain.GameFacts` or `Fixtures.Contracts` records, never by
    string key. The compiler enforces it across the whole harness, cases and subcommands alike.
 6. **Telemetry by kind constant.** OTLP rows are selected by a registered kind constant
    ([OTEL signals](../contracts/otel-signals.md#kinds)). No raw kind strings and no matching on log or message
@@ -57,7 +57,7 @@ initial review and the first ordinary endpoint observation; missing evidence fai
 Its action-and-assertion body is compiled only into the fixture mod (`ZoneRectangleFixture`, under
 `DebugStartFixture`). One awaited `test/zone_rectangle_case` call passes the prepared identity, site,
 player-zone reference and a unique run ID. The body runs on a worker thread and uses the same
-`INativeFacade` calls as the brain; native main-thread admission still owns every game access.
+`IGameApi` calls as the brain; native main-thread admission still owns every game access.
 No external harness assembly is loaded into the game, and there is no second assertion implementation.
 
 The reply is a `RectangleCaseResult`: run ID, phase, success, optional error and captured evidence.
@@ -102,7 +102,7 @@ Every case uses the typed case API, and the compiler enforces the charter. A cas
 The body's `TypedSession` (`Runner/TypedSession.cs`) carries `Identity`, `Scope` (a read scope pinned to the
 identity), `Staged` and `TicksLeft`. Its members:
 
-- **Calls:** `CallAsync(label, NativeOps.<Op>, request)` takes a Contracts request record and returns the reply
+- **Calls:** `CallAsync(label, NativeOps.<Op>, request)` takes a GameOrders request record and returns the reply
   record. `FixtureAsync(label, FixtureOp<,>, request)` calls a bespoke op declared in `Ops`, and `StageAsync(label,
   spec)` re-stages mid-case (a case with a `Stage` already requires `test/stage`; one without
   declares it in `Ops`).
@@ -120,12 +120,12 @@ identity), `Staged` and `TicksLeft`. Its members:
   declares 0. `smoke/clock-stall` injects a crawl and proves it.
 - **Native clock:** `RunClockUntilHeldAsync(label, ticks, runPlan)` runs the native clock under the plan's
   watch policy (combat mode, armed stop events, health thresholds) until the clock holds itself, beating while it
-  runs, and returns the held `Clock.Status` (reason, combat event, tick, `HoldState.HeldCase.AtUnixMs`). It spends from
+  runs, and returns the held `RimGovernor.Brain.GameFacts.Clock.Status` (reason, combat event, tick, `HoldState.HeldCase.AtUnixMs`). It spends from
   `Ticks` like the other waits; a wait that ends otherwise holds the clock before it throws. Call it again with the
   same plan to resume after a hold. `HoldRowAsync(label, held)` returns that hold's `clock_hold` row (the one whose
   `stop_at_ms` is `HoldState.HeldCase.AtUnixMs`; `ClockRows` reads its fields) for what the status does not carry: the thing, the
   detected and occurrence ticks. It spends no ticks. `combatlab/stops` is the worked example. The overload taking a
-  `ClockRound` calls it once per round while the clock still runs, before the heartbeat, with that round's status:
+  `PlannerRound` calls it once per round while the clock still runs, before the heartbeat, with that round's status:
   the hook acts mid-run (an injection once the run passes a tick) and returns true to end the wait without a hold,
   for a claim that the clock keeps running (an invalidation row read with `Telemetry`). It returns the held status, or
   the running status of the round that ended it; the clock is held either way. `ClockAccountingAsync(label)` reads the
@@ -134,7 +134,7 @@ identity), `Staged` and `TicksLeft`. Its members:
   A kind is added to `TelemetryKinds` (`brain/src/RimGovernor.Brain.Telemetry/TelemetryKinds.cs`) with its row in
   the kinds table.
 - **Evidence:** `Record(key, value)`, `RecordWire(key, record)`, `RecordWireRows(key, records)` for a list or array
-  of Contracts records, and `RecordFixture(key, reply)` for a `test/*` op's Fixtures.Contracts reply. The JSON
+  of GameFacts records, and `RecordFixture(key, reply)` for a `test/*` op's Fixtures.Contracts reply. The JSON
   contexts register records, not the collections a case gathers them in; `AcceptanceJsonRegistrationTests` fails
   the gate on an unregistered type.
 - **Owned start:** `LaunchAsync(label)` opens a fresh main-menu game (a `GameReuse`) and routes the session's calls
@@ -149,7 +149,7 @@ identity), `Staged` and `TicksLeft`. Its members:
   exit and the stall budget end a run that stops moving, and the hang guard is the wall-clock backstop. A served
   case stages its precondition, and its probe reads the outcome through typed reads and telemetry. It may also
   call a declared fixture op mid-wait to inject the next phase's precondition. `ReviewAsync` (the brain's last
-  persisted review, a `Store.Rounds`) and `NeedTransitionsAsync` (the journal's need_transitions rows) read the
+  persisted review, a `Store.ReviewState`) and `NeedTransitionsAsync` (the journal's need_transitions rows) read the
   run's durable journal, the brain-side state a served probe or audit needs.
 - **Seeded governor state:** `TypedGovernorState.InjectAsync(s, key, record, scoped)` (Cases `Shared/`) writes one
   family record into the save's governor-state blobs before the case serves (it reads the blobs, adds the record and
@@ -240,11 +240,11 @@ Runner and case code use these helpers instead of raw JSON and fixed sleeps:
 
 - **Host tools:** `Harness.SetTimeSpeedAsync(label, TimeSpeedRequest)`, `PauseClockAsync(label)` and
   `LoadGameReadyAsync(label, LoadGameRequest)` call `rimgovernor/set_time_speed` and `rimgovernor/load_game_ready`
-  with the request and reply records in `RimGovernor.Contracts.Host` (`Brain.Contracts/HostTools.cs`). The speed
+  with the request and reply records in `RimGovernor.Brain.GameFacts.Host` (`Brain.GameOrders/HostTools.cs`). The speed
   name decides the dev tick boost: `Ultrafast` is vanilla 15x with it off, `Hyperfast` is Ultrafast with it on,
   which native caps at 30x; `RunAt.RunSpeed` is Hyperfast. A load request without its own `TimeoutMs` waits
   `Harness.LoadWait`. `Harness.PressTimeSpeedAsync(label, TimeSpeedRequest)` (and `TypedSession.PressTimeSpeedAsync`)
-  calls `rimgovernor/press_time_speed`, the in-game time controls' click handler: with the bot running the clock a
+  calls `press_time_speed`, the in-game time controls' click handler: with the bot running the clock a
   speed only asks the brain for it. The brain of a test-acceleration launch pins Hyperfast, so a case that observes a
   player's speed sets `RIMGOVERNOR_UNPIN_TEST_SPEED=1` in `ServeSpec.Env` (`authority/player-speed`).
 - **Service replies:** `ServiceJson.State`, `Health` and `Session` (`Service/ServiceReplies.cs`) read the service's

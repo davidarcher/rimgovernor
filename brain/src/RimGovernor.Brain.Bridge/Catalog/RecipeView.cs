@@ -20,7 +20,7 @@ public sealed partial class DefinitionCatalog
     private const string StatWorkToMake = "WorkToMake";
 
     // The order a raw meal slot lists its classes in.
-    private static readonly RimGovernor.Contracts.Wire.Observations.FoodIngredientClass[] RawClassOrder = [RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.Meat, RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.Vegetable, RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.AnimalProduct];
+    private static readonly RimGovernor.Brain.GameFacts.Observations.FoodIngredientClass[] RawClassOrder = [RimGovernor.Brain.GameFacts.Observations.FoodIngredientClass.Meat, RimGovernor.Brain.GameFacts.Observations.FoodIngredientClass.Vegetable, RimGovernor.Brain.GameFacts.Observations.FoodIngredientClass.AnimalProduct];
 
     private readonly ConcurrentDictionary<string, RecipeSlot[]> _recipeSlots = new(StringComparer.Ordinal);
     private Lazy<IReadOnlyDictionary<string, IReadOnlyList<WorkGiverDef>>>? _billGivers;
@@ -573,7 +573,7 @@ public sealed partial class DefinitionCatalog
             }
 
             input += count;
-            var classes = new List<RimGovernor.Contracts.Wire.Observations.FoodIngredientClass>();
+            var classes = new List<RimGovernor.Brain.GameFacts.Observations.FoodIngredientClass>();
             foreach (var def in AllowedDefs(ingredient.filter))
             {
                 var thing = ThingRow(def);
@@ -588,7 +588,7 @@ public sealed partial class DefinitionCatalog
                 }
 
                 var rawClass = RawFoodClass(def);
-                if (rawClass == RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.None)
+                if (rawClass == RimGovernor.Brain.GameFacts.Observations.FoodIngredientClass.None)
                 {
                     return null;
                 }
@@ -607,7 +607,7 @@ public sealed partial class DefinitionCatalog
             classes.Sort((a, b) => Array.IndexOf(RawClassOrder, a) - Array.IndexOf(RawClassOrder, b));
             if (classes.Count == 3)
             {
-                classes = [RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.Any];
+                classes = [RimGovernor.Brain.GameFacts.Observations.FoodIngredientClass.Any];
             }
 
             slots.Add(new P.FoodIngredientSlot { Alternatives = [.. classes] });

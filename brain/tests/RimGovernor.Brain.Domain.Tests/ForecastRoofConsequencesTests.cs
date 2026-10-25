@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -40,8 +41,8 @@ public sealed class ForecastRoofConsequencesTests
 
     /// <summary>One sleepy builder whose owned bed stands in the open where planned room 1 will be closed by a wall and a door;
     /// <paramref name="sleeper"/> changes the pawn and <paramref name="plan"/> the facts before the candidates are generated.</summary>
-    internal static RoundsFacts Review(PlannedRoomPrediction prediction, Func<NeedsForecastPawn, NeedsForecastPawn>? sleeper = null,
-        Func<RoundsFacts, RoundsFacts>? plan = null)
+    internal static ReviewFacts Review(PlannedRoomPrediction prediction, Func<NeedsForecastPawn, NeedsForecastPawn>? sleeper = null,
+        Func<ReviewFacts, ReviewFacts>? plan = null)
     {
         var facts = ForecastCoupledTests.ConstructionReview(stock: 100);
         var cells = Enumerable.Range(0, 3).SelectMany(x => Enumerable.Range(0, 3).Select(z => new Cell(x, z))).ToArray();
@@ -96,7 +97,7 @@ public sealed class ForecastRoofConsequencesTests
         => PlannedRoomPredictionTests.Closed("1", "WoodLog", role, 30d, stage, 1, 1, false) with { Beds = ["bed"] };
 
     /// <summary>The pawn's mood targets at the horizon over the feasible schedules of the full sleep and the given sites' roots.</summary>
-    private static double[] MoodAtHorizon(RoundsFacts facts, params string[] sites)
+    private static double[] MoodAtHorizon(ReviewFacts facts, params string[] sites)
     {
         facts = facts with { CoupledAlternatives = facts.CoupledAlternatives! with { Context = facts.CoupledAlternatives.Context with { MoodTrajectory = true } } };
         var candidates = facts.CoupledAlternatives!;

@@ -1,4 +1,4 @@
-using TradeThingGrade = RimGovernor.Contracts.Wire.Observations.TradeThingGrade;
+using TradeThingGrade = RimGovernor.Brain.GameFacts.Observations.TradeThingGrade;
 
 namespace RimGovernor.Brain.Policy;
 

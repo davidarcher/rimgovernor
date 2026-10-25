@@ -1,5 +1,3 @@
-using D = RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Policy.Methods.Generation;
 using Xunit;
@@ -172,7 +170,7 @@ public sealed class EffectSourceCandidatesTests
     public void CensusFactsCarryTheIdeologyStateAndTheRolesPrecepts()
     {
         var model = Pawn().Gear;
-        model = model with { Role = model.Role with { Pawn = model.Role.Pawn with { Settings = model.Role.Pawn.Settings with { PolicyInputs = model.Role.Pawn.Settings.PolicyInputs with { Ideo = new O.PawnIdeo.Member("ideo", ["Temperature_Tough"], null, 1) } } } } };
+        model = model with { Role = model.Role with { Pawn = model.Role.Pawn with { Settings = model.Role.Pawn.Settings with { PolicyInputs = model.Role.Pawn.Settings.PolicyInputs with { Ideo = new RimGovernor.Brain.GameFacts.Observations.PawnIdeo.Member("ideo", ["Temperature_Tough"], null, 1) } } } } };
         var gear = ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new("pawn") }, LoadoutModel = new GearModel.Modeled(model) }] };
         EquatableArray<CarePawn> medical = [CareFixtures.Patient("pawn", [])];
 
@@ -208,12 +206,12 @@ public sealed class EffectSourceCandidatesTests
             Stored = [],
             Pawns = [new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "worker", Pawn = new("pawn") }, LoadoutModel = new GearModel.Modeled(model), Candidates = [] }],
         };
-        var facts = new RoundsFacts { Gear = gear };
+        var facts = new ReviewFacts { Gear = gear };
 
-        var standing = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearChoices(facts, []).Gear;
+        var standing = RimGovernor.Brain.Runtime.ColonyReview.WithGearChoices(facts, []).Gear;
         Assert.NotEmpty(GearRules.GearReplacementNeeds(standing));
 
-        var allowed = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearChoices(facts, [GearChoice.KeepFloors("pawn", true)]).Gear;
+        var allowed = RimGovernor.Brain.Runtime.ColonyReview.WithGearChoices(facts, [GearChoice.KeepFloors("pawn", true)]).Gear;
         Assert.True(Assert.Single(allowed.Pawns).AllowTainted);
         Assert.True(GearRules.ReviewGear(allowed).Recovered);
         Assert.Empty(GearRules.GearReplacementNeeds(allowed));

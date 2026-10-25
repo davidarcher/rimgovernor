@@ -2,11 +2,8 @@ using System;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The mech branch of the production bill write: one
     // Bill_Mech on a Building_MechGestator, the bill the gestator's bill tab
@@ -30,21 +27,21 @@ namespace HomeBridge.BridgeTools
         // recipe that makes no mechanoid.
         private static bool IsMech(RecipeDef recipe) => !recipe.mechResurrection && recipe.ProducedThingDef?.race?.IsMechanoid == true;
 
-        internal static bool Handles(Operations.ProductionBillIntent? intent) =>
+        internal static bool Handles(RimGovernor.Brain.GameOrders.Operations.ProductionBillIntent? intent) =>
             intent != null && intent.RecipeDef is not null && DefDatabase<RecipeDef>.GetNamedSilentFail((intent.RecipeDef ?? "")) is RecipeDef recipe && IsMech(recipe);
 
-        private static Common.Failure? Resolve(Operations.ProductionBillIntent intent, Common.ObservationContext context, out Building_MechGestator? bench, out RecipeDef? recipe, out Pawn? overseer)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(RimGovernor.Brain.GameOrders.Operations.ProductionBillIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Building_MechGestator? bench, out RecipeDef? recipe, out Pawn? overseer)
         {
             bench = null; recipe = null; overseer = null;
             var s = intent.Settings;
-            if (s is null || !NativeProductionBills.Valid(intent) || s.Repetition is not Operations.BillRepetition.Count { Repetitions: 1 } || s.Worker != null || s.Ingredients != null || intent.ReplaceOwnedBill != null)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Mech bill requires an exact gestator, a mech recipe and a single-count bill without worker, ingredients or replacement.");
-            var map = ProtoBoundary.LoadedMap(context);
+            if (s is null || !NativeProductionBills.Valid(intent) || s.Repetition is not RimGovernor.Brain.GameOrders.Operations.BillRepetition.Count { Repetitions: 1 } || s.Worker != null || s.Ingredients != null || intent.ReplaceOwnedBill != null)
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Mech bill requires an exact gestator, a mech recipe and a single-count bill without worker, ingredients or replacement.");
+            var map = GameThread.LoadedMap(context);
             var gestator = RefIndex.Thing<Building_MechGestator>(map, intent.BenchId);
             var made = DefDatabase<RecipeDef>.GetNamedSilentFail((intent.RecipeDef ?? ""));
-            if (gestator == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Gestator " + (intent.BenchId ?? "") + " is not a loaded mech gestator.");
+            if (gestator == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Gestator " + (intent.BenchId ?? "") + " is not a loaded mech gestator.");
             bench = gestator; recipe = made;
-            if (made == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Recipe " + (intent.RecipeDef ?? "") + " does not exist.");
+            if (made == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Recipe " + (intent.RecipeDef ?? "") + " does not exist.");
             // A standing bill of the recipe applies again.
             if (gestator.BillStack.Bills.OfType<Bill_Mech>().Any(b => b.recipe == made && !BillCommon.IsFinished(b))) return null;
             var work = NativeBillsObservationTools.WorkType(gestator.def, made);
@@ -66,9 +63,9 @@ namespace HomeBridge.BridgeTools
             return rules.Holds ? null : rules.Failure();
         }
 
-        internal static Common.Failure? Validate(Operations.ProductionBillIntent intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.ProductionBillIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.ProductionBillIntent intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.ProductionBillIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var bench, out var recipe, out var overseer);
             if (failure != null) throw new ApplyRefusedException(failure);
@@ -79,14 +76,14 @@ namespace HomeBridge.BridgeTools
                 var bill = made.MakeNewBill(null) as Bill_Mech ?? throw new InvalidOperationException("Mech recipe " + made.defName + " did not make a mech bill.");
                 // The game's own bandwidth rule is the last word on the overseer.
                 if (pawn == null || !pawn.mechanitor.HasBandwidthForBill(bill))
-                    throw new ApplyRefusedException(Common.FailureCode.InvalidRequest, "no mechanitor has bandwidth for " + made.defName);
+                    throw new ApplyRefusedException(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "no mechanitor has bandwidth for " + made.defName);
                 bill.repeatMode = BillRepeatModeDefOf.RepeatCount;
                 bill.repeatCount = 1;
                 bill.suspended = false;
                 gestator.BillStack.AddBill(bill);
                 standing = bill;
             }
-            return new Receipts.EffectEvidence { Effect = new Receipts.BillEffect { Bill = NativeRef.Of(standing.GetUniqueLoadID()) } };
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.BillEffect { Bill = NativeRef.Of(standing.GetUniqueLoadID()) } };
         }
     }
 }

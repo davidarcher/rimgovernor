@@ -1,6 +1,6 @@
 using System.Text.Json;
-using RimGovernor.Contracts.Wire;
-using Op = RimGovernor.Contracts.Wire.Operations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -10,175 +10,175 @@ public sealed class OperationArgumentTests
     [Fact]
     public void MissingRequiredArgumentsCannotDecodeAsZero()
     {
-        Missing<Op.DefCount>();
-        Missing<Op.Rectangle>();
-        Missing<Op.WorkPriority>();
-        Missing<Op.TradeLine>();
-        Missing<Op.GiveItemIntent>();
-        Missing<Op.IdeoligionReformIntent>();
-        Missing<Op.AreaRect>();
-        Missing<Op.DialogIntent>();
-        Missing<Op.ApparelPolicyIntent>();
-        Missing<Op.CombatDoor>();
-        Missing<Op.AreaIntent>();
-        Missing<Op.PolicyPruneIntent>();
-        Missing<Op.EndTrade>();
-        Missing<Op.HusbandryIntent>();
-        Missing<Op.PrisonerInteractionIntent>();
-        Missing<Op.DesignateIntent>();
-        Missing<Op.HackDesignationIntent>();
-        Missing<Op.AutoHomeAreaIntent>();
-        Missing<Op.DraftIntent>();
-        Missing<Op.ZonePreview>();
-        Missing<Op.FishingSettings>();
-        Missing<Op.Refusal>();
-        Missing<Op.FormCaravanIntent>();
-        Missing<Op.CommsTradeRequestIntent>();
-        Missing<Op.FilterPatch>();
-        Missing<Op.StockpileSettings>();
-        Missing<Op.ZoneIntent>();
-        Missing<Op.OpenTrade>();
-        Missing<Op.SetTradeLines>();
-        Missing<Op.AcceptTrade>();
-        Missing<Op.ApplyRequest>();
-        Missing<Op.GiveJobOptions>();
-        Missing<Op.RelocateIntent>();
-        Missing<Op.ProductionBillIntent>();
-        Missing<Op.AssignIntent>();
-        Missing<Op.QuestShuttleIntent>();
-        Missing<Op.BuildingIntent>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.DefCount>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.Rectangle>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.WorkPriority>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.TradeLine>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.GiveItemIntent>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.IdeoligionReformIntent>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.AreaRect>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.DialogIntent>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.ApparelPolicyIntent>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.CombatDoor>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.AreaIntent>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.PolicyPruneIntent>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.EndTrade>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.HusbandryIntent>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.PrisonerInteractionIntent>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.DesignateIntent>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.HackDesignationIntent>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.AutoHomeAreaIntent>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.DraftIntent>();
+        Missing<RimGovernor.Brain.GameFacts.Operations.ZonePreview>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.FishingSettings>();
+        Missing<RimGovernor.Brain.GameFacts.Operations.Refusal>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.FormCaravanIntent>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.CommsTradeRequestIntent>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.FilterPatch>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.StockpileSettings>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.ZoneIntent>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.OpenTrade>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.SetTradeLines>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.AcceptTrade>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.ApplyRequest>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.GiveJobOptions>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.RelocateIntent>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.ProductionBillIntent>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.AssignIntent>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.QuestShuttleIntent>();
+        Missing<RimGovernor.Brain.GameOrders.Operations.BuildingIntent>();
     }
 
     [Fact]
     public void ExplicitZeroIsValidForTradeAndWorkSettings()
     {
-        var line = new Op.TradeLine { LineId = "line", AbsoluteCount = 0 };
-        Assert.Equal(line, WireJson.Deserialize<Op.TradeLine>(WireJson.Serialize(line)));
-        var priority = new Op.WorkPriority { WorkTypeDef = "Hauling", Priority = 0 };
-        Assert.Equal(priority, WireJson.Deserialize<Op.WorkPriority>(WireJson.Serialize(priority)));
-        var answer = new Op.DialogIntent { WindowId = 1, OptionIndex = 0, OptionLabel = "Accept" };
-        Assert.Equal(answer, WireJson.Deserialize<Op.DialogIntent>(WireJson.Serialize(answer)));
+        var line = new RimGovernor.Brain.GameOrders.Operations.TradeLine { LineId = "line", AbsoluteCount = 0 };
+        Assert.Equal(line, OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.TradeLine>(OrdersJson.Serialize(line)));
+        var priority = new RimGovernor.Brain.GameOrders.Operations.WorkPriority { WorkTypeDef = "Hauling", Priority = 0 };
+        Assert.Equal(priority, OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.WorkPriority>(OrdersJson.Serialize(priority)));
+        var answer = new RimGovernor.Brain.GameOrders.Operations.DialogIntent { WindowId = 1, OptionIndex = 0, OptionLabel = "Accept" };
+        Assert.Equal(answer, OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.DialogIntent>(OrdersJson.Serialize(answer)));
     }
 
     [Fact]
     public void RemovedOrderEnumStatesAreRejected()
     {
-        Removed<Op.CombatFireMode>("COMBAT_FIRE_MODE_UNSPECIFIED");
-        Removed<Op.CombatDoorMode>("COMBAT_DOOR_MODE_UNSPECIFIED");
-        Removed<Op.ThingDesignation>("THING_DESIGNATION_UNSPECIFIED");
-        Removed<Op.PowerSetting>("POWER_SETTING_UNSPECIFIED");
-        Removed<Op.HostilityResponse>("HOSTILITY_RESPONSE_UNSPECIFIED");
-        Removed<Op.MedicalCare>("MEDICAL_CARE_UNSPECIFIED");
-        Removed<Op.RepeatMode>("REPEAT_MODE_UNSPECIFIED");
-        Removed<Op.ZoneType>("ZONE_TYPE_UNSPECIFIED");
-        Removed<Op.PrisonerInteraction>("PRISONER_INTERACTION_UNSPECIFIED");
-        Removed<Op.EndTradeKind>("END_TRADE_KIND_UNSPECIFIED");
-        Removed<Op.AreaOperation>("AREA_OPERATION_UNSPECIFIED");
-        Removed<Op.PolicyDatabase>("POLICY_DATABASE_UNSPECIFIED");
-        Removed<Op.DesignationGuard>("DESIGNATION_GUARD_UNSPECIFIED");
-        Removed<Op.HusbandryOrder>("HUSBANDRY_ORDER_UNSPECIFIED");
+        Removed<RimGovernor.Brain.GameFacts.Operations.CombatFireMode>("COMBAT_FIRE_MODE_UNSPECIFIED");
+        Removed<RimGovernor.Brain.GameOrders.Operations.CombatDoorMode>("COMBAT_DOOR_MODE_UNSPECIFIED");
+        Removed<RimGovernor.Brain.GameOrders.Operations.ThingDesignation>("THING_DESIGNATION_UNSPECIFIED");
+        Removed<RimGovernor.Brain.GameOrders.Operations.PowerSetting>("POWER_SETTING_UNSPECIFIED");
+        Removed<RimGovernor.Brain.GameFacts.Operations.HostilityResponse>("HOSTILITY_RESPONSE_UNSPECIFIED");
+        Removed<RimGovernor.Brain.GameFacts.Operations.MedicalCare>("MEDICAL_CARE_UNSPECIFIED");
+        Removed<RimGovernor.Brain.GameFacts.Operations.RepeatMode>("REPEAT_MODE_UNSPECIFIED");
+        Removed<RimGovernor.Brain.GameOrders.Operations.ZoneType>("ZONE_TYPE_UNSPECIFIED");
+        Removed<RimGovernor.Brain.GameOrders.Operations.PrisonerInteraction>("PRISONER_INTERACTION_UNSPECIFIED");
+        Removed<RimGovernor.Brain.GameOrders.Operations.EndTradeKind>("END_TRADE_KIND_UNSPECIFIED");
+        Removed<RimGovernor.Brain.GameOrders.Operations.AreaOperation>("AREA_OPERATION_UNSPECIFIED");
+        Removed<RimGovernor.Brain.GameOrders.Operations.PolicyDatabase>("POLICY_DATABASE_UNSPECIFIED");
+        Removed<RimGovernor.Brain.GameOrders.Operations.DesignationGuard>("DESIGNATION_GUARD_UNSPECIFIED");
+        Removed<RimGovernor.Brain.GameOrders.Operations.HusbandryOrder>("HUSBANDRY_ORDER_UNSPECIFIED");
     }
 
     [Fact]
     public void ScalarChoicePayloadsRoundTripWithoutNullableProjections()
     {
-        Op.PawnSettingsIntentSetting[] pawnSettings =
+        RimGovernor.Brain.GameOrders.Operations.PawnSettingsIntentSetting[] pawnSettings =
         [
-            new Op.PawnSettingsIntentSetting.HostilityResponseCase(Op.HostilityResponse.Ignore),
-            new Op.PawnSettingsIntentSetting.SelfTendCase(false),
-            new Op.PawnSettingsIntentSetting.MedicineCarryCase(0),
-            new Op.PawnSettingsIntentSetting.MedicalCareCase(Op.MedicalCare.NoCare),
-            new Op.PawnSettingsIntentSetting.MechControlGroupCase(0),
-            new Op.PawnSettingsIntentSetting.ExtractBioferriteCase(false),
+            new RimGovernor.Brain.GameOrders.Operations.PawnSettingsIntentSetting.HostilityResponseCase(RimGovernor.Brain.GameFacts.Operations.HostilityResponse.Ignore),
+            new RimGovernor.Brain.GameOrders.Operations.PawnSettingsIntentSetting.SelfTendCase(false),
+            new RimGovernor.Brain.GameOrders.Operations.PawnSettingsIntentSetting.MedicineCarryCase(0),
+            new RimGovernor.Brain.GameOrders.Operations.PawnSettingsIntentSetting.MedicalCareCase(RimGovernor.Brain.GameFacts.Operations.MedicalCare.NoCare),
+            new RimGovernor.Brain.GameOrders.Operations.PawnSettingsIntentSetting.MechControlGroupCase(0),
+            new RimGovernor.Brain.GameOrders.Operations.PawnSettingsIntentSetting.ExtractBioferriteCase(false),
         ];
         foreach (var setting in pawnSettings)
-            Assert.Equal(setting, WireJson.Deserialize<Op.PawnSettingsIntentSetting>(WireJson.Serialize(setting)));
-        Op.BuildingPatchIntentChange[] buildingSettings =
+            Assert.Equal(setting, OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.PawnSettingsIntentSetting>(OrdersJson.Serialize(setting)));
+        RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange[] buildingSettings =
         [
-            new Op.BuildingPatchIntentChange.TargetTemperatureCase(0),
-            new Op.BuildingPatchIntentChange.MedicalCase(false),
-            new Op.BuildingPatchIntentChange.AutoRefuelCase(false),
+            new RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.TargetTemperatureCase(0),
+            new RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.MedicalCase(false),
+            new RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.AutoRefuelCase(false),
         ];
         foreach (var setting in buildingSettings)
-            Assert.Equal(setting, WireJson.Deserialize<Op.BuildingPatchIntentChange>(WireJson.Serialize(setting)));
-        Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.PawnSettingsIntentSetting>("""{"type":"selfTend"}"""));
-        Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.BuildingPatchIntentChange>("""{"type":"medical"}"""));
-        Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.QuestShuttleIntentLoading>("""{"type":"autoload"}"""));
-        Op.QuestShuttleIntentLoading loading = new Op.QuestShuttleIntentLoading.AutoloadCase(false);
-        Assert.Equal(loading, WireJson.Deserialize<Op.QuestShuttleIntentLoading>(WireJson.Serialize(loading)));
+            Assert.Equal(setting, OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange>(OrdersJson.Serialize(setting)));
+        Assert.Throws<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.PawnSettingsIntentSetting>("""{"type":"selfTend"}"""));
+        Assert.Throws<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange>("""{"type":"medical"}"""));
+        Assert.Throws<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.QuestShuttleIntentLoading>("""{"type":"autoload"}"""));
+        RimGovernor.Brain.GameOrders.Operations.QuestShuttleIntentLoading loading = new RimGovernor.Brain.GameOrders.Operations.QuestShuttleIntentLoading.AutoloadCase(false);
+        Assert.Equal(loading, OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.QuestShuttleIntentLoading>(OrdersJson.Serialize(loading)));
     }
 
     [Fact]
     public void ProductionBillsNameTheirSupportedRepetitionAndCorpseStates()
     {
-        Op.BillRepetition[] repetitions =
-        [new Op.BillRepetition.Forever(), new Op.BillRepetition.Count(2), new Op.BillRepetition.Target(6, 3)];
+        RimGovernor.Brain.GameOrders.Operations.BillRepetition[] repetitions =
+        [new RimGovernor.Brain.GameOrders.Operations.BillRepetition.Forever(), new RimGovernor.Brain.GameOrders.Operations.BillRepetition.Count(2), new RimGovernor.Brain.GameOrders.Operations.BillRepetition.Target(6, 3)];
         foreach (var repetition in repetitions)
         {
-            var settings = new Op.BillSettings { Repetition = repetition, BeerReserve = false, Corpses = new Op.BillCorpseClass.NotApplicable() };
-            Assert.Equal(settings, WireJson.Deserialize<Op.BillSettings>(WireJson.Serialize(settings)));
+            var settings = new RimGovernor.Brain.GameOrders.Operations.BillSettings { Repetition = repetition, BeerReserve = false, Corpses = new RimGovernor.Brain.GameOrders.Operations.BillCorpseClass.NotApplicable() };
+            Assert.Equal(settings, OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.BillSettings>(OrdersJson.Serialize(settings)));
         }
-        Op.BillCorpseClass[] corpses =
+        RimGovernor.Brain.GameOrders.Operations.BillCorpseClass[] corpses =
         [
-            new Op.BillCorpseClass.NotApplicable(),
-            new Op.BillCorpseClass.Selected(RimGovernor.Contracts.Wire.Common.CorpseClass.Animal),
-            new Op.BillCorpseClass.Selected(RimGovernor.Contracts.Wire.Common.CorpseClass.Stranger),
-            new Op.BillCorpseClass.Selected(RimGovernor.Contracts.Wire.Common.CorpseClass.Colonist),
+            new RimGovernor.Brain.GameOrders.Operations.BillCorpseClass.NotApplicable(),
+            new RimGovernor.Brain.GameOrders.Operations.BillCorpseClass.Selected(RimGovernor.Brain.GameFacts.Common.CorpseClass.Animal),
+            new RimGovernor.Brain.GameOrders.Operations.BillCorpseClass.Selected(RimGovernor.Brain.GameFacts.Common.CorpseClass.Stranger),
+            new RimGovernor.Brain.GameOrders.Operations.BillCorpseClass.Selected(RimGovernor.Brain.GameFacts.Common.CorpseClass.Colonist),
         ];
         foreach (var corpse in corpses)
-            Assert.Equal(corpse, WireJson.Deserialize<Op.BillCorpseClass>(WireJson.Serialize(corpse)));
-        Missing<Op.BillSettings>();
-        Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.BillRepetition>("""{"type":"count"}"""));
-        Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.BillRepetition>("""{"type":"target","quantity":4}"""));
-        Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.BillCorpseClass>("""{"type":"selected"}"""));
+            Assert.Equal(corpse, OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.BillCorpseClass>(OrdersJson.Serialize(corpse)));
+        Missing<RimGovernor.Brain.GameOrders.Operations.BillSettings>();
+        Assert.Throws<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.BillRepetition>("""{"type":"count"}"""));
+        Assert.Throws<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.BillRepetition>("""{"type":"target","quantity":4}"""));
+        Assert.Throws<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.BillCorpseClass>("""{"type":"selected"}"""));
     }
 
     [Fact]
     public void ConditionalArgumentsNamePreservationAndExactSelections()
     {
-        RoundTrip<Op.HitPointRange>(new Op.HitPointRange.Preserve(), new Op.HitPointRange.Selected(0, 1));
-        RoundTrip<Op.StockpilePriorityChange>(new Op.StockpilePriorityChange.Preserve(), new Op.StockpilePriorityChange.Selected(RimGovernor.Brain.Domain.StockpilePriority.Important));
-        RoundTrip<Op.StockpilePresetChange>(new Op.StockpilePresetChange.Preserve(), new Op.StockpilePresetChange.Selected(RimGovernor.Brain.Domain.FilterBase.Nothing));
-        RoundTrip<Op.RelocationMode>(new Op.RelocationMode.Uninstall(), new Op.RelocationMode.Move(RimGovernor.Contracts.Wire.Placement.Rotation.North, new(3, 4)));
-        RoundTrip<Op.SurgeryTarget>(new Op.SurgeryTarget.WholeBody(), new Op.SurgeryTarget.Part(0));
-        RoundTrip<Op.QuestRewardSelection>(new Op.QuestRewardSelection.NoChoice(), new Op.QuestRewardSelection.Choose(0));
-        RoundTrip<Op.FinishingSkillChange>(new Op.FinishingSkillChange.Preserve(), new Op.FinishingSkillChange.Selected(0));
-        RoundTrip<Op.ConstructionTierChange>(new Op.ConstructionTierChange.Preserve(), new Op.ConstructionTierChange.Selected(0));
-        Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.HitPointRange>("""{"type":"set","minimum":0}"""));
-        Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.RelocationMode>("""{"type":"move"}"""));
-        Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.SurgeryTarget>("""{"type":"part"}"""));
-        Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.QuestRewardSelection>("""{"type":"choose"}"""));
-        Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.FinishingSkillChange>("""{"type":"set"}"""));
-        Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.ConstructionTierChange>("""{"type":"set"}"""));
-        Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.StockpilePriorityChange>("""{"type":"set"}"""));
-        Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.StockpilePresetChange>("""{"type":"set"}"""));
+        RoundTrip<RimGovernor.Brain.GameOrders.Operations.HitPointRange>(new RimGovernor.Brain.GameOrders.Operations.HitPointRange.Preserve(), new RimGovernor.Brain.GameOrders.Operations.HitPointRange.Selected(0, 1));
+        RoundTrip<RimGovernor.Brain.GameOrders.Operations.StockpilePriorityChange>(new RimGovernor.Brain.GameOrders.Operations.StockpilePriorityChange.Preserve(), new RimGovernor.Brain.GameOrders.Operations.StockpilePriorityChange.Selected(RimGovernor.Brain.Domain.StockpilePriority.Important));
+        RoundTrip<RimGovernor.Brain.GameOrders.Operations.StockpilePresetChange>(new RimGovernor.Brain.GameOrders.Operations.StockpilePresetChange.Preserve(), new RimGovernor.Brain.GameOrders.Operations.StockpilePresetChange.Selected(RimGovernor.Brain.Domain.FilterBase.Nothing));
+        RoundTrip<RimGovernor.Brain.GameOrders.Operations.RelocationMode>(new RimGovernor.Brain.GameOrders.Operations.RelocationMode.Uninstall(), new RimGovernor.Brain.GameOrders.Operations.RelocationMode.Move(RimGovernor.Brain.GameFacts.Placement.Rotation.North, new(3, 4)));
+        RoundTrip<RimGovernor.Brain.GameOrders.Operations.SurgeryTarget>(new RimGovernor.Brain.GameOrders.Operations.SurgeryTarget.WholeBody(), new RimGovernor.Brain.GameOrders.Operations.SurgeryTarget.Part(0));
+        RoundTrip<RimGovernor.Brain.GameOrders.Operations.QuestRewardSelection>(new RimGovernor.Brain.GameOrders.Operations.QuestRewardSelection.NoChoice(), new RimGovernor.Brain.GameOrders.Operations.QuestRewardSelection.Choose(0));
+        RoundTrip<RimGovernor.Brain.GameOrders.Operations.FinishingSkillChange>(new RimGovernor.Brain.GameOrders.Operations.FinishingSkillChange.Preserve(), new RimGovernor.Brain.GameOrders.Operations.FinishingSkillChange.Selected(0));
+        RoundTrip<RimGovernor.Brain.GameOrders.Operations.ConstructionTierChange>(new RimGovernor.Brain.GameOrders.Operations.ConstructionTierChange.Preserve(), new RimGovernor.Brain.GameOrders.Operations.ConstructionTierChange.Selected(0));
+        Assert.Throws<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.HitPointRange>("""{"type":"set","minimum":0}"""));
+        Assert.Throws<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.RelocationMode>("""{"type":"move"}"""));
+        Assert.Throws<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.SurgeryTarget>("""{"type":"part"}"""));
+        Assert.Throws<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.QuestRewardSelection>("""{"type":"choose"}"""));
+        Assert.Throws<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.FinishingSkillChange>("""{"type":"set"}"""));
+        Assert.Throws<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.ConstructionTierChange>("""{"type":"set"}"""));
+        Assert.Throws<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.StockpilePriorityChange>("""{"type":"set"}"""));
+        Assert.Throws<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.StockpilePresetChange>("""{"type":"set"}"""));
     }
 
     [Fact]
     public void LocationArgumentsNameTheirPhysicalOrNativeSearchState()
     {
         var cell = new RimGovernor.Brain.Domain.Cell(3, 4);
-        RoundTrip<Op.RescueBed>(new Op.RescueBed.Search(), new Op.RescueBed.At(cell));
-        RoundTrip<Op.MortarAim>(new Op.MortarAim.Cleared(), new Op.MortarAim.At(cell));
-        RoundTrip<Op.DesignationLocation>(new Op.DesignationLocation.ByTarget(), new Op.DesignationLocation.At(cell));
-        RoundTrip<Op.RitualLocation>(new Op.RitualLocation.NotStarting(), new Op.RitualLocation.At(cell));
-        Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.RescueBed>("""{"type":"at"}"""));
-        Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.MortarAim>("""{"type":"at"}"""));
-        Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.DesignationLocation>("""{"type":"at"}"""));
-        Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.RitualLocation>("""{"type":"at"}"""));
+        RoundTrip<RimGovernor.Brain.GameOrders.Operations.RescueBed>(new RimGovernor.Brain.GameOrders.Operations.RescueBed.Search(), new RimGovernor.Brain.GameOrders.Operations.RescueBed.At(cell));
+        RoundTrip<RimGovernor.Brain.GameOrders.Operations.MortarAim>(new RimGovernor.Brain.GameOrders.Operations.MortarAim.Cleared(), new RimGovernor.Brain.GameOrders.Operations.MortarAim.At(cell));
+        RoundTrip<RimGovernor.Brain.GameOrders.Operations.DesignationLocation>(new RimGovernor.Brain.GameOrders.Operations.DesignationLocation.ByTarget(), new RimGovernor.Brain.GameOrders.Operations.DesignationLocation.At(cell));
+        RoundTrip<RimGovernor.Brain.GameOrders.Operations.RitualLocation>(new RimGovernor.Brain.GameOrders.Operations.RitualLocation.NotStarting(), new RimGovernor.Brain.GameOrders.Operations.RitualLocation.At(cell));
+        Assert.Throws<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.RescueBed>("""{"type":"at"}"""));
+        Assert.Throws<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.MortarAim>("""{"type":"at"}"""));
+        Assert.Throws<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.DesignationLocation>("""{"type":"at"}"""));
+        Assert.Throws<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.RitualLocation>("""{"type":"at"}"""));
     }
     private static void RoundTrip<T>(params T[] states)
     {
         foreach (var state in states)
-            Assert.Equal(state, WireJson.Deserialize<T>(WireJson.Serialize(state)));
+            Assert.Equal(state, OrdersJson.Deserialize<T>(OrdersJson.Serialize(state)));
     }
-    private static void Missing<T>() => Assert.Throws<JsonException>(() => WireJson.Deserialize<T>("{}"));
+    private static void Missing<T>() => Assert.Throws<JsonException>(() => OrdersJson.Deserialize<T>("{}"));
 
     private static void Removed<T>(string oldName) where T : struct, Enum
     {
         Assert.False(Enum.IsDefined(default(T)));
-        Assert.Throws<JsonException>(() => WireJson.Deserialize<T>(JsonSerializer.Serialize(oldName)));
+        Assert.Throws<JsonException>(() => OrdersJson.Deserialize<T>(JsonSerializer.Serialize(oldName)));
         foreach (var value in Enum.GetValues<T>())
-            Assert.Equal(value, WireJson.Deserialize<T>(WireJson.Serialize(value)));
+            Assert.Equal(value, OrdersJson.Deserialize<T>(OrdersJson.Serialize(value)));
     }
 }

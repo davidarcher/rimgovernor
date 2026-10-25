@@ -2,7 +2,6 @@ using System.Globalization;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -120,7 +119,7 @@ internal static class ShelterSheltering
                 }
 
                 var restricted = safe.Contains(id);
-                var inHut = pawn.Pawn.Place is RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap { Cell: { X: var x, Z: var z } } && hut.Contains((x, z));
+                var inHut = pawn.Pawn.Place is RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap { Cell: { X: var x, Z: var z } } && hut.Contains((x, z));
                 allIn &= restricted && inHut;
                 noneIn &= !restricted;
                 states.Add(string.Create(CultureInfo.InvariantCulture, $"{id}:{restricted}:{inHut}:{pawn.Pawn.Place}"));
@@ -142,7 +141,7 @@ internal static class ShelterSheltering
     /// <summary>The pawns the colony facts list as restricted to the Safe area; none when the area is gone.</summary>
     private static async Task<HashSet<string>> SafePawnsAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         return facts.Policies.AllowedAreas.Items
             .Where(a => a.Label == ShelterRules.SafeAreaLabel)
             .SelectMany(a => a.Pawns.Items.Select(p => p.Value))

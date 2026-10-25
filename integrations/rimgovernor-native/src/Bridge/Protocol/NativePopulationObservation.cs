@@ -1,15 +1,13 @@
 using System;
 using System.Linq;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
-    // Dedicated per-cycle population census on the official protobuf
+    // Dedicated per-cycle population census on the typed native
     // boundary, the same migration NativeHusbandryOperations/NativePrisonerInteractionOperations
     // already made for the write side. Population-*'s recruit/maintain deficit
     // facts (recruitable, current interaction) live only here -- the generic
@@ -22,36 +20,36 @@ namespace HomeBridge.BridgeTools
     {
         // On the game thread: the typed core of the tool, shared with the in-process facade. A refused request
         // or a population that cannot be read completely throws.
-        internal static Obs.PopulationSnapshot HandleReadPopulation(Obs.PopulationRequest request)
+        internal static RimGovernor.Brain.GameFacts.Observations.PopulationSnapshot HandleReadPopulation(RimGovernor.Brain.GameOrders.Observations.PopulationRequest request)
         {
             if (!ValidatePopulation(request, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
-            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out _, out var failure))
+            if (!GameThread.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out _, out var failure))
                 throw NativeFaults.Refused(failure);
             try { return Population(map, request); }
             catch (Exception error)
             {
                 ModLog.Error("observe", "Population read failed: " + error);
-                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
+                throw NativeFaults.Unavailable(new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed,
                     Detail = PlacementPreviewOperation.Diagnostic("Population could not be read completely: " + error.GetType().Name + ": " + error.Message) });
             }
         }
 
-        internal static bool ValidatePopulation(Obs.PopulationRequest request, out Common.Failure failure)
+        internal static bool ValidatePopulation(RimGovernor.Brain.GameOrders.Observations.PopulationRequest request, out RimGovernor.Brain.GameFacts.Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity scope is required.");
+            failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Valid identity scope is required.");
             return request?.Scope?.ExpectedIdentity != null;
         }
 
         // The population as a frame section: a read that throws fails the frame. Every person is read whole.
-        internal static Obs.PopulationSnapshot Population(Map map, Obs.PopulationRequest request)
+        internal static RimGovernor.Brain.GameFacts.Observations.PopulationSnapshot Population(Map map, RimGovernor.Brain.GameOrders.Observations.PopulationRequest request)
         {
             var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
             var people = map.mapPawns.AllPawnsSpawned.Where(p => p.RaceProps.Humanlike).OrderBy(p => p.thingIDNumber).ToList();
-            var persons = new System.Collections.Generic.List<Obs.PopulationPerson>(people.Count);
+            var persons = new System.Collections.Generic.List<RimGovernor.Brain.GameFacts.Observations.PopulationPerson>(people.Count);
             foreach (var p in people)
             {
                 var guest = p.guest ?? throw new InvalidOperationException("Humanlike without a guest tracker.");
-                persons.Add(new Obs.PopulationPerson
+                persons.Add(new RimGovernor.Brain.GameFacts.Observations.PopulationPerson
                 {
                     Pawn = PawnId(p),
                     Admitted = p.IsFreeColonist && p.Faction == player,
@@ -64,22 +62,22 @@ namespace HomeBridge.BridgeTools
                 });
             }
             // Owned-pawn names: the census the unique-name planner reads.
-            var names = NativePawnSettings.OwnedNamedPawns().Select(owned => new Obs.OwnedName
+            var names = NativePawnSettings.OwnedNamedPawns().Select(owned => new RimGovernor.Brain.GameFacts.Observations.OwnedName
             {
                 PawnId = PawnId(owned),
                 ShortName = NativePawnObservationTools.Text(owned.Name.ToStringShort),
                 ThingId = owned.thingIDNumber,
             }).ToList();
-            Obs.ColonyIdeology ideology = ModsConfig.IdeologyActive
-                ? new Obs.ColonyIdeology.Installed(Find.IdeoManager.classicMode,
+            RimGovernor.Brain.GameFacts.Observations.ColonyIdeology ideology = ModsConfig.IdeologyActive
+                ? new RimGovernor.Brain.GameFacts.Observations.ColonyIdeology.Installed(Find.IdeoManager.classicMode,
                     player.ideos?.PrimaryIdeo is Ideo ideo ? NativePawnObservationTools.Id(ideo.GetUniqueLoadID()) : null)
-                : new Obs.ColonyIdeology.NotInstalled();
-            return new Obs.PopulationSnapshot { Persons = [.. persons], Ideology = ideology, OwnedNames = [.. names] };
+                : new RimGovernor.Brain.GameFacts.Observations.ColonyIdeology.NotInstalled();
+            return new RimGovernor.Brain.GameFacts.Observations.PopulationSnapshot { Persons = [.. persons], Ideology = ideology, OwnedNames = [.. names] };
         }
 
         // Custody owns resistance, interaction, time held and harvest goodwill. Health, surgery and care
         // stay on the canonical pawn. Recipe_RemoveBodyPart reports -70 to HomeFaction when one exists.
-        private static Obs.PersonCustody Custody(Pawn p, Faction player, Pawn_GuestTracker guest)
+        private static RimGovernor.Brain.GameFacts.Observations.PersonCustody Custody(Pawn p, Faction player, Pawn_GuestTracker guest)
         {
             if (p.IsPrisonerOfColony)
             {
@@ -90,7 +88,7 @@ namespace HomeBridge.BridgeTools
                 var goodwill = faction != null && player.CanChangeGoodwillFor(faction, -70)
                     ? Math.Max(player.CalculateAdjustedGoodwillChange(faction, -70), -100 - player.GoodwillWith(faction))
                     : 0;
-                return new Obs.PersonCustody.Prisoner(
+                return new RimGovernor.Brain.GameFacts.Observations.PersonCustody.Prisoner(
                     Number(guest.Resistance),
                     NativePawnObservationTools.Id(interaction.defName),
                     (long)records.GetValue(RecordDefOf.TimeAsPrisoner),
@@ -98,8 +96,8 @@ namespace HomeBridge.BridgeTools
                     goodwill);
             }
             if (p.HostFaction == player && !p.IsPrisoner && !p.IsSlave)
-                return new Obs.PersonCustody.Guest();
-            return new Obs.PersonCustody.None();
+                return new RimGovernor.Brain.GameFacts.Observations.PersonCustody.Guest();
+            return new RimGovernor.Brain.GameFacts.Observations.PersonCustody.None();
         }
 
         private static RimGovernor.Brain.Domain.PawnId PawnId(Pawn pawn) => new(NativePawnObservationTools.Id(pawn.GetUniqueLoadID()));

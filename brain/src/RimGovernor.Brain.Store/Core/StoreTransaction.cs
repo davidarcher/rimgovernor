@@ -15,12 +15,12 @@ public sealed class StoreTransaction : IDisposable, IAsyncDisposable
     private readonly SemaphoreSlim _gate;
     private bool _finished;
 
-    internal StoreTransaction(SqliteConnection connection, SemaphoreSlim gate, PlanCache plans, RoundsSlot rounds, RetirementFloors floors, CancellationToken cancellationToken)
+    internal StoreTransaction(SqliteConnection connection, SemaphoreSlim gate, PlanCache plans, ReviewSlot rounds, RetirementFloors floors, CancellationToken cancellationToken)
     {
         _connection = connection;
         _gate = gate;
         Plans = plans;
-        Rounds = rounds;
+        ReviewState = rounds;
         Floors = floors;
         Cancellation = cancellationToken;
     }
@@ -28,8 +28,8 @@ public sealed class StoreTransaction : IDisposable, IAsyncDisposable
     /// <summary>The decoded-plan cache; a plan read goes through <see cref="Store.LoadIn"/>, never around it.</summary>
     internal PlanCache Plans { get; }
 
-    /// <summary>The store's last validated review, read through <see cref="Store.LoadRounds(StoreTransaction)"/>.</summary>
-    internal RoundsSlot Rounds { get; }
+    /// <summary>The store's last validated review, read through <see cref="Store.LoadReview(StoreTransaction)"/>.</summary>
+    internal ReviewSlot ReviewState { get; }
 
     /// <summary>The retirement floors shared by every handle on this database path.</summary>
     internal RetirementFloors Floors { get; }
@@ -41,7 +41,7 @@ public sealed class StoreTransaction : IDisposable, IAsyncDisposable
     {
         RunStatement("COMMIT", []);
         Plans.Committed();
-        Rounds.Committed();
+        ReviewState.Committed();
         Finish();
     }
 
@@ -49,7 +49,7 @@ public sealed class StoreTransaction : IDisposable, IAsyncDisposable
     public int Execute(string sql, params (string Name, object? Value)[] parameters)
     {
         Plans.Observe(sql);
-        Rounds.Observe(sql);
+        ReviewState.Observe(sql);
         return RunStatement(sql, parameters);
     }
 
@@ -144,7 +144,7 @@ public sealed class StoreTransaction : IDisposable, IAsyncDisposable
     {
         RunStatement("ROLLBACK TO " + name, []);
         Plans.RolledBack();
-        Rounds.RolledBack();
+        ReviewState.RolledBack();
     }
 
     /// <summary>SQLite's data version, which changes when another connection commits.</summary>
@@ -170,7 +170,7 @@ public sealed class StoreTransaction : IDisposable, IAsyncDisposable
         finally
         {
             Plans.RolledBack();
-            Rounds.RolledBack();
+            ReviewState.RolledBack();
             Finish();
         }
     }
@@ -210,7 +210,7 @@ public sealed class StoreTransaction : IDisposable, IAsyncDisposable
             PlanId v => v.Value,
             PawnId v => v.Value,
             QuestId v => v.Value,
-            ConcernId v => v.Value,
+            FilingKey v => v.Value,
             MethodId v => v.Value,
             MapId v => v.Value,
             Tick v => v.Value,

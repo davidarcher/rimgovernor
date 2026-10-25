@@ -1,5 +1,4 @@
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -9,7 +8,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// </summary>
 internal static class PawnStateReads
 {
-    private sealed record Row(string Name, string Scope, Fx.StagePawn Pawn, Func<Observations.PawnState, bool> Read);
+    private sealed record Row(string Name, string Scope, Fx.StagePawn Pawn, Func<RimGovernor.Brain.GameFacts.Observations.PawnState, bool> Read);
 
     private static readonly Row[] Rows =
     [

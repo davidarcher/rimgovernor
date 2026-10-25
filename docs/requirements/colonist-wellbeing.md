@@ -46,7 +46,7 @@ surgery remain outcome-evidence questions. Evidence W1–W7.
 
 ## Evidence and inspection coverage
 
-- **W1 — Urgent care path.** [MedicalRounds](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsMedicalFamily.cs)
+- **W1 — Urgent care path.** [MedicalReview](../../brain/src/RimGovernor.Brain.Runtime/Review/MedicalFamily.cs)
   reads emergency patients and worker facts, routes tending/rescue through the
   critical patient's need and admits work with claims. Its ordinary pass also
   routes hospital, medicine and surgery work. [NativeTendOperations](../../integrations/rimgovernor-native/src/Bridge/Protocol/NativeTendOperations.cs)
@@ -66,7 +66,7 @@ babies, special diets and animal food connect to [food](food-security.md).
 ### W4 — Recovery, disease and surgery
 
 [MedicalRules.ReviewMedicalCare](../../brain/src/RimGovernor.Brain.Policy/MedicalCare.cs) tracks
-patient conditions and unresolved patients. [RoundsDisease](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsDisease.cs)
+patient conditions and unresolved patients. [Disease](../../brain/src/RimGovernor.Brain.Runtime/Review/Disease.cs)
 feeds medical rest into work demand and resets history when the world or timeline
 changes. Native health observations include severity, immunity and tending.
 [medical/plague-readback](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Medical/PlagueReadback.cs)
@@ -85,7 +85,7 @@ bed and recreation jobs and observes their lifecycle. Registered OnDemand
 requires sleep, waking and play under the served governor, with rested state
 injected between its cycles. [needs/recreation-gain](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Needs/NeedsRecreationGain.cs)
 checks legal native recreation targets and gain/capacity inputs.
-[RoundsBreak.ReconcileSubdueFightAsync](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsBreak.cs)
+[Break.ReconcileSubdueFightAsync](../../brain/src/RimGovernor.Brain.Runtime/Review/DefensePlanner.Break.cs)
 reads current threats and injuries before ending a subdue attempt and its drafts.
 [mood/subdue](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Mood/Subdue.cs)
 orders a prepared intervention and requires the target alive, free and downed or
@@ -117,7 +117,7 @@ planning support ([#4001](https://github.com/davidarcher/rimgovernor/issues/4001
 The native [mood/gathering](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Mood/Gathering.cs)
 case explicitly starts a Party and checks the organizer's participation; it
 does not remove the planner hold or assert a lasting mood benefit.
-[MilitaryRounds.EquipmentVerdict](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsMilitary.cs)
+[MilitaryReview.EquipmentVerdict](../../brain/src/RimGovernor.Brain.Runtime/Review/Military.cs)
 holds remaining apparel deficits after workshop work has no useful next step
 ([#4009](https://github.com/davidarcher/rimgovernor/issues/4009)). Clothing production
 is supported (W6), but the broad promise of recovered worn equipment is partial.

@@ -1,11 +1,9 @@
-using D = RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
-// #3623: the clothing runway replaces a wearing garment in the stuff tier 2 chose for the pawn's slot (RoundsFacts.ClothingStuff),
+// #3623: the clothing runway replaces a wearing garment in the stuff tier 2 chose for the pawn's slot (ReviewFacts.ClothingStuff),
 // the worn stuff where tier 2 chose none, so a hunt serves the demand only for the chosen leather.
 public sealed class ClothingChosenStuffTests
 {
@@ -18,13 +16,13 @@ public sealed class ClothingChosenStuffTests
     private static readonly Resource Cloth = new("Cloth");
 
     // p1 wears a tattered plain-leather parka; the parka takes 80 of any leather.
-    private static RoundsFacts Facts(params (GearSlot Slot, Resource Stuff)[] chosen) => new()
+    private static ReviewFacts Facts(params (GearSlot Slot, Resource Stuff)[] chosen) => new()
     {
         Gear = ColonyModelFixtures.NoGear() with
         {
             Pawns =
             [
-                new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new("p1") }, LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Observed = GearFixtures.Loadout(""), Body = EmergencyFixtures.Placed("").Settings.Body with { ComfortableMinC = 0, ComfortableMaxC = 0 }, Threat = ColonyModelFixtures.NoThreat, Worn = [new GearOption { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("worn1", Parka, (Plain).Value, GearSource.Worn) with { Condition = 0.4, Quality = new O.ItemQuality.Graded(D.QualityCategory.Awful) }), Slot = GearSlot.Outer }], Role = GearFixtures.Role }) },
+                new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new("p1") }, LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Observed = GearFixtures.Loadout(""), Body = EmergencyFixtures.Placed("").Settings.Body with { ComfortableMinC = 0, ComfortableMaxC = 0 }, Threat = ColonyModelFixtures.NoThreat, Worn = [new GearOption { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("worn1", Parka, (Plain).Value, GearSource.Worn) with { Condition = 0.4, Quality = new RimGovernor.Brain.GameFacts.Observations.ItemQuality.Graded(RimGovernor.Brain.GameFacts.Defs.QualityCategory.Awful) }), Slot = GearSlot.Outer }], Role = GearFixtures.Role }) },
             ],
         },
         Census = ColonyFactsCoreTests.Snapshot() with { Resources = [] },
@@ -33,8 +31,8 @@ public sealed class ClothingChosenStuffTests
     };
 
     private static AcquisitionSource Hunt(string id, Resource leather) =>
-        new() { Observed = new() { Source = new() { Id = id }, Token = id, Resource = "Meat_Deer", Yield = 1, Designation = new O.AcquisitionDesignation.Open(), Taken = false, Kind = new O.AcquisitionKind.Hunt(82, 1, false, false, false, false) },
-        Entity = new() { Id = id, DefName = id, Label = id, Place = new O.EntityPlace.OnMap(1, new Cell(0, 0)) }, NutritionYield = 4, Products = [new SourceProduct(leather, 40)] };
+        new() { Observed = new() { Source = new() { Id = id }, Token = id, Resource = "Meat_Deer", Yield = 1, Designation = new RimGovernor.Brain.GameFacts.Observations.AcquisitionDesignation.Open(), Taken = false, Kind = new RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Hunt(82, 1, false, false, false, false) },
+        Entity = new() { Id = id, DefName = id, Label = id, Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(1, new Cell(0, 0)) }, NutritionYield = 4, Products = [new SourceProduct(leather, 40)] };
 
     [Fact]
     public void TheRunwayDemandsTheChosenStuffNotTheWornOne()

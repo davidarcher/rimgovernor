@@ -4,7 +4,8 @@ using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Simulation.CombatDispatch;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -178,7 +179,7 @@ public static class SweepHunting
     private static (HuntEstimate? Estimate, string Refusal) Analytic(string? huntRead)
     {
         if (string.IsNullOrEmpty(huntRead)) return (null, "hunt_read_missing");
-        var read = JsonSerializer.Deserialize(huntRead, WireJsonContext.Default.HuntActivityRead) ?? throw new AcceptanceException("the hunt read does not decode");
+        var read = JsonSerializer.Deserialize(huntRead, OrdersJsonContext.Default.HuntActivityRead) ?? throw new AcceptanceException("the hunt read does not decode");
         var roster = new HuntRoster(EquatableArray.From(read.Hunters.Select(a => a.Pawn)), EquatableArray.From(read.Prey.Select(a => a.Pawn)));
         return HuntEstimator.Estimate(read, roster);
     }
@@ -261,7 +262,7 @@ internal sealed record HuntingNativeTrial
 
     public string? PredictorMods { get; init; }
 
-    /// <summary>The served hunt read of the scene before a shot, as wire JSON (<c>WireJsonContext</c>).</summary>
+    /// <summary>The served hunt read of the scene before a shot, as wire JSON (<c>OrdersJsonContext</c>).</summary>
     public string? HuntRead { get; init; }
 
     public bool InitialStateMatched { get; init; }

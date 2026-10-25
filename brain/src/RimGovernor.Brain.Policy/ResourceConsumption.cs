@@ -1,9 +1,8 @@
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
 // Realized consumption. Native counts what the colony's stock was spent on, per (definition, reason), into a
-// saved hourly ring (Obs.ConsumptionSnapshot); the brain holds the hours it was sent and reads a rate over any
+// saved hourly ring (RimGovernor.Brain.GameFacts.Observations.ConsumptionSnapshot); the brain holds the hours it was sent and reads a rate over any
 // window as a subtraction.
 
 /// <summary>The recurring spend over the span the ledger covers inside a rate window.</summary>
@@ -20,13 +19,13 @@ public sealed class ConsumptionLedger
     private bool _have;
     private int _through;
     private int _first;
-    private Dictionary<int, EquatableArray<Obs.ConsumptionRow>>? _hours;
+    private Dictionary<int, EquatableArray<RimGovernor.Brain.GameFacts.Observations.ConsumptionRow>>? _hours;
 
     /// <summary>The hour to pass native: the last completed hour held, or -1 for the whole window.</summary>
     public int Since() => _have ? _through : -1;
 
     /// <summary>Folds one read in. Every hour up to CurrentHour-1 is now held, listed or not.</summary>
-    public void Merge(Obs.ConsumptionSnapshot p)
+    public void Merge(RimGovernor.Brain.GameFacts.Observations.ConsumptionSnapshot p)
     {
         _hours ??= [];
         foreach (var h in p.Hours)

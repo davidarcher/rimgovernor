@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using HomeBridge.BridgeTools;
+using RimGovernor.Native;
 
 // Team-composition policy on constructed pawn facts.
 internal static class NativeTeamPolicyProbe

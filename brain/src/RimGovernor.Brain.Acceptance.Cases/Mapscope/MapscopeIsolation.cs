@@ -1,12 +1,7 @@
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Control = RimGovernor.Contracts.Wire.Authority;
+using RimGovernor.Brain.GameAccess;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Presentation = RimGovernor.Contracts.Wire.Presentation;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -72,7 +67,7 @@ internal static class MapscopeIsolation
         _ = await s.FixtureAsync("view-second", View, second.MapId, cancellationToken).ConfigureAwait(false);
         var afterSwitch = await TypedAuthority.StatusAsync(s, "status-after-switch", home, cancellationToken).ConfigureAwait(false);
         s.RecordWire("status_after_switch", afterSwitch);
-        if (afterSwitch.State?.Inactive?.Reason != Control.RevocationReason.IdentityChanged
+        if (afterSwitch.State?.Inactive?.Reason != RimGovernor.Brain.GameFacts.Authority.RevocationReason.IdentityChanged
             || afterSwitch.Context?.NativeGeneration.IsAt((beforeSwitch.Context ?? throw new AcceptanceException("status-after-generate: no context")).NativeGeneration.Claimed("status-after-generate: no generation") + 1) != true)
         {
             throw new AcceptanceException($"status-after-switch: want Inactive(IDENTITY_CHANGED) after generation {beforeSwitch.Context?.NativeGeneration}, got {afterSwitch}");
@@ -82,30 +77,30 @@ internal static class MapscopeIsolation
         await StatusOnAsync(s, "status-second-while-second-viewed", second, cancellationToken).ConfigureAwait(false);
 
         // The roster carries map ids: every colonist is on the home map, and none on the second.
-        var roster = await RosterAsync(s, "roster", new Presentation.ColonistRosterRequest { Identity = home, CurrentMapOnly = false }, cancellationToken).ConfigureAwait(false);
+        var roster = await RosterAsync(s, "roster", new RimGovernor.Brain.GameOrders.Presentation.ColonistRosterRequest { Identity = home, CurrentMapOnly = false }, cancellationToken).ConfigureAwait(false);
         if (roster.Count == 0 || roster.Any(row => row.MapId != home.MapId))
         {
             throw new AcceptanceException($"roster: want colonists all on map {home.MapId}, got {string.Join("; ", roster)}");
         }
 
-        var secondOnly = await RosterAsync(s, "roster-second-only", new Presentation.ColonistRosterRequest { Identity = second, CurrentMapOnly = true }, cancellationToken).ConfigureAwait(false);
+        var secondOnly = await RosterAsync(s, "roster-second-only", new RimGovernor.Brain.GameOrders.Presentation.ColonistRosterRequest { Identity = second, CurrentMapOnly = true }, cancellationToken).ConfigureAwait(false);
         if (secondOnly.Count != 0)
         {
             throw new AcceptanceException($"roster-second-only: want no colonists on the generated map, got {secondOnly.Count}");
         }
 
-        // Presentation state lives on the viewed map: the home identity is stale there (the HTTP refusal carries its code
+        // RimGovernor.Brain.GameFacts.Presentation state lives on the viewed map: the home identity is stale there (the HTTP refusal carries its code
         // and detail, not the viewed map's context); the second identity passes the identity check (a snapshot when
         // rendered, the graphical-only refusal headless).
         await TypedLifecycle.ExpectRefusedAsync(
             "selection-home-while-second-viewed",
-            () => s.CallAsync("selection-home-while-second-viewed", NativeOps.ReadSelection, new Presentation.ReadRequest { Identity = home }, cancellationToken),
-            Common.FailureCode.StaleIdentity).ConfigureAwait(false);
+            () => s.CallAsync("selection-home-while-second-viewed", NativeOps.ReadSelection, new RimGovernor.Brain.GameOrders.Presentation.ReadRequest { Identity = home }, cancellationToken),
+            RimGovernor.Brain.GameFacts.Common.FailureCode.StaleIdentity).ConfigureAwait(false);
         try
         {
-            _ = await s.CallAsync("selection-second-while-second-viewed", NativeOps.ReadSelection, new Presentation.ReadRequest { Identity = second }, cancellationToken).ConfigureAwait(false);
+            _ = await s.CallAsync("selection-second-while-second-viewed", NativeOps.ReadSelection, new RimGovernor.Brain.GameOrders.Presentation.ReadRequest { Identity = second }, cancellationToken).ConfigureAwait(false);
         }
-        catch (NativeFailureException e) when (e.Value.Code == Common.FailureCode.Unavailable)
+        catch (NativeFailureException e) when (e.Value.Code == RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable)
         {
             s.RecordWire("selection-second-headless-refusal", e.Value);
         }
@@ -113,7 +108,7 @@ internal static class MapscopeIsolation
         // An identity naming a map that is not loaded is stale, with the viewed map's context to re-anchor on.
         try
         {
-            var gone = await s.CallAsync("status-unloaded-map", NativeOps.ReadStatus, new Observations.StatusRequest { Scope = new() { ExpectedIdentity = home with { MapId = 987654 } } }, cancellationToken).ConfigureAwait(false);
+            var gone = await s.CallAsync("status-unloaded-map", NativeOps.ReadStatus, new RimGovernor.Brain.GameOrders.Observations.StatusRequest { Scope = new() { ExpectedIdentity = home with { MapId = 987654 } } }, cancellationToken).ConfigureAwait(false);
             throw new AcceptanceException($"status-unloaded-map: want STALE_IDENTITY, got a census {gone.Context}");
         }
         catch (NativeFailureException e)
@@ -129,10 +124,10 @@ internal static class MapscopeIsolation
         var draft = await s.CallAsync(
             "draft",
             NativeOps.Apply,
-            new Operations.ApplyRequest
+            new RimGovernor.Brain.GameOrders.Operations.ApplyRequest
             {
                 Identity = home,
-                Actions = [new Operations.Action { Key = "mapscope-draft-1", Intent = new Operations.DraftIntent { PawnId = colonist, Drafted = true } }], DeferSnapshot = false },
+                Actions = [new RimGovernor.Brain.GameOrders.Operations.Action { Key = "mapscope-draft-1", Intent = new RimGovernor.Brain.GameOrders.Operations.DraftIntent { PawnId = colonist, Drafted = true } }], DeferSnapshot = false },
             cancellationToken).ConfigureAwait(false);
         var receipt = draft.Results.ToList() is [{ Outcome.Applied: { } applied }] ? applied : throw new AcceptanceException($"draft: want one applied result, got {draft.BatchFailure} {string.Join("; ", draft.Results)}");
         s.RecordWire("draft", receipt);
@@ -145,37 +140,37 @@ internal static class MapscopeIsolation
         var pawns = await s.CallAsync(
             "pawn-after",
             NativeOps.ListPawns,
-            new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new Observations.PawnFilter { Ids = [colonist], Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only } },
+            new RimGovernor.Brain.GameOrders.Observations.ListPawnsRequest { Scope = s.Scope, Filter = new RimGovernor.Brain.GameFacts.Observations.PawnFilter { Ids = [colonist], Colonist = RimGovernor.Brain.GameFacts.Observations.PawnMembership.Only } },
             cancellationToken).ConfigureAwait(false);
         var rows = pawns.Pawns.ToList();
-        if (rows is not [{ Drafted: true } after] || after.Pawn.Place is not RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap { MapId: var afterMap } || afterMap != home.MapId || after.PawnSnapshot?.Token != job.ResultingSnapshotToken)
+        if (rows is not [{ Drafted: true } after] || after.Pawn.Place is not RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap { MapId: var afterMap } || afterMap != home.MapId || after.PawnSnapshot?.Token != job.ResultingSnapshotToken)
         {
             throw new AcceptanceException($"pawn-after: want {colonist} drafted on map {home.MapId} with the receipt's snapshot token {job.ResultingSnapshotToken}, got {string.Join("; ", rows)}");
         }
     }
 
-    private static async Task<IReadOnlyList<Presentation.ColonistReference>> RosterAsync(TypedSession s, string label, Presentation.ColonistRosterRequest request, CancellationToken cancellationToken)
+    private static async Task<IReadOnlyList<RimGovernor.Brain.GameFacts.Presentation.ColonistReference>> RosterAsync(TypedSession s, string label, RimGovernor.Brain.GameOrders.Presentation.ColonistRosterRequest request, CancellationToken cancellationToken)
     {
         var roster = await s.CallAsync(label, NativeOps.ReadColonists, request, cancellationToken).ConfigureAwait(false);
         return roster.Colonists.ToList();
     }
 
     // A STALE_IDENTITY refusal carrying the viewed map's context.
-    private static void StaleOn(string label, Common.Failure? failure, int viewedMap, object? reply)
+    private static void StaleOn(string label, RimGovernor.Brain.GameFacts.Common.Failure? failure, int viewedMap, object? reply)
     {
-        if (failure?.Code != Common.FailureCode.StaleIdentity || failure.ObservedContext?.Identity.MapId != viewedMap)
+        if (failure?.Code != RimGovernor.Brain.GameFacts.Common.FailureCode.StaleIdentity || failure.ObservedContext?.Identity.MapId != viewedMap)
         {
             throw new AcceptanceException($"{label}: want STALE_IDENTITY observed on map {viewedMap}, got {reply}");
         }
     }
 
     // observations_read_status for identity answers with that identity's map in its context, whichever map is viewed.
-    private static async Task StatusOnAsync(TypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
+    private static async Task StatusOnAsync(TypedSession s, string label, RimGovernor.Brain.GameFacts.Common.Identity identity, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(
             label,
             NativeOps.ReadStatus,
-            new Observations.StatusRequest { Scope = new() { ExpectedIdentity = identity } },
+            new RimGovernor.Brain.GameOrders.Observations.StatusRequest { Scope = new() { ExpectedIdentity = identity } },
             cancellationToken).ConfigureAwait(false);
         if (reply.Context.Identity.MapId != identity.MapId)
         {

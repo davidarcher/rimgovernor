@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using System.Diagnostics;
 using RimGovernor.Brain.Policy;
 using Xunit;
@@ -20,7 +19,7 @@ public sealed class ColonyModelTests
             new ModelNeed { Kind = "food", Fall = 0.00002, Threshold = 0.3, Service = new ModelService.Observed(0.6, 400.0, 100.0), Gain = 0 },
             new ModelNeed { Kind = "joy", Fall = 0.00001, Gain = 0.00015, Threshold = 0.3, Service = new ModelService.NoneObserved() },
         }),
-        Skills = EquatableArray.From(new[] { new O.Skill { Passion = O.Passion.None, DefName = "Plants", Level = 10 } }),
+        Skills = EquatableArray.From(new[] { new RimGovernor.Brain.GameFacts.Observations.Skill { Passion = RimGovernor.Brain.GameFacts.Observations.Passion.None, DefName = "Plants", Level = 10 } }),
         ComfortableMin = 16.0,
         ComfortableMax = 26.0,
         Consciousness = 1.0,

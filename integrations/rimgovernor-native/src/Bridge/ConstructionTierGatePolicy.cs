@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Pure comparison for the construction-tier delivery gate (#2523). No Verse types,
     // so the contract probe compiles it directly.

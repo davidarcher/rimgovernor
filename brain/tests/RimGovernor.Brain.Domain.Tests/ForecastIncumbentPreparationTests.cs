@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -19,7 +20,7 @@ public sealed class ForecastIncumbentPreparationTests
         Assert.Same(facts.WorkView, prepared.WorkView);
     }
 
-    private static (RoundsFacts Facts, WorkActionCensus Actions) Current()
+    private static (ReviewFacts Facts, WorkActionCensus Actions) Current()
     {
         var facts = ForecastCoupledSelectionTests.Review();
         var step = new PawnActivityStep(PawnActivityKind.Recreation, "pin", "", "", 0, 1000);
@@ -180,7 +181,7 @@ public sealed class ForecastIncumbentPreparationTests
         Assert.Contains("pawn", prepared.WorkView!.Claims.Pawns);
     }
 
-    private static (RoundsFacts Facts, WorkActionCensus Actions) FutureRest(bool tombstone = false)
+    private static (ReviewFacts Facts, WorkActionCensus Actions) FutureRest(bool tombstone = false)
     {
         var (facts, initial) = Current();
         var row = initial.Actions[0]; var batch = row.Action.PawnActivities!;
@@ -253,7 +254,7 @@ public sealed class ForecastIncumbentPreparationTests
     /// pawn's 0; the poisoning chances are unknown when NaN. <paramref name="finished"/>: pawn finished its recipe and another
     /// is left. <paramref name="busy"/>: a second participant "busy" is mid-task on a recipe that is independent of pawn's,
     /// "depends" on pawn's next recipe, or "shares" its bill.</summary>
-    private static (RoundsFacts Facts, WorkActionCensus Actions) BoundaryCooking(double helperTicks, string state = "holding",
+    private static (ReviewFacts Facts, WorkActionCensus Actions) BoundaryCooking(double helperTicks, string state = "holding",
         double helperApproach = 0, double pawnPoison = 0, double helperPoison = 0, bool finished = false, string busy = "")
     {
         var conversion = ForecastPortfolioChoiceTests.Conversion("rice", "Rice", "CookRice", 100)

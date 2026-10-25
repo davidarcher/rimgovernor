@@ -1,62 +1,60 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Authority = RimGovernor.Contracts.Wire.Authority;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class NativeAuthorityTools
     {
 
         // On the game thread: the status read of the in-process facade. A refusal throws.
-        internal static Authority.Status HandleReadStatus(Authority.StatusRequest parsed)
+        internal static RimGovernor.Brain.GameFacts.Authority.Status HandleReadStatus(RimGovernor.Brain.GameOrders.Authority.StatusRequest parsed)
         {
             // The game this identity names has exited or been unloaded: its
             // retained final authority is the only thing left to report,
             // and is how a controller sees REVOCATION_REASON_SHUTDOWN.
-            if (Current.Game == null && ProtoBoundary.Complete(parsed.Identity)
+            if (Current.Game == null && GameThread.Complete(parsed.Identity)
                 && NativeControlAuthority.LastShutdown is NativeControlShutdown shutdown
                 && shutdown.Matches(parsed.Identity.ColonyId, parsed.Identity.LoadToken, parsed.Identity.MapId))
                 return ProjectShutdown(shutdown, parsed.Identity);
-            if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
+            if (!GameThread.ValidateIdentity(parsed.Identity, out var context, out var invalid))
                 throw NativeFaults.Refused(invalid);
             var game = Current.Game;
             if (game == null)
-                throw NativeFaults.Refused(new Common.Failure { RefusalClass = RimGovernor.Contracts.Wire.Common.RefusalClass.Unclassified, Code = Common.FailureCode.Unavailable, Detail = "No game is loaded." });
+                throw NativeFaults.Refused(new RimGovernor.Brain.GameFacts.Common.Failure { RefusalClass = RimGovernor.Brain.GameFacts.Common.RefusalClass.Unclassified, Code = RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, Detail = "No game is loaded." });
             if (!NativeControlAuthority.TryGetForGame(game, out var state) || state == null)
-                return new Authority.Status
+                return new RimGovernor.Brain.GameFacts.Authority.Status
                 {
                     Context = context,
-                    State = new Common.Unavailable { Reason = Common.UnavailableReason.NotObserved,
+                    State = new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.NotObserved,
                         Detail = "Native control hooks and trusted admission have not been initialized." }
                 };
             return Project(state.Status(), context);
         }
 
         // This projection does not initialize hooks or grant authority.
-        internal static Authority.Status Project(NativeControlSnapshot snapshot, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Authority.Status Project(NativeControlSnapshot snapshot, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
-            var status = new Authority.Status { Context = context };
-            status = status with { Context = context with { NativeGeneration = new Common.ObservedGeneration.AtCase(snapshot.Generation) } };
+            var status = new RimGovernor.Brain.GameFacts.Authority.Status { Context = context };
+            status = status with { Context = context with { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase(snapshot.Generation) } };
             if (!snapshot.Available)
             {
-                status = status with { State = new Authority.StatusState.UnavailableCase(Unavailable(snapshot)) };
+                status = status with { State = new RimGovernor.Brain.GameFacts.Authority.StatusState.UnavailableCase(Unavailable(snapshot)) };
                 return status;
             }
             if (snapshot.Active)
             {
-                status = status with { State = new Authority.StatusState.ActiveCase(new Authority.ActiveAuthority { Mode = Authority.Mode.Auto }) };
+                status = status with { State = new RimGovernor.Brain.GameFacts.Authority.StatusState.ActiveCase(new RimGovernor.Brain.GameFacts.Authority.ActiveAuthority { Mode = RimGovernor.Brain.GameFacts.Authority.Mode.Auto }) };
                 return status;
             }
             if (TryReason(snapshot.Reason, out var reason))
-                status = status with { State = new Authority.StatusState.InactiveCase(new Authority.InactiveAuthority { Reason = reason }) };
+                status = status with { State = new RimGovernor.Brain.GameFacts.Authority.StatusState.InactiveCase(new RimGovernor.Brain.GameFacts.Authority.InactiveAuthority { Reason = reason }) };
             else
-                status = status with { State = new Authority.StatusState.UnavailableCase(new Common.Unavailable
+                status = status with { State = new RimGovernor.Brain.GameFacts.Authority.StatusState.UnavailableCase(new RimGovernor.Brain.GameFacts.Common.Unavailable
                 {
-                    Reason = Common.UnavailableReason.ReadFailed,
+                    Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed,
                     Detail = "Native authority status could not be represented."
                 }) };
             return status;
@@ -64,35 +62,35 @@ namespace HomeBridge.BridgeTools
 
         // The retained state of an exited or unloaded game: inactive with its
         // final reason at its final generation, anchored to the tick it ended on.
-        internal static Authority.Status ProjectShutdown(NativeControlShutdown shutdown, Common.Identity identity)
+        internal static RimGovernor.Brain.GameFacts.Authority.Status ProjectShutdown(NativeControlShutdown shutdown, RimGovernor.Brain.GameFacts.Common.Identity identity)
         {
-            var status = new Authority.Status { Context = new Common.ObservationContext
+            var status = new RimGovernor.Brain.GameFacts.Authority.Status { Context = new RimGovernor.Brain.GameFacts.Common.ObservationContext
             {
-                Identity = identity, Tick = shutdown.Tick, NativeGeneration = new Common.ObservedGeneration.AtCase(shutdown.Generation),
+                Identity = identity, Tick = shutdown.Tick, NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase(shutdown.Generation),
             } };
             if (TryReason(shutdown.Reason, out var reason))
-                status = status with { State = new Authority.StatusState.InactiveCase(new Authority.InactiveAuthority { Reason = reason }) };
+                status = status with { State = new RimGovernor.Brain.GameFacts.Authority.StatusState.InactiveCase(new RimGovernor.Brain.GameFacts.Authority.InactiveAuthority { Reason = reason }) };
             else
-                status = status with { State = new Authority.StatusState.UnavailableCase(new Common.Unavailable
+                status = status with { State = new RimGovernor.Brain.GameFacts.Authority.StatusState.UnavailableCase(new RimGovernor.Brain.GameFacts.Common.Unavailable
                 {
-                    Reason = Common.UnavailableReason.ReadFailed,
+                    Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed,
                     Detail = "Native authority status could not be represented."
                 }) };
             return status;
         }
 
-        private static Common.Unavailable Unavailable(NativeControlSnapshot snapshot)
+        private static RimGovernor.Brain.GameFacts.Common.Unavailable Unavailable(NativeControlSnapshot snapshot)
         {
             if (snapshot.Identity == null)
-                return new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "No current native authority context is loaded." };
+                return new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.NotLoaded, Detail = "No current native authority context is loaded." };
             switch (snapshot.Reason)
             {
                 case NativeControlRevocationReason.GenerationExhausted:
-                    return new Common.Unavailable { Reason = Common.UnavailableReason.LimitExceeded, Detail = "Native authority generation is exhausted." };
+                    return new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.LimitExceeded, Detail = "Native authority generation is exhausted." };
                 case NativeControlRevocationReason.ClockUnavailable:
-                    return new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "The native monotonic authority clock is unavailable." };
+                    return new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.ReadFailed, Detail = "The native monotonic authority clock is unavailable." };
                 default:
-                    return new Common.Unavailable { Reason = Common.UnavailableReason.NotObserved, Detail = "Native control hooks and trusted admission have not been verified." };
+                    return new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.NotObserved, Detail = "Native control hooks and trusted admission have not been verified." };
             }
         }
 
@@ -100,21 +98,21 @@ namespace HomeBridge.BridgeTools
         // fault permanently clears Available); it maps to the wire's generic
         // Unavailable=10 value, which the proto documents as covering exactly this
         // kind of terminal "not active, not a detected player action" reason.
-        private static bool TryReason(NativeControlRevocationReason source, out Authority.RevocationReason result)
+        private static bool TryReason(NativeControlRevocationReason source, out RimGovernor.Brain.GameFacts.Authority.RevocationReason result)
         {
             switch (source)
             {
-                case NativeControlRevocationReason.None: result = Authority.RevocationReason.None; return true;
-                case NativeControlRevocationReason.Manual: result = Authority.RevocationReason.Manual; return true;
-                case NativeControlRevocationReason.ExternalOrder: result = Authority.RevocationReason.ExternalOrder; return true;
-                case NativeControlRevocationReason.PlayerControl: result = Authority.RevocationReason.PlayerControl; return true;
-                case NativeControlRevocationReason.IdentityChanged: result = Authority.RevocationReason.IdentityChanged; return true;
-                case NativeControlRevocationReason.Disconnect: result = Authority.RevocationReason.Disconnect; return true;
-                case NativeControlRevocationReason.Shutdown: result = Authority.RevocationReason.Shutdown; return true;
-                case NativeControlRevocationReason.HooksUnavailable: result = Authority.RevocationReason.HooksUnavailable; return true;
-                case NativeControlRevocationReason.GenerationExhausted: result = Authority.RevocationReason.GenerationExhausted; return true;
-                case NativeControlRevocationReason.ClockUnavailable: result = Authority.RevocationReason.Unavailable; return true;
-                default: result = Authority.RevocationReason.None; return false;
+                case NativeControlRevocationReason.None: result = RimGovernor.Brain.GameFacts.Authority.RevocationReason.None; return true;
+                case NativeControlRevocationReason.Manual: result = RimGovernor.Brain.GameFacts.Authority.RevocationReason.Manual; return true;
+                case NativeControlRevocationReason.ExternalOrder: result = RimGovernor.Brain.GameFacts.Authority.RevocationReason.ExternalOrder; return true;
+                case NativeControlRevocationReason.PlayerControl: result = RimGovernor.Brain.GameFacts.Authority.RevocationReason.PlayerControl; return true;
+                case NativeControlRevocationReason.IdentityChanged: result = RimGovernor.Brain.GameFacts.Authority.RevocationReason.IdentityChanged; return true;
+                case NativeControlRevocationReason.Disconnect: result = RimGovernor.Brain.GameFacts.Authority.RevocationReason.Disconnect; return true;
+                case NativeControlRevocationReason.Shutdown: result = RimGovernor.Brain.GameFacts.Authority.RevocationReason.Shutdown; return true;
+                case NativeControlRevocationReason.HooksUnavailable: result = RimGovernor.Brain.GameFacts.Authority.RevocationReason.HooksUnavailable; return true;
+                case NativeControlRevocationReason.GenerationExhausted: result = RimGovernor.Brain.GameFacts.Authority.RevocationReason.GenerationExhausted; return true;
+                case NativeControlRevocationReason.ClockUnavailable: result = RimGovernor.Brain.GameFacts.Authority.RevocationReason.Unavailable; return true;
+                default: result = RimGovernor.Brain.GameFacts.Authority.RevocationReason.None; return false;
             }
         }
     }

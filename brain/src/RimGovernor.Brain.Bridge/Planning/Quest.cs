@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
-using O = RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameAccess;
 using PawnId = RimGovernor.Brain.Domain.PawnId;
 
 
@@ -11,13 +10,13 @@ public static class QuestReads
 {
 
     /// <summary>The actual loaded site's extraction crew on this map; none without an able crew or a loaded site.</summary>
-    public static O.ExtractionCrew? CombatSiteExitOf(RimGovernor.Contracts.Wire.Observations.WorldProgressionSnapshot? read, MapId mapId)
+    public static RimGovernor.Brain.GameFacts.Observations.ExtractionCrew? CombatSiteExitOf(RimGovernor.Brain.GameFacts.Observations.WorldProgressionSnapshot? read, MapId mapId)
     {
         foreach (var site in read?.Sites ?? [])
         {
-            if (site.Place is O.SitePlace.Loaded loaded && loaded.Map.Id == mapId)
+            if (site.Place is RimGovernor.Brain.GameFacts.Observations.SitePlace.Loaded loaded && loaded.Map.Id == mapId)
             {
-                return loaded.Map.Extraction is O.QuestSiteExtraction.Crew crew
+                return loaded.Map.Extraction is RimGovernor.Brain.GameFacts.Observations.QuestSiteExtraction.Crew crew
                     ? crew.Value
                     : null;
             }
@@ -27,7 +26,7 @@ public static class QuestReads
 
 
     /// <summary>Every caravan on the world map and every caravan being formed on the home map.</summary>
-    internal static EquatableArray<ExpeditionTrip> FrameExpeditionTrips(RimGovernor.Contracts.Wire.Observations.WorldProgressionSnapshot read, MapId home)
+    internal static EquatableArray<ExpeditionTrip> FrameExpeditionTrips(RimGovernor.Brain.GameFacts.Observations.WorldProgressionSnapshot read, MapId home)
     {
         var rows = new List<ExpeditionTrip>();
         foreach (var caravan in read.Caravans)
@@ -47,7 +46,7 @@ public static class QuestReads
 
 
     /// <summary>Derives the open meeting's protection on each read; rescue and ordinary tending stay available when operations are excluded.</summary>
-    internal static RoundsFacts StampQuestGuestProtection(RoundsFacts f)
+    internal static ReviewFacts StampQuestGuestProtection(ReviewFacts f)
     {
         var ids = QuestHospitality.ProtectedQuestGuestIds(f);
         var custody = new List<CustodyFacts>(f.Population.Custody.Count);
@@ -69,7 +68,7 @@ public static class QuestReads
     }
 
 
-    internal static RoundsFacts StampQuestRefugees(RoundsFacts f)
+    internal static ReviewFacts StampQuestRefugees(ReviewFacts f)
     {
         var refugees = QuestRefugees.QuestRefugeeIds(f);
         var custody = new List<CustodyFacts>(f.Population.Custody.Count);
@@ -87,7 +86,7 @@ public static class QuestReads
     /// the map is not the home map, the emergency census is incomplete, the work pawns are unread, or the defender roster
     /// misses a fighter.
     /// </summary>
-    internal static QuestPawns FrameQuestPawns(RimGovernor.Contracts.Wire.Observations.WorldProgressionSnapshot read, MapId current, EmergencyFacts emergency, EquatableArray<DefenderStrength> defenders, WorkPawnsRead workPawns)
+    internal static QuestPawns FrameQuestPawns(RimGovernor.Brain.GameFacts.Observations.WorldProgressionSnapshot read, MapId current, EmergencyFacts emergency, EquatableArray<DefenderStrength> defenders, WorkPawnsRead workPawns)
     {
         foreach (var m in read.Maps)
         {
@@ -127,7 +126,7 @@ public static class QuestReads
     }
 
     /// <summary>The living colonists on the home map who are not away with a caravan.</summary>
-    private static int ColonistsAtHome(RimGovernor.Contracts.Wire.Observations.WorldProgressionSnapshot read, O.WorldMap row, EmergencyFacts emergency)
+    private static int ColonistsAtHome(RimGovernor.Brain.GameFacts.Observations.WorldProgressionSnapshot read, RimGovernor.Brain.GameFacts.Observations.WorldMap row, EmergencyFacts emergency)
     {
         var away = new HashSet<PawnId>(read.Caravans.SelectMany(caravan => caravan.Crew()));
         var present = new HashSet<PawnId>(row.Colonists());

@@ -1,6 +1,8 @@
 using RimGovernor.Brain.Domain;
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -15,7 +17,7 @@ public sealed class CoupledReadWireTests
         foreach (var stock in stocks)
         {
             var target = NeedsFixtures.Service("pin", "joy", 0d, .01) with { Stock = stock, MaxPawns = 3 };
-            Assert.Equal(target, WireJson.Deserialize<NeedTarget>(WireJson.Serialize(target)));
+            Assert.Equal(target, OrdersJson.Deserialize<NeedTarget>(OrdersJson.Serialize(target)));
         }
     }
 
@@ -44,7 +46,7 @@ public sealed class CoupledReadWireTests
                         { Medicine = null, Treatment = CoupledFixtures.Surgery(new("bill", "operation", []), quality: .9) }],
             },
         };
-        var back = WireJson.Deserialize<CoupledForecastRead>(WireJson.Serialize(read));
+        var back = OrdersJson.Deserialize<CoupledForecastRead>(OrdersJson.Serialize(read));
         Assert.Equal(read.Routes, back.Routes);
         Assert.Equal(read.FoodSources, back.FoodSources);
         Assert.Equal(read.FoodConversions, back.FoodConversions);
@@ -58,12 +60,12 @@ public sealed class CoupledReadWireTests
     public void TheForecastReadRequiresItsCoupledRead()
     {
         var forecast = new ForecastFacts { Needs = NeedsFixtures.Empty, Coupled = CoupledFixtures.Empty, CombinedFoodSupply = new() { Consumers = [], Stocks = [], Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] } }, Patients = [new() { PawnId = "p", MoodTarget = .5 }] };
-        var json = WireJson.Serialize(forecast);
-        var back = WireJson.Deserialize<ForecastFacts>(json);
+        var json = OrdersJson.Serialize(forecast);
+        var back = OrdersJson.Deserialize<ForecastFacts>(json);
         Assert.Equal(forecast.Patients, back.Patients);
         Assert.Equal(forecast.CombinedFoodSupply, back.CombinedFoodSupply);
         var node = System.Text.Json.Nodes.JsonNode.Parse(json)!.AsObject();
         node.Remove("coupled");
-        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<ForecastFacts>(node.ToJsonString()));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => OrdersJson.Deserialize<ForecastFacts>(node.ToJsonString()));
     }
 }

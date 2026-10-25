@@ -15,7 +15,7 @@ public sealed class ProductFoodTests
     private static ProductionBench Bench(ProductionProduct product, int target) => ProductionBenchFixtures.Cooking("stove", "ElectricStove", "stove-token", true) with
     {
         Recipes = [new ProductionRecipe { Access = ProductionBenchFixtures.Recipe("Cook"), Food = new RecipeFood.NotFood(), Products = [product] }],
-        Bills = [new ExistingProductionBill { Observed = BillWire.Bill("bill") with { Recipe = "Cook", RepeatMode = RimGovernor.Contracts.Wire.Operations.RepeatMode.Target, TargetCount = target } }],
+        Bills = [new ExistingProductionBill { Observed = BillWire.Bill("bill") with { Recipe = "Cook", RepeatMode = RimGovernor.Brain.GameFacts.Operations.RepeatMode.Target, TargetCount = target } }],
     };
 
     [Fact]

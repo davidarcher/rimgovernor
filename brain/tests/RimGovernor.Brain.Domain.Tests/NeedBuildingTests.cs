@@ -1,6 +1,6 @@
 using System.Reflection;
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
@@ -28,14 +28,14 @@ public sealed class NeedBuildingTests
     private static readonly NeedId ColdRoom = NeedId.Of(FoodStoresRules.FoodStoresFamilyId, "room", "a");
 
     /// <summary>The native the planner previews against: every building placement is ready.</summary>
-    public interface ITestNative : IRoundsSource, IRoundsWorkBenchSource, IRoundsBuildingSource;
+    public interface ITestNative : IReviewSource, IReviewWorkBenchSource, IReviewBuildingSource;
 
 #pragma warning disable CA1852 // DispatchProxy derives the proxy from its base, so the base cannot be sealed
     private class Native : DispatchProxy
     {
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
-            if (targetMethod?.Name != nameof(IRoundsBuildingSource.PreviewBuildingAsync))
+            if (targetMethod?.Name != nameof(IReviewBuildingSource.PreviewBuildingAsync))
             {
                 throw new NotSupportedException(targetMethod?.Name + " is outside the building rig");
             }
@@ -239,7 +239,7 @@ public sealed class NeedBuildingTests
         facts = facts with
         {
 
-            Census = (facts.Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "WoodLog", Units = 1000 }] },   FieldCoverage = 1.0,
+            Census = (facts.Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 }) with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "WoodLog", Units = 1000 }] },   FieldCoverage = 1.0,
             WorkAdmission = facts.WorkAdmission with
             {
                 Buildings = [
@@ -249,16 +249,16 @@ public sealed class NeedBuildingTests
                     new("SimpleResearchBench", "WoodLog", [new(new("WoodLog"), 75)]) { Size = new Cell(1, 1) }],
             },
         };
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.Review(new() { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
         var timeout = TimeSpan.FromSeconds(10);
         var player = Player.Create(new PlayerConfig(timeout, timeout), journal, new Session(), new Worlds(), ct);
         var native = DispatchProxy.Create<ITestNative, Native>();
-        var planner = new RoundsBuildingPlanner
+        var planner = new BuildingPlanner
         {
-            Reviewer = new Rounder(player, native, new Clock(), RoundsRules.DefaultRoundsPolicy(), TimeSpan.FromSeconds(30)),
+            Reviewer = new ColonyReview(player, native, new Clock(), Rules.DefaultPlannerSettings(), TimeSpan.FromSeconds(30)),
             Native = native,
         };
-        var reading = new RoundsReading
+        var reading = new ReviewReading
         {
             Emergency = new(),
             Frame = new(),
@@ -289,7 +289,7 @@ public sealed class NeedBuildingTests
         Colony? colony = null;
         var runner = new FamilyRunner<bool>(family ?? new RoomsFamily(), (_, _) => Task.FromResult(colony!.Overlap), null, async (work, _, call) =>
         {
-            var review = await journal.LoadRoundsAsync(call);
+            var review = await journal.LoadReviewAsync(call);
             var read = reading with { Reading = reading.Reading with { Facts = reading.Reading.Facts with { CurrentConstruction = colony!.Census } } };
             if (work.Need.Id == FoodStoresRules.RefrigerationNeed || work.Need.Id == EconomyFamily.Research)
             {
@@ -306,7 +306,7 @@ public sealed class NeedBuildingTests
                 var building = cooler ? new Building("Cooler", new(20, 20), Rotation.North, "") : new Building("SimpleResearchBench", new(30, 30), Rotation.North, "WoodLog");
                 var action = DomainAction.NewBuildingAction(new ActionId(snapshot.Plan.Value + "-0"), building, ConstructionTierRules.PlannerTier(work.Need.Id.FilingKey, Phase.None));
                 var preview = new Preview { Action = action, Snapshot = snapshot, CanPlace = true, SafeToPlace = true, Source = PreviewTestFacts.Source(action.Building!.Cell), Footprint = [action.Building!.Cell], Costs = [] };
-                var admitted = await planner.AdmitPreviewsAsync(new RoundsAdmission
+                var admitted = await planner.AdmitPreviewsAsync(new ReviewAdmission
                 {
                     State = work.State,
                     Review = review,
@@ -316,7 +316,7 @@ public sealed class NeedBuildingTests
                     Snapshot = snapshot,
                     Selected = [preview],
                     Stock = new StockObservation { Snapshot = snapshot, Tick = new(100) },
-                    Purpose = Purpose.Rounds,
+                    Purpose = Purpose.ReviewState,
                 }, call, work.Epoch);
                 return admitted.Verdict;
             }

@@ -3,11 +3,8 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // GiveJobIntent Capture and Rescue. Both are single fixed
     // vanilla jobs (Capture, Rescue) that carry a downed patient to a bed -- a
@@ -81,40 +78,40 @@ namespace HomeBridge.BridgeTools
             && patient.Map == pawn.Map && target.CanBeCaptured && patient.Downed && patient.ThreatDisabled(pawn)
             && pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation) && patient.HostileTo(Faction.OfPlayerSilentFail);
 
-        private static Common.Failure? Resolve(JobOrder intent, Common.ObservationContext context, out Pawn? pawn, out Pawn? patient, out Building_Bed? bed, out Building_HoldingPlatform? platform)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Pawn? pawn, out Pawn? patient, out Building_Bed? bed, out Building_HoldingPlatform? platform)
         {
             patient = null; bed = null; platform = null;
             if (!NativeGiveJob.TryPawn(intent, context, out pawn, out var snapshot, out var failure)) return failure;
-            if (!snapshot.Eligible) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Custody requires an eligible pawn.");
-            patient = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent.TargetId);
-            if (patient == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact patient pawn is not spawned on this map.");
+            if (!snapshot.Eligible) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Custody requires an eligible pawn.");
+            patient = GameThread.LoadedMap(context).mapPawns.AllPawnsSpawned.ById(intent.TargetId);
+            if (patient == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact patient pawn is not spawned on this map.");
             if (intent.Kind == JobOrderKind.Capture && EntityTarget(patient) is CompHoldingPlatformTarget entity)
             {
                 if (EntityRunning(pawn, patient)) return null;
                 if (!EntityCaptureEligible(pawn, patient, entity))
-                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Capture refused: the entity must be a downed, hostile, capturable entity the pawn can carry.");
+                    return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Capture refused: the entity must be a downed, hostile, capturable entity the pawn can carry.");
                 platform = FindPlatform(pawn, patient);
-                if (platform == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "No available holding platform the pawn can reach.");
+                if (platform == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "No available holding platform the pawn can reach.");
                 if (!pawn.CanReserveAndReach(patient, PathEndMode.ClosestTouch, Danger.Deadly))
-                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The pawn cannot reserve and reach the entity.");
+                    return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The pawn cannot reserve and reach the entity.");
                 return null;
             }
             if (Running(intent.Kind, pawn, patient)) return null;
             bool capture = intent.Kind == JobOrderKind.Capture;
             if (capture ? !CaptureEligible(pawn, patient) : !RescueEligible(pawn, patient))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, capture
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, capture
                     ? "Capture refused: the patient must be a downed, capturable hostile the pawn can carry."
                     : "Rescue refused: the patient must be a downed, non-hostile pawn the rescuer can carry.");
             if (!FindBed(intent.Kind, pawn, patient, out bed) || bed == null)
-                return ProtoBoundary.Fail(Common.FailureCode.NotFound, "No native bed is available for this worker and patient.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "No native bed is available for this worker and patient.");
             if (!pawn.CanReserveAndReach(patient, PathEndMode.Touch, Danger.Deadly))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "The pawn cannot reserve and reach the patient.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The pawn cannot reserve and reach the patient.");
             return null;
         }
 
-        internal static Common.Failure? Validate(JobOrder intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(JobOrder intent, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(JobOrder intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var failure = Resolve(intent, context, out var pawn, out var patient, out var bed, out var platform);
             if (failure != null || pawn == null || patient == null) throw new InvalidOperationException(failure?.Detail);

@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Telemetry;
-using Clock = RimGovernor.Contracts.Wire.Clock;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -33,15 +32,15 @@ internal static class CombatLabStops
     };
 
     // Acknowledged, the raiders' approach is not a hostile hold, and the health thresholds are off: only the armed events hold.
-    private static Clock.WatchPolicy Policy(IEnumerable<string> hostiles) => new()
+    private static RimGovernor.Brain.GameOrders.Clock.WatchPolicy Policy(IEnumerable<string> hostiles) => new()
     {
-        Mode = Clock.WatchMode.Combat,
+        Mode = RimGovernor.Brain.GameOrders.Clock.WatchMode.Combat,
         HealthDropFraction = 1,
         MinHealthFraction = 0.01f,
         HostileWithin = 40,
         InjuryStopCooldownMs = 0,
         AcknowledgedHostileIds = [.. hostiles],
-        CombatStopEvents = [Clock.CombatEvent.Downed, Clock.CombatEvent.EnteredRange],
+        CombatStopEvents = [RimGovernor.Brain.GameFacts.Clock.CombatEvent.Downed, RimGovernor.Brain.GameFacts.Clock.CombatEvent.EnteredRange],
         SeriousSingleHitDamage = (float)HazardThresholdsRules.SeriousSingleHitDamage,
         SeriousSummaryHealthFloor = (float)HazardThresholdsRules.SeriousSummaryHealthFloor,
         SeriousBleedRateFloor = (float)HazardThresholdsRules.SeriousBleedRateFloor,
@@ -50,14 +49,14 @@ internal static class CombatLabStops
         MeleeReachCells = (float)HazardThresholdsRules.MeleeReachCells,
         InjurySeverityFloorTicks = (uint)HazardThresholdsRules.InjurySeverityFloorTicks,
         // Only starvation holds here: these cases inject other hazards and must not stop for an ordinary hungry pawn.
-        HungerHoldCategory = RimGovernor.Contracts.Wire.Defs.HungerCategory.Starving,
+        HungerHoldCategory = RimGovernor.Brain.GameFacts.Defs.HungerCategory.Starving,
     };
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var lab = new StagedLab(Fixture, s.Staged!);
         var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
-        var request = new ClockRunPlan { ExpectedGeneration = generation, Speed = Clock.Speed.Superfast, Policy = Policy(lab.Hostiles()) };
+        var request = new ClockRunPlan { ExpectedGeneration = generation, Speed = RimGovernor.Brain.GameFacts.Clock.Speed.Superfast, Policy = Policy(lab.Hostiles()) };
 
         var entered = new HashSet<(string Thing, bool ReachedBy)>();
         var downed = false;
@@ -65,7 +64,7 @@ internal static class CombatLabStops
         {
             var label = "hold-" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
             var held = await s.RunClockUntilHeldAsync(label, s.TicksLeft, request, cancellationToken).ConfigureAwait(false);
-            if (held.Hold is not Clock.HoldState.HeldCase { Reason: Clock.HoldReason.CombatEvent, Trigger: Clock.HoldTrigger.CombatCase trigger })
+            if (held.Hold is not RimGovernor.Brain.GameFacts.Clock.HoldState.HeldCase { Reason: RimGovernor.Brain.GameFacts.Clock.HoldReason.CombatEvent, Trigger: RimGovernor.Brain.GameFacts.Clock.HoldTrigger.CombatCase trigger })
             {
                 throw new AcceptanceException($"{label}: not a combat-event hold: {held}");
             }
@@ -91,7 +90,7 @@ internal static class CombatLabStops
 
             switch (trigger.Event)
             {
-                case Clock.CombatEvent.EnteredRange:
+                case RimGovernor.Brain.GameFacts.Clock.CombatEvent.EnteredRange:
                     // First time only: the combat remembers a raider across holds, per direction ("reaches" or "reached by").
                     var key = (thing, reason.Contains(" reached by ", StringComparison.Ordinal));
                     if (!entered.Add(key))
@@ -100,7 +99,7 @@ internal static class CombatLabStops
                     }
 
                     break;
-                case Clock.CombatEvent.Downed:
+                case RimGovernor.Brain.GameFacts.Clock.CombatEvent.Downed:
                     if (index == 0)
                     {
                         throw new AcceptanceException($"the first hold was a downing before any entered range: {reason}");

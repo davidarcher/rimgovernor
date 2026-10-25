@@ -1,11 +1,11 @@
-using Trader = RimGovernor.Contracts.Wire.Observations.Trader;
+using Trader = RimGovernor.Brain.GameFacts.Observations.Trader;
 
 namespace RimGovernor.Brain.Policy;
 
 // The routine trade goal: while a tradeable caravan stands on the map and the colony has
 // something to buy from it (the medicine shortfall medical/reserves already reports, or a component
 // shortfall under the derived component need) or to sell to it (stock above an economy/resource target),
-// RoundsTradePlanner opens one bounded session per caravan and settles it. It is config-only work like a
+// TradePlanner opens one bounded session per caravan and settles it. It is config-only work like a
 // configuration push: a negotiator's conversation, not a development project, so it holds no development slot.
 
 /// <summary>
@@ -122,7 +122,7 @@ public static partial class TradePolicyRules
     /// outstanding construction deficits when the caller has read them (empty otherwise); stock targets, which
     /// carry the derived resource needs, apply separately.
     /// </summary>
-    public static IReadOnlyDictionary<string, long> RoundsTradeFloors(RoundsPolicy p, IReadOnlyDictionary<string, long>? construction) =>
+    public static IReadOnlyDictionary<string, long> TradeFloors(PlannerSettings p, IReadOnlyDictionary<string, long>? construction) =>
         EconomicReserves(new TradeEconomicPolicy(default, 0), new TradeReserveFacts { Construction = construction ?? new Dictionary<string, long>() }).Floors;
 
     /// <summary>
@@ -160,7 +160,7 @@ public static partial class TradePolicyRules
         IReadOnlyDictionary<Resource, long> targets,
         IReadOnlyDictionary<string, long> floors,
         TradeRetention retainedFact,
-        RimGovernor.Contracts.Wire.Observations.ThreatFacts wealth
+        RimGovernor.Brain.GameFacts.Observations.ThreatFacts wealth
     )
     {
         var facts = wealth ?? throw new RequiredFactException("wealth");
@@ -220,7 +220,7 @@ public static partial class TradePolicyRules
         EquatableArray<Amount> resources,
         IReadOnlyDictionary<Resource, long> targets,
         IReadOnlyDictionary<string, long> floors,
-        RimGovernor.Contracts.Wire.Observations.ThreatFacts wealth,
+        RimGovernor.Brain.GameFacts.Observations.ThreatFacts wealth,
         TradeRetention retained,
         TradeFoodContext food
     )
@@ -318,10 +318,10 @@ public static partial class TradePolicyRules
     /// bounded only by the silver above the reserve; sales take any positive price, since the alternative is the
     /// surplus sitting unsold.
     /// </summary>
-    public static TradeEconomicPolicy RoundsTradeTargets(ItemFacts items, TradeNeed need, IReadOnlyList<TradeSheetRowFact> rows, IReadOnlyDictionary<Resource, long> targets, long colonists)
+    public static TradeEconomicPolicy TradeTargets(ItemFacts items, TradeNeed need, IReadOnlyList<TradeSheetRowFact> rows, IReadOnlyDictionary<Resource, long> targets, long colonists)
     {
         var (reserve, buy) = TradeSilverReserve(colonists);
-        var built = BuildRoundsTradeTargets(items, need, rows, targets);
+        var built = BuildReviewTradeTargets(items, need, rows, targets);
         if (!buy)
         {
             built = [.. built.Select(t => t with { MaxBuy = 0 })];
@@ -329,7 +329,7 @@ public static partial class TradePolicyRules
         return new TradeEconomicPolicy(EquatableArray.From(built), reserve);
     }
 
-    private static List<TradeTarget> BuildRoundsTradeTargets(ItemFacts items, TradeNeed need, IReadOnlyList<TradeSheetRowFact> rows, IReadOnlyDictionary<Resource, long> targets)
+    private static List<TradeTarget> BuildReviewTradeTargets(ItemFacts items, TradeNeed need, IReadOnlyList<TradeSheetRowFact> rows, IReadOnlyDictionary<Resource, long> targets)
     {
         // Leave room for medicine and components while prioritizing the food bridge.
         var output = new List<TradeTarget>(TradeFoodTargets(need.Food, rows));

@@ -1,11 +1,11 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using RimWorld;
 using Verse;
 using Xunit;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -54,7 +54,7 @@ public sealed class WorshipCreditTests
         var altar = PowerBuildingFixtures.Trader("altar", Altar, new(2, 3), 0, 0, false);
         var blueprint = altar with { Building = altar.Building with { Id = "blueprint" }, Status = BuildingStatus.Blueprint };
         var unrelated = altar with { Building = altar.Building with { Id = "other", DefName = Column } };
-        var census = new RimGovernor.Brain.Bridge.Contracts.BuildingCensus(null, RimGovernor.Brain.Bridge.Contracts.Buildings.Of(altar, blueprint, unrelated));
+        var census = new RimGovernor.Brain.GameAccess.BuildingCensus(null, RimGovernor.Brain.GameAccess.Buildings.Of(altar, blueprint, unrelated));
 
         var sites = RitualSitesReads.RitualSitesOf(census, new IdeologyMode.Installed(Ideo(null, Gathering)));
 
@@ -202,7 +202,7 @@ public sealed class WorshipCreditTests
     [Fact]
     public void ThePlannedRoomMeetsADemandByItsCellsImpressivenessFloorsAndFurniture()
     {
-        var demand = new BuildingDemand { Observed = IdeologyTestRows.Building with { Applies = true, MinArea = 25, MinImpressiveness = 60, FloorTags = ["FineFloor", "Floor"], Things = [new Obs.IdeoThingCount(Column, 2)] }, ForbiddenDefs = ["Bed"] };
+        var demand = new BuildingDemand { Observed = IdeologyTestRows.Building with { Applies = true, MinArea = 25, MinImpressiveness = 60, FloorTags = ["FineFloor", "Floor"], Things = [new RimGovernor.Brain.GameFacts.Observations.IdeoThingCount(Column, 2)] }, ForbiddenDefs = ["Bed"] };
         var need = WorshipRules.WorshipRoomNeed(Ideo(demand)).Need;
         Assert.True(ForecastWorship.Meets(demand, Prediction(cells: 25, impressiveness: 59.5), need));
         Assert.False(ForecastWorship.Meets(demand, Prediction(cells: 24, impressiveness: 60), need));
@@ -214,7 +214,7 @@ public sealed class WorshipCreditTests
     [Fact]
     public void TheWorshipRoomIsPlannedToMeetItsDemands()
     {
-        var demand = new BuildingDemand { Observed = IdeologyTestRows.Building with { Applies = true, MinArea = 25, MinImpressiveness = 60, FloorTags = ["FineFloor", "Floor"], Things = [new Obs.IdeoThingCount(Column, 2)] }, ForbiddenDefs = ["Bed"] };
+        var demand = new BuildingDemand { Observed = IdeologyTestRows.Building with { Applies = true, MinArea = 25, MinImpressiveness = 60, FloorTags = ["FineFloor", "Floor"], Things = [new RimGovernor.Brain.GameFacts.Observations.IdeoThingCount(Column, 2)] }, ForbiddenDefs = ["Bed"] };
         var need = WorshipRules.WorshipRoomNeed(Ideo(demand)).Need;
         Assert.Equal([(Altar, 1), (Column, 2)], need.Furniture.Items.Select(f => (f.Defs[0], f.Count)));
         Assert.Equal((25, 60), (need.MinArea, need.MinImpressiveness));
@@ -289,7 +289,7 @@ public sealed class WorshipCreditTests
             BelieverPawns = [new PawnId("pawn")],
             Buildings =
             [
-                new Obs.IdeoBuilding
+                new RimGovernor.Brain.GameFacts.Observations.IdeoBuilding
                 {
                     Building = Altar, Applies = true, Present = true, Satisfied = false, MinArea = 25, MinImpressiveness = 60, FloorTags = ["Floor"],
                     Things = [new(Column, 2)], ForbiddenBuildingTags = ["Bed"], Unread = [],
@@ -299,14 +299,14 @@ public sealed class WorshipCreditTests
         var held = Assert.Single(ideo.Facts.Buildings);
         Assert.Equal((true, true, false, 25, 60), (held.Demand.Applies, held.Demand.Present, held.Demand.Satisfied, held.Demand.MinArea, held.Demand.MinImpressiveness));
         Assert.Equal(["Bed"], held.Demand.ForbiddenDefs);
-        Assert.Equal([new Obs.IdeoThingCount(Column, 2)], held.Demand.Counts);
+        Assert.Equal([new RimGovernor.Brain.GameFacts.Observations.IdeoThingCount(Column, 2)], held.Demand.Counts);
         Assert.Equal([new PawnId("pawn")], ideo.Facts.BelieverPawns);
     }
 
     [Fact]
     public void TheCoupledContextCarriesTheWorshipFactsTheRoundsRead()
     {
-        // The production path (#3822): GenerateCoupledActivities builds the context from the review's facts, which RoundsRead
+        // The production path (#3822): GenerateCoupledActivities builds the context from the review's facts, which Read
         // fills from the frame's ideology section (WorshipRules.FactsOf).
         var worship = WorshipOf(Ideo(Missing()));
         var facts = ForecastCoupledTests.ConstructionReview() with

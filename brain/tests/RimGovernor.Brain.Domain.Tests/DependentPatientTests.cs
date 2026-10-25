@@ -1,26 +1,25 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Domain;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class DependentPatientTests
 {
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
-    private static O.StatusSnapshot Status(params O.DependentPatientObservation[] patients) =>
+    private static RimGovernor.Brain.GameFacts.Observations.StatusSnapshot Status(params RimGovernor.Brain.GameFacts.Observations.DependentPatientObservation[] patients) =>
         EmergencyFixtures.Status("doctor") with { DependentPatients = new() { Patients = EquatableArray.From(patients) } };
-    private static O.PawnState Pawn(string id, bool injured = false) => EmergencyFixtures.Placed(id) with
+    private static RimGovernor.Brain.GameFacts.Observations.PawnState Pawn(string id, bool injured = false) => EmergencyFixtures.Placed(id) with
     {
         Downed = injured,
         Health = PawnFixtures.Healthy with { Bleeding = injured, NeedsTend = injured },
     };
-    private static O.DependentPatientObservation Patient(string id, DependentPatientGroup group, bool rescue, bool tend) =>
+    private static RimGovernor.Brain.GameFacts.Observations.DependentPatientObservation Patient(string id, DependentPatientGroup group, bool rescue, bool tend) =>
         new() { Pawn = new() { Id = id }, Group = group, Rescue = rescue, Tend = tend };
-    private static EmergencyFacts Decode(O.StatusSnapshot status, params O.PawnState[] rows) =>
-        FacadeNativeClient.EmergencyDecode.DecodeEmergencyStatus(status, Pawns.Of(rows)).Facts;
+    private static EmergencyFacts Decode(RimGovernor.Brain.GameFacts.Observations.StatusSnapshot status, params RimGovernor.Brain.GameFacts.Observations.PawnState[] rows) =>
+        GameClient.EmergencyDecode.DecodeEmergencyStatus(status, Pawns.Of(rows)).Facts;
     private static EmergencySnapshot Snapshot(EmergencyFacts facts) => EmergencySnapshot.New(World, new(100), facts);
 
     [Fact]

@@ -5,7 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using RimGovernor.Brain.Host;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// Read-only reads for the out-of-process acceptance harness: the capture profile (#3117) and the clock's session
@@ -22,14 +22,14 @@ namespace HomeBridge.BridgeTools
                 // Per capture span, the sample count, min/median/max ms and median allocated bytes; iterations 1-20 after one warm-up.
                 ["acceptance_read_capture_profile"] = (args, ct) => ReadCaptureProfile(args["iterations"]?.GetValue<int>() ?? 5, ct),
                 // The clock's session accounting: pause/run, probe and digest work, probe and hazard gaps, the frame account.
-                ["acceptance_read_clock_accounting"] = (_, ct) => ProtoBoundary.OnGameThread("rimgovernor/acceptance_read_clock_accounting", Supervisor.ClockAccountingJson, ct),
+                ["acceptance_read_clock_accounting"] = (_, ct) => GameThread.OnGameThread("acceptance_read_clock_accounting", Supervisor.ClockAccountingJson, ct),
             };
 
         private static async Task<string> ReadCaptureProfile(int iterations, CancellationToken cancellationToken)
         {
             var n = Math.Clamp(iterations, 1, 20);
             var rec = new CaptureProfile.Recorder();
-            var side = await ProtoBoundary.OnGameThread("rimgovernor/acceptance_read_capture_profile", () => CaptureProfile.Capture(rec, n), cancellationToken).ConfigureAwait(false);
+            var side = await GameThread.OnGameThread("acceptance_read_capture_profile", () => CaptureProfile.Capture(rec, n), cancellationToken).ConfigureAwait(false);
             await Task.Run(() =>
             {
                 if (side.Frame != null)

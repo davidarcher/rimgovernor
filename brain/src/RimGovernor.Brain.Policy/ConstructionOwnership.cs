@@ -1,5 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
-using Placement = RimGovernor.Contracts.Wire.Placement;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -15,7 +13,7 @@ public sealed record ConstructionClaim
 
     public ActionId Action { get; init; }
 
-    public ConcernId Concern { get; init; }
+    public FilingKey Concern { get; init; }
 
     public ConstructionIdentity Identity { get; init; }
 
@@ -26,7 +24,7 @@ public sealed record ConstructionClaim
 
 public sealed record CurrentBuilding
 {
-    public required O.BuildingState Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.BuildingState Observed { get; init; }
     public string Id => Observed.Building.Id;
     public Building Building => ConstructionOwnershipRules.BuildingOf(Observed, Observed.Building.DefName);
     public EquatableArray<Cell> Cells => EquatableArray.From(CellsRules.RectCells(Observed.Occupied));
@@ -66,15 +64,15 @@ public sealed record ConstructionSite
     /// <summary>The <see cref="Stage"/> of a blueprint: nothing delivered yet.</summary>
     public const string BlueprintStage = "blueprint";
 
-    public required O.BuildingState Observed { get; init; }
-    public O.ConstructionState.Build Construction => Observed.Construction as O.ConstructionState.Build
+    public required RimGovernor.Brain.GameFacts.Observations.BuildingState Observed { get; init; }
+    public RimGovernor.Brain.GameFacts.Observations.ConstructionState.Build Construction => Observed.Construction as RimGovernor.Brain.GameFacts.Observations.ConstructionState.Build
         ?? throw new DomainException("construction site carries no build state");
     public Building Building => ConstructionOwnershipRules.BuildingOf(Observed, Construction.Definition);
     public string Stage => Observed.Status switch
     {
-        O.BuildingStatus.Blueprint => BlueprintStage,
-        O.BuildingStatus.Frame => "frame",
-        O.BuildingStatus.Built => throw new DomainException("construction site is already built"),
+        RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Blueprint => BlueprintStage,
+        RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Frame => "frame",
+        RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Built => throw new DomainException("construction site is already built"),
         var invalid => throw new DomainException($"undefined construction status: {invalid}"),
     };
     public string Id => Observed.Building.Id;
@@ -115,14 +113,14 @@ public enum BuildingWork
 public static class ConstructionOwnershipRules
 {
     /// <summary>The value geometry an observed row is compared with proposed building intents.</summary>
-    public static Building BuildingOf(O.BuildingState row, string definition) => new(definition,
-        row.Building.Place is O.EntityPlace.OnMap at ? at.Cell : throw new DomainException("required construction row is unplaced"),
+    public static Building BuildingOf(RimGovernor.Brain.GameFacts.Observations.BuildingState row, string definition) => new(definition,
+        row.Building.Place is RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap at ? at.Cell : throw new DomainException("required construction row is unplaced"),
         row.Rotation switch
         {
-            Placement.Rotation.North => Rotation.North,
-            Placement.Rotation.East => Rotation.East,
-            Placement.Rotation.South => Rotation.South,
-            Placement.Rotation.West => Rotation.West,
+            RimGovernor.Brain.GameFacts.Placement.Rotation.North => Rotation.North,
+            RimGovernor.Brain.GameFacts.Placement.Rotation.East => Rotation.East,
+            RimGovernor.Brain.GameFacts.Placement.Rotation.South => Rotation.South,
+            RimGovernor.Brain.GameFacts.Placement.Rotation.West => Rotation.West,
             var invalid => throw new DomainException($"undefined building rotation {(int)invalid}"),
         }, row.Stuff ?? "");
 

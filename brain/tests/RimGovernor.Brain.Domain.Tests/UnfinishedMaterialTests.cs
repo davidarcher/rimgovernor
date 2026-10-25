@@ -1,10 +1,9 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
-using Ops = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -39,8 +38,8 @@ public sealed class UnfinishedMaterialTests
         );
 
     private static ProductionBatchState State(int remaining, string item = "unfinished") =>
-        new(BillWire.Bill("bill") with { ManagedUnchanged = true, RepeatMode = Ops.RepeatMode.Count, RepeatCount = remaining,
-            UnfinishedWork = item.Length == 0 ? new O.BillUnfinishedWork.None() : new O.BillUnfinishedWork.Bound { Item = item, Ingredients = [new() { DefName = Material.Value, Units = 10 }] } });
+        new(BillWire.Bill("bill") with { ManagedUnchanged = true, RepeatMode = RimGovernor.Brain.GameFacts.Operations.RepeatMode.Count, RepeatCount = remaining,
+            UnfinishedWork = item.Length == 0 ? new RimGovernor.Brain.GameFacts.Observations.BillUnfinishedWork.None() : new RimGovernor.Brain.GameFacts.Observations.BillUnfinishedWork.Bound { Item = item, Ingredients = [new() { DefName = Material.Value, Units = 10 }] } });
 
     private static ProductionPromiseSet Promises(
         ProductionBatchState state,
@@ -51,7 +50,7 @@ public sealed class UnfinishedMaterialTests
             [state]
         );
 
-    private static RoundsFacts Facts(ProductionBatchState state, long loose = 90) =>
+    private static ReviewFacts Facts(ProductionBatchState state, long loose = 90) =>
         new()
         {
             ProductionPromises = Promises(state),
@@ -60,15 +59,15 @@ public sealed class UnfinishedMaterialTests
             {
                 Deficit = new Dictionary<Resource, long> { [Material] = 40 },
             },
-            Census = ColonyFactsCoreTests.Snapshot() with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = Material.Value, Units = loose }] },
+            Census = ColonyFactsCoreTests.Snapshot() with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = Material.Value, Units = loose }] },
             ResourceConsumption = new ResourceConsumption(),
         };
 
     [Fact]
     public void StartingWorkMovesInputsOutOfStockWithoutChargingTheIterationAgain()
     {
-        var before = ResourceRules.ResourceDemandOf(Facts(State(3, ""), 100), RoundsRules.DefaultRoundsPolicy(), new());
-        var started = ResourceRules.ResourceDemandOf(Facts(State(3)), RoundsRules.DefaultRoundsPolicy(), new());
+        var before = ResourceRules.ResourceDemandOf(Facts(State(3, ""), 100), Rules.DefaultPlannerSettings(), new());
+        var started = ResourceRules.ResourceDemandOf(Facts(State(3)), Rules.DefaultPlannerSettings(), new());
         Assert.Equal(30, before.MaterialAvailability.AssessedBalances()[Material].ExactCount());
         Assert.Equal(30, started.MaterialAvailability.AssessedBalances()[Material].ExactCount());
         Assert.Equal(60, started.Needs[Material]);
@@ -94,17 +93,17 @@ public sealed class UnfinishedMaterialTests
         var cancelled = Batch with { Progress = Batch.Progress with { Stage = Stage.Cancelled } };
         Assert.Equal(20, Promises(State(3), Priced(cancelled)).AssessedPromises()[0].MaterialClaims[0].ExactCount());
         // Destroying only the unfinished item restores the full remaining obligation; recovery is observed stock only.
-        var lost = ResourceRules.ResourceDemandOf(Facts(State(3, "")), RoundsRules.DefaultRoundsPolicy(), new());
+        var lost = ResourceRules.ResourceDemandOf(Facts(State(3, "")), Rules.DefaultPlannerSettings(), new());
         Assert.Equal(20, lost.MaterialAvailability.AssessedBalances()[Material].ExactCount());
         var removed = ProductionRules.ProductionPromisesOf([Priced(cancelled)], default(EquatableArray<ProductionBatchState>));
-        var demand = ResourceRules.ResourceDemandOf(Facts(State(3)) with { ProductionPromises = removed }, RoundsRules.DefaultRoundsPolicy(), new());
+        var demand = ResourceRules.ResourceDemandOf(Facts(State(3)) with { ProductionPromises = removed }, Rules.DefaultPlannerSettings(), new());
         Assert.Equal(50, demand.MaterialAvailability.AssessedBalances()[Material].ExactCount());
     }
 
     [Fact]
     public void EmbeddedAlternativeFundsOneIterationOnlyAndDoesNotEnterFreeStock()
     {
-        var state = new ProductionBatchState(State(3).Observed with { UnfinishedWork = new O.BillUnfinishedWork.Bound { Item = "unfinished", Ingredients = [new() { DefName = Alternate.Value, Units = 99 }] } });
+        var state = new ProductionBatchState(State(3).Observed with { UnfinishedWork = new RimGovernor.Brain.GameFacts.Observations.BillUnfinishedWork.Bound { Item = "unfinished", Ingredients = [new() { DefName = Alternate.Value, Units = 99 }] } });
         var claims = Promises(state).AssessedPromises();
         Assert.Equal(20, claims[0].MaterialClaims[0].ExactCount());
         Assert.DoesNotContain(claims[0].MaterialClaims, c => c.Resource == Alternate);
@@ -119,9 +118,9 @@ public sealed class UnfinishedMaterialTests
     {
         var facts = Facts(State(3)) with { BillReservations = [
             BillWire.Reservation("bill", "worker", new Amount(Material, 10))] };
-        Assert.Equal(30, ResourceRules.ResourceDemandOf(facts, RoundsRules.DefaultRoundsPolicy(), new()).MaterialAvailability.AssessedBalances()[Material].ExactCount());
+        Assert.Equal(30, ResourceRules.ResourceDemandOf(facts, Rules.DefaultPlannerSettings(), new()).MaterialAvailability.AssessedBalances()[Material].ExactCount());
         var last = facts with { ProductionPromises = Promises(State(1)) };
-        Assert.Equal(40, ResourceRules.ResourceDemandOf(last, RoundsRules.DefaultRoundsPolicy(), new()).MaterialAvailability.AssessedBalances()[Material].ExactCount());
+        Assert.Equal(40, ResourceRules.ResourceDemandOf(last, Rules.DefaultPlannerSettings(), new()).MaterialAvailability.AssessedBalances()[Material].ExactCount());
     }
 
     [Fact]
@@ -145,7 +144,7 @@ public sealed class UnfinishedMaterialTests
             )
         );
         var malformed = new ProductionBatchState(State(3).Observed with
-        { UnfinishedWork = new O.BillUnfinishedWork.Bound { Item = "", Ingredients = [new() { DefName = Material.Value, Units = 10 }] } });
+        { UnfinishedWork = new RimGovernor.Brain.GameFacts.Observations.BillUnfinishedWork.Bound { Item = "", Ingredients = [new() { DefName = Material.Value, Units = 10 }] } });
         Assert.Throws<DomainException>(() => Promises(malformed));
     }
 
@@ -154,14 +153,14 @@ public sealed class UnfinishedMaterialTests
     {
         var bill = BillWire.Bill("bill") with
         {
-            ManagedUnchanged = true, Finished = false, RepeatMode = Ops.RepeatMode.Count, RepeatCount = 3,
-            UnfinishedWork = new O.BillUnfinishedWork.Bound { Item = "unfinished", Ingredients = [new() { DefName = Material.Value, Units = 10 }] },
+            ManagedUnchanged = true, Finished = false, RepeatMode = RimGovernor.Brain.GameFacts.Operations.RepeatMode.Count, RepeatCount = 3,
+            UnfinishedWork = new RimGovernor.Brain.GameFacts.Observations.BillUnfinishedWork.Bound { Item = "unfinished", Ingredients = [new() { DefName = Material.Value, Units = 10 }] },
         };
-        ProductionBatchState Read(O.BillState row) => ConstructionReads.ProductionBatchStates(BillWire.Census(row))[0];
-        var decoded = WireJson.Deserialize<O.BillState>(WireJson.Serialize(bill));
+        ProductionBatchState Read(RimGovernor.Brain.GameFacts.Observations.BillState row) => ConstructionReads.ProductionBatchStates(BillWire.Census(row))[0];
+        var decoded = OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.BillState>(OrdersJson.Serialize(bill));
         Assert.Equal(20, Promises(Read(decoded)).AssessedPromises()[0].MaterialClaims[0].ExactCount());
-        Assert.Equal(30, Promises(Read(bill with { UnfinishedWork = new O.BillUnfinishedWork.None() })).AssessedPromises()[0].MaterialClaims[0].ExactCount());
-        Assert.Throws<RequiredFactException>(() => Read(bill with { UnfinishedWork = new O.BillUnfinishedWork.Bound { Item = "", Ingredients = [] } }));
-        Assert.Throws<RequiredFactException>(() => Read(bill with { UnfinishedWork = new O.BillUnfinishedWork.Bound { Item = "unfinished", Ingredients = [new() { DefName = Material.Value, Units = 0 }] } }));
+        Assert.Equal(30, Promises(Read(bill with { UnfinishedWork = new RimGovernor.Brain.GameFacts.Observations.BillUnfinishedWork.None() })).AssessedPromises()[0].MaterialClaims[0].ExactCount());
+        Assert.Throws<RequiredFactException>(() => Read(bill with { UnfinishedWork = new RimGovernor.Brain.GameFacts.Observations.BillUnfinishedWork.Bound { Item = "", Ingredients = [] } }));
+        Assert.Throws<RequiredFactException>(() => Read(bill with { UnfinishedWork = new RimGovernor.Brain.GameFacts.Observations.BillUnfinishedWork.Bound { Item = "unfinished", Ingredients = [new() { DefName = Material.Value, Units = 0 }] } }));
     }
 }

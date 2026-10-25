@@ -1,10 +1,9 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Policy;
 using RimWorld;
 using Verse;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -38,7 +37,7 @@ public sealed class SleepingNativeOwnershipTests
         Assert.True(joined.Humanlike);
 
         var room = SleepingNativeFixtures.Room("bedroom", RoomRole.Bedroom, new(12, 3, -1, 50, 24), 12);
-        var rooms = SleepingUpkeepReads.UpkeepRooms(new O.RoomsSnapshot { Context = snapshot.Context, Rooms = [room] }, observed.Beds);
+        var rooms = SleepingUpkeepReads.UpkeepRooms(new RimGovernor.Brain.GameFacts.Observations.RoomsSnapshot { Context = snapshot.Context, Rooms = [room] }, observed.Beds);
         var quality = Assert.Single(rooms);
         Assert.Same(room, quality.Native);
         Assert.Equal(["bed"], quality.Beds);

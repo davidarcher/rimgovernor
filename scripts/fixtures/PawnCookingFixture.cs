@@ -11,7 +11,7 @@ using RimGovernor.Host.Sdk;
 using RimGovernor.Brain.Domain;
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // control/pawn-activity-cooking (#3398): the staged stove, its two bills and three raw stacks bound by load id; exact
     // recipe executions installed straight into the native execution table, with a missing ingredient and a drained bench
@@ -31,7 +31,7 @@ namespace HomeBridge.BridgeTools
             bench.BillStack.Bills.OfType<Bill_Production>().FirstOrDefault(b => b.GetUniqueLoadID() == id) ?? throw new ArgumentException($"No staged bill {id}.");
 
         [Tool("test/pawn_cooking_prepare", Description="UNSAFE FOR MODEL EXECUTION. Bind the staged cook, stove, selected and competing bills and the three raw stacks; clear the product off the map; stand every colonist still.")]
-        public async Task<object> PrepareCooking(IRimBridgeContext ctx, CancellationToken ct,
+        public async Task<object> PrepareCooking(INativeContext ctx, CancellationToken ct,
             [ToolParameter(Description="The cook's load id.")] string cook = "",
             [ToolParameter(Description="The stove's load id.")] string bench = "",
             [ToolParameter(Description="The selected bill's load id.")] string selected = "",
@@ -60,7 +60,7 @@ namespace HomeBridge.BridgeTools
         }, ct).ConfigureAwait(false);
 
         [Tool("test/pawn_cooking_select", Description="UNSAFE FOR MODEL EXECUTION. Install exact cooking, inject missing ingredient or blocked bench, then explicitly revise.")]
-        public async Task<object> SelectCooking(IRimBridgeContext ctx, CancellationToken ct,
+        public async Task<object> SelectCooking(INativeContext ctx, CancellationToken ct,
             [ToolParameter(Description="1 removes selected ingredient after installation; 2 drains bench fuel; 3 runs the explicit revised assignment.")] int attempt = 1) => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             if (attempt is < 1 or > 3) throw new InvalidOperationException("Unknown fixture attempt.");
@@ -88,7 +88,7 @@ namespace HomeBridge.BridgeTools
             var step = new PawnActivityStep(PawnActivityKind.Recipe, cookingBench.GetUniqueLoadID(), giver.defName, "", 0, deadline)
                 { Recipe = new PawnActivityRecipe(selectedBill.GetUniqueLoadID(), selectedBill.recipe.defName,
                     EquatableArray.From(selected)) };
-            var batch = new PawnActivities(((RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase)Context().NativeGeneration).Value, new[] {
+            var batch = new PawnActivities(((RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase)Context().NativeGeneration).Value, new[] {
                 new PawnActivityOrder(worker!.GetUniqueLoadID(), "cooking", "food-method", attempt - 1, attempt, false, new[] { step }) });
             var before = NativePawnActivities.Read(worker);
             var invalid = batch with { Orders = new[] { batch.Orders[0] with { Steps = new[] { step with { Recipe = step.Recipe! with { Ingredients = EquatableArray.From(new[] { new PawnActivityIngredient(firstIngredient.GetUniqueLoadID(), 1) }) } } } } } };
@@ -107,7 +107,7 @@ namespace HomeBridge.BridgeTools
         private static int RawCount() => worker!.Map.listerThings.AllThings.Where(t => t.def == unselectedIngredient.def).Sum(t => t.stackCount);
 
         [Tool("test/pawn_cooking_read", Description="UNSAFE FOR MODEL EXECUTION. Read physical ingredients, edible products and both bills' remaining counts.")]
-        public async Task<object> ReadRecipe(IRimBridgeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() => FixtureKit.Reply(new Fx.CookingRead
+        public async Task<object> ReadRecipe(INativeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() => FixtureKit.Reply(new Fx.CookingRead
         {
             Execution = Execution(NativePawnActivities.Read(worker!)), Raw = RawCount(), BeforeRaw = beforeRaw,
             Required = firstCount + secondCount, Unselected = unselectedIngredient.stackCount,

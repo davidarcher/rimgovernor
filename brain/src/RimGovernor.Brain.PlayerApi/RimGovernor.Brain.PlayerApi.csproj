@@ -10,16 +10,17 @@
     <ProjectReference Include="..\RimGovernor.Brain.Domain\RimGovernor.Brain.Domain.csproj" />
     <ProjectReference Include="..\RimGovernor.Brain.Store\RimGovernor.Brain.Store.csproj" />
     <ProjectReference Include="..\RimGovernor.Brain.Policy\RimGovernor.Brain.Policy.csproj" />
-    <ProjectReference Include="..\RimGovernor.Brain.Bridge.Contracts\RimGovernor.Brain.Bridge.Contracts.csproj" />
-    <ProjectReference Include="..\RimGovernor.Brain.BuildingRuntime\RimGovernor.Brain.BuildingRuntime.csproj" />
-    <ProjectReference Include="..\RimGovernor.Brain.Contracts\RimGovernor.Brain.Contracts.csproj" />
+    <ProjectReference Include="..\RimGovernor.Brain.GameAccess\RimGovernor.Brain.GameAccess.csproj" />
+    <ProjectReference Include="..\RimGovernor.Brain.Runtime\RimGovernor.Brain.Runtime.csproj" />
+    <ProjectReference Include="..\RimGovernor.Brain.GameFacts\RimGovernor.Brain.GameFacts.csproj" />
+    <ProjectReference Include="..\RimGovernor.Brain.GameOrders\RimGovernor.Brain.GameOrders.csproj" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="RimGovernor.Brain.Domain.Tests" />
   </ItemGroup>
   <ItemGroup>
     <!-- The wire messages share names with domain values (Identity, Failure); this project names the domain value and spells the wire message. -->
-    <Using Include="RimGovernor.Brain.Bridge.Contracts.ObservationIdentity" Alias="ObservedIdentity" />
-    <Using Include="RimGovernor.Contracts.Wire.Common.Identity" Alias="WireIdentity" />
+    <Using Include="RimGovernor.Brain.GameAccess.ObservationIdentity" Alias="ObservedIdentity" />
+    <Using Include="RimGovernor.Brain.GameFacts.Common.Identity" Alias="WireIdentity" />
   </ItemGroup>
 </Project>

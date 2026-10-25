@@ -1,9 +1,9 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using Journal = RimGovernor.Brain.Store.Store;
-using NeedLevel = RimGovernor.Contracts.Wire.Observations.NeedLevel;
+using NeedLevel = RimGovernor.Brain.GameFacts.Observations.NeedLevel;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -47,7 +47,7 @@ public sealed class PeopleFamilyTests
         var ct = TestContext.Current.CancellationToken;
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-people-dialog-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
+        journal.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
 
         var answer = journal.CommitClaimedMethod(PeopleFamily.Dialog, World, new MethodId("dialog-a"), "", Answer(new DialogAnswer(7, 0, "OK")), ct);
         Assert.Equal(ClaimOutcome.Admitted, answer.Outcome);

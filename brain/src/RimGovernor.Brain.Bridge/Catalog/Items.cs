@@ -69,23 +69,23 @@ public sealed partial class DefinitionCatalog
     /// AnimalProductRaw that one of its thing categories sits within (the category itself or any parent of it); none for
     /// a def in none. Milk has the fluid food type and is still an animal product by its category.
     /// </summary>
-    public RimGovernor.Contracts.Wire.Observations.FoodIngredientClass RawFoodClass(string name) => RawFoodClass(ThingRow(name));
+    public RimGovernor.Brain.GameFacts.Observations.FoodIngredientClass RawFoodClass(string name) => RawFoodClass(ThingRow(name));
 
     /// <summary>The native ingredient class of an actual game definition, shared with the stock producer.</summary>
-    public static RimGovernor.Contracts.Wire.Observations.FoodIngredientClass RawFoodClass(ThingDef row)
+    public static RimGovernor.Brain.GameFacts.Observations.FoodIngredientClass RawFoodClass(ThingDef row)
     {
         var within = CategoriesWithin(row);
         if (within.Contains(CategoryMeatRaw))
         {
-            return RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.Meat;
+            return RimGovernor.Brain.GameFacts.Observations.FoodIngredientClass.Meat;
         }
 
         if (within.Contains(CategoryPlantFoodRaw))
         {
-            return RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.Vegetable;
+            return RimGovernor.Brain.GameFacts.Observations.FoodIngredientClass.Vegetable;
         }
 
-        return within.Contains(CategoryAnimalProductRaw) ? RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.AnimalProduct : RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.None;
+        return within.Contains(CategoryAnimalProductRaw) ? RimGovernor.Brain.GameFacts.Observations.FoodIngredientClass.AnimalProduct : RimGovernor.Brain.GameFacts.Observations.FoodIngredientClass.None;
     }
 
     /// <summary>
@@ -97,17 +97,17 @@ public sealed partial class DefinitionCatalog
     {
         var row = ThingRow(name);
         var rawClass = RawFoodClass(name);
-        if (rawClass == RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.None && row.ingestible is { } meal && meal.foodType.HasFlag(FoodTypeFlags.Meal))
+        if (rawClass == RimGovernor.Brain.GameFacts.Observations.FoodIngredientClass.None && row.ingestible is { } meal && meal.foodType.HasFlag(FoodTypeFlags.Meal))
         {
-            rawClass = RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.Any;
+            rawClass = RimGovernor.Brain.GameFacts.Observations.FoodIngredientClass.Any;
         }
 
-        if (rawClass == RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.None)
+        if (rawClass == RimGovernor.Brain.GameFacts.Observations.FoodIngredientClass.None)
         {
             return null;
         }
 
-        if (rawClass == RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.Meat && row.ingestible?.sourceDef is { } source && ThingRow(source.defName).race?.intelligence >= Intelligence.Humanlike)
+        if (rawClass == RimGovernor.Brain.GameFacts.Observations.FoodIngredientClass.Meat && row.ingestible?.sourceDef is { } source && ThingRow(source.defName).race?.intelligence >= Intelligence.Humanlike)
         {
             return null;
         }
@@ -122,9 +122,9 @@ public sealed partial class DefinitionCatalog
         return new P.TradeFoodGood
         {
             Class = rawClass,
-            Prepared = rawClass == RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.Any,
+            Prepared = rawClass == RimGovernor.Brain.GameFacts.Observations.FoodIngredientClass.Any,
             NonPerishable = !perishable,
-            Crop = rawClass == RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.Vegetable,
+            Crop = rawClass == RimGovernor.Brain.GameFacts.Observations.FoodIngredientClass.Vegetable,
             Nutrition = nutrition,
         };
     }

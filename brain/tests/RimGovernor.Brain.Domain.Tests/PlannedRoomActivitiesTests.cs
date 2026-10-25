@@ -1,9 +1,10 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Policy.Methods.Generation;
-using RimGovernor.Contracts.Wire.Observations;
-using RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
+using RimGovernor.Brain.GameFacts.Common;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -20,7 +21,7 @@ public sealed class PlannedRoomActivitiesTests
     private const string Pawn = "pawn";
     private static readonly string[] Plants = ["plant-a", "plant-b"];
     private static readonly ObservationContext Context = new()
-        { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
+        { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
     private static readonly Cell Start = new(1, 1);
     private static readonly Cell DoorCell = new(6, 4);
     private static readonly Cell[] Interior = [.. Enumerable.Range(5, 3).SelectMany(x => Enumerable.Range(5, 3).Select(z => new Cell(x, z)))];
@@ -96,7 +97,7 @@ public sealed class PlannedRoomActivitiesTests
     /// The round's facts for the builder and, with colonists over one, idle colonists colonist-01.. whose ids sort before
     /// the builder's, so the builder is the last colonist by id. Only the builder has planned rows.
     /// </summary>
-    private static RoundsFacts Review(IEnumerable<PlannedBuildSite> planned, double level = 1, double fall = 0, double horizon = Horizon,
+    private static ReviewFacts Review(IEnumerable<PlannedBuildSite> planned, double level = 1, double fall = 0, double horizon = Horizon,
         bool routes = true, double roofCellWork = 0, int colonists = 1)
     {
         var others = Enumerable.Range(1, colonists - 1).Select(i => "colonist-" + i.ToString("D2", System.Globalization.CultureInfo.InvariantCulture)).ToArray();
@@ -105,7 +106,7 @@ public sealed class PlannedRoomActivitiesTests
         {
             // The colony holds what the stacks hold.
             Census = facts.Census with { Resources = EquatableArray.From((EquatableArray.From(planned.SelectMany(s => s.Options).Where(o => o.Input.Length > 0).DistinctBy(o => o.Input)
-                .GroupBy(o => o.Resource).Select(g => new RimGovernor.Brain.Policy.Amount(new Resource(g.Key), (long)g.Sum(o => o.AvailableInput))))).Select(amount => new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = amount.Resource.Value, Units = amount.Count })) },
+                .GroupBy(o => o.Resource).Select(g => new RimGovernor.Brain.Policy.Amount(new Resource(g.Key), (long)g.Sum(o => o.AvailableInput))))).Select(amount => new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = amount.Resource.Value, Units = amount.Count })) },
             PlannedSites = PlannedFacts(planned, routes),
             ForecastObserved = facts.ForecastObserved with
             {
@@ -139,7 +140,7 @@ public sealed class PlannedRoomActivitiesTests
     /// sites count as development (#3828), so a room the schedule builds is selected only on its credit: the cases that read
     /// what a selected room's activities and orders are price it this way.
     /// </summary>
-    private static RoundsFacts Credited(RoundsFacts facts) => facts with { CoupledAlternatives = facts.CoupledAlternatives! with
+    private static ReviewFacts Credited(ReviewFacts facts) => facts with { CoupledAlternatives = facts.CoupledAlternatives! with
     {
         Context = facts.CoupledAlternatives.Context with
         {
@@ -148,14 +149,14 @@ public sealed class PlannedRoomActivitiesTests
         },
     } };
 
-    private static ForecastCoupledSelection Select(RoundsFacts facts, double horizon = Horizon, ForecastSearchBudget? budget = null)
+    private static ForecastCoupledSelection Select(ReviewFacts facts, double horizon = Horizon, ForecastSearchBudget? budget = null)
     {
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), horizon / GameTime.TicksPerDay,
             facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         return ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, budget);
     }
 
-    private static string Why(RoundsFacts facts, ForecastCoupledSelection result) =>
+    private static string Why(ReviewFacts facts, ForecastCoupledSelection result) =>
         "selected=" + string.Join(",", result.Selection.Selected) + " " + string.Join(";", facts.CoupledAlternatives!.Findings.Concat(result.Selection.Findings));
 
     /// <summary>Whether the selected plan builds the planned site: its own root, or a room alternative naming it (#3823), whichever completes it.</summary>
@@ -308,9 +309,9 @@ public sealed class PlannedRoomActivitiesTests
     /// <summary>
     /// A barracks (#3838) on the colony <paramref name="colony"/> describes: room 1's wooden ring, three beds the builder can
     /// finish and a FueledStove (80 Steel) with no finish row, as on a map with no Steel stack; the round marks its blocked
-    /// pieces (Rounder.BlockedPiecesOf).
+    /// pieces (ColonyReview.BlockedPiecesOf).
     /// </summary>
-    private static RoundsFacts Barracks(RimGovernor.Brain.Bridge.Contracts.ColonyReading colony) => Review(RimGovernor.Brain.BuildingRuntime.Rounder.BlockedPiecesOf(colony,
+    private static ReviewFacts Barracks(RimGovernor.Brain.GameAccess.ColonyReading colony) => Review(RimGovernor.Brain.Runtime.ColonyReview.BlockedPiecesOf(colony,
     [
         Ring(OpKind.WallIn, "WoodLog", 60), Ring(OpKind.DoorIn, "WoodLog", 30),
         .. BarracksBeds.Select((id, i) => Site(id, OpKind.Build, "Bed", "WoodLog", [new Cell(5 + i, 5)], 40, 0, [])),
@@ -354,7 +355,7 @@ public sealed class PlannedRoomActivitiesTests
             "ore" => PlannedRoomGateTests.StoveFacts(sources: new RingStuffSources { Mined = steel }),
             _ => PlannedRoomGateTests.StoveFacts(sources: new RingStuffSources { Salvage = steel }),
         };
-        Assert.Equal(RimGovernor.Brain.BuildingRuntime.DefinitionReadiness.Available, RimGovernor.Brain.BuildingRuntime.RoundsBuildingPlanner.PieceReadinessOf(colony)("FueledStove"));
+        Assert.Equal(RimGovernor.Brain.Runtime.DefinitionReadiness.Available, RimGovernor.Brain.Runtime.BuildingPlanner.PieceReadinessOf(colony)("FueledStove"));
         var candidates = Barracks(colony).CoupledAlternatives!;
         Assert.DoesNotContain(candidates.Findings, f => f.StartsWith("planned_room_site_blocked:", StringComparison.Ordinal));
         Assert.Contains("planned_room_alternative_unvalued:" + BarracksFull + ":" + BarracksStove + ":no_finish_option", candidates.Findings);
@@ -372,7 +373,7 @@ public sealed class PlannedRoomActivitiesTests
             "sources" => PlannedRoomGateTests.StoveFacts(sourcesRead: false),
             _ => PlannedRoomGateTests.StoveFacts(sources: new RingStuffSources { Unsalvaged = PlannedRoomGateTests.MachineUnsalvaged }),
         };
-        Assert.Equal(RimGovernor.Brain.BuildingRuntime.DefinitionReadiness.Unread, RimGovernor.Brain.BuildingRuntime.RoundsBuildingPlanner.PieceReadinessOf(colony)("FueledStove"));
+        Assert.Equal(RimGovernor.Brain.Runtime.DefinitionReadiness.Unread, RimGovernor.Brain.Runtime.BuildingPlanner.PieceReadinessOf(colony)("FueledStove"));
         var candidates = Barracks(colony).CoupledAlternatives!;
         Assert.DoesNotContain(candidates.Findings, f => f.StartsWith("planned_room_site_blocked:", StringComparison.Ordinal));
         Assert.Contains("planned_room_alternative_unvalued:" + BarracksFull + ":" + BarracksStove + ":no_finish_option", candidates.Findings);
@@ -651,7 +652,7 @@ public sealed class PlannedRoomActivitiesTests
             { SiteApproachTicks = 0d, AvailableInput = 10d };
         facts = facts with
         {
-            Census = facts.Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "WoodLog", Units = 10 }] },
+            Census = facts.Census with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "WoodLog", Units = 10 }] },
             ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with
                 { Construction = facts.ForecastObserved.Coupled.Construction! with { Options = [floor] } } },
         };
@@ -761,7 +762,7 @@ public sealed class PlannedRoomActivitiesTests
         var zone = new StockpileZone { Id = "Zone_w", Role = StockpileRolesConstants.GeneralRole, Cells = [.. region.Cells()], Filter = StockpileFilter.GeneralFilter() };
         static RimGovernor.Brain.Policy.LootItem Loose(string thing, string def, LootDeterioration? deterioration) =>
             LootFixtures.Stack(thing, def, new(20, 20), false,
-                new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 0 }, 50, 0, ["Zone_w"], deterioration);
+                new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Safe { PathLength = 0 }, 50, 0, ["Zone_w"], deterioration);
         var cloth = new LootDeterioration { BaseRatePerDay = 2, MaxHitPoints = 100, RatePerDay = 2, Environmental = true, Outdoors = true };
         var request = new StockpileRequest
         {
@@ -896,7 +897,7 @@ public sealed class PlannedRoomActivitiesTests
     /// <paramref name="inside"/> the room stands and the bed is in it, so the builder is its occupant as the bed's owner;
     /// without, the builder is the bedroom step's occupant.
     /// </summary>
-    private static RoundsFacts Bedroom(IEnumerable<PlannedBuildSite> planned, IReadOnlyDictionary<string, int> stages,
+    private static ReviewFacts Bedroom(IEnumerable<PlannedBuildSite> planned, IReadOnlyDictionary<string, int> stages,
         IReadOnlyDictionary<string, double> material, string role, int stage, bool inside)
     {
         var facts = Review(planned);
@@ -1083,7 +1084,7 @@ public sealed class PlannedRoomActivitiesTests
     /// (observed started and not done); tier 2's horizon is 10 days and wellbeing is weighed a capability-day per mood-day, so a day's
     /// delay of a bedroom is worth more than the ledger's tie resolution.
     /// </summary>
-    private static RoundsFacts Rings(IEnumerable<PlannedBuildSite> planned, Dictionary<int, PlannedRole> roles,
+    private static ReviewFacts Rings(IEnumerable<PlannedBuildSite> planned, Dictionary<int, PlannedRole> roles,
         Dictionary<int, string> occupants, int? builders, int[] open, int colonists = 1, IReadOnlyDictionary<string, double>? material = null)
     {
         var facts = Review(planned, horizon: Day, colonists: colonists);

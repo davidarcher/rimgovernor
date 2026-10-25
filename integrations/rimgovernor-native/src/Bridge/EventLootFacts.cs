@@ -5,37 +5,35 @@ using RimWorld;
 using Unity.Collections;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Native facts only. The controller selects and executes the desired forbid
     // state through the same authority and receipt path as starting supplies.
     internal static class EventLootFacts
     {
-        internal static RimGovernor.Brain.Domain.EquatableArray<Obs.LootItem> Read(Map map, List<Thing> things, Func<Thing, bool> reachable)
+        internal static RimGovernor.Brain.Domain.EquatableArray<RimGovernor.Brain.GameFacts.Observations.LootItem> Read(Map map, List<Thing> things, Func<Thing, bool> reachable)
         {
             // Fresh animal corpses have a separate storage/forbid owner.
             var items = things.Where(t => NativeSupplyAllow.Eligible(t) && !FoodSupplyFacts.FreshAnimalCorpse(t)).OrderBy(t => t.thingIDNumber).ToList();
             var safety = new HaulingSafety(map);
-            var census = new List<Obs.LootItem>(items.Count);
+            var census = new List<RimGovernor.Brain.GameFacts.Observations.LootItem>(items.Count);
             var headroom = new Dictionary<ThingDef, long>();
             foreach (var t in items) {
                 var forbidden = t.IsForbidden(Faction.OfPlayer);
                 var safe = safety.Safe(t);
                 // A safe verdict always carries the measured route (Safe returns true only after a found path).
-                Obs.HaulSafety verdict = safe switch
+                RimGovernor.Brain.GameFacts.Observations.HaulSafety verdict = safe switch
                 {
-                    true => new Obs.HaulSafety.Safe { PathLength = safety.PathLength >= 0 ? safety.PathLength : throw new InvalidOperationException("A safe haul verdict measured no route.") },
-                    false => new Obs.HaulSafety.Unsafe(),
-                    null => new Obs.HaulSafety.Unreached(),
+                    true => new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Safe { PathLength = safety.PathLength >= 0 ? safety.PathLength : throw new InvalidOperationException("A safe haul verdict measured no route.") },
+                    false => new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Unsafe(),
+                    null => new RimGovernor.Brain.GameFacts.Observations.HaulSafety.Unreached(),
                 };
                 if (!headroom.TryGetValue(t.def, out var units)) headroom[t.def] = units = StorageHeadroom(map, t);
                 // A stack no storage has room for names the stores whose
                 // filter would take it. A stack no colonist reaches is listed too, so the
                 // brain can leave that store's stranded count to the reached ones.
-                census.Add(new Obs.LootItem {
+                census.Add(new RimGovernor.Brain.GameFacts.Observations.LootItem {
                     Item = NativeRef.Thing(t), Forbidden = forbidden, Count = t.stackCount, Safety = verdict, StorageHeadroom = units,
                     AcceptedBy = units == 0 && !forbidden && safe != false ? [.. AcceptingGroups(map, t)] : [],
                     Deterioration = DeteriorationOf(map, t)
@@ -49,10 +47,10 @@ namespace HomeBridge.BridgeTools
         // and the StatPart_EnvironmentalEffects inputs at its cell, so the brain
         // can rebuild the rate in the roofed indoor room that would store it.
         // Null for a stack that cannot deteriorate.
-        internal static Obs.LootDeterioration? DeteriorationOf(Map map, Thing thing)
+        internal static RimGovernor.Brain.GameFacts.Observations.LootDeterioration? DeteriorationOf(Map map, Thing thing)
         {
             if (!thing.def.useHitPoints || !thing.def.CanEverDeteriorate) return null;
-            return new Obs.LootDeterioration {
+            return new RimGovernor.Brain.GameFacts.Observations.LootDeterioration {
                 BaseRatePerDay = thing.def.GetStatValueAbstract(StatDefOf.DeteriorationRate, thing.Stuff),
                 MaxHitPoints = thing.MaxHitPoints, RatePerDay = SteadyEnvironmentEffects.FinalDeteriorationRate(thing),
                 Environmental = thing.def.deteriorateFromEnvironmentalEffects,
@@ -82,12 +80,12 @@ namespace HomeBridge.BridgeTools
 
         // The player's storage groups (stockpile zones and storage buildings)
         // whose settings accept the item, ignoring space, by load id.
-        internal static IEnumerable<Common.Ref> AcceptingGroups(Map map, Thing item) =>
+        internal static IEnumerable<RimGovernor.Brain.GameFacts.Common.Ref> AcceptingGroups(Map map, Thing item) =>
             map.haulDestinationManager.AllGroupsListInPriorityOrder
                 .Where(g => g.parent?.Accepts(item) == true)
                 .Select(g => g.parent as ILoadReferenceable).OfType<ILoadReferenceable>()
                 .Select(p => p.GetUniqueLoadID()).Distinct().OrderBy(id => id, StringComparer.Ordinal)
-                .Select(id => new Common.Ref { Id = id });
+                .Select(id => new RimGovernor.Brain.GameFacts.Common.Ref { Id = id });
 
         internal static bool? Safe(Thing item)
         {

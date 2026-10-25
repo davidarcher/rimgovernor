@@ -1,6 +1,6 @@
 using System;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Hours of daylight in one day, counted from the sun glow at each of the day's 24 hour marks. Which glow is daytime is
     // the game's (GenCelestial.IsDaytime), passed in so the count is independent of the game assemblies.

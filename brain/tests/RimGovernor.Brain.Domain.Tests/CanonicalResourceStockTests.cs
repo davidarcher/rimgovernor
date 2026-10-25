@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -13,9 +12,9 @@ public sealed class CanonicalResourceStockTests
         var steel = new Resource("Steel");
         var census = ColonyFactsCoreTests.Snapshot() with
         {
-            Resources = [new O.Quantity { DefName = wood.Value, Units = 7 },
-                new O.Quantity { DefName = steel.Value, Units = 11 },
-                new O.Quantity { DefName = wood.Value, Units = 3 }],
+            Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = wood.Value, Units = 7 },
+                new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = steel.Value, Units = 11 },
+                new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = wood.Value, Units = 3 }],
             ResourceThings = ["wood-stack", "steel-stack"],
         };
         var facts = ColonyFactsCoreTests.Reading().Facts with
@@ -47,7 +46,7 @@ public sealed class CanonicalResourceStockTests
     [Fact]
     public void MissingCensusFailsWhileAnExplicitEmptyCensusIsObserved()
     {
-        Assert.Throws<RequiredFactException>(() => new RoundsFacts().ObservedStock());
+        Assert.Throws<RequiredFactException>(() => new ReviewFacts().ObservedStock());
         Assert.Throws<RequiredFactException>(() => new ResourceFacts().ObservedStock());
         Assert.Throws<RequiredFactException>(() => new ColonyForecastFacts().ObservedStock());
         Assert.Throws<RequiredFactException>(() => new MedicalReserveObservation().ObservedStock());

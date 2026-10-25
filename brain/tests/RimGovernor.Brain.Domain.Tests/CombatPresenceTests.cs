@@ -1,12 +1,8 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using C = RimGovernor.Contracts.Wire.Common;
-using M = RimGovernor.Contracts.Wire.Mirror;
-using O = RimGovernor.Contracts.Wire.Observations;
-using Op = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -21,18 +17,18 @@ public sealed class CombatPresenceTests
     private static readonly DefinitionCatalog Catalog = new(
         [new Verse.ThingDef { defName = "Silver" }, new Verse.TerrainDef { defName = "Soil" }], DefStatTable.Empty, new CatalogDerived("Silver", "Wort", 10f));
 
-    private static M.CombatPawn Row(string id, M.CombatSide side) => new()
+    private static RimGovernor.Brain.GameFacts.Mirror.CombatPawn Row(string id, RimGovernor.Brain.GameFacts.Mirror.CombatSide side) => new()
     {
         Id = new PawnId(id),
         Side = side,
         Cell = new RimGovernor.Brain.Domain.Cell { X = 3, Z = 4 },
         Downed = false,
         Dead = false,
-        Stance = M.CombatStance.Warmup,
+        Stance = RimGovernor.Brain.GameFacts.Mirror.CombatStance.Warmup,
         Health = 0.75,
         MoveSpeed = 4.6,
         Armor = 0.35,
-        Changed = new M.Watermark { Tick = 1200, Seq = 3 },
+        Changed = new RimGovernor.Brain.GameFacts.Mirror.Watermark { Tick = 1200, Seq = 3 },
         MedicalSkill = 6,
         GoJuiceHigh = false,
         LuciferiumAddicted = false,
@@ -40,19 +36,19 @@ public sealed class CombatPresenceTests
         TargetMortar = false,
     };
 
-    private static O.PawnState Placed(string id) => EmergencyFixtures.Placed(id, 3, 4);
+    private static RimGovernor.Brain.GameFacts.Observations.PawnState Placed(string id) => EmergencyFixtures.Placed(id, 3, 4);
 
-    private static RimGovernor.Brain.Bridge.Combat Combat(IReadOnlyList<M.CombatPawn> rows, params O.PawnState[] table) =>
+    private static RimGovernor.Brain.Bridge.Combat Combat(IReadOnlyList<RimGovernor.Brain.GameFacts.Mirror.CombatPawn> rows, params RimGovernor.Brain.GameFacts.Observations.PawnState[] table) =>
         new() { Pawns = rows, Detail = Pawns.Of(table), Catalog = Catalog };
 
     [Fact]
     public void ACombatRowIsEngagedWithItsNamedStates()
     {
-        var row = Row("Thing_Human1", M.CombatSide.Colonist) with
+        var row = Row("Thing_Human1", RimGovernor.Brain.GameFacts.Mirror.CombatSide.Colonist) with
         {
-            Draft = new M.CombatDraft { FireMode = Op.CombatFireMode.Hold },
-            Shield = new M.CombatShield { Energy = 0.4 },
-            CarriedDrugs = new M.CarriedDrugs { Defs = ["GoJuice"] },
+            Draft = new RimGovernor.Brain.GameFacts.Mirror.CombatDraft { FireMode = RimGovernor.Brain.GameFacts.Operations.CombatFireMode.Hold },
+            Shield = new RimGovernor.Brain.GameFacts.Mirror.CombatShield { Energy = 0.4 },
+            CarriedDrugs = new RimGovernor.Brain.GameFacts.Mirror.CarriedDrugs { Defs = ["GoJuice"] },
             Weapon = "Gun_AssaultRifle",
             TargetId = "Thing_Raider1",
             Job = "AttackStatic",
@@ -60,11 +56,11 @@ public sealed class CombatPresenceTests
         };
         var bleeding = Placed("Thing_Human1") with
         {
-            Health = PawnFixtures.Healthy with { BloodLoss = 0.3, BleedRatePerDay = 1.5, BleedOut = new O.BleedOut.Within(5) },
+            Health = PawnFixtures.Healthy with { BloodLoss = 0.3, BleedRatePerDay = 1.5, BleedOut = new RimGovernor.Brain.GameFacts.Observations.BleedOut.Within(5) },
         };
         var weapons = new Dictionary<string, WeaponDef> { ["Gun_AssaultRifle"] = new() { Ranged = true, Range = 31, Reach = 31 } };
 
-        var s = Assert.Single(RoundsDefensePlanner.CombatPawnStates(Combat([row], bleeding), new Dictionary<string, O.PawnState>(), weapons));
+        var s = Assert.Single(DefensePlanner.CombatPawnStates(Combat([row], bleeding), new Dictionary<string, RimGovernor.Brain.GameFacts.Observations.PawnState>(), weapons));
 
         var engaged = Assert.IsType<CombatPresence.Engaged>(s.Presence);
         Assert.Equal(CombatStance.Warmup, engaged.Row.Stance);
@@ -81,16 +77,16 @@ public sealed class CombatPresenceTests
         Assert.Equal("AttackStatic", s.Job);
         Assert.Equal(0.3, s.BloodLoss);
         Assert.Equal(1.5, s.BleedRatePerDay);
-        Assert.Equal(new O.BleedOut.Within(5), s.BleedOut);
+        Assert.Equal(new RimGovernor.Brain.GameFacts.Observations.BleedOut.Within(5), s.BleedOut);
         Assert.Equal("Colonist", s.Kind);
     }
 
     [Fact]
     public void AnUndraftedBareRowHasNoBeltNoScanAndNoWeapon()
     {
-        var row = Row("Thing_Raider1", M.CombatSide.Hostile);
+        var row = Row("Thing_Raider1", RimGovernor.Brain.GameFacts.Mirror.CombatSide.Hostile);
 
-        var s = Assert.Single(RoundsDefensePlanner.CombatPawnStates(Combat([row], Placed("Thing_Raider1")), new Dictionary<string, O.PawnState>(), new Dictionary<string, WeaponDef>()));
+        var s = Assert.Single(DefensePlanner.CombatPawnStates(Combat([row], Placed("Thing_Raider1")), new Dictionary<string, RimGovernor.Brain.GameFacts.Observations.PawnState>(), new Dictionary<string, WeaponDef>()));
 
         var engaged = Assert.IsType<CombatPresence.Engaged>(s.Presence);
         Assert.Equal(DraftFireMode.Undrafted, engaged.Row.FireMode);
@@ -103,9 +99,9 @@ public sealed class CombatPresenceTests
     [Fact]
     public void ACombatRowTheFramesTableDoesNotHoldIsNotInTheView()
     {
-        var rows = new[] { Row("Thing_Human1", M.CombatSide.Colonist), Row("Thing_Wolf1", M.CombatSide.WildAnimal) };
+        var rows = new[] { Row("Thing_Human1", RimGovernor.Brain.GameFacts.Mirror.CombatSide.Colonist), Row("Thing_Wolf1", RimGovernor.Brain.GameFacts.Mirror.CombatSide.WildAnimal) };
 
-        var states = RoundsDefensePlanner.CombatPawnStates(Combat(rows, Placed("Thing_Human1")), new Dictionary<string, O.PawnState>(), new Dictionary<string, WeaponDef>());
+        var states = DefensePlanner.CombatPawnStates(Combat(rows, Placed("Thing_Human1")), new Dictionary<string, RimGovernor.Brain.GameFacts.Observations.PawnState>(), new Dictionary<string, WeaponDef>());
 
         Assert.Equal([new PawnId("Thing_Human1")], states.Select(s => s.Id).ToArray());
     }
@@ -113,13 +109,13 @@ public sealed class CombatPresenceTests
     [Fact]
     public void WithoutCombatRowsThePawnTableGivesNoCombatRowStatesOnTheMap()
     {
-        var rows = new Dictionary<string, O.PawnState>
+        var rows = new Dictionary<string, RimGovernor.Brain.GameFacts.Observations.PawnState>
         {
             ["Colonist_a"] = Placed("Colonist_a"),
             ["Colonist_b"] = PawnFixtures.Row("Colonist_b"),
         };
 
-        var s = Assert.Single(RoundsDefensePlanner.CombatPawnStates(Combat([]), rows, new Dictionary<string, WeaponDef>()));
+        var s = Assert.Single(DefensePlanner.CombatPawnStates(Combat([]), rows, new Dictionary<string, WeaponDef>()));
 
         Assert.Equal(new PawnId("Colonist_a"), s.Id);
         Assert.IsType<CombatPresence.NoCombatRow>(s.Presence);
@@ -132,11 +128,11 @@ public sealed class CombatPresenceTests
     [Fact]
     public void ADraftWithoutAFireModeBreaksTheRowContract()
     {
-        Assert.Equal(DraftFireMode.FireAtWill, RoundsDefensePlanner.DraftFireMode(Op.CombatFireMode.AtWill));
-        Assert.Equal(DraftFireMode.HoldFire, RoundsDefensePlanner.DraftFireMode(Op.CombatFireMode.Hold));
-        Assert.Throws<ControlException>(() => RoundsDefensePlanner.DraftFireMode((Op.CombatFireMode)0));
-        Assert.Throws<ControlException>(() => RoundsDefensePlanner.CombatStance((M.CombatStance)0));
-        Assert.Equal(CombatStance.Melee, RoundsDefensePlanner.CombatStance(M.CombatStance.Melee));
+        Assert.Equal(DraftFireMode.FireAtWill, DefensePlanner.DraftFireMode(RimGovernor.Brain.GameFacts.Operations.CombatFireMode.AtWill));
+        Assert.Equal(DraftFireMode.HoldFire, DefensePlanner.DraftFireMode(RimGovernor.Brain.GameFacts.Operations.CombatFireMode.Hold));
+        Assert.Throws<ControlException>(() => DefensePlanner.DraftFireMode((RimGovernor.Brain.GameFacts.Operations.CombatFireMode)0));
+        Assert.Throws<ControlException>(() => DefensePlanner.CombatStance((RimGovernor.Brain.GameFacts.Mirror.CombatStance)0));
+        Assert.Equal(CombatStance.Melee, DefensePlanner.CombatStance(RimGovernor.Brain.GameFacts.Mirror.CombatStance.Melee));
     }
 
     [Fact]
@@ -168,13 +164,13 @@ public sealed class CombatPresenceTests
         Assert.Equal(PostFightStep.Done, CombatThreatRules.PostFightNext(RaiderApparel.NotInFrame, StripState.StripPlaced));
         Assert.Equal(PostFightStep.Done, CombatThreatRules.PostFightNext(RaiderApparel.Wearing, StripState.StripRefused));
 
-        Assert.Equal(RaiderApparel.NotInFrame, RoundsDefensePlanner.ApparelOf(Pawns.Of(), new PawnId("Thing_Raider1")));
-        Assert.Equal(RaiderApparel.Bare, RoundsDefensePlanner.ApparelOf(Pawns.Of(Placed("Thing_Raider1")), new PawnId("Thing_Raider1")));
+        Assert.Equal(RaiderApparel.NotInFrame, DefensePlanner.ApparelOf(Pawns.Of(), new PawnId("Thing_Raider1")));
+        Assert.Equal(RaiderApparel.Bare, DefensePlanner.ApparelOf(Pawns.Of(Placed("Thing_Raider1")), new PawnId("Thing_Raider1")));
     }
 
     [Fact]
     public void NoPodEventIsNoArrival() =>
-        Assert.Null(RoundsDefensePlanner.PodArrival(Combat([])));
+        Assert.Null(DefensePlanner.PodArrival(Combat([])));
 
     [Fact]
     public void EveryShellKindNamesItsDef()

@@ -12,7 +12,7 @@ using Verse;
 using Verse.AI;
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 /// <summary>Prepared physical preconditions only. Ordinary review chooses whether and who finishes either frame.</summary>
 public sealed class ServiceInvestmentFixture
@@ -22,7 +22,7 @@ public sealed class ServiceInvestmentFixture
     private static bool patched, active, worked;
 
     [Tool("test/service_shelter_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Prepare a cold occupied room, partly funded heater and unrelated lower-tier wall competing for five steel. No chosen task or assignment.")]
-    public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken ct)
+    public async Task<object> Prepare(INativeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             active = false;
@@ -86,7 +86,7 @@ public sealed class ServiceInvestmentFixture
     }
 
     [Tool("test/service_shelter_read", Description = "UNSAFE FOR MODEL EXECUTION. Read actual normal-Method work, completed heater, room temperature and deferred spare frame.")]
-    public async Task<object> Read(IRimBridgeContext ctx, CancellationToken ct)
+    public async Task<object> Read(INativeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             if (hut == null || heater == null || spare == null) throw new InvalidOperationException("Prepare shelter first.");

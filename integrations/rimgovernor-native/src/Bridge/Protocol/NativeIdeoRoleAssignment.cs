@@ -2,11 +2,8 @@ using System;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The ideology role target of AssignIntent: thing_id
     // is the role precept's load id as the ideology section lists it, and the
@@ -26,30 +23,30 @@ namespace HomeBridge.BridgeTools
             return ideo?.PreceptsListForReading.OfType<Precept_Role>().FirstOrDefault(r => r.GetUniqueLoadID() == thingId);
         }
 
-        private static Common.Failure? Resolve(Operations.AssignIntent intent, Common.ObservationContext context, Precept_Role role, out Pawn? pawn, out Precept_Role? previous)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(RimGovernor.Brain.GameOrders.Operations.AssignIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, Precept_Role role, out Pawn? pawn, out Precept_Role? previous)
         {
             pawn = null; previous = null;
-            var map = ProtoBoundary.ResolveMap(context);
-            if (map == null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Current map required.");
+            var map = GameThread.ResolveMap(context);
+            if (map == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Current map required.");
             var found = map.mapPawns.FreeColonistsSpawned.ById(intent.PawnId);
-            if (found == null || found.Dead) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Pawn unavailable for assignment.");
+            if (found == null || found.Dead) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Pawn unavailable for assignment.");
             if (role.IsAssigned(found)) { pawn = found; return null; }
             previous = role.ideo.GetRole(found);
             var held = previous?.GetUniqueLoadID() ?? "";
             var expected = intent.ExpectedPrevious?.Value?.EntityId ?? "";
-            if (held != expected) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Previous assignment changed; observe before recovery.");
-            if (!role.Active) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Role unavailable: not active.");
-            if (found.Ideo != role.ideo) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Role unavailable: the pawn does not hold the ideoligion.");
+            if (held != expected) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Previous assignment changed; observe before recovery.");
+            if (!role.Active) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Role unavailable: not active.");
+            if (found.Ideo != role.ideo) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Role unavailable: the pawn does not hold the ideoligion.");
             var unmet = role.GetFirstUnmetRequirement(found);
-            if (unmet != null) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Role unavailable: requirement unmet: " + unmet.GetLabel(role));
-            if (role.ChosenPawns().Count() >= role.def.maxCount) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Role unavailable: no free place.");
+            if (unmet != null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Role unavailable: requirement unmet: " + unmet.GetLabel(role));
+            if (role.ChosenPawns().Count() >= role.def.maxCount) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Role unavailable: no free place.");
             pawn = found;
             return null;
         }
 
-        internal static Common.Failure? Validate(Operations.AssignIntent intent, Common.ObservationContext context, Precept_Role role) => Resolve(intent, context, role, out _, out _);
+        internal static RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.AssignIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, Precept_Role role) => Resolve(intent, context, role, out _, out _);
 
-        internal static Receipts.EffectEvidence Apply(Operations.AssignIntent intent, Common.ObservationContext context, Precept_Role role)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.AssignIntent intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, Precept_Role role)
         {
             var failure = Resolve(intent, context, role, out var pawn, out var previous);
             if (failure != null || pawn == null) throw new InvalidOperationException("Assignment prerequisites changed before apply: " + (failure?.Detail ?? ""));
@@ -59,7 +56,7 @@ namespace HomeBridge.BridgeTools
                 role.Assign(pawn, true);
             }
             if (!role.IsAssigned(pawn)) throw new InvalidOperationException("Native role assignment did not take effect.");
-            return new Receipts.EffectEvidence();
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence();
         }
     }
 }

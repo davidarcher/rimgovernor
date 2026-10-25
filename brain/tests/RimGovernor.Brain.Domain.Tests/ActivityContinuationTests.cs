@@ -1,7 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using Xunit;
 using Journal = RimGovernor.Brain.Store.Store;
 
@@ -20,8 +20,8 @@ public sealed class ActivityContinuationTests
     private static NeedOwner Admit(Journal journal, PlanSpec plan, CancellationToken ct, Receipt receipt = Receipt.Accepted)
     {
         IntentActionRules.RegisterIntentKinds();
-        _ = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
-            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
+        _ = journal.Review(new ReviewRequest { Current = Root, Tick = new(100), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
         var owner = TestNeed.Commit(journal, Root, new("method"), plan, ct);
         TestNeed.File(journal, met: false, new("method"), ct);
         var scope = Root with { Plan = plan.Id };
@@ -177,8 +177,8 @@ public sealed class ActivityContinuationTests
         var ct = TestContext.Current.CancellationToken;
         using var journal = Open(ct);
         IntentActionRules.RegisterIntentKinds();
-        _ = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
-            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
+        _ = journal.Review(new ReviewRequest { Current = Root, Tick = new(100), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
         var need = AdminFamily.WorkAssignments;
         var initial = Plan("need-initial", Batch);
         Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(need, Root, new("method"), "", initial, ct).Outcome);
@@ -193,7 +193,7 @@ public sealed class ActivityContinuationTests
             Steps = [new PawnActivityStep(PawnActivityKind.Deliver, "fresh-observed-stack", "", "", 2, 600).At(new Cell(3, 4))] }] });
         Assert.Throws<ConflictException>(() => journal.ContinueActivityMethod(initial.Id, Root, new(110), [Row("completed")], next, ct));
 
-        void File(bool met) => journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(),
+        void File(bool met) => journal.RecordPlannerReasons(new Dictionary<FilingKey, PlannerNote>(),
             [new FamilyProgress(AdminFamily.FamilyId, true, met ? [] : [new NeedProgress(need, false, default, new("method"))])], ct);
         File(met: false);
         Assert.Equal(ActivityNeed.Owed, Assert.Single(journal.ActivityMethods(Root, ct)).Needed);

@@ -1,4 +1,3 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
@@ -21,8 +20,8 @@ public sealed class HomeFireTests
     {
         WorkPawn Pawn(string id, bool pyromaniac) => PawnFixtures.Worker(id) with
         { Work = PawnFixtures.WorkTable(true, [
-                new() { Observed = new O.WorkSetting { DefName = "Firefighter", Priority = 0, Disabled = pyromaniac }, Order = 1 },
-                new() { Observed = new O.WorkSetting { DefName = "Construction", Priority = 3, Disabled = false }, Skill = "Construction", Order = 5 }]), Observed = PawnFixtures.Row(id) with { Biography = PawnFixtures.Row(id).Biography with { Skills = [new() { Passion = O.Passion.None, DefName = "Construction", Level = 8 }] }, Settings = PawnFixtures.Row(id).Settings with { Schedule = EquatableArray.From((EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24))).Select((assignment, hour) => new O.TimetableSlot { Hour = (uint)hour, AssignmentDefName = assignment })) } } };
+                new() { Observed = new RimGovernor.Brain.GameFacts.Observations.WorkSetting { DefName = "Firefighter", Priority = 0, Disabled = pyromaniac }, Order = 1 },
+                new() { Observed = new RimGovernor.Brain.GameFacts.Observations.WorkSetting { DefName = "Construction", Priority = 3, Disabled = false }, Skill = "Construction", Order = 5 }]), Observed = PawnFixtures.Row(id) with { Biography = PawnFixtures.Row(id).Biography with { Skills = [new() { Passion = RimGovernor.Brain.GameFacts.Observations.Passion.None, DefName = "Construction", Level = 8 }] }, Settings = PawnFixtures.Row(id).Settings with { Schedule = EquatableArray.From((EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24))).Select((assignment, hour) => new RimGovernor.Brain.GameFacts.Observations.TimetableSlot { Hour = (uint)hour, AssignmentDefName = assignment })) } } };
         var decision = WorkRules.PlanWork([Pawn("a", false), Pawn("b", false), Pawn("pyro", true)], [], new());
         int Firefighter(string pawn) => decision.Assignments.Single(a => a.Pawn.Value == pawn).Priorities.SingleOrDefault(p => p.Work == WorkType.Firefighter)?.Priority ?? 0;
         Assert.Equal(1, Firefighter("a"));

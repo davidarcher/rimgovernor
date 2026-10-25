@@ -12,7 +12,7 @@ using RimWorld.Planet;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // TickProfile: where a game tick's wall time goes, for the acceptance speed
     // work. Each bucket is the inclusive time of one game method, so the buckets

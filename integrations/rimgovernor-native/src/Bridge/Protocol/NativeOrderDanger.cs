@@ -1,6 +1,6 @@
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The one Danger level for reach checks on a player-style forced order.
     // Vanilla's float menu (FloatMenuOptionProvider_WorkGivers) tests every

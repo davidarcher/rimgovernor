@@ -1,4 +1,4 @@
-using TechLevel = RimGovernor.Contracts.Wire.Defs.TechLevel;
+using TechLevel = RimGovernor.Brain.GameFacts.Defs.TechLevel;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -134,7 +134,7 @@ public sealed record GoalDemand
 
 /// <summary>
 /// What the goals ask the planned-room, hospital and station channels to build (#3496). It rides
-/// <see cref="RoundsFacts.GoalBuild"/>, so a room's goal is one more demand to the planner that owns the room.
+/// <see cref="ReviewFacts.GoalBuild"/>, so a room's goal is one more demand to the planner that owns the room.
 /// </summary>
 public sealed record GoalBuildDemand
 {
@@ -207,7 +207,7 @@ public sealed record GoalsFacts
     public RoomObservation Rooms { get => field ?? throw new RequiredFactException("rooms"); init; }
 
     /// <summary>The review's facts: the prisoner, custody and quest censuses the named-prisoner and named-quest goals are judged by.</summary>
-    public RoundsFacts Rounds { get; init; } = new();
+    public ReviewFacts ReviewState { get; init; } = new();
 
     /// <summary>The research each harvested stuff waits on (a plant's sowing prerequisites, keyed by its harvested thing def), the way a worn-count goal reaches the research-wanted set (#3496).</summary>
     public IReadOnlyDictionary<string, IReadOnlyList<string>> StuffResearch { get; init; } = new Dictionary<string, IReadOnlyList<string>>();
@@ -222,7 +222,7 @@ public sealed record GoalsFacts
     public IReadOnlyDictionary<NeedId, OwnerProgress> Owners { get; init; } = new Dictionary<NeedId, OwnerProgress>();
 
     /// <summary>The facts a review already holds, with the goals and the owners' rows.</summary>
-    public static GoalsFacts From(RoundsFacts f, TechTier tier, WorkPawnsRead pawns, IReadOnlyList<GoalRecord> goals, IReadOnlyList<ThemeRecord> themes, IReadOnlyDictionary<NeedId, OwnerProgress> owners, IReadOnlyDictionary<string, IReadOnlyList<string>>? stuffResearch = null) => new()
+    public static GoalsFacts From(ReviewFacts f, TechTier tier, WorkPawnsRead pawns, IReadOnlyList<GoalRecord> goals, IReadOnlyList<ThemeRecord> themes, IReadOnlyDictionary<NeedId, OwnerProgress> owners, IReadOnlyDictionary<string, IReadOnlyList<string>>? stuffResearch = null) => new()
     {
         Pawns = pawns,
         Goals = goals,
@@ -233,7 +233,7 @@ public sealed record GoalsFacts
         Colonists = f.Census.ColonistCount,
         Animals = f.AnimalUpkeep.Animals,
         Ideology = f.Ideology,
-        Rounds = f,
+        ReviewState = f,
         Owners = owners,
         StuffResearch = stuffResearch ?? new Dictionary<string, IReadOnlyList<string>>(),
     };
@@ -419,7 +419,7 @@ public static partial class GoalRules
     private static GoalStatus Worn(GoalRecord goal, GoalsFacts f)
     {
         var owner = EconomyFamily.Resource;
-        var gear = f.Rounds.Gear;
+        var gear = f.ReviewState.Gear;
         var want = new WornGoal(new Resource(goal.Target), new Resource(goal.Qualifier), goal.Count);
         var wearing = WearingCount(gear, want);
         var deficit = GoalDeficit.Of((double)Math.Max(0, goal.Count - wearing));
@@ -446,7 +446,7 @@ public static partial class GoalRules
     public static bool OwnStep(GoalRecord goal) => goal.Kind == GoalKind.BuiltCount && PlacerOf(goal.Target) is BuiltPlacer.Beacon or BuiltPlacer.Geothermal;
 
     /// <summary>How many finished buildings of <paramref name="definition"/> stand.</summary>
-    public static long BuiltOf(RoundsFacts f, string definition) =>
+    public static long BuiltOf(ReviewFacts f, string definition) =>
         f.BuiltBuildings.Where(a => a.Resource == new Resource(definition)).Sum(a => a.Count);
 
     /// <summary>
@@ -460,14 +460,14 @@ public static partial class GoalRules
         if (placer == BuiltPlacer.None)
         {
             // A definition nothing places has no method; one already standing is still met.
-            var counted = Shortfall(goal.Count, BuiltOf(f.Rounds, goal.Target));
+            var counted = Shortfall(goal.Count, BuiltOf(f.ReviewState, goal.Target));
             return counted.Met
                 ? new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", default, GoalDeficit.Of(counted.Deficit))
                 : new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NoPlacerFor(goal), default, GoalDeficit.Of(counted.Deficit));
         }
 
         var owner = placer == BuiltPlacer.Turret ? LayoutFamily.Defense : NeedOf(goal);
-        var standing = Shortfall(goal.Count, BuiltOf(f.Rounds, goal.Target));
+        var standing = Shortfall(goal.Count, BuiltOf(f.ReviewState, goal.Target));
         var deficit = GoalDeficit.Of(standing.Deficit);
         return standing.Met ? new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, deficit) : Pursued(goal, f, owner, deficit);
     }
@@ -513,11 +513,11 @@ public static partial class GoalRules
     {
         var owner = MedicalRules.SurgeryNeed;
         var one = GoalDeficit.Of(1.0);
-        if (!f.Rounds.Recipes.AddedHediffs.TryGetValue(goal.Qualifier, out var hediff))
+        if (!f.ReviewState.Recipes.AddedHediffs.TryGetValue(goal.Qualifier, out var hediff))
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unknown_recipe", default, GoalDeficit.Unmeasured);
         }
-        var pawns = f.Rounds.MedicalPawns;
+        var pawns = f.ReviewState.MedicalPawns;
         var pawn = pawns.FirstOrDefault(p => p.Id == new PawnId(goal.Target));
         if (pawn is null || pawn.Dead)
         {
@@ -531,7 +531,7 @@ public static partial class GoalRules
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unavailable", default, one);
         }
-        return !SurgeryRules.HospitalBedReady(f.Rounds.Sleeping)
+        return !SurgeryRules.HospitalBedReady(f.ReviewState.Sleeping)
             ? new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, "no_hospital_bed", owner, one)
             : Pursued(goal, f, owner, one);
     }
@@ -555,7 +555,7 @@ public static partial class GoalRules
         var owner = PrisonersFamily.Recruit;
         var one = GoalDeficit.Of(1.0);
         var pawn = new PawnId(goal.Target);
-        var census = f.Rounds.Population;
+        var census = f.ReviewState.Population;
         var row = census.Prisoners.FirstOrDefault(p => p.Pawn == pawn);
         if (row is null)
         {
@@ -589,7 +589,7 @@ public static partial class GoalRules
         double deficit;
         if (role == RoomRole.Hospital)
         {
-            var hosted = HospitalRules.HostedMedicalBeds(rooms, f.Rounds.Sleeping, false);
+            var hosted = HospitalRules.HostedMedicalBeds(rooms, f.ReviewState.Sleeping, false);
             deficit = Math.Max(0, HospitalBedsOf(goal) - hosted);
         }
         else
@@ -629,7 +629,7 @@ public static partial class GoalRules
     private static GoalStatus NamedQuest(GoalRecord goal, GoalsFacts f)
     {
         var one = GoalDeficit.Of(1.0);
-        var offers = f.Rounds.QuestOffers;
+        var offers = f.ReviewState.QuestOffers;
         var quest = new QuestId(goal.Target);
         var offer = offers.FirstOrDefault(o => o.Id == quest);
         if (offer is null)
@@ -646,7 +646,7 @@ public static partial class GoalRules
             case QuestStatus.Ongoing:
                 return Pursued(goal, f, owner, one);
             case QuestStatus.NotYetAccepted:
-                var reason = owner == JoinersFamily.Offers ? QuestSelection.JoinerThreatReason(offer, f.Rounds) : QuestSelection.NamedQuestReason(offer, f.Rounds);
+                var reason = owner == JoinersFamily.Offers ? QuestSelection.JoinerThreatReason(offer, f.ReviewState) : QuestSelection.NamedQuestReason(offer, f.ReviewState);
                 if (reason == Expired)
                 {
                     return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, Expired, default, one);
@@ -768,10 +768,10 @@ public static partial class GoalRules
     }
 
     /// <summary>The review facts with the goals' stock floors in them, and everything <see cref="Stamp"/> carries.</summary>
-    public static RoundsFacts Apply(RoundsFacts f, GoalDemand d) => Stamp(f with { ResourceNeeds = ResourceRules.ResourceConcernTargets(f.ResourceNeeds, d.Stock) }, d);
+    public static ReviewFacts Apply(ReviewFacts f, GoalDemand d) => Stamp(f with { ResourceNeeds = ResourceRules.ResourceConcernTargets(f.ResourceNeeds, d.Stock) }, d);
 
     /// <summary>The facts with the goals' colonist head count, herd targets, named quests, named prisoners, believer, training and surgery demand: what every read of the world carries.</summary>
-    public static RoundsFacts Stamp(RoundsFacts f, GoalDemand d)
+    public static ReviewFacts Stamp(ReviewFacts f, GoalDemand d)
     {
         f = StampWorn(f with { ColonistGoal = d.Colonists, AnimalGoals = d.Animals, NamedQuests = d.Quests, GoalBuild = d.Build, GoalValues = d.Values, GoalTraining = d.Training, GoalSurgeries = d.Surgeries }, d.Worn);
         return f with { Population = f.Population with { Colony = f.Population.Colony with { NamedPrisoners = d.Prisoners, BelieversWanted = d.Believers } } };
@@ -780,9 +780,9 @@ public static partial class GoalRules
     /// <summary>
     /// The worn-count goals on the facts (#3496): each garment joins <c>Required</c> of the first <c>Count</c> eligible
     /// colonists (so their outfit allows it whatever their role), and the missing ones (Count less those already worn)
-    /// become bills in <see cref="RoundsFacts.WornBills"/> for the clothing runway. Idempotent, so every read can stamp.
+    /// become bills in <see cref="ReviewFacts.WornBills"/> for the clothing runway. Idempotent, so every read can stamp.
     /// </summary>
-    private static RoundsFacts StampWorn(RoundsFacts f, IReadOnlyList<WornGoal> worn)
+    private static ReviewFacts StampWorn(ReviewFacts f, IReadOnlyList<WornGoal> worn)
     {
         if (worn.Count == 0)
         {
@@ -888,7 +888,7 @@ public static partial class GoalRules
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unavailable", default, unmet);
         }
         var development = ideo.Facts.Development;
-        if (development is not RimGovernor.Contracts.Wire.Observations.IdeoDevelopment.Fluid fluid)
+        if (development is not RimGovernor.Brain.GameFacts.Observations.IdeoDevelopment.Fluid fluid)
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "not fluid", default, unmet);
         }

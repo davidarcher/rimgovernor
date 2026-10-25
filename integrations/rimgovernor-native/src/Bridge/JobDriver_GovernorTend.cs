@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using RimWorld;
 using Verse;
 using Verse.AI;
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 /// <summary>One exact native treatment batch. No medicine search, duplicate pickup or repeat treatment.</summary>
 public sealed class JobDriver_GovernorTend : JobDriver

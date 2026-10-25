@@ -14,14 +14,14 @@ internal static class NativeProtoResearchProbe
     private const BindingFlags Flags = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
     private static int checks;
     private static void Check(bool value, string label) { if (!value) throw new Exception(label); checks++; }
-    private static object Wire(string name, string json)
+    private static object Wire(Type type, string json)
     {
-        var type = typeof(RimGovernor.Contracts.Wire.Common.Ref).Assembly.GetType("RimGovernor.Contracts.Wire.Observations." + name, true)!;
-        return typeof(RimGovernor.Contracts.Wire.WireJson).GetMethod("Deserialize", new[] { typeof(string) })!.MakeGenericMethod(type).Invoke(null, new object[] { json })!;
+
+        return typeof(RimGovernor.Brain.GameOrders.OrdersJson).GetMethod(nameof(RimGovernor.Brain.GameOrders.OrdersJson.Deserialize), new[] { typeof(string) })!.MakeGenericMethod(type).Invoke(null, new object[] { json })!;
     }
     private static object Get(object value, string name) => value.GetType().GetProperty(name)!.GetValue(value)!;
     private static object Call(string name, params object?[] args) => tools.GetMethod(name, Flags)!.Invoke(null, args)!;
-    private static bool Valid(string json) => (bool)Call("Validate", Wire("ResearchRequest", json), null);
+    private static bool Valid(string json) => (bool)Call("Validate", Wire(typeof(RimGovernor.Brain.GameOrders.Observations.ResearchRequest),  json), null);
     private static void Refused(Action action, string label)
     {
         try { action(); } catch (TargetInvocationException) { Check(true, label); return; }
@@ -36,7 +36,7 @@ internal static class NativeProtoResearchProbe
         };
         bridge = Assembly.LoadFrom(Path.GetFullPath(args[0]));
         foreach (var reference in bridge.GetReferencedAssemblies()) Assembly.Load(reference);
-        tools = bridge.GetType("HomeBridge.BridgeTools.NativeResearchObservationTools", true)!;
+        tools = bridge.GetType("RimGovernor.Native.NativeResearchObservationTools", true)!;
         const string scope = "\"scope\":{\"expectedIdentity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0}}";
         Func<string, string> request = fields => "{" + scope + (fields.Length == 0 ? "" : "," + fields) + "}";
         foreach (var good in new[] { "", "\"includeLocked\":true,\"includeFinished\":true,\"includeUnlocks\":true,\"includeCapability\":true",
@@ -49,8 +49,8 @@ internal static class NativeProtoResearchProbe
         foreach (var bad in new[] { "{}", request("\"page\":{\"limit\":0}"), request("\"page\":{\"limit\":257}"),
             request("\"page\":{\"cursor\":\"" + new string('x', 4097) + "\"}"), request("\"nameContains\":\"bad\\u0000id\""), request("\"nameContains\":\"" + new string('α', 129) + "\"") })
             Check(!Valid(bad), "Invalid bounded research request refused");
-        Refused(() => Wire("ResearchRequest", "{\"set\":\"Electricity\"}"), "Unknown mutation argument rejected by wire decoder");
-        Refused(() => Wire("ResearchRequest", "{\"includeLocked\":\"false\"}"), "Nonboolean flag rejected");
+        Refused(() => Wire(typeof(RimGovernor.Brain.GameOrders.Observations.ResearchRequest),  "{\"set\":\"Electricity\"}"), "Unknown mutation argument rejected by wire decoder");
+        Refused(() => Wire(typeof(RimGovernor.Brain.GameOrders.Observations.ResearchRequest),  "{\"includeLocked\":\"false\"}"), "Nonboolean flag rejected");
 
         var native = Assembly.Load("Assembly-CSharp");
         var defType = native.GetType("Verse.ResearchProjectDef", true)!;
@@ -82,7 +82,7 @@ internal static class NativeProtoResearchProbe
         knowledge[def] = float.NaN;
         Refused(() => Call("Progress", def, progress, knowledge, true), "Corrupt stored progress rejected");
 
-        var observed = Wire("ResearchSnapshot", "{\"context\":{\"identity\":{\"colonyId\":\"c\",\"loadToken\":\"l\",\"mapId\":0},\"tick\":1},\"projects\":[{\"project\":{\"defName\":\"P\"},\"progressFraction\":0,\"finished\":false,\"current\":false,\"lockReasons\":[\"techprints\"]}],\"slots\":[{\"category\":\"\",\"currentProject\":\"\"}],\"finished\":[]}");
+        var observed = Wire(typeof(RimGovernor.Brain.GameFacts.Observations.ResearchSnapshot),  "{\"context\":{\"identity\":{\"colonyId\":\"c\",\"loadToken\":\"l\",\"mapId\":0},\"tick\":1},\"projects\":[{\"project\":{\"defName\":\"P\"},\"progressFraction\":0,\"finished\":false,\"current\":false,\"lockReasons\":[\"techprints\"]}],\"slots\":[{\"category\":\"\",\"currentProject\":\"\"}],\"finished\":[]}");
         var row = ((IEnumerable)Get(observed, "Projects")).Cast<object>().Single();
         Check(Get(row, "ProgressFraction") is double progressValue && progressValue == 0, "Zero progress retained");
         Check(((IEnumerable)Get(row, "LockReasons")).Cast<object>().Count() == 1, "Lock reasons retained");
@@ -117,9 +117,9 @@ internal static class NativeProtoResearchProbe
         // Substitute coverage below exercises this session's actual new surface -- Token's exact
         // field selection and QuerySeed's exact field selection -- which are pure managed code
         // reachable from this harness.
-        var context = new RimGovernor.Contracts.Wire.Common.ObservationContext { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Tick = 0,
-            Identity = new RimGovernor.Contracts.Wire.Common.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 } };
-        object Snapshot(string json) => Wire("ResearchSnapshot", json);
+        var context = new RimGovernor.Brain.GameFacts.Common.ObservationContext { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Tick = 0,
+            Identity = new RimGovernor.Brain.GameFacts.Common.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 } };
+        object Snapshot(string json) => Wire(typeof(RimGovernor.Brain.GameFacts.Observations.ResearchSnapshot),  json);
         string TokenOf(object snapshot) => (string)Get(Call("Token", context, snapshot), "Token");
         const string baseline = "{" +
             "\"slots\":[{},{\"category\":\"Basic\",\"currentProject\":\"Alpha\"}]," +
@@ -143,7 +143,7 @@ internal static class NativeProtoResearchProbe
         // The context record is immutable, so the token may share it safely; what matters is that it carries the caller's identity.
         Check((string)Get(Get(returnedContext, "Identity"), "ColonyId") == "colony",
             "Research CAS token carries the caller's context identity");
-        Func<string, object> seedRequest = fields => Wire("ResearchRequest", request(fields));
+        Func<string, object> seedRequest = fields => Wire(typeof(RimGovernor.Brain.GameOrders.Observations.ResearchRequest),  request(fields));
         var defaultSeed = Call("QuerySeed", seedRequest(""));
         Check(defaultSeed.Equals(Call("QuerySeed", seedRequest(""))), "Identical research query produces identical paging seed");
         foreach (var fields in new[] { "\"includeLocked\":true", "\"includeFinished\":true", "\"includeUnlocks\":true",

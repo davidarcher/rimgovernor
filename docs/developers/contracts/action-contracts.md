@@ -122,7 +122,7 @@ refusal, `Failure.refusal_class` on a precondition failure): `PERMANENT` (RimWor
 same request until the world changes materially, or never), `TRANSIENT` (it may succeed once
 the world changes) or `UNKNOWN`. Native classifies where the refusal leaves the action
 dispatcher: the site's own class when it names one (`ApplyPreconditions.Token` and `Present`
-are transient), otherwise by failure code (`ProtoBoundary.RefusalClassOf`: stale identity or
+are transient), otherwise by failure code (`GameThread.RefusalClassOf`: stale identity or
 generation, lost authority, owner or attempt conflict, capacity, deadline and cancellation
 are transient; `Unsupported` is permanent; `InvalidRequest`, `NotFound`, `NativeFailure` and
 the wall codes stay unknown on purpose, since only the game's reason separates them). The brain never
@@ -205,7 +205,7 @@ live state (`ReadTradeSession` issues no orders). Exchange completion does not c
 storage. A caravan reported still travelling holds the concern open and lends native ticks
 until it arrives.
 
-**Favor currency.** A favor session (the Royalty tribute collector) sets `TradeSheet.currency_kind` (absent reads as silver): row `sell_price` is the favor value, the favor row is the `TradeLine.currency` row and its `transfer_count` is the favor granted on accept. Accept refuses a negotiator without a royalty tracker. Only here are secure, non-downed prisoners (`TradeUtility.AllSellableColonyPawns`) sellable; an extra home/host faction costs goodwill (`MemberSold`). The brain sells only surplus prisoners (`RoundsFacts.SurplusPrisoners`) with a known positive favor price; unknown facts hold.
+**Favor currency.** A favor session (the Royalty tribute collector) sets `TradeSheet.currency_kind` (absent reads as silver): row `sell_price` is the favor value, the favor row is the `TradeLine.currency` row and its `transfer_count` is the favor granted on accept. Accept refuses a negotiator without a royalty tracker. Only here are secure, non-downed prisoners (`TradeUtility.AllSellableColonyPawns`) sellable; an extra home/host faction costs goodwill (`MemberSold`). The brain sells only surplus prisoners (`ReviewFacts.SurplusPrisoners`) with a known positive favor price; unknown facts hold.
 
 **Policy trades** select bounded purchases and surplus sales from the fresh native sheet.
 Each sheet read of an open session also records the trader's priced offers in memory

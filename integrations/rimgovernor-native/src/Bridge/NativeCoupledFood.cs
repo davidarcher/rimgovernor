@@ -5,9 +5,8 @@ using RimGovernor.Brain.Domain;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 internal static class NativeCoupledFood
 {
@@ -16,22 +15,22 @@ internal static class NativeCoupledFood
     /// <summary>How long a spawned stack keeps at its cell now. CompRottable.TicksUntilRotAtTemp answers a sentinel for an inactive comp
     /// or a temperature that does not rot it (its RotRateAtTemperature of the rounded ambient temperature at or below 0): that
     /// stack never rots.</summary>
-    internal static Obs.FoodFreshness StackFreshness(Thing stack) =>
+    internal static RimGovernor.Brain.GameFacts.Observations.FoodFreshness StackFreshness(Thing stack) =>
         stack.TryGetComp<CompRottable>() is { Active: true } rottable
             && GenTemperature.RotRateAtTemperature(UnityEngine.Mathf.RoundToInt(stack.AmbientTemperature)) > 0
-            ? new Obs.FoodFreshness.Rots(Math.Max(0, rottable.TicksUntilRotAtCurrentTemp)) : new Obs.FoodFreshness.Never();
+            ? new RimGovernor.Brain.GameFacts.Observations.FoodFreshness.Rots(Math.Max(0, rottable.TicksUntilRotAtCurrentTemp)) : new RimGovernor.Brain.GameFacts.Observations.FoodFreshness.Never();
 
     /// <summary>
     /// Every food source's cooking conversions at every player bench, for every free colonist, to every accepting
     /// storage cell (#3341). The source-to-bench, bench-to-cell and return legs are searched once each for every
     /// colonist (NativePathLegs).
     /// </summary>
-    internal static (Obs.CoupledFoodConversion[] Conversions, Obs.CoupledFoodUse[] Uses, Obs.CoupledFoodSource[] Sources) Read(Map map, Obs.FoodActivityRead food,
+    internal static (RimGovernor.Brain.GameFacts.Observations.CoupledFoodConversion[] Conversions, RimGovernor.Brain.GameFacts.Observations.CoupledFoodUse[] Uses, RimGovernor.Brain.GameFacts.Observations.CoupledFoodSource[] Sources) Read(Map map, RimGovernor.Brain.GameFacts.Observations.FoodActivityRead food,
         NativePathLegs? legs = null)
     {
         legs ??= new(map);
-        var conversions = new List<Obs.CoupledFoodConversion>(); var uses = new List<Obs.CoupledFoodUse>();
-        var sourceRows = new List<Obs.CoupledFoodSource>();
+        var conversions = new List<RimGovernor.Brain.GameFacts.Observations.CoupledFoodConversion>(); var uses = new List<RimGovernor.Brain.GameFacts.Observations.CoupledFoodUse>();
+        var sourceRows = new List<RimGovernor.Brain.GameFacts.Observations.CoupledFoodSource>();
         var benches = map.listerThings.AllThings.OfType<Building_WorkTable>().Where(b => b.Faction == Faction.OfPlayer).OrderBy(b => b.GetUniqueLoadID(),StringComparer.Ordinal).ToArray();
         var roster = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         var consumers = map.mapPawns.AllPawnsSpawned.Where(p => p.Faction == Faction.OfPlayer && p.needs?.food != null)
@@ -89,10 +88,10 @@ internal static class NativeCoupledFood
                     // CompFoodPoisonable.Notify_RecipeProduced: the room's chance first, then the cook's own.
                     var room = bench.InteractionCell.GetRoom(map);
                     var roomPoison = room?.GetStat(RoomStatDefOf.FoodPoisonChance) ?? RoomStatDefOf.FoodPoisonChance.roomlessScore;
-                    Obs.FoodCooking cooking = canCook
-                        ? new Obs.FoodCooking.Cook(recipe.WorkAmountTotal(null) / (double)speed,
+                    RimGovernor.Brain.GameFacts.Observations.FoodCooking cooking = canCook
+                        ? new RimGovernor.Brain.GameFacts.Observations.FoodCooking.Cook(recipe.WorkAmountTotal(null) / (double)speed,
                             roomPoison + (1 - roomPoison) * (double)pawn.GetStatValue(StatDefOf.FoodPoisonChance), NativeProductiveSkill.Read(pawn, recipe, bench))
-                        : new Obs.FoodCooking.Incapable();
+                        : new RimGovernor.Brain.GameFacts.Observations.FoodCooking.Incapable();
                     foreach (var product in recipe.products)
                     {
                         var destinations = map.haulDestinationManager.AllGroupsListInPriorityOrder.Where(g => g.Settings.filter.Allows(product.thingDef))
@@ -105,10 +104,10 @@ internal static class NativeCoupledFood
                                 || legs.Cost(pawn, bench.InteractionCell, destination, PathEndMode.OnCell) is not { } delivery) continue;
                             var productCapacity = pawn.carryTracker.MaxStackSpaceEver(product.thingDef);
                             var trips = Math.Ceiling((double)product.count / Math.Max(1, productCapacity));
-                            Obs.FoodDelivery carried = !canHaul || productCapacity <= 0 ? new Obs.FoodDelivery.CannotCarry()
-                                : trips == 1 ? new Obs.FoodDelivery.Carried(delivery)
+                            RimGovernor.Brain.GameFacts.Observations.FoodDelivery carried = !canHaul || productCapacity <= 0 ? new RimGovernor.Brain.GameFacts.Observations.FoodDelivery.CannotCarry()
+                                : trips == 1 ? new RimGovernor.Brain.GameFacts.Observations.FoodDelivery.Carried(delivery)
                                 : legs.Cost(pawn, destination, bench.InteractionCell, PathEndMode.OnCell) is { } back
-                                    ? new Obs.FoodDelivery.Carried(trips * delivery + (trips - 1) * back) : new Obs.FoodDelivery.NoReturnPath();
+                                    ? new RimGovernor.Brain.GameFacts.Observations.FoodDelivery.Carried(trips * delivery + (trips - 1) * back) : new RimGovernor.Brain.GameFacts.Observations.FoodDelivery.NoReturnPath();
                             conversions.Add(new(source.GetUniqueLoadID(), pawn.GetUniqueLoadID(), bench.GetUniqueLoadID(), recipe.defName,
                                 raw.defName, (int)required, product.thingDef.defName, product.count,
                                 new(source.Position.x, source.Position.z), new(stage.x, stage.z), new(destination.x, destination.z),
@@ -139,8 +138,8 @@ internal static class NativeCoupledFood
                 var rot = resource.GetCompProperties<CompProperties_Rottable>();
                 // Conditional fresh-output shelf life at this observed destination temperature; future weather is unassessed.
                 var rate = GenTemperature.RotRateAtTemperature(new IntVec3(location.X, 0, location.Z).GetTemperature(map));
-                Obs.FoodFreshness fresh = rot != null && rate > 0
-                    ? new Obs.FoodFreshness.Rots(rot.daysToRotStart * RimGovernor.Brain.Domain.GameTime.TicksPerDay / rate) : new Obs.FoodFreshness.Never();
+                RimGovernor.Brain.GameFacts.Observations.FoodFreshness fresh = rot != null && rate > 0
+                    ? new RimGovernor.Brain.GameFacts.Observations.FoodFreshness.Rots(rot.daysToRotStart * RimGovernor.Brain.Domain.GameTime.TicksPerDay / rate) : new RimGovernor.Brain.GameFacts.Observations.FoodFreshness.Never();
                 uses.Add(new(pawn.GetUniqueLoadID(), resource.defName, location,
                     pawn.WillEat(resource) && pawn.foodRestriction?.GetCurrentRespectedRestriction(pawn)?.filter.Allows(resource) != false,
                     (double)nutrition / pawn.needs.food.MaxLevel,

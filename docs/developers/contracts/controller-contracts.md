@@ -4,12 +4,12 @@
 
 Current routine-control rules and completion gates. For the reasoning, read
 [the control loop](../architecture/control-loop.md). Policy code lives in
-`brain/src/RimGovernor.Brain.Policy`; planners in `brain/src/RimGovernor.Brain.BuildingRuntime`.
+`brain/src/RimGovernor.Brain.Policy`; planners in `brain/src/RimGovernor.Brain.Runtime`.
 
 ## Observation
 
 Read a coherent native frame. Independently fetched observations still require world and authority checks.
-`rimgovernor/observations_read_colony_facts` reports shared-diet nutrition and fed
+`observations_read_colony_facts` reports shared-diet nutrition and fed
 consumption, viable crop cells, indoor sleeping, temperatures, cooking, safe nearby
 wild-plant access, starter terrain/support affordances and actual definition costs.
 Native growers keep ownership of cultivated crop harvest timing. Unknown observations
@@ -59,7 +59,7 @@ inspection tick and the blocker. Progress is native outcome, never dispatch. Blo
 reads: `blocked:no_worker` (designation dispatched, no capable pawn), `native_ineligible`,
 `reconcile_write` (unknown receipt; reconciled by action identity before any retry),
 `no_method`. `domain.TicksPerDay` (and the hunt, haul and harvest instances
-`RoundsPolicy.HuntProgress`/`HaulProgress`/`AcquisitionProgress` of `ProgressContract`)
+`PlannerSettings.HuntProgress`/`HaulProgress`/`AcquisitionProgress` of `ProgressContract`)
 keys a stalled situation out for a bounded cooldown (`ProgressCooldownMax`, never
 permanent) and planners rotate method or target (`Store.RecordProgressCooldown`). The cooldown is a separate mechanism from the shared refusal budget (`policy.RefusalBudget`): it keys out a situation that stalled (an accepted order that moved nothing), not a native refusal, so it needs no refusal class and always expires; the budget bars a subject native refused, by class and world. The
 food concern walks acquire, cook, store, grow, naming `prerequisite:food/cooking` while
@@ -196,8 +196,8 @@ This is coordination within existing concerns, not an executor.
   out-and-back leg plus a pickup dwell, walked at the pawn's real move speed slowed by the hypothermia
   stages it crosses, and cut where hypothermia would reach `DashSeverityCap` (0.35, the serious floor) by the
   last return (the formula of `OutdoorBudgetFor`; trips counted from home with no rest between). The result
-  is `RoundsFacts.Dash` (`DashWindow`: the pawn, trips and `Until`), planned once by `policy.ReviewDash` and
-  held in `RoundsLatches.Dash` until `Until` (re-planning from the severity built up out in the cold would
+  is `ReviewFacts.Dash` (`DashWindow`: the pawn, trips and `Until`), planned once by `policy.ReviewDash` and
+  held in `Latches.Dash` until `Until` (re-planning from the severity built up out in the cold would
   close the window under a pawn partway out). At `Until` the review closes it for one review, so the pawn is
   recalled before a new window can plan; the recovery step reads the persisted latch. `DashWindow.OpenAt(tick)`
   is the only close rule: open before `Until`, closed from it. `DashMarginIntervals` of growth stay under the cap. While open it lifts the extreme-cold hold (and only that) in
@@ -296,7 +296,7 @@ the clock. A plan dependency is coupled (`domain.ActionDependency.Coupled`) exac
 the later order is written against the earlier one's result (an id it produced, a
 position it reached). Ordering-only dependencies are not coupled, and no routine planner
 emits a coupled dependency today. When a coupled prerequisite completes under a running
-clock the step reports the ready orders (`ClockSchedulerResult.Coupled`, `CoupledOrders`);
+clock the step reports the ready orders (`PlannerSchedulerResult.Coupled`, `CoupledOrders`);
 the run driver holds the clock (`COUPLED_ORDER`) so they are planned against a quiet world, and
 resumes it after. Staleness is refused natively via the
 CAS evidence admission carries, and the planner prepares again.
@@ -332,7 +332,7 @@ derived sources, and the [resource supply plan](../architecture/space-and-resour
 serves it by whichever chop, harvest or bill it opens, never by a wood-only path.
 Reserve and food-latch thresholds are seasonal: the colony read carries
 the growing calendar (`policy.Calendar`) and each review widens the policy by its
-harvest gap (`RoundsPolicy.Seasonal`): the wait until growth resumes plus one rice cycle
+harvest gap (`PlannerSettings.Seasonal`): the wait until growth resumes plus one rice cycle
 while nothing grows, or the coming non-growing stretch plus that cycle (phased in over the
 gap plus one field cycle) while crops grow. A year-round tile has no gap; an unknown
 calendar keeps flat thresholds. An observed `Eclipse`, `VolcanicWinter` or `ColdSnap` with a native
@@ -670,8 +670,8 @@ native inventory projection and `combatlab/combat_drug` covers ingestion.
 
 **Roster hunt.** A roster hunt is the `military/combat` Need's hunt origin: while no
 hostile stands and the food plan opens the formation `Hunt` candidate the comparison chose, the review asserts the
-deficit with the channel's prey and selected gunners on the review's combat standing (`RoundsCombat.Prey`,
-`RoundsCombat.Hunters`). The fight runs through
+deficit with the channel's prey and selected gunners on the review's combat standing (`ReviewCombat.Prey`,
+`ReviewCombat.Hunters`). The fight runs through
 `admitFight` with `CombatView.Hunt` and `CombatView.HuntHunters` set and the prey as its threats; `huntFormation`
 sends only the selected hunters that are eligible defenders with a hunting weapon, however many that is, each staged
 within the distance the estimate priced and re-formed when the prey walks off (the execution rules are in
@@ -686,7 +686,7 @@ defense planner while it is open (`ClockCombatStops.HuntReview`).
 
 **Royal permits** (`CombatPermit.cs`). An outmatched fight calls the permits its
 colonists hold. With the royalty read known (`CombatView.Royalty`, the review's
-`RoundsFacts.Royalty`), a held acting aid or strike permit that is off cooldown and
+`ReviewFacts.Royalty`), a held acting aid or strike permit that is off cooldown and
 affordable (favor at least its cost) yields a `permit_call` order, once per holder
 and permit per fight (`CombatMemory.Permitted`). Aid lands on the defender nearest
 the squad's centre; a strike lands on the densest hostile clump no colonist stands

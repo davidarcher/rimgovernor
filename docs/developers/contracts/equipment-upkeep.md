@@ -19,7 +19,7 @@ model below supplies requirements and diagnostics. Its physical-item ranking
 does not authorize a separate pawn job; explicit native operations retain their
 legality and completion contracts. Shared tailoring produces and delivers clothing.
 
-Every `rimgovernor/observations_read_colony_facts` reply includes the required `gear` census.
+Every `observations_read_colony_facts` reply includes the required `gear` census.
 Routine reviews and direct colony reads decode it through the same path, after applying the
 same-frame growing zones and finished research. Cloth arrivals therefore include actual fields
 on direct trade reads as well as planning reviews. Missing gear, zone or pawn sections, or a gear
@@ -95,12 +95,12 @@ replacement stuff is the one tier 2 chose for the pawn's gear slot
 (`ColonyValue.ClothingStuff`, #3623): the stuff of the garment the apparel
 walk leaves on that slot, among units whose stuff arrives within
 `ClothingHorizonDays`. The review's colony model run stamps it into
-`RoundsFacts.ClothingStuff` before the rounds review, as it does
+`ReviewFacts.ClothingStuff` before the colony review, as it does
 `Investment`; each review re-chooses, with no memory of the last choice. Where
 tier 2 names no stuff for the slot, or the worn garment's recipe cannot take the
 one it names, the worn stuff is used: tier 2 does not model wear, so a
 like-for-like replacement gains nothing there and wins nothing. The demand is a
-stock level like construction demand, kept in the Rounder's `constructionMemory`. The Round's
+stock level like construction demand, kept in the ColonyReview's `constructionMemory`. The Round's
 resource supply plan serves it with that stuff and, for
 leather, with hunts priced at the animal's butchery yield of that leather (one
 candidate per animal whatever else it yields, its labor
@@ -303,10 +303,10 @@ After the review, `GearChoices` reads the outcome: a selected pair gives its fil
 and floor; otherwise, a rejected assessed pair that removed a tainted item keeps the
 worn outfit (tainted allowed, worn floor); no pair, or one never assessed, keeps the
 default: tainted disallowed and the worn insulation as the floor, so warmth never
-drops without the comparator. The Rounder keeps that per-pawn outcome in derived
+drops without the comparator. The ColonyReview keeps that per-pawn outcome in derived
 memory for the review's world (`ReviewMemory`, empty after a restart). A review with
 no coupled selection compared nothing and leaves the last outcome standing. The rounds
-census read (`ObserveRoundsAsync`, taken by the review and by a planner's own read) is
+census read (`ObserveReviewAsync`, taken by the review and by a planner's own read) is
 the one place that stamps it onto `GearPawn.AllowTainted`, `ColdFloor` and
 `HeatFloor` (an `InsulationFloor`: `Chosen` at the comparator's floor, or `Worn`, the worn
 insulation, for a pawn it left there), so every gear reader plans inside the same filter and floor:

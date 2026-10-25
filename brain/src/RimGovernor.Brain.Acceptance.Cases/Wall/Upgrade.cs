@@ -1,7 +1,5 @@
 using RimGovernor.Brain.Bridge;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -45,15 +43,15 @@ internal static class WallUpgrade
     };
 
     /// <summary>The census rows for <paramref name="target"/> (null: the cleanup census).</summary>
-    internal static async Task<Observations.WallUpgradeSnapshot> CensusAsync(TypedSession s, string label, string? target, CancellationToken cancellationToken)
+    internal static async Task<RimGovernor.Brain.GameFacts.Observations.WallUpgradeSnapshot> CensusAsync(TypedSession s, string label, string? target, CancellationToken cancellationToken)
     {
-        var snapshot = await s.CallAsync(label, NativeOps.ListWallUpgradeSites, new Observations.WallUpgradeSitesRequest { Scope = s.Scope, TargetId = target }, cancellationToken).ConfigureAwait(false);
+        var snapshot = await s.CallAsync(label, NativeOps.ListWallUpgradeSites, new RimGovernor.Brain.GameOrders.Observations.WallUpgradeSitesRequest { Scope = s.Scope, TargetId = target }, cancellationToken).ConfigureAwait(false);
         s.RecordWire(label, snapshot);
         return snapshot;
     }
 
     /// <summary>Whether a site's normal is diagonal (a corner, replaced in place).</summary>
-    internal static bool Corner(Observations.WallUpgradeSite site) => site.Normal is { X: not 0, Z: not 0 };
+    internal static bool Corner(RimGovernor.Brain.GameFacts.Observations.WallUpgradeSite site) => site.Normal is { X: not 0, Z: not 0 };
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
@@ -83,9 +81,9 @@ internal static class WallUpgrade
         }
 
         s.Record("straight_sites", straight);
-        foreach (var (label, target, code) in new[] { ("blank-target", " ", Common.FailureCode.InvalidRequest), ("unknown-target", "Thing_NoSuchWall0", Common.FailureCode.NotFound) })
+        foreach (var (label, target, code) in new[] { ("blank-target", " ", RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest), ("unknown-target", "Thing_NoSuchWall0", RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound) })
         {
-            await TypedLifecycle.ExpectRefusedAsync(label, () => s.CallAsync(label, NativeOps.ListWallUpgradeSites, new Observations.WallUpgradeSitesRequest { Scope = s.Scope, TargetId = target }, cancellationToken), code).ConfigureAwait(false);
+            await TypedLifecycle.ExpectRefusedAsync(label, () => s.CallAsync(label, NativeOps.ListWallUpgradeSites, new RimGovernor.Brain.GameOrders.Observations.WallUpgradeSitesRequest { Scope = s.Scope, TargetId = target }, cancellationToken), code).ConfigureAwait(false);
         }
 
         var after = await CensusAsync(s, "cleanup-census-after", null, cancellationToken).ConfigureAwait(false);
@@ -96,7 +94,7 @@ internal static class WallUpgrade
     }
 
     /// <summary>Asserts a per-target row is a complete replacement site of <paramref name="wall"/>.</summary>
-    private static void Check(string wall, Observations.WallUpgradeSite row)
+    private static void Check(string wall, RimGovernor.Brain.GameFacts.Observations.WallUpgradeSite row)
     {
         if (row.Target.Id != wall || row.Original.Id != wall || string.IsNullOrEmpty(row.TargetSnapshot.Token))
         {

@@ -1,5 +1,5 @@
 using System;
-using HomeBridge.BridgeTools;
+using RimGovernor.Native;
 
 // The hold serial (ClockHoldSerial.cs, #3414) behind a fake held clock: Run resumes only when its step's serial is
 // current, the way RunClock refuses before ResumeRun.

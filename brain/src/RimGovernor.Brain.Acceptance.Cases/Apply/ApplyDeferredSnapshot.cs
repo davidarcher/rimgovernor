@@ -1,8 +1,5 @@
 using System.Globalization;
 using RimGovernor.Brain.Bridge;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -32,9 +29,9 @@ internal static class ApplyDeferredSnapshot
     };
 
     /// <summary>The stream's counters, with the newest frame (and the writes it was captured at) when it is numbered past <paramref name="after"/>.</summary>
-    private static async Task<Observations.SnapshotRead> ReadAsync(TypedSession s, string label, ulong after, CancellationToken cancellationToken)
+    private static async Task<RimGovernor.Brain.GameFacts.Observations.SnapshotRead> ReadAsync(TypedSession s, string label, ulong after, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ReadSnapshot, new Observations.SnapshotReadRequest { AfterNumber = after }, cancellationToken).ConfigureAwait(false);
+        var reply = await s.CallAsync(label, NativeOps.ReadSnapshot, new RimGovernor.Brain.GameOrders.Observations.SnapshotReadRequest { AfterNumber = after }, cancellationToken).ConfigureAwait(false);
         return reply.Outcome?.Read ?? throw new AcceptanceException($"{label}: {reply.Outcome}");
     }
 
@@ -49,11 +46,11 @@ internal static class ApplyDeferredSnapshot
             for (var i = 0; i < Burst; i++)
             {
                 var key = string.Create(CultureInfo.InvariantCulture, $"{label}-{i}");
-                _ = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
+                _ = await s.CallAsync(key, NativeOps.Apply, new RimGovernor.Brain.GameOrders.Operations.ApplyRequest
                 {
                     Identity = s.Identity,
                     DeferSnapshot = deferred,
-                    Actions = [new Operations.Action { Key = key, Intent = Probe() }],
+                    Actions = [new RimGovernor.Brain.GameOrders.Operations.Action { Key = key, Intent = Probe() }],
                 }, cancellationToken).ConfigureAwait(false);
             }
 
@@ -73,7 +70,7 @@ internal static class ApplyDeferredSnapshot
             throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"deferred burst captured {deferredFrames} frames (plain burst {plain})"));
         }
 
-        var flushed = await s.CallAsync("flush", NativeOps.FlushFrames, new Observations.FlushSnapshotRequest(), cancellationToken).ConfigureAwait(false);
+        var flushed = await s.CallAsync("flush", NativeOps.FlushFrames, new RimGovernor.Brain.GameOrders.Observations.FlushSnapshotRequest(), cancellationToken).ConfigureAwait(false);
         s.Record("flush_found_uncaptured", flushed.Flushed);
         var ticks = await s.RunUntilAsync("flushed-frame", FrameTicks, async ct =>
         {
@@ -84,10 +81,10 @@ internal static class ApplyDeferredSnapshot
     }
 
     /// <summary>An apply native refuses: a trade with a trader that does not exist.</summary>
-    private static Operations.TradeIntent Probe() => new()
+    private static RimGovernor.Brain.GameOrders.Operations.TradeIntent Probe() => new()
     {
-        Target = new Common.TradeTarget { Kind = new Common.MapTradeTarget { TraderId = "probe-trader" } },
+        Target = new RimGovernor.Brain.GameFacts.Common.TradeTarget { Kind = new RimGovernor.Brain.GameFacts.Common.MapTradeTarget { TraderId = "probe-trader" } },
         NegotiatorId = "probe-negotiator",
-        Step = new Operations.EndTrade { Kind = Operations.EndTradeKind.Cancel, ReceiveQuest = false },
+        Step = new RimGovernor.Brain.GameOrders.Operations.EndTrade { Kind = RimGovernor.Brain.GameOrders.Operations.EndTradeKind.Cancel, ReceiveQuest = false },
     };
 }

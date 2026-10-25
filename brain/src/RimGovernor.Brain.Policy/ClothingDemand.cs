@@ -37,7 +37,7 @@ public sealed record ClothingDemandInput
     /// <summary>Bills the player's worn-count goals owe (#3496), priced alongside the replacements.</summary>
     public IReadOnlyList<OpenBill> GoalBills { get; init; } = [];
 
-    /// <summary>The stuff tier 2 chose for each pawn's slot (<see cref="RoundsFacts.ClothingStuff"/>); a slot it names is replaced in that stuff.</summary>
+    /// <summary>The stuff tier 2 chose for each pawn's slot (<see cref="ReviewFacts.ClothingStuff"/>); a slot it names is replaced in that stuff.</summary>
     public IReadOnlyDictionary<(PawnId Pawn, GearSlot Slot), Resource> Chosen { get; init; } = new Dictionary<(PawnId Pawn, GearSlot Slot), Resource>();
 }
 
@@ -120,7 +120,7 @@ public static class ClothingDemandRules
     public const double ClothingHorizonDays = 15.0;
 
     /// <summary>PlanClothingRunway of the review's facts.</summary>
-    public static ClothingRunway ClothingRunway(this RoundsFacts f) =>
+    public static ClothingRunway ClothingRunway(this ReviewFacts f) =>
         PlanClothingRunway(
             new ClothingDemandInput
             {

@@ -1,12 +1,10 @@
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using Journal = RimGovernor.Brain.Store.Store;
-using PbCommon = RimGovernor.Contracts.Wire.Common;
-using PbLifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -18,11 +16,11 @@ public sealed class FamilySharedScopeTests
 {
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
 
-    private static readonly PbCommon.ObservationContext Context = new()
+    private static readonly RimGovernor.Brain.GameFacts.Common.ObservationContext Context = new()
     {
-        Identity = new PbCommon.Identity { ColonyId = "colony", MapId = 1, LoadToken = "load" },
+        Identity = new RimGovernor.Brain.GameFacts.Common.Identity { ColonyId = "colony", MapId = 1, LoadToken = "load" },
         Tick = 3000,
-        NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase(1),
+        NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase(1),
     };
 
     /// <summary>A tick source that counts its hops and answers with <see cref="Context"/>.</summary>
@@ -30,10 +28,10 @@ public sealed class FamilySharedScopeTests
     {
         public int Hops { get; private set; }
 
-        public Task<PbLifecycle.LoadedTick> TickAsync(CancellationToken cancellationToken)
+        public Task<RimGovernor.Brain.GameFacts.Lifecycle.LoadedTick> TickAsync(CancellationToken cancellationToken)
         {
             Hops++;
-            return Task.FromResult(new PbLifecycle.LoadedTick { Context = Context, Paused = false, ForcePaused = false });
+            return Task.FromResult(new RimGovernor.Brain.GameFacts.Lifecycle.LoadedTick { Context = Context, Paused = false, ForcePaused = false });
         }
     }
 
@@ -61,7 +59,7 @@ public sealed class FamilySharedScopeTests
     {
         var identity = new ObservationIdentity { Context = Context };
         Assert.Equal((World.Colony, World.Map, World.Load, new Tick(3000)), (identity.Colony, identity.Map, identity.Load, identity.Tick));
-        Assert.Equal(World.Native.Value, Assert.IsType<PbCommon.ObservedGeneration.AtCase>(identity.NativeGeneration).Value);
+        Assert.Equal(World.Native.Value, Assert.IsType<RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase>(identity.NativeGeneration).Value);
     }
 
     [Fact]
@@ -87,7 +85,7 @@ public sealed class FamilySharedScopeTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-shared-scope-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
         facts = facts with { Census = facts.Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 },   FieldCoverage = 1.0};
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.Review(new() { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
         var handed = new List<ObservationIdentity?>();
         var runner = new FamilyRunner<ScopeFacts>(new ScopeFamily(), (scope, _) =>
         {

@@ -49,7 +49,7 @@ public sealed class CombatHuntTests
         Armor = new DefenderArmor.Unmirrored(),
     };
 
-    private static SquadThreatFacts Prey(PawnId id) => new() { Id = id, Dead = false, Downed = false, Animal = true, Anomaly = new RimGovernor.Contracts.Wire.Observations.PawnAnomalyState.Inactive() };
+    private static SquadThreatFacts Prey(PawnId id) => new() { Id = id, Dead = false, Downed = false, Animal = true, Anomaly = new RimGovernor.Brain.GameFacts.Observations.PawnAnomalyState.Inactive() };
 
     private static CombatView View(IEnumerable<CombatPawnState> pawns, IEnumerable<PawnId> defenders, IEnumerable<PawnId> prey, IEnumerable<PawnId> roster)
     {

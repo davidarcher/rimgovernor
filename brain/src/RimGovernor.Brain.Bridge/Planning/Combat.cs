@@ -1,13 +1,13 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Facts;
 using DefinitionCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
-using C = RimGovernor.Contracts.Wire.Common;
-using O = RimGovernor.Contracts.Wire.Observations;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Domain;
-using RimGovernor.Contracts.Wire.Common;
-using RimGovernor.Contracts.Wire.Mirror;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Common;
+using RimGovernor.Brain.GameFacts.Mirror;
+using RimGovernor.Brain.GameOrders.Mirror;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
@@ -20,7 +20,7 @@ namespace RimGovernor.Brain.Bridge;
 /// </summary>
 public sealed record Combat
 {
-    public RimGovernor.Contracts.Wire.Observations.WorldProgressionSnapshot? World { get; init; }
+    public RimGovernor.Brain.GameFacts.Observations.WorldProgressionSnapshot? World { get; init; }
 
     public ObservationContext? Context { get; init; }
 
@@ -33,7 +33,7 @@ public sealed record Combat
     /// <summary>The frame's pawn table cut to the emergency census: colonists, hostiles and predators with their combat detail.</summary>
     public Pawns Detail { get; init; }
 
-    public IReadOnlyList<O.LineOfFire> Lines { get; init; } = [];
+    public IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.LineOfFire> Lines { get; init; } = [];
 
     /// <summary>The line-of-fire budget ran out, so a pair absent from <see cref="Lines"/> is unknown, not blocked (the shooter then walks in).</summary>
     public bool LinesSkipped { get; init; }
@@ -42,7 +42,7 @@ public sealed record Combat
     public IReadOnlyList<P.CombatRoom> Rooms { get; init; } = [];
 
     /// <summary>The doors of the frame's rooms census, every frame's (a frame without its rooms section fails whole).</summary>
-    public EquatableArray<O.RoomDoor> DoorStates { get; init; }
+    public EquatableArray<RimGovernor.Brain.GameFacts.Observations.RoomDoor> DoorStates { get; init; }
 
     /// <summary>The damaged player doors.</summary>
     public IReadOnlyList<CombatDoorRow> Doors { get; init; } = [];

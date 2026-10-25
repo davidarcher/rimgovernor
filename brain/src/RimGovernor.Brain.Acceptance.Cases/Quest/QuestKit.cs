@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -33,9 +32,9 @@ internal static class QuestKit
     internal static readonly FixtureOp<NoArgs, Fx.QuestShuttlePrepared> Shuttle = new(ShuttleTool, _ => [], ServedOps.Succeeded<Fx.QuestShuttlePrepared>(ShuttleTool, r => r.Success));
 
     /// <summary>The world-progression row of <paramref name="questId"/>, null when native lists no such quest.</summary>
-    internal static async Task<Observations.QuestState?> QuestAsync(TypedSession s, string label, string questId, CancellationToken cancellationToken)
+    internal static async Task<RimGovernor.Brain.GameFacts.Observations.QuestState?> QuestAsync(TypedSession s, string label, string questId, CancellationToken cancellationToken)
     {
-        var world = await s.CallAsync(label, NativeOps.ReadWorldProgression, new Observations.WorldProgressionRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var world = await s.CallAsync(label, NativeOps.ReadWorldProgression, new RimGovernor.Brain.GameOrders.Observations.WorldProgressionRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         return world.Quests.LastOrDefault(q => q.Id.Value == questId);
     }
 }

@@ -1,4 +1,4 @@
-using WasteItem = RimGovernor.Contracts.Wire.Observations.WasteItem;
+using WasteItem = RimGovernor.Brain.GameFacts.Observations.WasteItem;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
@@ -294,7 +294,7 @@ public sealed class StaleFurnitureTests
             Furniture = new RoomFurniture { Sarcophagus = "Sarcophagus" },
         };
         var standing = new[] { Built("Sarcophagus", 10, 10, 1, 2), Built("Sarcophagus", 12, 10, 1, 2) };
-        var step = TombRules.NextTombStep(new LayoutPlan { Rooms = [tomb], NextRoomId = 2 }, Enumerable.Repeat(new WasteItem { Thing = new() { Id = "corpse" }, CorpseClass = RimGovernor.Contracts.Wire.Common.CorpseClass.Colonist, Grave = null }, 3).ToArray(), standing, shapes, true);
+        var step = TombRules.NextTombStep(new LayoutPlan { Rooms = [tomb], NextRoomId = 2 }, Enumerable.Repeat(new WasteItem { Thing = new() { Id = "corpse" }, CorpseClass = RimGovernor.Brain.GameFacts.Common.CorpseClass.Colonist, Grave = null }, 3).ToArray(), standing, shapes, true);
         Assert.Equal(TombStepKind.Reconcile, step.Kind);
         Assert.Equal(3, step.Template.Count(p => p.DefName == "Sarcophagus"));
         Assert.Empty(OwnerRemovals(tomb, RowsOf(standing), [.. step.Template], NothingCarried));

@@ -1,17 +1,16 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Bridge;
 using Xunit;
-using C = RimGovernor.Contracts.Wire.Common;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class ObservationIdentityTotalTests
 {
-    private static readonly C.ObservationContext Context = new()
+    private static readonly RimGovernor.Brain.GameFacts.Common.ObservationContext Context = new()
     {
         Identity = new() { ColonyId = "colony", MapId = 1, LoadToken = "load" },
         Tick = 200,
-        NativeGeneration = new C.ObservedGeneration.UnclaimedCase(),
+        NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(),
     };
 
     [Fact]
@@ -19,7 +18,7 @@ public sealed class ObservationIdentityTotalTests
     {
         var identity = new ObservationIdentity { Context = Context, Paused = true };
         Assert.Same(Context, identity.Context);
-        Assert.IsType<C.ObservedGeneration.UnclaimedCase>(identity.NativeGeneration);
+        Assert.IsType<RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase>(identity.NativeGeneration);
         Assert.True(identity.Paused);
         Assert.False(ColonyContexts.SameColonyContext(identity, identity));
     }
@@ -29,10 +28,10 @@ public sealed class ObservationIdentityTotalTests
     {
         var identity = new ObservationIdentity
         {
-            Context = Context with { NativeGeneration = new C.ObservedGeneration.AtCase(7) },
+            Context = Context with { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase(7) },
             Paused = false,
         };
-        Assert.IsType<C.ObservedGeneration.AtCase>(identity.NativeGeneration);
+        Assert.IsType<RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase>(identity.NativeGeneration);
         Assert.True(identity.NativeGeneration.IsAt(7));
         Assert.False(identity.Paused);
         Assert.True(ColonyContexts.SameColonyContext(identity, identity));
@@ -41,7 +40,7 @@ public sealed class ObservationIdentityTotalTests
     [Fact]
     public void DirectConstructionRetainsTheNativeContextAndGenerationReferences()
     {
-        var context = Context with { NativeGeneration = new C.ObservedGeneration.AtCase(7) };
+        var context = Context with { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase(7) };
         var identity = new ObservationIdentity { Context = context, Paused = true };
 
         Assert.Same(context, identity.Context);
@@ -85,6 +84,6 @@ public sealed class ObservationIdentityTotalTests
         Assert.Throws<ObservationContractException>(() => new ObservationIdentity { Context = null! });
         Assert.Throws<ObservationContractException>(() => new ObservationIdentity { Context = Context with { Identity = null! } });
         Assert.Throws<ObservationContractException>(() => new ObservationIdentity { Context = Context with { NativeGeneration = null! } });
-        Assert.Throws<ObservationContractException>(() => new ObservationIdentity { Context = Context with { NativeGeneration = new C.ObservedGeneration.AtCase(0) } });
+        Assert.Throws<ObservationContractException>(() => new ObservationIdentity { Context = Context with { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase(0) } });
     }
 }

@@ -1,4 +1,5 @@
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -19,7 +20,7 @@ public sealed partial record ForecastCoupledCandidates
     /// Per planned room, its role: the planned sites' (#3651), and a planned shelter's for a room that owes no planned site
     /// (a placed shell, #3537).
     /// </summary>
-    private static Dictionary<int, PlannedRole> PlannedRoomRolesOf(RoundsFacts facts)
+    private static Dictionary<int, PlannedRole> PlannedRoomRolesOf(ReviewFacts facts)
     {
         var roles = facts.PlannedSites is { } planned ? planned.Roles.ToDictionary(r => r.Room, r => r.Role) : new Dictionary<int, PlannedRole>();
         foreach (var room in facts.PlannedShelters) roles.TryAdd(room.Id, room.Role);
@@ -27,12 +28,12 @@ public sealed partial record ForecastCoupledCandidates
     }
 
     /// <summary>The layout plan's rooms by id (#3800): the planned shelters, a room id once.</summary>
-    internal static Dictionary<int, PlannedRoom> LayoutRoomsOf(RoundsFacts facts) =>
+    internal static Dictionary<int, PlannedRoom> LayoutRoomsOf(ReviewFacts facts) =>
         facts.PlannedShelters.Where(r => r.Id > 0).GroupBy(r => r.Id).ToDictionary(g => g.Key, g => g.First());
 
-    public static RoundsFacts ReviewCoupledActivities(RoundsFacts facts) => facts with { CoupledAlternatives = GenerateCoupledActivities(facts) };
+    public static ReviewFacts ReviewCoupledActivities(ReviewFacts facts) => facts with { CoupledAlternatives = GenerateCoupledActivities(facts) };
 
-    public static ForecastCoupledCandidates? GenerateCoupledActivities(RoundsFacts facts, double horizon = GameTime.TicksPerDay)
+    public static ForecastCoupledCandidates? GenerateCoupledActivities(ReviewFacts facts, double horizon = GameTime.TicksPerDay)
     {
         using var span = Spans.StartActivity("coupled.generate");
         if (facts.ForecastObserved.Coupled is not { } read || facts.ForecastObserved.Needs is not { } needs

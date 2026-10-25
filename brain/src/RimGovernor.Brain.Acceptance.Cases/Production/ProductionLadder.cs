@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -104,7 +103,7 @@ internal static class ProductionLadder
         var supplies = await s.CallAsync(
             label,
             NativeOps.ListSupplies,
-            new Observations.ListSuppliesRequest { Scope = s.Scope, Filter = new Observations.StockFilter { DefNames = [Component], Category = Observations.StockCategory.Haulable, Ownership = Observations.StockOwnership.Ours, IncludeHeld = true } },
+            new RimGovernor.Brain.GameOrders.Observations.ListSuppliesRequest { Scope = s.Scope, Filter = new RimGovernor.Brain.GameFacts.Observations.StockFilter { DefNames = [Component], Category = RimGovernor.Brain.GameFacts.Observations.StockCategory.Haulable, Ownership = RimGovernor.Brain.GameFacts.Observations.StockOwnership.Ours, IncludeHeld = true } },
             cancellationToken).ConfigureAwait(false);
         return supplies.Stocks.Where(row => row.DefName == Component).Sum(row => row.Units);
     }

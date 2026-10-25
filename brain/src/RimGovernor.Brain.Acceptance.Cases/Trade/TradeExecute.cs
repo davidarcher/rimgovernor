@@ -1,8 +1,4 @@
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -48,37 +44,37 @@ internal static class TradeExecute
         var crew = await s.FixtureAsync("teleport-adjacent", TradeKit.Teleport, traderId, cancellationToken).ConfigureAwait(false);
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 
-        Task<Operations.ActionResult> Apply(string label, Operations.TradeIntentStep step) => TradeKit.ApplyAsync(s, "trade-execute-" + label, new Operations.TradeIntent
+        Task<RimGovernor.Brain.GameFacts.Operations.ActionResult> Apply(string label, RimGovernor.Brain.GameOrders.Operations.TradeIntentStep step) => TradeKit.ApplyAsync(s, "trade-execute-" + label, new RimGovernor.Brain.GameOrders.Operations.TradeIntent
         {
-            Target = new Common.TradeTarget { Kind = new Common.MapTradeTarget { TraderId = traderId } },
+            Target = new RimGovernor.Brain.GameFacts.Common.TradeTarget { Kind = new RimGovernor.Brain.GameFacts.Common.MapTradeTarget { TraderId = traderId } },
             NegotiatorId = crew.Negotiator,
             Step = step,
         }, cancellationToken);
 
         async Task<string> Open(string label)
         {
-            var trade = TradeKit.AppliedTrade(label, await Apply(label, new Operations.OpenTrade { GiftMode = false }).ConfigureAwait(false));
-            return trade is Receipts.TradeEffect.OpenCase { SessionId: { Length: > 0 } id } ? id : throw new AcceptanceException($"{label}: expected a session id, got {trade}");
+            var trade = TradeKit.AppliedTrade(label, await Apply(label, new RimGovernor.Brain.GameOrders.Operations.OpenTrade { GiftMode = false }).ConfigureAwait(false));
+            return trade is RimGovernor.Brain.GameFacts.Receipts.TradeEffect.OpenCase { SessionId: { Length: > 0 } id } ? id : throw new AcceptanceException($"{label}: expected a session id, got {trade}");
         }
 
-        async Task SetLines(string label, params Operations.TradeLine[] lines)
+        async Task SetLines(string label, params RimGovernor.Brain.GameOrders.Operations.TradeLine[] lines)
         {
-            var effect = TradeKit.AppliedTrade(label, await Apply(label, new Operations.SetTradeLines { Lines = [.. lines], AllowPawns = false }).ConfigureAwait(false));
-            if (effect is not Receipts.TradeEffect.StagedCase staged || !staged.Lines.Select(x => x.LineId).Order(StringComparer.Ordinal).SequenceEqual(lines.Select(x => x.LineId).Order(StringComparer.Ordinal)))
+            var effect = TradeKit.AppliedTrade(label, await Apply(label, new RimGovernor.Brain.GameOrders.Operations.SetTradeLines { Lines = [.. lines], AllowPawns = false }).ConfigureAwait(false));
+            if (effect is not RimGovernor.Brain.GameFacts.Receipts.TradeEffect.StagedCase staged || !staged.Lines.Select(x => x.LineId).Order(StringComparer.Ordinal).SequenceEqual(lines.Select(x => x.LineId).Order(StringComparer.Ordinal)))
             {
                 throw new AcceptanceException($"{label}: expected the receipt to name the staged lines, got {effect}");
             }
         }
 
-        static bool Plain(Observations.TradeLine row) => row.TraderWillTrade && !row.Currency && row.Pawn is null && row.LineId.Length != 0;
+        static bool Plain(RimGovernor.Brain.GameFacts.Observations.TradeLine row) => row.TraderWillTrade && !row.Currency && row.Pawn is null && row.LineId.Length != 0;
 
         static double N(double value) => value;
 
         // Step 1: open, stage one buy and one sell, accept.
         var sessionId = await Open("open").ConfigureAwait(false);
         var before = await TradeKit.SheetAsync(s, "sheet", sessionId, cancellationToken).ConfigureAwait(false);
-        Observations.TradeLine? buy = null;
-        Observations.TradeLine? sell = null;
+        RimGovernor.Brain.GameFacts.Observations.TradeLine? buy = null;
+        RimGovernor.Brain.GameFacts.Observations.TradeLine? sell = null;
         foreach (var row in before.Lines.Where(Plain))
         {
             if (N(row.TraderCount) > 0 && N(row.MaximumCount) >= 1 && N(row.BuyPrice) > 0 && (buy is null || N(row.BuyPrice) < N(buy.BuyPrice)))
@@ -102,22 +98,22 @@ internal static class TradeExecute
         var sellCount = (int)Math.Min(Math.Ceiling(N(buy.BuyPrice) / N(sell.SellPrice)) + 1, -N(sell.MinimumCount));
         s.RecordWire("buy", buy);
         s.RecordWire("sell", sell);
-        await SetLines("lines", new Operations.TradeLine { LineId = buy.LineId, AbsoluteCount = 1 }, new Operations.TradeLine { LineId = sell.LineId, AbsoluteCount = -sellCount }).ConfigureAwait(false);
+        await SetLines("lines", new RimGovernor.Brain.GameOrders.Operations.TradeLine { LineId = buy.LineId, AbsoluteCount = 1 }, new RimGovernor.Brain.GameOrders.Operations.TradeLine { LineId = sell.LineId, AbsoluteCount = -sellCount }).ConfigureAwait(false);
         var staged = await TradeKit.SheetAsync(s, "staged", sessionId, cancellationToken).ConfigureAwait(false);
-        if (staged.Balance is not Observations.TradeBalance.Counted { ColonyCanAfford: true })
+        if (staged.Balance is not RimGovernor.Brain.GameFacts.Observations.TradeBalance.Counted { ColonyCanAfford: true })
         {
             throw new AcceptanceException($"staged: the colony cannot afford the staged deal: {staged}");
         }
 
-        var deal = TradeKit.AppliedTrade("accept", await Apply("accept", new Operations.AcceptTrade { ExpectedDealSignature = staged.DealSignature, AllowEmpty = false, ReceiveQuest = true }).ConfigureAwait(false));
+        var deal = TradeKit.AppliedTrade("accept", await Apply("accept", new RimGovernor.Brain.GameOrders.Operations.AcceptTrade { ExpectedDealSignature = staged.DealSignature, AllowEmpty = false, ReceiveQuest = true }).ConfigureAwait(false));
         s.RecordWire("accept", deal);
-        if (deal is not Receipts.TradeEffect.ExecutedCase executed || !executed.ActuallyTraded || executed.BeforeSilver == executed.AfterSilver || executed.DealSignature != staged.DealSignature)
+        if (deal is not RimGovernor.Brain.GameFacts.Receipts.TradeEffect.ExecutedCase executed || !executed.ActuallyTraded || executed.BeforeSilver == executed.AfterSilver || executed.DealSignature != staged.DealSignature)
         {
             throw new AcceptanceException($"accept: expected an executed, traded, closed deal of the staged signature that moved colony silver, got {deal}");
         }
 
         var session = await TradeKit.SessionAsync(s, "session-closed", cancellationToken).ConfigureAwait(false);
-        if (session.Engagement is not Observations.TradeEngagement.Idle)
+        if (session.Engagement is not RimGovernor.Brain.GameFacts.Observations.TradeEngagement.Idle)
         {
             throw new AcceptanceException($"session-closed: expected no live trade after accept, got {session}");
         }
@@ -125,7 +121,7 @@ internal static class TradeExecute
         // Stock moved: a fresh session shows the trader's bought row and the colony's sold row down by the staged counts.
         sessionId = await Open("reopen").ConfigureAwait(false);
         var after = await TradeKit.SheetAsync(s, "after", sessionId, cancellationToken).ConfigureAwait(false);
-        Observations.TradeLine? ByDef(Observations.TradeLine row) => after.Lines.FirstOrDefault(o => o.DefName == row.DefName && o.Stuff == row.Stuff);
+        RimGovernor.Brain.GameFacts.Observations.TradeLine? ByDef(RimGovernor.Brain.GameFacts.Observations.TradeLine row) => after.Lines.FirstOrDefault(o => o.DefName == row.DefName && o.Stuff == row.Stuff);
         if (ByDef(buy) is not { } bought || N(bought.TraderCount) != N(buy.TraderCount) - 1)
         {
             throw new AcceptanceException($"after: expected the trader's {buy.LineId} down by one from {buy.TraderCount}, got {ByDef(buy)}");
@@ -139,22 +135,22 @@ internal static class TradeExecute
         // Step 2: a buy the colony cannot afford is refused and the session stays open until a cancel ends it.
         var dear = after.Lines.Where(r => Plain(r) && N(r.MaximumCount) >= 1).MaxBy(r => N(r.MaximumCount) * N(r.BuyPrice))
             ?? throw new AcceptanceException($"after: no row left to buy: {after}");
-        await SetLines("dear-lines", new Operations.TradeLine { LineId = dear.LineId, AbsoluteCount = (int)N(dear.MaximumCount) }).ConfigureAwait(false);
+        await SetLines("dear-lines", new RimGovernor.Brain.GameOrders.Operations.TradeLine { LineId = dear.LineId, AbsoluteCount = (int)N(dear.MaximumCount) }).ConfigureAwait(false);
         var dearSheet = await TradeKit.SheetAsync(s, "dear", sessionId, cancellationToken).ConfigureAwait(false);
-        if (dearSheet.Balance is Observations.TradeBalance.Counted { ColonyCanAfford: true })
+        if (dearSheet.Balance is RimGovernor.Brain.GameFacts.Observations.TradeBalance.Counted { ColonyCanAfford: true })
         {
             throw new AcceptanceException($"dear: the colony can afford the whole of {dear.LineId}; no unaffordable deal to stage");
         }
 
-        var refused = await Apply("dear-accept", new Operations.AcceptTrade { ExpectedDealSignature = dearSheet.DealSignature, AllowEmpty = false, ReceiveQuest = true }).ConfigureAwait(false);
+        var refused = await Apply("dear-accept", new RimGovernor.Brain.GameOrders.Operations.AcceptTrade { ExpectedDealSignature = dearSheet.DealSignature, AllowEmpty = false, ReceiveQuest = true }).ConfigureAwait(false);
 
         // Validation catches the shortfall first (INVALID_REQUEST); a deal that slips past it and the game declines is NATIVE_FAILURE.
-        if (TradeKit.RefusedCode(refused) is not (Common.FailureCode.InvalidRequest or Common.FailureCode.NativeFailure))
+        if (TradeKit.RefusedCode(refused) is not (RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest or RimGovernor.Brain.GameFacts.Common.FailureCode.NativeFailure))
         {
             throw new AcceptanceException($"dear-accept: expected a refusal, got {refused}");
         }
 
         s.RecordWire("dearRefusal", refused.Outcome?.Refused);
-        _ = TradeKit.AppliedTrade("cancel", await Apply("cancel", new Operations.EndTrade { Kind = Operations.EndTradeKind.Cancel, ReceiveQuest = false }).ConfigureAwait(false));
+        _ = TradeKit.AppliedTrade("cancel", await Apply("cancel", new RimGovernor.Brain.GameOrders.Operations.EndTrade { Kind = RimGovernor.Brain.GameOrders.Operations.EndTradeKind.Cancel, ReceiveQuest = false }).ConfigureAwait(false));
     }
 }

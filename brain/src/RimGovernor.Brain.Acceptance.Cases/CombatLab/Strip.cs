@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Bridge;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -82,12 +81,12 @@ internal static class CombatLabStrip
         }, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task<Operations.ActionResult> StripAsync(TypedSession s, string key, string raider, CancellationToken cancellationToken)
+    private static async Task<RimGovernor.Brain.GameFacts.Operations.ActionResult> StripAsync(TypedSession s, string key, string raider, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(key, NativeOps.Apply, new Operations.ApplyRequest
+        var reply = await s.CallAsync(key, NativeOps.Apply, new RimGovernor.Brain.GameOrders.Operations.ApplyRequest
         {
             Identity = s.Identity,
-            Actions = [new Operations.Action { Key = key, Intent = new Operations.DesignateIntent { Location = new Operations.DesignationLocation.ByTarget(), ThingId = raider, Designation = Operations.ThingDesignation.Strip, ReplaceWithWall = false, Withdraw = false, Guard = Operations.DesignationGuard.NoGuard } }], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
+            Actions = [new RimGovernor.Brain.GameOrders.Operations.Action { Key = key, Intent = new RimGovernor.Brain.GameOrders.Operations.DesignateIntent { Location = new RimGovernor.Brain.GameOrders.Operations.DesignationLocation.ByTarget(), ThingId = raider, Designation = RimGovernor.Brain.GameOrders.Operations.ThingDesignation.Strip, ReplaceWithWall = false, Withdraw = false, Guard = RimGovernor.Brain.GameOrders.Operations.DesignationGuard.NoGuard } }], DeferSnapshot = false }, cancellationToken).ConfigureAwait(false);
         var result = reply.Results.Count == 1 ? reply.Results[0] : throw new AcceptanceException($"{key}: {reply.BatchFailure} {string.Join("; ", reply.Results)}");
         s.RecordWire(key, result);
         return result;

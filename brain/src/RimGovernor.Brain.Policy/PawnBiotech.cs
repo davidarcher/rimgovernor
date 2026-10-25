@@ -1,17 +1,16 @@
-using RimGovernor.Contracts.Wire.Defs;
-using O = RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Defs;
 
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>The native Biotech block with catalog-derived gene effects and work ages.</summary>
 public sealed record PawnBiotech
 {
-    public required O.PawnBiotech Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PawnBiotech Observed { get; init; }
     public DevelopmentalStage DevelopmentalStage => Observed.DevelopmentalStage;
-    public EquatableArray<O.PawnGene> Genes => Observed.Genes;
-    public O.PawnMechanitor? Mechanitor => Observed.Mechanitor;
-    public O.PawnMech? Mech => Observed.Mech;
-    public O.PawnDeathrest? Deathrest => Observed.Deathrest;
+    public EquatableArray<RimGovernor.Brain.GameFacts.Observations.PawnGene> Genes => Observed.Genes;
+    public RimGovernor.Brain.GameFacts.Observations.PawnMechanitor? Mechanitor => Observed.Mechanitor;
+    public RimGovernor.Brain.GameFacts.Observations.PawnMech? Mech => Observed.Mech;
+    public RimGovernor.Brain.GameFacts.Observations.PawnDeathrest? Deathrest => Observed.Deathrest;
     public GeneEffects Effects { get; init; } = new();
     public IReadOnlyDictionary<WorkType, int> WorkMinAges { get; init; } = new Dictionary<WorkType, int>();
 

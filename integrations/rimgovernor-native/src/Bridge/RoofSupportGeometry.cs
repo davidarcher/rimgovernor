@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The connected-roof search is independent of Verse so rectangular
     // counterfactuals can be proved on a hand-built grid. The adapter supplies

@@ -2,10 +2,10 @@
 
 [Documentation](../../README.md) · [Ownership](persistence-contracts.md) · [Shared demand](../architecture/colony-forecast.md)
 
-Ordinary `InspectRounds` publishes `RoundsFindings.EssentialServices`. The pure
+Ordinary `InspectReview` publishes `Findings.EssentialServices`. The pure
 `ReviewEssentialServices` reads that review's existing owner assessments and
 `DerivedDemand`; observation projects existing production benches and power
-topology through `RoundsFacts.EssentialInputs`. Immediate reviews do not refresh
+topology through `ReviewFacts.EssentialInputs`. Immediate reviews do not refresh
 ordinary development evidence. No action, admission, new goal store or native
 operation is created by assessment.
 
@@ -183,7 +183,7 @@ participant's task waits on (a prerequisite, an input it produces, or a bill bot
 alone: releasing it would strand that participant, so it waits for the participant's boundary. A worker
 finishing a task while it has bills left raises that review (`task`, #3624), one event per finished task and
 no timer: the worker loop wakes the scheduler step at once, with the clock running (no hold), and the
-Method binds that worker no next task until a rounds review has committed, so the review decides before the
+Method binds that worker no next task until a colony review has committed, so the review decides before the
 worker starts. The colonists with no committed order, running vanilla work (#3669), are free to the comparison. A move never happens mid-recipe.
 The assignment search tries for each task the pawns its placed prerequisites went to, then the cheapest
 (its work plus its walk to the task, at its opportunity cost, #3624):

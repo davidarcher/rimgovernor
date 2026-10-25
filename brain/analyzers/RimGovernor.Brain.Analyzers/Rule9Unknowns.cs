@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Analyzers;
 /// Rule 9, there is no unknown (RGARCH009, epic #3753), in every brain project except Acceptance*. Counted per file and
 /// token, key "file|token": Fact (a name bound to Domain's Fact&lt;T&gt;, one of its members other than ValueOrDefault, or
 /// Fact.Known), Unknown (Fact.Unknown&lt;T&gt;()), ValueOrDefault, UnknownMember (an enum member named Unknown or
-/// Unspecified), NullableValue (in Policy, Domain and Contracts: a property or positional parameter of a record or class
+/// Unspecified), NullableValue (in Policy, Domain, GameFacts and GameOrders: a property or positional parameter of a record or class
 /// typed as a nullable value type) and Discard (a catch-all <c>_ =&gt;</c> arm, <c>default:</c> or <c>case _:</c> label of
 /// a switch over an enum or an abstract or sealed record declared in the repo).
 /// </summary>
@@ -25,7 +25,7 @@ public sealed class UnknownsAnalyzer : GateAnalyzer
         "Fact", "IsKnown", "TryGetValue", "Value", "ValueOrDefault", "Known", "Unknown",
     };
 
-    private static readonly HashSet<string> RecordProjects = new(StringComparer.Ordinal) { "Policy", "Domain", "Contracts", "GameFacts", "GameOrders" };
+    private static readonly HashSet<string> RecordProjects = new(StringComparer.Ordinal) { "Policy", "Domain", "GameFacts", "GameOrders" };
 
     public UnknownsAnalyzer()
         : base(9, "There is no unknown", "unknown")

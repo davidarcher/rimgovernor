@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
-using O = RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameAccess;
 namespace RimGovernor.Brain.Bridge;
 
 public static class AnomalyColonyReads
@@ -11,9 +10,9 @@ public static class AnomalyColonyReads
     /// monolith's own read (null while it is not spawned). A monolith read that disagrees with MonolithSpawned breaks
     /// the contract.
     /// </summary>
-    public static AnomalyState AnomalyOf(O.AnomalySection section)
+    public static AnomalyState AnomalyOf(RimGovernor.Brain.GameFacts.Observations.AnomalySection section)
     {
-        if (section is not O.AnomalySection.Active { Facts: var a })
+        if (section is not RimGovernor.Brain.GameFacts.Observations.AnomalySection.Active { Facts: var a })
         {
             return new AnomalyState.Inactive();
         }

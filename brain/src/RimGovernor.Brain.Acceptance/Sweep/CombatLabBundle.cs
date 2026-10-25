@@ -7,7 +7,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Simulation.CombatMetrics;
 using RimGovernor.Brain.Telemetry;
 using FightMetrics = RimGovernor.Brain.Simulation.CombatMetrics.Metrics;
-using Clock = RimGovernor.Contracts.Wire.Clock;
 using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance;
@@ -277,7 +276,7 @@ internal static class CombatLabBundle
     // The clock_stop event names of the native combat events: the wire enum's C# name in lower snake case, as the clock
     // scheduler files them.
     private static readonly HashSet<string> CombatEventKinds =
-        [.. Enum.GetValues<Clock.CombatEvent>().Select(e => Snake(e.ToString()))];
+        [.. Enum.GetValues<RimGovernor.Brain.GameFacts.Clock.CombatEvent>().Select(e => Snake(e.ToString()))];
 
     private static string Snake(string pascal)
     {
@@ -298,7 +297,7 @@ internal static class CombatLabBundle
     /// <summary>Whether a row is one <see cref="ScanLogs"/> or <see cref="UnarmedStops"/> reads: the bundle keeps only these.</summary>
     internal static bool CombatRow(LogRow row) =>
         row.Kind == TelemetryKinds.CombatOrder.Name || row.Kind == TelemetryKinds.ClockStop.Name || row.Kind == TelemetryKinds.Dispatch.Name
-        || row.Kind == TelemetryKinds.ClockStep.Name || row.Kind == TelemetryKinds.ClockRun.Name
+        || row.Kind == TelemetryKinds.SchedulerStep.Name || row.Kind == TelemetryKinds.ClockRun.Name
         || (row.Kind == TelemetryKinds.PlannerStep.Name && Text(row.Fields(), "scope") == "immediate");
 
     /// <summary>Maps a staging's pawn ids to their sides.</summary>

@@ -2,13 +2,13 @@ using System.Globalization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Store;
 using Journal = RimGovernor.Brain.Store.Store;
-using ReviewRecord = RimGovernor.Brain.Store.Rounds;
+using ReviewRecord = RimGovernor.Brain.Store.ReviewState;
 
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// The durable journal a serve-driven case reads beside the player API: the case opens <c>&lt;output&gt;/service.sqlite</c>
-/// read through the store and polls its Rounds record and plan history. The journal path follows the convention the
+/// read through the store and polls its ReviewState record and plan history. The journal path follows the convention the
 /// checkpoint ring already uses.
 /// </summary>
 public static class ServiceJournal
@@ -45,7 +45,7 @@ public static class ServiceJournal
     public static async Task<IReadOnlyList<string>> NeedMethodsAsync(Journal journal, Policy.NeedId need, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(journal);
-        if (await TryRoundsAsync(journal, cancellationToken).ConfigureAwait(false) is not { } review)
+        if (await TryReviewAsync(journal, cancellationToken).ConfigureAwait(false) is not { } review)
         {
             return [];
         }
@@ -54,12 +54,12 @@ public static class ServiceJournal
     }
 
     /// <summary>The persisted review, or null while none was persisted yet.</summary>
-    public static async Task<ReviewRecord?> TryRoundsAsync(Journal journal, CancellationToken cancellationToken)
+    public static async Task<ReviewRecord?> TryReviewAsync(Journal journal, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(journal);
         try
         {
-            return await Task.Run(() => journal.LoadRounds(cancellationToken), cancellationToken).ConfigureAwait(false);
+            return await Task.Run(() => journal.LoadReview(cancellationToken), cancellationToken).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -104,11 +104,11 @@ public static class ServiceJournal
     }
 
     /// <summary>
-    /// Polls until the service reaches automate mode and a Rounds pass has been persisted (a revision above zero),
+    /// Polls until the service reaches automate mode and a ReviewState pass has been persisted (a revision above zero),
     /// returning the persisted review. Besides <paramref name="timeout"/> the wait stalls (<see cref="Wait.StallBudget"/>)
     /// when neither the service mode nor the review revision changes.
     /// </summary>
-    public static async Task<ReviewRecord> WaitRoundsAsync(
+    public static async Task<ReviewRecord> WaitReviewAsync(
         ServiceProcess service,
         Journal journal,
         TimeSpan timeout,
@@ -145,7 +145,7 @@ public static class ServiceJournal
 
                 try
                 {
-                    review = await journal.LoadRoundsAsync(ct).ConfigureAwait(false);
+                    review = await journal.LoadReviewAsync(ct).ConfigureAwait(false);
                     if (review.Revision > 0 && sawAutomate)
                     {
                         return ("", true);
@@ -166,7 +166,7 @@ public static class ServiceJournal
         }
         catch (WaitError e)
         {
-            throw new AcceptanceException($"service reached automate mode but the Rounds pass was never persisted (revision 0): {e.Message}"
+            throw new AcceptanceException($"service reached automate mode but the ReviewState pass was never persisted (revision 0): {e.Message}"
                 + (unreadable is null ? "" : $"; the journal read failed: {unreadable}"), e);
         }
 
@@ -174,7 +174,7 @@ public static class ServiceJournal
     }
 
     /// <summary>
-    /// Polls the durable Rounds record under <paramref name="w"/> until <paramref name="ready"/> accepts it. The
+    /// Polls the durable ReviewState record under <paramref name="w"/> until <paramref name="ready"/> accepts it. The
     /// progress signature is the review's latches and progress rows, so a review that keeps revising without moving
     /// either stalls.
     /// </summary>
@@ -206,7 +206,7 @@ public static class ServiceJournal
         {
             await wait.WaitProgressAsync(async ct =>
             {
-                review = await journal.LoadRoundsAsync(ct).ConfigureAwait(false);
+                review = await journal.LoadReviewAsync(ct).ConfigureAwait(false);
                 if (ready(review))
                 {
                     return ("", true);

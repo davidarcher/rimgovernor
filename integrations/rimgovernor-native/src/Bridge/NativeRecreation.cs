@@ -6,7 +6,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 /// <summary>
 /// The recreation buildings the game's own JoyGivers use (#3570): every JoyGiverDef whose worker is a

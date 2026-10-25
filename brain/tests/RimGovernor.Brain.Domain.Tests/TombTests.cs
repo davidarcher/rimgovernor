@@ -1,4 +1,4 @@
-using WasteItem = RimGovernor.Contracts.Wire.Observations.WasteItem;
+using WasteItem = RimGovernor.Brain.GameFacts.Observations.WasteItem;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -30,10 +30,10 @@ public sealed class TombTests
     private static readonly LayoutPlan Plan = new() { Rooms = [TombRoom], NextRoomId = 2 };
 
     private static WasteItem Corpse(CorpseOf of) =>
-        new() { Thing = new() { Id = "corpse" }, CorpseClass = (RimGovernor.Contracts.Wire.Common.CorpseClass)of, Grave = null };
+        new() { Thing = new() { Id = "corpse" }, CorpseClass = (RimGovernor.Brain.GameFacts.Common.CorpseClass)of, Grave = null };
 
     private static WasteItem Buried(CorpseOf of, string grave) =>
-        new() { Thing = new() { Id = "corpse" }, CorpseClass = (RimGovernor.Contracts.Wire.Common.CorpseClass)of, Grave = new() { Id = grave } };
+        new() { Thing = new() { Id = "corpse" }, CorpseClass = (RimGovernor.Brain.GameFacts.Common.CorpseClass)of, Grave = new() { Id = grave } };
 
     private static CurrentBuilding Standing(string id, int x, int z) => ConstructionObservationFixtures.Built(new Building(Sarcophagus, new Cell(x, z), Rotation.North, "WoodLog"), id: id, cells: [new Cell(x, z), new Cell(x, z + 1)]);
 

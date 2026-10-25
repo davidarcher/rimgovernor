@@ -4,7 +4,7 @@ using System.Linq;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Telemetry;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     /// <summary>
     /// The one OTLP row native emits per colony event (otel-signals.md#clock-and-colony-events), so holds, resumes and

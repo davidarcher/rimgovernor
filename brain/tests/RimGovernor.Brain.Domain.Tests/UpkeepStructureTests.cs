@@ -1,6 +1,8 @@
 using RimGovernor.Brain.Domain;
-using RimGovernor.Contracts.Wire;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -8,7 +10,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>
 /// The structure census retains Home coverage and joins canonical building state. Flammability and repair priority
 /// are the catalog's, not the wire's. On the wire a row round-trips through
-/// <c>WireJsonContext</c> exactly.
+/// <c>OrdersJsonContext</c> exactly.
 /// </summary>
 public sealed class UpkeepStructureTests
 {
@@ -21,12 +23,12 @@ public sealed class UpkeepStructureTests
             new() { Id = "Thing_Cooler4", Home = false },
         ];
 
-        var json = WireJson.Serialize(rows);
+        var json = OrdersJson.Serialize(rows);
 
         Assert.Equal(
             """[{"id":"Thing_Wall3","home":true},{"id":"Thing_Cooler4","home":false}]""",
             json);
-        Assert.All(rows, row => Assert.Equal(row, WireJson.Deserialize<UpkeepStructure>(WireJson.Serialize(row))));
+        Assert.All(rows, row => Assert.Equal(row, OrdersJson.Deserialize<UpkeepStructure>(OrdersJson.Serialize(row))));
     }
 
     [Fact]

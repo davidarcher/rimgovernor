@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -43,7 +44,7 @@ public sealed class PlannedShelterTests
 
     // unplaced: nothing at all is placed, so the coupled capture holds no cell or source of the room (#3323); its cells
     // and the planned heater (plannedSources, else a powered heater) come only from the round's planned thermal read.
-    private static RoundsFacts Review(IEnumerable<PlannedBuildSite> planned, double ambient = -10, bool buildRoof = false, bool unplaced = false,
+    private static ReviewFacts Review(IEnumerable<PlannedBuildSite> planned, double ambient = -10, bool buildRoof = false, bool unplaced = false,
         params ThermalSource[] plannedSources)
     {
         var facts = ForecastCoupledTests.ConstructionReview(stock: 100);
@@ -103,9 +104,9 @@ public sealed class PlannedShelterTests
     /// <summary>The unplaced planned room with its planned heater (#3323): wall, door, roof and heater sites, the room alternative and the
     /// pawn's rest, ten roots whose schedule searches cost a few expansions each, so the cardinality sweep is affordable and the budget
     /// decides whether it runs. The third workload of the allocation measurements (<see cref="PortfolioAllocationTests"/>, #3725).</summary>
-    internal static RoundsFacts UnplacedHeatedRoom() => Review([Ring(OpKind.WallIn, 40), Ring(OpKind.DoorIn, 30), Roof(), Heater(50)], unplaced: true);
+    internal static ReviewFacts UnplacedHeatedRoom() => Review([Ring(OpKind.WallIn, 40), Ring(OpKind.DoorIn, 30), Roof(), Heater(50)], unplaced: true);
 
-    private static ForecastCoupledSelection Select(RoundsFacts facts) => ForecastCoupledSelection.CompareActivityOutcomes(
+    private static ForecastCoupledSelection Select(ReviewFacts facts) => ForecastCoupledSelection.CompareActivityOutcomes(
         ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay, facts, 
             new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), facts.CoupledAlternatives!);
 
@@ -129,7 +130,7 @@ public sealed class PlannedShelterTests
         Assert.Single(pruned.Selected.Shelters);
     }
 
-    private static string Why(RoundsFacts facts, ForecastCoupledSelection result) =>
+    private static string Why(ReviewFacts facts, ForecastCoupledSelection result) =>
         string.Join(";", facts.CoupledAlternatives!.Findings.Concat(result.Selection.Findings.Select(f => f.ToString()))
             .Concat(facts.CoupledAlternatives.Context.Shelters.SelectMany(s => s.Findings)));
 
@@ -143,7 +144,7 @@ public sealed class PlannedShelterTests
     public void APricedRoomsAlternativeAloneIsSelectableOnATemperateStartAndAnUnpricedOneIsHeldByTheReliefGate()
     {
         string[] sites = ["planned/room1/door/WoodLog", "planned/room1/wall/WoodLog"];
-        RoundsFacts AlternativeOnly(RoundsFacts f) => f with { CoupledAlternatives = f.CoupledAlternatives! with
+        ReviewFacts AlternativeOnly(ReviewFacts f) => f with { CoupledAlternatives = f.CoupledAlternatives! with
             { Alternatives = EquatableArray.From(f.CoupledAlternatives.Alternatives.Where(c => !sites.Contains(c.ExclusiveOutcome))) } };
         static bool Room(ForecastPortfolioEvidence e) => e.Commitments.Any(id => id.StartsWith("planned/room1/WoodLog/Shell/composition/", StringComparison.Ordinal));
         static string Reasons(ForecastCoupledSelection r) => string.Join(";", r.Rejected.Select(e => string.Join(",", e.Commitments) + "=" + e.Reason))

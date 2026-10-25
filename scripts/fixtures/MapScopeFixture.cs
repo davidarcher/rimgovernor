@@ -9,7 +9,7 @@ using RimWorld;
 using RimWorld.Planet;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Disposable fixture only: gives the loaded game a second player map and
     // switches which one the player is viewing, so map scoping can be
@@ -20,7 +20,7 @@ namespace HomeBridge.BridgeTools
     public sealed class MapScopeFixture
     {
         [Tool("test/map_scope_generate", Description = "Disposable fixture: settles a neighbouring world tile for the player faction and generates its map (small), leaving the viewed map unchanged. Returns both map ids.")]
-        public async Task<object> Generate(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Generate(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() =>
             {
@@ -43,7 +43,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/map_scope_view", Description = "Disposable fixture: makes the map with the given id the viewed (current) map through Game.CurrentMap, exactly as the player's map switch does.")]
-        public async Task<object> View(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> View(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "uniqueID of a loaded map.")] int mapId)
         {
             return await ctx.MainThread.InvokeAsync<object>(() =>

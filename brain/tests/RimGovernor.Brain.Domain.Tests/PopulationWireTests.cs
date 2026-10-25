@@ -1,22 +1,21 @@
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
 /// The population read is whole (#3769): every person carries every fact, how the colony holds it is a named custody
-/// state, and the colony's ideology mode is named. It round-trips through <c>WireJsonContext</c> exactly and decodes
+/// state, and the colony's ideology mode is named. It round-trips through <c>OrdersJsonContext</c> exactly and decodes
 /// into the prisoner census without an unknown.
 /// </summary>
 public sealed class PopulationWireTests
 {
 
-    private static Obs.PopulationPerson Person(string id) => new()
+    private static RimGovernor.Brain.GameFacts.Observations.PopulationPerson Person(string id) => new()
     {
         Pawn = new PawnId(id),
         Admitted = false,
@@ -24,11 +23,11 @@ public sealed class PopulationWireTests
         Recruitable = false,
         IdeoId = null,
         WildMan = false,
-        Custody = new Obs.PersonCustody.None(),
+        Custody = new RimGovernor.Brain.GameFacts.Observations.PersonCustody.None(),
         WillJoinIfRescued = false,
     };
 
-    private static readonly Obs.PopulationSnapshot Population = new()
+    private static readonly RimGovernor.Brain.GameFacts.Observations.PopulationSnapshot Population = new()
     {
         Persons =
         [
@@ -37,27 +36,27 @@ public sealed class PopulationWireTests
             {
                 Guest = true,
                 Recruitable = true,
-                Custody = new Obs.PersonCustody.Prisoner(12.5, "ReduceResistance", 2500, new Common.Ref { Id = "Faction_3" }, -40),
+                Custody = new RimGovernor.Brain.GameFacts.Observations.PersonCustody.Prisoner(12.5, "ReduceResistance", 2500, new RimGovernor.Brain.GameFacts.Common.Ref { Id = "Faction_3" }, -40),
             },
-            Person("guest") with { Guest = true, Custody = new Obs.PersonCustody.Guest() },
+            Person("guest") with { Guest = true, Custody = new RimGovernor.Brain.GameFacts.Observations.PersonCustody.Guest() },
         ],
-        Ideology = new Obs.ColonyIdeology.Installed(false, "Ideo_1"),
-        OwnedNames = [new Obs.OwnedName { PawnId = new PawnId("colonist"), ShortName = "Tess", ThingId = 7 }],
+        Ideology = new RimGovernor.Brain.GameFacts.Observations.ColonyIdeology.Installed(false, "Ideo_1"),
+        OwnedNames = [new RimGovernor.Brain.GameFacts.Observations.OwnedName { PawnId = new PawnId("colonist"), ShortName = "Tess", ThingId = 7 }],
     };
 
     [Fact]
     public void EveryCustodyStateAndTheIdeologyModeRoundTrip()
     {
-        var json = WireJson.Serialize(Population);
+        var json = OrdersJson.Serialize(Population);
 
         Assert.Contains("\"custody\":{\"type\":\"none\"}", json, StringComparison.Ordinal);
         Assert.Contains("\"custody\":{\"type\":\"prisoner\",\"resistance\":12.5,\"interaction\":\"ReduceResistance\",\"heldTicks\":2500", json, StringComparison.Ordinal);
         Assert.Contains("\"custody\":{\"type\":\"guest\"", json, StringComparison.Ordinal);
         Assert.Contains("\"ideology\":{\"type\":\"installed\",\"classic\":false,\"primaryIdeoId\":\"Ideo_1\"}", json, StringComparison.Ordinal);
         Assert.Contains("\"ownedNames\":[{\"pawnId\":\"colonist\",\"shortName\":\"Tess\",\"thingId\":7}]", json, StringComparison.Ordinal);
-        Assert.Equal(Population, WireJson.Deserialize<Obs.PopulationSnapshot>(json));
-        var bare = Population with { Ideology = new Obs.ColonyIdeology.NotInstalled() };
-        Assert.Equal(bare, WireJson.Deserialize<Obs.PopulationSnapshot>(WireJson.Serialize(bare)));
+        Assert.Equal(Population, OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.PopulationSnapshot>(json));
+        var bare = Population with { Ideology = new RimGovernor.Brain.GameFacts.Observations.ColonyIdeology.NotInstalled() };
+        Assert.Equal(bare, OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.PopulationSnapshot>(OrdersJson.Serialize(bare)));
     }
 
     [Fact]
@@ -70,7 +69,7 @@ public sealed class PopulationWireTests
             Colonist = false,
             FreeColonist = false,
             Health = guest.Health with { LifeThreatening = true },
-            Settings = guest.Settings with { Care = new Obs.PawnCare.Configured(RimGovernor.Contracts.Wire.Operations.MedicalCare.Best, false, RimGovernor.Contracts.Wire.Operations.HostilityResponse.Flee) },
+            Settings = guest.Settings with { Care = new RimGovernor.Brain.GameFacts.Observations.PawnCare.Configured(RimGovernor.Brain.GameFacts.Operations.MedicalCare.Best, false, RimGovernor.Brain.GameFacts.Operations.HostilityResponse.Flee) },
         };
         var pawns = Pawns.Of(PawnFixtures.Row("colonist"), native, guest);
 
@@ -82,7 +81,7 @@ public sealed class PopulationWireTests
         Assert.Equal(-40, prisoner.HarvestGoodwill);
         Assert.Equal(new PrisonerHeldInteraction.Settable(PrisonerInteractionMode.ReduceResistance), prisoner.CurrentInteraction);
         Assert.Equal(new PawnId("guest"), Assert.Single(census.Guests).Id);
-        Assert.Equal(new Obs.ColonyIdeology.Installed(false, "Ideo_1"), census.Colony.Ideology);
+        Assert.Equal(new RimGovernor.Brain.GameFacts.Observations.ColonyIdeology.Installed(false, "Ideo_1"), census.Colony.Ideology);
         Assert.True(census.Colony.PreceptsBind);
         Assert.Equal("Ideo_1", census.Colony.PrimaryIdeo);
         Assert.Equal(1, census.Colony.Colonists);
@@ -98,14 +97,14 @@ public sealed class PopulationWireTests
         Assert.Same(guest, Assert.Single(census.Guests).Observed);
         Assert.Equal(MedicalCare.Best, Assert.Single(census.Guests).Care);
         Assert.True(Assert.Single(census.Guests).LifeThreatening);
-        Assert.Equal([new Obs.OwnedName { PawnId = new("colonist"), ShortName = "Tess", ThingId = 7 }], census.Names);
+        Assert.Equal([new RimGovernor.Brain.GameFacts.Observations.OwnedName { PawnId = new("colonist"), ShortName = "Tess", ThingId = 7 }], census.Names);
     }
 
     [Fact]
     public void RecruitmentUsesTheJoinedPawnSkillAndHealthWithoutCopies()
     {
         var pawn = PawnFixtures.Row("p");
-        var skill = new Obs.Skill { DefName = "Shooting", Level = 12, Passion = Obs.Passion.Major };
+        var skill = new RimGovernor.Brain.GameFacts.Observations.Skill { DefName = "Shooting", Level = 12, Passion = RimGovernor.Brain.GameFacts.Observations.Passion.Major };
         pawn = pawn with
         {
             Biography = pawn.Biography with { BiologicalAgeYears = 30, Skills = [skill] },
@@ -125,7 +124,7 @@ public sealed class PopulationWireTests
     public void TraitWorthRequiresTheCatalogInsteadOfInventingZero()
     {
         var pawn = PawnFixtures.Row("p");
-        pawn = pawn with { Biography = pawn.Biography with { Traits = [new Obs.Trait { DefName = "Nervous", Degree = 1 }] } };
+        pawn = pawn with { Biography = pawn.Biography with { Traits = [new RimGovernor.Brain.GameFacts.Observations.Trait { DefName = "Nervous", Degree = 1 }] } };
         Assert.Throws<BridgeContractException>(() => PopulationDecoder.Decode(
             Population with { Persons = [Person("p")] }, Pawns.Of(pawn), null));
     }

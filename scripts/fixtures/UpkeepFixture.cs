@@ -9,7 +9,7 @@ using RimWorld;
 using Verse;
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Disposable scenario preparation; never included in production builds.
     public sealed class UpkeepFixture
@@ -22,7 +22,7 @@ namespace HomeBridge.BridgeTools
         // the brain side and compare with what was spawned. Also replies the
         // timed capture of the whole map (ms).
         [Tool("test/grid_things", Description = "UNSAFE FOR MODEL EXECUTION. Disposable probe (#2261): spawn one of each thing category on seven cells east of cell (\"x,z\") and a shelf holding two stacks on the next two, and reply that row as a base64 mirror.CellGrid plus the whole-map read cost. Test builds only.")]
-        public async Task<object> GridThings(IRimBridgeContext ctx, CancellationToken cancellationToken, string cell)
+        public async Task<object> GridThings(INativeContext ctx, CancellationToken cancellationToken, string cell)
             => await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 var p = (cell ?? "").Split(',');
@@ -58,12 +58,12 @@ namespace HomeBridge.BridgeTools
                 var watch = System.Diagnostics.Stopwatch.StartNew();
                 CellGridReader.Read(map);
                 var readMs = watch.Elapsed.TotalMilliseconds;
-                return FixtureKit.Reply(new Fx.GridThingsRead { Grid = Convert.ToBase64String(RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(row)),
+                return FixtureKit.Reply(new Fx.GridThingsRead { Grid = Convert.ToBase64String(RimGovernor.Brain.GameOrders.OrdersJson.SerializeToUtf8Bytes(row)),
                     FrameId = frame.thingIDNumber, ReadMs = readMs });
             }, cancellationToken);
 
         [Tool("test/player_designate", Description = "UNSAFE FOR MODEL EXECUTION. Lay a player Deconstruct designation (replacing any prior one) on one thing by id, as a player's own order the supervisor may adopt. Test builds only.")]
-        public async Task<object> PlayerDesignate(IRimBridgeContext ctx, CancellationToken cancellationToken,
+        public async Task<object> PlayerDesignate(INativeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Exact target id.")] string target)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -82,7 +82,7 @@ namespace HomeBridge.BridgeTools
         // reports which stack a bill ingredient pick and a meal pick choose with
         // the preference off, on, and on with the old stack forbidden.
         [Tool("test/spoilage_pick", Description = "UNSAFE FOR MODEL EXECUTION. Disposable probe (#2520): spawn old and fresh meat and meal stacks near a colonist and reply which each vanilla-path pick chooses with the spoilage preference off, on, and on with the old stack forbidden. Test builds only.")]
-        public async Task<object> SpoilagePick(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> SpoilagePick(INativeContext ctx, CancellationToken cancellationToken)
             => await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 var pawn = map?.mapPawns.FreeColonistsSpawned.FirstOrDefault();

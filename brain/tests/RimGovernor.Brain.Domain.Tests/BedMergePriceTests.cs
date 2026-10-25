@@ -1,7 +1,8 @@
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 using Obs = RimGovernor.Brain.Bridge;
 
@@ -416,14 +417,14 @@ public sealed class BedMergePriceTests
             {
                 Census = ColonyFactsCoreTests.Reading().Snapshot with
                 {
-                    Resources = EquatableArray.From((new Dictionary<Resource, long> { [wood] = 600 }).Select(pair => new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = pair.Key.Value, Units = pair.Value }))
+                    Resources = EquatableArray.From((new Dictionary<Resource, long> { [wood] = 600 }).Select(pair => new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = pair.Key.Value, Units = pair.Value }))
                 },
                 Definitions = [Def(ContainmentCellRules.ShellWallDefinition, 135, 5), Def(ContainmentCellRules.ShellDoorDefinition, 850, 25)]
             }
         };
 
         // The blocks are cheaper but the colony holds none: the planned ring is read in wood, and the merge prices wood.
-        var (wall, door) = Rounder.BedMergeShell(colony);
+        var (wall, door) = ColonyReview.BedMergeShell(colony);
         Assert.Equal((135 * 0.7, wood, 5L), (wall!.Value.Work, wall.Value.Costs.Single().Resource, wall.Value.Costs.Single().Count));
         Assert.Equal((850 * 0.7, wood, 25L), (door!.Value.Work, door.Value.Costs.Single().Resource, door.Value.Costs.Single().Count));
 
@@ -432,10 +433,10 @@ public sealed class BedMergePriceTests
         {
             Facts = colony.Facts with { Census = colony.Snapshot with
             {
-                Resources = EquatableArray.From((new Dictionary<Resource, long> { [wood] = 600, [granite] = 300 }).Select(pair => new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = pair.Key.Value, Units = pair.Value }))
+                Resources = EquatableArray.From((new Dictionary<Resource, long> { [wood] = 600, [granite] = 300 }).Select(pair => new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = pair.Key.Value, Units = pair.Value }))
             } }
         };
-        Assert.Equal(granite, Rounder.BedMergeShell(stocked).Wall!.Value.Costs.Single().Resource);
+        Assert.Equal(granite, ColonyReview.BedMergeShell(stocked).Wall!.Value.Costs.Single().Resource);
     }
 
     [Fact]
@@ -448,34 +449,34 @@ public sealed class BedMergePriceTests
             Name = name, Available = true,
             StuffOptions = [Option(granite, count * 0.9, work * 2, count), Option(wood, count * 1.2, work * 0.7, count)],
         };
-        RimGovernor.Brain.Bridge.Contracts.ColonyReading Colony(RingStuffSources map, params Resource[] stocked) => ColonyFactsCoreTests.Reading() with
+        RimGovernor.Brain.GameAccess.ColonyReading Colony(RingStuffSources map, params Resource[] stocked) => ColonyFactsCoreTests.Reading() with
         {
             Facts = ColonyFactsCoreTests.Reading().Facts with
             {
                 Census = ColonyFactsCoreTests.Reading().Snapshot with
                 {
-                    Resources = EquatableArray.From((stocked.ToDictionary(r => r, _ => 300L)).Select(pair => new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = pair.Key.Value, Units = pair.Value }))
+                    Resources = EquatableArray.From((stocked.ToDictionary(r => r, _ => 300L)).Select(pair => new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = pair.Key.Value, Units = pair.Value }))
                 },
                 Definitions = [Def(ContainmentCellRules.ShellWallDefinition, 135, 5), Def(ContainmentCellRules.ShellDoorDefinition, 850, 25)],
                 RingSources = map
             }
         };
-        Resource WallStuff(RimGovernor.Brain.Bridge.Contracts.ColonyReading colony) => Rounder.BedMergeShell(colony).Wall!.Value.Costs.Single().Resource;
+        Resource WallStuff(RimGovernor.Brain.GameAccess.ColonyReading colony) => ColonyReview.BedMergeShell(colony).Wall!.Value.Costs.Single().Resource;
         var trees = new RingStuffSources { Wood = EquatableArray.From([wood.Value]), Blocks = EquatableArray.From([granite.Value]) };
         var rock = new RingStuffSources { Blocks = EquatableArray.From([granite.Value]) };
 
         // Nothing stocked and trees standing: the ring is priced (and placed) in wood, though the blocks are cheaper.
         Assert.Equal(wood, WallStuff(Colony(trees)));
-        var (wall, door) = Rounder.BedMergeShell(Colony(trees));
+        var (wall, door) = ColonyReview.BedMergeShell(Colony(trees));
         var values = new Dictionary<Resource, ConstructionMaterialValue> { [wood] = new(MaterialValueBasis.Unpriced, 0.001) };
         Assert.IsType<BedMergeFacts.Read>(LayoutClusterRules.BedMergeFactsOf(Calm.Sleepers, Levels, wall, door, values));
-        Assert.Equal(wood.Value, RoundsBuildingPlanner.ShellMaterials(Colony(trees), ContainmentCellRules.ShellWallDefinition, ContainmentCellRules.ShellDoorDefinition, null).WallStuff);
+        Assert.Equal(wood.Value, BuildingPlanner.ShellMaterials(Colony(trees), ContainmentCellRules.ShellWallDefinition, ContainmentCellRules.ShellDoorDefinition, null).WallStuff);
         // No trees, granite rock: the granite blocks.
         Assert.Equal(granite, WallStuff(Colony(rock)));
         // A stocked stuff wins over what the map offers.
         Assert.Equal(wood, WallStuff(Colony(rock, wood)));
         // Neither stocked nor offered: no stuff, so no price and no placement.
-        Assert.Equal((null, null), Rounder.BedMergeShell(Colony(new RingStuffSources())));
+        Assert.Equal((null, null), ColonyReview.BedMergeShell(Colony(new RingStuffSources())));
     }
 
     [Fact]
@@ -495,14 +496,14 @@ public sealed class BedMergePriceTests
             {
                 Census = ColonyFactsCoreTests.Reading().Snapshot with
                 {
-                    Resources = EquatableArray.From((new Dictionary<Resource, long> { [wood] = 30 }).Select(pair => new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = pair.Key.Value, Units = pair.Value }))
+                    Resources = EquatableArray.From((new Dictionary<Resource, long> { [wood] = 30 }).Select(pair => new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = pair.Key.Value, Units = pair.Value }))
                 },
                 Definitions = [Def(ContainmentCellRules.ShellWallDefinition, 135, 5), Def(ContainmentCellRules.ShellDoorDefinition, 850, 25)],
                 Acquisition = []
             }
         };
 
-        var (wall, door, _, ok) = RoundsBuildingPlanner.ShellMaterials(colony, ContainmentCellRules.ShellWallDefinition, ContainmentCellRules.ShellDoorDefinition, null);
+        var (wall, door, _, ok) = BuildingPlanner.ShellMaterials(colony, ContainmentCellRules.ShellWallDefinition, ContainmentCellRules.ShellDoorDefinition, null);
         Assert.True(ok);
         Assert.Equal((wood.Value, wood.Value), (wall, door));
     }

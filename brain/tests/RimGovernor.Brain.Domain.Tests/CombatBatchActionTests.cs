@@ -1,9 +1,9 @@
 using System.Text.Json;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Store.Codec;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
-using Op = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -32,16 +32,16 @@ public sealed class CombatBatchActionTests
         var wire = IntentActionRules.IntentAction("combat-action", decoded);
         var orders = wire.Intent!.CombatOrders!.Orders;
         Assert.Equal(6, orders.Count);
-        Assert.IsType<Op.CombatOrderOrder.DraftCase>(orders[0].Order);
+        Assert.IsType<RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DraftCase>(orders[0].Order);
         Assert.Equal("p1", orders[0].Pawn!.EntityId);
-        Assert.IsType<Op.CombatOrderOrder.MoveCase>(orders[1].Order);
-        Assert.Equal("raider", ((Op.CombatOrderOrder.AttackCase)orders[2].Order!).Value.EntityId);
-        Assert.IsType<Op.CombatOrderOrder.FireModeCase>(orders[3].Order);
+        Assert.IsType<RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.MoveCase>(orders[1].Order);
+        Assert.Equal("raider", ((RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AttackCase)orders[2].Order!).Value.EntityId);
+        Assert.IsType<RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.FireModeCase>(orders[3].Order);
         Assert.Null(orders[4].Pawn);
         Assert.Equal("p2", orders[5].Pawn!.EntityId);
 
-        var restored = WireJson.Deserialize<Op.Action>(WireJson.Serialize(wire));
+        var restored = OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.Action>(OrdersJson.Serialize(wire));
         Assert.Equal("combat-action", restored.Key);
-        Assert.Equal(WireJson.Serialize(wire), WireJson.Serialize(restored));
+        Assert.Equal(OrdersJson.Serialize(wire), OrdersJson.Serialize(restored));
     }
 }

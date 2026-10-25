@@ -6,9 +6,8 @@ using RimGovernor.Brain.Domain;
 using RimWorld;
 using Verse;
 using Verse.AI.Group;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Anomaly facts: the pawn and building row blocks (entity state, held
     // state, study state, containment strength). Everything is read from the
@@ -23,22 +22,22 @@ namespace HomeBridge.BridgeTools
 
         // The study block of a pawn or building with a CompStudiable; null for
         // one without.
-        internal static Obs.StudyState? Study(Thing thing)
+        internal static RimGovernor.Brain.GameFacts.Observations.StudyState? Study(Thing thing)
         {
             if (!ModsConfig.AnomalyActive || (thing as ThingWithComps)?.GetComp<CompStudiable>() is not CompStudiable study) return null;
-            return new Obs.StudyState
+            return new RimGovernor.Brain.GameFacts.Observations.StudyState
             {
                 CurrentlyStudiable = study.CurrentlyStudiable(),
-                Yield = new Obs.StudyYieldState { Knowledge = Finite(study.AnomalyKnowledge, "study knowledge"), Category = study.KnowledgeCategory?.defName,
+                Yield = new RimGovernor.Brain.GameFacts.Observations.StudyYieldState { Knowledge = Finite(study.AnomalyKnowledge, "study knowledge"), Category = study.KnowledgeCategory?.defName,
                     FrequencyTicks = study.Props.frequencyTicks },
             };
         }
 
         // The pawn row block; inactive without Anomaly.
-        internal static Obs.PawnAnomalyState State(Pawn pawn) =>
-            ModsConfig.AnomalyActive ? new Obs.PawnAnomalyState.Active(Pawn(pawn)) : new Obs.PawnAnomalyState.Inactive();
+        internal static RimGovernor.Brain.GameFacts.Observations.PawnAnomalyState State(Pawn pawn) =>
+            ModsConfig.AnomalyActive ? new RimGovernor.Brain.GameFacts.Observations.PawnAnomalyState.Active(Pawn(pawn)) : new RimGovernor.Brain.GameFacts.Observations.PawnAnomalyState.Inactive();
 
-        private static Obs.PawnAnomaly Pawn(Pawn pawn) => new Obs.PawnAnomaly
+        private static RimGovernor.Brain.GameFacts.Observations.PawnAnomaly Pawn(Pawn pawn) => new RimGovernor.Brain.GameFacts.Observations.PawnAnomaly
         {
             Entity = pawn.IsEntity,
             Mutant = pawn.IsMutant,
@@ -57,10 +56,10 @@ namespace HomeBridge.BridgeTools
         };
 
         // The holding-platform target block; null for a pawn without the comp.
-        private static Obs.HeldState? Held(Pawn pawn)
+        private static RimGovernor.Brain.GameFacts.Observations.HeldState? Held(Pawn pawn)
         {
             if (pawn.GetComp<CompHoldingPlatformTarget>() is not CompHoldingPlatformTarget target) return null;
-            return new Obs.HeldState
+            return new RimGovernor.Brain.GameFacts.Observations.HeldState
             {
                 Held = target.CurrentlyHeldOnPlatform,
                 Mode = NativeEnums.ContainmentMode(target.containmentMode),
@@ -79,11 +78,11 @@ namespace HomeBridge.BridgeTools
         // platform's strength, each as that method reads it (#3811); the
         // brain applies the captivity and strength curves. A non-finite
         // factor throws.
-        private static Obs.EntityEscapeState Escape(Pawn pawn, CompHoldingPlatformTarget target)
+        private static RimGovernor.Brain.GameFacts.Observations.EntityEscapeState Escape(Pawn pawn, CompHoldingPlatformTarget target)
         {
             var moving = 1f / UnityEngine.Mathf.Clamp(pawn.health.capacities.GetLevel(PawnCapacityDefOf.Moving), 0.01f, 1f);
             var cold = ContainmentUtility.TryGetColdContainmentBonus(pawn, out var modifier) ? modifier : 1f;
-            return new Obs.EntityEscapeState
+            return new RimGovernor.Brain.GameFacts.Observations.EntityEscapeState
             {
                 BaseMtbDays = Finite(target.Props.baseEscapeIntervalMtbDays, "escape interval"),
                 MovingFactor = Finite(moving, "moving factor"),
@@ -106,8 +105,8 @@ namespace HomeBridge.BridgeTools
 
         // The creepjoiner block; null for a pawn with no tracker. joinedTick is public: the tick the pawn joined (#3844); the
         // combat power is the kind's, the points of the fight an aggressive downside starts.
-        private static Obs.CreepJoinerState? CreepJoiner(Pawn pawn) =>
-            pawn.creepjoiner is Pawn_CreepJoinerTracker tracker ? new Obs.CreepJoinerState { DownsideTriggered = CreepJoinerFields.DownsideTriggered(tracker), JoinedTick = tracker.joinedTick,
+        private static RimGovernor.Brain.GameFacts.Observations.CreepJoinerState? CreepJoiner(Pawn pawn) =>
+            pawn.creepjoiner is Pawn_CreepJoinerTracker tracker ? new RimGovernor.Brain.GameFacts.Observations.CreepJoinerState { DownsideTriggered = CreepJoinerFields.DownsideTriggered(tracker), JoinedTick = tracker.joinedTick,
                 CombatPower = Finite(pawn.kindDef.combatPower, "creepjoiner combat power") } : null;
 
         // The doors the game counts for a holder's room: the Building_Door
@@ -115,23 +114,23 @@ namespace HomeBridge.BridgeTools
         // what StatWorker_ContainmentStrength.AnyDoorForcedOpen walks. None
         // for a holder in no room or a room that is psychologically outdoors
         // (the game reads no door there either).
-        private static IEnumerable<Obs.AnomalyDoor> Doors(Thing holder)
+        private static IEnumerable<RimGovernor.Brain.GameFacts.Observations.AnomalyDoor> Doors(Thing holder)
         {
             var room = holder.GetRoom();
             if (room == null || room.PsychologicallyOutdoors) yield break;
             foreach (var door in room.ContainedAndAdjacentThings.OfType<Building_Door>().OrderBy(d => d.Position.z).ThenBy(d => d.Position.x))
-                yield return new Obs.AnomalyDoor { Cell = new Cell(door.Position.x, door.Position.z), HoldOpen = door.HoldOpen,
+                yield return new RimGovernor.Brain.GameFacts.Observations.AnomalyDoor { Cell = new Cell(door.Position.x, door.Position.z), HoldOpen = door.HoldOpen,
                     ContainmentBreached = door.ContainmentBreached, BlockedOpen = door.BlockedOpenMomentary };
         }
 
         // The building row block; null without Anomaly or when the building
         // is no entity holder.
-        internal static Obs.AnomalyBuilding? Building(Thing thing)
+        internal static RimGovernor.Brain.GameFacts.Observations.AnomalyBuilding? Building(Thing thing)
         {
             if (!ModsConfig.AnomalyActive || (thing as ThingWithComps)?.GetComp<CompEntityHolder>() is not CompEntityHolder holder) return null;
-            return new Obs.AnomalyBuilding
+            return new RimGovernor.Brain.GameFacts.Observations.AnomalyBuilding
             {
-                Holder = new Obs.EntityHolderState
+                Holder = new RimGovernor.Brain.GameFacts.Observations.EntityHolderState
                 {
                     ContainmentStrength = Finite(holder.ContainmentStrength, "containment strength"),
                     Available = holder.Available,

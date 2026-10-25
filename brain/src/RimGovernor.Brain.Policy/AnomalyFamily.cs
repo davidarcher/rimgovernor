@@ -5,15 +5,15 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// What the anomaly family reads (#3302): the review's facts, whose containment planning (holders, doors and held
 /// entities), research, monolith, gear and custody census its predicates read. Without Anomaly
-/// (<see cref="RoundsFacts.Anomaly"/> Inactive) the family derives no Needs; with it, an unread fact raises
+/// (<see cref="ReviewFacts.Anomaly"/> Inactive) the family derives no Needs; with it, an unread fact raises
 /// <see cref="RequiredFactException"/>.
 /// </summary>
 public sealed record AnomalyFacts
 {
-    public RoundsFacts Rounds { get; init; } = new();
+    public ReviewFacts ReviewState { get; init; } = new();
 
     /// <summary>The facts a review already holds.</summary>
-    public static AnomalyFacts From(RoundsFacts f) => new() { Rounds = f };
+    public static AnomalyFacts From(ReviewFacts f) => new() { ReviewState = f };
 }
 
 /// <summary>
@@ -73,7 +73,7 @@ public sealed class AnomalyFamily : IFamily<AnomalyFacts>
 
     public IReadOnlyList<Need> Derive(AnomalyFacts facts)
     {
-        var f = facts.Rounds;
+        var f = facts.ReviewState;
         if (f.Anomaly is not AnomalyState.Active { Monolith: var state })
         {
             return [];
@@ -106,7 +106,7 @@ public sealed class AnomalyFamily : IFamily<AnomalyFacts>
     /// <summary>A Method per door to close and per entity to flag; holds for capture, tend and the monolith. The lance is the runtime's.</summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, AnomalyFacts facts)
     {
-        var p = facts.Rounds.Containment;
+        var p = facts.ReviewState.Containment;
         var output = new List<NeedMethod>();
         foreach (var need in ready)
         {
@@ -121,7 +121,7 @@ public sealed class AnomalyFamily : IFamily<AnomalyFacts>
             }
             else if (need.Id == Bioferrite)
             {
-                foreach (var entity in EntityBioferriteRules.BioferriteHarvestOwed(p, facts.Rounds.Research).Enable)
+                foreach (var entity in EntityBioferriteRules.BioferriteHarvestOwed(p, facts.ReviewState.Research).Enable)
                 {
                     var setting = PawnSettings.NewExtractBioferriteSetting(entity, true);
                     output.Add(new NeedMethod(Bioferrite, BioferriteMethod(entity), "",
@@ -152,7 +152,7 @@ public sealed class AnomalyFamily : IFamily<AnomalyFacts>
     public static MethodId BioferriteMethod(Domain.PawnId entity) => new("entity-bioferrite-" + entity.Value);
 
     /// <summary>The lance targets: none while no colonist wears a lance; an unread gear, colony or custody census raises <see cref="RequiredFactException"/>.</summary>
-    private static int LanceTargets(RoundsFacts f)
+    private static int LanceTargets(ReviewFacts f)
     {
         if (!PopulationRules.LanceWorn(f.Gear))
         {

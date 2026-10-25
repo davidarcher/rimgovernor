@@ -2,12 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Starting-team composition policy. Pure: every criterion is a
     // function of the pawn facts, so the result depends only on the seeded
     // Rand stream the caller rerolls from. The game adapter
-    // (ProtoLifecycleNewColonyTools) reads PawnFacts off the real pawns.
+    // (LifecycleNewColonyTools) reads PawnFacts off the real pawns.
     //
     // The trait and passion figures were checked against the game's defs
     // (Core TraitDefs and Assembly-CSharp SkillRecord): the shipped trait

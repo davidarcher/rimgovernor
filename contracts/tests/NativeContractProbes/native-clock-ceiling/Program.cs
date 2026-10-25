@@ -1,5 +1,5 @@
 using System;
-using HomeBridge.BridgeTools;
+using RimGovernor.Native;
 
 // The one ceiling (ClockCeiling.cs, #3171) against a fake tick source: wall time advances in fixed
 // frames, each frame ticks at min(requested, ceiling) and its tick work costs a fixed time per tick.

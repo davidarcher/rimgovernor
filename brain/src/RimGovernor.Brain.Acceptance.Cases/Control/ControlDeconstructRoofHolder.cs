@@ -2,8 +2,6 @@ using System.Globalization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
-using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -71,16 +69,16 @@ internal static class ControlDeconstructRoofHolder
         _ = await TypedApply.AppliedAsync(s, "designate", WallKit.Deconstruct(wall), cancellationToken).ConfigureAwait(false);
 
         // The standing designation is a valued op: the wall's Deconstruct carrying the strip, a row for the colonist.
-        var read = await s.CallAsync("removals", NativeOps.ReadConstructionActivity, new Observations.ConstructionActivityRequest(s.Identity, default), cancellationToken).ConfigureAwait(false);
+        var read = await s.CallAsync("removals", NativeOps.ReadConstructionActivity, new RimGovernor.Brain.GameOrders.Observations.ConstructionActivityRequest(s.Identity, default), cancellationToken).ConfigureAwait(false);
         s.RecordWire("removals", read.Removals);
-        var ops = read.Removals.Where(r => r.Kind == Observations.PlannedClearingKind.Deconstruct && r.Id == wall).ToList();
+        var ops = read.Removals.Where(r => r.Kind == RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Deconstruct && r.Id == wall).ToList();
         if (ops is not [var op] || op.Cells.Count != roof.Count || !roof.All(op.Cells.Contains))
         {
             throw new AcceptanceException($"removals: want one Deconstruct op {wall} carrying the roof cells [{string.Join(",", roof)}], got [{string.Join(";", read.Removals)}]; findings {string.Join(",", read.Findings)}");
         }
 
         var row = op.Options.FirstOrDefault(r => r.Pawn == worker);
-        if (row is null || row.WorkGiver.Length == 0 || row.Finish is not Observations.ConstructionFinish.Finishes { Ticks: > 0 } || !roof.Contains(row.Location))
+        if (row is null || row.WorkGiver.Length == 0 || row.Finish is not RimGovernor.Brain.GameFacts.Observations.ConstructionFinish.Finishes { Ticks: > 0 } || !roof.Contains(row.Location))
         {
             throw new AcceptanceException($"removals: want a row for {worker} with a work giver, a known route and finish, located at a roof cell, got [{string.Join(";", op.Options)}]");
         }
@@ -91,15 +89,15 @@ internal static class ControlDeconstructRoofHolder
         {
             Tasks = [new SelectedActivityTask(TaskId, worker, [], deconstruct, row.Location, 0) { PriorSteps = [removeRoof] }],
         };
-        _ = await TypedApply.AppliedAsync(s, "order", new Operations.PawnActivitiesIntent { Batch = batch }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "order", new RimGovernor.Brain.GameOrders.Operations.PawnActivitiesIntent { Batch = batch }, cancellationToken).ConfigureAwait(false);
 
-        IReadOnlyList<Observations.BuildingState> standing = [];
+        IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.BuildingState> standing = [];
         _ = await s.RunUntilAsync(
             "deconstruct",
             Budget,
             async ct =>
             {
-                standing = await s.BuildingsAsync("wall", new Observations.ListBuildingsRequest { Ids = [wall], AnyFaction = true }, ct).ConfigureAwait(false);
+                standing = await s.BuildingsAsync("wall", new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest { Ids = [wall], AnyFaction = true }, ct).ConfigureAwait(false);
                 return (string.Create(CultureInfo.InvariantCulture, $"standing={standing.Count}"), standing.Count == 0);
             },
             cancellationToken).ConfigureAwait(false);
@@ -119,7 +117,7 @@ internal static class ControlDeconstructRoofHolder
             throw new AcceptanceException($"the roof did not come off cleanly: still roofed [{string.Join(",", roofed)}], collapsed rocks at [{string.Join(",", rubble)}]");
         }
 
-        var tasks = await s.CallAsync("execution", NativeOps.ReadActivityTasks, new Observations.ActivityTaskRequest(s.Identity, batch), cancellationToken).ConfigureAwait(false);
+        var tasks = await s.CallAsync("execution", NativeOps.ReadActivityTasks, new RimGovernor.Brain.GameOrders.Observations.ActivityTaskRequest(s.Identity, batch), cancellationToken).ConfigureAwait(false);
         var execution = tasks.Pawns.FirstOrDefault(p => p.Pawn == worker)?.Execution;
         s.Record("execution", execution?.ToString() ?? "none");
         if (execution?.State != "completed")

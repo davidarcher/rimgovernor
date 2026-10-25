@@ -1,24 +1,24 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class FoodStorageTotalTests
 {
     [Theory]
-    [InlineData(nameof(O.ColonyFactsSnapshot.ProductionBenches))]
-    [InlineData(nameof(O.ColonyFactsSnapshot.FoodSupply))]
+    [InlineData(nameof(RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot.ProductionBenches))]
+    [InlineData(nameof(RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot.FoodSupply))]
     public void EveryColonyFrameRequiresItsFoodCensuses(string member)
     {
-        var json = JsonNode.Parse(WireJson.Serialize(ColonyFactsCoreTests.Snapshot()))!.AsObject();
+        var json = JsonNode.Parse(OrdersJson.Serialize(ColonyFactsCoreTests.Snapshot()))!.AsObject();
         Assert.True(json.Remove(JsonNamingPolicy.CamelCase.ConvertName(member)));
-        Assert.Throws<JsonException>(() => WireJson.Deserialize<O.ColonyFactsSnapshot>(json.ToJsonString()));
+        Assert.Throws<JsonException>(() => OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.ColonyFactsSnapshot>(json.ToJsonString()));
     }
 
     [Fact]
@@ -66,14 +66,14 @@ public sealed class FoodStorageTotalTests
         var policy = FoodStorageUpkeepRules.DefaultFoodStoragePolicy();
         Assert.Throws<RequiredFactException>(() => RefrigerationRules.SelectRefrigerationMethod(review, observation, policy, false));
         var native = PowerBuildingFixtures.Trader("cooler", "Cooler", new(1, 1), -200, -200, true);
-        native = native with { Settings = native.Settings with { Control = new O.BuildingControl.Temperature(new O.SnapshotRef { Context = ConstructionFixtures.Context(), EntityId = native.Building.Id, Token = "cooler-control" }, -5) } };
+        native = native with { Settings = native.Settings with { Control = new RimGovernor.Brain.GameFacts.Observations.BuildingControl.Temperature(new RimGovernor.Brain.GameFacts.Observations.SnapshotRef { Context = ConstructionFixtures.Context(), EntityId = native.Building.Id, Token = "cooler-control" }, -5) } };
         var cooler = new RefrigerationCooler { Observed = native };
         Assert.Same(native, cooler.Observed);
         Assert.Equal(new Cell(1, 1), cooler.Position);
         Assert.Equal(-5, cooler.Target);
         Assert.True(cooler.Connected);
         Assert.True(cooler.PowerOn);
-        Assert.Throws<RequiredFactException>(() => new RefrigerationCooler { Observed = native with { Settings = native.Settings with { Control = new O.BuildingControl.None() } } }.Target);
+        Assert.Throws<RequiredFactException>(() => new RefrigerationCooler { Observed = native with { Settings = native.Settings with { Control = new RimGovernor.Brain.GameFacts.Observations.BuildingControl.None() } } }.Target);
         Assert.Throws<RequiredFactException>(() => RefrigerationRules.HeatRejectionBlocked(cooler,
             new Dictionary<string, RoomState>(), new Dictionary<Cell, string>(), new Dictionary<Cell, SiteCell>()));
         Assert.Equal(RefrigerationMethod.WaitBlackout,

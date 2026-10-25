@@ -1,7 +1,5 @@
 using System.Text.Json.Nodes;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Placement = RimGovernor.Contracts.Wire.Placement;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -42,11 +40,11 @@ internal static class WallConstructionSkill
         var prepared = await s.FixtureAsync("skill-prepare", Skill, "prepare", cancellationToken).ConfigureAwait(false);
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 
-        Operations.BuildingIntent Bed(string target, int? minimum, int tier) => new()
+        RimGovernor.Brain.GameOrders.Operations.BuildingIntent Bed(string target, int? minimum, int tier) => new()
         {
-            Placement = new Placement.PlacementCandidate { DefName = "Bed", Stuff = "WoodLog", X = prepared.X, Z = prepared.Z, Rotation = Placement.Rotation.North, IgnoreNaturalRock = false },
-            MinimumFinishingSkill = minimum is { } value ? new Operations.FinishingSkillChange.Selected(value) : new Operations.FinishingSkillChange.Preserve(),
-            Tier = new Operations.ConstructionTierChange.Selected(tier),
+            Placement = new RimGovernor.Brain.GameOrders.Placement.PlacementCandidate { DefName = "Bed", Stuff = "WoodLog", X = prepared.X, Z = prepared.Z, Rotation = RimGovernor.Brain.GameFacts.Placement.Rotation.North, IgnoreNaturalRock = false },
+            MinimumFinishingSkill = minimum is { } value ? new RimGovernor.Brain.GameOrders.Operations.FinishingSkillChange.Selected(value) : new RimGovernor.Brain.GameOrders.Operations.FinishingSkillChange.Preserve(),
+            Tier = new RimGovernor.Brain.GameOrders.Operations.ConstructionTierChange.Selected(tier),
             ExistingTargetId = target, ReplaceWall = false,
         };
 

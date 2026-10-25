@@ -510,7 +510,7 @@ internal sealed class ConcernProgressConverter : ObjectCodec<ConcernProgress>
     protected override ConcernProgress Read(JsonElement e, Codecs o) =>
         new()
         {
-            Concern = e.Get<ConcernId>("Concern", o),
+            Concern = e.Get<FilingKey>("Concern", o),
             Method = e.Str("Method"),
             Expected = e.Str("Expected"),
             LastProgress = e.Get<Tick>("LastProgress", o),
@@ -707,13 +707,13 @@ internal sealed class DisasterConditionConverter : ObjectCodec<DisasterCondition
     protected override DisasterCondition Read(JsonElement e, Codecs o) =>
         new()
         {
-            Observed = new RimGovernor.Contracts.Wire.Observations.EnvironmentCondition
+            Observed = new RimGovernor.Brain.GameFacts.Observations.EnvironmentCondition
             {
                 Id = e.Str("Id"),
                 DefName = e.Str("Definition"),
                 Duration = e.Bool("Permanent")
-                    ? new RimGovernor.Contracts.Wire.Observations.ConditionDuration.Permanent()
-                    : new RimGovernor.Contracts.Wire.Observations.ConditionDuration.Timed { Ticks = e.I64("TicksLeft") },
+                    ? new RimGovernor.Brain.GameFacts.Observations.ConditionDuration.Permanent()
+                    : new RimGovernor.Brain.GameFacts.Observations.ConditionDuration.Timed { Ticks = e.I64("TicksLeft") },
             },
             DisablesPower = e.Bool("DisablesPower"),
         };
@@ -722,8 +722,8 @@ internal sealed class DisasterConditionConverter : ObjectCodec<DisasterCondition
     {
         w.WriteString("Id", v.Id);
         w.WriteString("Definition", v.Definition);
-        w.WriteBoolean("Permanent", v.Duration is RimGovernor.Contracts.Wire.Observations.ConditionDuration.Permanent);
-        if (v.Duration is RimGovernor.Contracts.Wire.Observations.ConditionDuration.Timed timed)
+        w.WriteBoolean("Permanent", v.Duration is RimGovernor.Brain.GameFacts.Observations.ConditionDuration.Permanent);
+        if (v.Duration is RimGovernor.Brain.GameFacts.Observations.ConditionDuration.Timed timed)
         {
             w.WriteNum("TicksLeft", timed.Ticks);
         }
@@ -852,7 +852,7 @@ internal sealed class ExtentProvenanceConverter : ObjectCodec<ExtentProvenance>
             Facility = e.Str("Facility"),
             Plan = e.Get<PlanId>("Plan", o),
             Action = e.Get<ActionId>("Action", o),
-            Concern = e.Get<ConcernId>("Concern", o),
+            Concern = e.Get<FilingKey>("Concern", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, ExtentProvenance v, Codecs o)
@@ -1134,8 +1134,8 @@ internal sealed class MoodPawnConverter : ObjectCodec<MoodPawn>
     protected override MoodPawn Read(JsonElement e, Codecs o) =>
         new()
         {
-            Pawn = e.Get<RimGovernor.Contracts.Wire.Observations.PawnState>("Pawn", o),
-            Forecast = e.GetNullableRef<RimGovernor.Contracts.Wire.Observations.PatientForecast>("Forecast", o),
+            Pawn = e.Get<RimGovernor.Brain.GameFacts.Observations.PawnState>("Pawn", o),
+            Forecast = e.GetNullableRef<RimGovernor.Brain.GameFacts.Observations.PatientForecast>("Forecast", o),
             Thoughts = e.Get<EquatableArray<MoodThought>>("Thoughts", o),
         };
 
@@ -1150,24 +1150,24 @@ internal sealed class MoodPawnConverter : ObjectCodec<MoodPawn>
     }
 }
 /// <summary>A pawn's need level as a persisted state: <c>has</c> with its level, or <c>lacks</c> (#3768).</summary>
-internal sealed class NeedLevelConverter : ObjectCodec<RimGovernor.Contracts.Wire.Observations.NeedLevel>
+internal sealed class NeedLevelConverter : ObjectCodec<RimGovernor.Brain.GameFacts.Observations.NeedLevel>
 {
-    protected override RimGovernor.Contracts.Wire.Observations.NeedLevel Read(JsonElement e, Codecs o) =>
+    protected override RimGovernor.Brain.GameFacts.Observations.NeedLevel Read(JsonElement e, Codecs o) =>
         e.Str("Kind") switch
         {
-            "has" => new RimGovernor.Contracts.Wire.Observations.NeedLevel.Has(e.Dbl("Level")),
-            "lacks" => new RimGovernor.Contracts.Wire.Observations.NeedLevel.Lacks(),
+            "has" => new RimGovernor.Brain.GameFacts.Observations.NeedLevel.Has(e.Dbl("Level")),
+            "lacks" => new RimGovernor.Brain.GameFacts.Observations.NeedLevel.Lacks(),
             var kind => throw new JsonException($"unknown need level {kind}"),
         };
 
-    protected override void WriteFields(Utf8JsonWriter w, RimGovernor.Contracts.Wire.Observations.NeedLevel v, Codecs o)
+    protected override void WriteFields(Utf8JsonWriter w, RimGovernor.Brain.GameFacts.Observations.NeedLevel v, Codecs o)
     {
-        if (v is RimGovernor.Contracts.Wire.Observations.NeedLevel.Has has)
+        if (v is RimGovernor.Brain.GameFacts.Observations.NeedLevel.Has has)
         {
             w.WriteString("Kind", "has");
             w.WriteNum("Level", has.Level);
         }
-        else if (v is RimGovernor.Contracts.Wire.Observations.NeedLevel.Lacks)
+        else if (v is RimGovernor.Brain.GameFacts.Observations.NeedLevel.Lacks)
         {
             w.WriteString("Kind", "lacks");
         }
@@ -1182,7 +1182,7 @@ internal sealed class MoodProvisionConverter : ObjectCodec<MoodProvision>
 {
     protected override MoodProvision Read(JsonElement e, Codecs o) =>
         new(
-            new NeedId(e.Get<ConcernId>("Concern", o).Value),
+            new NeedId(e.Get<FilingKey>("Concern", o).Value),
             e.Dbl("Offset")
         );
 
@@ -1298,11 +1298,11 @@ internal sealed class PawnBiotechConverter : ObjectCodec<PawnBiotech>
         {
             Observed = new()
             {
-                DevelopmentalStage = e.Get<RimGovernor.Contracts.Wire.Defs.DevelopmentalStage>("DevelopmentalStage", o),
-                Genes = e.Get<EquatableArray<RimGovernor.Contracts.Wire.Observations.PawnGene>>("Genes", o),
-                Mechanitor = Absent(e, "Mechanitor") ? null : e.Get<RimGovernor.Contracts.Wire.Observations.PawnMechanitor>("Mechanitor", o),
-                Mech = Absent(e, "Mech") ? null : e.Get<RimGovernor.Contracts.Wire.Observations.PawnMech>("Mech", o),
-                Deathrest = Absent(e, "Deathrest") ? null : e.Get<RimGovernor.Contracts.Wire.Observations.PawnDeathrest>("Deathrest", o),
+                DevelopmentalStage = e.Get<RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage>("DevelopmentalStage", o),
+                Genes = e.Get<EquatableArray<RimGovernor.Brain.GameFacts.Observations.PawnGene>>("Genes", o),
+                Mechanitor = Absent(e, "Mechanitor") ? null : e.Get<RimGovernor.Brain.GameFacts.Observations.PawnMechanitor>("Mechanitor", o),
+                Mech = Absent(e, "Mech") ? null : e.Get<RimGovernor.Brain.GameFacts.Observations.PawnMech>("Mech", o),
+                Deathrest = Absent(e, "Deathrest") ? null : e.Get<RimGovernor.Brain.GameFacts.Observations.PawnDeathrest>("Deathrest", o),
             },
             Effects = e.Get<GeneEffects>("Effects", o),
             WorkMinAges = e.Get<IReadOnlyDictionary<WorkType, int>>("WorkMinAges", o),
@@ -1337,62 +1337,62 @@ internal sealed class PawnBiotechConverter : ObjectCodec<PawnBiotech>
     }
 }
 
-internal sealed class PawnDeathrestConverter : ObjectCodec<RimGovernor.Contracts.Wire.Observations.PawnDeathrest>
+internal sealed class PawnDeathrestConverter : ObjectCodec<RimGovernor.Brain.GameFacts.Observations.PawnDeathrest>
 {
-    protected override RimGovernor.Contracts.Wire.Observations.PawnDeathrest Read(JsonElement e, Codecs o) =>
+    protected override RimGovernor.Brain.GameFacts.Observations.PawnDeathrest Read(JsonElement e, Codecs o) =>
         new()
         {
             Deathresting = e.Bool("Deathresting"),
             Capacity = e.I32("Capacity"),
         };
 
-    protected override void WriteFields(Utf8JsonWriter w, RimGovernor.Contracts.Wire.Observations.PawnDeathrest v, Codecs o)
+    protected override void WriteFields(Utf8JsonWriter w, RimGovernor.Brain.GameFacts.Observations.PawnDeathrest v, Codecs o)
     {
         w.WriteBoolean("Deathresting", v.Deathresting);
         w.WriteNum("Capacity", v.Capacity);
     }
 }
 
-internal sealed class PawnGeneConverter : ObjectCodec<RimGovernor.Contracts.Wire.Observations.PawnGene>
+internal sealed class PawnGeneConverter : ObjectCodec<RimGovernor.Brain.GameFacts.Observations.PawnGene>
 {
-    protected override RimGovernor.Contracts.Wire.Observations.PawnGene Read(JsonElement e, Codecs o) =>
+    protected override RimGovernor.Brain.GameFacts.Observations.PawnGene Read(JsonElement e, Codecs o) =>
         new()
         {
             DefName = e.Str("Name"),
             Active = e.Bool("Active"),
         };
 
-    protected override void WriteFields(Utf8JsonWriter w, RimGovernor.Contracts.Wire.Observations.PawnGene v, Codecs o)
+    protected override void WriteFields(Utf8JsonWriter w, RimGovernor.Brain.GameFacts.Observations.PawnGene v, Codecs o)
     {
         w.WriteString("Name", v.DefName);
         w.WriteBoolean("Active", v.Active);
     }
 }
 
-internal sealed class PawnMechConverter : ObjectCodec<RimGovernor.Contracts.Wire.Observations.PawnMech>
+internal sealed class PawnMechConverter : ObjectCodec<RimGovernor.Brain.GameFacts.Observations.PawnMech>
 {
-    protected override RimGovernor.Contracts.Wire.Observations.PawnMech Read(JsonElement e, Codecs o) =>
+    protected override RimGovernor.Brain.GameFacts.Observations.PawnMech Read(JsonElement e, Codecs o) =>
         new()
         {
             Overseer = e.Str("Overseer") is { Length: > 0 } id ? new() { Id = id } : null,
             WorkMode = e.GetProperty("WorkMode") is { ValueKind: JsonValueKind.String } mode ? mode.GetString() : null,
             Energy = e.GetProperty("Energy") is { ValueKind: JsonValueKind.Number } energy
-                ? new RimGovernor.Contracts.Wire.Observations.PawnMechEnergy.Level { Fraction = energy.GetDouble() }
-                : new RimGovernor.Contracts.Wire.Observations.PawnMechEnergy.NoEnergyNeed(),
+                ? new RimGovernor.Brain.GameFacts.Observations.PawnMechEnergy.Level { Fraction = energy.GetDouble() }
+                : new RimGovernor.Brain.GameFacts.Observations.PawnMechEnergy.NoEnergyNeed(),
             Group = e.GetProperty("Group") is { ValueKind: JsonValueKind.Object } g
-                ? new RimGovernor.Contracts.Wire.Observations.PawnMechGroup { Index = g.I32("Index"), RechargeBelow = g.Dbl("RechargeBelow"), RechargeAbove = g.Dbl("RechargeAbove") }
+                ? new RimGovernor.Brain.GameFacts.Observations.PawnMechGroup { Index = g.I32("Index"), RechargeBelow = g.Dbl("RechargeBelow"), RechargeAbove = g.Dbl("RechargeAbove") }
                 : null,
         };
 
-    protected override void WriteFields(Utf8JsonWriter w, RimGovernor.Contracts.Wire.Observations.PawnMech v, Codecs o)
+    protected override void WriteFields(Utf8JsonWriter w, RimGovernor.Brain.GameFacts.Observations.PawnMech v, Codecs o)
     {
         w.WriteString("Overseer", v.Overseer?.Id ?? "");
         w.WriteString("WorkMode", v.WorkMode);
-        if (v.Energy is RimGovernor.Contracts.Wire.Observations.PawnMechEnergy.Level level)
+        if (v.Energy is RimGovernor.Brain.GameFacts.Observations.PawnMechEnergy.Level level)
         {
             w.WriteNum("Energy", level.Fraction);
         }
-        else if (v.Energy is RimGovernor.Contracts.Wire.Observations.PawnMechEnergy.NoEnergyNeed)
+        else if (v.Energy is RimGovernor.Brain.GameFacts.Observations.PawnMechEnergy.NoEnergyNeed)
         {
             w.WriteNull("Energy");
         }
@@ -1415,19 +1415,19 @@ internal sealed class PawnMechConverter : ObjectCodec<RimGovernor.Contracts.Wire
     }
 }
 
-internal sealed class PawnMechanitorConverter : ObjectCodec<RimGovernor.Contracts.Wire.Observations.PawnMechanitor>
+internal sealed class PawnMechanitorConverter : ObjectCodec<RimGovernor.Brain.GameFacts.Observations.PawnMechanitor>
 {
-    protected override RimGovernor.Contracts.Wire.Observations.PawnMechanitor Read(JsonElement e, Codecs o) =>
+    protected override RimGovernor.Brain.GameFacts.Observations.PawnMechanitor Read(JsonElement e, Codecs o) =>
         new()
         {
             UsedBandwidth = e.I32("UsedBandwidth"),
             TotalBandwidth = e.I32("TotalBandwidth"),
             UsedBandwidthFromGestation = e.I32("GestationBandwidth"),
             ControlGroups = e.I32("ControlGroups"),
-            ControlledMechs = EquatableArray.From(e.Get<IReadOnlyList<string>>("ControlledMechs", o).Select(id => new RimGovernor.Contracts.Wire.Common.Ref { Id = id })),
+            ControlledMechs = EquatableArray.From(e.Get<IReadOnlyList<string>>("ControlledMechs", o).Select(id => new RimGovernor.Brain.GameFacts.Common.Ref { Id = id })),
         };
 
-    protected override void WriteFields(Utf8JsonWriter w, RimGovernor.Contracts.Wire.Observations.PawnMechanitor v, Codecs o)
+    protected override void WriteFields(Utf8JsonWriter w, RimGovernor.Brain.GameFacts.Observations.PawnMechanitor v, Codecs o)
     {
         w.WriteNum("UsedBandwidth", v.UsedBandwidth);
         w.WriteNum("TotalBandwidth", v.TotalBandwidth);
@@ -1442,7 +1442,7 @@ internal sealed class PawnProfileConverter : ObjectCodec<PawnProfile>
     protected override PawnProfile Read(JsonElement e, Codecs o) =>
         new()
         {
-            Observed = e.Get<RimGovernor.Contracts.Wire.Observations.PawnState>("Observed", o),
+            Observed = e.Get<RimGovernor.Brain.GameFacts.Observations.PawnState>("Observed", o),
             Traits = e.Get<IReadOnlyList<PawnTrait>>("Traits", o),
             Effects = e.Get<TraitEffects>("Effects", o),
             WorkSkill = e.Get<IReadOnlyDictionary<WorkType, string>>("WorkSkill", o),
@@ -1693,11 +1693,11 @@ internal sealed class PodDoorConverter : ObjectCodec<PodDoor>
 internal sealed class ProductionLadderRecordConverter : ObjectCodec<ProductionLadderRecord>
 {
     /// <summary>The retired Concern an equipment rung was filed under before the military/equipment Need (#3259).</summary>
-    private static readonly ConcernId LegacyEquipment = new("MaintainEquipment");
+    private static readonly FilingKey LegacyEquipment = new("MaintainEquipment");
 
     protected override ProductionLadderRecord Read(JsonElement e, Codecs o)
     {
-        var concern = e.Get<ConcernId>("Concern", o);
+        var concern = e.Get<FilingKey>("Concern", o);
         return new()
         {
             World = e.Get<World>("World", o),
@@ -1757,7 +1757,7 @@ internal sealed class ReadyDeferralConverter : ObjectCodec<ReadyDeferral>
 {
     protected override ReadyDeferral Read(JsonElement e, Codecs o) =>
         new(
-            e.Get<ConcernId>("Concern", o),
+            e.Get<FilingKey>("Concern", o),
             e.Str("Reason"),
             e.I32("Count")
         );
@@ -1776,7 +1776,7 @@ internal sealed class ReadyWorkConverter : ObjectCodec<ReadyWork>
         new()
         {
             ID = e.Get<ReadyWorkId>("ID", o),
-            Concerns = e.Get<EquatableArray<ConcernId>>("Concerns", o),
+            Concerns = e.Get<EquatableArray<FilingKey>>("Concerns", o),
             Method = e.Get<MethodId>("Method", o),
             Plan = e.Get<PlanId>("Plan", o),
             Action = e.Get<ActionId>("Action", o),
@@ -2021,9 +2021,9 @@ internal sealed class RoomTripConverter : ObjectCodec<RoomTrip>
     }
 }
 
-internal sealed class RoundsConverter : ObjectCodec<Rounds>
+internal sealed class Converter : ObjectCodec<ReviewState>
 {
-    protected override Rounds Read(JsonElement e, Codecs o) =>
+    protected override ReviewState Read(JsonElement e, Codecs o) =>
         new()
         {
             WorkEvidence = e.GetOr<WorkAdmissionEvidence?>("WorkEvidence", null, o),
@@ -2034,10 +2034,10 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
             LarderSupplies = e.Get<EquatableArray<StartingSupply>>("LarderSupplies", o),
             PollutionSupplies = e.Get<EquatableArray<StartingSupply>>("PollutionSupplies", o),
             RecoveryQueue = e.GetOr<RecoveryQueue?>("RecoveryQueue", null, o),
-            Recovery = e.GetOr<RoundsRecovery?>("Recovery", null, o),
+            Recovery = e.GetOr<Recovery?>("Recovery", null, o),
             Disaster = e.GetOr<DisasterHistory?>("Disaster", null, o),
-            Mood = e.GetOr<RoundsMood?>("Mood", null, o),
-            MoodMethods = e.Get<EquatableArray<RoundsMoodMethod>>("MoodMethods", o),
+            Mood = e.GetOr<Mood?>("Mood", null, o),
+            MoodMethods = e.Get<EquatableArray<MoodMethod>>("MoodMethods", o),
             Sleeping = e.Get<SleepingHistory>("Sleeping", o),
             Revision = e.U64("Revision"),
             Snapshot = e.Get<GenerationSnapshot>("Snapshot", o),
@@ -2045,11 +2045,11 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
             OrdinaryTick = e.Get<Tick>("OrdinaryTick", o),
             Immediate = e.Bool("Immediate"),
             Enabled = e.Bool("Enabled"),
-            Latches = e.Get<RoundsLatches>("Latches", o),
+            Latches = e.Get<Latches>("Latches", o),
             MedicalCare = e.Get<MedicalCareHistory>("MedicalCare", o),
             EventLoot = e.Get<EventLootHistory>("EventLoot", o),
             Comfort = e.Get<ComfortHistory>("Comfort", o),
-            Combat = e.GetOr<RoundsCombat?>("Combat", null, o),
+            Combat = e.GetOr<ReviewCombat?>("Combat", null, o),
             Roster = e.GetOr<WorkRosterReport?>("Roster", null, o),
             Progress = e.Get<EquatableArray<ConcernProgress>>("Progress", o),
             ReadyWork = e.GetOr<ReadyWorkReport?>("ReadyWork", null, o),
@@ -2057,7 +2057,7 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
             WallCells = e.Get<EquatableArray<WallCell>>("WallCells", o),
         };
 
-    protected override void WriteFields(Utf8JsonWriter w, Rounds v, Codecs o)
+    protected override void WriteFields(Utf8JsonWriter w, ReviewState v, Codecs o)
     {
         if (v.WorkEvidence is { } materials) w.Put("WorkEvidence", materials, o);
         w.Put("Unsafe", v.Unsafe, o);
@@ -2112,16 +2112,16 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
     }
 }
 
-internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
+internal sealed class LatchesConverter : ObjectCodec<Latches>
 {
-    protected override RoundsLatches Read(JsonElement e, Codecs o) =>
+    protected override Latches Read(JsonElement e, Codecs o) =>
         new()
         {
             MedicalReserve = e.Bool("MedicalReserve"),
             Dash = e.Get<DashWindow>("Dash", o),
         };
 
-    protected override void WriteFields(Utf8JsonWriter w, RoundsLatches v, Codecs o)
+    protected override void WriteFields(Utf8JsonWriter w, Latches v, Codecs o)
     {
         w.WriteBoolean("MedicalReserve", v.MedicalReserve);
         w.Put("Dash", v.Dash, o);
@@ -2150,7 +2150,7 @@ internal sealed class SafeguardProposalConverter : ObjectCodec<SafeguardProposal
     protected override SafeguardProposal Read(JsonElement e, Codecs o) =>
         new()
         {
-            Need = e.Get<ConcernId>("Need", o),
+            Need = e.Get<FilingKey>("Need", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, SafeguardProposal v, Codecs o)

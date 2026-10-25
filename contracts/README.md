@@ -6,7 +6,7 @@ native ownership references that explain what those contracts cover.
 ## Wire contracts
 
 [Wire contracts](wire/README.md) describes the plain C# `sealed record`s in
-`brain/src/RimGovernor.Brain.Contracts` (namespace `RimGovernor.Contracts.Wire`) and their
+`brain/src/RimGovernor.Brain.GameFacts` (namespace `RimGovernor.Brain.GameFacts`) and their
 System.Text.Json shape. Wire edits are made by editing the records; there is no code generation.
 The per-family documents beside it give the presence, bounds and outcome semantics.
 

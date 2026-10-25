@@ -2,9 +2,8 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
-using Obs = RimGovernor.Contracts.Wire.Observations;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 /// <summary>
 /// The disease facts of the harm model's illness forecast (#3824), read without changing game state: never
@@ -13,13 +12,13 @@ namespace HomeBridge.BridgeTools;
 /// </summary>
 internal static class NativeDiseaseFacts
 {
-    internal static Obs.DiseaseFacts Read(Map map)
+    internal static RimGovernor.Brain.GameFacts.Observations.DiseaseFacts Read(Map map)
     {
         var difficulty = Find.Storyteller.difficulty;
         var candidates = Candidates(map).ToList();
-        var incidents = DiseaseIncidents().Select(def => new Obs.DiseaseIncidentRead(def.defName, candidates.Count(p => PotentialVictim(def, p)))
+        var incidents = DiseaseIncidents().Select(def => new RimGovernor.Brain.GameFacts.Observations.DiseaseIncidentRead(def.defName, candidates.Count(p => PotentialVictim(def, p)))
             { Blocked = [.. Blocked(map, def, difficulty)] });
-        return new Obs.DiseaseFacts {
+        return new RimGovernor.Brain.GameFacts.Observations.DiseaseFacts {
             Storyteller = Find.Storyteller.def.defName, Biome = Find.WorldGrid[map.Tile].PrimaryBiome.defName,
             RandomDiseases = DebugSettings.enableRandomDiseases, IntervalFactor = difficulty.diseaseIntervalFactor,
             DaysSinceSettle = GenDate.DaysPassedSinceSettleFloat, Candidates = candidates.Count,
@@ -32,16 +31,16 @@ internal static class NativeDiseaseFacts
     /// One pawn's ImmunityGainSpeed without its bed (StatPart_BedStat multiplies CurrentBed's ImmunityGainSpeedFactor while it lies in
     /// one; it is divided out, #3804) and the chance each DiseaseHuman incident's hediff takes hold (0 when it is no potential victim).
     /// </summary>
-    internal static Obs.PawnDiseaseFacts? ReadPawn(Pawn pawn)
+    internal static RimGovernor.Brain.GameFacts.Observations.PawnDiseaseFacts? ReadPawn(Pawn pawn)
     {
         if (pawn.health?.immunity is not { } immunity) return null;
         var incidents = DiseaseIncidents().ToList();
         var triggered = TriggeredHediffs(pawn);
         var capacities = pawn.health.capacities;
-        return new Obs.PawnDiseaseFacts {
+        return new RimGovernor.Brain.GameFacts.Observations.PawnDiseaseFacts {
             ImmunityGainSpeed = pawn.GetStatValue(StatDefOf.ImmunityGainSpeed)
                 / (pawn.InBed() && pawn.CurrentBed() is { } bed && bed.GetStatValue(StatDefOf.ImmunityGainSpeedFactor) is var factor and > 0 ? factor : 1f),
-            Contracts = [.. incidents.Select(def => new Obs.DiseaseContract(def.defName,
+            Contracts = [.. incidents.Select(def => new RimGovernor.Brain.GameFacts.Observations.DiseaseContract(def.defName,
                 PotentialVictim(def, pawn) ? immunity.DiseaseContractChanceFactor(def.diseaseIncident) : 0))],
             BloodPumping = capacities.GetLevel(PawnCapacityDefOf.BloodPumping),
             Breathing = capacities.GetLevel(PawnCapacityDefOf.Breathing),
@@ -66,7 +65,7 @@ internal static class NativeDiseaseFacts
     // #3830: every part of a def an incident affects, and the incidents HediffGiverUtility.TryApply could give it to: not missing, not
     // already carrying the hediff, no directly added part on it or an ancestor. #3844: a creepjoiner's parts of a def a triggered
     // hediff affects too, with the triggered hediffs TryApply could give it by the same test.
-    private static IEnumerable<Obs.DiseasePartRead> Parts(Pawn pawn, List<IncidentDef> incidents, List<HediffCompProperties_ReplaceHediff.TriggeredHediff> triggered)
+    private static IEnumerable<RimGovernor.Brain.GameFacts.Observations.DiseasePartRead> Parts(Pawn pawn, List<IncidentDef> incidents, List<HediffCompProperties_ReplaceHediff.TriggeredHediff> triggered)
     {
         var set = pawn.health.hediffSet;
         var all = pawn.RaceProps.body.AllParts;
@@ -77,7 +76,7 @@ internal static class NativeDiseaseFacts
             var giving = triggered.Where(t => t.partsToAffect.Contains(part.def)).Select(t => t.hediff).Distinct().ToList();
             if (affecting.Count == 0 && giving.Count == 0) continue;
             var open = !set.PartIsMissing(part) && !set.PartOrAnyAncestorHasDirectlyAddedParts(part);
-            yield return new Obs.DiseasePartRead(part.def.defName, part.coverageAbs, PawnCapacityUtility.CalculatePartEfficiency(set, part)) {
+            yield return new RimGovernor.Brain.GameFacts.Observations.DiseasePartRead(part.def.defName, part.coverageAbs, PawnCapacityUtility.CalculatePartEfficiency(set, part)) {
                 Incidents = [.. affecting.Where(d => open && !set.HasHediff(d.diseaseIncident, part)).Select(d => d.defName)],
                 Hediffs = [.. giving.Where(h => open && !set.HasHediff(h, part)).Select(h => h.defName).OrderBy(h => h, System.StringComparer.Ordinal)],
             };
@@ -87,7 +86,7 @@ internal static class NativeDiseaseFacts
     // #3830: per part def a HediffComp_DestroyOrgan disease affects, its first part record taken as missing, each install recipe
     // that would put it back (the surgery block's own recipe gates, NativePawnDetails.Surgery). #3844: and per part def a
     // creepjoiner's DestroyOrgan triggered hediff affects.
-    private static IEnumerable<Obs.OrganReplacementRead> Replacements(Pawn pawn, List<IncidentDef> incidents, List<HediffCompProperties_ReplaceHediff.TriggeredHediff> triggered)
+    private static IEnumerable<RimGovernor.Brain.GameFacts.Observations.OrganReplacementRead> Replacements(Pawn pawn, List<IncidentDef> incidents, List<HediffCompProperties_ReplaceHediff.TriggeredHediff> triggered)
     {
         var map = pawn.MapHeld;
         if (pawn.Dead || map == null) yield break;

@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -20,7 +19,7 @@ public sealed record QuestMonumentMethod
 
 public static class QuestMonumentPolicy
 {
-    public static bool MonumentDeficit(RoundsFacts f)
+    public static bool MonumentDeficit(ReviewFacts f)
     {
         var rows = f.QuestOffers;
         foreach (var offer in rows)
@@ -59,11 +58,11 @@ public static class QuestMonumentPolicy
                     continue;
                 }
                 var step = new QuestMonumentMethod { Quest = offer.Id };
-                if (marker.State is Pb.QuestMonumentState.Packed packed)
+                if (marker.State is RimGovernor.Brain.GameFacts.Observations.QuestMonumentState.Packed packed)
                 {
                     return Install(step, marker, packed.InstallCells, protectedRects);
                 }
-                if (marker.State is not Pb.QuestMonumentState.Installed installed)
+                if (marker.State is not RimGovernor.Brain.GameFacts.Observations.QuestMonumentState.Installed installed)
                 {
                     // An offered marker still waits in its drop pods.
                     return step with { Reason = "marker_unavailable" };
@@ -75,7 +74,7 @@ public static class QuestMonumentPolicy
     }
 
     /// <summary>The first legal install cell whose sketch footprint stays clear of the protected rectangles.</summary>
-    private static QuestMonumentMethod Install(QuestMonumentMethod step, Pb.QuestMonument marker, EquatableArray<Cell> installCells, IReadOnlyList<Rectangle> protectedRects)
+    private static QuestMonumentMethod Install(QuestMonumentMethod step, RimGovernor.Brain.GameFacts.Observations.QuestMonument marker, EquatableArray<Cell> installCells, IReadOnlyList<Rectangle> protectedRects)
     {
         foreach (var cell in installCells)
         {
@@ -102,7 +101,7 @@ public static class QuestMonumentPolicy
     }
 
     /// <summary>Hauls loose material to storage first, then places the first unbuilt, unqueued piece of the installed sketch.</summary>
-    private static QuestMonumentMethod Build(QuestMonumentMethod step, Pb.QuestMonument marker, Pb.QuestMonumentState.Installed installed, IReadOnlyDictionary<Resource, long> stock)
+    private static QuestMonumentMethod Build(QuestMonumentMethod step, RimGovernor.Brain.GameFacts.Observations.QuestMonument marker, RimGovernor.Brain.GameFacts.Observations.QuestMonumentState.Installed installed, IReadOnlyDictionary<Resource, long> stock)
     {
         if (installed.DisallowedBuildingId is not null)
         {
@@ -122,7 +121,7 @@ public static class QuestMonumentPolicy
         }
         foreach (var piece in marker.Pieces)
         {
-            if (piece.Site is not Pb.QuestMonumentPieceSite.Placed site)
+            if (piece.Site is not RimGovernor.Brain.GameFacts.Observations.QuestMonumentPieceSite.Placed site)
             {
                 throw new RequiredFactException($"quest monument {marker.MarkerId} piece {piece.DefName} progress");
             }
@@ -155,7 +154,7 @@ public static class QuestMonumentPolicy
     /// The stuff to build a piece from: its single option's stuff ("" for a def not made from stuff), or, when the
     /// sketch leaves the stuff open, the allowed stuff the colony holds most of (ties by name); null when it holds none.
     /// </summary>
-    private static string? PieceStuff(Pb.QuestMonumentPiece piece, IReadOnlyDictionary<Resource, long> stock)
+    private static string? PieceStuff(RimGovernor.Brain.GameFacts.Observations.QuestMonumentPiece piece, IReadOnlyDictionary<Resource, long> stock)
     {
         if (piece.Options.Count == 1)
         {
@@ -177,7 +176,7 @@ public static class QuestMonumentPolicy
         return best;
     }
 
-    public static QuestSkipReason MonumentAdmission(QuestState offer, RoundsFacts f)
+    public static QuestSkipReason MonumentAdmission(QuestState offer, ReviewFacts f)
     {
         if (f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile })
         {
@@ -187,7 +186,7 @@ public static class QuestMonumentPolicy
         {
             return "";
         }
-        Pb.QuestMonument? marker = null;
+        RimGovernor.Brain.GameFacts.Observations.QuestMonument? marker = null;
         var timed = false;
         foreach (var objective in offer.Objectives)
         {
@@ -198,7 +197,7 @@ public static class QuestMonumentPolicy
                     return "monument_ambiguous";
                 }
                 marker = m;
-                timed = objective.Timing is not Pb.QuestObjectiveTiming.Untimed;
+                timed = objective.Timing is not RimGovernor.Brain.GameFacts.Observations.QuestObjectiveTiming.Untimed;
             }
         }
         if (marker is null)
@@ -206,7 +205,7 @@ public static class QuestMonumentPolicy
             return "monument_absent";
         }
         // An installed marker already stands on its site; one not yet installed needs a legal install cell.
-        if (marker.State is Pb.QuestMonumentState.Offered { InstallCells.Count: 0 } or Pb.QuestMonumentState.Packed { InstallCells.Count: 0 })
+        if (marker.State is RimGovernor.Brain.GameFacts.Observations.QuestMonumentState.Offered { InstallCells.Count: 0 } or RimGovernor.Brain.GameFacts.Observations.QuestMonumentState.Packed { InstallCells.Count: 0 })
         {
             return "monument_site";
         }
@@ -220,7 +219,7 @@ public static class QuestMonumentPolicy
         {
             available[new Resource(a.DefName)] = available.GetValueOrDefault(new Resource(a.DefName)) + a.Units;
         }
-        if (marker.State is Pb.QuestMonumentState.Offered offered)
+        if (marker.State is RimGovernor.Brain.GameFacts.Observations.QuestMonumentState.Offered offered)
         {
             foreach (var a in offered.Supplied)
             {
@@ -261,7 +260,7 @@ public static class QuestMonumentPolicy
         }
         if ((profile.Demands & QuestDemand.Security) != 0)
         {
-            var threat = offer.Threat is Pb.QuestThreat.Points points ? points.Value : 0;
+            var threat = offer.Threat is RimGovernor.Brain.GameFacts.Observations.QuestThreat.Points points ? points.Value : 0;
             var defense = f.DefenseCapacity;
             if (defense < threat)
             {
@@ -272,9 +271,9 @@ public static class QuestMonumentPolicy
     }
 
     /// <summary>Whether a piece is built on the installed marker.</summary>
-    public static bool PieceBuilt(Pb.QuestMonumentPiece piece) => piece.Site is Pb.QuestMonumentPieceSite.Placed { Built: true };
+    public static bool PieceBuilt(RimGovernor.Brain.GameFacts.Observations.QuestMonumentPiece piece) => piece.Site is RimGovernor.Brain.GameFacts.Observations.QuestMonumentPieceSite.Placed { Built: true };
 
-    private static bool FundMonument(Pb.QuestMonument marker, Dictionary<Resource, long> available)
+    private static bool FundMonument(RimGovernor.Brain.GameFacts.Observations.QuestMonument marker, Dictionary<Resource, long> available)
     {
         foreach (var piece in marker.Pieces)
         {

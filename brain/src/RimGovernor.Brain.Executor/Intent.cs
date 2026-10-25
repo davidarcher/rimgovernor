@@ -5,8 +5,6 @@ using RimGovernor.Brain.Store;
 
 namespace RimGovernor.Brain.Executor;
 
-// Port of internal/executor/intent.go.
-
 /// <summary>
 /// A batch-level failure of <see cref="Executor.RunBatchAsync"/> (stopped, cancelled, plan load): <see cref="Cause"/>
 /// is the error and <see cref="Items"/> what the batch had already settled, in input order.
@@ -231,7 +229,7 @@ public sealed partial class Executor
             var want = authority.Snapshot;
             if (want.Plan != v.Plan || want.Revision != v.Revision)
             {
-                if (_roundsScope is null)
+                if (_reviewScope is null)
                 {
                     errors[i] = new AuthorityException();
                     continue;

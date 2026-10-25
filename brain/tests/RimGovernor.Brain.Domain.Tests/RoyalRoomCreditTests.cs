@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameFacts.Observations;
+using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -108,7 +109,7 @@ public sealed class RoyalRoomCreditTests
         Assert.Throws<RequiredFactException>(() => ForecastValue.Of(Serving(0, 0.06), context, Day));
     }
 
-    // The production path (RoundsSleepingUpkeepPlanner.PlannedOccupantsOf): the suite step's claims over the sleeping census as
+    // The production path (SleepingUpkeepPlanner.PlannedOccupantsOf): the suite step's claims over the sleeping census as
     // the decode gives it (SleepingPerson.Title from RoyalTitleOf) and the owed throne need (ThroneRules.NextThroneNeed).
     private static readonly PawnId A = new("pawn");
     private static readonly PlannedRoom Standard = new() { Id = 1, Role = PlannedRole.Bedroom, Region = RegionRules.RectRegion(new() { X = 0, Z = 0, Width = 3, Height = 4 }) };
@@ -279,7 +280,7 @@ public sealed class RoyalRoomCreditTests
     public void AFreshColonysProductionContextCreditsItsSuiteNothingWithoutThrowing()
     {
         // The production path (#3822): GenerateCoupledActivities builds the context from the review's facts, and
-        // RoundsSleepingUpkeepPlanner.PlannedOccupantsOf adds the suite occupants (RoyalRoomRules.PlannedRoyalRooms): a fresh
+        // SleepingUpkeepPlanner.PlannedOccupantsOf adds the suite occupants (RoyalRoomRules.PlannedRoyalRooms): a fresh
         // colony without Greedy, Jealous or titled colonists houses nobody in its suite.
         var facts = ForecastCoupledTests.ConstructionReview() with
         {

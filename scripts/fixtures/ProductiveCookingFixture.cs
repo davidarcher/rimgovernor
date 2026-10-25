@@ -11,7 +11,7 @@ using Verse;
 using Verse.AI;
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 public sealed partial class PawnControlFixture
 {
@@ -24,7 +24,7 @@ public sealed partial class PawnControlFixture
     private static readonly HashSet<string> productiveMethods = new(StringComparer.Ordinal);
 
     [Tool("test/productive_cooking_prepare", Description="UNSAFE FOR MODEL EXECUTION. Bind the staged cook, stove, simple-meal bill and rice; clear other food; set near-next-level cooks, no selected worker or activity. Verify native counterfactual rates before normal planner starts.")]
-    public async Task<object> ProductiveCookingPrepare(IRimBridgeContext ctx, CancellationToken ct,
+    public async Task<object> ProductiveCookingPrepare(INativeContext ctx, CancellationToken ct,
         [ToolParameter(Description="The load id of the cook whose output is watched.")] string cook = "",
         [ToolParameter(Description="The stove's load id.")] string bench = "",
         [ToolParameter(Description="The simple-meal bill's load id.")] string bill = "",
@@ -104,7 +104,7 @@ public sealed partial class PawnControlFixture
             productiveOutput = true;
     }
     [Tool("test/productive_cooking_urge", Description="UNSAFE FOR MODEL EXECUTION. Make every colonist critically tired mid-run so an urgent rest obligation competes with prepared cooking development. Issues no work.")]
-    public async Task<object> ProductiveCookingUrge(IRimBridgeContext ctx, CancellationToken ct)
+    public async Task<object> ProductiveCookingUrge(INativeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             foreach (var pawn in worker!.Map.mapPawns.FreeColonistsSpawned) { pawn.needs.rest.CurLevelPercentage = .08f; pawn.needs.food.CurLevelPercentage = .9f; } // only rest is urgent, so eating cannot compete with the claim under test
@@ -121,14 +121,14 @@ public sealed partial class PawnControlFixture
             return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
     [Tool("test/productive_cooking_satisfy", Description="UNSAFE FOR MODEL EXECUTION. Withdraw the colony's remaining meal demand (the finite bill is deleted) after resumed development was observed, so retirement of the Method can be observed without waiting for the last repeat. Issues no work.")]
-    public async Task<object> ProductiveCookingSatisfy(IRimBridgeContext ctx, CancellationToken ct)
+    public async Task<object> ProductiveCookingSatisfy(INativeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             if (cookingBench.BillStack.Bills.Contains(selectedBill)) cookingBench.BillStack.Delete(selectedBill);
             return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
     [Tool("test/productive_cooking_read", Description="Read observed normal-planner recipe completions, food output, input consumption and actual Cooking skill. No work is issued.")]
-    public async Task<object> ProductiveCookingRead(IRimBridgeContext ctx, CancellationToken ct)
+    public async Task<object> ProductiveCookingRead(INativeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             var people = worker!.Map.mapPawns.FreeColonistsSpawned;

@@ -1,7 +1,6 @@
 using System.Globalization;
 using RimGovernor.Brain.Bridge;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -60,13 +59,13 @@ internal static class StorageOccupancyRing
         }
     }
 
-    private static async Task<List<Observations.StorageOccupancySample>> SamplesAsync(TypedSession s, string zone, string label, CancellationToken cancellationToken)
+    private static async Task<List<RimGovernor.Brain.GameFacts.Observations.StorageOccupancySample>> SamplesAsync(TypedSession s, string zone, string label, CancellationToken cancellationToken)
     {
-        var snapshot = await s.CallAsync(label, NativeOps.ReadStorageOccupancy, new Observations.StorageOccupancyRequest { Groups = [zone], SinceHour = -1 }, cancellationToken).ConfigureAwait(false);
+        var snapshot = await s.CallAsync(label, NativeOps.ReadStorageOccupancy, new RimGovernor.Brain.GameOrders.Observations.StorageOccupancyRequest { Groups = [zone], SinceHour = -1 }, cancellationToken).ConfigureAwait(false);
         s.RecordWire(label, snapshot);
         return [.. snapshot.Groups.Where(g => g.Group == zone).SelectMany(g => g.Samples)];
     }
 
-    private static string Render(List<Observations.StorageOccupancySample> samples) =>
+    private static string Render(List<RimGovernor.Brain.GameFacts.Observations.StorageOccupancySample> samples) =>
         string.Join(", ", samples.Select(x => string.Create(CultureInfo.InvariantCulture, $"{x.Hour}:{x.Stacks}")));
 }

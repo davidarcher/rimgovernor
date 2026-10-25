@@ -1,5 +1,5 @@
 using System.Runtime.CompilerServices;
-using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Telemetry;
 
 namespace RimGovernor.Brain.Domain.Tests;

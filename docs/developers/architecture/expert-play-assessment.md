@@ -14,7 +14,7 @@ cover every commitment, write path, or part of response latency.
 The requested outcome is fast simulation, timely protection, efficient colony
 development and expert combat. The target design below is a proposal for that
 outcome, not a description of implemented behavior. It retains Concerns,
-Methods, Rounds, Safeguards, Hands and vanilla pawn scheduling. It adds no
+Methods, Colony review, Safeguards, Hands and vanilla pawn scheduling. It adds no
 second governor, model dependency, workflow engine or persistent world model.
 
 The proposed guarantees need source tests and measured gameplay evidence.
@@ -27,7 +27,7 @@ actually ran. Risks below are hypotheses for the named scenarios to test.
 | Existing mechanism | Evidence | Architectural value |
 | --- | --- | --- |
 | Pure deterministic decisions | Policy gates, `DecideCombat`, `PlanSupply` | Replay decisions without a game or model call. |
-| Selective planning | [Planner catalog](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Clock/ClockPlannerCatalog.cs), [due queue](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Clock/ClockPlannerQueue.cs), read audit | Declared sections, families, action outcomes and tick cadences already select work; tested undeclared reads fail the package. |
+| Selective planning | [Planner catalog](../../../brain/src/RimGovernor.Brain.Runtime/Clock/PlannerScheduler.PlannerCatalog.cs), [due queue](../../../brain/src/RimGovernor.Brain.Runtime/Clock/PlannerQueue.cs), read audit | Declared sections, families, action outcomes and tick cadences already select work; tested undeclared reads fail the package. |
 | Supply forecasting | [Food view](../../../brain/src/RimGovernor.Brain.Policy/FoodPlan.cs), [resource supply](../../../brain/src/RimGovernor.Brain.Policy/ResourceSupply.cs), [ranker](../../../brain/src/RimGovernor.Brain.Policy/SupplyPlan.cs) | Lead, risk, labor, multiple yields and demand horizons already inform acquisition. |
 | Journaled ordinary execution | [Executor batch path](../../../brain/src/RimGovernor.Brain.Executor/Intent.cs) | Prepare and dispatch are journaled before the native write; batches avoid one call per order. |
 | Native supervision | [Hazard constants](../../../integrations/rimgovernor-native/src/Bridge/SupervisedPlayHazards.cs), [detection contract](hazard-detection-bounds.md) | Tick-paced hazard detection, direct hooks and expiring authority protect the simulation independently of planner speed. |
@@ -51,7 +51,7 @@ numbers or admission guards.
 2. [ReviewDisaster](../../../brain/src/RimGovernor.Brain.Policy/Disaster.cs) derives service
    deficits and a phase from observed conditions and infrastructure. Expiring
    forecast time alone does not prove restoration.
-3. The `disaster` family (`DisasterRounds`) re-reads owned facts in both passes;
+3. The `disaster` family (`DisasterReview`) re-reads owned facts in both passes;
    `disaster/sheltering` derives `PlanSheltering`, cancels obsolete area actions and
    commits each move. `disaster/services` waits on sheltering and on still-open work.
    [SelectRecoveryMethods](../../../brain/src/RimGovernor.Brain.Policy/RecoveryMethod.cs)
@@ -75,23 +75,23 @@ or simultaneous resource/labor conflict.
 
 ### Development under food and material pressure
 
-1. Rounder.reviewStep derives
+1. ColonyReview.reviewStep derives
    food, layout, resource demand and work requirements from observed facts and
-   current commitments. [Layout review](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Colony/ColonyPlan.cs)
+   current commitments. [Layout review](../../../brain/src/RimGovernor.Brain.Runtime/Colony/ColonyReview.ColonyPlan.cs)
    preserves built/in-flight rooms and throttles growth/survey work.
-2. [planFood](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsFoodPlan.cs) calls
+2. [planFood](../../../brain/src/RimGovernor.Brain.Runtime/Review/ColonyReview.FoodPlan.cs) calls
    `SupplyFoodPlan`, which calls `PlanSupply`. Then
-   [buildResourceSupply](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsResourceSupply.cs)
+   [buildResourceSupply](../../../brain/src/RimGovernor.Brain.Runtime/Review/ColonyReview.ResourceSupply.cs)
    plans resource candidates with the labor food leaves. This is one ranker
    reused in sequential plans, not one joint optimization over all colony work.
-3. [Work requirements](../../../brain/src/RimGovernor.Brain.BuildingRuntime/RoundsWorkProjects.cs)
+3. [Work requirements](../../../brain/src/RimGovernor.Brain.Runtime/ProjectBill.cs)
    connect open buildings/bills to required work types and skill floors.
    These establish eligibility, not remaining work duration or completion time.
 4. Shared proposal claims and family admission commit Methods. In
    AdmitBuildingMethod,
    building intents are not priced/sited by the generic candidate admission;
    native application checks them. Family funding matters: for example the
-   [defense pipeline](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsDefensePipeline.cs)
+   [defense pipeline](../../../brain/src/RimGovernor.Brain.Runtime/Review/DefensePipeline.cs)
    tracks open tier costs and cells. The broad statement that every building
    goes through the same resource-preview admission would be inaccurate.
 5. Hands places orders in batches. An applied blueprint is an intent outcome;
@@ -126,14 +126,14 @@ native pathing, actual pawn throughput or expert play.
    decision-class events ([combat-stop contract](hazard-detection-bounds.md#armed-combat-stops)),
    with no tick backstop between them. Detection/hold time is not the
    time at which a defender has reached safety.
-2. [RoundsDefensePlanner](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsDefense.cs)
+2. [DefensePlanner](../../../brain/src/RimGovernor.Brain.Runtime/Review/DefensePlanner.cs)
    builds a combat view and supplies native geometry to
    [DecideCombat](../../../brain/src/RimGovernor.Brain.Policy/CombatDecide.cs). Policy retains
    roles and memory, emits changes, and generally avoids interrupting aim except
    for protective actions. Formation and reaction are already distinct phases.
-3. [admitFight and sendCombatBatch](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsCombat.cs)
+3. [admitFight and sendCombatBatch](../../../brain/src/RimGovernor.Brain.Runtime/Review/DefensePlanner.Combat.cs)
    commit fight ownership, then send draft/orders through
-   [bridge.CombatOrders](../../../brain/src/RimGovernor.Brain.Bridge.Contracts/Actions/CombatOrders.cs), which
+   [bridge.CombatOrders](../../../brain/src/RimGovernor.Brain.GameAccess/Actions/CombatOrders.cs), which
    creates an ActionsWriter and applies directly. Subsequent stops call
    `issueCombatOrders` before `RecordCombatStop`. Exact batch execution therefore
    bypasses the ordinary executor's prepare/dispatch journal lifecycle.
@@ -168,7 +168,7 @@ prove expert tactical results.
 | Finding | Confidence and consequence | Work owner |
 | --- | --- | --- |
 | Combat has a planner-owned write path | Confirmed call path; inconsistent write-ahead/recovery ownership | [#2502](https://github.com/davidarcher/rimgovernor/issues/2502) |
-| Critical planners wait for the shared review | `stepPlanners` runs Rounds first; `runPlanners` starts its wave budget afterward. Structural latency exposure, not a measured timing failure | [#2503](https://github.com/davidarcher/rimgovernor/issues/2503) |
+| Critical planners wait for the shared review | `stepPlanners` runs Colony review first; `runPlanners` starts its wave budget afterward. Structural latency exposure, not a measured timing failure | [#2503](https://github.com/davidarcher/rimgovernor/issues/2503) |
 | Coordination is partial across work types | Supply labor and proposal stock claims exist; inspected interfaces do not establish a colony-wide completion budget | [#2504](https://github.com/davidarcher/rimgovernor/issues/2504), after shared demand/ingredient ownership |
 | Continuation rules differ by family | Concrete combat cases above; generalization to a shared contract is proposed | [#2505](https://github.com/davidarcher/rimgovernor/issues/2505), with #2354/#2355 |
 | Expert-level quality lacks a demonstrated reference here | Existing metrics are reusable; no matched expert comparison was inspected or produced | [#2351 evaluation requirements](https://github.com/davidarcher/rimgovernor/issues/2351#issuecomment-6072514979) |

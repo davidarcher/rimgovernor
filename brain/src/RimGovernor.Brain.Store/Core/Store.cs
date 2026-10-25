@@ -78,7 +78,7 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     private readonly SqliteConnection _connection;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly PlanCache _plans = new();
-    private readonly RoundsSlot _rounds = new();
+    private readonly ReviewSlot _rounds = new();
 
     private Store(SqliteConnection connection, string path)
     {

@@ -1,10 +1,10 @@
-// Fake HomeBridge.BridgeTools.NativeAuthorityHooks, standing in for the real production class
+// Fake RimGovernor.Native.NativeAuthorityHooks, standing in for the real production class
 // (integrations/rimgovernor-native/src/Runtime/Control/NativeAuthorityHooks.cs) that
 // NativeAuthorityControlTools.Control() calls unconditionally. The real class needs a compile-time
 // Harmony reference; this fake lets native-authority-control build and run without one, exactly as
 // its original standalone project (native-authority-control/HookStub.cs) did.
 //
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     internal static class NativeAuthorityHooks
     {

@@ -11,7 +11,7 @@ public sealed record RoomQualityStatKeys(string Space, string Beauty, string Cle
 /// </summary>
 public sealed record UpkeepRoom
 {
-    public required RimGovernor.Contracts.Wire.Observations.RoomState Native { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.RoomState Native { get; init; }
     public required RoomQualityStatKeys StatKeys { get; init; }
     public string Id => Native.Id;
     public RoomRole Role => Native.Role;

@@ -1,10 +1,8 @@
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Contracts.Wire;
-using Common = RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Lifecycle = RimGovernor.Contracts.Wire.Lifecycle;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -59,7 +57,7 @@ internal static class SuppliesReads
         foreach (var includeHeld in new[] { true, false })
         {
             var label = includeHeld ? "held" : "spawned";
-            var supplies = await CensusAsync(s, label, new Observations.StockFilter { DefNames = [.. Defs], Category = Observations.StockCategory.Haulable, Ownership = Observations.StockOwnership.All, IncludeHeld = includeHeld }, cancellationToken).ConfigureAwait(false);
+            var supplies = await CensusAsync(s, label, new RimGovernor.Brain.GameFacts.Observations.StockFilter { DefNames = [.. Defs], Category = RimGovernor.Brain.GameFacts.Observations.StockCategory.Haulable, Ownership = RimGovernor.Brain.GameFacts.Observations.StockOwnership.All, IncludeHeld = includeHeld }, cancellationToken).ConfigureAwait(false);
             if (supplies.Context != before.Context)
             {
                 throw new AcceptanceException($"{label}: context drifted mid-run: {supplies.Context} vs {before.Context}");
@@ -76,10 +74,10 @@ internal static class SuppliesReads
                 Check(label, row, includeHeld);
             }
 
-            s.Record(label + "_stocks", new JsonArray([.. rows.Select(r => JsonNode.Parse(WireJson.Serialize(r)))]));
+            s.Record(label + "_stocks", new JsonArray([.. rows.Select(r => JsonNode.Parse(OrdersJson.Serialize(r)))]));
         }
 
-        var defaults = await CensusAsync(s, "default", new Observations.StockFilter { DefNames = [.. Defs], Category = Observations.StockCategory.Haulable, Ownership = Observations.StockOwnership.Ours, IncludeHeld = true }, cancellationToken).ConfigureAwait(false);
+        var defaults = await CensusAsync(s, "default", new RimGovernor.Brain.GameFacts.Observations.StockFilter { DefNames = [.. Defs], Category = RimGovernor.Brain.GameFacts.Observations.StockCategory.Haulable, Ownership = RimGovernor.Brain.GameFacts.Observations.StockOwnership.Ours, IncludeHeld = true }, cancellationToken).ConfigureAwait(false);
         foreach (var row in defaults.Stocks)
         {
             if (row.Ours <= 0)
@@ -88,7 +86,7 @@ internal static class SuppliesReads
             }
         }
 
-        var weapons = await CensusAsync(s, "weapons", new Observations.StockFilter { Category = Observations.StockCategory.Weapons, Ownership = Observations.StockOwnership.All, IncludeHeld = true }, cancellationToken).ConfigureAwait(false);
+        var weapons = await CensusAsync(s, "weapons", new RimGovernor.Brain.GameFacts.Observations.StockFilter { Category = RimGovernor.Brain.GameFacts.Observations.StockCategory.Weapons, Ownership = RimGovernor.Brain.GameFacts.Observations.StockOwnership.All, IncludeHeld = true }, cancellationToken).ConfigureAwait(false);
         var weaponDefs = weapons.Stocks.Select(row => row.DefName).ToList();
         s.Record("weapon_census", new JsonArray([.. weaponDefs.Select(d => (JsonNode?)d)]));
         if (!weaponDefs.Contains(Defs[0]))
@@ -103,18 +101,18 @@ internal static class SuppliesReads
         }
     }
 
-    private static Task<Lifecycle.LoadedIdentity> IdentityAsync(TypedSession s, string label, CancellationToken cancellationToken) =>
-        s.CallAsync(label, NativeOps.ReadIdentity, new Lifecycle.IdentityRequest(), cancellationToken);
+    private static Task<RimGovernor.Brain.GameFacts.Lifecycle.LoadedIdentity> IdentityAsync(TypedSession s, string label, CancellationToken cancellationToken) =>
+        s.CallAsync(label, NativeOps.ReadIdentity, new RimGovernor.Brain.GameOrders.Lifecycle.IdentityRequest(), cancellationToken);
 
-    private static async Task<Observations.SuppliesSnapshot> CensusAsync(TypedSession s, string label, Observations.StockFilter filter, CancellationToken cancellationToken)
+    private static async Task<RimGovernor.Brain.GameFacts.Observations.SuppliesSnapshot> CensusAsync(TypedSession s, string label, RimGovernor.Brain.GameFacts.Observations.StockFilter filter, CancellationToken cancellationToken)
     {
-        return await s.CallAsync(label, NativeOps.ListSupplies, new Observations.ListSuppliesRequest { Scope = s.Scope, Filter = filter }, cancellationToken).ConfigureAwait(false);
+        return await s.CallAsync(label, NativeOps.ListSupplies, new RimGovernor.Brain.GameOrders.Observations.ListSuppliesRequest { Scope = s.Scope, Filter = filter }, cancellationToken).ConfigureAwait(false);
     }
 
     // One row's counts agree: each stack is one item (with its CAS snapshot unless it is a loose supply the Allow rules
     // do not admit), and spawned plus the holders' units is the total (held mode) or spawned
     // is the total with no holders (spawned mode).
-    private static void Check(string label, Observations.ResourceStock row, bool includeHeld)
+    private static void Check(string label, RimGovernor.Brain.GameFacts.Observations.ResourceStock row, bool includeHeld)
     {
         var what = $"{label}: {row.DefName}";
         if (string.IsNullOrEmpty(row.DefName) || row.Units <= 0)

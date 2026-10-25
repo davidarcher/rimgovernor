@@ -1,7 +1,7 @@
-using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.GameAccess;
+using RimGovernor.Brain.GameFacts;
+using RimGovernor.Brain.GameOrders;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -10,12 +10,12 @@ namespace RimGovernor.Brain.Domain.Tests;
 // wire JSON.
 public sealed class DefenseFamilyWireTests
 {
-    private static readonly O.DefenseSiteSnapshot Site = new()
+    private static readonly RimGovernor.Brain.GameFacts.Observations.DefenseSiteSnapshot Site = new()
     {
         Context = DefenseWire.Context,
         Cells =
         [
-            new O.DefenseCell.Fogged { Cell = new Cell(0, 0) },
+            new RimGovernor.Brain.GameFacts.Observations.DefenseCell.Fogged { Cell = new Cell(0, 0) },
             DefenseWire.Open(new Cell(1, 0)),
             DefenseWire.Open(new Cell(2, 0)) with
             {
@@ -23,36 +23,36 @@ public sealed class DefenseFamilyWireTests
                 Passable = false,
                 CoverFill = 1,
                 Roofed = true,
-                Edifice = new O.DefenseEdifice { DefName = "Wall", Stuff = "WoodLog", PlayerOwned = true, NaturalRock = false, Door = false },
-                Cover = new O.DefenseCover { ThingId = "Thing_Wall4", DefName = "Wall", Kind = O.CoverKind.Building, Designated = false },
+                Edifice = new RimGovernor.Brain.GameFacts.Observations.DefenseEdifice { DefName = "Wall", Stuff = "WoodLog", PlayerOwned = true, NaturalRock = false, Door = false },
+                Cover = new RimGovernor.Brain.GameFacts.Observations.DefenseCover { ThingId = "Thing_Wall4", DefName = "Wall", Kind = RimGovernor.Brain.GameFacts.Observations.CoverKind.Building, Designated = false },
             },
             DefenseWire.Open(new Cell(3, 0)) with
             {
                 CoverFill = 0.25,
-                Cover = new O.DefenseCover { ThingId = "Thing_Plant_Grass9", DefName = "Plant_Grass", Kind = O.CoverKind.Plant, Designated = true },
+                Cover = new RimGovernor.Brain.GameFacts.Observations.DefenseCover { ThingId = "Thing_Plant_Grass9", DefName = "Plant_Grass", Kind = RimGovernor.Brain.GameFacts.Observations.CoverKind.Plant, Designated = true },
             },
         ],
     };
 
-    private static readonly O.LinesOfFireSnapshot Lines = DefenseWire.NoLines with
+    private static readonly RimGovernor.Brain.GameFacts.Observations.LinesOfFireSnapshot Lines = DefenseWire.NoLines with
     {
         Lines =
         [
-            new O.LineOfFire.Fogged { From = new Cell(1, 1), To = new Cell(9, 9), Distance = 11.3 },
-            new O.LineOfFire.Traced { From = new Cell(1, 1), To = new Cell(4, 1), Distance = 3, LineOfSight = true },
+            new RimGovernor.Brain.GameFacts.Observations.LineOfFire.Fogged { From = new Cell(1, 1), To = new Cell(9, 9), Distance = 11.3 },
+            new RimGovernor.Brain.GameFacts.Observations.LineOfFire.Traced { From = new Cell(1, 1), To = new Cell(4, 1), Distance = 3, LineOfSight = true },
         ],
         Skipped = true,
     };
 
-    private static readonly O.SpatialAccessSnapshot Access = DefenseWire.Access(
-        new O.PawnAccess.Audited { Pawn = new PawnId("Thing_Human1"), Position = new Cell(5, 5), Targets = [DefenseWire.Target(new Cell(8, 8), true, true)] },
-        new O.PawnAccess.Stranded { Pawn = new PawnId("Thing_Human2"), Position = new Cell(6, 5) },
-        new O.PawnAccess.Skipped { Pawn = new PawnId("Thing_Human3"), Position = new Cell(7, 5) });
+    private static readonly RimGovernor.Brain.GameFacts.Observations.SpatialAccessSnapshot Access = DefenseWire.Access(
+        new RimGovernor.Brain.GameFacts.Observations.PawnAccess.Audited { Pawn = new PawnId("Thing_Human1"), Position = new Cell(5, 5), Targets = [DefenseWire.Target(new Cell(8, 8), true, true)] },
+        new RimGovernor.Brain.GameFacts.Observations.PawnAccess.Stranded { Pawn = new PawnId("Thing_Human2"), Position = new Cell(6, 5) },
+        new RimGovernor.Brain.GameFacts.Observations.PawnAccess.Skipped { Pawn = new PawnId("Thing_Human3"), Position = new Cell(7, 5) });
 
     private static void RoundTrips<T>(T payload)
     {
-        var json = WireJson.Serialize(payload);
-        Assert.Equal(json, WireJson.Serialize(WireJson.Deserialize<T>(json)));
+        var json = OrdersJson.Serialize(payload);
+        Assert.Equal(json, OrdersJson.Serialize(OrdersJson.Deserialize<T>(json)));
     }
 
     [Fact]
@@ -70,8 +70,8 @@ public sealed class DefenseFamilyWireTests
     [Fact]
     public void ACoverKindNamesItsDesignation()
     {
-        Assert.Equal(CoverClearanceDesignation.Deconstruct, ((O.DefenseCell.Seen)Site.Cells[2]).Cover!.Designation());
-        Assert.Equal(CoverClearanceDesignation.CutPlant, ((O.DefenseCell.Seen)Site.Cells[3]).Cover!.Designation());
+        Assert.Equal(CoverClearanceDesignation.Deconstruct, ((RimGovernor.Brain.GameFacts.Observations.DefenseCell.Seen)Site.Cells[2]).Cover!.Designation());
+        Assert.Equal(CoverClearanceDesignation.CutPlant, ((RimGovernor.Brain.GameFacts.Observations.DefenseCell.Seen)Site.Cells[3]).Cover!.Designation());
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public sealed class DefenseFamilyWireTests
     [Fact]
     public void ASkippedPawnIsNamedAndNotJudged()
     {
-        var skipped = DefenseWire.Access(new O.PawnAccess.Skipped { Pawn = new PawnId("Thing_Human3"), Position = new Cell(7, 5) });
+        var skipped = DefenseWire.Access(new RimGovernor.Brain.GameFacts.Observations.PawnAccess.Skipped { Pawn = new PawnId("Thing_Human3"), Position = new Cell(7, 5) });
         Assert.Equal(("Thing_Human3", true), skipped.Skipped());
         Assert.Equal("", skipped.Refusal());
     }
@@ -89,7 +89,7 @@ public sealed class DefenseFamilyWireTests
     [Fact]
     public void ALostTargetRefusesTheLayout()
     {
-        var lost = DefenseWire.Access(new O.PawnAccess.Audited { Pawn = new PawnId("Thing_Human1"), Position = new Cell(5, 5), Targets = [DefenseWire.Target(new Cell(8, 8), true, false)] });
+        var lost = DefenseWire.Access(new RimGovernor.Brain.GameFacts.Observations.PawnAccess.Audited { Pawn = new PawnId("Thing_Human1"), Position = new Cell(5, 5), Targets = [DefenseWire.Target(new Cell(8, 8), true, false)] });
         Assert.Equal("pawn Thing_Human1 at {5 5} loses target {8 8}", lost.Refusal());
         Assert.Equal(("", false), lost.Skipped());
     }

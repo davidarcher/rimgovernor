@@ -1,8 +1,7 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -10,13 +9,13 @@ public sealed class TotalTradeFactsTests
 {
     [Fact]
     public void MissingTraderCensusRefusesInsteadOfRecoveringTheCaravanNeed() =>
-        Assert.Throws<BridgeUnavailableException>(() => RoundsFrameReads.FrameTraders(null));
+        Assert.Throws<BridgeUnavailableException>(() => FrameReads.FrameTraders(null));
 
     [Fact]
     public void EmptyTraderCensusAndAnUnpricedPresentTraderHaveDifferentNeeds()
     {
         Assert.True(TradePolicyRules.TradeRecovered([], [], new TradeNeed { ComponentShortfall = 1 }));
-        var trader = new O.Trader { Id = "trader", Orbital = false, Kind = "bulk", FactionId = "faction", CanTrade = true, Travelling = false, GoodsStacks = 1 };
+        var trader = new RimGovernor.Brain.GameFacts.Observations.Trader { Id = "trader", Orbital = false, Kind = "bulk", FactionId = "faction", CanTrade = true, Travelling = false, GoodsStacks = 1 };
         Assert.False(TradePolicyRules.TradeRecovered([trader], [trader.Key()], new TradeNeed()));
         Assert.True(TradePolicyRules.TradeRecovered([trader], [], new TradeNeed()));
     }
@@ -35,11 +34,11 @@ public sealed class TotalTradeFactsTests
 
     [Fact]
     public void TradeFoodRequiresTheSharedPlan() =>
-        Assert.Throws<RequiredFactException>(() => TradePolicyRules.RoundsTradeFood(new RoundsFacts(), RoundsRules.DefaultRoundsPolicy()));
+        Assert.Throws<RequiredFactException>(() => TradePolicyRules.TradeFood(new ReviewFacts(), Rules.DefaultPlannerSettings()));
     [Fact]
     public void AwaitingFoodPlanIsLazyUntilAnActualJoinerOfferNeedsCapacity()
     {
-        var facts = new RoundsFacts { Population = PopulationFixtures.Census() };
+        var facts = new ReviewFacts { Population = PopulationFixtures.Census() };
         var capacity = PopulationRules.JoinerCapacity(facts.JoinerCapacity());
         Assert.IsType<PopulationCapacity.AwaitingFoodPlan>(capacity);
         Assert.False(PopulationRules.JoinerDeficit([], capacity, facts));

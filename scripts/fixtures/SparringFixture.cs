@@ -10,7 +10,7 @@ using Verse;
 using Verse.AI;
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // Stages a sparring ring for bout formation (#2708) and the spar job (#2709): a
     // row of markers, N eligible colonists far south of it whose only work is
@@ -23,7 +23,7 @@ namespace HomeBridge.BridgeTools
     public sealed class SparringFixture
     {
         [Tool("test/sparring_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage a sparring ring at the cell: markers in a row, eligible colonists whose only work is training, optional never-eligible colonists. Resets earlier staging. Test builds only.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, int x, int z,
+        public async Task<object> Prepare(INativeContext ctx, CancellationToken cancellationToken, int x, int z,
             [ToolParameter(Description = "How many eligible colonists spar.")] int eligible,
             [ToolParameter(Description = "Comma-separated Melee levels for the eligible colonists in order (default 7,6,5,4,3,2).")] string levels = "7,6,5,4,3,2",
             [ToolParameter(Description = "Markers in the ring row.")] int markers = 6,
@@ -138,7 +138,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("test/sparring_inspect", Description = "Read-only: the live bout registry and everything the watcher saw of the staged ring.")]
-        public async Task<object> Inspect(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Inspect(INativeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;

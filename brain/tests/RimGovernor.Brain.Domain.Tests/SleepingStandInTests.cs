@@ -24,7 +24,7 @@ public sealed class SleepingStandInTests
     [Fact]
     public void TheShortfallIsOwedUntilBothFootholdPlacesStand()
     {
-        var bare = new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 3, BedCapacity = 1, IndoorSleepingCapacity = 0 }, };
+        var bare = new ReviewFacts { Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 3, BedCapacity = 1, IndoorSleepingCapacity = 0 }, };
         Assert.Equal((3L, 2), ShelterRules.StandInsOwed(bare));
         // Every colonist has a spot but no roof yet: nothing more is owed.
         Assert.Equal(0, ShelterRules.StandInsOwed(bare with { Census = bare.Census with { BedCapacity = 3 } }).Missing);

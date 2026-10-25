@@ -1,7 +1,5 @@
 using RimGovernor.Brain.Bridge;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
-using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -48,11 +46,11 @@ internal static class DefenseSiteStuff
     {
         var staged = s.Staged!;
         var site = staged.Site ?? throw new AcceptanceException("test/stage replied no site");
-        var walls = await s.BuildingsAsync("walls", new Observations.ListBuildingsRequest { DefNames = ["Wall"], Statuses = [Observations.BuildingStatus.Built] }, cancellationToken).ConfigureAwait(false);
-        var census = await s.CallAsync("defense-site", NativeOps.ReadDefenseSite, new Observations.DefenseSiteRequest
+        var walls = await s.BuildingsAsync("walls", new RimGovernor.Brain.GameOrders.Observations.ListBuildingsRequest { DefNames = ["Wall"], Statuses = [RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Built] }, cancellationToken).ConfigureAwait(false);
+        var census = await s.CallAsync("defense-site", NativeOps.ReadDefenseSite, new RimGovernor.Brain.GameOrders.Observations.DefenseSiteRequest
         {
             Scope = s.Scope,
-            Region = new Observations.Rectangle
+            Region = new RimGovernor.Brain.GameFacts.Observations.Rectangle
             {
                 Minimum = new RimGovernor.Brain.Domain.Cell { X = site.X, Z = site.Z },
                 Maximum = new RimGovernor.Brain.Domain.Cell { X = site.X + Width - 1, Z = site.Z },
@@ -63,7 +61,7 @@ internal static class DefenseSiteStuff
         {
             var cell = staged.Buildings.GetValueOrDefault(stuff)?.Cells is [var only] ? only : throw new AcceptanceException($"test/stage placed no single {stuff} wall");
             var building = walls.FirstOrDefault(w => w.Occupied is { Minimum: { } min, Maximum: { } max } && min.X == cell.X && min.Z == cell.Z && max.X == cell.X && max.Z == cell.Z);
-            var row = (census.Cells.FirstOrDefault(c => c.Cell.X == cell.X && c.Cell.Z == cell.Z) as Observations.DefenseCell.Seen)?.Edifice;
+            var row = (census.Cells.FirstOrDefault(c => c.Cell.X == cell.X && c.Cell.Z == cell.Z) as RimGovernor.Brain.GameFacts.Observations.DefenseCell.Seen)?.Edifice;
             s.Record(stuff, $"buildings {building?.Stuff ?? "missing"}, census {row?.DefName ?? "missing"}/{row?.Stuff ?? "missing"}");
             if (building?.Stuff != stuff)
             {

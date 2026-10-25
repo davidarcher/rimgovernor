@@ -1,16 +1,14 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Cell = RimGovernor.Brain.Domain.Cell;
-using O = RimGovernor.Contracts.Wire.Observations;
 using StoreDefenseLayoutRecord = RimGovernor.Brain.Store.DefenseLayoutRecord;
 
 namespace RimGovernor.Brain.Executor;
 
 /// <summary>
-/// One RoundsDefensePlanner step as recorded: the native replies the step read (the emergency census, the combat
+/// One DefensePlanner step as recorded: the native replies the step read (the emergency census, the combat
 /// pawn rows and, for a hostile building, the lines of fire), the layout record it held the line against, and what it
 /// decided. A threat response is not a rounds, so the routine snapshot does not carry these inputs.
 /// </summary>
@@ -40,7 +38,7 @@ public sealed class SnapshotDefense
 
     public string? LinesContext { get; set; }
 
-    public IReadOnlyList<O.LineOfFire> Lines { get; set; } = [];
+    public IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.LineOfFire> Lines { get; set; } = [];
 
     /// <summary>The step's result.</summary>
     public string Reason { get; set; } = "";

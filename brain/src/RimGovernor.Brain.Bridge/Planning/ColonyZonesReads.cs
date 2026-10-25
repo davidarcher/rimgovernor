@@ -1,14 +1,13 @@
-using Identity = RimGovernor.Brain.Bridge.Contracts.ObservationIdentity;
+using Identity = RimGovernor.Brain.GameAccess.ObservationIdentity;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Bridge.Contracts;
-using O = RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.GameAccess;
 namespace RimGovernor.Brain.Bridge;
 
 public static class ColonyZonesReads
 {
     /// <summary>Projects the total same-frame zones before crop and gear decisions price their outputs.</summary>
-    internal static ColonyReading ApplyZones(ColonyReading p, O.ZonesSnapshot? read)
+    internal static ColonyReading ApplyZones(ColonyReading p, RimGovernor.Brain.GameFacts.Observations.ZonesSnapshot? read)
     {
         if (read is null)
         {
@@ -19,8 +18,8 @@ public static class ColonyZonesReads
         {
             throw new ObservationChangedException();
         }
-        p = p with { Tables = p.Tables with { Zones = read }, Zones = new Held<O.ZonesSnapshot> { Value = read, AsOf = read.Context.Tick, Complete = true, Source = "rimgovernor/snapshot_frame" } };
-        List<O.ZoneState.Growing> farms = [.. read.Zones.OfType<O.ZoneState.Growing>()];
+        p = p with { Tables = p.Tables with { Zones = read }, Zones = new Held<RimGovernor.Brain.GameFacts.Observations.ZonesSnapshot> { Value = read, AsOf = read.Context.Tick, Complete = true, Source = "snapshot_frame" } };
+        List<RimGovernor.Brain.GameFacts.Observations.ZoneState.Growing> farms = [.. read.Zones.OfType<RimGovernor.Brain.GameFacts.Observations.ZoneState.Growing>()];
         p = p with { Facts = ColonyProductionReads.ZoneProduction(farms, p.Facts.Definitions, p.Facts) };
         return p with
         {

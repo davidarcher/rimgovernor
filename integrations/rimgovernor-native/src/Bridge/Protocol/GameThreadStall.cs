@@ -4,7 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Threading;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // The game thread's breadcrumb: the phase it last entered (a hop, the
     // frame prefix, the ticks, the frame postfix, a snapshot capture and the

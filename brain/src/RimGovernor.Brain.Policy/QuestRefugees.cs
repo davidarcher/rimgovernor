@@ -1,11 +1,10 @@
 using RimGovernor.Brain.Domain;
-using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
 public static class QuestRefugees
 {
-    public static Dictionary<PawnId, QuestId> QuestRefugeeIds(RoundsFacts f)
+    public static Dictionary<PawnId, QuestId> QuestRefugeeIds(ReviewFacts f)
     {
         var output = new Dictionary<PawnId, QuestId>();
         var rows = f.QuestOffers;
@@ -18,7 +17,7 @@ public static class QuestRefugees
             }
             foreach (var objective in offer.Objectives)
             {
-                if (objective.Kind == Pb.QuestObjectiveKind.RescuePawns)
+                if (objective.Kind == RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.RescuePawns)
                 {
                     foreach (var id in objective.PawnIds)
                     {
@@ -30,5 +29,5 @@ public static class QuestRefugees
         return output;
     }
 
-    public static bool RefugeeDeficit(RoundsFacts f) => QuestRefugeeIds(f).Count > 0;
+    public static bool RefugeeDeficit(ReviewFacts f) => QuestRefugeeIds(f).Count > 0;
 }

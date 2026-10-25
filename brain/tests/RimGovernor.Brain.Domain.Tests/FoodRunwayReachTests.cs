@@ -17,7 +17,7 @@ public sealed class FoodRunwayReachTests
     [Fact]
     public void AnAbsentFoodPlanOrRunwayRaisesAtTheReaderThatNeedsIt()
     {
-        var facts = new RoundsFacts();
+        var facts = new ReviewFacts();
         Assert.Equal("food plan", Assert.Throws<RequiredFactException>(() => facts.RequireFoodPlan()).Fact);
         Assert.Equal("food runway", Assert.Throws<RequiredFactException>(() => facts.RequireFoodRunway()).Fact);
         var read = facts with { FoodPlan = new FoodPlan(), FoodDays = new FoodRunway.NoEaters() };

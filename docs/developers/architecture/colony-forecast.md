@@ -30,7 +30,7 @@ The coupled trajectory below additionally validates task feasibility and yields.
 `ColonyForecastRequest` identifies the observed tick, an
 explicit horizon in game days, current facts and existing commitments.
 `ColonyForecastFactsOf` assembles the observed stock, food, medicine and item facts from
-`RoundsFacts`. Coupled review inputs feed normal portfolio selection, the only
+`ReviewFacts`. Coupled review inputs feed normal portfolio selection, the only
 selector of a controlled pawn's ordinary work: the voluntary-control cutover
 (#3135) retired the competing routine writers, so no timetable or adviser
 chooses a competing job ([voluntary control](../contracts/voluntary-control.md)).
@@ -109,14 +109,14 @@ Independent maintenance functions remain because production supply consumes
 them. No second projector exists.
 
 Activity and needs forecasts compose in the coupled trajectory below.
-Normal production compares and binds Method bundles through existing Rounds/Hands.
+Normal production compares and binds Method bundles through existing Colony review/Hands.
 The supported food, needs, planned-room, clothing and support activity callers
 use the shared portfolio path, and it is the only selector: no family keeps a
 private winner, and nothing shadows the comparison.
 
 ## Coupled food, needs and production trajectory
 
-`ForecastCoupledScenarioOf` evaluates a commitment set against one world, observation tick and horizon. Normal Rounds
+`ForecastCoupledScenarioOf` evaluates a commitment set against one world, observation tick and horizon. Normal Colony review
 assembles `CoupledAlternatives` from the native forecast census, existing shared
 work-resource view, needs and saved planned-room intent. `CoupledForecastRequestOf`
 requires these ticks to agree; a mixed frame cannot certify a consequence.
@@ -205,7 +205,7 @@ within 10 cells. The composer shares the planned operations with the planned-roo
 roots, so they are never duplicated. A planned roof over a natively placed ring has
 no ordering edge on that placed shell; this is a known approximation.
 
-An unstarted room with nothing placed has no cells in the coupled capture, so Rounds
+An unstarted room with nothing placed has no cells in the coupled capture, so Colony review
 read it apart (#3323, the
 [planned shelter thermal read](../contracts/forecast-contracts.md#planned-shelter-thermal-read)).
 `PlannedThermalRequestOf` asks for up to four enclosed rectangular shelters that still
@@ -266,7 +266,7 @@ forecast assumption, which prices temperature mood only.
 ### Roof and room consequences
 
 A planned room changes more than temperature once its ring and roof stand (#3339,
-`ForecastRoofConsequences.cs`). Rounds ask native, in the same construction activity
+`ForecastRoofConsequences.cs`). Colony review ask native, in the same construction activity
 read as the thermal read, for each unplaced planned room closed in each ring stuff
 (`PlannedRoomPredictionRequestOf`, the
 [room prediction read](../contracts/forecast-contracts.md#planned-room-prediction-read)).
@@ -283,13 +283,13 @@ placed floor blueprints and removals on its interior or ring cells
 connector serving it (#3815: an airlock its parent, a circulation corridor each room a
 layout door joins it to, `Context.Connectors`; every way of the connector's, the room
 keeping its own stuff), all one job, less its blocked pieces (#3827, `Context.BlockedItems`:
-the round's read of the one predicate `PlannedRoomDone` uses, `RoundsBuildingPlanner.DefinitionBlockedOf`,
+the round's read of the one predicate `PlannedRoomDone` uses, `BuildingPlanner.DefinitionBlockedOf`,
 read evidence only, #3819), which delay nothing; a planned site of a blocked piece is never
 generated (#3838, below). A room whose
 every item of one stuff finished in the schedule serves at the last finish, earliest
 stuff first. Otherwise it is owing when it is open (`Context.OpenRooms`: observed started, from
 `PlannedRoomStartedOf`, and not done, `PlannedRoomDone` as its latest reconcile found,
-`Rounder.DoneRooms`; #3754) or the schedule finished one of its items. Its remaining
+`ColonyReview.DoneRooms`; #3754) or the schedule finished one of its items. Its remaining
 work is the owed work (`Context.OwedWork`, by item id) of its unfinished items (a
 planned site's least finish option (its `Finishes` ticks) or a roof's `RoofCellWorkTicks` times
 its cells, plus the least option of each of its `PlannedSiteOperations.WorkGroups`,
@@ -372,7 +372,7 @@ observed state holds.
   a banded span of the NeedOutdoors stage offset less the observed contribution. A
   disabled need (PrefersIndoors) costs nothing. Spans with no known location, such as
   food, hold the level (`outdoors_need_constant_outside_known_location`).
-- **Undergrounder.** The trait's indoors, underground and outdoors thoughts follow the
+- **Undergreview coordinator.** The trait's indoors, underground and outdoors thoughts follow the
   same spans' roof state as banded spans.
 - **Deterioration.** A food lot with deterioration inputs loses hit points at its
   observed final rate (`SteadyEnvironmentEffects.FinalDeteriorationRate`): each tick
@@ -537,8 +537,8 @@ a round across all kinds; more sets
 
 ## Planned rooms
 
-`RoundsFacts.PlannedConstruction` is the material the layout plan still owes per room. It is the reconciler's own
-diff, not a second one: `Rounder.PlannedConstructionOf` builds each room's `ReconcileInput` from the plan (the
+`ReviewFacts.PlannedConstruction` is the material the layout plan still owes per room. It is the reconciler's own
+diff, not a second one: `ColonyReview.PlannedConstructionOf` builds each room's `ReconcileInput` from the plan (the
 stored `Pieces` as the template, the colony's standing buildings and floors as the census) and `PlannedOwedCost`
 prices the `WallIn`, `DoorIn`, `VentIn`, `FloorIn` and `Build` operations that `Reconcile` says are owed, from
 the def catalog. The price and the build therefore read the same diff. A wall two rooms share is owed by the
@@ -550,7 +550,7 @@ through the construction census, so nothing is counted twice.
 The plan also owes a roof (`RoofIn`): `PlannedConstructionOf` passes the ring input's open-sky cells, so a
 roofed-set cell still open to the sky is owed once the room's ring stands. A roof costs no material, so its price
 is unchanged. The planned sites (below) read the roof and the vents from a second, hypothetical reconcile in
-`Rounder.PlannedOwedOf`, over `RingStandsGround` (the ground as if the owed ring stood): `PlannedSitedOps` keeps
+`ColonyReview.PlannedOwedOf`, over `RingStandsGround` (the ground as if the owed ring stood): `PlannedSitedOps` keeps
 the owed ring, floors and pieces and takes the vents and the roof from that pass. A room whose ring is not yet
 built therefore still has a roof site.
 
@@ -559,22 +559,22 @@ Planned rooms are scheduled as construction activities in the coupled portfolio 
 
 ### Planned-site facts
 
-Every round, `Rounder.PlannedSitesAsync` turns the same owed diff into `RoundsFacts.PlannedSites`
+Every round, `ColonyReview.PlannedSitesAsync` turns the same owed diff into `ReviewFacts.PlannedSites`
 (`PlannedSiteFacts`: `Sites` and `Findings`). `PlannedSitesOf` makes one `PlannedBuildSite` per owed operation
 and stuff:
 
 - walls, doors and vents: one site per ring stuff, for up to `PlannedRingStuffCount` (2) stuffs per room. These
   are the stocked stuffs the wall and door can both be made from, cheapest first; with none stocked, the wood the
-  window's standing trees give, else the blocks of its natural rock's stone (`RoundsFacts.RingSources`, #3747),
+  window's standing trees give, else the blocks of its natural rock's stone (`ReviewFacts.RingSources`, #3747),
   else none.
   With every scope of the first stuff, that covers the 4 alternatives per room.
 - floors: one site per floor def.
 - pieces: one site per piece, in the bulk chooser's stuff. The round marks a piece's site `Blocked` (#3838,
-  `Rounder.BlockedPiecesOf`) when the one blocked predicate (`RoundsBuildingPlanner.PieceReadinessOf`, read evidence
+  `ColonyReview.BlockedPiecesOf`) when the one blocked predicate (`BuildingPlanner.PieceReadinessOf`, read evidence
   only, #3819) reads its piece Blocked: research read unfinished or the definition read unavailable; no stuff the ring
   chooser finds; or a material of its cost list beside its stuff (a stove's Steel, a research bench's Steel, #3839)
   read unstocked and read unobtainable. A material is obtainable when the window offers it
-  (`RoundsFacts.RingSources`, `RingStuffSourcesOf`): tree wood, rock blocks, what its natural rock is mined into
+  (`ReviewFacts.RingSources`, `RingStuffSourcesOf`): tree wood, rock blocks, what its natural rock is mined into
   (compacted steel's Steel), a stack lying on it, or what deconstructing an unowned, deconstructible building outside
   any ancient danger yields for certain (its adjusted cost list at `resourcesFractionWhenDeconstructed`, GenLeaving).
   Trade does not count. An unread stock, unread sources or a building whose yield the catalog cannot read leave the
@@ -949,7 +949,7 @@ connections. A refused transaction leaves neither a plan nor a Method binding.
 Two batches proposed from the same review cannot each claim the same remaining
 inputs; multiple batches inside one proposal must fit together too.
 
-The full review records replaceable material evidence in its existing Rounds row:
+The full review records replaceable material evidence in its existing Colony review row:
 stock, observed construction deficit, native job holds, recipe ingredients and
 reviewed production promises. Admission re-reads the bounded current-world journal
 projection, combines reviewed promises with batches committed since that review,
@@ -1105,7 +1105,7 @@ work-time estimation, construction and delivery adapters, and observed replannin
 
 Acquisition uses required numeric deficits and pending yields. Pending and undispatched work suppress duplicate selection without counting as delivered food; withdrawing a stalled source removes its pending credit. Residual supply labor charges each retained food channel once and refuses an unpriced commitment. Human-butcher candidates require their matching pawn row, traits, ideoligion and work eligibility. Animal-product views retain the native gatherable or egg-layer row; independent producing components add their yields and work, while feed is charged once per animal. Slaughter views retain the native slaughter row, and fishing queries use the existing region review and its native observations. Terminal stock evidence distinguishes an eligible quantity (including zero) from a lot with no observed food use. Animal feed is calculated directly from the complete food census and eligible herd, with an empty herd yielding zero shortfall. Missing kept-animal consumption or race growth inputs refuse that calculation. Seasonal hay demand uses the same required harvest-gap value as food reserves. The food family checks reserve and foothold runway, butcher facilities and campfire retirement as plain predicates; absent runway or butcher build definitions refuse the calculation. Caravan and quest packing read the same complete food census.
 
-Normal Rounds generates its food alternatives through `FoodMethodCandidates.GenerateCoupled` (the
+Normal Colony review generates its food alternatives through `FoodMethodCandidates.GenerateCoupled` (the
 [live policy stages](#live-activity-policy-stages)). The supplied-input generator `GenerateFoodActivities` was deleted
 in #3894: nothing outside its tests called it. A coupled harvest or cook candidate whose product has no read shelf
 life is skipped with `food_shelf_life_unread:{supply}`, and two observed supplies under one id are refused with
@@ -1127,7 +1127,7 @@ Journal-to-Hands intent tests cover that boundary, including atomic refusal.
 This guard does not supply live forecast selection, cross-owner pawn claims,
 output rebinding or completed-work evidence.
 
-Normal Rounds now compares the supported food, needs, construction and clothing
+Normal Colony review now compares the supported food, needs, construction and clothing
 portfolio before journal admission. It keeps self-service and delegated
 alternatives, binds selected exact actions, and advances through observed loose
 food, bounded carried-input retry and native blueprint/frame rebinding. See
@@ -1147,7 +1147,7 @@ transient forecast inputs and concrete target bindings, not persistent Methods.
 
 | Owner | Responsibility |
 | --- | --- |
-| Normal Rounder | Read native options and sequence admission of the policy-selected portfolio through the existing journal |
+| Normal ColonyReview | Read native options and sequence admission of the policy-selected portfolio through the existing journal |
 | `FoodMethodCandidates` / `ConstructionMethodCandidates` / `ClothingMethodCandidates` in `Methods.Generation` | Generate operation/provider alternatives and task/pawn binding templates without selecting sources or participants |
 | `ForecastCoupledSelection.CompareActivityOutcomes` | Shared ColonyForecast alternative search, scheduling, deadlines, labor ceiling, postponement and selection |
 | `CoordinatedActivityBinding` in `Methods.Binding` | Resolve shared selected allocations into exact activity actions and advance observed obligations; no independent ranking or food-family rebinding selector |
@@ -1216,7 +1216,7 @@ furniture is not in the plan's stored pieces, so only the ring, doors and floors
 
 ### Shared live work resources
 
-The full Rounds review freezes `WorkAdmissionEvidence` in the existing review
+The full Colony review review freezes `WorkAdmissionEvidence` in the existing review
 row. `WorkResourcesOf` combines that observation with current Method actions;
 it owns no mutable reservation table. Food activity selection and continuation,
 fixed-batch material selection, work-priority assignment and Method admission
@@ -1269,7 +1269,7 @@ Supplied-estimate forecast APIs remain useful for tests, but are not evidence of
 
 ## Needs alternatives and future capacity
 
-The ordinary Rounds read carries `Forecast.Needs`: per-pawn food/rest/recreation
+The ordinary Colony review read carries `Forecast.Needs`: per-pawn food/rest/recreation
 levels, native current fall/recovery rates, thresholds, food capacity, expiring
 memories, authority state and bounded eligible food/bed/recreation-building targets.
 `ReviewWorkResources` generates `NeedsAlternatives` from this frame and its shared
@@ -1350,14 +1350,14 @@ winner and continuation wrappers are not executable selection paths.
 
 The [tier-2 model](forecast-value.md#tier-2-event-driven-colony-model) (#3470) looks about a game year past the
 one-day coupled trajectory and tells tier 1 what an hour of research or sowing is worth. It lives in
-`Policy/ColonyModel` (pure) and runs from `RoundsColonyModel.Review`, once per review inside the Rounder, after the coupled
+`Policy/ColonyModel` (pure) and runs from `ReviewColonyModel.Review`, once per review inside the ColonyReview, after the coupled
 candidates are built and before the comparison; nothing is cached between reviews. The Devilstrand payoff chain (the research
 gate, the crop's craft node and the garment they feed) is wired into real reviews by `ProjectGraph.Standing` (#3559); where the
 exposure table is calibrated the garment's harm is priced and the chain's investment credit is negative (a loss avoided); the
 in-play proof is `production/devilstrand-investment` (#3560: a research block with `value.investment < 0`). `production/devilstrand-investment-starving`
 (#3532) proves the other half in play: while the urgent floor binds, the credit never outranks food.
 
-**Inputs.** `ColonyModelInput` (`ColonyModelInput.cs`, assembled by `RoundsColonyModel.InputOf`) reads facts the review frame
+**Inputs.** `ColonyModelInput` (`ColonyModelInput.cs`, assembled by `ReviewColonyModel.InputOf`) reads facts the review frame
 already carries and makes no native call: the seasonal climate, the calendar, the growing zones and planned fields with
 per-cell fertility, the crop catalog, the research census, the stocks (nutrition of the edible food census, materials,
 medicine), the pawns (need mechanics, capacities, comfort range, research and plant work speed from the coupled research and
@@ -1392,13 +1392,13 @@ injected at time zero. `ColonyValue` prices each run in capability-days (starvat
 by a craft node by the harm model, unassessed with a named finding when the harm model or the gear option is unknown), and the
 difference is the hour's value, `dV/dt`. A crop that cannot mature, or a chain whose payoff is unassessed, is worth nothing.
 
-**How the credit reaches tier 1.** `ProjectMarginals.PerUnit` is the value of one research point or one cell sown. The Rounder
+**How the credit reaches tier 1.** `ProjectMarginals.PerUnit` is the value of one research point or one cell sown. The ColonyReview
 puts it in `ForecastCoupledContext.Investment`, keyed by `ForecastProjectProgress.Project`, which the research and sowing
 candidates carry on their tasks (`ResearchMethodCandidates`, `SowingMethodCandidates`). `ForecastValue.Of` writes
 `-(work ticks × progress per tick × value per unit)` to the ledger's `Investment` term, so the block competes with idle labor
 in the same capability-days as food, rest and harm. It competes below the safety floors: an outcome that breaks the urgent-zero
 floor loses to one that does not, whatever its investment.
 
-**The `colony_model` event.** One row per review that had coupled candidates, emitted by the Rounder before the comparison:
+**The `colony_model` event.** One row per review that had coupled candidates, emitted by the ColonyReview before the comparison:
 horizon, events, `truncated`, `runway_day`, `value`, `nutrition_end`, `completions`, `arrivals` (each resource the run's ledger receives, #3622), `dvdt` per node, `findings` and `elapsed_ms`
 ([otel signals](../contracts/otel-signals.md#kinds)). The `coupled_selection` rows carry the term as `value.investment`.

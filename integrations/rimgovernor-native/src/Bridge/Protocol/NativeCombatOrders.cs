@@ -5,11 +5,8 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
-using Operations = RimGovernor.Contracts.Wire.Operations;
-using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.Native
 {
     // CombatOrders: one batch of combat micro orders applied in request
     // order inside one call, so on one game tick. Validation reuses the attack
@@ -21,44 +18,44 @@ namespace HomeBridge.BridgeTools
     // taken; observing the fight is the caller's next read.
     internal static class NativeCombatOrders
     {
-        internal static bool Valid(Operations.CombatOrders? command)
+        internal static bool Valid(RimGovernor.Brain.GameOrders.Operations.CombatOrders? command)
         {
             if (command == null || command.Orders.Count < 1) return false;
             foreach (var order in command.Orders)
             {
                 if (order == null) return false;
-                bool door = order.Order is Operations.CombatOrderOrder.DoorCase { Value.Mode: not (Operations.CombatDoorMode.Open or Operations.CombatDoorMode.Shut) } || order.Order is Operations.CombatOrderOrder.MortarFireCase;
+                bool door = order.Order is RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DoorCase { Value.Mode: not (RimGovernor.Brain.GameOrders.Operations.CombatDoorMode.Open or RimGovernor.Brain.GameOrders.Operations.CombatDoorMode.Shut) } || order.Order is RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.MortarFireCase;
                 if (door ? order.Pawn != null : !NativeDraftProtocol.ValidEntityTokenOptional(order.Pawn)) return false;
                 var ownId = order.Pawn?.EntityId ?? "";
                 switch (order.Order)
                 {
-                    case Operations.CombatOrderOrder.MoveCase { Value: var move }: if (!ValidCell(move)) return false; break;
-                    case Operations.CombatOrderOrder.AttackGroundCase { Value: var ground }: if (!ValidCell(ground)) return false; break;
-                    case Operations.CombatOrderOrder.AttackCase { Value: var attack }:
+                    case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.MoveCase { Value: var move }: if (!ValidCell(move)) return false; break;
+                    case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AttackGroundCase { Value: var ground }: if (!ValidCell(ground)) return false; break;
+                    case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AttackCase { Value: var attack }:
                         if (!NativeDraftProtocol.ValidEntityTokenOptional(attack) || attack.EntityId == ownId) return false; break;
-                    case Operations.CombatOrderOrder.FireModeCase { Value: var mode }:
-                        if (mode != Operations.CombatFireMode.AtWill && mode != Operations.CombatFireMode.Hold) return false; break;
-                    case Operations.CombatOrderOrder.DoorCase { Value: var doorOrder }:
+                    case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.FireModeCase { Value: var mode }:
+                        if (mode != RimGovernor.Brain.GameFacts.Operations.CombatFireMode.AtWill && mode != RimGovernor.Brain.GameFacts.Operations.CombatFireMode.Hold) return false; break;
+                    case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DoorCase { Value: var doorOrder }:
                         if (!ValidCell(doorOrder.Cell)
-                            || doorOrder.Mode < Operations.CombatDoorMode.HoldOpen || doorOrder.Mode > Operations.CombatDoorMode.Shut) return false; break;
-                    case Operations.CombatOrderOrder.RescueCase { Value: var rescue }:
+                            || doorOrder.Mode < RimGovernor.Brain.GameOrders.Operations.CombatDoorMode.HoldOpen || doorOrder.Mode > RimGovernor.Brain.GameOrders.Operations.CombatDoorMode.Shut) return false; break;
+                    case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.RescueCase { Value: var rescue }:
                         if (!NativeDraftProtocol.ValidEntityTokenOptional(rescue.Downed) || rescue.Downed?.EntityId == ownId
-                            || (rescue.Bed is Operations.RescueBed.At bed ? !ValidCell(bed.Cell) : rescue.Bed is not Operations.RescueBed.Search)) return false; break;
-                    case Operations.CombatOrderOrder.RepairCase { Value: var repair }: if (!ValidCell(repair.Cell)) return false; break;
-                    case Operations.CombatOrderOrder.ManMortarCase { Value: var manMortar }: if (!ValidCell(manMortar)) return false; break;
-                    case Operations.CombatOrderOrder.MortarFireCase { Value: var mortarFire }:
-                        if (!ValidCell(mortarFire.Mortar) || (mortarFire.Aim is Operations.MortarAim.At aim ? !ValidCell(aim.Cell) : mortarFire.Aim is not Operations.MortarAim.Cleared)
-                            || mortarFire.Aim is Operations.MortarAim.Cleared && mortarFire.Shell is not null) return false; break;
-                    case Operations.CombatOrderOrder.ReleaseCase { Value: var release }:
+                            || (rescue.Bed is RimGovernor.Brain.GameOrders.Operations.RescueBed.At bed ? !ValidCell(bed.Cell) : rescue.Bed is not RimGovernor.Brain.GameOrders.Operations.RescueBed.Search)) return false; break;
+                    case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.RepairCase { Value: var repair }: if (!ValidCell(repair.Cell)) return false; break;
+                    case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.ManMortarCase { Value: var manMortar }: if (!ValidCell(manMortar)) return false; break;
+                    case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.MortarFireCase { Value: var mortarFire }:
+                        if (!ValidCell(mortarFire.Mortar) || (mortarFire.Aim is RimGovernor.Brain.GameOrders.Operations.MortarAim.At aim ? !ValidCell(aim.Cell) : mortarFire.Aim is not RimGovernor.Brain.GameOrders.Operations.MortarAim.Cleared)
+                            || mortarFire.Aim is RimGovernor.Brain.GameOrders.Operations.MortarAim.Cleared && mortarFire.Shell is not null) return false; break;
+                    case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.ReleaseCase { Value: var release }:
                         if (!NativeDraftProtocol.ValidEntityTokenOptional(release) || release.EntityId == ownId) return false; break;
-                    case Operations.CombatOrderOrder.AnimalAreaCase { Value: var animalArea }:
-                        if (animalArea.Area is Operations.CombatAnimalAreaArea.CellCase { Value: var areaCell } ? !ValidCell(areaCell)
-                            : animalArea.Area is not Operations.CombatAnimalAreaArea.ClearCase) return false; break;
-                    case Operations.CombatOrderOrder.CombatDrugCase { Value: var drug }:
+                    case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AnimalAreaCase { Value: var animalArea }:
+                        if (animalArea.Area is RimGovernor.Brain.GameOrders.Operations.CombatAnimalAreaArea.CellCase { Value: var areaCell } ? !ValidCell(areaCell)
+                            : animalArea.Area is not RimGovernor.Brain.GameOrders.Operations.CombatAnimalAreaArea.ClearCase) return false; break;
+                    case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.CombatDrugCase { Value: var drug }:
                         if (string.IsNullOrEmpty(drug)) return false; break;
-                    case Operations.CombatOrderOrder.HoldPositionCase:
-                    case Operations.CombatOrderOrder.StopCase:
-                    case Operations.CombatOrderOrder.DraftCase: break;
+                    case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.HoldPositionCase:
+                    case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.StopCase:
+                    case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DraftCase: break;
                     default: return false;
                 }
             }
@@ -69,13 +66,13 @@ namespace HomeBridge.BridgeTools
 
         // Applies every order and returns the batch effect; per-order
         // refusals are results. The caller holds native authority.
-        internal static Receipts.EffectEvidence Apply(Operations.CombatOrders? command, Common.ObservationContext context)
+        internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.CombatOrders? command, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             if (command == null) throw new InvalidOperationException("Combat orders are missing");
-            var map = ProtoBoundary.LoadedMap(context);
+            var map = GameThread.LoadedMap(context);
             var colony = context.Identity;
             var identity = new NativeControlIdentity(Current.Game, map, (colony.ColonyId ?? ""), (colony.LoadToken ?? ""));
-            var effect = new Receipts.CombatOrdersEffect();
+            var effect = new RimGovernor.Brain.GameFacts.Receipts.CombatOrdersEffect();
             // Each pawn's token is checked once, before any order runs:
             // a pawn's own earlier order in this batch rotates it.
             var pawns = new Dictionary<string, (Pawn? pawn, string refusal)>();
@@ -84,12 +81,12 @@ namespace HomeBridge.BridgeTools
             for (int i = 0; i < command.Orders.Count; i++)
             {
                 var order = command.Orders[i];
-                var orderPawn = order.Pawn ?? new Operations.EntityPrecondition();
+                var orderPawn = order.Pawn ?? new RimGovernor.Brain.GameOrders.Operations.EntityPrecondition();
                 string? pawnId = null;
                 string refusal; string? job = null;
-                if (order.Order is Operations.CombatOrderOrder.DoorCase { Value: var doorOrder })
+                if (order.Order is RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DoorCase { Value: var doorOrder })
                 {
-                    if (doorOrder.Mode is Operations.CombatDoorMode.Open or Operations.CombatDoorMode.Shut)
+                    if (doorOrder.Mode is RimGovernor.Brain.GameOrders.Operations.CombatDoorMode.Open or RimGovernor.Brain.GameOrders.Operations.CombatDoorMode.Shut)
                     {
                         pawnId = orderPawn.EntityId;
                         var admitted = pawns[(orderPawn.EntityId ?? "")];
@@ -103,18 +100,18 @@ namespace HomeBridge.BridgeTools
                     }
                     else refusal = Door(map, doorOrder);
                 }
-                else if (order.Order is Operations.CombatOrderOrder.MortarFireCase { Value: var mortarOrder })
+                else if (order.Order is RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.MortarFireCase { Value: var mortarOrder })
                 {
                     try { refusal = MortarFire(map, mortarOrder, out job); }
                     catch (Exception error) { refusal = "native_refused"; ModLog.Warn("combat", "combat order " + i + " mortar_fire failed: " + error.GetType().Name); }
                 }
-                else if (order.Order is Operations.CombatOrderOrder.ReleaseCase || order.Order is Operations.CombatOrderOrder.AnimalAreaCase)
+                else if (order.Order is RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.ReleaseCase || order.Order is RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AnimalAreaCase)
                 {
                     // Animal orders: a player animal, never drafted.
                     pawnId = orderPawn.EntityId;
                     var admitted = pawns[(orderPawn.EntityId ?? "")];
                     refusal = admitted.refusal;
-                    if (refusal.Length == 0 || refusal == "not_found" && order.Order is Operations.CombatOrderOrder.AnimalAreaCase { Value.Area: Operations.CombatAnimalAreaArea.ClearCase })
+                    if (refusal.Length == 0 || refusal == "not_found" && order.Order is RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AnimalAreaCase { Value.Area: RimGovernor.Brain.GameOrders.Operations.CombatAnimalAreaArea.ClearCase })
                     {
                         try { refusal = Animal(identity, map, admitted.pawn, order, out job); }
                         catch (Exception error) { refusal = "native_refused"; ModLog.Warn("combat", "combat order " + i + " animal order failed: " + error.GetType().Name); }
@@ -125,7 +122,7 @@ namespace HomeBridge.BridgeTools
                     pawnId = orderPawn.EntityId;
                     var admitted = pawns[(orderPawn.EntityId ?? "")];
                     refusal = admitted.refusal;
-                    bool draft = order.Order is Operations.CombatOrderOrder.DraftCase;
+                    bool draft = order.Order is RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.DraftCase;
                     if (refusal.Length == 0) refusal = draft ? Draft(identity, (admitted.pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: admitted.pawn."))) : Drafted(identity, (admitted.pawn ?? throw new System.InvalidOperationException("Required native value is unavailable: admitted.pawn.")));
                     if (refusal.Length == 0 && !draft)
                     {
@@ -136,9 +133,9 @@ namespace HomeBridge.BridgeTools
                 var result = new RimGovernor.Brain.Domain.CombatResult { Index = i, PawnId = pawnId ?? "", Applied = refusal.Length == 0, Refusal = refusal, JobDef = job ?? "" };
                 effect = effect with { Results = [.. effect.Results, result] };
             }
-            return new Receipts.EffectEvidence { Effect = effect };
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = effect };
         }
-        private static (Pawn? pawn, string refusal) Admit(NativeControlIdentity identity, Map map, Operations.EntityPrecondition entity)
+        private static (Pawn? pawn, string refusal) Admit(NativeControlIdentity identity, Map map, RimGovernor.Brain.GameOrders.Operations.EntityPrecondition entity)
         {
             var pawn = map.mapPawns.AllPawnsSpawned.ById(entity.EntityId);
             if (pawn == null) return (null, "not_found");
@@ -163,12 +160,12 @@ namespace HomeBridge.BridgeTools
             return pawn.drafter.Drafted ? "" : "cannot_draft";
         }
 
-        private static string Apply(NativeControlIdentity identity, Common.Identity colony, Map map, Pawn pawn, Operations.CombatOrder order, out string? job)
+        private static string Apply(NativeControlIdentity identity, RimGovernor.Brain.GameFacts.Common.Identity colony, Map map, Pawn pawn, RimGovernor.Brain.GameOrders.Operations.CombatOrder order, out string? job)
         {
             job = null;
             switch (order.Order)
             {
-                case Operations.CombatOrderOrder.MoveCase { Value: var moveTo }:
+                case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.MoveCase { Value: var moveTo }:
                 {
                     var cell = new IntVec3(moveTo.X, 0, moveTo.Z);
                     if (!NativeMovementOperations.Legal(pawn, cell)) return "unreachable";
@@ -176,7 +173,7 @@ namespace HomeBridge.BridgeTools
                     if (map.exitMapGrid.IsExitCell(cell)) move.exitMapOnArrival = !pawn.IsColonyMech;
                     return Take(pawn, move, out job);
                 }
-                case Operations.CombatOrderOrder.AttackCase { Value: var attack }:
+                case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AttackCase { Value: var attack }:
                 {
                     var player = Faction.OfPlayerSilentFail;
                     Thing? target = map.mapPawns.AllPawnsSpawned.ById(attack.EntityId ?? "")
@@ -195,7 +192,7 @@ namespace HomeBridge.BridgeTools
                     if (verb != null) NativeCombatOperations.ConfigureRangedJob(made, verb, target);
                     return Take(pawn, made, out job);
                 }
-                case Operations.CombatOrderOrder.AttackGroundCase { Value: var ground }:
+                case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AttackGroundCase { Value: var ground }:
                 {
                     var cell = new IntVec3(ground.X, 0, ground.Z);
                     var verb = pawn.equipment?.PrimaryEq?.PrimaryVerb;
@@ -208,22 +205,22 @@ namespace HomeBridge.BridgeTools
                     made.verbToUse = verb; made.targetA = cell; made.endIfCantShootInMelee = true;
                     return Take(pawn, made, out job);
                 }
-                case Operations.CombatOrderOrder.FireModeCase { Value: var mode }:
-                    pawn.drafter.FireAtWill = mode == Operations.CombatFireMode.AtWill;
+                case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.FireModeCase { Value: var mode }:
+                    pawn.drafter.FireAtWill = mode == RimGovernor.Brain.GameFacts.Operations.CombatFireMode.AtWill;
                     return "";
-                case Operations.CombatOrderOrder.HoldPositionCase:
+                case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.HoldPositionCase:
                     return Take(pawn, JobMaker.MakeJob(JobDefOf.Wait_Combat, pawn.Position), out job);
-                case Operations.CombatOrderOrder.RescueCase { Value: var rescue }:
+                case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.RescueCase { Value: var rescue }:
                 {
                     // The pawn-target rescue order's rules (NativeCustodyOperations).
-                    var downed = rescue.Downed ?? new Operations.EntityPrecondition();
+                    var downed = rescue.Downed ?? new RimGovernor.Brain.GameOrders.Operations.EntityPrecondition();
                     var patient = map.mapPawns.AllPawnsSpawned.ById(downed.EntityId ?? "");
                     if (patient == null) return "not_found";
                     if (NativeDraftProtocol.TokenSent(downed)
                         && NativePawnControlState.Check(identity, patient, downed.ExpectedSnapshotToken ?? "", out _) != NativePawnControlResult.Ready) return "stale_snapshot";
                     if (!NativeCustodyOperations.RescueEligible(pawn, patient)) return "cannot_rescue";
                     Building_Bed? bed;
-                    if (rescue.Bed is Operations.RescueBed.At requestedBed)
+                    if (rescue.Bed is RimGovernor.Brain.GameOrders.Operations.RescueBed.At requestedBed)
                     {
                         var dest = new IntVec3(requestedBed.Cell.X, 0, requestedBed.Cell.Z);
                         bed = dest.InBounds(map) ? dest.GetFirstBuilding(map) as Building_Bed : null;
@@ -235,7 +232,7 @@ namespace HomeBridge.BridgeTools
                     made.count = 1;
                     return Take(pawn, made, out job);
                 }
-                case Operations.CombatOrderOrder.RepairCase { Value: var repair }:
+                case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.RepairCase { Value: var repair }:
                 {
                     // The vanilla Repair job on a damaged player building
                     //; the pawn stays drafted under the fight.
@@ -247,7 +244,7 @@ namespace HomeBridge.BridgeTools
                     if (!pawn.CanReserveAndReach(building, PathEndMode.Touch, Danger.Deadly)) return "unreachable";
                     return Take(pawn, JobMaker.MakeJob(JobDefOf.Repair, building), out job);
                 }
-                case Operations.CombatOrderOrder.ManMortarCase { Value: var manMortar }:
+                case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.ManMortarCase { Value: var manMortar }:
                 {
                     // Crew the vanilla mortar: ManTurret, which loads
                     // shells by the mortar's filter; the aim is mortar_fire's.
@@ -257,9 +254,9 @@ namespace HomeBridge.BridgeTools
                     if (!pawn.CanReserveAndReach(mortar, PathEndMode.InteractionCell, Danger.Deadly)) return "unreachable";
                     return Take(pawn, JobMaker.MakeJob(JobDefOf.ManTurret, mortar), out job);
                 }
-                case Operations.CombatOrderOrder.CombatDrugCase { Value: var combatDrug }:
+                case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.CombatDrugCase { Value: var combatDrug }:
                     return CombatDrug(pawn, combatDrug, out job);
-                case Operations.CombatOrderOrder.StopCase:
+                case RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.StopCase:
                     pawn.jobs.ClearQueuedJobs();
                     pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
                     return "";
@@ -271,14 +268,14 @@ namespace HomeBridge.BridgeTools
         // AnimalArea: a one-cell native allowed area, labelled by the animal
         // so it survives a reload and clear still finds it; clear restores
         // the restriction the animal had before, none when unknown.
-        private static string Animal(NativeControlIdentity identity, Map map, Pawn? animal, Operations.CombatOrder order, out string? job)
+        private static string Animal(NativeControlIdentity identity, Map map, Pawn? animal, RimGovernor.Brain.GameOrders.Operations.CombatOrder order, out string? job)
         {
             job = null;
             var player = Faction.OfPlayerSilentFail;
             if (player == null) return "native_refused";
             var orderPawnId = order.Pawn?.EntityId ?? "";
-            var areaOrder = order.Order is Operations.CombatOrderOrder.AnimalAreaCase { Value: var areaValue } ? areaValue : null;
-            bool clear = areaOrder?.Area is Operations.CombatAnimalAreaArea.ClearCase;
+            var areaOrder = order.Order is RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.AnimalAreaCase { Value: var areaValue } ? areaValue : null;
+            bool clear = areaOrder?.Area is RimGovernor.Brain.GameOrders.Operations.CombatAnimalAreaArea.ClearCase;
             if (animal == null || animal.Faction != player || animal.RaceProps?.Animal != true || !animal.Spawned || animal.Dead)
             {
                 // Loaded-map lookup and live ownership are authoritative. Delete
@@ -290,7 +287,7 @@ namespace HomeBridge.BridgeTools
                 }
                 return animal == null ? "not_found" : "not_ours";
             }
-            if (order.Order is Operations.CombatOrderOrder.ReleaseCase { Value: var release })
+            if (order.Order is RimGovernor.Brain.GameOrders.Operations.CombatOrderOrder.ReleaseCase { Value: var release })
             {
                 if (animal.training == null || !animal.training.HasLearned(TrainableDefOf.Release)) return "untrained";
                 var target = map.mapPawns.AllPawnsSpawned.ById(release.EntityId ?? "");
@@ -314,7 +311,7 @@ namespace HomeBridge.BridgeTools
                 return "";
             }
             if (animal.playerSettings == null || !animal.playerSettings.SupportsAllowedAreas) return "not_ours";
-            if (areaOrder?.Area is not Operations.CombatAnimalAreaArea.CellCase { Value: var areaCell }) return "invalid_request";
+            if (areaOrder?.Area is not RimGovernor.Brain.GameOrders.Operations.CombatAnimalAreaArea.CellCase { Value: var areaCell }) return "invalid_request";
             var cell = new IntVec3(areaCell.X, 0, areaCell.Z);
             if (!cell.InBounds(map) || !cell.Standable(map) || !animal.CanReach(cell, PathEndMode.OnCell, Danger.Deadly)) return "unreachable";
             if (owned == null)
@@ -373,12 +370,12 @@ namespace HomeBridge.BridgeTools
         // unloaded beside the mortar and the filter allows only the asked
         // one; a pawn manning it retakes ManTurret, whose ammo search
         // honours the filter.
-        private static string MortarFire(Map map, Operations.CombatMortarFire order, out string? job)
+        private static string MortarFire(Map map, RimGovernor.Brain.GameOrders.Operations.CombatMortarFire order, out string? job)
         {
             job = null;
             var mortar = Mortar(map, order.Mortar);
             if (mortar == null) return "not_a_mortar";
-            if (order.Aim is Operations.MortarAim.Cleared)
+            if (order.Aim is RimGovernor.Brain.GameOrders.Operations.MortarAim.Cleared)
             {
                 // No target: the gizmo's stop-forced-attack, the
                 // aim gone when the siege breaks camp. An invalid target
@@ -386,7 +383,7 @@ namespace HomeBridge.BridgeTools
                 mortar.OrderAttack(LocalTargetInfo.Invalid);
                 return "";
             }
-            if (order.Aim is not Operations.MortarAim.At aim) return "invalid_request";
+            if (order.Aim is not RimGovernor.Brain.GameOrders.Operations.MortarAim.At aim) return "invalid_request";
             var target = new IntVec3(aim.Cell.X, 0, aim.Cell.Z);
             var verb = mortar.AttackVerb;
             var distance = (target - mortar.Position).LengthHorizontal;
@@ -422,27 +419,27 @@ namespace HomeBridge.BridgeTools
 
         // The vanilla hold-open toggle on a player door; close clears it so
         // the door shuts once nothing stands in it.
-        private static string Door(Map map, Operations.CombatDoor order)
+        private static string Door(Map map, RimGovernor.Brain.GameOrders.Operations.CombatDoor order)
         {
             var cell = new IntVec3(order.Cell.X, 0, order.Cell.Z);
             if (!cell.InBounds(map)) return "not_a_door";
             var door = cell.GetEdifice(map) as Building_Door;
             if (door == null || door.Faction != Faction.OfPlayerSilentFail) return "not_a_door";
-            if (order.Mode == Operations.CombatDoorMode.Forbid || order.Mode == Operations.CombatDoorMode.Allow)
+            if (order.Mode == RimGovernor.Brain.GameOrders.Operations.CombatDoorMode.Forbid || order.Mode == RimGovernor.Brain.GameOrders.Operations.CombatDoorMode.Allow)
             {
                 // The vanilla forbid toggle: forbidden doors bar every
                 // player pawn's path, drafted or not.
-                door.SetForbidden(order.Mode == Operations.CombatDoorMode.Forbid, warnOnFail: false);
+                door.SetForbidden(order.Mode == RimGovernor.Brain.GameOrders.Operations.CombatDoorMode.Forbid, warnOnFail: false);
                 return "";
             }
-            bool open = order.Mode == Operations.CombatDoorMode.HoldOpen;
+            bool open = order.Mode == RimGovernor.Brain.GameOrders.Operations.CombatDoorMode.HoldOpen;
             if (door.HoldOpen != open) HoldOpenField.SetValue(door, open);
             return "";
         }
 
         // A pawn-driven door order: the drafted pawn, beside the door and not in it, opens or starts shutting it
         // without the walk through (vanilla's own approach-open and manual close).
-        private static string PawnDoor(Map map, Pawn pawn, Operations.CombatDoor order)
+        private static string PawnDoor(Map map, Pawn pawn, RimGovernor.Brain.GameOrders.Operations.CombatDoor order)
         {
             var cell = new IntVec3(order.Cell.X, 0, order.Cell.Z);
             if (!cell.InBounds(map)) return "not_a_door";
@@ -450,7 +447,7 @@ namespace HomeBridge.BridgeTools
             if (door == null || door.Faction != Faction.OfPlayerSilentFail) return "not_a_door";
             if (pawn.Map != map || !pawn.Position.IsAdjacentToCardinalOrInside(CellRect.SingleCell(cell)) || pawn.Position == cell) return "not_adjacent";
             if (door.IsForbidden(pawn)) return "forbidden";
-            if (order.Mode == Operations.CombatDoorMode.Open)
+            if (order.Mode == RimGovernor.Brain.GameOrders.Operations.CombatDoorMode.Open)
             {
                 if (!door.PawnCanOpen(pawn)) return "cannot_open";
                 if (!door.Open) door.StartManualOpenBy(pawn);
@@ -471,13 +468,13 @@ namespace HomeBridge.BridgeTools
     // it is well formed; each order's refusal is a result in the effect.
     internal sealed class CombatOrdersActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context)
+        public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             if (!NativeCombatOrders.Valid(action.Intent?.CombatOrders))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Combat orders need at least one order, each an exact pawn (none for a door or mortar_fire) and one supported order with explicit cells and modes.");
-            return NativePawnControlState.IsReady ? null : ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Combat orders need at least one order, each an exact pawn (none for a door or mortar_fire) and one supported order with explicit cells and modes.");
+            return NativePawnControlState.IsReady ? null : GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
         }
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) =>
+        public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) =>
             NativeCombatOrders.Apply(action.Intent?.CombatOrders, context);
     }
 
@@ -485,9 +482,9 @@ namespace HomeBridge.BridgeTools
     // colonist. The wanted state already holding applies without a change.
     internal sealed class DraftActionHandler : IActionHandler
     {
-        public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) => Resolve(action.Intent?.Draft, context, out _);
+        public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context) => Resolve(action.Intent?.Draft, context, out _);
 
-        public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context)
+        public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var intent = action.Intent?.Draft;
             var failure = Resolve(intent, context, out var pawn);
@@ -497,23 +494,23 @@ namespace HomeBridge.BridgeTools
             bool issued = pawn.drafter.Drafted != wanted;
             if (issued) pawn.drafter.Drafted = wanted;
             if (pawn.drafter.Drafted != wanted) throw new InvalidOperationException("Native draft state did not change.");
-            return new Receipts.EffectEvidence { Effect = new Receipts.JobEffect { PawnId = pawn.GetUniqueLoadID(), Issued = issued } };
+            return new RimGovernor.Brain.GameFacts.Receipts.EffectEvidence { Effect = new RimGovernor.Brain.GameFacts.Receipts.JobEffect { PawnId = pawn.GetUniqueLoadID(), Issued = issued } };
         }
 
-        private static Common.Failure? Resolve(Operations.DraftIntent? intent, Common.ObservationContext context, out Pawn? pawn)
+        private static RimGovernor.Brain.GameFacts.Common.Failure? Resolve(RimGovernor.Brain.GameOrders.Operations.DraftIntent? intent, RimGovernor.Brain.GameFacts.Common.ObservationContext context, out Pawn? pawn)
         {
             pawn = null;
-            if (intent == null || intent.PawnId is null || !ProtoBoundary.IsIdentifier(intent.PawnId))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A draft requires a pawn id and the wanted draft state.");
-            if (!NativePawnControlState.IsReady) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
-            var map = ProtoBoundary.LoadedMap(context);
+            if (intent == null || intent.PawnId is null || !GameThread.IsIdentifier(intent.PawnId))
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "A draft requires a pawn id and the wanted draft state.");
+            if (!NativePawnControlState.IsReady) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unavailable, "Live native pawn control hooks are required.");
+            var map = GameThread.LoadedMap(context);
             pawn = map.mapPawns.AllPawnsSpawned.ById(intent.PawnId);
-            if (pawn == null || pawn.Dead) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "The pawn is not alive and spawned on this map.");
+            if (pawn == null || pawn.Dead) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "The pawn is not alive and spawned on this map.");
             var identity = new NativeControlIdentity(Current.Game, map, (context.Identity?.ColonyId ?? ""), (context.Identity?.LoadToken ?? ""));
             var check = NativePawnControlState.Observe(identity, pawn, out var snapshot);
             if (check != NativePawnControlResult.Ready || snapshot == null) return NativeDraftProtocol.Failure(check, context);
             if (snapshot.Drafted == intent.Drafted) return null;
-            return snapshot.Eligible ? null : ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "cannot_draft: the pawn is not an eligible player colonist.");
+            return snapshot.Eligible ? null : GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "cannot_draft: the pawn is not an eligible player colonist.");
         }
     }
 }

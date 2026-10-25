@@ -1,10 +1,9 @@
-using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// The slice of RoundsPolicy the prisoners family plans from. ReleaseAfterDays is how long a prisoner the
+/// The slice of PlannerSettings the prisoners family plans from. ReleaseAfterDays is how long a prisoner the
 /// colony has no use for is fed while the food runway holds FoodTargetDays; below that target it is released
 /// at once. Zero releases a useless prisoner at once regardless.
 /// </summary>
@@ -46,10 +45,10 @@ public sealed record PrisonerTrait(double Worth);
 /// <summary>The native pawn whose biography and health determine recruitment worth.</summary>
 public sealed record PrisonerProspect
 {
-    public required O.PawnState Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PawnState Observed { get; init; }
     public double Age => Observed.Biography.BiologicalAgeYears;
     public double Health => Observed.Health.SummaryFraction;
-    public EquatableArray<O.Skill> Skills => Observed.Biography.Skills;
+    public EquatableArray<RimGovernor.Brain.GameFacts.Observations.Skill> Skills => Observed.Biography.Skills;
     public IReadOnlyList<PrisonerTrait> Traits { get; init; } = [];
     public EquatableArray<string> Incapable => Observed.Biography.IncapableWorkTypes;
 }
@@ -123,9 +122,9 @@ public abstract record PrisonerHeldInteraction
 /// <summary>One observed colony prisoner's population census row.</summary>
 public sealed partial record PrisonerFacts
 {
-    public required O.PopulationPerson Person { get; init; }
-    public required O.PawnState Observed { get; init; }
-    public required O.PersonCustody.Prisoner Held { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PopulationPerson Person { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PawnState Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.PersonCustody.Prisoner Held { get; init; }
     public PawnId Pawn => Person.Pawn;
 
     public bool Dead => Observed.Dead;
@@ -155,14 +154,14 @@ public sealed partial record PrisonerFacts
 
     public EquatableArray<CareOperation> Operations { get; init; } = [];
 
-    private O.PawnSurgery Surgery => Observed.Health.Surgery ?? throw new RequiredFactException("prisoner surgery");
+    private RimGovernor.Brain.GameFacts.Observations.PawnSurgery Surgery => Observed.Health.Surgery ?? throw new RequiredFactException("prisoner surgery");
 
     public int QueuedSurgeries => Surgery.SurgeryBills.Count;
 
     public int HarvestGoodwill => Held.HarvestGoodwillChange;
 
     /// <summary>The prisoner's MedicalCareCategory.</summary>
-    public MedicalCare MedicalCare => Observed.Settings.Care is O.PawnCare.Configured care ? WorkRules.MedicalCareOf(care.MedicalCare) : throw new RequiredFactException("prisoner medical care settings");
+    public MedicalCare MedicalCare => Observed.Settings.Care is RimGovernor.Brain.GameFacts.Observations.PawnCare.Configured care ? WorkRules.MedicalCareOf(care.MedicalCare) : throw new RequiredFactException("prisoner medical care settings");
 
     // Care cap inputs: conditions and life threat, the queued bills' recipes and an Execution interaction.
     public EquatableArray<Hediff> Conditions => Observed.Health.Hediffs;
@@ -217,10 +216,10 @@ public static partial class PopulationRules
             }
             switch (s.Passion)
             {
-                case RimGovernor.Contracts.Wire.Observations.Passion.Major:
+                case RimGovernor.Brain.GameFacts.Observations.Passion.Major:
                     score++;
                     break;
-                case RimGovernor.Contracts.Wire.Observations.Passion.Minor:
+                case RimGovernor.Brain.GameFacts.Observations.Passion.Minor:
                     score += 0.5;
                     break;
             }

@@ -1,0 +1,90 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- Reachable from the acceptance tool published for win-x64; keep the locked restore graph stable. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <RootNamespace>RimGovernor.Brain.Runtime</RootNamespace>
+    <AssemblyName>RimGovernor.Brain.Runtime</AssemblyName>
+  </PropertyGroup>
+  <Import Project="../../Game.props" />
+  <ItemGroup>
+    <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Policy/RimGovernor.Brain.Policy.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.GameFacts/RimGovernor.Brain.GameFacts.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.GameOrders/RimGovernor.Brain.GameOrders.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.GameAccess/RimGovernor.Brain.GameAccess.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Bridge/RimGovernor.Brain.Bridge.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Store/RimGovernor.Brain.Store.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />
+   <ProjectReference Include="../RimGovernor.Brain.Executor/RimGovernor.Brain.Executor.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Simulation/RimGovernor.Brain.Simulation.csproj" />
+    <!-- The colony event records native pushes (ColonyEvents.cs) are what the event consumer reads. -->
+ </ItemGroup>
+  <ItemGroup>
+    <Using Include="RimGovernor.Brain.Domain" />
+    <Using Include="RimGovernor.Brain.Policy" />
+    <Using Include="RimGovernor.Brain.Store" />
+    <Using Include="RimGovernor.Brain.Bridge" />
+    <Using Include="RimGovernor.Brain.Telemetry" />
+   <Using Include="RimGovernor.Brain.GameAccess" />
+    <Using Include="RimGovernor.Brain.GameAccess.Result" Alias="BridgeResult" />
+    <Using Include="RimGovernor.Brain.Executor" />
+    <Using Include="RimGovernor.Brain.Facts" />
+    <Using Include="RimGovernor.Brain.GameFacts" />
+    <Using Include="RimGovernor.Brain.Runtime.Verdict" Static="true" />
+    <!-- Namespace and class share a name in the unported packages, so the namespace shadows the class; these name the class. -->
+    <Using Include="RimGovernor.Brain.Store.Store" Alias="JournalStore" />
+    <!-- Wire package aliases. -->
+    <!-- Names two imported namespaces both declare: Policy and Telemetry/Executor shapes win (issue #3111). -->
+    <Using Include="RimGovernor.Brain.Domain.PawnId" Alias="PawnId" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.RoomRole" Alias="RoomRole" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.RoomState" Alias="RoomState" />
+    <Using Include="RimGovernor.Brain.Policy.Amount" Alias="Amount" />
+    <Using Include="RimGovernor.Brain.Telemetry.Decision" Alias="Decision" />
+    <Using Include="RimGovernor.Brain.Domain.ControllerSessionId" Alias="ControllerSessionId" />
+    <Using Include="RimGovernor.Brain.GameAccess.ObservationIdentity" Alias="Identity" />
+    <Using Include="RimGovernor.Brain.Domain.RecoveryMethod" Alias="RecoveryMethod" />
+    <!-- Bridge types whose names the policy or domain package also declares. -->
+    <Using Include="RimGovernor.Brain.GameAccess.CellRect" Alias="BridgeCellRect" />
+    <Using Include="RimGovernor.Brain.Bridge.Combat" Alias="BridgeCombat" />
+    <Using Include="RimGovernor.Brain.GameAccess.EmergencyObservation" Alias="BridgeEmergencyObservation" />
+    <Using Include="RimGovernor.Brain.GameAccess.EquipCandidate" Alias="BridgeEquipCandidate" />
+    <Using Include="RimGovernor.Brain.GameAccess.EquipRead" Alias="BridgeEquipRead" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.ExcavationSiteSnapshot" Alias="ExcavationSiteSnapshot" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.ExcavationSupport" Alias="ExcavationSupport" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.ClearanceFloor" Alias="ClearanceFloor" />
+    <Using Include="RimGovernor.Brain.GameAccess.GrowerCropTarget" Alias="BridgeGrowerCropTarget" />
+    <Using Include="RimGovernor.Brain.GameAccess.MapBounds" Alias="BridgeMapBounds" />
+    <Using Include="RimGovernor.Brain.GameAccess.ReviewFrame" Alias="BridgeReviewFrame" />
+    <Using Include="RimGovernor.Brain.GameAccess.Things" Alias="BridgeThings" />
+    <Using Include="RimGovernor.Brain.GameAccess.BuildingPreview" Alias="BridgeBuildingPreview" />
+    <!-- Facts package types. -->
+    <Using Include="RimGovernor.Brain.Facts.Scope" Alias="FactScope" />
+    <Using Include="RimGovernor.Brain.Facts.Section" Alias="FactSection" />
+    <Using Include="RimGovernor.Brain.Facts.Rect" Alias="FactRect" />
+    <Using Include="RimGovernor.Brain.GameFacts.Operations" Alias="OP" />
+    <Using Include="RimGovernor.Brain.Store.Store" Alias="StoreJournal" />
+    <Using Include="RimGovernor.Brain.Store.World" Alias="StoreWorld" />
+    <Using Include="RimGovernor.Brain.Store.ReviewState" Alias="ReviewStep" />
+    <Using Include="RimGovernor.Brain.GameAccess.PlanningWindow" Alias="PlanningWindowRead" />
+    <Using Include="RimGovernor.Brain.Policy.DefenseCell" Alias="DefenseCell" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The host composes the native client and planners from this assembly's internal types. -->
+    <InternalsVisibleTo Include="RimGovernor.Brain.Host" />
+    <!-- The headless real-engine host drives the live combat read and decision over its arena (#3142). -->
+    <InternalsVisibleTo Include="RimGovernor.RealCombat.Native" />
+    <InternalsVisibleTo Include="RimGovernor.Brain.Domain.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.BuildingState" Alias="PowerSite" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.BuildingState" Alias="PowerBuilding" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.TurretGun" Alias="TurretGun" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.PowerNetwork" Alias="PowerNetworkFact" />
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.SteamGeyser" Alias="PowerGeyser" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="RimGovernor.Brain.GameFacts.Observations.BuildingState" Alias="DefenseTurretFacts" />
+  </ItemGroup>
+</Project>

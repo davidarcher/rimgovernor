@@ -240,7 +240,7 @@ proposed T12 and [care](colonist-wellbeing.md).
    by the supply plan even when no hunter is armed. The shared work planner
    compares harvest, cooking, delivery and eating options, including food readiness
    and spoilage (F2).
-3. **Issue assignments.** `Rounder.AdmitCoupledSelection` records selected work and
+3. **Issue assignments.** `ColonyReview.AdmitCoupledSelection` records selected work and
    its resource commitments. Hands dispatches the assignments. Game code checks
    the targets again and creates ordinary harvest, recipe or eating jobs (F3).
 4. **Observe and continue.** Continuation reads actual output before advancing.
@@ -260,14 +260,14 @@ examined below contain no current result bundle.
 [Food.cs](../../brain/src/RimGovernor.Brain.Policy/Food.cs),
 [FoodForecast.cs](../../brain/src/RimGovernor.Brain.Policy/FoodForecast.cs),
 [FoodPlan.cs](../../brain/src/RimGovernor.Brain.Policy/FoodPlan.cs),
-[RoundsFoodPlan.cs](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsFoodPlan.cs)
+[FoodPlan.cs](../../brain/src/RimGovernor.Brain.Runtime/Review/ColonyReview.FoodPlan.cs)
 (`ReviewFoodPlan`) and
-[FoodRounds](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsFood.cs)
+[FoodReview](../../brain/src/RimGovernor.Brain.Runtime/Review/Food.cs)
 (`ReadAsync`, `WorkAsync`). These connect colony observations to food requests and
 possible supply. Coverage is limited to the functions named here.
 
 **F2 — Choose concrete food work.** Examined
-[RoundsAcquisition](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsAcquisition.cs)
+[Acquisition](../../brain/src/RimGovernor.Brain.Runtime/Review/AcquisitionPlanner.cs)
 (`FoodPlanAcquisition`, `GoalSelection`),
 [FoodMethodCandidates.GenerateCoupled](../../brain/src/RimGovernor.Brain.Policy/Methods/Generation/CoupledFoodMethodCandidates.cs)
 and its caller in
@@ -277,8 +277,8 @@ readiness. Options with unread shelf life are omitted with a finding. Selection
 and completion require further evidence.
 
 **F3 — Execute and observe.** The shared assignment/dispatch path was sampled in
-[RoundsCoupled](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsCoupled.cs),
-[Worker](../../brain/src/RimGovernor.Brain.BuildingRuntime/Worker.cs) and
+[Coupled](../../brain/src/RimGovernor.Brain.Runtime/Review/ColonyReview.Coupled.cs),
+[Worker](../../brain/src/RimGovernor.Brain.Runtime/Worker.cs) and
 [NativePawnActivities](../../integrations/rimgovernor-native/src/Bridge/NativePawnActivities.cs).
 The Eat branch checks availability and starts `JobDefOf.Ingest` with the selected
 count. [ConsumptionHooks](../../integrations/rimgovernor-native/src/Bridge/ConsumptionHooks.cs)
@@ -337,7 +337,7 @@ start. Its wider chain makes it a less focused first check than F5.
 **F7 — Seasons and fields.**
 [SeasonalFoodThresholdTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/SeasonalFoodThresholdTests.cs)
 checks that reserve targets increase toward winter and stay continuous across the
-last growing day. [RoundsFieldPlanner](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsField.cs)
+last growing day. [FieldPlanner](../../brain/src/RimGovernor.Brain.Runtime/Review/FieldPlanner.cs)
 reads crops and current colony facts, verifies control and review identity, and
 routes food fields under the food supply need. It reports a missing layout anchor.
 These samples cover target policy and work preparation; no harvest result was examined.
@@ -345,7 +345,7 @@ These samples cover target policy and work preparation; no harvest result was ex
 **F8 — Storage and refrigeration.**
 [FoodStoresFamilyTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/FoodStoresFamilyTests.cs)
 checks exposure and temperature thresholds, pending reserve access, missing facts
-and conflicting stack claims. [FoodStoresRounds](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsFoodStores.cs)
+and conflicting stack claims. [FoodStoresReview](../../brain/src/RimGovernor.Brain.Runtime/Review/FoodStoresReview.FoodStores.cs)
 reads storage and cooling rooms, proposes reserve changes and routes refrigeration
 building work. Registered OnDemand
 [lab/food-storage-routes](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Lab/FoodStorageRoutes.cs)
@@ -359,7 +359,7 @@ refusal of missing estimates/routes. The estimates are supplied by the test.
 Their accuracy and the native response to a failed hunt need separate evidence.
 
 **F10 — Special food and source observations.**
-[ReviewBabyFeeding](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsBabyFeeding.cs)
+[ReviewBabyFeeding](../../brain/src/RimGovernor.Brain.Runtime/Review/ColonyReview.BabyFeeding.cs)
 feeds the active Biotech baby census into
 [BabyFeedingRules](../../brain/src/RimGovernor.Brain.Policy/BabyFeeding.cs).
 The rule counts stock with baby eater eligibility, derives a target from demand
@@ -387,7 +387,7 @@ then a new method and another meal. The fixture injects rested state and a fresh
 shortage between cycles. Crop maturation and seasonal survival are separate claims.
 
 **F12 — Cooler construction through chilling.**
-[RoundsRefrigeration](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsRefrigeration.cs)
+[Refrigeration](../../brain/src/RimGovernor.Brain.Runtime/Review/BuildingPlanner.Refrigeration.cs)
 reads rooms and food temperature, selects construction or a setpoint change and
 reports enclosure, power and heat-rejection blockers. Destroyed equipment can
 create new work. Registered Nightly
@@ -403,7 +403,7 @@ reach and area checks. Downed consumers receive no independent-access credit.
 Held food belongs to its holder.
 [PreferencesFactsTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/PreferencesFactsTests.cs)
 checks vegetarian, insect-meat and human-meat choices and forbidden methods.
-[BabyFoodDeclarer](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsFood.cs)
+[BabyFoodDeclarer](../../brain/src/RimGovernor.Brain.Runtime/Review/Food.cs)
 passes shortage to shared production; BabyFeedingRules selects baby-edible recipes.
 [WorkAssignment](../../brain/src/RimGovernor.Brain.Policy/WorkAssignment.cs) pins
 Childcare. FoodFamilyTests checks the provisioning need and breastfeeder assumption.
@@ -422,14 +422,14 @@ The [review queue](review-queue.md) distinguishes those evidence investments fro
 confirmed behavior gaps.
 
 **F14 — Cooking facilities and acquisition designations.**
-[RoundsBuildingPlanner](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsBuildingSelection.cs)
+[BuildingPlanner](../../brain/src/RimGovernor.Brain.Runtime/Review/BuildingPlanner.Selection.cs)
 requires food-plan support before selecting cooking capacity, recognizes usable
 or pending facilities, and can select a campfire when capacity is missing.
-[RoundsSleeping](../../brain/src/RimGovernor.Brain.BuildingRuntime/RoundsSleeping.cs)
+[Sleeping](../../brain/src/RimGovernor.Brain.Runtime/BuildingPlanner.cs)
 connects facility work to planned placement and existing construction claims.
 The general room/construction cases establish prepared building effects; they
 do not prove a zero-stock kitchen bootstrap (tracked in #3641, supply S6).
-[RoundsAcquisitionPlanner](../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsAcquisition.cs)
+[AcquisitionPlanner](../../brain/src/RimGovernor.Brain.Runtime/Review/AcquisitionPlanner.cs)
 selects food sources and commits acquisition actions;
 [NativeAcquire](../../integrations/rimgovernor-native/src/Bridge/Protocol/NativePlantAcquisition.cs)
 maps plant acquisition to native harvest designations. This is the reachable

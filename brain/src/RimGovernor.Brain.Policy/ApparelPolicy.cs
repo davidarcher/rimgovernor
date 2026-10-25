@@ -21,7 +21,7 @@ public sealed record ApparelDefinition
 /// </summary>
 public sealed record ApparelPolicyState
 {
-    public required RimGovernor.Contracts.Wire.Observations.ApparelPolicyState Observed { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.ApparelPolicyState Observed { get; init; }
     public string Token => Observed.Token;
 
     public string PawnName => Observed.PawnName;

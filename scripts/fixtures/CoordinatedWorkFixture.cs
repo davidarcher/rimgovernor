@@ -12,7 +12,7 @@ using RimGovernor.Host.Sdk;
 using RimGovernor.Brain.Domain;
 using Fx = RimGovernor.Fixtures.Contracts;
 
-namespace HomeBridge.BridgeTools;
+namespace RimGovernor.Native;
 
 // Prepared physical facts and fault injection only. All selected tasks come from the ordinary brain/Hands.
 public sealed partial class PawnControlFixture
@@ -31,7 +31,7 @@ public sealed partial class PawnControlFixture
     private static IntVec3 barracks, barracksDoor;
 
     [Tool("test/coordinated_work_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Prepare a quiet food or shelter deficit and specialist/helper physical facts; construction also clears a 5x5 barracks site with a lit campfire at its interior centre and replies its interior and door cells. No plans, orders or task assignments are installed.")]
-    public async Task<object> PrepareCoordination(IRimBridgeContext ctx, CancellationToken ct,
+    public async Task<object> PrepareCoordination(INativeContext ctx, CancellationToken ct,
         [ToolParameter(Description = "food or construction", DefaultValue = "food")] string mode = "food",
         [ToolParameter(Description = "Interrupt one carrying delivery once", DefaultValue = false)] bool interrupt = false) =>
         await ctx.MainThread.InvokeAsync<object>(() =>
@@ -155,7 +155,7 @@ public sealed partial class PawnControlFixture
     }
 
     [Tool("test/coordinated_work_read", Description = "UNSAFE FOR MODEL EXECUTION. Observe planner-selected participant/task evidence, physical output, carried interruption/rebinding and released ownership.")]
-    public async Task<object> ReadCoordination(IRimBridgeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() =>
+    public async Task<object> ReadCoordination(INativeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() =>
     {
         var map = Find.CurrentMap;
         return FixtureKit.Reply(new Fx.CoordinationRead
