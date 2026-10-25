@@ -34,7 +34,7 @@ partial record LayoutPlan
     {
         foreach (var z in this.Zones)
         {
-            if (z.Kind == ZoneKind.Mining && z.Ore && LayoutMiningRules.ZoneHas(z, cell))
+            if (z.Kind == LayoutZoneKind.Mining && z.Ore && LayoutMiningRules.ZoneHas(z, cell))
             {
                 return LayoutMiningRules.MineTierOre;
             }

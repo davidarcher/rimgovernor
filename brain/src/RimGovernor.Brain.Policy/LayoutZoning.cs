@@ -28,7 +28,7 @@ public sealed partial record LayoutPlan
 public static partial class LayoutZoningRules
 {
     /// <summary>Ground the core may grow over.</summary>
-    public static ZoneKind ZoneCore => ZoneKind.Core;
+    public static LayoutZoneKind ZoneCore => LayoutZoneKind.Core;
 
     /// <summary>The least fertility a field cell needs (plain soil).</summary>
     internal const double ZoneFieldFertility = 1.0;
@@ -68,7 +68,7 @@ public static partial class LayoutZoningRules
         var soil = Has(c => !c.Rock && c.Walkable && c.Fertility >= ZoneFieldFertility);
         var fields = Components(w, h, soil);
         var inField = new bool[cells.Length];
-        void Add(ZoneKind kind, Func<int, bool> inZone)
+        void Add(LayoutZoneKind kind, Func<int, bool> inZone)
         {
             var runs = ZoneRuns(w, h, inZone);
             if (runs.Count > 0)

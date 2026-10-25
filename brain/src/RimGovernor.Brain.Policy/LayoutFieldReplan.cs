@@ -38,7 +38,7 @@ public static partial class LayoutFieldReplanRules
         var output = new List<LayoutZone>(zones.Count + (fields?.Count ?? 0));
         foreach (var z in zones)
         {
-            if (z.Kind != ZoneKind.Field)
+            if (z.Kind != LayoutZoneKind.Field)
             {
                 output.Add(z);
             }

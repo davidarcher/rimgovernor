@@ -1,3 +1,2 @@
-// Domain and Policy both declare PawnId and ZoneKind; the journal stores the domain forms.
+// Domain and Policy both declare PawnId; the journal stores the domain form.
 global using PawnId = RimGovernor.Brain.Domain.PawnId;
-global using ZoneKind = RimGovernor.Brain.Domain.ZoneKind;

@@ -117,7 +117,7 @@ public readonly record struct RowRun(int Z, int X, int Length);
 /// <summary>One zone as row runs over the whole map.</summary>
 public sealed record LayoutZone
 {
-    public ZoneKind Kind { get; init; }
+    public LayoutZoneKind Kind { get; init; }
     public IReadOnlyList<RowRun> Runs { get; init; } = [];
 
     /// <summary>Marks the mining zone over ore-bearing rock.</summary>
@@ -350,7 +350,7 @@ public sealed partial record LayoutPlan
         }
         foreach (var z in Zones)
         {
-            if (z.Kind == ZoneKind.None)
+            if (z.Kind == LayoutZoneKind.None)
             {
                 return false;
             }
@@ -561,11 +561,11 @@ public sealed partial record LayoutPlan
 
 public static partial class LayoutPlanRules
 {
-    public static ZoneKind ZoneField => ZoneKind.Field;
-    public static ZoneKind ZonePasture => ZoneKind.Pasture;
-    public static ZoneKind ZoneMining => ZoneKind.Mining;
-    public static ZoneKind ZoneWood => ZoneKind.Wood;
-    public static ZoneKind ZoneNoGo => ZoneKind.NoGo;
+    public static LayoutZoneKind ZoneField => LayoutZoneKind.Field;
+    public static LayoutZoneKind ZonePasture => LayoutZoneKind.Pasture;
+    public static LayoutZoneKind ZoneMining => LayoutZoneKind.Mining;
+    public static LayoutZoneKind ZoneWood => LayoutZoneKind.Wood;
+    public static LayoutZoneKind ZoneNoGo => LayoutZoneKind.NoGo;
 
     public static ReservationKind ReserveGeothermal => ReservationKind.Geothermal;
 

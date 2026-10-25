@@ -1,6 +1,8 @@
-namespace RimGovernor.Brain.Policy;
+using RimGovernor.Brain.Policy;
 
-public static class ItemFactsFixtureRules
+namespace RimGovernor.Brain.Domain.Tests;
+
+internal static class ItemFactsFixtureRules
 {
     private static Resource R(string def) => new(def);
 

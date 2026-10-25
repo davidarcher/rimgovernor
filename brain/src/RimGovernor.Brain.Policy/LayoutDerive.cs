@@ -106,7 +106,7 @@ public static partial class LayoutDeriveRules
         var core = new HashSet<Cell>();
         foreach (var z in zones)
         {
-            if (z.Kind != ZoneKind.Core)
+            if (z.Kind != LayoutZoneKind.Core)
             {
                 continue;
             }
@@ -229,7 +229,7 @@ public static partial class LayoutDeriveRules
         var output = new List<LayoutZone>();
         foreach (var z in zones)
         {
-            if (z.Kind != ZoneKind.Core)
+            if (z.Kind != LayoutZoneKind.Core)
             {
                 output.Add(z);
                 continue;
@@ -450,5 +450,5 @@ partial record LayoutPlan
     }
 
     internal static LayoutPlan WithoutCore(LayoutPlan p) =>
-        p with { Zones = [.. p.Zones.Where(z => z.Kind != ZoneKind.Core)] };
+        p with { Zones = [.. p.Zones.Where(z => z.Kind != LayoutZoneKind.Core)] };
 }

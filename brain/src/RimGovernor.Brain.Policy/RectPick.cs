@@ -15,7 +15,7 @@ public sealed partial record LayoutPlan
         var blocks = new List<(HashSet<Cell> Cells, long Near, Cell First)>();
         foreach (var z in Zones)
         {
-            if (z.Kind != ZoneKind.Field || z.Runs.Count == 0)
+            if (z.Kind != LayoutZoneKind.Field || z.Runs.Count == 0)
             {
                 continue;
             }

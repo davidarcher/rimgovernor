@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-// The string-named kinds PlannedRole, NodeKind, ZoneKind and ReservationKind, as enums: the string is the wire name.
+// The string-named kinds PlannedRole, NodeKind, LayoutZoneKind and ReservationKind, as enums: the string is the wire name.
 
 /// <summary>A planned room's role.</summary>
 public enum PlannedRole
@@ -178,7 +178,7 @@ public enum NodeKind
 }
 
 /// <summary>A zone's kind.</summary>
-public enum ZoneKind
+public enum LayoutZoneKind
 {
     [WireName("")]
     None,

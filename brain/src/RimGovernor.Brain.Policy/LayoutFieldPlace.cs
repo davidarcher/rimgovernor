@@ -211,7 +211,7 @@ public static partial class LayoutFieldPlaceRules
                 runs.Add(new RowRun(row, start, x - start + 1));
             }
         }
-        return new LayoutZone { Kind = ZoneKind.Field, Runs = runs };
+        return new LayoutZone { Kind = LayoutZoneKind.Field, Runs = runs };
     }
 }
 

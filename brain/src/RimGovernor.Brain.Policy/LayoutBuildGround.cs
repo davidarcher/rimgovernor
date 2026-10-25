@@ -49,11 +49,11 @@ internal sealed record BuildGround
         foreach (var z in zones)
         {
             // Only the core and the mining ground are build ground: fields, pasture, wood and no-go zones are not.
-            if (z.Kind is not (ZoneKind.Core or ZoneKind.Mining))
+            if (z.Kind is not (LayoutZoneKind.Core or LayoutZoneKind.Mining))
             {
                 continue;
             }
-            var set = z.Kind == ZoneKind.Core ? core : rock;
+            var set = z.Kind == LayoutZoneKind.Core ? core : rock;
             foreach (var r in z.Runs)
             {
                 for (var x = r.X; x < r.X + r.Length; x++)
@@ -204,7 +204,7 @@ internal sealed record BuildGround
         }
         foreach (var z in zones)
         {
-            if ((z.Kind == ZoneKind.Mining && z.Ore) || (z.Kind == ZoneKind.Field && level == ObstacleLevel.All && banFields))
+            if ((z.Kind == LayoutZoneKind.Mining && z.Ore) || (z.Kind == LayoutZoneKind.Field && level == ObstacleLevel.All && banFields))
             {
                 foreach (var r in z.Runs)
                 {

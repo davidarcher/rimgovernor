@@ -77,7 +77,7 @@ public static class FoodHaulRules
         var tables = Of(Pieces(p => p.Row == LayoutGraphRules.NodeId(p.Def, StationPurpose.Dine)));
         var closets = Of(Rooms(PlannedRole.MealCloset));
         var dish = tables.Count > 0 ? tables : closets.Count > 0 ? closets : cold.Count > 0 ? cold : plain;
-        var field = plan.Zones.Where(z => z.Kind == ZoneKind.Field).SelectMany(z => z.Runs)
+        var field = plan.Zones.Where(z => z.Kind == LayoutZoneKind.Field).SelectMany(z => z.Runs)
             .SelectMany(r => Enumerable.Range(r.X, r.Length).Select(x => new Cell(x, r.Z))).ToArray();
 
         // The mean walk of the cells a carry starts from to the nearest of the goals; the field's cells reach the base through an entrance.

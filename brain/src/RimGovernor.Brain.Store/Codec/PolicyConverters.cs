@@ -1048,7 +1048,7 @@ internal sealed class LayoutZoneConverter : ObjectCodec<LayoutZone>
     protected override LayoutZone Read(JsonElement e, Codecs o) =>
         new()
         {
-            Kind = e.Get<global::RimGovernor.Brain.Policy.ZoneKind>("Kind", o),
+            Kind = e.Get<global::RimGovernor.Brain.Policy.LayoutZoneKind>("Kind", o),
             Runs = e.Get<IReadOnlyList<RowRun>>("Runs", o),
             Ore = e.Bool("Ore"),
         };

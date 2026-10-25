@@ -72,7 +72,7 @@ public static partial class LayoutOverlayRules
     /// <summary>The overlay style tables: nested so their initializers run on first use, after every property of the sibling Rules classes they read exists.</summary>
     private static class OverlayTables
     {
-        public static readonly Dictionary<ZoneKind, OverlayStyleOf> Zone = new()
+        public static readonly Dictionary<LayoutZoneKind, OverlayStyleOf> Zone = new()
         {
             [LayoutPlanRules.ZoneField] = St(PlanGreen, "field"),
             [LayoutPlanRules.ZoneMining] = St(PlanBrown, "mining"),
@@ -258,7 +258,7 @@ public static partial class LayoutOverlayRules
 
     internal static OverlayStyleOf? RoomOverlayStyle(PlannedRole role) => OverlayTables.Room.TryGetValue(role, out var s) ? s : null;
 
-    internal static OverlayStyleOf? ZoneOverlayStyle(ZoneKind kind) => OverlayTables.Zone.TryGetValue(kind, out var s) ? s : null;
+    internal static OverlayStyleOf? ZoneOverlayStyle(LayoutZoneKind kind) => OverlayTables.Zone.TryGetValue(kind, out var s) ? s : null;
 
     internal static OverlayStyleOf? ReservationOverlayStyle(ReservationKind kind) => OverlayTables.Reservation.TryGetValue(kind, out var s) ? s : null;
 

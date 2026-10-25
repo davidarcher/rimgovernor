@@ -5,6 +5,13 @@
 These rules constrain shared plan admission and each later dispatch. They use native
 observations; they do not reserve permanent ownership of coordinates.
 
+## Layout and native zone kinds
+
+Policy's `LayoutZoneKind` names a planned land use (field, pasture, mining, wood,
+no-go or core). Domain's `ZoneKind` names a native zone creation operation
+(growing, stockpile or fishing). These are distinct contracts: a planned land use
+need not create a native zone. Layout persistence keeps its existing wire names.
+
 ## Native planning cell ownership
 
 A planning `SiteCell` retains the published native `Mirror.CellGrid` and its exact
