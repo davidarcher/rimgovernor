@@ -145,11 +145,30 @@ internal static class NativePrisonRecruit
         foreach (var head in Heads(mood.thoughts.memories.Memories))
             memories.Add(new(head.def.stackedEffectMultiplier)
             {
+                BedlessRenewal = BedlessRenewalOf(pawn, head),
                 Members = EquatableArray.From(mood.thoughts.memories.Memories.Where(m => m.GroupsWith(head)).Select(m => new RimGovernor.Brain.GameFacts.Observations.NeedMemory(m.def.defName,
                     F(m.MoodOffset(), "memory offset"), m.permanent ? new RimGovernor.Brain.GameFacts.Observations.MemoryLife.Permanent() : new RimGovernor.Brain.GameFacts.Observations.MemoryLife.Expires(Math.Max(0, m.DurationTicks - m.age)),
                     m.def.lerpMoodToZero) { StackLimit = m.def.stackLimit })),
             });
         return new(F(unclamped, "prisoner unclamped mood"), F(cell, "prison cell thought")) { CellStages = EquatableArray.From(rows), Memories = EquatableArray.From(memories) };
+    }
+
+    // These are ApplyBedThoughts' recurring ground/exposure memories and FinalizeIngest's no-table memory. Use the same
+    // pawn-specific stage and duration reader as the roof/bedroom credits; unrelated memories retain their observed age.
+    private static RimGovernor.Brain.GameFacts.Observations.NeedMemory? BedlessRenewalOf(Pawn pawn, Thought head)
+    {
+        var def = head.def;
+        if (pawn.ownership?.OwnedBed?.ForPrisoners == true ||
+            (def != ThoughtDefOf.SleptOnGround && def != ThoughtDefOf.SleptOutside && def != ThoughtDefOf.SleptInCold &&
+             def != ThoughtDefOf.SleptInHeat && def != ThoughtDefOf.AteWithoutTable)) return null;
+        var rows = new List<RimGovernor.Brain.GameFacts.Observations.NeedThoughtStage>();
+        NativeNeedsForecast.StageRows(rows, pawn, def, "", false);
+        var row = rows.SingleOrDefault(r => r.Stage == head.CurStageIndex)
+            ?? throw new InvalidOperationException("bedless renewal stage: " + def.defName);
+        if (row.Lasting is not RimGovernor.Brain.GameFacts.Observations.ThoughtLasting.Memory lasting)
+            throw new InvalidOperationException("bedless renewal is not a memory: " + def.defName);
+        return new(row.Thought, row.Offset, new RimGovernor.Brain.GameFacts.Observations.MemoryLife.Expires(lasting.DurationTicks), lasting.Fades)
+        { StackLimit = lasting.StackLimit };
     }
 
     // The first memory of each group, in list order (a memory no earlier one GroupsWith).

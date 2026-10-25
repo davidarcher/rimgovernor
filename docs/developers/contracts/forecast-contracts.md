@@ -426,7 +426,12 @@ unknown. What the game does not have is a case, never an unknown:
   hediff blocks inspirations, and each def whose `InspirationCanOccur` holds with its `CommonalityFor` and duration), and
   per held prisoner (`PrisonersOfColonySpawned`) `Recruitable`, `Resistance`, whether it owns a prison bed, `IsWildMan`,
   its mood (the unclamped level, its PrisonCell/PrisonBarracks thought now, those thoughts' stage offsets for it, none for
-  an Ascetic, and its mood memory groups with their stackedEffectMultiplier), its opinion of each warden by its parts
+  an Ascetic, and its mood memory groups with their stackedEffectMultiplier). Each observed recurring bedless group
+  (`SleptOnGround`, `SleptOutside`, `SleptInCold`, `SleptInHeat`, `AteWithoutTable`) carries `BedlessRenewal`, the fresh
+  pawn-specific stage offset and full duration/fading/stack limit from the same native stage reader used by roof and
+  bedroom forecasts; other groups and prisoners owning a prison bed carry null. Recruitment and conversion retain this
+  recurring group's fresh contribution until room service, then fade and expire it from service. This is a daily-renewal
+  projection of the held group, not a schedule of native prisoner jobs; service at tick zero grants no renewal. Its opinion of each warden by its parts
   (`WardenOpinionRead`: relations, situational social thoughts each rounded away from 0, the hediffs' opinionOfOthersFactor,
   hostility, its social memory groups of the warden, fading or cumulative, the rapport and conversion chitchat one toil gives
   (stage-0 opinionOffset times that warden's SocialImpact, 0 without a mood need or when CanGetThought, the social target's

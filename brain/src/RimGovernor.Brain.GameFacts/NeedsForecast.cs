@@ -381,6 +381,11 @@ public sealed record PrisonerMoodRead(double UnclampedLevel, double CellThought)
 /// </summary>
 public sealed record MemoryGroupRead(double StackedMultiplier)
 {
+    /// <summary>
+    /// The fresh memory this bedless prisoner keeps renewing until bedded (#3966), from the same stage and lasting facts
+    /// as roof and bedroom forecasts. Null for a group not renewed by ground sleep or eating without a table.
+    /// </summary>
+    public required NeedMemory? BedlessRenewal { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedMemory>))]
     public required EquatableArray<NeedMemory> Members { get; init; }
 }

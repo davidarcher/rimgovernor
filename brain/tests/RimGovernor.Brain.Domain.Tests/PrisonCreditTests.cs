@@ -317,12 +317,62 @@ public sealed class PrisonCreditTests
     [Fact]
     public void AMoodMemoryFadesAndExpiresOverTheRecruitment()
     {
-        var group = new MemoryGroupRead(0.5) { Members = [NeedsFixtures.Memory("AteWithoutTable", -10, 30000, fades: true), NeedsFixtures.Memory("AteWithoutTable", -4, null, fades: false)] };
+        var group = new MemoryGroupRead(0.5) { BedlessRenewal = null, Members = [NeedsFixtures.Memory("AteWithoutTable", -10, 30000, fades: true), NeedsFixtures.Memory("AteWithoutTable", -4, null, fades: false)] };
         Assert.Equal(-7 * 1.5, ForecastPrison.MoodGroupAt(group, 0), 12);
         Assert.Equal(-4.5 * 1.5, ForecastPrison.MoodGroupAt(group, 15000), 12);
         Assert.Equal(-4, ForecastPrison.MoodGroupAt(group, 40000), 12);
         var mood = new PrisonerMoodRead(0.4, 0) { CellStages = [], Memories = [group] };
         Assert.Equal(0.4 + ((10.5 - 4) / 100), ForecastPrison.Mood(mood, 0, 40000)!.Value, 12);
+    }
+
+    [Theory]
+    [InlineData("SleptOnGround")]
+    [InlineData("SleptOutside")]
+    [InlineData("SleptInCold")]
+    [InlineData("SleptInHeat")]
+    [InlineData("AteWithoutTable")]
+    public void ABedlessMemoryStillWeighsOnMoodWhenTheRoomServesAndLowersItsProductionCredit(string thought)
+    {
+        var group = new MemoryGroupRead(1)
+        {
+            Members = [NeedsFixtures.Memory(thought, -10, Day / 4, fades: true)],
+            BedlessRenewal = NeedsFixtures.Memory(thought, -20, Day, fades: true),
+        };
+        var mood = new PrisonerMoodRead(0.4, 0) { CellStages = [DecentCell], Memories = [group] };
+        // The observed memory would have expired before service. Its daily renewal holds the fresh -20 there, then
+        // fades over its full native day, rather than its observed quarter day. Unrelated memories still expire now.
+        Assert.Equal(0.34, ForecastPrison.Mood(mood, 4, Day, Day)!.Value, 12);
+        Assert.Equal(0.44, ForecastPrison.Mood(mood, 4, 1.5 * Day, Day)!.Value, 12);
+        Assert.Equal(0.54, ForecastPrison.Mood(mood, 4, 2.1 * Day, Day)!.Value, 12);
+        Assert.Equal(0.54, ForecastPrison.Mood(mood with { Memories = [group with { BedlessRenewal = null }] }, 4, Day, Day)!.Value, 12);
+        // No elapsed bedless period: keep the observed expiry rather than granting a fresh memory.
+        Assert.Equal(0.54, ForecastPrison.Mood(mood, 4, Day)!.Value, 12);
+
+        var renewed = Of(c => [Prisoner(c) with { Resistance = 0.8, Mood = mood }]);
+        var expired = Of(c => [Prisoner(c) with { Resistance = 0.8, Mood = mood with { Memories = [group with { BedlessRenewal = null }] } }]);
+        Assert.True(Assert.Single(renewed.Gains()).Once < Assert.Single(expired.Gains()).Once);
+        Assert.DoesNotContain("prison_bedless_memory_renewal", renewed.Findings());
+    }
+
+    [Fact]
+    public void ConversionDriftAlsoRetainsABedlessMemoryUntilRoomService()
+    {
+        var group = new MemoryGroupRead(1)
+        {
+            Members = [NeedsFixtures.Memory("SleptOnGround", -40, Day / 4, fades: false)],
+            BedlessRenewal = NeedsFixtures.Memory("SleptOnGround", -40, 2 * Day, fades: false),
+        };
+        var prisoner = Bare(0) with
+        {
+            Conversion = Conversion(),
+            Mood = new(0.1, 0) { CellStages = [], Memories = [group] },
+        };
+        var read = NeedsFixtures.NoPrison with { CertaintyDrift = [new(0, 0), new(1, 0.2)] };
+        var converter = new ConversionReductionRead("pawn", 0.25);
+        var renewed = ForecastPrison.Converted(read, prisoner, converter, 0, Day, 10 * Day, 0.45);
+        var expired = ForecastPrison.Converted(read, prisoner with { Mood = prisoner.Mood! with { Memories = [group with { BedlessRenewal = null }] } }, converter, 0, Day, 10 * Day, 0.45);
+        Assert.Equal((2, 2d), renewed);
+        Assert.True(expired.Attempts > renewed.Attempts);
     }
 
     [Fact]

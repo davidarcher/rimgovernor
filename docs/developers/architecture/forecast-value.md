@@ -874,7 +874,10 @@ attempt comes 1,750 ticks after the first. The prisoner's opinion of the warden 
 social thoughts plus its social memory groups (a fading memory's InverseLerp, a cumulative one's day steps) and the rapport, times
 the hediff factor, rounded and clamped as `Pawn_RelationsTracker.OpinionOf`. Its mood at the attempt is its unclamped mood now with
 its prison thought replaced by the room's PrisonCell (one bed) or PrisonBarracks stage and each mood memory group at its fade and
-expiry then (`ForecastPrison.Mood`). An attempt with resistance left lowers it by NegotiationAbility × the mood curve × the opinion
+expiry then (`ForecastPrison.Mood`). Observed ground-sleep, outside-sleep, cold/heat-sleep and no-table memories that a
+bedless prisoner renews keep their fresh native contribution until the room serves, then fade and expire over their full
+duration from that service; unrelated memories age from now. Conversion's mood drift uses the same timeline.
+An attempt with resistance left lowers it by NegotiationAbility × the mood curve × the opinion
 curve; at 0 the next one recruits. A prisoner of another ideoligion that the autopilot converts first
 (`PopulationRules.RecruitIntent` sets Convert, `ForecastCoupledContext.PrisonerPopulation`, #3915) is converted before any of that, in
 the same chat slots (`ForecastPrison.Converted`): a job is three chitchat toils then a `ConvertIdeoAttempt` 1,050 ticks in, which
@@ -906,8 +909,7 @@ required-fact failure. Standing and planned bed anchors share the sleeping censu
 without a bed (`prison_no_recruit`, with `prison_unrecruitable` for a loyal one), no warden (`prison_no_warden`), a prison closing
 no bed (`prison_no_bed`), a prisoner to convert that no warden can convert (`prison_no_converter`) and the review before the first
 layout plan (`prison_awaiting:layout_plan`). Named as not modelled: any applicable trait thought outside the supported native worker families
-(`joiner_situational_trait_thoughts`, #3965), memories a bedless prisoner renews until bedded (`prison_bedless_memory_renewal`,
-#3966), the memories the cell gives over the recruitment (`prison_cell_memories`, #3967) and one inspiration counted for every
+(`joiner_situational_trait_thoughts`, #3965), the memories the cell gives over the recruitment (`prison_cell_memories`, #3967) and one inspiration counted for every
 prisoner (`prison_inspiration_shared`, #3968).
 
 *Classroom credit (#3809).* A planned classroom the outcome serves is credited (`ForecastClassroom.ClassroomCredit`) the lessons

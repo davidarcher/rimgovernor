@@ -649,7 +649,7 @@ internal static class NativeNeedsForecast
     /// unattached thought, 0 when ThoughtUtility.CanGetThought refuses it; a null stage a 0 row with <paramref name="nullStagesInactive"/>
     /// (the worker inactive there), else left out, as is a stage the game cannot price.
     /// </summary>
-    private static void StageRows(List<RimGovernor.Brain.GameFacts.Observations.NeedThoughtStage> rows, Pawn pawn, ThoughtDef? def, string role, bool nullStagesInactive)
+    internal static void StageRows(List<RimGovernor.Brain.GameFacts.Observations.NeedThoughtStage> rows, Pawn pawn, ThoughtDef? def, string role, bool nullStagesInactive)
     {
         if (def?.stages == null) return;
         var can = ThoughtUtility.CanGetThought(pawn, def);

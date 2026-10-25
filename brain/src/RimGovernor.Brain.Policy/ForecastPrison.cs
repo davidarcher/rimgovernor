@@ -91,7 +91,6 @@ public static class ForecastPrison
     /// <summary>The mechanics the credit leaves out, named with each served prison.</summary>
     public static readonly EquatableArray<string> NotModelled =
     [
-        "prison_bedless_memory_renewal", // memories expire from now, though a prisoner renews some until the room beds it (#3966)
         "prison_cell_memories", // the memories the prisoner gains in the cell over the recruitment are not added (#3967)
         "prison_inspiration_shared", // a warden inspiration is counted for every prisoner it could recruit (#3968)
     ];
@@ -140,7 +139,8 @@ public static class ForecastPrison
     /// the prisoner's instant mood (<see cref="Mood"/>) and its opinion of the warden (<see cref="Opinion"/>) at its tick: with
     /// resistance above 0 it lowers it by <see cref="PerChat"/>, at 0 it recruits; a wild man is tamed at the warden's
     /// TameChance instead. The warden's inspiration (<see cref="Inspirations"/>, from its <paramref name="wardenMood"/>) recruits
-    /// or tames at once while it is the recruiting def. Expiry and age count from now (Q4 of #3899). A prisoner to convert
+    /// or tames at once while it is the recruiting def. Recurring bedless mood memories fade and expire from room service
+    /// (#3966); other memories age from now. A prisoner to convert
     /// (<paramref name="converter"/>, the warden whose attempts convert it) is first chatted to a conversion
     /// (<see cref="Converted"/>); its recruit jobs start in the slots after it, and a conversion the served days do not reach leaves
     /// it unrecruited.
@@ -180,7 +180,7 @@ public static class ForecastPrison
             else
             {
                 recruited = inspirations.TakeInspired();
-                resistance = Math.Max(0, resistance - PerChat(read, warden, Mood(prisoner.Mood, cell, attempt), opinionOf.At(attempt)));
+                resistance = Math.Max(0, resistance - PerChat(read, warden, Mood(prisoner.Mood, cell, attempt, servedAt), opinionOf.At(attempt)));
             }
 
             recruited = Math.Min(recruited, alive);
@@ -214,7 +214,7 @@ public static class ForecastPrison
             while (clock < attempt)
             {
                 var step = Math.Min(GameTime.TicksPerHour, attempt - clock);
-                var level = Mood(prisoner.Mood, clock < servedAt ? prisoner.Mood?.CellThought : cell, clock);
+                var level = Mood(prisoner.Mood, clock < servedAt ? prisoner.Mood?.CellThought : cell, clock, servedAt);
                 var perDay = level is { } l ? Curve(read.CertaintyDrift, l, "certainty drift curve") : 0;
                 certainty = Math.Min(1, certainty + (perDay / conversion.ChangeFactor * step / GameTime.TicksPerDay));
                 clock += step;
@@ -230,10 +230,10 @@ public static class ForecastPrison
     /// thought now replaced by the room's <paramref name="cell"/> offset, and each memory group's offset at the tick in place of
     /// now's (<see cref="MoodGroupAt"/>), clamped (Need_Mood.CurInstantLevel); null without a mood need.
     /// </summary>
-    public static double? Mood(PrisonerMoodRead? mood, double? cell, double tick)
+    public static double? Mood(PrisonerMoodRead? mood, double? cell, double tick, double servedAt = 0)
     {
         if (mood is null) return null;
-        var memories = mood.Memories.Sum(g => MoodGroupAt(g, tick) - MoodGroupAt(g, 0));
+        var memories = mood.Memories.Sum(g => MoodGroupAt(g, tick, servedAt) - MoodGroupAt(g, 0));
         return Math.Clamp(mood.UnclampedLevel + (((cell ?? throw new RequiredFactException("prison thought stage")) - mood.CellThought + memories) / 100), 0, 1);
     }
 
@@ -242,10 +242,18 @@ public static class ForecastPrison
     /// permanent one, or one whose remaining ticks are not past), each at its offset now faded by the share of its remaining
     /// ticks left when it fades; the mean of the nonzero ones times Σ multiplier^i over their count.
     /// </summary>
-    public static double MoodGroupAt(MemoryGroupRead group, double tick)
+    public static double MoodGroupAt(MemoryGroupRead group, double tick, double servedAt = 0)
     {
+        // Daily renewal is bounded by service, without inventing a prisoner's native jobs. Price the held recurring group
+        // as a fresh memory until then; at service its full native duration starts. An immediate service renews nothing.
+        var members = group.Members;
+        if (servedAt > 0 && tick > 0 && group.BedlessRenewal is { } renewed)
+        {
+            members = [renewed];
+            tick = Math.Max(0, tick - servedAt);
+        }
         var offsets = new List<double>();
-        foreach (var member in group.Members)
+        foreach (var member in members)
         {
             var offset = member.Life is not MemoryLife.Expires { RemainingTicks: var r } ? member.Offset
                 : tick > r ? 0 : member.Fades && r > 0 ? member.Offset * (r - tick) / r : member.Offset;
