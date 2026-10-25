@@ -22,6 +22,12 @@ internal static class NeedsFixtures
     public static BabyFitsRead NoBabies => new()
     {
         CheckIntervalTicks = 150, RecoveryAwakeTicks = 600,
+        Play = new()
+        {
+            FallPerTick = .00025 / 150, GainPerTick = .0002,
+            Activities = [new("PlayStatic", BabyPlayKind.Static), new("PlayWalking", BabyPlayKind.Walking), new("PlayToys", BabyPlayKind.Toys)],
+            Buildings = [new("ToyBox", "WoodLog", false, 1.25), new("BabyDecoration", "", true, 1.1)],
+        },
         Fits =
         [
             new() { Def = "Crying", MtbDaysByMood = [new(0, .083), new(.25, .166), new(.5, 1), new(.75, 4), new(1, 8)], DurationTicks = 1200, Heard = true },

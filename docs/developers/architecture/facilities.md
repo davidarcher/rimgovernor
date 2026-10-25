@@ -614,9 +614,11 @@ blackboard and school desk only while the room holds no humanlike bed.
 Furniture counts follow the pawns: a bed per newborn or baby (at least the
 game's two) and a toy box, one blackboard and a desk per child. No playroom
 is planned (#3809): the babies' toy stands in the nursery. The nursery is
-priced by the crying and giggling it moves away from the colonists
-(forecast-value.md, Nursery, #3854); the babies' play is named not modelled
-(`nursery_play`). The classroom is priced by the lessons it
+priced by crib rest, the crying and giggling it moves away from the colonists,
+and caretaker play time saved by its toy box and decorations
+([Nursery credit](forecast-value.md), #3854, #3940). Play credits use the lower
+bound of verified decoration exposure; findings disclose the full savings range.
+The classroom is priced by the lessons it
 seats (forecast-value.md, Classroom).
 
 The babies' play buildings (#3837) are read, not listed: a baby's play need

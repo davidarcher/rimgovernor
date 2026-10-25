@@ -386,6 +386,7 @@ public sealed partial record ForecastCoupledCandidates
             ResearchBenchSpeeds = facts.ResearchBenchSpeeds,
             LaboratoryBench = facts.LaboratoryBench,
             PlannedBeds = ForecastHousing.PlannedBedsOf(allPlannedSites, facts.SleepingBeds),
+            NurserySites = EquatableArray.From(allPlannedSites.Where(s => s.Op == OpKind.Build && facts.PlannedShelters.Any(r => r.Id == s.Room && r.Role == PlannedRole.Nursery))),
             ComfortCurve = facts.ComfortCurve,
             HospitalBed = facts.HospitalBed,
             Stock = facts.StockArrival,

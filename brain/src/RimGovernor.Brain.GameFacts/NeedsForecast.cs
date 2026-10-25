@@ -96,6 +96,8 @@ public sealed record TaughtSkillRead(string Skill, SkillLearning Learning);
 /// </summary>
 public sealed record BabyFitsRead
 {
+    /// <summary>Loaded play activities, refill/fall mechanics and normal-quality building stats; null without Biotech.</summary>
+    public required BabyPlayMechanicsRead? Play { get; init; }
     public required double CheckIntervalTicks { get; init; }
     public required double RecoveryAwakeTicks { get; init; }
     /// <summary>Every <c>MentalFitDef</c> whose <c>developmentalStageFilter</c> holds Baby, in def order. Empty without Biotech.</summary>
@@ -126,6 +128,8 @@ public sealed record BabyFitRead
 /// </summary>
 public sealed record BabyRead
 {
+    /// <summary>Null when the baby has no play need; otherwise its native play opportunities.</summary>
+    public required BabyPlayRead? Play { get; init; }
     public required string Pawn { get; init; }
     /// <summary>The native sleeping surface without the nursery's beds; ground is named by an empty Bed, as NeedSleep.</summary>
     public required NeedSleep SleepWithoutNursery { get; init; }
@@ -136,6 +140,35 @@ public sealed record BabyRead
     [JsonConverter(typeof(EquatableArrayJsonConverter<BabyHearerRead>))]
     public required EquatableArray<BabyHearerRead> Hearers { get; init; }
 }
+/// <summary>A native baby-play giver, classified by its actual worker implementation.</summary>
+public enum BabyPlayKind { Static, Walking, Toys }
+public sealed record BabyPlayActivityRead(string Def, BabyPlayKind Kind);
+/// <summary>Normal-quality BabyPlayGainFactor for a building/stuff pair; Decoration distinguishes room multipliers from toy sources.</summary>
+public sealed record BabyPlayBuildingRead(string Def, string Stuff, bool Decoration, double GainFactor);
+public sealed record BabyPlayMechanicsRead
+{
+    public required double FallPerTick { get; init; }
+    public required double GainPerTick { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<BabyPlayActivityRead>))]
+    public required EquatableArray<BabyPlayActivityRead> Activities { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<BabyPlayBuildingRead>))]
+    public required EquatableArray<BabyPlayBuildingRead> Buildings { get; init; }
+}
+/// <summary>A baby with a play need. Empty Carers means none can reach it and perform static play now.</summary>
+public sealed record BabyPlayRead
+{
+    /// <summary>The observed active play carer; empty when no play job currently targets this baby.</summary>
+    public required string OngoingCarer { get; init; }
+    public required double RoomFactor { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<BabyPlayCarerRead>))]
+    public required EquatableArray<BabyPlayCarerRead> Carers { get; init; }
+}
+/// <summary>Per carer, usable toy source and its room decoration factor, both now and excluding the nursery's furniture.
+/// Walking decoration factors enclose every reachable room and retain 1 as a deliberately loose absence bound;
+/// endpoints need not be attainable. They do not assert a stationary walk.</summary>
+public sealed record BabyPlayCarerRead(string Pawn, BabyPlaySourceRead? Toy, BabyPlaySourceRead? ToyWithoutNursery,
+    double WalkingMinFactor, double WalkingMaxFactor, double WalkingWithoutNurseryMinFactor, double WalkingWithoutNurseryMaxFactor);
+public sealed record BabyPlaySourceRead(double GainFactor, double MinRoomFactor, double MaxRoomFactor);
 /// <summary>
 /// A colonist who hears a baby: with the doors as they are now (<see cref="Now"/>), with the doors of the baby's nursery open
 /// (<see cref="NurseryOpen"/>; as <see cref="Now"/> for a baby in no nursery), and the memory each heard fit gives it.

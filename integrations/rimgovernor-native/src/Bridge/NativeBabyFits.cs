@@ -28,6 +28,7 @@ internal static class NativeBabyFits
             .Select(p => Baby(p, map, fits, colonists)).ToArray();
         return new()
         {
+            Play = NativeBabyPlay.Mechanics(),
             CheckIntervalTicks = Const("CheckInterval"), RecoveryAwakeTicks = Const("MinTicksSinceRecoveryToHaveFit"),
             Fits = EquatableArray.From(fits.Select(f => new RimGovernor.Brain.GameFacts.Observations.BabyFitRead
             {
@@ -61,6 +62,7 @@ internal static class NativeBabyFits
         return new()
         {
             Pawn = baby.GetUniqueLoadID(), Fits = EquatableArray.From(can.Select(f => f.defName)), InNursery = nursery,
+            Play = NativeBabyPlay.Read(baby, map, nursery ? room : null),
             SleepWithoutNursery = NativeNeedsForecast.SleepWithoutNursery(baby, map, nursery ? room : null),
             Hearers = EquatableArray.From(hearers),
         };

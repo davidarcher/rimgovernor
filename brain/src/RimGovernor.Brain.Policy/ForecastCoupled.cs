@@ -152,6 +152,8 @@ public sealed record ForecastCoupledContext
     /// def is a sleeping bed (ReviewFacts.SleepingBeds), null for a bed def whose stuff has no row. A room without a row plans no bed.
     /// </summary>
     public IReadOnlyDictionary<int, IReadOnlyList<SleepingBedFacts?>> PlannedBeds { get; init; } = new Dictionary<int, IReadOnlyList<SleepingBedFacts?>>();
+    /// <summary>The canonical planned Build sites in nurseries, used to price play sources and decoration exposure.</summary>
+    public EquatableArray<PlannedBuildSite> NurserySites { get; init; }
     /// <summary>The comfort need's NeedDef curve (ReviewFacts.ComfortCurve, #3840) the bedroom credit's comfort term runs; unknown by default.</summary>
     public NeedCurve ComfortCurve { get; init; }
     /// <summary>The planned deathrest chamber's caskets and other deathrest buildings as the staging resolves them (#3810,

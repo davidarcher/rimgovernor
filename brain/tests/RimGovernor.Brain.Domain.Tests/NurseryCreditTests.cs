@@ -28,6 +28,7 @@ public sealed class NurseryCreditTests
     private static BabyRead Baby(string pawn = "baby", bool inNursery = false, bool now = true, bool open = true, bool parent = false) => new()
     {
         Pawn = pawn, Fits = ["Crying", "Giggling"], InNursery = inNursery,
+        Play = null,
         SleepWithoutNursery = new("", false, true, 3e-5, 0, 21),
         Hearers = now || open ? [new() { Pawn = "pawn", Now = now, NurseryOpen = open, Memories = [.. Memories(parent)] }] : [],
     };
@@ -261,6 +262,28 @@ public sealed class NurseryCreditTests
     }
 
     [Fact]
+    public void PlaySavingsReachTheCaretakersNurseryInvestmentRow()
+    {
+        var baby = Baby(now: false, open: false) with { Fits = [], Play = new()
+        {
+            OngoingCarer = "pawn", RoomFactor = 1, Carers = [new("pawn", null, null, 1, 1, 1, 1)],
+        } };
+        var context = Context(Read(baby)) with
+        {
+            NurserySites = [new("toy", 1, OpKind.Build, "ToyBox", "WoodLog", Rotation.North, [new(1, 1)])],
+        };
+        var gain = Assert.Single(Gains(context));
+        Assert.Equal("pawn", gain.Pawn);
+        Assert.True(gain.PerDay > 0);
+        Assert.DoesNotContain("nursery_play", Findings(context));
+        var rows = new List<ForecastInvestmentContribution>();
+        PlannedRoomCredits.Credit(Outcome(context), [], context, Day, rows, new SortedSet<string>(StringComparer.Ordinal));
+        var row = Assert.Single(rows);
+        Assert.Equal("nursery/1/play/baby", row.Key);
+        Assert.Equal(-gain.PerDay * (Horizon - 2), row.Value, 12);
+    }
+
+    [Fact]
     public void TheCoupledContextCarriesTheBabyFitsTheRoundsRead()
     {
         // The production path (#3822): GenerateCoupledActivities builds the context from the review's facts; the babies, their
@@ -273,7 +296,7 @@ public sealed class NurseryCreditTests
         {
             MoodBreak = ForecastValueTests.Context(needs.Pawns[0]).MoodBreaks,
             PlannedShelters = [new() { Id = 1, Role = PlannedRole.Nursery, Region = RegionRules.RectRegion(new(1, 1, 1, 1)) }],
-            PlannedSites = new() { Roles = [(1, PlannedRole.Nursery)], Sites = [new("crib", 1, OpKind.Build, "Crib", "WoodLog", Rotation.North, [new(1, 1)])] },
+            PlannedSites = new() { Roles = [(1, PlannedRole.Nursery)], Sites = [new("crib", 1, OpKind.Build, "Crib", "WoodLog", Rotation.North, [new(1, 1)]), new("toy", 1, OpKind.Build, "ToyBox", "WoodLog", Rotation.North, [new(2, 1)])] },
             SleepingBeds = [new("Crib", "WoodLog", false, 1, .75)],
             ForecastObserved = review.ForecastObserved with { Needs = needs with { Pawns = [.. needs.Pawns, BabyRow()], Babies = babies } },
         };
@@ -282,6 +305,7 @@ public sealed class NurseryCreditTests
         Assert.Equal(PlannedRole.Nursery, context.PlannedRoomRoles[1]);
         Assert.True(context.Priced(1));
         Assert.Equal("Crib", Assert.Single(context.PlannedBeds[1])!.Def);
+        Assert.Contains(context.NurserySites, s => s.Id == "toy");
         var shift = Assert.Single(PlannedRoomCredits.BreakShifts(context)[hearer]);
         Assert.True(shift < 0);
         Assert.Equal(.25, ForecastNursery.NurseryCredit(Served, Outcome(context), [], context, Day).Single(g => g.Pawn == "baby").PerDay, 12);

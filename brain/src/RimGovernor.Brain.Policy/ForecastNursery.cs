@@ -47,7 +47,6 @@ public static class ForecastNursery
     /// <summary>The mechanics the credit leaves out, named with each served nursery.</summary>
     public static readonly EquatableArray<string> NotModelled =
     [
-        "nursery_play", // #3940: the toy box's BabyPlayGainFactor and a BabyDecoration's: the caretaker ticks they save
         "nursery_baby_mood", // #3941: outcome-dependent room/rest mood trajectories beyond the crib comfort difference
         "nursery_disturbed_sleep", // #3942: a cry's SleepDisturbed memory on a sleeping colonist in reach
         "nursery_baby_opinion", // #3943: the BabyCriedSocial and BabyGiggledSocial opinion memories
@@ -63,7 +62,7 @@ public static class ForecastNursery
         return [.. read.Moods.Keys.Concat(read.Rest.Keys).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
             .Select(pawn => new RoomGain(pawn, pawn, (read.Moods.TryGetValue(pawn, out var mood)
                 ? PlannedRoomCredits.MoodGain(mood.With, pawn, outcome, context, horizon)
-                    - PlannedRoomCredits.MoodGain(mood.Without, pawn, outcome, context, horizon) : 0) + read.Rest.GetValueOrDefault(pawn)))];
+                    - PlannedRoomCredits.MoodGain(mood.Without, pawn, outcome, context, horizon) : 0) + read.Rest.GetValueOrDefault(pawn))), .. read.Play];
     }
 
     /// <summary>The findings (<see cref="RoomFindings"/>): what the credit leaves out and the room's named states.</summary>
@@ -162,6 +161,7 @@ public static class ForecastNursery
     private sealed record Heard(IReadOnlyDictionary<string, (double With, double Without)> Moods, IReadOnlyDictionary<string, double[]> Shifts, string[] States)
     {
         public IReadOnlyDictionary<string, double> Rest { get; init; } = new Dictionary<string, double>();
+        public IReadOnlyList<RoomGain> Play { get; init; } = [];
     }
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledContext, Heard> Cache = new();
@@ -177,6 +177,7 @@ public static class ForecastNursery
         var without = new Dictionary<string, List<(HeardMemoryRead, double)>>(StringComparer.Ordinal);
         var ownMood = new Dictionary<string, (double With, double Without)>(StringComparer.Ordinal);
         var restDays = new Dictionary<string, double>(StringComparer.Ordinal);
+        var playDays = new List<RoomGain>();
         var beds = context.PlannedBeds.GetValueOrDefault(Taker(context)) ?? [];
         var babyIndex = 0;
         static void Add(Dictionary<string, List<(HeardMemoryRead, double)>> into, string pawn, HeardMemoryRead memory, double rate)
@@ -203,6 +204,8 @@ public static class ForecastNursery
                 throw new RequiredFactException("baby rest rates:" + baby.Pawn);
             var freed = ForecastHousing.RestDaysFreed(rest, now.GainPerTick, gain);
             if (freed != 0) restDays[baby.Pawn] = freed;
+            if (ForecastBabyPlay.Of(baby, babyIndex - 1, Taker(context), context, states) is { } play && play.Lower != 0)
+                playDays.Add(new("play/" + baby.Pawn, play.Carer, play.Lower));
             // Comfort is separate from rest effectiveness. Vanilla babies have no comfort need (NeedDef's default
             // stage filter is Child|Adult); an absent comfort thought therefore changes neither mood nor fit rate.
             var comfort = ForecastHousing.ComfortMood(row, comfortLevel, context.ComfortCurve)
@@ -235,6 +238,6 @@ public static class ForecastNursery
             moods[pawn] = (heardMood.With + delta.With, heardMood.Without + delta.Without);
         }
         var shifts = moods.ToDictionary(m => m.Key, m => new[] { m.Value.With / 100, m.Value.Without / 100 }.Where(s => s != 0).Distinct().Order().ToArray(), StringComparer.Ordinal);
-        return new(moods, shifts, [.. states]) { Rest = restDays };
+        return new(moods, shifts, [.. states]) { Rest = restDays, Play = playDays };
     }
 }

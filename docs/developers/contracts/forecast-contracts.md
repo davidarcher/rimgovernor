@@ -459,7 +459,12 @@ unknown. What the game does not have is a case, never an unknown:
   sleep reader excluding that nursery's beds; an empty bed id names ground), and the colonists with a mood its clamor reaches (`GenClamor.DoClamor`'s region walk through
   open doors, `BabyScreamRadius × Hearing`) now and with that nursery's doors open, each with the memory it would gain per
   fit (the My* def for a parent, `ThoughtUtility.CanGetThought`): offset, duration, `stackLimit` and
-  `stackedEffectMultiplier`.
+  `stackedEffectMultiplier`. Its `Play` mechanics (#3940) read the loaded play giver kinds, refill/fall rates and
+  per-stuff building gain factors (null without Biotech). Each baby's `Play` is null for no play need; otherwise it
+  names the observed ongoing play carer (empty for no play job), the actual static room factor and each eligible carer's usable toy source with and without nursery
+  furniture, plus decoration exposure bounds across reachable rooms. Walking and toy-drop exposure stays a
+  range; a read never samples random jobs or changes the game to obtain it. The pure nursery credit takes the
+  lower savings bound and publishes both ends in its findings ([play valuation](../architecture/forecast-value.md)).
 
 The brain mirrors the game literals these mechanics use; each constant cites its
 1.7 member ([kept constants](kept-constants.md#mirrored-game-literals-3339)).

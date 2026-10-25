@@ -962,6 +962,40 @@ override it. This is `nursery_baby_no_comfort_need`, with zero comfort mood effe
 uses the shared housing comfort term, which also feeds its fit mood input. Missing sleeping surfaces, planned crib stats or
 rest rates throw `RequiredFactException`; they never substitute ground or zero credit for an unread fact.
 
+The nursery also credits caretaker play time (#3940), under `play/<baby>`, naming the observed ongoing carer when
+one exists. With no current play job it uses a shared row and bounds every eligible carer's alternative; it does
+not assign a carer by sorting. `NativeBabyPlay` reads `Need_Play.BaseFallPerInterval / 150`, `BabyPlayUtility.PlayPerTick`, the
+loaded `BabyPlayDef` giver kinds, normal-quality per-stuff `BabyPlayGainFactor` stats and usable toy sources with and
+without the nursery. A baby without a play need is `nursery_baby_no_play_need`; no eligible carer is `nursery_no_play_carer`.
+Static and walking play have no source multiplier; toys multiply the refill by the source's observed/projected stat.
+`GetRoomPlayGainFactors` applies the first decoration within 9.9 cells in the baby's non-huge room, without stacking.
+Planned static play uses its crib's position; a standing nursery uses its observed multiplier. Missing mechanics, source
+stuff stats or needed planned positions raise `RequiredFactException`.
+
+`WorkGiver_PlayWithBaby` tries the defs in random order, so each viable activity has an equal probability per job.
+The time average therefore uses each job's refill duration, rather than the arithmetic mean of refill rates. For play
+fall `f` and gross activity gains `g`, the caretaker's play share is `r / (1 + r)`, where `r = f × mean(1 / (g - f))`;
+the refill deficit from the low threshold to full cancels. Play falls while asleep too. The credit is the play share
+without the nursery minus its share with it, summed across babies; rest credit remains the baby's own capability.
+The comparison prices refill ticks rather than forecasting setup, travel or the adult's changing recreation need.
+An active native play job supplies the observed allocation (`nursery_play_carer:<baby>:<carer>`); otherwise
+`nursery_play_carer_unassigned:<baby>` discloses that only shared caretaker time is valued. The lower bound takes
+the least without-room care time minus the greatest with-room care time across eligible carers; the upper bound
+reverses those extrema. This permits different carers in the two scenarios rather than inventing a persistent
+assignment. An arbitrary adult never receives the shared credit.
+
+Walking can leave the nursery over multiple random legs, and `PlayToys` drops the baby at a random nearby cell.
+Their decoration multipliers therefore retain verified lower/upper enclosures across reachable rooms, extended by
+planned decorations. The enclosure deliberately retains absence multiplier 1 even where tighter geometry could
+exclude it: its endpoints need not be attainable. Exact static exposure still values decoration-only improvements.
+A carried baby's room follows `PositionHeld` while
+the native decoration distance uses its pickup `Position`; no fixed walking position or invented average multiplier
+is used. Projected multiple decorations with differing stats also retain their first-match range. The room receives
+the lower bound of caretaker savings (best without minus worst with), while
+`nursery_play_savings:<baby>:<lower>..<upper>` records both ends in caretaker-days per day and
+`nursery_play_exposure_bounded` identifies a nonzero interval. Decoration-free intervals collapse to the exact random
+activity calculation. Bounds deliberately permit pessimism when the actual route or drop is not yet determined.
+
 *Dining and rec credits (#3803).* A planned dining or rec room the outcome serves is credited (`ForecastRoomThoughts.DiningCredit`,
 `RecCredit`) the impressive-room memory it gives, per colonist under `dining/<room>/<pawn>` or `rec/<room>/<pawn>`.
 `Toils_Ingest.FinalizeIngest` gains `AteInImpressiveDiningRoom`, and `JoyUtility.TryGainRecRoomThought` (as a joy job ends)
