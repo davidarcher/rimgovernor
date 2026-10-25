@@ -14,7 +14,7 @@ public static class AcceptanceCommand
           acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [-tier nightly|smoke] [<case>|<area>/...]...
           acceptance stop -root <dir> [-game <id>]
           acceptance run [flags] <case>|<area>/...   (acceptance run -help)
-          acceptance why | suite | plan | warm | fixture | fetch-fixture | profile-capture | profile-compare | sweep | colony | colony-review | speedmatrix | baseline   (<subcommand> -help)
+          acceptance why | suite | plan | warm | fixture | fetch-fixture | profile-capture | sweep | colony | colony-review | speedmatrix | baseline   (<subcommand> -help)
           acceptance setup ... (acceptance setup -help)
           acceptance doctor -root <dir> [-output <dir> -game <id> -worktree <dir> -heal]
           acceptance prune -output <dir> [-keep n -dry-run]
@@ -77,8 +77,6 @@ public static class AcceptanceCommand
                 return await SpeedMatrixCommand.RunAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
             case "baseline":
                 return await BaselineCommand.RunAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
-            case "profile-compare":
-                return await ProfileCompareCommand.RunAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
             case "prune":
                 return await AcceptancePrune.RunAsync(rest, stdout, stderr, cancellationToken).ConfigureAwait(false);
             default:

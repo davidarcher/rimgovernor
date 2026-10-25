@@ -23,7 +23,6 @@ Acceptance/Native/HttpNativeTransport.cs|HttpNativeTransport.ReadFailure
 Acceptance/Postmortem/Postmortems.cs|Postmortems.Collect
 Acceptance/Postmortem/Postmortems.cs|Postmortems.TryKill
 Acceptance/Postmortem/Postmortems.Store.cs|PostmortemStore.UnsuccessfulStages
-Acceptance/Profiling/ProfileCompareCommand.cs|ProfileCompareCommand.RunAsync
 Acceptance/Runner/CaseRunner.cs|CaseRunner.Diagnose
 Acceptance/Service/Serve.cs|ServiceProcess.AssertStoppedAsync
 Acceptance/Service/Serve.cs|ServiceProcess.StopAsync

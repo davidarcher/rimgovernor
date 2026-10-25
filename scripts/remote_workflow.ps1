@@ -1,11 +1,9 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)][ValidateSet('authorize','gate','plan','execute','collect','profile','factory','review')][string]$Phase,
+    [Parameter(Mandatory)][ValidateSet('authorize','gate','plan','execute','collect','factory','review')][string]$Phase,
     [string]$Evidence = 'C:\rg\evidence',
     [string]$Repo = "$env:GITHUB_WORKSPACE\tested",
     [string]$Shard = '',
-    [string]$Bundle = '',
-    [int]$Count = 50,
     [string]$Rg = 'C:\rg\rg.exe'
 )
 $ErrorActionPreference = 'Stop'
@@ -86,7 +84,7 @@ function Resolve-Source($Event) {
             $head = (Invoke-API "repos/$env:GITHUB_REPOSITORY/commits/$encoded").sha
         }
     }
-    # fixture-factory.yml, snapshot-perf.yml and colony-review.yml run no case (REMOTE_GENERATOR).
+    # fixture-factory.yml and colony-review.yml run no case (REMOTE_GENERATOR).
     if ($env:REMOTE_GENERATOR) { $tier = 'generator'; $shards = 1; $cases = @() }
     if ($head -cnotmatch '^[0-9a-f]{40}$' -or $head -eq ('0'*40) -or $tier -notin @('smoke','nightly','cases','generator') -or
         $shards -lt 1 -or $shards -gt 32) { throw 'Invalid source, tier or shard limit' }
@@ -263,17 +261,6 @@ switch ($Phase) {
             foreach ($role in $roles) { & "$PSScriptRoot/cleanup_remote.ps1" -Work "C:\rg\$role" }
         }
         if ($bad) { throw 'One or more native cases failed; export retains their diagnostics' }
-    }
-    'profile' {
-        # snapshot-perf.yml: time SnapshotFrames.Capture on a fetched
-        # fixture-factory bundle on a fixture-role layout.
-        if (-not (Test-Path -LiteralPath $Bundle -PathType Container)) { throw 'Wrong bundle input' }
-        Invoke-FixtureRole {
-            param($boot)
-            $out = & $boot.tool acceptance profile-capture -root $boot.root -from $Bundle -n $Count -json -timeout 20m
-            if ($LASTEXITCODE) { throw "profile-capture failed: $out" }
-            [IO.File]::WriteAllText((Join-Path $Evidence 'profile.json'), ($out -join "`n") + "`n")
-        }
     }
     'factory' {
         # fixture-factory.yml: the colony generator on a fixture-role layout. Its

@@ -37,7 +37,7 @@ public sealed class ProfileStat
 /// <summary>
 /// What profile-capture reports: per-span stats of the op's captures. Its JSON form (count,
 /// tick, frameBytes, pawns, things, total, families, details, and equality when present) is profile-capture's -json
-/// output and a nightly record's profile; absent fields read back as zero.
+/// output.
 /// </summary>
 public sealed class ProfileSummary
 {
