@@ -424,8 +424,8 @@ public sealed record RoundsFacts
     /// <summary>The keys of the tradeable traders whose sheet the offer book has no fresh record of (TradeRecovered's always-browse session); empty until the food plan marks them.</summary>
     public EquatableArray<string> UnpricedTraders { get; init; } = [];
 
-    /// <summary>The food/blight Need's blighted-plant census (the colony read's plant things of the planning window), for BlightDeficit to detect and SelectBlightCuts to designate from.</summary>
-    public Fact<EquatableArray<BlightedPlant>> Blight { get; init; }
+    /// <summary>The total visible blighted-plant census, for BlightDeficit to detect and SelectBlightCuts to designate from.</summary>
+    public EquatableArray<BlightedPlant> Blight { get; init; }
 
     /// <summary>Counts the owned stockpile zones by role kind for the colony status census; empty without an owned zone.</summary>
     public EquatableArray<StockpileRoleCount> StockpileZones { get; init; }

@@ -552,6 +552,8 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(Observations.StorageOccupancySnapshot), TypeInfoPropertyName = "ObservationsStorageOccupancySnapshot")]
 [JsonSerializable(typeof(Observations.StorageOccupancyRequest), TypeInfoPropertyName = "ObservationsStorageOccupancyRequest")]
 [JsonSerializable(typeof(Observations.WasteItem), TypeInfoPropertyName = "ObservationsWasteItem")]
+[JsonSerializable(typeof(Observations.BlightSnapshot), TypeInfoPropertyName = "ObservationsBlightSnapshot")]
+[JsonSerializable(typeof(Observations.BlightedPlantState), TypeInfoPropertyName = "ObservationsBlightedPlantState")]
 [JsonSerializable(typeof(Observations.WasteSnapshot), TypeInfoPropertyName = "ObservationsWasteSnapshot")]
 [JsonSerializable(typeof(EquatableArray<Observations.WasteItem>), TypeInfoPropertyName = "EquatableArrayObservationsWasteItem")]
 [JsonSerializable(typeof(Observations.RecoveryRestriction), TypeInfoPropertyName = "ObservationsRecoveryRestriction")]

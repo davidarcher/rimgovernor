@@ -97,10 +97,6 @@ public static class ColonyReads
             }
         }
         projection = await ZonesReads.FillZones(source as IZonesNative, id, expected, projection, cancellationToken).ConfigureAwait(false);
-        if (planning)
-        {
-            projection = projection with { Facts = projection.Facts with { Blight = ColonyFramesReads.BlightCensus(projection) } };
-        }
         // The gear census follows the zones: its bill options' stuff arrivals count the growing fields.
         if (gearDefs is not null)
         {

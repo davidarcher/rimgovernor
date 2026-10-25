@@ -172,8 +172,8 @@ Observation/Colony.cs|Fact|63
 Observation/Colony.cs|Unknown|3
 Observation/ColonyDecode.cs|Fact|16
 Observation/ColonyDecode.cs|Unknown|2
-Observation/ColonyFrames.cs|Fact|10
-Observation/ColonyFrames.cs|Unknown|2
+Observation/ColonyFrames.cs|Fact|8
+Observation/ColonyFrames.cs|Unknown|1
 Observation/ColonyGear.cs|Fact|14
 Observation/ColonyGear.cs|Unknown|3
 Observation/ColonyProduction.cs|Fact|25
@@ -279,7 +279,7 @@ Policy/FirebreakRing.cs|Fact|1
 Policy/Flooring.cs|Fact|19
 Policy/Flooring.cs|UnknownMember|1
 Policy/Flooring.cs|ValueOrDefault|3
-Policy/Food.cs|Fact|12
+Policy/Food.cs|Fact|9
 Policy/FoodOrders.cs|Discard|1
 Policy/FoodOrders.cs|Fact|1
 Policy/FoodPlan.cs|Fact|33
@@ -421,7 +421,7 @@ Policy/Ritual.cs|Unknown|1
 Policy/RoomQualityBeauty.cs|Fact|3
 Policy/RoomsFamily.cs|Fact|16
 Policy/Rounds.cs|Discard|1
-Policy/Rounds.cs|Fact|96
+Policy/Rounds.cs|Fact|95
 Policy/Rounds.cs|Unknown|4
 Policy/RoundsImmediate.cs|Fact|1
 Policy/RoundsReviewFacts.cs|Fact|7

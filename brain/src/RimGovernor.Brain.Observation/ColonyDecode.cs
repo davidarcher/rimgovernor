@@ -396,7 +396,7 @@ public static class ColonyDecodeReads
                 Roamers = AnimalUpkeepReads.ColonyRoamers(v),
             },
         };
-        f = f with { Waste = ColonyFramesReads.ColonyWaste(v, tables), Biotech = v.Biotech };
+        f = f with { Waste = ColonyFramesReads.ColonyWaste(v, tables), Blight = ColonyFramesReads.BlightCensus(v, tables), Biotech = v.Biotech };
         f = f with { Upkeep = ColonyUpkeepReads.ColonyUpkeep(v, tables, catalog) };
         f = f with { OutdoorsDark = outdoorsDark };
         f = f with { MedicalReserve = ColonyFramesReads.ColonyMedicalReserve(v, tables, catalog) };

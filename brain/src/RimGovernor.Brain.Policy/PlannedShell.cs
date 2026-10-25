@@ -65,12 +65,10 @@ public sealed partial record SiteCell
     /// </summary>
     public required CellRoom Room { get; init; }
 
-    // The per-cell thing list and the tile columns that join it. Terrain names the terrain def; InHome is
-    // inside the home area; BaseTerrain names the terrain def under a floor or bridge; its affordances are
+    // The per-cell thing list and the tile columns that join it. Terrain names the terrain def;
+    // BaseTerrain names the terrain def under a floor or bridge; its affordances are
     // what a foundation may stand on.
     public required string Terrain { get; init; }
-
-    public required bool InHome { get; init; }
 
     public required string BaseTerrain { get; init; }
 

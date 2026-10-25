@@ -310,7 +310,7 @@ public sealed class FoodFamilyTests
     private static BlightedPlant Blighted(string id, int x, bool designated = false, bool eligible = true) =>
         new() { ID = id, Definition = "Plant_Rice", Cell = new(x, 3), Designated = designated, Eligible = eligible };
 
-    private static FoodFacts Census(params BlightedPlant[] plants) => new() { Blight = Known<EquatableArray<BlightedPlant>>([.. plants]) };
+    private static FoodFacts Census(params BlightedPlant[] plants) => new() { Blight = [.. plants] };
 
     [Fact]
     public void TheBabyFeedingNeedIsUnmetWhileBabyFoodIsShort()
@@ -333,7 +333,7 @@ public sealed class FoodFamilyTests
     }
 
     [Fact]
-    public void TheBlightNeedIsUnmetWhileABlightedPlantStandsAndUnknownUnread()
+    public void TheBlightNeedIsUnmetWhileABlightedPlantStands()
     {
         var clear = BlightOf(Census());
         Assert.Equal((FoodRules.BlightNeed, NeedTier.Wellbeing, Satisfaction.Met, 0.0), (clear.Id, clear.Tier, clear.Satisfaction, clear.Deficit));
@@ -342,8 +342,8 @@ public sealed class FoodFamilyTests
         var standing = BlightOf(Census(Blighted("plant-1", 1, designated: true)));
         Assert.Equal((Satisfaction.Unmet, 1.0), (standing.Satisfaction, standing.Deficit));
 
-        Assert.Equal("blight census", Assert.Throws<RequiredFactException>(() => BlightOf(new())).Fact);
-        var all = SupplyFacts() with { Cooking = false, BabyFeeding = new BabyFeeding { Breastfed = true }, Blight = Known<EquatableArray<BlightedPlant>>([]) };
+        Assert.Equal(Satisfaction.Met, BlightOf(new()).Satisfaction);
+        var all = SupplyFacts() with { Cooking = false, BabyFeeding = new BabyFeeding { Breastfed = true }, Blight = [] };
         Assert.Equal([FoodRules.FoodSupplyNeed, FoodRules.CookingNeed, FoodRules.BabyFeedingNeed, FoodRules.BlightNeed], new FoodFamily(true, true, true, true).Derive(all).Select(n => n.Id));
     }
 

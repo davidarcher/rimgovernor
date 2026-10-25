@@ -26,7 +26,6 @@ internal static class SiteCellFixtures
         ZoneId = null,
         Room = CellRoom.Outside,
         Terrain = "Soil",
-        InHome = false,
         BaseTerrain = "Soil",
         FoundationRemoval = false,
         Things = [],

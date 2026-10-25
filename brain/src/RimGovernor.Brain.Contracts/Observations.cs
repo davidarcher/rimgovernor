@@ -3489,6 +3489,21 @@ public sealed record WasteSnapshot
     public required EquatableArray<WasteItem> Items { get; init; }
 }
 
+/// <summary>A visible blighted plant on growing-zone or home ground.</summary>
+public sealed record BlightedPlantState
+{
+    public required Common.Ref Thing { get; init; }
+
+    public required bool Designated { get; init; }
+}
+
+/// <summary>The total blight census, independent of the planning window.</summary>
+public sealed record BlightSnapshot
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<BlightedPlantState>))]
+    public required EquatableArray<BlightedPlantState> Plants { get; init; }
+}
+
 /// <summary>One free colonist's player area restriction on the map.</summary>
 public sealed record RecoveryRestriction
 {
@@ -7258,6 +7273,8 @@ public sealed record ColonyFactsSnapshot
     public required RecoverySnapshot Recovery { get; init; }
 
     public required WasteSnapshot Waste { get; init; }
+
+    public required BlightSnapshot Blight { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
     public EquatableArray<ReadIssue> Issues { get; init; }

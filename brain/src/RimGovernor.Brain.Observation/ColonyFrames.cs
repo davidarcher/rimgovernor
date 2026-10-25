@@ -120,40 +120,21 @@ public static class ColonyFramesReads
         return EquatableArray.From(items);
     }
 
-    /// <summary>
-    /// Lists the blighted plants on colony ground from the planning window's thing lists: a plant thing with
-    /// blighted state on a growing zone or the home area. It is unknown (never "no blight") until the window and
-    /// the zone section are both held. A cell the window does not hold (fogged) has no plant to see.
-    /// </summary>
-    internal static Fact<EquatableArray<BlightedPlant>> BlightCensus(ColonyProjection p)
+    /// <summary>Decodes the total visible blight census; absent sections and unresolved plants fail the contract.</summary>
+    internal static EquatableArray<BlightedPlant> BlightCensus(O.ColonyFactsSnapshot snapshot, Tables tables)
     {
-        if (p.Region == default || p.Zones is not { Complete: true })
+        var census = snapshot.Blight ?? throw new BridgeContractException("blight census is absent");
+        var plants = new List<BlightedPlant>(census.Plants.Count);
+        foreach (var row in census.Plants)
         {
-            return Unknown<EquatableArray<BlightedPlant>>();
-        }
-        var farms = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var farm in p.Farms)
-        {
-            farms.Add(farm.Id);
-        }
-        var plants = new List<BlightedPlant>();
-        foreach (var cell in p.Cells)
-        {
-            var zone = cell.ZoneId is { } id && farms.Contains(id) ? id : "";
-            if (zone == "" && !cell.InHome)
+            var entity = tables.Entity(row.Thing) ?? throw new BridgeContractException($"blighted plant {row.Thing.Id}: the frame holds no row for it");
+            if (entity.Place is not O.EntityPlace.OnMap { Cell: { } cell })
             {
-                continue;
+                throw new BridgeContractException($"blighted plant {entity.Id}: the plant is not on the map");
             }
-            foreach (var thing in cell.Things)
-            {
-                if (thing.Category != ThingCategory.Plant || !thing.Plant.Blighted || thing.Id == 0)
-                {
-                    continue;
-                }
-                plants.Add(new BlightedPlant { ID = thing.LoadId(), Definition = thing.Def, Cell = cell.Cell, Designated = thing.Has(ThingMarks.Designated), Eligible = true });
-            }
+            plants.Add(new BlightedPlant { ID = entity.Id, Definition = entity.DefName, Cell = new Cell(cell.X, cell.Z), Designated = row.Designated, Eligible = true });
         }
-        return Known(EquatableArray.From(plants));
+        return EquatableArray.From(plants);
     }
 
     /// <summary>

@@ -12,8 +12,8 @@ public sealed record FoodFacts
     /// <summary>The babies' food against their need (<see cref="RoundsFacts.BabyFeeding"/>); the empty review without Biotech baby care.</summary>
     public BabyFeeding BabyFeeding { get; init; } = new();
 
-    /// <summary>The blighted plants standing in growing zones or on home ground (<see cref="RoundsFacts.Blight"/>); unknown while the planning window is unread.</summary>
-    public Fact<EquatableArray<BlightedPlant>> Blight { get; init; }
+    /// <summary>The total blighted-plant census on growing-zone or home ground (<see cref="RoundsFacts.Blight"/>).</summary>
+    public EquatableArray<BlightedPlant> Blight { get; init; }
 
     /// <summary>The plants a cut of the blight Need's open Methods could not designate; they are left out of the next cut.</summary>
     public EquatableArray<string> BlightRefused { get; init; }
@@ -109,10 +109,11 @@ public sealed class FoodFamily(bool supply, bool cooking, bool babyFeeding = fal
     /// </summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, FoodFacts facts)
     {
-        if (!ready.Any(n => n.Id == FoodRules.BlightNeed) || !facts.Blight.TryGetValue(out var census))
+        if (!ready.Any(n => n.Id == FoodRules.BlightNeed))
         {
             return [];
         }
+        var census = facts.Blight;
         var targets = BlightRules.SelectBlightCuts(census, facts.BlightRefused.ToHashSet(StringComparer.Ordinal), BlightCutLimit);
         if (targets.Count == 0)
         {
@@ -173,11 +174,10 @@ public static class FoodRules
 
     /// <summary>
     /// The blight Need, a plain threshold over the census: unmet while any blighted plant stands, designated or not
-    /// (the Need is met by the cut, not the order), met otherwise; an unread census raises
-    /// <see cref="RequiredFactException"/>. Its deficit is whole while unmet.
+    /// (the Need is met by the cut, not the order), met otherwise. Its deficit is whole while unmet.
     /// </summary>
     public static Need BlightNeedOf(FoodFacts f) =>
-        WholeNeed(BlightNeed, NeedTier.Wellbeing, f.Blight.TryGetValue(out var census) ? !BlightRules.BlightDeficit(census) : throw new RequiredFactException("blight census"));
+        WholeNeed(BlightNeed, NeedTier.Wellbeing, !BlightRules.BlightDeficit(f.Blight));
 
     /// <summary>A Need met or unmet by <paramref name="met"/>, with a whole deficit while unmet.</summary>
     internal static Need WholeNeed(NeedId id, NeedTier tier, bool met) => new()

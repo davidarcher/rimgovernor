@@ -180,7 +180,7 @@ namespace HomeBridge.BridgeTools
                 Resources = [.. resources], EventLoot = eventLoot, Cooking = [.. cooking], Butchering = [.. butchering],
                 JoinerLetters = [.. joiners], Dialog = dialog != null ? ChoiceDialogTools.Snapshot(dialog) : null,
                 Environment = [.. conditions.Select(EnvironmentCondition)],
-                Recovery = recovery, Waste = waste, FoodClimate = foodClimate,
+                Recovery = recovery, Waste = waste, Blight = NativeBlightCensus.Read(map, things), FoodClimate = foodClimate,
                 Acquisition = [.. acquisition.Rows], PendingFoodNutrition = acquisition.PendingFoodNutrition,
                 PendingHunts = acquisition.PendingHunts, HuntCensus = acquisition.HuntCensus,
                 Planning = planning, Issues = [.. issues] };

@@ -43,6 +43,7 @@ public sealed class ColonyFactsCoreTests
         Planning = new Planning.NotRequested(),
         Recovery = new() { Restrictions = [], Buildings = [] },
         Waste = new() { Items = [] },
+        Blight = new() { Plants = [] },
         PlayerTechLevel = Defs.TechLevel.Neolithic,
         Threat = new() { Observed = QuietThreat },
         EventLoot = new(),

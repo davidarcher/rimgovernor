@@ -117,7 +117,6 @@ internal sealed class FrameCellGrid(PbMirror.CellGrid grid)
             ZoneId = grid.ZoneId[j],
             Room = grid.Room[j] is { } room ? new P.CellRoom.InRoom(room) : P.CellRoom.Outside,
             Terrain = grid.Terrain[j],
-            InHome = grid.InHome[j],
             BaseTerrain = grid.BaseTerrain[j],
             FoundationRemoval = grid.FoundationRemoval[j],
             StorageCapacity = grid.StorageCapacity[j],
