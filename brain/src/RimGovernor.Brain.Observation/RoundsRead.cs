@@ -77,9 +77,8 @@ public static class RoundsReads
         ObserveRounds(source, clock, expected, maxAge, claims, false, true, definitions, cancellationToken);
 
     /// <summary>
-    /// Additionally takes the frame's room census. Temperature planning takes room heat from it and comfort takes
-    /// each facility's hosting room role: without the census no comfort facility can be certified as hosted, so
-    /// comfort becomes unknown.
+    /// Additionally exposes the frame's room census to temperature and other detailed room consumers.
+    /// Comfort takes each facility's hosting role from the required room table on every routine read.
     /// </summary>
     public static Task<RoundsReading> ObserveRoundsRooms(IRoundsSource? source, IClock clock, Identity expected, TimeSpan maxAge, EquatableArray<ConstructionClaim> claims, IReadOnlyList<string> definitions, CancellationToken cancellationToken) =>
         ObserveRounds(source, clock, expected, maxAge, claims, true, true, definitions, cancellationToken);
@@ -255,33 +254,8 @@ public static class RoundsReads
                 Population = population with { Colony = population.Colony with { Ideoligion = p.Facts.Ideology } },
             },
         };
-        // The frame's rooms census is the one room table: room quality reads it on every reading, the room census
-        // sections only when asked.
-        var frameRooms = frame.Rooms ?? throw new ObservationContractException("a routine frame carries no room census");
-        var bedded = p.Facts.Sleeping with { Rooms = SleepingUpkeepReads.UpkeepRooms(frameRooms, p.Facts.Sleeping.Beds) };
-        p = p with { Facts = p.Facts with { Sleeping = bedded } };
-        O.RoomsSnapshot? roomCensus = null;
-        if (rooms)
-        {
-            roomCensus = frame.Rooms;
-            var temperature = Unknown<RoomObservation>();
-            if (roomCensus is not null)
-            {
-                temperature = Known(new RoomObservation
-                {
-                    Rooms = roomCensus.Rooms,
-                    Cells = frame.RoomCells,
-                    EligibleBeds = EquatableArray.From(p.Facts.Sleeping.Beds.Where(bed => bed.Humanlike && !bed.Medical && !bed.Prisoners).Select(bed => bed.Id)),
-                    Dining = catalog.DiningFurniture(),
-                    Shapes = p.Shapes,
-                });
-            }
-            p = p with
-            {
-                Rooms = temperature,
-                Facts = p.Facts with { SleepingTemperature = TemperatureMethodRules.TemperatureRange(temperature), Comfort = HostedComfort(p.Facts.Comfort, temperature) },
-            };
-        }
+        p = WithFrameRooms(p, frame, catalog.DiningFurniture(), rooms);
+        var roomCensus = rooms ? frame.Rooms : null;
         // The reading is observed once the frame lands, under the age bound.
         var observedAt = clock.Now();
         if (observedAt - started > maxAge)
@@ -300,6 +274,34 @@ public static class RoundsReads
             Frame = frame,
             Catalog = catalog,
         };
+    }
+
+    /// <summary>Joins every routine frame's required room table to comfort; detailed room consumers are opt-in.</summary>
+    internal static ColonyProjection WithFrameRooms(ColonyProjection p, RoundsFrame frame, DiningFurniture dining, bool rooms)
+    {
+        // The frame's rooms census is the one room table: room quality reads it on every reading, the room census
+        // sections only when asked.
+        var frameRooms = frame.Rooms ?? throw new ObservationContractException("a routine frame carries no room census");
+        var bedded = p.Facts.Sleeping with { Rooms = SleepingUpkeepReads.UpkeepRooms(frameRooms, p.Facts.Sleeping.Beds) };
+        var comfortRooms = new RoomObservation
+        {
+            Rooms = frameRooms.Rooms,
+            Cells = frame.RoomCells,
+            EligibleBeds = EquatableArray.From(p.Facts.Sleeping.Beds.Where(bed => bed.Humanlike && !bed.Medical && !bed.Prisoners).Select(bed => bed.Id)),
+            Dining = dining,
+            Shapes = p.Shapes,
+        };
+        p = p with { Facts = p.Facts with { Sleeping = bedded, Comfort = ComfortRules.HostedComfort(p.Facts.RequireBasicComfort(), comfortRooms) } };
+        if (rooms)
+        {
+            var temperature = Known(comfortRooms);
+            p = p with
+            {
+                Rooms = temperature,
+                Facts = p.Facts with { SleepingTemperature = TemperatureMethodRules.TemperatureRange(temperature) },
+            };
+        }
+        return p;
     }
 
     /// <summary>
@@ -386,22 +388,6 @@ public static class RoundsReads
     /// <summary>The trader census; unknown when the frame carries none.</summary>
     internal static Fact<EquatableArray<RimGovernor.Contracts.Wire.Observations.Trader>> FrameTraders(RimGovernor.Contracts.Wire.Observations.TradersSnapshot? read) =>
         read is null ? Unknown<EquatableArray<RimGovernor.Contracts.Wire.Observations.Trader>>() : Known(read.Traders);
-
-    private static Fact<ComfortObservation> HostedComfort(Fact<ComfortObservation> comfort, Fact<RoomObservation> rooms)
-    {
-        if (!comfort.TryGetValue(out var v) || !rooms.TryGetValue(out var census))
-        {
-            return Unknown<ComfortObservation>();
-        }
-        try
-        {
-            return Known(ComfortRules.HostedComfort(v, census));
-        }
-        catch (DomainException)
-        {
-            return Unknown<ComfortObservation>();
-        }
-    }
 
     /// <summary>The finished project list of a known research census, the input TechTier is selected from.</summary>
     public static Fact<EquatableArray<ResearchProjectId>> FinishedResearch(ResearchFacts? research) =>

@@ -36,9 +36,8 @@ public sealed class RoomsFamilyTests
         Flooring = Known(new FlooringReview { Known = true }),
         Profiles = Known<EquatableArray<PawnProfile>>([]),
         SculptureRoomsOwed = Known(false),
-        BasicComfort = Known(ComfortTests.NoComfortObservation),
-        HostingRecovered = Known(true),
-        HostingDeficit = 0.0,
+        BasicComfort = ComfortTests.NoComfortObservation,
+        Hosting = new() { Dining = ComfortNeed.Recovered, Recreation = ComfortNeed.Recovered },
         PartySpotOwed = Known(false),
         WorkChairsOwed = Known(false),
         Gathering = Known(new GatheringPlan()),
@@ -103,12 +102,12 @@ public sealed class RoomsFamilyTests
     public void TheComfortNeedIsTheBasicComfortReview()
     {
         var empty = ComfortTests.NoComfortObservation;
-        var met = Of(new() { BasicComfort = Known(empty) }, RoomsFamily.Comfort);
+        var met = Of(new() { BasicComfort = empty }, RoomsFamily.Comfort);
         Assert.Equal((RoomsFamily.Comfort, NeedTier.Wellbeing, Satisfaction.Met, 0.0), (met.Id, met.Tier, met.Satisfaction, met.Deficit));
         Assert.Empty(met.Preconditions);
 
         // A colonist with no seat nor recreation: both halves short.
-        var bare = Of(new() { BasicComfort = Known(empty with { Census = empty.Census with { People = [new PawnId("a")] } }) }, RoomsFamily.Comfort);
+        var bare = Of(new() { BasicComfort = empty with { Census = empty.Census with { People = [new PawnId("a")] } } }, RoomsFamily.Comfort);
         Assert.Equal((Satisfaction.Unmet, 1.0), (bare.Satisfaction, bare.Deficit));
 
         Assert.Equal("basic comfort census", Assert.Throws<RequiredFactException>(() => Of(new(), RoomsFamily.Comfort)).Fact);
@@ -117,10 +116,10 @@ public sealed class RoomsFamilyTests
     [Fact]
     public void HostingThePartySpotAndGatheringsChainByPreconditionWithNoPhaseLatch()
     {
-        var hosting = Of(new() { HostingRecovered = Known(false), HostingDeficit = 0.5 }, RoomsFamily.Hosting);
+        var hosting = Of(new() { Hosting = new() { Dining = ComfortNeed.Capacity, Recreation = ComfortNeed.Recovered } }, RoomsFamily.Hosting);
         Assert.Equal((NeedTier.Development, Satisfaction.Unmet, 0.5), (hosting.Tier, hosting.Satisfaction, hosting.Deficit));
         Assert.Equal([RoomsFamily.Comfort], hosting.Preconditions);
-        Assert.Equal(Satisfaction.Met, Of(new() { HostingRecovered = Known(true), HostingDeficit = 0.0 }, RoomsFamily.Hosting).Satisfaction);
+        Assert.Equal(Satisfaction.Met, Of(new() { Hosting = new() { Dining = ComfortNeed.Recovered, Recreation = ComfortNeed.Recovered } }, RoomsFamily.Hosting).Satisfaction);
         Assert.Equal("hosted comfort", Assert.Throws<RequiredFactException>(() => Of(new(), RoomsFamily.Hosting)).Fact);
 
         var spot = Of(new() { PartySpotOwed = Known(true) }, RoomsFamily.PartySpot);
@@ -188,9 +187,8 @@ public sealed class RoomsFamilyTests
         public RoomsFacts Facts { get; set; } = new()
         {
             Lighting = Known(new LightingReview { Known = true, Active = true }),
-            BasicComfort = Known(ComfortTests.NoComfortObservation with { Census = ComfortTests.NoComfort with { People = [new PawnId("a")] } }),
-            HostingRecovered = Known(true),
-            HostingDeficit = 0.0,
+            BasicComfort = ComfortTests.NoComfortObservation with { Census = ComfortTests.NoComfort with { People = [new PawnId("a")] } },
+            Hosting = new() { Dining = ComfortNeed.Recovered, Recreation = ComfortNeed.Recovered },
             PartySpotOwed = Known(false),
             WorkChairsOwed = Known(false),
         };
@@ -282,7 +280,7 @@ public sealed class RoomsFamilyTests
     public void HostingWaitsOnComfortAndDoesNotWorkBeforeIt()
     {
         using var colony = Open();
-        colony.Facts = colony.Facts with { HostingRecovered = Known(false), HostingDeficit = 1.0, PartySpotOwed = Known(true) };
+        colony.Facts = colony.Facts with { Hosting = new() { Dining = ComfortNeed.Capacity, Recreation = ComfortNeed.Capacity }, PartySpotOwed = Known(true) };
         colony.Builds.Add((RoomsFamily.Hosting, "hosting-chair", "DiningChair", new Cell(20, 20)));
         var run = colony.Run();
         Assert.DoesNotContain(run.Methods, m => m.Need == RoomsFamily.Hosting);

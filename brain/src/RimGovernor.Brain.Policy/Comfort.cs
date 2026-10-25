@@ -52,7 +52,6 @@ public readonly record struct ComfortHistory(ComfortUse Dining, ComfortUse Recre
 
 public enum ComfortNeed
 {
-    Unknown,
     Capacity,
     [WireName("use")]
     UseNeeded,
@@ -67,10 +66,8 @@ public sealed record ComfortReview
 
     public ComfortNeed Recreation { get; init; }
 
-    public Fact<bool> Recovered() =>
-        Dining == ComfortNeed.Unknown || Recreation == ComfortNeed.Unknown
-            ? Unknown<bool>()
-            : Known(Dining == ComfortNeed.Recovered && Recreation == ComfortNeed.Recovered);
+    public bool Recovered() =>
+        Dining == ComfortNeed.Recovered && Recreation == ComfortNeed.Recovered;
 
     /// <summary>The unmet share: half per short kind. Meaningful only once <see cref="Recovered"/> has read both kinds.</summary>
     public double Deficit()
@@ -101,15 +98,11 @@ public readonly record struct ComfortMethod(string Value)
 
 public static class ComfortRules
 {
-    public static ComfortReview ReviewComfort(Fact<ComfortObservation> observed, ComfortHistory previous, Tick tick)
+    public static ComfortReview ReviewComfort(ComfortObservation v, ComfortHistory previous, Tick tick)
     {
-        var r = new ComfortReview { History = previous, Dining = ComfortNeed.Unknown, Recreation = ComfortNeed.Unknown };
+        var r = new ComfortReview { History = previous };
         previous.Validate();
         DomainException.Require(!(tick.Value < 0 || previous.Dining.Tick > tick || previous.Recreation.Tick > tick), "comfort use is from a future tick");
-        if (!observed.TryGetValue(out var v))
-        {
-            return r;
-        }
         (ComfortNeed Need, ComfortUse Proof) Assess(IEnumerable<(string Id, EquatableArray<PawnId> AccessibleTo, EquatableArray<PawnId> Users)> facilities, ComfortUse proof)
         {
             var available = new HashSet<PawnId>();
@@ -158,7 +151,6 @@ public static class ComfortRules
 
     public static ComfortMethod SelectComfortMethod(ComfortObservation v, ComfortReview r)
     {
-        DomainException.Require(r.Dining != ComfortNeed.Unknown && r.Recreation != ComfortNeed.Unknown, "comfort evidence unavailable");
         if (r.Dining == ComfortNeed.Capacity)
         {
             if (v.Census.Dining.Count > 0)

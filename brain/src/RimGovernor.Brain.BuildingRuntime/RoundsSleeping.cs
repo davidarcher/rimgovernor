@@ -1035,7 +1035,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         var search = new Pol.PlacementSearch(searchRequest);
         var selected = new List<Pol.Preview>();
-        var watchBuildings = facts.Facts.Comfort.TryGetValue(out var comfort) ? comfort.WatchBuildings : [];
+        var watchBuildings = facts.Facts.RequireBasicComfort().WatchBuildings;
         var usedCells = new HashSet<Cell>();
         var stock = new Pol.StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
         // A workshop bench has an interaction spot on one side, so a small room often rejects the north-facing

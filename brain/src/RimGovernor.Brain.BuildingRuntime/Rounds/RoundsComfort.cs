@@ -98,11 +98,8 @@ public sealed partial class RoundsBuildingPlanner
     /// <summary>The planner resolved to the comfort furniture the ranked review selects, or the verdict that explains why none is wanted.</summary>
     internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectComfort(ColonyProjection facts, ComfortHistory history)
     {
-        if (!facts.Facts.Comfort.TryGetValue(out var v))
-        {
-            return (null, FieldUnavailable("comfort"));
-        }
-        var review = ComfortRules.ReviewComfort(facts.Facts.Comfort, history, facts.Identity.Tick);
+        var v = facts.Facts.RequireComfort();
+        var review = ComfortRules.ReviewComfort(v, history, facts.Identity.Tick);
         var method = ComfortRules.SelectComfortMethod(v, review);
         if (method == Pol.ComfortMethod.NoMethod)
         {
@@ -141,11 +138,8 @@ public sealed partial class RoundsBuildingPlanner
     /// <summary>The planner resolved to the basic comfort building the review selects (a chair, table or joy building).</summary>
     internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectBasicComfort(ColonyProjection facts)
     {
-        if (!facts.Facts.BasicComfort.TryGetValue(out var v))
-        {
-            return (null, FieldUnavailable("basic_comfort"));
-        }
-        var review = BasicComfortRules.ReviewBasicComfort(facts.Facts.BasicComfort);
+        var v = facts.Facts.RequireBasicComfort();
+        var review = BasicComfortRules.ReviewBasicComfort(v);
         var method = BasicComfortRules.SelectBasicComfortMethod(v, review);
 
         if (method == Pol.ComfortMethod.NoMethod && review.MissingVariety > 0)
@@ -205,18 +199,7 @@ public sealed partial class RoundsBuildingPlanner
 
 partial class RoundsBuildingPlanner
 {
-    internal static DiningFurniture ComfortFurniture(ColonyProjection facts)
-    {
-        if (facts.Facts.Comfort.TryGetValue(out var v))
-        {
-            return v.Furniture;
-        }
-        if (facts.Facts.BasicComfort.TryGetValue(out var b))
-        {
-            return b.Furniture;
-        }
-        return new DiningFurniture();
-    }
+    internal static DiningFurniture ComfortFurniture(ColonyProjection facts) => facts.Facts.RequireBasicComfort().Furniture;
 
     internal static bool ComfortBuilderAvailable(ColonyProjection facts, string definition) => ComfortBuilderGate(facts, definition).IsZero;
 

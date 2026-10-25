@@ -82,19 +82,20 @@ public static class ColonyFramesReads
     /// Joins the native comfort census to the catalog rows the comfort rules plan from: the joy buildings, the recreation
     /// foothold, the watch-cell buildings and the dining furniture. A catalog that cannot answer throws.
     /// </summary>
-    internal static Fact<ComfortObservation> ColonyComfort(O.ColonyFactsSnapshot v, DefinitionCatalog? catalog)
+    internal static ComfortObservation ColonyComfort(O.ColonyFactsSnapshot v, DefinitionCatalog? catalog)
     {
+        var census = v.Upkeep.Comfort ?? throw new BridgeContractException("comfort census is absent");
         var required = ColonyDecodeReads.RequireCatalog(catalog);
         try
         {
-            return Known(new ComfortObservation
+            return new ComfortObservation
             {
-                Census = v.Upkeep.Comfort,
+                Census = census,
                 JoyMethods = EquatableArray.From(required.JoyBuildings()),
                 RecreationFoothold = required.RecreationFoothold(),
                 WatchBuildings = EquatableArray.From(required.WatchBuildings()),
                 Furniture = required.DiningFurniture(),
-            });
+            };
         }
         catch (DomainException e)
         {

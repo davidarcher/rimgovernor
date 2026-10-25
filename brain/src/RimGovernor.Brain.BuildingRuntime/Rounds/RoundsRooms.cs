@@ -170,7 +170,7 @@ public sealed class RoomsRounds
         var profiles = projection.WorkPawns is WorkPawnsRead.Read { Pawns: var pawns }
             ? Known<EquatableArray<PawnProfile>>([.. PawnRules.Profiles(pawns)])
             : Unknown<EquatableArray<PawnProfile>>();
-        var hosting = ComfortRules.ReviewComfort(projection.Facts.Comfort, history, projection.Identity.Tick);
+        var hosting = ComfortRules.ReviewComfort(projection.Facts.RequireComfort(), history, projection.Identity.Tick);
         return new RoomsFacts
         {
             Lighting = lighting,
@@ -178,8 +178,7 @@ public sealed class RoomsRounds
             Profiles = profiles,
             SculptureRoomsOwed = RoundsSleepingUpkeepPlanner.SculptureRoomsOwedOf(projection),
             BasicComfort = projection.Facts.BasicComfort,
-            HostingRecovered = hosting.Recovered(),
-            HostingDeficit = hosting.Deficit(),
+            Hosting = hosting,
             PartySpotOwed = spot is not null ? Rounder.PartySpotOwed(spot, projection) : Unknown<bool>(),
             WorkChairsOwed = WorkChairsOwed(projection),
         };

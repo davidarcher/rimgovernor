@@ -504,7 +504,7 @@ public sealed partial class RoundsBuildingPlanner
 {
     /// <summary>The definitions other lanes stand in owned rooms, which an owner never removes as stale (ReconcileRules.CarriedOver).</summary>
     internal Func<string, bool> CarriedOver(ColonyProjection facts) =>
-        ReconcileRules.CarriedOver(LightingDefinitions(), facts.Facts.Comfort.TryGetValue(out var comfort) ? comfort : null, facts.Facts.Items);
+        ReconcileRules.CarriedOver(LightingDefinitions(), facts.Facts.RequireBasicComfort(), facts.Facts.Items);
 
     /// <summary>
     /// Reconciles one owner's room against its full furniture list: it is diffed, then the next wave is committed: foreign obstructions,

@@ -22,13 +22,10 @@ public sealed record RoomsFacts
     public Fact<bool> SculptureRoomsOwed { get; init; }
 
     /// <summary>The unfiltered comfort census: every indoor seat and recreation source, whatever room hosts it.</summary>
-    public Fact<ComfortObservation> BasicComfort { get; init; }
+    public ComfortObservation? BasicComfort { get; init; }
 
     /// <summary>The hosted comfort review: hosting rooms and proof of use, against the review's comfort history.</summary>
-    public Fact<bool> HostingRecovered { get; init; }
-
-    /// <summary>The share of hosting facility kinds not yet recovered.</summary>
-    public double HostingDeficit { get; init; }
+    public ComfortReview? Hosting { get; init; }
 
     /// <summary>The PartySpot is missing, duplicated or outranked by a better shared room, and the one-shot is not spent.</summary>
     public Fact<bool> PartySpotOwed { get; init; }
@@ -172,26 +169,30 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
     /// <summary>The basic comfort review: unmet while dining, recreation or its variety is short; an unread census or variety catalog raises <see cref="RequiredFactException"/>. The deficit is the review's half per short kind.</summary>
     public static Need ComfortNeed(RoomsFacts f)
     {
-        var review = BasicComfortRules.ReviewBasicComfort(f.BasicComfort);
+        var review = BasicComfortRules.ReviewBasicComfort(f.BasicComfort ?? throw new RequiredFactException("basic comfort census"));
         var recovered = review.Recovered();
         return new Need
         {
             Id = Comfort,
             Tier = NeedTier.Wellbeing,
-            Satisfaction = Of(recovered, "basic comfort census"),
+            Satisfaction = recovered ? Satisfaction.Met : Satisfaction.Unmet,
             Deficit = review.Deficit(),
         };
     }
 
     /// <summary>After comfort: the hosted comfort review, unmet while a hosting room or its proof of use is missing; an unread review raises <see cref="RequiredFactException"/>.</summary>
-    public static Need HostingNeed(RoomsFacts f) => new()
+    public static Need HostingNeed(RoomsFacts f)
     {
-        Id = Hosting,
-        Tier = NeedTier.Development,
-        Satisfaction = Of(f.HostingRecovered, "hosted comfort"),
-        Deficit = f.HostingDeficit,
-        Preconditions = [Comfort],
-    };
+        var review = f.Hosting ?? throw new RequiredFactException("hosted comfort");
+        return new()
+        {
+            Id = Hosting,
+            Tier = NeedTier.Development,
+            Satisfaction = review.Recovered() ? Satisfaction.Met : Satisfaction.Unmet,
+            Deficit = review.Deficit(),
+            Preconditions = [Comfort],
+        };
+    }
 
     /// <summary>After hosting: unmet while the PartySpot step is owed; unread rooms, qualities or census raise <see cref="RequiredFactException"/>.</summary>
     public static Need PartySpotNeed(RoomsFacts f) =>
@@ -214,8 +215,6 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
     }
 
     private static bool Owed(Fact<bool> owed, string fact) => owed.TryGetValue(out var v) ? v : throw new RequiredFactException(fact);
-
-    private static Satisfaction Of(Fact<bool> recovered, string fact) => Owed(recovered, fact) ? Satisfaction.Met : Satisfaction.Unmet;
 
     private static string Count(int n) => n.ToString(CultureInfo.InvariantCulture);
 }

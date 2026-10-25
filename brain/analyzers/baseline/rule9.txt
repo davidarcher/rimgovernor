@@ -40,7 +40,7 @@ BuildingRuntime/Rounds/RoundsCensus.cs|Fact|5
 BuildingRuntime/Rounds/RoundsChildRooms.cs|Fact|1
 BuildingRuntime/Rounds/RoundsClearance.cs|Fact|3
 BuildingRuntime/Rounds/RoundsColonyModel.cs|Fact|7
-BuildingRuntime/Rounds/RoundsComfort.cs|Fact|5
+BuildingRuntime/Rounds/RoundsComfort.cs|Fact|1
 BuildingRuntime/Rounds/RoundsCookingCampfire.cs|Fact|5
 BuildingRuntime/Rounds/RoundsCookingCampfire.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsCoupled.cs|Fact|3
@@ -100,7 +100,7 @@ BuildingRuntime/Rounds/RoundsRituals.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsRooms.cs|Fact|5
 BuildingRuntime/Rounds/RoundsRooms.cs|Unknown|5
 BuildingRuntime/Rounds/RoundsShelterFamily.cs|Unknown|2
-BuildingRuntime/RoundsRoomReconcile.cs|Fact|4
+BuildingRuntime/RoundsRoomReconcile.cs|Fact|3
 BuildingRuntime/RoundsShelter.cs|Fact|4
 BuildingRuntime/RoundsSleeping.cs|Fact|3
 BuildingRuntime/RoundsSleepingBedroom.cs|Fact|9
@@ -128,7 +128,6 @@ BuildingRuntime/RoundsWorkProjects.cs|Unknown|5
 BuildingRuntime/RoundsWorkshop.cs|Fact|8
 BuildingRuntime/RoundsWorkshop.cs|Unknown|1
 BuildingRuntime/StockOverlay.cs|Fact|3
-BuildingRuntime/StockpileSitedRoles.cs|Fact|1
 BuildingRuntime/TradeMission.cs|Fact|2
 BuildingRuntime/TradeMissionOptions.cs|Fact|2
 BuildingRuntime/TradeTarget.cs|Discard|1
@@ -147,7 +146,7 @@ Observation/Colony.cs|Fact|60
 Observation/Colony.cs|Unknown|3
 Observation/ColonyDecode.cs|Fact|15
 Observation/ColonyDecode.cs|Unknown|2
-Observation/ColonyFrames.cs|Fact|8
+Observation/ColonyFrames.cs|Fact|6
 Observation/ColonyFrames.cs|Unknown|1
 Observation/ColonyGear.cs|Fact|14
 Observation/ColonyGear.cs|Unknown|3
@@ -171,8 +170,8 @@ Observation/RoundsContainment.cs|Fact|2
 Observation/RoundsContainment.cs|Unknown|1
 Observation/RoundsMood.cs|Fact|16
 Observation/RoundsMood.cs|Unknown|4
-Observation/RoundsRead.cs|Fact|15
-Observation/RoundsRead.cs|Unknown|6
+Observation/RoundsRead.cs|Fact|12
+Observation/RoundsRead.cs|Unknown|4
 Observation/RoundsWork.cs|Fact|2
 Observation/StuffChoice.cs|Discard|1
 Observation/StuffChoice.cs|Fact|5
@@ -190,8 +189,6 @@ Policy/AnomalyFamily.cs|Fact|1
 Policy/ArmoryShells.cs|Fact|2
 Policy/Art.cs|Fact|1
 Policy/ArtOrders.cs|Fact|2
-Policy/BasicComfort.cs|Fact|4
-Policy/BasicComfort.cs|Unknown|1
 Policy/BasicDefense.cs|Fact|6
 Policy/BillWanted.cs|Fact|2
 Policy/Calendar.cs|Fact|27
@@ -211,9 +208,6 @@ Policy/ColonyModel/GoalPaths.cs|Fact|1
 Policy/ColonyModel/PawnCycle.cs|Fact|1
 Policy/ColonyModel/ProjectGraph.cs|Fact|4
 Policy/ColonyModel/ProjectRun.cs|Fact|6
-Policy/Comfort.cs|Fact|4
-Policy/Comfort.cs|Unknown|1
-Policy/Comfort.cs|UnknownMember|1
 Policy/ConstructionHelpers.cs|Fact|3
 Policy/ContainmentCell.cs|Fact|2
 Policy/ControlledEnvironment.cs|Fact|1
@@ -389,9 +383,9 @@ Policy/ResourceLabor.cs|Unknown|1
 Policy/Ritual.cs|Fact|10
 Policy/Ritual.cs|Unknown|1
 Policy/RoomQualityBeauty.cs|Fact|3
-Policy/RoomsFamily.cs|Fact|16
+Policy/RoomsFamily.cs|Fact|13
 Policy/Rounds.cs|Discard|1
-Policy/Rounds.cs|Fact|93
+Policy/Rounds.cs|Fact|91
 Policy/Rounds.cs|Unknown|4
 Policy/RoundsImmediate.cs|Fact|1
 Policy/RoundsReviewFacts.cs|Fact|7

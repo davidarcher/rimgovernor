@@ -15,15 +15,7 @@ public sealed record BasicComfortReview
 
     public int MissingVariety { get; init; }
 
-    public Fact<bool> Recovered()
-    {
-        if (Dining == ComfortNeed.Unknown || Recreation == ComfortNeed.Unknown)
-        {
-            return Unknown<bool>();
-        }
-
-        return Known(Dining == ComfortNeed.Recovered && Recreation == ComfortNeed.Recovered && MissingVariety == 0);
-    }
+    public bool Recovered() => Dining == ComfortNeed.Recovered && Recreation == ComfortNeed.Recovered && MissingVariety == 0;
 
     /// <summary>The unmet share: half per short kind. Meaningful only once <see cref="Recovered"/> has read both kinds.</summary>
     public double Deficit()
@@ -53,7 +45,7 @@ public static class BasicComfortRules
     /// hosts it). Capacity alone counts: a facility everyone can reach is provided whether or not anyone has
     /// been observed using it yet.
     /// </summary>
-    public static BasicComfortReview ReviewBasicComfort(Fact<ComfortObservation> observed)
+    public static BasicComfortReview ReviewBasicComfort(ComfortObservation observed)
     {
         var full = ComfortRules.ReviewComfort(observed, new ComfortHistory(), new Tick(0));
         static ComfortNeed Provided(ComfortNeed need) => need == ComfortNeed.UseNeeded ? ComfortNeed.Recovered : need;
@@ -63,10 +55,7 @@ public static class BasicComfortRules
             Dining = Provided(full.Dining),
             Recreation = Provided(full.Recreation),
         };
-        if (observed.TryGetValue(out var v))
-        {
-            r = r with { MissingVariety = RecreationRules.RecreationVarietyMissing(v) };
-        }
+        r = r with { MissingVariety = RecreationRules.RecreationVarietyMissing(observed) };
 
         return r;
     }
@@ -78,7 +67,6 @@ public static class BasicComfortRules
     /// </summary>
     public static ComfortMethod SelectBasicComfortMethod(ComfortObservation v, BasicComfortReview r)
     {
-        DomainException.Require(r.Dining != ComfortNeed.Unknown && r.Recreation != ComfortNeed.Unknown, "comfort evidence unavailable");
         if (r.Dining == ComfortNeed.Capacity)
         {
             if (v.Census.Dining.Count > 0)

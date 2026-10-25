@@ -66,7 +66,11 @@ public sealed class BatteryPlacementTests
                 cells.Add(SiteCellFixtures.Ground with { Cell = c, Walkable = true, Zone = false, Roofed = Roofed(c), Indoors = Roofed(c) });
             }
         }
-        var facts = ColonyFactsCoreTests.Projection() with { Identity = new() { Tick = new(100) }, Bounds = new(20, 20), Cells = cells };
+        var facts = ColonyFactsCoreTests.Projection() with
+        {
+            Identity = new() { Tick = new(100) }, Bounds = new(20, 20), Cells = cells,
+            Facts = new() { Comfort = ComfortTests.NoComfortObservation, BasicComfort = ComfortTests.NoComfortObservation },
+        };
         var native = DispatchProxy.Create<IRoundsBuildingSource, Native>();
         var planner = new RoundsBuildingPlanner
         {

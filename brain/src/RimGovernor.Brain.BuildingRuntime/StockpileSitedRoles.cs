@@ -25,10 +25,11 @@ internal static class StockpileSitedRoles
         {
             return null;
         }
-        if (projection.LayoutPlan is not { } plan || !projection.Facts.Comfort.TryGetValue(out var comfort))
+        if (projection.LayoutPlan is not { } plan)
         {
             return null;
         }
+        var comfort = projection.Facts.RequireComfort();
         var dining = plan.Rooms.Where(planned => planned.Role == Pol.PlannedRole.Dining).ToList();
         if (dining.Count == 0)
         {

@@ -41,6 +41,8 @@ internal static class WorkResourceTestFacts
 
     internal static RoundsFacts Create(params string[] pawns) => new()
     {
+        Comfort = ComfortTests.NoComfortObservation,
+        BasicComfort = ComfortTests.NoComfortObservation,
         Tick = new(100),
         WorkProfiles = Known<EquatableArray<PawnProfile>>([new() { Id = new("artist"),
             WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "Art" },

@@ -443,14 +443,21 @@ public sealed record RoundsFacts
     /// <summary>The allowed garments covering a core group with their recipes (ClothingRunway); empty until the gear census and catalog are read.</summary>
     public EquatableArray<ClothingGarment> Garments { get; init; }
 
-    public Fact<ComfortObservation> Comfort { get; init; }
+    /// <summary>The hosting-room view of the total comfort census; null only before a colony decode.</summary>
+    public ComfortObservation? Comfort { get; init; }
+
+    /// <summary>The hosting census; a projection no colony decode built raises a required fact.</summary>
+    public ComfortObservation RequireComfort() => Comfort ?? throw new RequiredFactException("comfort census");
 
     /// <summary>
     /// The same census before the hosting-room filter: every indoor seat at an eating surface and every
     /// recreation source, whatever room (or none) hosts it. The rooms/comfort Need measures it; Comfort
     /// keeps only facilities in rooms whose native role the facility catalog hosts.
     /// </summary>
-    public Fact<ComfortObservation> BasicComfort { get; init; }
+    public ComfortObservation? BasicComfort { get; init; }
+
+    /// <summary>The unfiltered census; a projection no colony decode built raises a required fact.</summary>
+    public ComfortObservation RequireBasicComfort() => BasicComfort ?? throw new RequiredFactException("basic comfort census");
 
     /// <summary>The loot census: every visible haulable stack with its forbid state, hauling verdict and storage headroom.</summary>
     public EquatableArray<LootItem> EventLoot { get; init; }

@@ -585,6 +585,13 @@ and window start; the window restarts on load).
 
 ### Comfort
 
+The comfort census is read whole on every routine native frame, including its joy boredom
+matrix; an absent census fails the observation. BasicComfort retains that census before
+room-role filtering, while Comfort is its derived hosting-room view on every routine read.
+The frame's room table is required, including when detailed room consumers are disabled.
+These observations are not journaled; the existing comfort-use history is the only persisted
+comfort state.
+
 The comfort Needs are plain thresholds chained by precondition, with no phase latch:
 `rooms/comfort`, then `rooms/hosting`, then `rooms/party-spot` (see
 [mood control](mood-control.md#the-partyspot)); `rooms/work-chairs` also follows `rooms/comfort`.
@@ -610,10 +617,8 @@ The comfort Needs are plain thresholds chained by precondition, with no phase la
   at an indoor site within connector reach of a running generator, of a distinct kind).
   `DefinitionCatalog.RecreationFoothold` is the cheapest joy building needing no power or
   research; `DefinitionCatalog.WatchBuildings` also need native watch-cell access.
-- The optional joy census (distinct usable kinds, per-colonist tolerance and boredom
-  vectors) is bounded at 16 kinds, 256 pawns, 2048 pawn-kind entries, four candidate
-  definitions and 64 KiB. Exceeding any omits the whole census: variety is unknown and
-  cannot certify recovery or schedule construction.
+- The joy census reads every usable kind and each eligible colonist's tolerance and boredom
+  vector; a failing native read fails the whole comfort census.
 - Dining and recreation are maintained once every startup survival concern has a method on
   record or is monitoring-only; the deficit stays visible during emergencies and admission
   waits. Dining needs a native eating surface with adjacent sittable furniture in an

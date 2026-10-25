@@ -221,7 +221,7 @@ public sealed partial class Store
             sleeping = sleepingReview.History;
             facts = facts with { SleepingRecovered = sleepingReview.Recovered() && !facts.BedroomsOwed };
             // The rooms family reads hosting recovery from this proof-of-use history.
-            comfort = ComfortRules.ReviewComfort(facts.Comfort, comfort, request.Tick).History;
+            comfort = ComfortRules.ReviewComfort(facts.RequireComfort(), comfort, request.Tick).History;
             var (lootCensus, held) = LootReachFilter(request with { Facts = facts });
             // The cohort is the admin/supply-safety Need's work (AdminRounds reads it from the review).
             var (lootHistory, _) = EventLootRules.ReviewEventLoot(lootCensus, loot);

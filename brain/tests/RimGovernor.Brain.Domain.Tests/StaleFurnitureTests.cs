@@ -132,7 +132,7 @@ public sealed class StaleFurnitureTests
     [Fact]
     public void ACarriedOverSetWithoutAComfortReadStillCarriesTheFixedDefinitions()
     {
-        var carried = ReconcileRules.CarriedOver([], null, new ItemFacts());
+        var carried = ReconcileRules.CarriedOver([], ComfortTests.NoComfortObservation, new ItemFacts());
         Assert.True(carried(PartySpotRules.PartySpotDefinition));
         Assert.True(carried(RoomQualityRules.PlantPotDefinition));
         Assert.False(carried(Stray));

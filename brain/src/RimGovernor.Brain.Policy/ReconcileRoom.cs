@@ -150,11 +150,11 @@ public static partial class ReconcileRules
     /// <summary>
     /// The definitions other lanes stand in owned rooms and the room's list carries over, so an owner never
     /// removes them as stale: the lamps, the party spot, the plant pot, the dining and recreation comfort pieces
-    /// (<paramref name="comfort"/>, when read), every sculpture the catalog makes, and the power and climate
+    /// (<paramref name="comfort"/>), every sculpture the catalog makes, and the power and climate
     /// infrastructure the power and climate planners run through rooms (conduits, generators, batteries, vents,
     /// the temperature planner's campfire and passive cooler), which is no furniture.
     /// </summary>
-    public static Func<string, bool> CarriedOver(IEnumerable<string> lamps, ComfortObservation? comfort, ItemFacts items)
+    public static Func<string, bool> CarriedOver(IEnumerable<string> lamps, ComfortObservation comfort, ItemFacts items)
     {
         var defs = new HashSet<string>(lamps, StringComparer.Ordinal)
         {
@@ -166,12 +166,9 @@ public static partial class ReconcileRules
             Wire.Name(TemperatureMethod.Cool),
         };
         defs.UnionWith(PowerRules.PowerFamilyDefinitions());
-        if (comfort is not null)
-        {
-            defs.UnionWith(comfort.Furniture.Definitions());
-            defs.UnionWith(comfort.WatchBuildings);
-            defs.Add(comfort.RecreationFoothold);
-        }
+        defs.UnionWith(comfort.Furniture.Definitions());
+        defs.UnionWith(comfort.WatchBuildings);
+        defs.Add(comfort.RecreationFoothold);
         return def => defs.Contains(def) || items.SculptureSize(def, out _);
     }
 
