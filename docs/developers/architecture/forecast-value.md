@@ -932,7 +932,8 @@ every baby (`nursery_babies_housed` on the others). A baby (`NeedsForecastRead.B
 (`ForecastNursery.FitRates`): `MentalFitGenerator` checks an awake baby every `CheckInterval` ticks, trying each fit def in def
 order with the chance `interval / (mtbDaysMoodCurve(mood) × a day)`, then holds the fit for its duration and waits the
 generator's recovery awake ticks; a fit's rate is its share of the fires over that mean cycle, with the awake share the balance of
-the baby's rest fall and its unserved gain. The mood is the baby's observed target, held flat. Each colonist the native sound reach
+the baby's rest fall and its actual sleeping surface's gain on each side. The mood is the baby's observed target plus any modeled
+crib comfort difference; outcome-dependent room and rest mood trajectories remain #3941. Each colonist the native sound reach
 finds (`GenClamor.DoClamor`'s region walk through open doors, at most 15 regions, within `BabyScreamRadius × Hearing`) gains the
 fit's memory (CryingBaby, GigglingBaby, the My* defs for a parent); the memories it holds are stacked as the game stacks them
 (`ForecastNursery.HeardMood`): per def, the count heard within a duration is Poisson at the summed rate, the latest
@@ -940,10 +941,26 @@ fit's memory (CryingBaby, GigglingBaby, the My* defs for a parent); the memories
 Before a nursery stands its babies are heard as now without the room and by nobody with it; a baby in a standing nursery is
 heard as now with it and as with the nursery's doors open without it. The row is `MoodGain` of the mood with the room less
 `MoodGain` of the mood without, so a giggling baby's nursery costs the giggles. Named states, each earning nothing: no baby
-(`nursery_no_baby`), no fit can start (`nursery_no_fit`), the same colonists hear the babies either way (`nursery_unheard`), and a
-fit def the read does not know (`nursery_fit_hearers_not_modelled:<def>`). Named as not modelled: crib rest, the babies' play,
+(`nursery_no_baby`), no fit can start (`nursery_no_fit`), unchanged heard-fit mood (`nursery_unheard`), and a
+fit def the read does not know (`nursery_fit_hearers_not_modelled:<def>`). No fit or no hearer does not suppress the baby's own rest credit.
+Named as not modelled: the babies' play,
 the baby's own room thoughts, a cry's disturbed sleep, the cried and giggled opinion memories, colonists moving from where they
 stand now, and prisoners, guests and slaves in reach.
+
+Crib rest (#3939) also credits the baby under its pawn id. Planned cribs use the shared sleeping catalog's Normal-quality
+rest effectiveness and comfort, in site-id order paired with babies in pawn-id order. A standing nursery without a planned
+replacement uses the baby's observed sleeping surface, including its actual quality. Without the nursery, the native sleep
+read retains an existing bed outside it, otherwise selects an eligible bed outside it using the game's owned-bed, def,
+danger and closest-reachable ordering. No eligible bed means the ground, with the native stat's `valueIfMissing` rest gain.
+Both surfaces use `Need_Rest.BaseRestGainPerTick × RestRateMultiplier × BedRestEffectiveness`; comfort does not multiply rest.
+For rest fall `f` and gain `g`, the shared steady rest contract gives awake share `g / (f + g)` and sleep loss `f / (f + g)`.
+The capability credit is sleep loss without minus sleep loss with the crib, and the two awake shares feed separate fit rates
+even when the same adults hear both sides. A worse crib can therefore cost capability-days and a faster crib can increase crying.
+Rest category rate changes and involuntary sleep timing retain the canonical needs forecast's existing explicit limitations.
+Vanilla babies have no Comfort need: `NeedDef.developmentalStageFilter` defaults to Child and Adult, and Comfort does not
+override it. This is `nursery_baby_no_comfort_need`, with zero comfort mood effect. A baby with admitted comfort thought rows
+uses the shared housing comfort term, which also feeds its fit mood input. Missing sleeping surfaces, planned crib stats or
+rest rates throw `RequiredFactException`; they never substitute ground or zero credit for an unread fact.
 
 *Dining and rec credits (#3803).* A planned dining or rec room the outcome serves is credited (`ForecastRoomThoughts.DiningCredit`,
 `RecCredit`) the impressive-room memory it gives, per colonist under `dining/<room>/<pawn>` or `rec/<room>/<pawn>`.

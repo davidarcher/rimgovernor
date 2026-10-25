@@ -455,7 +455,8 @@ unknown. What the game does not have is a case, never an unknown:
   `mtbDaysMoodCurve`, its `maxTicksBeforeRecovery` and whether its mental state's memories are known (a
   `MentalState_BabyCry` or `MentalState_BabyGiggle`); and per pawn a fit admits, in id order, the fits that can start for it
   (a mood, `CanDoRandomMentalFits`, the stage and the worker's `StateCanOccur`), whether it stands in a nursery
-  (`RoomRoleWorker_Nursery`), and the colonists with a mood its clamor reaches (`GenClamor.DoClamor`'s region walk through
+  (`RoomRoleWorker_Nursery`), its `SleepWithoutNursery` surface (the canonical `NeedSleep` record, read by the shared native
+  sleep reader excluding that nursery's beds; an empty bed id names ground), and the colonists with a mood its clamor reaches (`GenClamor.DoClamor`'s region walk through
   open doors, `BabyScreamRadius × Hearing`) now and with that nursery's doors open, each with the memory it would gain per
   fit (the My* def for a parent, `ThoughtUtility.CanGetThought`): offset, duration, `stackLimit` and
   `stackedEffectMultiplier`.

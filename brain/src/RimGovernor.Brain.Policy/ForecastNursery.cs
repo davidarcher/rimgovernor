@@ -18,7 +18,8 @@ namespace RimGovernor.Brain.Policy;
 //   duration, whichever babies they came from. ThoughtHandler.MoodOffsetOfGroup counts a baby's k of them as offset × Σ_{i<k} 0.8^i.
 
 /// <summary>
-/// The Nursery room credit (#3854): the crying and giggling it moves away from the colonists. A baby fits at the rates its mood
+/// The Nursery room credit (#3854): a crib's rest compared with the baby's other sleeping surface, and the crying and giggling
+/// it changes for the colonists. A baby fits at the rates its mood
 /// gives (<see cref="FitRates"/>); each colonist who hears it gains the fit's memory, stacked as the game stacks them
 /// (<see cref="HeardMood"/>). Who hears a baby is the native sound-reach read now (<see cref="BabyRead.Hearers"/>). Before a
 /// nursery stands, its baby is heard as now without the room and by nobody with it (behind its closed door, with no colonist inside);
@@ -34,7 +35,7 @@ public static class ForecastNursery
     /// <summary>The named state of babies none of whose fits can start (no mood, or a state its worker refuses, as a baby unable to talk).</summary>
     public const string NoFit = "nursery_no_fit";
 
-    /// <summary>The named state of babies whose cries and giggles reach the same colonists with the nursery as without it.</summary>
+    /// <summary>The named state of babies whose heard cry and giggle mood is unchanged with the nursery.</summary>
     public const string Unheard = "nursery_unheard";
 
     /// <summary>The named state of a nursery whose babies a lower-id planned nursery takes.</summary>
@@ -46,22 +47,23 @@ public static class ForecastNursery
     /// <summary>The mechanics the credit leaves out, named with each served nursery.</summary>
     public static readonly EquatableArray<string> NotModelled =
     [
-        "nursery_crib_rest", // #3939: a crib's rest effectiveness: the baby's rest, awake share and so its fit rate
         "nursery_play", // #3940: the toy box's BabyPlayGainFactor and a BabyDecoration's: the caretaker ticks they save
-        "nursery_baby_mood", // #3941: the room's own thoughts on the baby (crib quality, room stats); its mood is held at its observed target
+        "nursery_baby_mood", // #3941: outcome-dependent room/rest mood trajectories beyond the crib comfort difference
         "nursery_disturbed_sleep", // #3942: a cry's SleepDisturbed memory on a sleeping colonist in reach
         "nursery_baby_opinion", // #3943: the BabyCriedSocial and BabyGiggledSocial opinion memories
         "nursery_hearers_move", // #3944: colonists held where they stand now; a colonist who enters the nursery hears its babies
         "nursery_other_hearers", // #3945: prisoners, guests and slaves in reach
     ];
 
-    /// <summary>The credit (<see cref="RoomCredit"/>): one row per colonist the room changes the heard fits of, under the colonist.</summary>
+    /// <summary>The credit (<see cref="RoomCredit"/>): one row per baby whose sleep changes or colonist whose heard-fit mood changes.</summary>
     public static IReadOnlyList<RoomGain> NurseryCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {
         if (Taker(context) != room.Room) return [];
-        return [.. Cache.GetValue(context, Of).Moods.OrderBy(m => m.Key, StringComparer.Ordinal)
-            .Select(m => new RoomGain(m.Key, m.Key, PlannedRoomCredits.MoodGain(m.Value.With, m.Key, outcome, context, horizon)
-                - PlannedRoomCredits.MoodGain(m.Value.Without, m.Key, outcome, context, horizon)))];
+        var read = Cache.GetValue(context, Of);
+        return [.. read.Moods.Keys.Concat(read.Rest.Keys).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
+            .Select(pawn => new RoomGain(pawn, pawn, (read.Moods.TryGetValue(pawn, out var mood)
+                ? PlannedRoomCredits.MoodGain(mood.With, pawn, outcome, context, horizon)
+                    - PlannedRoomCredits.MoodGain(mood.Without, pawn, outcome, context, horizon) : 0) + read.Rest.GetValueOrDefault(pawn)))];
     }
 
     /// <summary>The findings (<see cref="RoomFindings"/>): what the credit leaves out and the room's named states.</summary>
@@ -157,7 +159,10 @@ public static class ForecastNursery
         context.RoomCredits.ContainsKey(PlannedRole.Nursery) ? context.PlannedRoomRoles.Where(r => r.Value == PlannedRole.Nursery).Select(r => r.Key).DefaultIfEmpty(0).Min() : 0;
 
     /// <summary>Per colonist its heard mood with the nursery and without it, its break shifts, and the taker's named states.</summary>
-    private sealed record Heard(IReadOnlyDictionary<string, (double With, double Without)> Moods, IReadOnlyDictionary<string, double[]> Shifts, string[] States);
+    private sealed record Heard(IReadOnlyDictionary<string, (double With, double Without)> Moods, IReadOnlyDictionary<string, double[]> Shifts, string[] States)
+    {
+        public IReadOnlyDictionary<string, double> Rest { get; init; } = new Dictionary<string, double>();
+    }
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledContext, Heard> Cache = new();
 
@@ -170,25 +175,47 @@ public static class ForecastNursery
         var heard = read.Fits.Where(f => f.Heard).Select(f => f.Def).ToHashSet(StringComparer.Ordinal);
         var with = new Dictionary<string, List<(HeardMemoryRead, double)>>(StringComparer.Ordinal);
         var without = new Dictionary<string, List<(HeardMemoryRead, double)>>(StringComparer.Ordinal);
+        var ownMood = new Dictionary<string, (double With, double Without)>(StringComparer.Ordinal);
+        var restDays = new Dictionary<string, double>(StringComparer.Ordinal);
+        var beds = context.PlannedBeds.GetValueOrDefault(Taker(context)) ?? [];
+        var babyIndex = 0;
         static void Add(Dictionary<string, List<(HeardMemoryRead, double)>> into, string pawn, HeardMemoryRead memory, double rate)
         {
             if (!into.TryGetValue(pawn, out var list)) into[pawn] = list = [];
             list.Add((memory, rate));
         }
 
-        foreach (var baby in read.Babies.Where(b => b.Fits.Count != 0))
+        foreach (var baby in read.Babies)
         {
             var row = context.Needs.Pawns.FirstOrDefault(p => p.Pawn == baby.Pawn) ?? throw new RequiredFactException("baby needs:" + baby.Pawn);
-            var mood = row.Mood ?? throw new RequiredFactException("baby mood:" + baby.Pawn);
+            var mood = row.Mood;
+            if (mood is null && baby.Fits.Count != 0) throw new RequiredFactException("baby mood:" + baby.Pawn);
             var rest = row.Needs.FirstOrDefault(n => n.Kind == "rest") ?? throw new RequiredFactException("baby rest:" + baby.Pawn);
-            // Rest falls awake and is regained asleep (on the ground, the gain without a bed): the share awake balances the two.
-            DomainException.Require(rest.FallPerTick >= 0 && rest.UnservedGainPerTick >= 0 && rest.FallPerTick + rest.UnservedGainPerTick > 0, "baby rest rates:" + baby.Pawn);
-            var awake = rest.UnservedGainPerTick / (rest.UnservedGainPerTick + rest.FallPerTick);
-            var rates = FitRates(read, [.. baby.Fits], Math.Clamp(mood.Target, 0, 1), awake);
+            var now = baby.SleepWithoutNursery ?? throw new RequiredFactException("baby alternate sleeping surface:" + baby.Pawn);
+            var planned = babyIndex < beds.Count ? beds[babyIndex] ?? throw new RequiredFactException("nursery crib stats:" + baby.Pawn) : null;
+            babyIndex++;
+            var standing = planned is null && baby.InNursery ? row.Sleep ?? throw new RequiredFactException("nursery sleeping surface:" + baby.Pawn) : null;
+            var (gain, comfortLevel) = planned is not null ? (rest.GainPerTickPerEffectiveness * planned.RestEffectiveness, planned.Comfort)
+                : standing is not null ? (standing.GainPerTick, standing.Comfort)
+                : throw new RequiredFactException("nursery planned crib:" + baby.Pawn);
+            if (!double.IsFinite(rest.FallPerTick) || rest.FallPerTick < 0 || !double.IsFinite(now.GainPerTick) || now.GainPerTick <= 0
+                || !double.IsFinite(gain) || gain <= 0)
+                throw new RequiredFactException("baby rest rates:" + baby.Pawn);
+            var freed = ForecastHousing.RestDaysFreed(rest, now.GainPerTick, gain);
+            if (freed != 0) restDays[baby.Pawn] = freed;
+            // Comfort is separate from rest effectiveness. Vanilla babies have no comfort need (NeedDef's default
+            // stage filter is Child|Adult); an absent comfort thought therefore changes neither mood nor fit rate.
+            var comfort = ForecastHousing.ComfortMood(row, comfortLevel, context.ComfortCurve)
+                - ForecastHousing.ComfortMood(row, now.Comfort, context.ComfortCurve);
+            if (comfort != 0) ownMood[baby.Pawn] = baby.InNursery ? (0, -comfort) : (comfort, 0);
+            else if (!row.ThoughtStages.Any(t => t.Role == ForecastHousing.NeedComfortRole)) states.Add("nursery_baby_no_comfort_need");
+            if (baby.Fits.Count == 0) continue;
+            var rates = FitRates(read, [.. baby.Fits], Math.Clamp(mood!.Target - (baby.InNursery ? comfort / 100 : 0), 0, 1), now.GainPerTick / (now.GainPerTick + rest.FallPerTick));
+            var cribRates = FitRates(read, [.. baby.Fits], Math.Clamp(mood.Target + (baby.InNursery ? 0 : comfort / 100), 0, 1), gain / (gain + rest.FallPerTick));
             foreach (var hearer in baby.Hearers)
                 foreach (var memory in hearer.Memories.Where(m => heard.Contains(m.Fit) && rates.ContainsKey(m.Fit)))
                 {
-                    if (baby.InNursery && hearer.Now) Add(with, hearer.Pawn, memory, rates[memory.Fit]);
+                    if (baby.InNursery && hearer.Now) Add(with, hearer.Pawn, memory, cribRates[memory.Fit]);
                     if (baby.InNursery ? hearer.NurseryOpen : hearer.Now) Add(without, hearer.Pawn, memory, rates[memory.Fit]);
                 }
         }
@@ -202,7 +229,12 @@ public static class ForecastNursery
         }
 
         if (moods.Count == 0 && !states.Contains(NoFit)) states.Add(Unheard);
+        foreach (var (pawn, delta) in ownMood)
+        {
+            var heardMood = moods.GetValueOrDefault(pawn);
+            moods[pawn] = (heardMood.With + delta.With, heardMood.Without + delta.Without);
+        }
         var shifts = moods.ToDictionary(m => m.Key, m => new[] { m.Value.With / 100, m.Value.Without / 100 }.Where(s => s != 0).Distinct().Order().ToArray(), StringComparer.Ordinal);
-        return new(moods, shifts, [.. states]);
+        return new(moods, shifts, [.. states]) { Rest = restDays };
     }
 }

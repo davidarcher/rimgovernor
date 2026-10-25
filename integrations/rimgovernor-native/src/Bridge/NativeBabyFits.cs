@@ -61,6 +61,7 @@ internal static class NativeBabyFits
         return new()
         {
             Pawn = baby.GetUniqueLoadID(), Fits = EquatableArray.From(can.Select(f => f.defName)), InNursery = nursery,
+            SleepWithoutNursery = NativeNeedsForecast.SleepWithoutNursery(baby, map, nursery ? room : null),
             Hearers = EquatableArray.From(hearers),
         };
     }

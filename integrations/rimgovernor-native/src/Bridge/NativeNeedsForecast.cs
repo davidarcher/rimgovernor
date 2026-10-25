@@ -349,8 +349,47 @@ internal static class NativeNeedsForecast
     private static RimGovernor.Brain.GameFacts.Observations.NeedSleep? SleepOf(Pawn pawn, Map map)
     {
         if (pawn.needs?.rest == null || !pawn.Spawned || pawn.IsWildMan()) return null;
-        var bed = RestUtility.FindBedFor(pawn);
+        var bed = pawn.DevelopmentalStage == DevelopmentalStage.Baby ? pawn.CurrentBed() ?? RestUtility.FindBedFor(pawn) : RestUtility.FindBedFor(pawn);
         return SleepAt(pawn, map, bed, bed?.Position ?? pawn.Position);
+    }
+
+    /// <summary>
+    /// The baby's sleeping surface when its nursery beds are absent (#3939). ChildcareUtility.SafePlaceForBaby
+    /// retains CurrentBed first, otherwise RestUtility.FindBedFor. Vanilla exposes no excluded-room selector;
+    /// after excluding that room, use its owned-bed priority, def order, danger passes and native legality.
+    /// Ground is a real absent-bed state, read by the same SleepAt as every other sleeper.
+    /// </summary>
+    internal static RimGovernor.Brain.GameFacts.Observations.NeedSleep SleepWithoutNursery(Pawn pawn, Map map, Room? nursery)
+    {
+        if (pawn.needs?.rest == null) throw new InvalidOperationException("baby rest is unreadable: " + pawn.GetUniqueLoadID());
+        bool Allowed(Building_Bed bed) => nursery == null || bed.GetRoom() != nursery;
+        var current = pawn.CurrentBed();
+        var selected = current ?? RestUtility.FindBedFor(pawn);
+        if (selected == null || Allowed(selected)) return SleepAt(pawn, map, selected, selected?.Position ?? pawn.Position);
+        var candidates = map.listerThings.AllThings.OfType<Building_Bed>().Where(Allowed).ToArray();
+        var slab = pawn.Ideo?.PreceptsListForReading.Any(p => p.def.prefersSlabBed) == true;
+        bool Valid(Building_Bed bed) => RestUtility.IsValidBedFor(bed, pawn, pawn, true, guestStatus: pawn.GuestStatus);
+        Building_Bed? Closest(ThingDef def, bool medical, Danger danger, bool avoidCorpse) =>
+            (Building_Bed?)GenClosest.ClosestThingReachable(pawn.PositionHeld, map, ThingRequest.ForDef(def), PathEndMode.OnCell,
+                TraverseParms.For(pawn), 9999f, t => t is Building_Bed bed && Allowed(bed) && bed.Medical == medical
+                    && bed.Position.GetDangerFor(pawn, map) <= danger && Valid(bed)
+                    && (!avoidCorpse || !bed.Position.GetItems(map).Any(t => t.def.IsCorpse)));
+        if (HealthAIUtility.ShouldSeekMedicalRest(pawn))
+            foreach (var def in candidates.Select(b => b.def).Distinct().OrderBy(d => slab && !d.building.bed_slabBed ? 1 : 0)
+                .ThenBy(d => d.building.bed_maxBodySize)
+                .ThenByDescending(d => d.GetStatValueAbstract(StatDefOf.MedicalTendQualityOffset))
+                .ThenByDescending(d => d.GetStatValueAbstract(StatDefOf.BedRestEffectiveness)))
+                foreach (var danger in new[] { Danger.None, Danger.Deadly })
+                    if (Closest(def, true, danger, false) is { } medical) return SleepAt(pawn, map, medical, medical.Position);
+        if (pawn.ownership?.OwnedBed is { } owned && Allowed(owned) && Valid(owned)) return SleepAt(pawn, map, owned, owned.Position);
+        var partnerBed = LovePartnerRelationUtility.ExistingMostLikedLovePartnerRel(pawn, allowDead: false)?.otherPawn.ownership.OwnedBed;
+        if (partnerBed != null && Allowed(partnerBed) && Valid(partnerBed)) return SleepAt(pawn, map, partnerBed, partnerBed.Position);
+        var defs = RestUtility.AllBedDefBestToWorst.OrderBy(d => slab && !d.building.bed_slabBed ? 1 : 0).ToArray();
+        for (var pass = 0; pass < 3; pass++)
+            foreach (var def in defs.Where(d => RestUtility.CanUseBedEver(pawn, d)))
+                if (Closest(def, false, pass < 2 ? Danger.None : Danger.Deadly, pass == 0) is { } bed)
+                    return SleepAt(pawn, map, bed, bed.Position);
+        return SleepAt(pawn, map, null, pawn.Position);
     }
     /// <summary>
     /// The lie-down <paramref name="pawn"/> is in now (#3882, RimGovernor.Brain.GameFacts.Observations.NeedLyingIn): its CurrentBed, else the ground, at its own cell,

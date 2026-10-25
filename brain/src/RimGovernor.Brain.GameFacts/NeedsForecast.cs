@@ -127,6 +127,8 @@ public sealed record BabyFitRead
 public sealed record BabyRead
 {
     public required string Pawn { get; init; }
+    /// <summary>The native sleeping surface without the nursery's beds; ground is named by an empty Bed, as NeedSleep.</summary>
+    public required NeedSleep SleepWithoutNursery { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public required EquatableArray<string> Fits { get; init; }
     public required bool InNursery { get; init; }

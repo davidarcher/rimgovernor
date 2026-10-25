@@ -5,7 +5,7 @@ using P = RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Bridge;
 
 // The sleeping facts of a planned bed (#3840): what Toils_LayDown gives a pawn lying in one, per bed def an adult sleeps
-// in and per stuff the game allows it.
+// in, the cribs a nursery plans, and per stuff the game allows it.
 
 public sealed partial class DefinitionCatalog
 {
@@ -23,7 +23,7 @@ public sealed partial class DefinitionCatalog
             return rows;
         }
 
-        foreach (var bed in Beds().Sleeping.OrderBy(b => b.Def, StringComparer.Ordinal))
+        foreach (var bed in Beds().Sleeping.Concat(Beds().All.Where(b => b.Crib)).OrderBy(b => b.Def, StringComparer.Ordinal))
         {
             var row = _thingDefs[bed.Def];
             var stuffs = AllowedStuffs(bed.Def);

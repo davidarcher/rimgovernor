@@ -1,4 +1,5 @@
 using RimGovernor.Brain.Policy;
+using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.GameFacts.Observations;
 using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
@@ -27,6 +28,7 @@ public sealed class NurseryCreditTests
     private static BabyRead Baby(string pawn = "baby", bool inNursery = false, bool now = true, bool open = true, bool parent = false) => new()
     {
         Pawn = pawn, Fits = ["Crying", "Giggling"], InNursery = inNursery,
+        SleepWithoutNursery = new("", false, true, 3e-5, 0, 21),
         Hearers = now || open ? [new() { Pawn = "pawn", Now = now, NurseryOpen = open, Memories = [.. Memories(parent)] }] : [],
     };
 
@@ -34,7 +36,8 @@ public sealed class NurseryCreditTests
     private static NeedsForecastPawn BabyRow(string pawn = "baby", double mood = 0.2) => NeedsFixtures.Pawn(pawn) with
     {
         Mood = NeedsFixtures.Mood with { Level = mood, Target = mood, BreakThreshold = .3, Memories = [] },
-        Needs = [NeedsFixtures.Rate("rest", 1d, 1e-5, .28) with { UnservedGainPerTick = 3e-5 }],
+        Needs = [NeedsFixtures.Rate("rest", 1d, 1e-5, .28) with { UnservedGainPerTick = 3e-5, GainPerTickPerEffectiveness = 3e-5 }],
+        Sleep = new("crib", false, false, 3e-5, .75, 21),
     };
 
     private static ForecastCoupledContext Context(BabyFitsRead babies, IEnumerable<NeedsForecastPawn>? rows = null, params int[] nurseries)
@@ -45,6 +48,7 @@ public sealed class NurseryCreditTests
             Needs = NeedsFixtures.Empty with { Pawns = [hearer, .. rows ?? [BabyRow()]], Babies = babies },
             PlannedRoomRoles = (nurseries.Length == 0 ? [1] : nurseries).ToDictionary(r => r, _ => PlannedRole.Nursery),
             RoomCredits = PlannedRoomCredits.Shipped, InvestmentHorizonDays = Horizon,
+            PlannedBeds = new Dictionary<int, IReadOnlyList<SleepingBedFacts?>> { [1] = [.. babies.Babies.Select(_ => new SleepingBedFacts("Crib", "WoodLog", false, 1, .75))] },
         };
     }
 
@@ -52,13 +56,10 @@ public sealed class NurseryCreditTests
 
     /// <summary>The colonist's mood breaks nothing unshifted or raised, and a day in the mildest tier at each lowering shift the context asks for.</summary>
     private static ForecastCoupledOutcome Outcome(ForecastCoupledContext context) =>
-        new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>
-        {
-            ["pawn"] = new([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
+        new(new([], 0, 0), true, context.Needs.Pawns.ToDictionary(p => p.Pawn, p => new ForecastNeedsResult([], new ForecastTerm.Unassessed("not_projected"), new ForecastTerm.Unassessed("not_projected"), new(new(p.Pawn, "", new ForecastCapacityWindows.Unread(), 0), []), [])
             {
-                Mood = MoodResults.Flat(0d, [0, 0, 0], [.. PlannedRoomCredits.BreakShifts(context).GetValueOrDefault("pawn", []).Select(s => new ForecastShiftedBreaks(s, [s < 0 ? Day : 0, 0, 0]))]),
-            },
-        }, [])
+                Mood = MoodResults.Flat(0d, [0, 0, 0], [.. PlannedRoomCredits.BreakShifts(context).GetValueOrDefault(p.Pawn, []).Select(s => new ForecastShiftedBreaks(s, [s < 0 ? Day : 0, 0, 0]))]),
+            }), [])
         { ServedRooms = [Served] };
 
     private static IReadOnlyList<RoomGain> Gains(ForecastCoupledContext context, ForecastRoomService? room = null) =>
@@ -206,6 +207,60 @@ public sealed class NurseryCreditTests
     }
 
     [Fact]
+    public void FasterCribRestFreesTheBabysCapabilityEvenWhenItCannotHaveAFit()
+    {
+        var baby = Baby(now: false, open: false) with { Fits = [], SleepWithoutNursery = new("old-bed", false, false, 1e-5, .5, 21) };
+        var context = Context(Read(baby));
+        var gain = Assert.Single(Gains(context));
+        Assert.Equal("baby", gain.Pawn);
+        Assert.Equal(.5 - .25, gain.PerDay, 12);
+        Assert.DoesNotContain("nursery_crib_rest", Findings(context));
+        Assert.Contains("nursery_baby_no_comfort_need", Findings(context));
+        // A better otherwise-available bed reverses the crib's rest credit; ground's gain is irrelevant.
+        var better = baby with { SleepWithoutNursery = baby.SleepWithoutNursery with { GainPerTick = 7e-5 } };
+        Assert.Equal(.125 - .25, Assert.Single(Gains(Context(Read(better)))).PerDay, 12);
+    }
+
+    [Fact]
+    public void TheSameHearerGetsDifferentFitRatesWhenTheCribChangesAwakeShare()
+    {
+        var baby = Baby(inNursery: true) with { SleepWithoutNursery = new("other-bed", false, false, 1e-5, .75, 21) };
+        var context = Context(Read(baby));
+        var gains = Gains(context).ToDictionary(g => g.Pawn);
+        Assert.Equal(.25, gains["baby"].PerDay, 12);
+        // This colonist hears both surfaces: faster rest leaves more awake checks, hence more crying.
+        Assert.True(gains["pawn"].PerDay < 0);
+        Assert.Equal(2, ForecastNursery.Shifts(context)["pawn"].Length);
+    }
+
+    [Fact]
+    public void AStandingNurseryUsesItsActualCribStatsAndMissingPlannedStatsThrow()
+    {
+        var read = Read(Baby(inNursery: true, now: false, open: false));
+        var context = Context(read, [BabyRow() with { Sleep = new("quality-crib", false, false, 7e-5, .9, 21) }]) with { PlannedBeds = new Dictionary<int, IReadOnlyList<SleepingBedFacts?>>() };
+        Assert.Equal(.25 - .125, Assert.Single(Gains(context)).PerDay, 12);
+        var missing = Context(Read(Baby())) with { PlannedBeds = new Dictionary<int, IReadOnlyList<SleepingBedFacts?>>() };
+        Assert.StartsWith("nursery planned crib:", Assert.Throws<RequiredFactException>(() => Gains(missing)).Fact, StringComparison.Ordinal);
+        var unread = Context(read) with { PlannedBeds = new Dictionary<int, IReadOnlyList<SleepingBedFacts?>> { [1] = [null] } };
+        Assert.StartsWith("nursery crib stats:", Assert.Throws<RequiredFactException>(() => Gains(unread)).Fact, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnAdmittedComfortNeedChangesTheBabysMoodAndFitMoodInput()
+    {
+        var baby = Baby(inNursery: true) with { SleepWithoutNursery = new("other-bed", false, false, 3e-5, 0, 21) };
+        var stages = Enumerable.Range(0, 5).Select(i => new NeedThoughtStage("NeedComfort", ForecastHousing.NeedComfortRole,
+            i, new double[] { -3, 4, 6, 8, 10 }[i], NeedsFixtures.Situational));
+        var row = BabyRow() with { ThoughtStages = EquatableArray.From(stages) };
+        var context = Context(Read(baby), [row]) with { ComfortCurve = new(.5, .6, .04, false) };
+        var gains = Gains(context).ToDictionary(g => g.Pawn);
+        Assert.True(gains["baby"].PerDay > 0);
+        Assert.True(gains["pawn"].PerDay > 0); // Better comfort: fewer cries and more giggles, with unchanged rest gain/reach.
+        Assert.Contains("baby", ForecastNursery.Shifts(context).Keys);
+        Assert.DoesNotContain("nursery_baby_no_comfort_need", Findings(context));
+    }
+
+    [Fact]
     public void TheCoupledContextCarriesTheBabyFitsTheRoundsRead()
     {
         // The production path (#3822): GenerateCoupledActivities builds the context from the review's facts; the babies, their
@@ -213,18 +268,23 @@ public sealed class NurseryCreditTests
         var review = ForecastCoupledTests.ConstructionReview();
         var needs = review.ForecastObserved.Needs!;
         var hearer = needs.Pawns[0].Pawn;
-        var babies = NeedsFixtures.NoBabies with { Babies = [Baby() with { Hearers = [.. Baby().Hearers.Select(h => h with { Pawn = hearer })] }] };
+        var babies = NeedsFixtures.NoBabies with { Babies = [Baby() with { SleepWithoutNursery = new("other-bed", false, false, 1e-5, .5, 21), Hearers = [.. Baby().Hearers.Select(h => h with { Pawn = hearer })] }] };
         var facts = review with
         {
+            MoodBreak = ForecastValueTests.Context(needs.Pawns[0]).MoodBreaks,
             PlannedShelters = [new() { Id = 1, Role = PlannedRole.Nursery, Region = RegionRules.RectRegion(new(1, 1, 1, 1)) }],
+            PlannedSites = new() { Roles = [(1, PlannedRole.Nursery)], Sites = [new("crib", 1, OpKind.Build, "Crib", "WoodLog", Rotation.North, [new(1, 1)])] },
+            SleepingBeds = [new("Crib", "WoodLog", false, 1, .75)],
             ForecastObserved = review.ForecastObserved with { Needs = needs with { Pawns = [.. needs.Pawns, BabyRow()], Babies = babies } },
         };
         var context = ForecastCoupledCandidates.GenerateCoupledActivities(facts)!.Context;
         Assert.Same(facts.ForecastObserved.Needs, context.Needs);
         Assert.Equal(PlannedRole.Nursery, context.PlannedRoomRoles[1]);
         Assert.True(context.Priced(1));
+        Assert.Equal("Crib", Assert.Single(context.PlannedBeds[1])!.Def);
         var shift = Assert.Single(PlannedRoomCredits.BreakShifts(context)[hearer]);
         Assert.True(shift < 0);
+        Assert.Equal(.25, ForecastNursery.NurseryCredit(Served, Outcome(context), [], context, Day).Single(g => g.Pawn == "baby").PerDay, 12);
         // A fresh colony's review (no baby) credits the nursery nothing and throws nothing.
         var fresh = ForecastCoupledCandidates.GenerateCoupledActivities(review with { PlannedShelters = facts.PlannedShelters })!.Context;
         Assert.Empty(ForecastNursery.NurseryCredit(new(1, "", Day), Outcome(fresh), [], fresh, Day));
