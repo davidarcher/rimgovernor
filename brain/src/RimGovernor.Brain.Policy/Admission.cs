@@ -363,8 +363,9 @@ public static class AdmissionRules
     internal static bool Released(Reservation h)
     {
         var v = h.Progress.View;
-        var known = v.Effect.TryGetValue(out var effect);
-        return v.Stage == Stage.Cancelled && !v.Unresolved && (v.Attempt.Value == 0 || (known && effect == Effect.Absent));
+        return v.Stage == Stage.Cancelled
+            && !v.Unresolved
+            && (v.Attempt.Value == 0 || v.Observes(Effect.Absent));
     }
 
     internal static bool Footprint(IReadOnlyList<Cell> cells, DomainAction a, Bounds bounds)
@@ -447,13 +448,11 @@ public static class AdmissionRules
             }
 
             var v = h.Progress.View;
-            var observed = v.Effect.TryGetValue(out var effect);
 
             // Settled outcomes preserve history. Fresh native facts replace old reservations, accounting for
             // actual remaining stock and placement.
             var terminalStockFresh =
-                observed
-                && (effect == Effect.Completed || effect == Effect.Unsuccessful)
+                (v.Observes(Effect.Completed) || v.Observes(Effect.Unsuccessful))
                 && !v.Unresolved
                 && stockFresh
                 && r.Stock.Tick >= v.Tick

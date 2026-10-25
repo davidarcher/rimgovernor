@@ -315,12 +315,11 @@ internal sealed class OtlpEncoder : IDisposable
     /// <summary>Appends one ExportLogsServiceRequest line for <paramref name="r"/>.</summary>
     internal void EncodeLog(IBufferWriter<byte> dst, TelemetryRecord r)
     {
-        var (number, text) = r.Severity switch
-        {
-            TelemetryLevel.Warn => (SeverityWarn, "WARN"),
-            TelemetryLevel.Error => (SeverityError, "ERROR"),
-            _ => (SeverityInfo, "INFO"),
-        };
+        var (number, text) =
+            r.Severity == TelemetryLevel.Warn ? (SeverityWarn, "WARN")
+            : r.Severity == TelemetryLevel.Error ? (SeverityError, "ERROR")
+            : r.Severity == TelemetryLevel.Info ? (SeverityInfo, "INFO")
+            : throw new ArgumentOutOfRangeException(nameof(r));
         _writer.WriteStartObject();
         _writer.WriteString("timeUnixNano", Nanos(r.Timestamp));
         _writer.WriteString("observedTimeUnixNano", Nanos(r.ObservedTimestamp));
@@ -477,12 +476,12 @@ internal sealed class OtlpEncoder : IDisposable
         {
             _writer.WriteString("unit", Clean(m.Unit));
         }
-        _writer.WriteStartObject(m.Kind switch
-        {
-            MetricKind.Gauge => "gauge",
-            MetricKind.Sum => "sum",
-            _ => "histogram",
-        });
+        _writer.WriteStartObject(
+            m.Kind == MetricKind.Gauge ? "gauge"
+            : m.Kind == MetricKind.Sum ? "sum"
+            : m.Kind == MetricKind.Histogram ? "histogram"
+            : throw new ArgumentOutOfRangeException(nameof(m))
+        );
         _writer.WriteStartArray("dataPoints");
         foreach (var p in m.Points)
         {

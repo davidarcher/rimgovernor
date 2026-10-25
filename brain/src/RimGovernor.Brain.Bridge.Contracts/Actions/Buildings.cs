@@ -64,14 +64,11 @@ public static class BuildingsRules
 
     // The cardinal rotations only.
     private static PlacementRotation? WireRotation(Rotation rotation) =>
-        rotation switch
-        {
-            Rotation.North => PlacementRotation.North,
-            Rotation.East => PlacementRotation.East,
-            Rotation.South => PlacementRotation.South,
-            Rotation.West => PlacementRotation.West,
-            _ => null,
-        };
+        rotation == Rotation.North ? PlacementRotation.North
+        : rotation == Rotation.East ? PlacementRotation.East
+        : rotation == Rotation.South ? PlacementRotation.South
+        : rotation == Rotation.West ? PlacementRotation.West
+        : null;
 
     /// <summary>
     /// The Actions/Apply intent for a building action, place one blueprint of the
@@ -87,14 +84,11 @@ public static class BuildingsRules
         }
         var candidate = new WireCandidate { DefName = b.Definition, Stuff = b.Stuff, X = b.Cell.X, Z = b.Cell.Z, Rotation = rotation, IgnoreNaturalRock = false };
         var intent = new Op.BuildingIntent { Placement = candidate };
-        if (action.FinishingSkill.TryGetValue(out var minimum))
+        if (action.FinishingSkill is { } floor)
         {
-            intent = intent with { MinimumFinishingSkill = minimum };
+            intent = intent with { MinimumFinishingSkill = floor.MinimumSkill };
         }
-        if (action.Tier.TryGetValue(out var tier))
-        {
-            intent = intent with { Tier = (int)tier };
-        }
+        intent = intent with { Tier = (int)action.Tier };
         if (action.ConstructionTarget.Length != 0)
         {
             intent = intent with { ExistingTargetId = action.ConstructionTarget };
@@ -237,14 +231,16 @@ public static class BuildingsRules
     {
         var v = action.CoverClearance ?? throw BridgeContractException.Contract("not a cover clearance action");
         // The designation and guard that remove the thing.
-        (Op.ThingDesignation Designation, Op.DesignationGuard Guard)? kind = v.Designation switch
-        {
-            CoverClearanceDesignation.Mine => (Op.ThingDesignation.Mine, Op.DesignationGuard.MineSafety),
-            CoverClearanceDesignation.CutPlant => (Op.ThingDesignation.CutPlant, Op.DesignationGuard.Unspecified),
-            CoverClearanceDesignation.Haul => (Op.ThingDesignation.Haul, Op.DesignationGuard.Unspecified),
-            CoverClearanceDesignation.Deconstruct => (Op.ThingDesignation.Deconstruct, Op.DesignationGuard.Enclosure),
-            _ => null,
-        };
+        (Op.ThingDesignation Designation, Op.DesignationGuard Guard)? kind =
+            v.Designation == CoverClearanceDesignation.Mine
+                ? (Op.ThingDesignation.Mine, Op.DesignationGuard.MineSafety)
+            : v.Designation == CoverClearanceDesignation.CutPlant
+                ? (Op.ThingDesignation.CutPlant, Op.DesignationGuard.Unspecified)
+            : v.Designation == CoverClearanceDesignation.Haul
+                ? (Op.ThingDesignation.Haul, Op.DesignationGuard.Unspecified)
+            : v.Designation == CoverClearanceDesignation.Deconstruct
+                ? (Op.ThingDesignation.Deconstruct, Op.DesignationGuard.Enclosure)
+            : null;
         if (kind is not { } known)
         {
             throw BridgeContractException.Contract("cover clearance target invalid");
@@ -344,7 +340,9 @@ public static class BuildingsRules
     /// <summary>The AutoHomeAreaIntent that sets the game's home-area auto-expand. A value that already holds applies again.</summary>
     internal static Op.Action AutoHomeAreaAction(DomainAction action)
     {
-        var enabled = action.AutoHomeArea ?? throw BridgeContractException.Contract("not an auto home area action");
-        return new Op.Action { Intent = new Op.AutoHomeAreaIntent { Enabled = enabled } };
+        var order =
+            action.AutoHomeArea
+            ?? throw BridgeContractException.Contract("not an auto home area action");
+        return new Op.Action { Intent = new Op.AutoHomeAreaIntent { Enabled = order.Enabled } };
     }
 }

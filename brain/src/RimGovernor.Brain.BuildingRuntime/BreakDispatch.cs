@@ -164,7 +164,7 @@ public sealed partial class Worker
                     // An explicit target within the exclusion zone is unsafe even when its assigned worker starts
                     // outside it. A pawn on no map holds conservatively.
                     var cells = new List<Cell>();
-                    if (site.Cell.TryGetValue(out var siteCell))
+                    if (site.Cell is { } siteCell)
                     {
                         cells.Add(siteCell);
                     }

@@ -239,8 +239,7 @@ public sealed record PlanSpec
                 || s.Revision != Revision
                 || s.Stage != Stage.Completed
                 || s.Unresolved
-                || !s.Effect.TryGetValue(out var effect)
-                || effect != Effect.Completed
+                || s.Effect is not EffectState.Observed { Kind: Effect.Completed }
                 || !s.Snapshot.SameWorld(current)
                 || s.Tick > tick
             )

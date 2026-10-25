@@ -26,30 +26,12 @@ public static class PlanningWindowRules
 
     /// <summary>Orders site cells row-major (z, then x), the order a planning window lists them.</summary>
     public static void SortSiteCells(List<SiteCell> cells) =>
-        cells.Sort((left, right) =>
-        {
-            var a = left.Cell;
-            var b = right.Cell;
-            return a.Z != b.Z ? a.Z.CompareTo(b.Z) : a.X.CompareTo(b.X);
-        });
-
-    /// <summary>
-    /// Whether a named cell feature is present. A value means present, a not-applicable
-    /// issue or an applied field without a value means absent, and an unread field stays unknown.
-    /// </summary>
-    public static Fact<bool> CellPresence(string? value, IEnumerable<ReadIssue> issues, string field, bool applied)
-    {
-        if (value is not null)
-        {
-            return Known(true);
-        }
-        foreach (var issue in issues)
-        {
-            if ((issue.Field ?? "") == field)
+        cells.Sort(
+            (left, right) =>
             {
-                return (issue.Unavailable?.Reason).GetValueOrDefault() == UnavailableReason.NotApplicable ? Known(false) : Unknown<bool>();
+                var a = left.Cell;
+                var b = right.Cell;
+                return a.Z != b.Z ? a.Z.CompareTo(b.Z) : a.X.CompareTo(b.X);
             }
-        }
-        return applied ? Known(false) : Unknown<bool>();
-    }
+        );
 }

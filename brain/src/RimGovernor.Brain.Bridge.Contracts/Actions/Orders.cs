@@ -38,16 +38,13 @@ public static class Orders
     // Each domain mode to the exclusive interaction native sets. Enslave and Convert exist
     // only while Ideology is active, and native refuses them otherwise.
     private static Op.PrisonerInteraction? PrisonerInteractionWire(PrisonerInteractionMode mode) =>
-        mode switch
-        {
-            PrisonerInteractionMode.Recruit => Op.PrisonerInteraction.AttemptRecruit,
-            PrisonerInteractionMode.Maintain => Op.PrisonerInteraction.MaintainOnly,
-            PrisonerInteractionMode.ReduceResistance => Op.PrisonerInteraction.ReduceResistance,
-            PrisonerInteractionMode.Release => Op.PrisonerInteraction.Release,
-            PrisonerInteractionMode.Enslave => Op.PrisonerInteraction.Enslave,
-            PrisonerInteractionMode.Convert => Op.PrisonerInteraction.Convert,
-            _ => null,
-        };
+        mode == PrisonerInteractionMode.Recruit ? Op.PrisonerInteraction.AttemptRecruit
+        : mode == PrisonerInteractionMode.Maintain ? Op.PrisonerInteraction.MaintainOnly
+        : mode == PrisonerInteractionMode.ReduceResistance ? Op.PrisonerInteraction.ReduceResistance
+        : mode == PrisonerInteractionMode.Release ? Op.PrisonerInteraction.Release
+        : mode == PrisonerInteractionMode.Enslave ? Op.PrisonerInteraction.Enslave
+        : mode == PrisonerInteractionMode.Convert ? Op.PrisonerInteraction.Convert
+        : null;
 
     /// <summary>
     /// The PrisonerInteractionIntent of one prisoner custody order. Native checks
@@ -127,21 +124,44 @@ public static class Orders
     internal static Op.Action RitualAction(DomainAction action)
     {
         var ritual = action.Ritual ?? throw BridgeContractException.Contract("not a ritual action");
-        var intent = new Op.RitualIntent { PawnId = ritual.Pawn.Value, Ritual = ritual.Kind.Value, Verb = Domain.Wire.Name(ritual.Verb) };
-        switch (ritual.Verb)
+        var intent = new Op.RitualIntent
         {
-            case RitualVerb.Start:
-                break;
-            case RitualVerb.Begin:
-                intent = intent with { Spot = IntentActionRules.WireCell(ritual.Spot) };
-                foreach (var slot in ritual.Slots)
+            PawnId = ritual.Pawn.Value,
+            Ritual = ritual.Kind.Value,
+            Verb = Domain.Wire.Name(ritual.Verb),
+        };
+        if (ritual.Verb == RitualVerb.Begin)
+        {
+            intent = intent with { Spot = IntentActionRules.WireCell(ritual.Spot) };
+            foreach (var slot in ritual.Slots)
+            {
+                intent = intent with
                 {
-                    intent = intent with { Roles = [.. intent.Roles, new Op.RitualRoleAssignment { Slot = slot.Slot, PawnIds = [.. slot.Pawns.Select(pawn => pawn.Value)] }] };
-                }
-                intent = intent with { SpectatorPawnIds = [.. intent.SpectatorPawnIds, .. ritual.Spectators.Select(pawn => pawn.Value)] };
-                break;
-            default:
-                throw BridgeContractException.Contract("ritual requires a pawn, a known ritual and a known verb");
+                    Roles =
+                    [
+                        .. intent.Roles,
+                        new Op.RitualRoleAssignment
+                        {
+                            Slot = slot.Slot,
+                            PawnIds = [.. slot.Pawns.Select(pawn => pawn.Value)],
+                        },
+                    ],
+                };
+            }
+            intent = intent with
+            {
+                SpectatorPawnIds =
+                [
+                    .. intent.SpectatorPawnIds,
+                    .. ritual.Spectators.Select(pawn => pawn.Value),
+                ],
+            };
+        }
+        else if (ritual.Verb != RitualVerb.Start)
+        {
+            throw BridgeContractException.Contract(
+                "ritual requires a pawn, a known ritual and a known verb"
+            );
         }
         return new Op.Action { Intent = intent };
     }
@@ -204,36 +224,52 @@ public static class Orders
         var ability = action.Ability ?? throw BridgeContractException.Contract("not an ability action");
         var intent = new Op.AbilityIntent { PawnId = ability.Pawn.Value };
         var source = ability.Source;
-        switch (source.Kind)
-        {
-            case AbilitySourceKind.Permit:
-                intent = intent with { Source = new Op.AbilityIntentSource.PermitCase(new Op.PermitAbility { FactionDef = source.Faction, Permit = source.Def }) };
-                break;
-            case AbilitySourceKind.Psycast:
-                intent = intent with { Source = new Op.AbilityIntentSource.PsycastCase(new Op.PsycastAbility { Ability = source.Def }) };
-                break;
-            default:
-                throw BridgeContractException.Contract($"unsupported ability source \"{Domain.Wire.Name(source.Kind)}\"");
-        }
+        intent = intent with { Source = AbilitySourceWire(source) };
         var target = ability.Target;
-        switch (target.Kind)
-        {
-            case AbilityTargetKind.None:
-                intent = intent with { Target = new Op.AbilityIntentTarget.NoTargetCase(new Op.AbilityNoTarget()) };
-                break;
-            case AbilityTargetKind.Cell:
-                intent = intent with { Target = new Op.AbilityIntentTarget.CellCase(IntentActionRules.WireCell(target.Cell)) };
-                break;
-            case AbilityTargetKind.Pawn:
-                intent = intent with { Target = new Op.AbilityIntentTarget.PawnCase(target.Id) };
-                break;
-            case AbilityTargetKind.Thing:
-                intent = intent with { Target = new Op.AbilityIntentTarget.ThingCase(target.Id) };
-                break;
-            default:
-                throw BridgeContractException.Contract($"unsupported ability target \"{Domain.Wire.Name(target.Kind)}\"");
-        }
+        intent = intent with { Target = AbilityTargetWire(target) };
         return new Op.Action { Intent = intent };
+    }
+
+    private static Op.AbilityIntentSource AbilitySourceWire(AbilitySource source)
+    {
+        if (source.Kind == AbilitySourceKind.Permit)
+        {
+            return new Op.AbilityIntentSource.PermitCase(
+                new Op.PermitAbility { FactionDef = source.Faction, Permit = source.Def }
+            );
+        }
+        if (source.Kind == AbilitySourceKind.Psycast)
+        {
+            return new Op.AbilityIntentSource.PsycastCase(
+                new Op.PsycastAbility { Ability = source.Def }
+            );
+        }
+        throw BridgeContractException.Contract(
+            $"unsupported ability source \"{Domain.Wire.Name(source.Kind)}\""
+        );
+    }
+
+    private static Op.AbilityIntentTarget AbilityTargetWire(AbilityTarget target)
+    {
+        if (target.Kind == AbilityTargetKind.None)
+        {
+            return new Op.AbilityIntentTarget.NoTargetCase(new Op.AbilityNoTarget());
+        }
+        if (target.Kind == AbilityTargetKind.Cell)
+        {
+            return new Op.AbilityIntentTarget.CellCase(IntentActionRules.WireCell(target.Cell));
+        }
+        if (target.Kind == AbilityTargetKind.Pawn)
+        {
+            return new Op.AbilityIntentTarget.PawnCase(target.Id);
+        }
+        if (target.Kind == AbilityTargetKind.Thing)
+        {
+            return new Op.AbilityIntentTarget.ThingCase(target.Id);
+        }
+        throw BridgeContractException.Contract(
+            $"unsupported ability target \"{Domain.Wire.Name(target.Kind)}\""
+        );
     }
 
     /// <summary>The Actions/Apply gathering arm, the organizer starts one vanilla GatheringDef. The intent names no spot; the game chooses it.</summary>
@@ -314,21 +350,18 @@ public static class Orders
 
     // Each domain method to the order native applies (HusbandryActionHandler).
     private static Op.HusbandryOrder? HusbandryOrderWire(HusbandryMethod method) =>
-        method switch
-        {
-            HusbandryMethod.Train => Op.HusbandryOrder.Train,
-            HusbandryMethod.Slaughter => Op.HusbandryOrder.Slaughter,
-            HusbandryMethod.Tame => Op.HusbandryOrder.Tame,
-            HusbandryMethod.Release => Op.HusbandryOrder.Release,
-            HusbandryMethod.AllowedArea => Op.HusbandryOrder.AllowedArea,
-            HusbandryMethod.Master => Op.HusbandryOrder.Master,
-            HusbandryMethod.FollowDrafted => Op.HusbandryOrder.FollowDrafted,
-            HusbandryMethod.FollowFieldwork => Op.HusbandryOrder.FollowFieldwork,
-            HusbandryMethod.CancelSlaughter => Op.HusbandryOrder.CancelSlaughter,
-            HusbandryMethod.CancelRelease => Op.HusbandryOrder.CancelRelease,
-            HusbandryMethod.Sterilize => Op.HusbandryOrder.Sterilize,
-            _ => null,
-        };
+        method == HusbandryMethod.Train ? Op.HusbandryOrder.Train
+        : method == HusbandryMethod.Slaughter ? Op.HusbandryOrder.Slaughter
+        : method == HusbandryMethod.Tame ? Op.HusbandryOrder.Tame
+        : method == HusbandryMethod.Release ? Op.HusbandryOrder.Release
+        : method == HusbandryMethod.AllowedArea ? Op.HusbandryOrder.AllowedArea
+        : method == HusbandryMethod.Master ? Op.HusbandryOrder.Master
+        : method == HusbandryMethod.FollowDrafted ? Op.HusbandryOrder.FollowDrafted
+        : method == HusbandryMethod.FollowFieldwork ? Op.HusbandryOrder.FollowFieldwork
+        : method == HusbandryMethod.CancelSlaughter ? Op.HusbandryOrder.CancelSlaughter
+        : method == HusbandryMethod.CancelRelease ? Op.HusbandryOrder.CancelRelease
+        : method == HusbandryMethod.Sterilize ? Op.HusbandryOrder.Sterilize
+        : null;
 
     /// <summary>
     /// The HusbandryIntent of one animal order. Native checks the animal and the order's

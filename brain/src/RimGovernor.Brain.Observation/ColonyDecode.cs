@@ -82,9 +82,6 @@ public static class ColonyDecodeReads
         return Known<IReadOnlyDictionary<Resource, long>>(stock);
     }
 
-    internal static Fact<bool> NativePresence(string? value, IEnumerable<O.ReadIssue> issues, string field) =>
-        PlanningWindowRules.CellPresence(value, issues, field, false);
-
     internal static Cell CellOf(C.Cell? cell) => new(cell?.X ?? 0, cell?.Z ?? 0);
 
     /// <summary>The cell of a map census row's head: a map census holds only placed things, so an unplaced head breaks the contract.</summary>

@@ -655,8 +655,12 @@ public sealed partial class RoundsBuildingPlanner
         foreach (var h in heldReservations)
         {
             var v = h.Progress.View;
-            var hasEffect = v.Effect.TryGetValue(out var effect);
-            if (!v.Unresolved && hasEffect && (effect == Effect.Completed || effect == Effect.Unsuccessful) && v.Tick.Value <= facts.Identity.Tick.Value)
+            if (
+                !v.Unresolved
+                && v.Effect
+                    is EffectState.Observed { Kind: Effect.Completed or Effect.Unsuccessful }
+                && v.Tick.Value <= facts.Identity.Tick.Value
+            )
             {
                 continue;
             }

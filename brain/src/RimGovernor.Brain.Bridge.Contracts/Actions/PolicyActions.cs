@@ -44,24 +44,20 @@ public static class PolicyActions
     }
 
     private static Op.HostilityResponse HostilityWire(DomainHostility mode) =>
-        mode switch
-        {
-            DomainHostility.Ignore => Op.HostilityResponse.Ignore,
-            DomainHostility.Attack => Op.HostilityResponse.Attack,
-            DomainHostility.Flee => Op.HostilityResponse.Flee,
-            _ => throw BridgeContractException.Contract("unknown hostility response"),
-        };
+        mode == DomainHostility.Ignore ? Op.HostilityResponse.Ignore
+        : mode == DomainHostility.Attack ? Op.HostilityResponse.Attack
+        : mode == DomainHostility.Flee ? Op.HostilityResponse.Flee
+        : throw BridgeContractException.Contract("unknown hostility response");
 
     private static Op.MedicalCare MedicalCareWire(DomainMedicalCare care) =>
-        care switch
-        {
-            DomainMedicalCare.None => Op.MedicalCare.NoCare,
-            DomainMedicalCare.NoMeds => Op.MedicalCare.NoMedicine,
-            DomainMedicalCare.Herbal => Op.MedicalCare.HerbalOrWorse,
-            DomainMedicalCare.Normal => Op.MedicalCare.NormalOrWorse,
-            DomainMedicalCare.Best => Op.MedicalCare.Best,
-            _ => throw BridgeContractException.Contract($"unknown medical care \"{Domain.Wire.Name(care)}\""),
-        };
+        care == DomainMedicalCare.None ? Op.MedicalCare.NoCare
+        : care == DomainMedicalCare.NoMeds ? Op.MedicalCare.NoMedicine
+        : care == DomainMedicalCare.Herbal ? Op.MedicalCare.HerbalOrWorse
+        : care == DomainMedicalCare.Normal ? Op.MedicalCare.NormalOrWorse
+        : care == DomainMedicalCare.Best ? Op.MedicalCare.Best
+        : throw BridgeContractException.Contract(
+            $"unknown medical care \"{Domain.Wire.Name(care)}\""
+        );
 
     /// <summary>
     /// The PawnSettingsIntent of one pawn and one setting. Native re-checks the pawn and
@@ -69,50 +65,69 @@ public static class PolicyActions
     /// </summary>
     internal static Op.Action PawnSettingsAction(DomainAction action)
     {
-        var v = action.PawnSettings ?? throw BridgeContractException.Contract("not a pawn settings action");
-        var intent = new Op.PawnSettingsIntent { PawnId = v.Pawn.Value };
-        switch (v.Kind)
+        var v =
+            action.PawnSettings
+            ?? throw BridgeContractException.Contract("not a pawn settings action");
+        return new Op.Action
         {
-            case SettingKind.Hostility:
-                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.HostilityResponseCase(HostilityWire(v.Hostility ?? throw BridgeContractException.Contract("hostility setting without a mode"))) };
-                break;
-            case SettingKind.SelfTend:
-                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.SelfTendCase(v.SelfTend) };
-                break;
-            case SettingKind.MedicineCarry:
-                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.MedicineCarryCase(v.MedicineCarry ?? 0) };
-                break;
-            case SettingKind.Nickname:
-                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.NicknameCase(v.LeaveName) };
-                break;
-            case SettingKind.MedicalCare:
-                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.MedicalCareCase(MedicalCareWire(v.MedicalCare ?? throw BridgeContractException.Contract("medical care setting without a tier"))) };
-                break;
-            case SettingKind.ReadingPolicy:
-                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.ReadingPolicyCase(v.ReadingPolicy ?? "") };
-                break;
-            case SettingKind.DrugPolicy:
-                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.DrugPolicyCase(v.DrugPolicy ?? "") };
-                break;
-            case SettingKind.FoodPolicy:
-                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.FoodPolicyCase(v.FoodPolicy ?? "") };
-                break;
-            case SettingKind.MechWorkMode:
-                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.MechWorkModeCase(v.MechWorkMode ?? "") };
-                break;
-            case SettingKind.MechControlGroup:
-                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.MechControlGroupCase(v.MechControlGroup ?? 0) };
-                break;
-            case SettingKind.ChoosePermit:
-                var (faction, permit) = v.ChoosePermit ?? throw BridgeContractException.Contract("choose permit setting without a permit");
-                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.ChoosePermitCase(new Op.PermitChoice { FactionDef = faction, Permit = permit }) };
-                break;
-            case SettingKind.ExtractBioferrite:
-                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.ExtractBioferriteCase(v.ExtractBioferrite ?? false) };
-                break;
-            default:
-                throw BridgeContractException.Contract("unknown pawn setting");
+            Intent = new Op.PawnSettingsIntent { PawnId = v.Pawn.Value, Setting = SettingWire(v) },
+        };
+    }
+
+    private static Op.PawnSettingsIntentSetting SettingWire(PawnSettings v)
+    {
+        if (v is PawnSettings.HostilitySetting hostility)
+        {
+            return new Op.PawnSettingsIntentSetting.HostilityResponseCase(
+                HostilityWire(hostility.Mode)
+            );
         }
-        return new Op.Action { Intent = intent };
+        if (v is PawnSettings.SelfTendSetting selfTend)
+        {
+            return new Op.PawnSettingsIntentSetting.SelfTendCase(selfTend.On);
+        }
+        if (v is PawnSettings.MedicineCarrySetting carry)
+        {
+            return new Op.PawnSettingsIntentSetting.MedicineCarryCase(carry.Count);
+        }
+        if (v is PawnSettings.NicknameSetting nickname)
+        {
+            return new Op.PawnSettingsIntentSetting.NicknameCase(nickname.LeaveName);
+        }
+        if (v is PawnSettings.MedicalCareSetting care)
+        {
+            return new Op.PawnSettingsIntentSetting.MedicalCareCase(MedicalCareWire(care.Care));
+        }
+        if (v is PawnSettings.ReadingPolicySetting reading)
+        {
+            return new Op.PawnSettingsIntentSetting.ReadingPolicyCase(reading.Name);
+        }
+        if (v is PawnSettings.DrugPolicySetting drug)
+        {
+            return new Op.PawnSettingsIntentSetting.DrugPolicyCase(drug.Name);
+        }
+        if (v is PawnSettings.FoodPolicySetting food)
+        {
+            return new Op.PawnSettingsIntentSetting.FoodPolicyCase(food.Name);
+        }
+        if (v is PawnSettings.MechWorkModeSetting mode)
+        {
+            return new Op.PawnSettingsIntentSetting.MechWorkModeCase(mode.Mode);
+        }
+        if (v is PawnSettings.MechControlGroupSetting group)
+        {
+            return new Op.PawnSettingsIntentSetting.MechControlGroupCase(group.Group);
+        }
+        if (v is PawnSettings.ChoosePermitSetting permit)
+        {
+            return new Op.PawnSettingsIntentSetting.ChoosePermitCase(
+                new Op.PermitChoice { FactionDef = permit.Faction, Permit = permit.Permit }
+            );
+        }
+        if (v is PawnSettings.ExtractBioferriteSetting bioferrite)
+        {
+            return new Op.PawnSettingsIntentSetting.ExtractBioferriteCase(bioferrite.On);
+        }
+        throw BridgeContractException.Contract("unknown pawn setting");
     }
 }

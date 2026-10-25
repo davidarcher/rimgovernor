@@ -198,11 +198,16 @@ public sealed partial class RoundsDefensePlanner
             progress = settled;
         }
         p.Journal.RetireCombatBatch(plan.Id, call);
-        if (progress.View.Receipt.TryGetValue(out var receipt) && (receipt == Domain.Receipt.Refused || receipt == Domain.Receipt.Unsent))
+        if (
+            progress.View.Receipt is ReceiptState.Received
+            {
+                Kind: Domain.Receipt.Refused or Domain.Receipt.Unsent
+            } rejected
+        )
         {
-            throw new ControlException($"combat batch {receipt}");
+            throw new ControlException($"combat batch {rejected.Kind}");
         }
-        if (!progress.View.Combat.TryGetValue(out var results))
+        if (progress.View.Combat is not { } results)
         {
             return (null, orders);
         }

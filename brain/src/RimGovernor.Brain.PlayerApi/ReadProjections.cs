@@ -94,10 +94,13 @@ internal static class ReadProjections
                 view.Attempt.Value,
                 view.Tick.Value,
                 view.Unresolved,
-                Known(view.Receipt, r => Wire.Name(r)),
-                Known(view.Effect, e => Wire.Name(e)),
-                Known(view.UnsuccessfulReason, u => Wire.Name(u)),
-                held);
+                view.Receipt is ReceiptState.Received r ? Wire.Name(r.Kind) : null,
+                view.Effect is EffectState.Observed e ? Wire.Name(e.Kind) : null,
+                view.UnsuccessfulReason != UnsuccessfulReason.None
+                    ? Wire.Name(view.UnsuccessfulReason)
+                    : null,
+                held
+            );
             BuildingDto? building = null;
             DraftDto? draft = null;
             if (action.Building is { } b)

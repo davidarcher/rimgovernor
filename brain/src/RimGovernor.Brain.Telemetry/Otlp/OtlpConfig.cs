@@ -16,13 +16,14 @@ public static class OtlpFiles
     public const string Metrics = "metrics.jsonl";
 
     /// <summary>The ring file of <paramref name="signal"/> inside <paramref name="dir"/>.</summary>
-    public static string RingPath(string dir, OtlpSignal signal) => Path.Combine(dir, signal switch
-    {
-        OtlpSignal.Traces => Traces,
-        OtlpSignal.Logs => Logs,
-        OtlpSignal.Metrics => Metrics,
-        _ => throw new ArgumentOutOfRangeException(nameof(signal)),
-    });
+    public static string RingPath(string dir, OtlpSignal signal) =>
+        Path.Combine(
+            dir,
+            signal == OtlpSignal.Traces ? Traces
+                : signal == OtlpSignal.Logs ? Logs
+                : signal == OtlpSignal.Metrics ? Metrics
+                : throw new ArgumentOutOfRangeException(nameof(signal))
+        );
 }
 
 /// <summary>Bounds one signal's file ring: disk use is at most <see cref="SegmentBytes"/> x <see cref="Segments"/>.</summary>

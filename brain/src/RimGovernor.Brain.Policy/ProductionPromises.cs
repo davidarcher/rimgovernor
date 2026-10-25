@@ -40,17 +40,28 @@ public static partial class ProductionRules
         {
             var order = pricing.Batch.Order;
             var progress = pricing.Batch.Progress;
-            if (order.Mode != BillMode.GearBatch) continue;
-            var unplaced = progress.Attempt.Value == 0
-                || !progress.Unresolved && progress.Effect.TryGetValue(out var effect) && effect == Effect.Absent;
-            if (progress.Stage == Stage.Unsuccessful || progress.Stage == Stage.Cancelled && unplaced) continue;
+            if (order.Mode != BillMode.GearBatch)
+                continue;
+            var unplaced =
+                progress.Attempt.Value == 0
+                || !progress.Unresolved && progress.Observes(Effect.Absent);
+            if (
+                progress.Stage == Stage.Unsuccessful
+                || progress.Stage == Stage.Cancelled && unplaced
+            )
+                continue;
             var remaining = Known(order.Target);
-            ProductionUnfinishedWork? unfinishedWork = unplaced ? new ProductionUnfinishedWork("", default) : null;
-            var link = unplaced ? Known("") : progress.Bill;
+            ProductionUnfinishedWork? unfinishedWork = unplaced
+                ? new ProductionUnfinishedWork("", default)
+                : null;
+            var link =
+                unplaced ? Known("")
+                : progress.Bill is { } linked ? Known(linked)
+                : default;
             if (!unplaced)
             {
                 remaining = default;
-                if (progress.Bill.TryGetValue(out var id) && census.TryGetValue(out var observed))
+                if (progress.Bill is { } id && census.TryGetValue(out var observed))
                 {
                     if (!seen.Add(id)) throw new DomainException("multiple production actions own one native bill");
                     var matches = observed.Where(b => b.Id == id).ToArray();

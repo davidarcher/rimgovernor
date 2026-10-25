@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Executor;
 // (Result, error) pairs stay pairs where the result carries partial progress next to the failure
 // (RunBatchAsync reports both per item); everything else throws. Cancellation of the caller's token and
 // authority cancellation both surface as OperationCanceledException or AuthorityException on the item. An
-// uncertain native write is recorded as Receipt.Unknown and never retried here.
+// uncertain native write is recorded as Receipt.Unconfirmed and never retried here.
 
 /// <summary>The guarded building executor.</summary>
 public sealed partial class Executor : IDisposable
@@ -299,7 +299,7 @@ public sealed partial class Executor : IDisposable
     // A failed native write: a failure the transport proves happened before the call was issued is a no-effect
     // Unsent receipt; anything else is uncertain and must reconcile.
     private static Domain.Receipt ReceiptAfterCallError(Exception error) =>
-        error is WriteUnsentException ? Domain.Receipt.Unsent : Domain.Receipt.Unknown;
+        error is WriteUnsentException ? Domain.Receipt.Unsent : Domain.Receipt.Unconfirmed;
 
     private bool Fresh(DateTimeOffset start, DateTimeOffset end)
     {
@@ -335,7 +335,13 @@ public sealed partial class Executor : IDisposable
     private Task<(ExecutorResult Result, Exception? Error)> SettleIntentAsync(Progress progress)
     {
         var v = progress.View;
-        return RecordAsync(new ExecutorResult { Progress = progress }, v.Plan, new Placement(progress.Action, v.Attempt, v.Snapshot, v.Tick), Domain.Receipt.Unknown, null);
+        return RecordAsync(
+            new ExecutorResult { Progress = progress },
+            v.Plan,
+            new Placement(progress.Action, v.Attempt, v.Snapshot, v.Tick),
+            Domain.Receipt.Unconfirmed,
+            null
+        );
     }
 
     // The error a cancelled token stands for, or null.

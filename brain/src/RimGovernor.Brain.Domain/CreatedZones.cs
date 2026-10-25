@@ -55,6 +55,6 @@ public sealed partial record Progress
             throw new DomainException("stockpile identities require an applied rectangle placement");
         }
         var placements = new CreatedZones(zone, list);
-        return RecordReceiptCore(attempt, receipt).With(v => v with { Stockpiles = Known(placements) });
+        return RecordReceiptCore(attempt, receipt).With(v => v with { Stockpiles = placements });
     }
 }

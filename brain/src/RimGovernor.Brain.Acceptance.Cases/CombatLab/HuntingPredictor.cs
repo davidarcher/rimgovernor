@@ -41,7 +41,14 @@ public static class CombatLabHuntingPredictor
         await cancel.CancelAsync().ConfigureAwait(false);
         var cancelled = await pending.ConfigureAwait(false);
         var cancellationMs = watch.Elapsed.TotalMilliseconds;
-        var record = new HuntingCellPrediction(input.Cell, request, warm, cold.ColdStartMilliseconds, warm.RequestMilliseconds, cancellationMs);
+        var record = new HuntingCellPrediction(
+            input.Cell,
+            request,
+            warm,
+            cold.ColdStartMilliseconds?.Value,
+            warm.RequestMilliseconds?.Value,
+            cancellationMs
+        );
         return new HuntingPredictionRun(record, cold, cancelled);
     }
 }

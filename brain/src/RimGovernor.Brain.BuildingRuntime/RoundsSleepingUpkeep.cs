@@ -288,7 +288,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         }
         foreach (var pr in progress)
         {
-            if (!pr.View.Effect.TryGetValue(out var effect) || effect != Effect.Absent)
+            if (!pr.View.Observes(Effect.Absent))
             {
                 return false;
             }

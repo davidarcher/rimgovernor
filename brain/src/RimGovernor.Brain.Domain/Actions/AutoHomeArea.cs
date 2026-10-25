@@ -13,6 +13,6 @@ public sealed partial record DomainAction
     public static DomainAction NewAutoHomeAreaAction(ActionId id, bool enabled) =>
         Create(id, ActionKind.AutoHomeArea, new AutoHomeAreaOrder(enabled));
 
-    /// <summary>The auto-expand value when this is an auto home area action, otherwise null.</summary>
-    public bool? AutoHomeArea => PayloadOf<AutoHomeAreaOrder>(ActionKind.AutoHomeArea)?.Enabled;
+    /// <summary>The order when this is an auto home area action, otherwise null.</summary>
+    public AutoHomeAreaOrder? AutoHomeArea => PayloadOf<AutoHomeAreaOrder>(ActionKind.AutoHomeArea);
 }

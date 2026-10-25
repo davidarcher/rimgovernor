@@ -168,7 +168,7 @@ internal sealed class MetricAggregator : IDisposable
                         }
                         series.Last += value;
                         break;
-                    default:
+                    case MetricKind.Histogram:
                         series.Count++;
                         series.Total += value;
                         series.Min = series.Count == 1 ? value : Math.Min(series.Min, value);

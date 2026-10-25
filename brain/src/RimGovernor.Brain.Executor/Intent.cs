@@ -224,7 +224,7 @@ public sealed partial class Executor
                     continue;
                 case Stage.Pending or Stage.Prepared:
                     break;
-                default:
+                case Stage.Dispatched or Stage.AwaitingObservation:
                     errors[i] = new EvidenceException();
                     continue;
             }
@@ -372,7 +372,7 @@ public sealed partial class Executor
         {
             for (var j = 0; j < sent.Count; j++)
             {
-                (kinds[j], causes[j]) = (Domain.Receipt.Unknown, guardError);
+                (kinds[j], causes[j]) = (Domain.Receipt.Unconfirmed, guardError);
             }
         }
         else
@@ -400,11 +400,11 @@ public sealed partial class Executor
                 }
                 else if (receipts is null || receipts.Count != placements.Count)
                 {
-                    (kinds[j], causes[j]) = (Domain.Receipt.Unknown, new EvidenceException());
+                    (kinds[j], causes[j]) = (Domain.Receipt.Unconfirmed, new EvidenceException());
                 }
                 else if (receipts[j].Action != p.Action.Id || receipts[j].Attempt != p.Attempt || receipts[j].Snapshot != expected)
                 {
-                    (kinds[j], causes[j]) = (Domain.Receipt.Unknown, new EvidenceException());
+                    (kinds[j], causes[j]) = (Domain.Receipt.Unconfirmed, new EvidenceException());
                 }
                 else
                 {
@@ -438,7 +438,7 @@ public sealed partial class Executor
                 }
                 if (check is not null)
                 {
-                    kinds[j] = Domain.Receipt.Unknown;
+                    kinds[j] = Domain.Receipt.Unconfirmed;
                     causes[j] = Errors.Join(causes[j], new EvidenceException(check));
                     combat[j] = [];
                 }

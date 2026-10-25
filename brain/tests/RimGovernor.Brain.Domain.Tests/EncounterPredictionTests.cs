@@ -159,11 +159,20 @@ public sealed class EncounterPredictionTests
         actor = fault switch
         {
             "negative_products" => actor with { Dead = true, Products = new("meat", -1, "", 0) },
-            "late_shot" => actor with { FirstAttackTick = 0, LastShotTick = 15 },
-            "late_melee" => actor with { FirstAttackTick = 15 },
-            "melee_after_withdrawal" => actor with { FirstAttackTick = 10, WithdrawalTick = 5 },
-            "negative_tick" => actor with { FirstAttackTick = -1 },
-            "after_withdrawal" => actor with { FirstAttackTick = 0, LastShotTick = 10, WithdrawalTick = 5 },
+            "late_shot" => actor with { FirstAttackTick = new(0), LastShotTick = new(15) },
+            "late_melee" => actor with { FirstAttackTick = new(15) },
+            "melee_after_withdrawal" => actor with
+            {
+                FirstAttackTick = new(10),
+                WithdrawalTick = new(5),
+            },
+            "negative_tick" => actor with { FirstAttackTick = new(-1) },
+            "after_withdrawal" => actor with
+            {
+                FirstAttackTick = new(0),
+                LastShotTick = new(10),
+                WithdrawalTick = new(5),
+            },
             _ => actor,
         };
         evidence = evidence with { Samples = [evidence.Samples[0] with { Actors = fault == "missing_participant" ? [] : [actor, evidence.Samples[0].Actors[1]] }] };

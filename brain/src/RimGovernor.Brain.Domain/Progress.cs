@@ -25,18 +25,48 @@ public enum Receipt
     /// issued), so nothing was admitted: no-effect, and the same authority may retry.
     /// </summary>
     Unsent,
-    Unknown,
+
+    /// <summary>
+    /// The write may or may not have reached native: the transport lost the outcome. It is never retried by the
+    /// executor, and an idempotent intent is sent again.
+    /// </summary>
+    Unconfirmed,
+}
+
+/// <summary>Whether the current dispatch attempt has a recorded receipt, and which.</summary>
+public abstract record ReceiptState
+{
+    private protected ReceiptState() { }
+
+    /// <summary>No receipt: the action is not dispatched, or the dispatched attempt's receipt is outstanding.</summary>
+    public sealed record NoReceipt : ReceiptState;
+
+    /// <summary>The attempt's receipt.</summary>
+    public sealed record Received(Receipt Kind) : ReceiptState;
+}
+
+/// <summary>Whether the dispatched effect has been observed, and what the observation found.</summary>
+public abstract record EffectState
+{
+    private protected EffectState() { }
+
+    /// <summary>No observation has settled this attempt yet.</summary>
+    public sealed record NotObserved : EffectState;
+
+    /// <summary>The latest observation's finding.</summary>
+    public sealed record Observed(Effect Kind) : EffectState;
 }
 
 public enum Effect
 {
-    Unknown,
+    /// <summary>The inspection was partial or truncated, so it proves nothing about the effect.</summary>
+    Inconclusive,
     Pending,
     Completed,
 
     /// <summary>
     /// Requires a complete inspection proving no order or effect remains. Partial or truncated reads must
-    /// report <see cref="Unknown"/>.
+    /// report <see cref="Inconclusive"/>.
     /// </summary>
     Absent,
     Unsuccessful,
@@ -216,17 +246,19 @@ public sealed record ProgressView
     /// ZoneEffect.zone_id). It is the identity later native censuses name the zone by, which is how a
     /// completed stockpile method owns its zone for the layout/home-coverage Need.
     /// </summary>
-    public Fact<string> Zone { get; init; }
+    public string? Zone { get; init; }
 
-    public Fact<CreatedZones> Stockpiles { get; init; }
+    /// <summary>The zones an applied stockpile rectangle created; null until that receipt is recorded.</summary>
+    public CreatedZones? Stockpiles { get; init; }
 
-    public Fact<CombatResults> Combat { get; init; }
+    /// <summary>The recorded results of an applied combat batch; null until that receipt is recorded.</summary>
+    public CombatResults? Combat { get; init; }
 
     /// <summary>
     /// The native bill an applied production_bill or surgery receipt identifies (BillEffect.bill,
     /// SurgeryEffect.bill): the id a later remove_production_bill names.
     /// </summary>
-    public Fact<string> Bill { get; init; }
+    public string? Bill { get; init; }
 
     public ActionId Action { get; init; }
 
@@ -244,16 +276,24 @@ public sealed record ProgressView
 
     public bool Unresolved { get; init; }
 
-    public Fact<Receipt> Receipt { get; init; }
+    public ReceiptState Receipt { get; init; } = new ReceiptState.NoReceipt();
 
-    public Fact<Effect> Effect { get; init; }
+    public EffectState Effect { get; init; } = new EffectState.NotObserved();
 
-    public Fact<UnsuccessfulReason> UnsuccessfulReason { get; init; }
+    /// <summary>True when the latest observation found exactly <paramref name="kind"/>.</summary>
+    public bool Observes(Effect kind) => Effect is EffectState.Observed o && o.Kind == kind;
 
-    public Fact<HoldEvidence> HeldReason { get; init; }
+    /// <summary>True when the attempt's recorded receipt is exactly <paramref name="kind"/>.</summary>
+    public bool Received(Receipt kind) => Receipt is ReceiptState.Received r && r.Kind == kind;
 
-    /// <summary>Native's own account of a refused receipt: failure code, reason and class. Unknown unless the receipt was a native refusal.</summary>
-    public Fact<NativeRefusal> Refusal { get; init; }
+    /// <summary>The observed reason of an Unsuccessful effect; <see cref="Domain.UnsuccessfulReason.None"/> until one is observed.</summary>
+    public UnsuccessfulReason UnsuccessfulReason { get; init; }
+
+    /// <summary>Why the not-yet-dispatched action is stuck; null while it is not held.</summary>
+    public HoldEvidence? HeldReason { get; init; }
+
+    /// <summary>Native's own account of a refused receipt: failure code, reason and class. Null unless the receipt was a native refusal.</summary>
+    public NativeRefusal? Refusal { get; init; }
 
     /// <summary>
     /// The typed reason an Unsuccessful action ended: the observed reason, or
@@ -265,15 +305,13 @@ public sealed record ProgressView
         {
             return Domain.UnsuccessfulReason.None;
         }
-        if (UnsuccessfulReason.TryGetValue(out var reason))
+        if (UnsuccessfulReason != Domain.UnsuccessfulReason.None)
         {
-            return reason;
+            return UnsuccessfulReason;
         }
-        if (Receipt.TryGetValue(out var receipt) && receipt == Domain.Receipt.Refused)
-        {
-            return Domain.UnsuccessfulReason.IntentRefused;
-        }
-        return Domain.UnsuccessfulReason.None;
+        return Receipt is ReceiptState.Received { Kind: Domain.Receipt.Refused }
+            ? Domain.UnsuccessfulReason.IntentRefused
+            : Domain.UnsuccessfulReason.None;
     }
 
     /// <summary>
@@ -299,7 +337,12 @@ public sealed record ProgressView
         {
             return false;
         }
-        if (!HeldReason.TryGetValue(out var held) || held.Plan != Plan || held.Revision != Revision || held.Tick < Tick)
+        if (
+            HeldReason is not { } held
+            || held.Plan != Plan
+            || held.Revision != Revision
+            || held.Tick < Tick
+        )
         {
             return false;
         }
@@ -345,8 +388,19 @@ public sealed partial record Progress
     {
         DomainException.Require((View.Stage is Stage.Pending or Stage.Prepared) && !View.Unresolved, "action is not ready");
         snapshot.Validate();
-        DomainException.Require(snapshot.Plan == View.Plan && snapshot.Revision == View.Revision && tick >= View.Tick, "stale plan or tick");
-        return With(v => v with { Stage = Stage.Prepared, Snapshot = snapshot, Tick = tick, HeldReason = Unknown<HoldEvidence>() });
+        DomainException.Require(
+            snapshot.Plan == View.Plan && snapshot.Revision == View.Revision && tick >= View.Tick,
+            "stale plan or tick"
+        );
+        return With(v =>
+            v with
+            {
+                Stage = Stage.Prepared,
+                Snapshot = snapshot,
+                Tick = tick,
+                HeldReason = null,
+            }
+        );
     }
 
     /// <summary>
@@ -370,11 +424,22 @@ public sealed partial record Progress
             bits |= bit;
         }
         var since = tick;
-        if (View.HeldReason.TryGetValue(out var previous) && previous.Plan == View.Plan && previous.Revision == View.Revision && previous.ReasonBits == bits && previous.Since <= tick)
+        if (
+            View.HeldReason is { } previous
+            && previous.Plan == View.Plan
+            && previous.Revision == View.Revision
+            && previous.ReasonBits == bits
+            && previous.Since <= tick
+        )
         {
             since = previous.Since;
         }
-        return With(v => v with { HeldReason = Known(new HoldEvidence(bits, View.Plan, View.Revision, tick, since)) });
+        return With(v =>
+            v with
+            {
+                HeldReason = new HoldEvidence(bits, View.Plan, View.Revision, tick, since),
+            }
+        );
     }
 
     public Progress MarkDispatched(GenerationSnapshot current, Tick tick)
@@ -388,27 +453,27 @@ public sealed partial record Progress
                 Stage = Stage.Dispatched,
                 Unresolved = true,
                 Tick = tick,
-                Receipt = Unknown<Receipt>(),
-                Effect = Unknown<Effect>(),
-                UnsuccessfulReason = Unknown<UnsuccessfulReason>(),
-                HeldReason = Unknown<HoldEvidence>(),
-                Zone = Unknown<string>(),
-                Bill = Unknown<string>(),
+                Receipt = new ReceiptState.NoReceipt(),
+                Effect = new EffectState.NotObserved(),
+                UnsuccessfulReason = UnsuccessfulReason.None,
+                HeldReason = null,
+                Zone = null,
+                Bill = null,
             }
         );
     }
 
     public Progress RecordReceipt(AttemptId attempt, Receipt receipt) => RecordReceiptCore(attempt, receipt);
 
-    /// <summary>Records a refused receipt together with native's account of the refusal; a class outside the three is recorded unknown.</summary>
+    /// <summary>Records a refused receipt together with native's account of the refusal; a class outside the three is recorded unclassified.</summary>
     public Progress RecordRefusal(AttemptId attempt, NativeRefusal refusal)
     {
         var next = RecordReceiptCore(attempt, Receipt.Refused);
         if (!refusal.Class.IsValid())
         {
-            refusal = refusal with { Class = RefusalClass.Unknown };
+            refusal = refusal with { Class = RefusalClass.Unclassified };
         }
-        return next.With(v => v with { Refusal = Known(refusal) });
+        return next.With(v => v with { Refusal = refusal });
     }
 
     /// <summary>Records an applied zone_create's receipt together with the native zone identity its evidence named, which zone claims read.</summary>
@@ -418,7 +483,7 @@ public sealed partial record Progress
             Action.ZoneCreate is { } create && create.Kind != ZoneKind.Stockpile && receipt == Receipt.Accepted && IdText.IsValidText(zone),
             "zone identity requires an applied zone create"
         );
-        return RecordReceiptCore(attempt, receipt).With(v => v with { Zone = Known(zone) });
+        return RecordReceiptCore(attempt, receipt).With(v => v with { Zone = zone });
     }
 
     /// <summary>Records an applied bill-placing receipt together with the native bill id its evidence named.</summary>
@@ -428,7 +493,7 @@ public sealed partial record Progress
             Action.Kind is ActionKind.ProductionBill or ActionKind.Surgery && receipt == Receipt.Accepted && IdText.IsValidText(bill),
             "bill identity requires an applied bill placement"
         );
-        return RecordReceiptCore(attempt, receipt).With(v => v with { Bill = Known(bill) });
+        return RecordReceiptCore(attempt, receipt).With(v => v with { Bill = bill });
     }
 
     internal Progress RecordReceiptCore(AttemptId attempt, Receipt receipt)
@@ -436,9 +501,15 @@ public sealed partial record Progress
         DomainException.Require(attempt.Value != 0 && attempt == View.Attempt, "receipt belongs to a different dispatch attempt");
         DomainException.Require(View.Stage == Stage.Dispatched || (View.Stage == Stage.Cancelled && View.Unresolved), "receipt requires dispatched action");
         DomainException.Require(Wire.IsDefined(receipt), "invalid receipt");
-        DomainException.Require(!View.Receipt.IsKnown, "receipt already recorded");
+        DomainException.Require(View.Receipt is ReceiptState.NoReceipt, "receipt already recorded");
         var cancelled = View.Stage == Stage.Cancelled;
-        var recorded = With(v => v with { Receipt = Known(receipt), HeldReason = Unknown<HoldEvidence>() });
+        var recorded = With(v =>
+            v with
+            {
+                Receipt = new ReceiptState.Received(receipt),
+                HeldReason = null,
+            }
+        );
         if (Action.Kind.IntentMode() && receipt != Receipt.Unsent)
         {
             // The receipt settles an intent's attempt: applied is done, refused is over (the owning routine
@@ -448,11 +519,11 @@ public sealed partial record Progress
             switch (receipt)
             {
                 case Receipt.Accepted:
-                    effect = Known(Effect.Completed);
+                    effect = new EffectState.Observed(Effect.Completed);
                     stage = Stage.Completed;
                     break;
                 case Receipt.Refused:
-                    effect = Known(Effect.Absent);
+                    effect = new EffectState.Observed(Effect.Absent);
                     stage = Stage.Unsuccessful;
                     break;
             }
@@ -460,11 +531,25 @@ public sealed partial record Progress
         }
         if (Action.Kind is ActionKind.CommsTradeRequest or ActionKind.Gathering && receipt == Receipt.Refused)
         {
-            return recorded.With(v => v with { Unresolved = false, Effect = Known(Effect.Absent), Stage = cancelled ? v.Stage : Stage.Unsuccessful });
+            return recorded.With(v =>
+                v with
+                {
+                    Unresolved = false,
+                    Effect = new EffectState.Observed(Effect.Absent),
+                    Stage = cancelled ? v.Stage : Stage.Unsuccessful,
+                }
+            );
         }
         if (receipt is Receipt.Refused or Receipt.Unsent)
         {
-            return recorded.With(v => v with { Unresolved = false, Effect = Known(Effect.Absent), Stage = cancelled ? v.Stage : Stage.Pending });
+            return recorded.With(v =>
+                v with
+                {
+                    Unresolved = false,
+                    Effect = new EffectState.Observed(Effect.Absent),
+                    Stage = cancelled ? v.Stage : Stage.Pending,
+                }
+            );
         }
         return cancelled ? recorded : recorded.With(v => v with { Stage = Stage.AwaitingObservation });
     }
@@ -476,8 +561,14 @@ public sealed partial record Progress
     /// </summary>
     public Progress Withdraw(GenerationSnapshot current, Tick tick)
     {
-        DomainException.Require(View.Stage == Stage.Cancelled && View.Unresolved, "withdrawal requires a cancelled unresolved dispatch");
-        DomainException.Require(View.Effect.TryGetValue(out var effect) && effect == Effect.Pending, "withdrawal requires a pending effect");
+        DomainException.Require(
+            View.Stage == Stage.Cancelled && View.Unresolved,
+            "withdrawal requires a cancelled unresolved dispatch"
+        );
+        DomainException.Require(
+            View.Effect is EffectState.Observed { Kind: Effect.Pending },
+            "withdrawal requires a pending effect"
+        );
         current.Validate();
         DomainException.Require(View.Snapshot.SameWorld(current) && tick >= View.Tick, "stale withdrawal authority or tick");
         DomainException.Require(View.Attempt.Value != ulong.MaxValue, "dispatch attempt identity exhausted");
@@ -487,9 +578,9 @@ public sealed partial record Progress
                 Attempt = new AttemptId(v.Attempt.Value + 1),
                 Snapshot = current,
                 Tick = tick,
-                Receipt = Unknown<Receipt>(),
-                Effect = Unknown<Effect>(),
-                UnsuccessfulReason = Unknown<UnsuccessfulReason>(),
+                Receipt = new ReceiptState.NoReceipt(),
+                Effect = new EffectState.NotObserved(),
+                UnsuccessfulReason = UnsuccessfulReason.None,
             }
         );
     }
@@ -504,7 +595,7 @@ public sealed partial record Progress
             !(View.Stage == Stage.Completed && !Action.Kind.IntentMode()) && View.Stage != Stage.Unsuccessful,
             "cannot cancel this action"
         );
-        return With(v => v with { Stage = Stage.Cancelled, HeldReason = Unknown<HoldEvidence>() });
+        return With(v => v with { Stage = Stage.Cancelled, HeldReason = null });
     }
 
     /// <summary>
@@ -542,10 +633,16 @@ public sealed partial record Progress
         {
             DomainException.Require(observation.UnsuccessfulReason == UnsuccessfulReason.None, "unsuccessful reason requires unsuccessful effect");
         }
-        var next = With(v => v with { Tick = observation.Tick, Effect = Known(observation.Effect) });
+        var next = With(v =>
+            v with
+            {
+                Tick = observation.Tick,
+                Effect = new EffectState.Observed(observation.Effect),
+            }
+        );
         if (observation.Effect == Effect.Unsuccessful)
         {
-            next = next.With(v => v with { UnsuccessfulReason = Known(observation.UnsuccessfulReason) });
+            next = next.With(v => v with { UnsuccessfulReason = observation.UnsuccessfulReason });
         }
         if (observation.Effect is Effect.Completed or Effect.Absent or Effect.Unsuccessful)
         {
@@ -557,12 +654,11 @@ public sealed partial record Progress
                 {
                     return settled;
                 }
-                var stage = observation.Effect switch
-                {
-                    Effect.Completed => Stage.Completed,
-                    Effect.Unsuccessful => Stage.Unsuccessful,
-                    _ => sameSnapshot ? Stage.Pending : Stage.Cancelled,
-                };
+                var stage =
+                    observation.Effect == Effect.Completed ? Stage.Completed
+                    : observation.Effect == Effect.Unsuccessful ? Stage.Unsuccessful
+                    : sameSnapshot ? Stage.Pending
+                    : Stage.Cancelled;
                 return settled with { Stage = stage };
             });
         }

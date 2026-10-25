@@ -51,7 +51,7 @@ public sealed record RefusalBudget
     {
         if (!@class.IsValid())
         {
-            @class = RefusalClass.Unknown;
+            @class = RefusalClass.Unclassified;
         }
         var entries = new List<RefusalEntry>(Entries.Count + 1);
         foreach (var e in Entries)
@@ -90,8 +90,12 @@ public sealed record RefusalBudget
                         waiting = new BudgetVerdict { Code = RefusalBudgetRules.BudgetWaiting, Reason = e.Reason };
                     }
                     break;
-                case RefusalClass.Unknown:
-                    unknown = new BudgetVerdict { Code = RefusalBudgetRules.BudgetUnknown, Reason = e.Reason };
+                case RefusalClass.Unclassified:
+                    unknown = new BudgetVerdict
+                    {
+                        Code = RefusalBudgetRules.BudgetUnknown,
+                        Reason = e.Reason,
+                    };
                     break;
             }
         }

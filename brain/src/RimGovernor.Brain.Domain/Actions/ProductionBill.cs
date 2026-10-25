@@ -45,7 +45,7 @@ public sealed record ProductionBill : IActionPayload
         Ingredients = EquatableArray.From(rows);
         Worker = "";
         Replaces = "";
-        Corpses = mode == BillMode.ButcherForever ? CorpseOf.Animal : null;
+        Corpses = mode == BillMode.ButcherForever ? CorpseOf.Animal : CorpseOf.None;
     }
 
     public string Bench { get; }
@@ -65,8 +65,8 @@ public sealed record ProductionBill : IActionPayload
     /// <summary>The native bill id this bill replaces; empty when it replaces none.</summary>
     public string Replaces { get; private init; }
 
-    /// <summary>A corpse bill's ingredient filter; null for other bills.</summary>
-    public CorpseOf? Corpses { get; private init; }
+    /// <summary>A corpse bill's ingredient filter; <see cref="CorpseOf.None"/> for other bills.</summary>
+    public CorpseOf Corpses { get; private init; }
 
     /// <summary>A humanlike butcher bill is always pinned and never accepts animal corpses.</summary>
     public static ProductionBill NewHumanButcherBill(string bench, string recipe, string worker)

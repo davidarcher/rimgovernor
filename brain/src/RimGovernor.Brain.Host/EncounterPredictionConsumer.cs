@@ -59,18 +59,52 @@ public sealed class EncounterPredictionConsumer(IEncounterPredictor predictor, T
             s.Actors.All(a => ValidActor(request.Actors.Single(p => p.Id == a.Id), a, s.DurationTicks)));
 
     private static bool ValidActor(EncounterActor input, EncounterActorOutcome a, int duration) =>
-        double.IsFinite(a.HealthFraction) && a.HealthFraction is >= 0 and <= 1 &&
-        double.IsFinite(a.BleedRate) && a.BleedRate >= 0 &&
-        a.Injuries.All(i => double.IsFinite(i.Severity) && i.Severity >= 0 && double.IsFinite(i.BleedRate) && i.BleedRate >= 0) &&
-        (a.Products is not { } products || (a.Dead && double.IsFinite(products.Meat) && products.Meat >= 0 && double.IsFinite(products.Leather) && products.Leather >= 0)) &&
-        ValidTick(a.FirstAttackTick, duration) && ValidTick(a.LastShotTick, duration) && ValidTick(a.DepartureTick, duration) && ValidTick(a.WithdrawalTick, duration) &&
-        (a.LastShotTick is null || a.FirstAttackTick is not null && a.LastShotTick >= a.FirstAttackTick) &&
-        (a.WithdrawalTick is null || !a.Dead && (a.LastShotTick is null || a.LastShotTick < a.WithdrawalTick)) &&
-        (a.WithdrawalTick is null || a.FirstAttackTick is null || a.FirstAttackTick < a.WithdrawalTick) &&
-        (a.DepartureTick is null || input.Departure is { } d && d.Tick == a.DepartureTick) &&
-        (input.Departure is not { } departure || (a.LastShotTick is null || a.LastShotTick < departure.Tick) && (a.FirstAttackTick is null || a.FirstAttackTick < departure.Tick));
+        double.IsFinite(a.HealthFraction)
+        && a.HealthFraction is >= 0 and <= 1
+        && double.IsFinite(a.BleedRate)
+        && a.BleedRate >= 0
+        && a.Injuries.All(i =>
+            double.IsFinite(i.Severity)
+            && i.Severity >= 0
+            && double.IsFinite(i.BleedRate)
+            && i.BleedRate >= 0
+        )
+        && (
+            a.Products is not { } products
+            || (
+                a.Dead
+                && double.IsFinite(products.Meat)
+                && products.Meat >= 0
+                && double.IsFinite(products.Leather)
+                && products.Leather >= 0
+            )
+        )
+        && ValidTick(a.FirstAttackTick, duration)
+        && ValidTick(a.LastShotTick, duration)
+        && ValidTick(a.DepartureTick, duration)
+        && ValidTick(a.WithdrawalTick, duration)
+        && (
+            a.LastShotTick is not { } shot
+            || a.FirstAttackTick is { } first && shot.Tick >= first.Tick
+        )
+        && (
+            a.WithdrawalTick is not { } withdrawal
+            || !a.Dead && (a.LastShotTick is not { } lastShot || lastShot.Tick < withdrawal.Tick)
+        )
+        && (
+            a.WithdrawalTick is not { } withdrew
+            || a.FirstAttackTick is not { } began
+            || began.Tick < withdrew.Tick
+        )
+        && (a.DepartureTick is not { } left || input.Departure is { } d && d.Tick == left.Tick)
+        && (
+            input.Departure is not { } departure
+            || (a.LastShotTick is not { } fired || fired.Tick < departure.Tick)
+                && (a.FirstAttackTick is not { } started || started.Tick < departure.Tick)
+        );
 
-    private static bool ValidTick(int? tick, int duration) => tick is null || tick >= 0 && tick <= duration;
+    private static bool ValidTick(EncounterTick? tick, int duration) =>
+        tick is not { } t || t.Tick >= 0 && t.Tick <= duration;
 
     private static TimeSpan CheckTimeout(TimeSpan value) => value > TimeSpan.Zero && value <= TimeSpan.FromMinutes(2)
         ? value : throw new ArgumentOutOfRangeException(nameof(value), "consumer timeout must be positive and at most two minutes");

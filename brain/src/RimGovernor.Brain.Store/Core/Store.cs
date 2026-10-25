@@ -56,8 +56,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 51 reads a need target's claimant capacity and quantity whole (#3895): a persisted target capacity is its claimant count and, only for a stack, its units.
     /// Version 52 reads a building's interaction cell whole (#3957): a piece persists its InteractionOffset only when the building has one, and a piece read without the key has none.
     /// Version 53 reads the player's goals whole (#3949): a goal's deadline, theme and importance override persist as set or absent (the same null shape), the goal's unread site map and the preferences' unread wealth cap are gone, and the apparel and drug preferences always write a value (dressed and unmanaged for none set).
+    /// Version 54 reads action progress and payloads whole (#3960): a building order persists its finishing-skill floor only when it names one, an owned-pawn setting is one arm per kind, a stockpile zone's setup is one record, the receipt and effect states are read by name (<c>Inconclusive</c> and <c>Unconfirmed</c> replace <c>Unknown</c>, <c>Unclassified</c> replaces an unknown refusal class).
     /// </summary>
-    public const int SchemaVersion = 53;
+    public const int SchemaVersion = 54;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

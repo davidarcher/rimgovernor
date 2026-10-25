@@ -58,11 +58,11 @@ public sealed partial record DomainAction
     /// The building of a move or an uninstall (the two kinds share the executor,
     /// admission and bridge plumbing), and whether it is an uninstall; null for any other kind.
     /// </summary>
-    public (MoveBuilding Building, bool Uninstall)? Relocation =>
-        Kind switch
-        {
-            ActionKind.MoveBuilding when Payload is MoveBuilding move => (move, false),
-            ActionKind.UninstallBuilding when Payload is MoveBuilding move => (move, true),
-            _ => null,
-        };
+    public Relocation? Relocation =>
+        MoveBuilding is { } move ? new Relocation(move, false)
+        : UninstallBuilding is { } uninstall ? new Relocation(uninstall, true)
+        : null;
 }
+
+/// <summary>The building a move or an uninstall acts on, and whether it is the uninstall.</summary>
+public sealed record Relocation(MoveBuilding Building, bool Uninstall);

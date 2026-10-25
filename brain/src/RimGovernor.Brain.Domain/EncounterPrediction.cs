@@ -58,13 +58,52 @@ public sealed record EncounterRequest
     public IReadOnlyList<string> UnsupportedObservations { get; init; } = [];
 }
 
-public sealed record EncounterInjury(string Definition, string Part, double Severity, double BleedRate, bool Tendable, bool Tended, bool Permanent);
-public sealed record EncounterProducts(string MeatDefinition, double Meat, string LeatherDefinition, double Leather);
-public sealed record EncounterActorOutcome(string Id, bool Downed, bool Dead, double HealthFraction,
-    double BleedRate, bool NeedsTend, IReadOnlyList<EncounterInjury> Injuries, IReadOnlyList<string> MissingParts,
-    IReadOnlyList<string> Kills, EncounterProducts? Products, int? FirstAttackTick, int? LastShotTick,
-    int? DepartureTick, int? WithdrawalTick);
-public sealed record EncounterSample(int Seed, int DurationTicks, bool HorizonReached, IReadOnlyList<EncounterActorOutcome> Actors);
+public sealed record EncounterInjury(
+    string Definition,
+    string Part,
+    double Severity,
+    double BleedRate,
+    bool Tendable,
+    bool Tended,
+    bool Permanent
+);
+
+public sealed record EncounterProducts(
+    string MeatDefinition,
+    double Meat,
+    string LeatherDefinition,
+    double Leather
+);
+
+/// <summary>A tick, counted from the scene start, at which an actor did something; an actor that never did it carries none.</summary>
+public sealed record EncounterTick(int Tick);
+
+/// <summary>A wall-clock duration the engine measured.</summary>
+public sealed record MeasuredMilliseconds(double Value);
+
+public sealed record EncounterActorOutcome(
+    string Id,
+    bool Downed,
+    bool Dead,
+    double HealthFraction,
+    double BleedRate,
+    bool NeedsTend,
+    IReadOnlyList<EncounterInjury> Injuries,
+    IReadOnlyList<string> MissingParts,
+    IReadOnlyList<string> Kills,
+    EncounterProducts? Products,
+    EncounterTick? FirstAttackTick,
+    EncounterTick? LastShotTick,
+    EncounterTick? DepartureTick,
+    EncounterTick? WithdrawalTick
+);
+
+public sealed record EncounterSample(
+    int Seed,
+    int DurationTicks,
+    bool HorizonReached,
+    IReadOnlyList<EncounterActorOutcome> Actors
+);
 
 /// <summary>Empirical samples are not a confidence interval or a safety certificate. Treatment/recovery labor is downstream.</summary>
 public sealed record EncounterPrediction
@@ -75,8 +114,11 @@ public sealed record EncounterPrediction
     public string EngineFingerprint { get; init; } = "";
     public IReadOnlyList<EncounterSample> Samples { get; init; } = [];
     public IReadOnlyList<string> ModelUncertainty { get; init; } = [];
-    public double? ColdStartMilliseconds { get; init; }
-    public double? RequestMilliseconds { get; init; }
+
+    /// <summary>The engine start-up time this request paid; none for a warm engine.</summary>
+    public MeasuredMilliseconds? ColdStartMilliseconds { get; init; }
+    public MeasuredMilliseconds? RequestMilliseconds { get; init; }
+
     /// <summary>Absent until an implementation has scoped, independently reviewed qualification evidence.</summary>
     public EncounterQualification? Qualification { get; init; }
     public bool QualifiedForSelection => Status == EncounterStatus.Evidence && Qualification is not null;

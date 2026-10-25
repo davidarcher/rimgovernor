@@ -195,9 +195,12 @@ public sealed partial class Worker
         var reasons = WorkerRefusedReasons(result);
         // The receipt and effect name why an attempt is unresolved: an unknown receipt is a native call that
         // timed out on the controller side, and with the attempt number it identifies the native ledger entry.
-        var receipt = after.Receipt.TryGetValue(out var r) ? Wire.Name(r) : "-";
-        var effect = after.Effect.TryGetValue(out var e) ? Wire.Name(e) : "-";
-        return string.Create(CultureInfo.InvariantCulture, $"stage={Wire.Name(after.Stage)} attempt={after.Attempt.Value} receipt={receipt} effect={effect} refused=[{string.Join(",", reasons)}] err={(err is null ? "<nil>" : err.Message)}");
+        var receipt = after.Receipt is ReceiptState.Received r ? Wire.Name(r.Kind) : "-";
+        var effect = after.Effect is EffectState.Observed e ? Wire.Name(e.Kind) : "-";
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"stage={Wire.Name(after.Stage)} attempt={after.Attempt.Value} receipt={receipt} effect={effect} refused=[{string.Join(",", reasons)}] err={(err is null ? "<nil>" : err.Message)}"
+        );
     }
 
     /// <summary>Lists the refusal reasons of a run's result: the outcome text's refused=[...] and the dispatch row's refused attr.</summary>
@@ -948,9 +951,12 @@ public sealed partial class Worker
             return;
         }
         var receipt = "-";
-        if (after.Receipt.TryGetValue(out var rv) && (after.Attempt != before.Attempt || !WorkerSameReceipt(before, after)))
+        if (
+            after.Receipt is ReceiptState.Received rv
+            && (after.Attempt != before.Attempt || !WorkerSameReceipt(before, after))
+        )
         {
-            receipt = Wire.Name(rv);
+            receipt = Wire.Name(rv.Kind);
         }
         attrs["receipt"] = receipt;
         attrs["running"] = running;
@@ -958,7 +964,7 @@ public sealed partial class Worker
         {
             attrs["skipped_work"] = string.Join(",", result.SkippedWork);
         }
-        if (after.Refusal.TryGetValue(out var refusal) && receipt == Wire.Name(Domain.Receipt.Refused))
+        if (after.Refusal is { } refusal && receipt == Wire.Name(Domain.Receipt.Refused))
         {
             attrs["refusal_class"] = Wire.Name(refusal.Class);
             attrs["refusal_reason"] = refusal.Reason;
@@ -972,9 +978,7 @@ public sealed partial class Worker
 
     private static bool WorkerSameReceipt(ProgressView a, ProgressView b)
     {
-        var xk = a.Receipt.TryGetValue(out var x);
-        var yk = b.Receipt.TryGetValue(out var y);
-        return xk == yk && x == y;
+        return a.Receipt == b.Receipt;
     }
 
     /// <summary>
@@ -993,7 +997,7 @@ public sealed partial class Worker
     /// </summary>
     internal static TimeSpan WorkerBackoffCap(WorkerConfig config, ProgressView v)
     {
-        if (v.Effect.TryGetValue(out var effect) && effect == Effect.Unknown && v.Stage == Stage.AwaitingObservation)
+        if (v.Observes(Effect.Inconclusive) && v.Stage == Stage.AwaitingObservation)
         {
             var scaled = config.MaxBackoff * 6;
             var minute = TimeSpan.FromMinutes(1);
@@ -1026,7 +1030,7 @@ public sealed partial class Worker
         {
             return false;
         }
-        if (!after.HeldReason.TryGetValue(out var held))
+        if (after.HeldReason is not { } held)
         {
             return false;
         }
@@ -1069,22 +1073,28 @@ public sealed partial class Worker
         // A trusted refusal is a no-effect proof. Only a later resume (a newer native generation) authorizes
         // another attempt; an unknown receipt always stays reconciliation. A write the transport never issued
         // refused nothing, so the same generation may retry it.
-        var known = v.Receipt.TryGetValue(out var receipt);
         // An intent whose Apply receipt came back unknown is back at Pending for a resend. Like a refusal, only
         // a later resume (a newer native generation) resends it; native answers applied if the first write
         // landed, so the resend cannot duplicate the building.
-        if (known && receipt == Domain.Receipt.Unknown && v.Stage == Stage.Pending)
+        if (v.Received(Domain.Receipt.Unconfirmed) && v.Stage == Stage.Pending)
         {
             return Player.PlayerWorld(v.Snapshot) == world && scope.Snapshot.Native > v.Snapshot.Native;
         }
-        var effectKnown = v.Effect.TryGetValue(out var effect);
-        if (!known || !effectKnown || effect != Effect.Absent || Player.PlayerWorld(v.Snapshot) != world)
+        if (
+            v.Receipt is not ReceiptState.Received
+            || !v.Observes(Effect.Absent)
+            || Player.PlayerWorld(v.Snapshot) != world
+        )
         {
             return false;
         }
         // A refused attempt already re-prepared carries the newer generation that authorized it, so it stays
         // eligible until it dispatches.
-        return receipt == Domain.Receipt.Unsent || (receipt == Domain.Receipt.Refused && (v.Stage == Stage.Prepared || scope.Snapshot.Native > v.Snapshot.Native));
+        return v.Received(Domain.Receipt.Unsent)
+            || (
+                v.Received(Domain.Receipt.Refused)
+                && (v.Stage == Stage.Prepared || scope.Snapshot.Native > v.Snapshot.Native)
+            );
     }
 
     /// <summary>Read reconciliation may rotate plan targets without changing world authority. That rotation must not reset a paused attempt's cooldown.</summary>

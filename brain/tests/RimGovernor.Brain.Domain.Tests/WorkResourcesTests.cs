@@ -127,7 +127,7 @@ public sealed class WorkResourcesTests
                 new("eater", "", 0, "", "", "", 0) { LocalHour = 12 }])
         };
         var row = Pending(heldAction) with { Progress = new() { Action = heldAction.Id, Stage = Stage.Completed,
-            Attempt = new(1), Receipt = Known(Receipt.Accepted), Tick = new(99) } };
+            Attempt = new(1), Receipt = new ReceiptState.Received(Receipt.Accepted), Tick = new(99) } };
         var held = View(facts, row);
         Assert.Equal(19, Assert.Single(held.Evidence.Stock.Value).Count);
         Assert.Equal(4d, held.Materials.Value[new("Rice")].Value);
@@ -381,7 +381,7 @@ public sealed class WorkResourcesTests
     {
         var facts = WorkResourceTestFacts.Create("cook-builder");
         var first = Pending(Delivery("food")) with { Progress = new()
-        { Action = new("food"), Stage = Stage.Completed, Attempt = new(1), Tick = new(100), Receipt = Known(Receipt.Accepted) } };
+        { Action = new("food"), Stage = Stage.Completed, Attempt = new(1), Tick = new(100), Receipt = new ReceiptState.Received(Receipt.Accepted) } };
         Assert.Contains("cook-builder", View(facts, first).Claims.Pawns);
         var later = facts with { Tick = new(101) };
         Assert.DoesNotContain("cook-builder", View(later, first).Claims.Pawns);

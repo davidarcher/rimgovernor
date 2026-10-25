@@ -97,7 +97,10 @@ public sealed class ProductionAdmissionTests
         var cancelled = first with { Progress = first.Progress with { Stage = Stage.Cancelled } };
         Assert.True(Fits(Evidence(), [cancelled], Batch("second")));
         Assert.True(Fits(Evidence(null, first), [cancelled], Batch("second")));
-        var dispatched = cancelled with { Progress = cancelled.Progress with { Attempt = new AttemptId(1), Bill = Known("bill") } };
+        var dispatched = cancelled with
+        {
+            Progress = cancelled.Progress with { Attempt = new AttemptId(1), Bill = "bill" },
+        };
         Assert.False(Fits(Evidence(), [dispatched], Batch("second")));
         Assert.False(Fits(Evidence(null, first), [dispatched], Batch("second")));
     }
@@ -106,7 +109,15 @@ public sealed class ProductionAdmissionTests
     public void DispatchCompletionDoesNotSpendOldStockTwiceAndFreshReadCanReleaseIt()
     {
         var first = Batch("first");
-        var done = first with { Progress = first.Progress with { Stage = Stage.Completed, Attempt = new AttemptId(1), Bill = Known("bill") } };
+        var done = first with
+        {
+            Progress = first.Progress with
+            {
+                Stage = Stage.Completed,
+                Attempt = new AttemptId(1),
+                Bill = "bill",
+            },
+        };
         Assert.False(Fits(Evidence(), [done], Batch("second")));
         Assert.False(Fits(Evidence(null, first), [done], Batch("second")));
         // Complete census says the bill disappeared; a fresh stock observation now owns what remains.
@@ -118,7 +129,15 @@ public sealed class ProductionAdmissionTests
     {
         Assert.False(Fits(Evidence(Facts with { Resources = default }), [], Batch("new")));
         Assert.False(Fits(Evidence(Facts with { WorkAdmission = new() }), [], Batch("new")));
-        var first = Batch("first") with { Progress = Batch("first").Progress with { Stage = Stage.Completed, Attempt = new AttemptId(1), Bill = Known("bill") } };
+        var first = Batch("first") with
+        {
+            Progress = Batch("first").Progress with
+            {
+                Stage = Stage.Completed,
+                Attempt = new AttemptId(1),
+                Bill = "bill",
+            },
+        };
         var f = Facts with
         {
             WorkAdmission = Facts.WorkAdmission with { Bills = Known<EquatableArray<ProductionBatchState>>([new("bill", true, BillRepeat.Count, 1, false, false, new ProductionUnfinishedWork("", default))]) },

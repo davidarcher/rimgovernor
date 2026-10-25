@@ -103,7 +103,7 @@ public sealed partial record DomainAction
     public CombatBatch? CombatBatch => PayloadOf<CombatBatch>(ActionKind.CombatBatch);
 }
 
-/// <summary>One native result. Missing results remain unknown.</summary>
+/// <summary>One native result.</summary>
 public sealed record CombatResult
 {
     public int Index { get; init; }
@@ -117,7 +117,7 @@ public sealed record CombatResult
     public string JobDef { get; init; } = "";
 }
 
-/// <summary>The recorded combat results, held by value in a fact on the progress view.</summary>
+/// <summary>The recorded combat results of an applied combat batch.</summary>
 public sealed record CombatResults(EquatableArray<CombatResult> Orders);
 
 public sealed partial record Progress
@@ -144,22 +144,26 @@ public sealed partial record Progress
         var next = RecordReceiptCore(attempt, receipt);
         if (receipt == Receipt.Accepted)
         {
-            return next.With(v => v with
-            {
-                Combat = Known(new CombatResults(EquatableArray.From(results))),
-                Unresolved = false,
-                Stage = v.Stage != Stage.Cancelled ? Stage.Completed : v.Stage,
-                Effect = Known(Effect.Completed),
-            });
+            return next.With(v =>
+                v with
+                {
+                    Combat = new CombatResults(EquatableArray.From(results)),
+                    Unresolved = false,
+                    Stage = v.Stage != Stage.Cancelled ? Stage.Completed : v.Stage,
+                    Effect = new EffectState.Observed(Effect.Completed),
+                }
+            );
         }
         if (receipt == Receipt.Refused)
         {
-            return next.With(v => v with
-            {
-                Unresolved = false,
-                Stage = Stage.Unsuccessful,
-                Effect = Known(Effect.Absent),
-            });
+            return next.With(v =>
+                v with
+                {
+                    Unresolved = false,
+                    Stage = Stage.Unsuccessful,
+                    Effect = new EffectState.Observed(Effect.Absent),
+                }
+            );
         }
         return next;
     }

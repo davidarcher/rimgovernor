@@ -79,69 +79,94 @@ public sealed class PawnSettingsConverter : ObjectCodec<PawnSettings>
     protected override PawnSettings Read(JsonElement e, Codecs o)
     {
         var pawn = e.Get<PawnId>("Pawn", o);
-        return e.Get<SettingKind>("Kind", o) switch
-        {
-            SettingKind.Hostility => PawnSettings.NewHostilitySetting(pawn, e.Get<HostilityResponse>("Hostility", o)),
-            SettingKind.SelfTend => PawnSettings.NewSelfTendSetting(pawn, e.Bool("SelfTend")),
-            SettingKind.MedicineCarry => PawnSettings.NewMedicineCarrySetting(pawn, e.I32("MedicineCarry")),
-            SettingKind.Nickname => PawnSettings.NewNicknameSetting(pawn, e.Str("LeaveName")),
-            SettingKind.MedicalCare => PawnSettings.NewMedicalCareSetting(pawn, e.Get<MedicalCare>("MedicalCare", o)),
-            SettingKind.ReadingPolicy => PawnSettings.NewReadingPolicySetting(pawn, e.Str("ReadingPolicy")),
-            SettingKind.DrugPolicy => PawnSettings.NewDrugPolicySetting(pawn, e.Str("DrugPolicy")),
-            SettingKind.FoodPolicy => PawnSettings.NewFoodPolicySetting(pawn, e.Str("FoodPolicy")),
-            SettingKind.MechWorkMode => PawnSettings.NewMechWorkModeSetting(pawn, e.Str("MechWorkMode")),
-            SettingKind.MechControlGroup => PawnSettings.NewMechControlGroupSetting(pawn, e.I32("MechControlGroup")),
-            SettingKind.ChoosePermit => PawnSettings.NewChoosePermitSetting(pawn, e.Str("PermitFaction"), e.Str("PermitDef")),
-            SettingKind.ExtractBioferrite => PawnSettings.NewExtractBioferriteSetting(pawn, e.Bool("ExtractBioferrite")),
-            _ => throw new StoreCorruptException("unknown pawn setting kind"),
-        };
+        var switchOn = e.Get<SettingKind>("Kind", o);
+        return switchOn == SettingKind.Hostility
+                ? PawnSettings.NewHostilitySetting(pawn, e.Get<HostilityResponse>("Hostility", o))
+            : switchOn == SettingKind.SelfTend
+                ? PawnSettings.NewSelfTendSetting(pawn, e.Bool("SelfTend"))
+            : switchOn == SettingKind.MedicineCarry
+                ? PawnSettings.NewMedicineCarrySetting(pawn, e.I32("MedicineCarry"))
+            : switchOn == SettingKind.Nickname
+                ? PawnSettings.NewNicknameSetting(pawn, e.Str("LeaveName"))
+            : switchOn == SettingKind.MedicalCare
+                ? PawnSettings.NewMedicalCareSetting(pawn, e.Get<MedicalCare>("MedicalCare", o))
+            : switchOn == SettingKind.ReadingPolicy
+                ? PawnSettings.NewReadingPolicySetting(pawn, e.Str("ReadingPolicy"))
+            : switchOn == SettingKind.DrugPolicy
+                ? PawnSettings.NewDrugPolicySetting(pawn, e.Str("DrugPolicy"))
+            : switchOn == SettingKind.FoodPolicy
+                ? PawnSettings.NewFoodPolicySetting(pawn, e.Str("FoodPolicy"))
+            : switchOn == SettingKind.MechWorkMode
+                ? PawnSettings.NewMechWorkModeSetting(pawn, e.Str("MechWorkMode"))
+            : switchOn == SettingKind.MechControlGroup
+                ? PawnSettings.NewMechControlGroupSetting(pawn, e.I32("MechControlGroup"))
+            : switchOn == SettingKind.ChoosePermit
+                ? PawnSettings.NewChoosePermitSetting(
+                    pawn,
+                    e.Str("PermitFaction"),
+                    e.Str("PermitDef")
+                )
+            : switchOn == SettingKind.ExtractBioferrite
+                ? PawnSettings.NewExtractBioferriteSetting(pawn, e.Bool("ExtractBioferrite"))
+            : throw new StoreCorruptException("unknown pawn setting kind");
     }
 
     protected override void WriteFields(Utf8JsonWriter w, PawnSettings v, Codecs o)
     {
         w.Put("Pawn", v.Pawn, o);
         w.Put("Kind", v.Kind, o);
-        switch (v.Kind)
+        if (v is PawnSettings.HostilitySetting hostility)
         {
-            case SettingKind.Hostility:
-                w.Put("Hostility", v.Hostility!.Value, o);
-                break;
-            case SettingKind.SelfTend:
-                w.WriteBoolean("SelfTend", v.SelfTend);
-                break;
-            case SettingKind.MedicineCarry:
-                w.WriteNum("MedicineCarry", v.MedicineCarry!.Value);
-                break;
-            case SettingKind.Nickname:
-                w.WriteString("LeaveName", v.LeaveName);
-                break;
-            case SettingKind.MedicalCare:
-                w.Put("MedicalCare", v.MedicalCare!.Value, o);
-                break;
-            case SettingKind.ReadingPolicy:
-                w.WriteString("ReadingPolicy", v.ReadingPolicy);
-                break;
-            case SettingKind.DrugPolicy:
-                w.WriteString("DrugPolicy", v.DrugPolicy);
-                break;
-            case SettingKind.FoodPolicy:
-                w.WriteString("FoodPolicy", v.FoodPolicy);
-                break;
-            case SettingKind.MechWorkMode:
-                w.WriteString("MechWorkMode", v.MechWorkMode);
-                break;
-            case SettingKind.MechControlGroup:
-                w.WriteNum("MechControlGroup", v.MechControlGroup!.Value);
-                break;
-            case SettingKind.ChoosePermit:
-                w.WriteString("PermitFaction", v.ChoosePermit!.Value.Faction);
-                w.WriteString("PermitDef", v.ChoosePermit!.Value.Permit);
-                break;
-            case SettingKind.ExtractBioferrite:
-                w.WriteBoolean("ExtractBioferrite", v.ExtractBioferrite!.Value);
-                break;
-            default:
-                throw new StoreCorruptException("unknown pawn setting kind");
+            w.Put("Hostility", hostility.Mode, o);
+        }
+        else if (v is PawnSettings.SelfTendSetting selfTend)
+        {
+            w.WriteBoolean("SelfTend", selfTend.On);
+        }
+        else if (v is PawnSettings.MedicineCarrySetting carry)
+        {
+            w.WriteNum("MedicineCarry", carry.Count);
+        }
+        else if (v is PawnSettings.NicknameSetting nickname)
+        {
+            w.WriteString("LeaveName", nickname.LeaveName);
+        }
+        else if (v is PawnSettings.MedicalCareSetting care)
+        {
+            w.Put("MedicalCare", care.Care, o);
+        }
+        else if (v is PawnSettings.ReadingPolicySetting reading)
+        {
+            w.WriteString("ReadingPolicy", reading.Name);
+        }
+        else if (v is PawnSettings.DrugPolicySetting drug)
+        {
+            w.WriteString("DrugPolicy", drug.Name);
+        }
+        else if (v is PawnSettings.FoodPolicySetting food)
+        {
+            w.WriteString("FoodPolicy", food.Name);
+        }
+        else if (v is PawnSettings.MechWorkModeSetting mode)
+        {
+            w.WriteString("MechWorkMode", mode.Mode);
+        }
+        else if (v is PawnSettings.MechControlGroupSetting group)
+        {
+            w.WriteNum("MechControlGroup", group.Group);
+        }
+        else if (v is PawnSettings.ChoosePermitSetting permit)
+        {
+            w.WriteString("PermitFaction", permit.Faction);
+            w.WriteString("PermitDef", permit.Permit);
+        }
+        else if (v is PawnSettings.ExtractBioferriteSetting bioferrite)
+        {
+            w.WriteBoolean("ExtractBioferrite", bioferrite.On);
+        }
+        else
+        {
+            throw new StoreCorruptException("unknown pawn setting kind");
         }
     }
 }
@@ -317,12 +342,17 @@ public sealed class RitualConverter : ObjectCodec<Ritual>
     {
         var pawn = e.Get<PawnId>("Pawn", o);
         var kind = e.Get<RitualKind>("Kind", o);
-        return e.Get<RitualVerb>("Verb", o) switch
-        {
-            RitualVerb.Start => new Ritual(pawn, kind, RitualVerb.Start),
-            RitualVerb.Begin => Ritual.NewRitualBegin(pawn, kind.Value, e.Get<Cell>("Spot", o), e.Get<EquatableArray<RitualSlot>>("Slots", o), e.Get<EquatableArray<PawnId>>("Spectators", o)),
-            _ => throw new StoreCorruptException("unknown ritual verb"),
-        };
+        var switchOn = e.Get<RitualVerb>("Verb", o);
+        return switchOn == RitualVerb.Start ? new Ritual(pawn, kind, RitualVerb.Start)
+            : switchOn == RitualVerb.Begin
+                ? Ritual.NewRitualBegin(
+                    pawn,
+                    kind.Value,
+                    e.Get<Cell>("Spot", o),
+                    e.Get<EquatableArray<RitualSlot>>("Slots", o),
+                    e.Get<EquatableArray<PawnId>>("Spectators", o)
+                )
+            : throw new StoreCorruptException("unknown ritual verb");
     }
 
     protected override void WriteFields(Utf8JsonWriter w, Ritual v, Codecs o)
@@ -535,14 +565,33 @@ public sealed class TradeConverter : ObjectCodec<Trade>
     {
         var participant = e.Get<TradeParticipant>("Participant", o);
         var negotiator = e.Get<PawnId>("Negotiator", o);
-        var trade = e.Get<TradeOperationKind>("Kind", o) switch
-        {
-            TradeOperationKind.Open => Trade.NewTradeOpen(participant.Id, negotiator, e.BoolOr("GiftMode")),
-            TradeOperationKind.SetLines => Trade.NewTradeSetLines(participant.Id, negotiator, e.Get<EquatableArray<TradeLine>>("Lines", o), e.BoolOr("AllowPawns")),
-            TradeOperationKind.Accept => Trade.NewTradeAccept(participant.Id, negotiator, e.Str("ExpectedDealSignature"), e.BoolOr("AllowEmpty"), e.BoolOr("ReceiveQuest")),
-            TradeOperationKind.End => Trade.NewTradeEnd(participant.Id, negotiator, e.Get<TradeEndKind>("EndKind", o), e.BoolOr("ReceiveQuest")),
-            _ => throw new StoreCorruptException("unknown trade operation"),
-        };
+        var switchOn = e.Get<TradeOperationKind>("Kind", o);
+        var trade =
+            switchOn == TradeOperationKind.Open
+                ? Trade.NewTradeOpen(participant.Id, negotiator, e.BoolOr("GiftMode"))
+            : switchOn == TradeOperationKind.SetLines
+                ? Trade.NewTradeSetLines(
+                    participant.Id,
+                    negotiator,
+                    e.Get<EquatableArray<TradeLine>>("Lines", o),
+                    e.BoolOr("AllowPawns")
+                )
+            : switchOn == TradeOperationKind.Accept
+                ? Trade.NewTradeAccept(
+                    participant.Id,
+                    negotiator,
+                    e.Str("ExpectedDealSignature"),
+                    e.BoolOr("AllowEmpty"),
+                    e.BoolOr("ReceiveQuest")
+                )
+            : switchOn == TradeOperationKind.End
+                ? Trade.NewTradeEnd(
+                    participant.Id,
+                    negotiator,
+                    e.Get<TradeEndKind>("EndKind", o),
+                    e.BoolOr("ReceiveQuest")
+                )
+            : throw new StoreCorruptException("unknown trade operation");
         return trade.WithParticipant(participant);
     }
 
@@ -637,17 +686,38 @@ public sealed class ZoneCreateConverter : ObjectCodec<ZoneCreate>
 {
     protected override ZoneCreate Read(JsonElement e, Codecs o)
     {
-        var zone = e.Get<ZoneKind>("Kind", o) switch
-        {
-            ZoneKind.Growing => new ZoneCreate(ZoneKind.Growing, e.Str("Crop"), e.Get<EquatableArray<Cell>>("Cells", o)),
-            ZoneKind.Fishing => e.StrOr("ExtendId").Length != 0
-                ? ZoneCreate.NewFishingZoneExtension(e.Str("ExtendId"), e.Get<EquatableArray<Cell>>("Cells", o))
-                : ZoneCreate.NewFishingZone(e.Get<EquatableArray<Cell>>("Cells", o)),
-            ZoneKind.Stockpile => e.Has("Rectangle")
-                ? ZoneCreate.NewFilteredStockpileZone(e.Get<StockpileFilter>("Filter", o), e.Get<StockpilePriority>("Priority", o), e.Get<GroundRect>("Rectangle", o))
-                : ZoneCreate.NewFilteredStockpileCellsZone(e.Get<StockpileFilter>("Filter", o), e.Get<StockpilePriority>("Priority", o), e.Get<EquatableArray<Cell>>("Cells", o)),
-            _ => throw new StoreCorruptException("unknown zone kind"),
-        };
+        var kind = e.Get<ZoneKind>("Kind", o);
+        var zone =
+            kind == ZoneKind.Growing
+                ? new ZoneCreate(
+                    ZoneKind.Growing,
+                    e.Str("Crop"),
+                    e.Get<EquatableArray<Cell>>("Cells", o)
+                )
+            : kind == ZoneKind.Fishing
+                ? (
+                    e.StrOr("ExtendId").Length != 0
+                        ? ZoneCreate.NewFishingZoneExtension(
+                            e.Str("ExtendId"),
+                            e.Get<EquatableArray<Cell>>("Cells", o)
+                        )
+                        : ZoneCreate.NewFishingZone(e.Get<EquatableArray<Cell>>("Cells", o))
+                )
+            : kind == ZoneKind.Stockpile
+                ? (
+                    e.Has("Rectangle")
+                        ? ZoneCreate.NewFilteredStockpileZone(
+                            e.Get<StockpileFilter>("Filter", o),
+                            e.Get<StockpilePriority>("Priority", o),
+                            e.Get<GroundRect>("Rectangle", o)
+                        )
+                        : ZoneCreate.NewFilteredStockpileCellsZone(
+                            e.Get<StockpileFilter>("Filter", o),
+                            e.Get<StockpilePriority>("Priority", o),
+                            e.Get<EquatableArray<Cell>>("Cells", o)
+                        )
+                )
+            : throw new StoreCorruptException("unknown zone kind");
         var role = e.StrOr("Role");
         return role.Length != 0 ? zone.WithRole(role) : zone;
     }
@@ -656,21 +726,21 @@ public sealed class ZoneCreateConverter : ObjectCodec<ZoneCreate>
     {
         w.Put("Kind", v.Kind, o);
         w.WriteString("Crop", v.Crop);
-        if (v.Priority is { } priority)
+        if (v.Stockpile is { } stockpile)
         {
-            w.Put("Priority", priority, o);
+            w.Put("Priority", stockpile.Priority, o);
         }
-        if (v.Rectangle is { } rectangle)
+        if (v.Stockpile is { Ground: StockpileGround.Dragged dragged })
         {
-            w.Put("Rectangle", rectangle, o);
+            w.Put("Rectangle", dragged.Rectangle, o);
         }
         else
         {
             w.Put("Cells", v.Cells, o);
         }
-        if (v.Filter is { } filter)
+        if (v.Stockpile is { } filtered)
         {
-            w.Put("Filter", filter, o);
+            w.Put("Filter", filtered.Filter, o);
         }
         w.WriteString("Role", v.Role);
         w.WriteString("ExtendId", v.ExtendId);

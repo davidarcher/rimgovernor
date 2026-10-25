@@ -61,12 +61,13 @@ public sealed partial record DomainAction
     /// The acquisition Designate payload of an acquisition, a mine
     /// acquisition or a withdraw, and whether it is a withdraw; null for any other kind.
     /// </summary>
-    public (Acquisition Acquisition, bool Withdraw)? AcquireIntent =>
-        Kind switch
-        {
-            ActionKind.Acquisition when Payload is Acquisition a => (a, false),
-            ActionKind.AcquisitionWithdraw when Payload is Acquisition a => (a, true),
-            ActionKind.MineAcquisition when Payload is Acquisition a => (a, false),
-            _ => null,
-        };
+    public AcquireIntent? AcquireIntent =>
+        PayloadOf<Acquisition>(ActionKind.Acquisition) is { } acquisition
+            ? new AcquireIntent(acquisition, false)
+        : AcquisitionWithdraw is { } withdraw ? new AcquireIntent(withdraw, true)
+        : MineAcquisition is { } mine ? new AcquireIntent(mine, false)
+        : null;
 }
+
+/// <summary>The acquisition payload an acquisition, a mine acquisition or a withdraw designates, and whether it is the withdraw.</summary>
+public sealed record AcquireIntent(Acquisition Acquisition, bool Withdraw);

@@ -45,6 +45,7 @@ public sealed record Area : IActionPayload
 
     private Area(AreaOperation operation, string key, bool pollutionClear, IReadOnlyCollection<Cell> cells)
     {
+        DomainException.Require(Wire.IsDefined(operation), "invalid area operation");
         switch (operation)
         {
             case AreaOperation.Create:
@@ -55,8 +56,6 @@ public sealed record Area : IActionPayload
             case AreaOperation.ClearCells:
                 DomainException.Require(!(key.Length != 0 && !IdText.IsValidText(key)) && cells.Count != 0, "area cell edits need cells");
                 break;
-            default:
-                throw new DomainException("invalid area operation");
         }
         DomainException.Require(!(operation == AreaOperation.Delete && cells.Count > 0), "area delete takes no cells");
         var rows = CanonicalCells.Sort(cells, "invalid area cell");

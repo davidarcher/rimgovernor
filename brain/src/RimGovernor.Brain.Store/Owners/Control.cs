@@ -51,14 +51,15 @@ public sealed partial class Store
 
     private const string ControlColumns = "request_id,kind,colony,load_token,map_id,phase,native_generation";
 
-    internal static bool ValidControlResult(ControlKind kind, ControlPhase phase, NativeGeneration generation) =>
-        phase switch
-        {
-            ControlPhase.Running => kind == ControlKind.Resume && generation.Value > 0,
-            ControlPhase.Paused => kind == ControlKind.Pause && generation.Value == 0,
-            ControlPhase.Refused or ControlPhase.Uncertain => generation.Value == 0,
-            _ => false,
-        };
+    internal static bool ValidControlResult(
+        ControlKind kind,
+        ControlPhase phase,
+        NativeGeneration generation
+    ) =>
+        phase == ControlPhase.Running ? kind == ControlKind.Resume && generation.Value > 0
+        : phase == ControlPhase.Paused ? kind == ControlKind.Pause && generation.Value == 0
+        : phase == ControlPhase.Refused || phase == ControlPhase.Uncertain ? generation.Value == 0
+        : false;
 
     private static ControlRecord? ScanControl(StoreTransaction tx, string sql, params (string Name, object? Value)[] parameters)
     {

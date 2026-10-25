@@ -530,7 +530,11 @@ public sealed partial class Store
                 var cleared = new HashSet<PawnId>();
                 var batch = p.Spec.Actions[0].CombatBatch!;
                 var first = p.Progress[0].View;
-                if (first.Stage != Stage.Completed || first.Unresolved || !first.Combat.TryGetValue(out var results))
+                if (
+                    first.Stage != Stage.Completed
+                    || first.Unresolved
+                    || first.Combat is not { } results
+                )
                 {
                     throw new ConflictException($"restoration plan {plan.Value} settings batch is not completed");
                 }

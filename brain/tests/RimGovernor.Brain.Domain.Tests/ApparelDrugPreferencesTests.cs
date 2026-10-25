@@ -104,7 +104,10 @@ public sealed class ApparelDrugPreferencesTests
     {
         var plan = DrugPolicyPlanRules.Changes(new PreferencesRecord { DrugPolicy = DrugPolicyPreference.None }, Items(), [Pawn("a")], []);
         Assert.Empty(plan.Write!.Entries);
-        Assert.Equal(DrugPolicyPlanRules.Label, Assert.Single(plan.Assign).DrugPolicy);
+        Assert.Equal(
+            DrugPolicyPlanRules.Label,
+            Assert.IsType<PawnSettings.DrugPolicySetting>(Assert.Single(plan.Assign)).Name
+        );
     }
 
     [Fact]

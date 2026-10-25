@@ -2,12 +2,12 @@ namespace RimGovernor.Brain.Domain;
 
 /// <summary>
 /// How RimWorld answers the same request again, as native reported it on a refusal. A refusal that names
-/// no class is <see cref="Unknown"/>, which is therefore the default value.
+/// no class is <see cref="Unclassified"/>.
 /// </summary>
 public enum RefusalClass
 {
-    /// <summary>Native cannot say. Never silently banned.</summary>
-    Unknown,
+    /// <summary>Native named no class. Never silently banned.</summary>
+    Unclassified,
 
     /// <summary>The game refuses the same request until the world changes materially, or never.</summary>
     Permanent,

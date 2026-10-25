@@ -32,7 +32,7 @@ public static class BuildingWorkRules
         foreach (var p in progress)
         {
             var v = p.View;
-            if (v.Stage != Stage.Completed || !v.Effect.TryGetValue(out var effect) || effect != Effect.Completed)
+            if (v.Stage != Stage.Completed || !v.Observes(Effect.Completed))
             {
                 return false;
             }
@@ -62,8 +62,12 @@ public static class BuildingWorkRules
         foreach (var p in progress)
         {
             var v = p.View;
-            if (p.Action.Kind != ActionKind.Building || p.Action.ConstructionTarget.Length != 0
-                || v.Stage != Stage.Completed || !v.Effect.TryGetValue(out var effect) || effect != Effect.Completed)
+            if (
+                p.Action.Kind != ActionKind.Building
+                || p.Action.ConstructionTarget.Length != 0
+                || v.Stage != Stage.Completed
+                || !v.Observes(Effect.Completed)
+            )
             {
                 continue;
             }

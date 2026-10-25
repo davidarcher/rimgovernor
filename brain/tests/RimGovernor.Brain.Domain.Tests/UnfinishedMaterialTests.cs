@@ -13,20 +13,64 @@ public sealed class UnfinishedMaterialTests
 {
     private static readonly Resource Material = new("TestMaterial");
     private static readonly Resource Alternate = new("TestAlternate");
-    private static ProductionBatch Batch => new(new ProductionBill("bench", "TestRecipe", BillMode.GearBatch, 3, Material.Value),
-        new ProgressView { Action = new ActionId("batch"), Stage = Stage.Completed, Attempt = new AttemptId(1), Bill = Known("bill") });
-    private static BatchPricing.Priced Priced(ProductionBatch batch, EquatableArray<EquatableArray<Amount>>? slots = null) =>
-        new BatchPricing.Priced(batch, slots ?? [[new(Material, 10)]], true);
-    private static ProductionBatchState State(int remaining, string item = "unfinished") => new("bill", true, BillRepeat.Count, remaining, false, false,
-        new ProductionUnfinishedWork(item, item.Length == 0 ? [] : [new(Material, 10)]));
-    private static Fact<EquatableArray<ForecastCommitment>> Promises(ProductionBatchState state, BatchPricing? batch = null) =>
-        ProductionRules.ProductionPromisesOf(Known<EquatableArray<BatchPricing>>([batch ?? Priced(Batch)]), Known<EquatableArray<ProductionBatchState>>([state]));
-    private static RoundsFacts Facts(ProductionBatchState state, long loose = 90) => new()
-    {
-        ProductionPromises = Promises(state), BillReservations = [],
-        CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long> { [Material] = 40 } },
-        Resources = Known<EquatableArray<Amount>>([new(Material, loose)]), ResourceConsumption = Known(new ResourceConsumption()),
-    };
+    private static ProductionBatch Batch =>
+        new(
+            new ProductionBill("bench", "TestRecipe", BillMode.GearBatch, 3, Material.Value),
+            new ProgressView
+            {
+                Action = new ActionId("batch"),
+                Stage = Stage.Completed,
+                Attempt = new AttemptId(1),
+                Bill = "bill",
+            }
+        );
+
+    private static BatchPricing.Priced Priced(
+        ProductionBatch batch,
+        EquatableArray<EquatableArray<Amount>>? slots = null
+    ) =>
+        new BatchPricing.Priced(
+            batch,
+            slots
+                ??
+                [
+                    [new(Material, 10)],
+                ],
+            true
+        );
+
+    private static ProductionBatchState State(int remaining, string item = "unfinished") =>
+        new(
+            "bill",
+            true,
+            BillRepeat.Count,
+            remaining,
+            false,
+            false,
+            new ProductionUnfinishedWork(item, item.Length == 0 ? [] : [new(Material, 10)])
+        );
+
+    private static Fact<EquatableArray<ForecastCommitment>> Promises(
+        ProductionBatchState state,
+        BatchPricing? batch = null
+    ) =>
+        ProductionRules.ProductionPromisesOf(
+            Known<EquatableArray<BatchPricing>>([batch ?? Priced(Batch)]),
+            Known<EquatableArray<ProductionBatchState>>([state])
+        );
+
+    private static RoundsFacts Facts(ProductionBatchState state, long loose = 90) =>
+        new()
+        {
+            ProductionPromises = Promises(state),
+            BillReservations = [],
+            CurrentConstruction = CurrentConstruction.Empty with
+            {
+                Deficit = new Dictionary<Resource, long> { [Material] = 40 },
+            },
+            Resources = Known<EquatableArray<Amount>>([new(Material, loose)]),
+            ResourceConsumption = Known(new ResourceConsumption()),
+        };
 
     [Fact]
     public void StartingWorkMovesInputsOutOfStockWithoutChargingTheIterationAgain()
@@ -91,10 +135,30 @@ public sealed class UnfinishedMaterialTests
     [Fact]
     public void DuplicateOwnershipAndMalformedBindingThrow()
     {
-        var second = Batch with { Progress = Batch.Progress with { Action = new ActionId("second"), Bill = Known("second-bill") } };
-        Assert.Throws<DomainException>(() => ProductionRules.ProductionPromisesOf(Known<EquatableArray<BatchPricing>>([Priced(Batch), Priced(second)]),
-            Known<EquatableArray<ProductionBatchState>>([State(3), State(3) with { Id = "second-bill" }])));
-        var malformed = State(3) with { UnfinishedWork = new ProductionUnfinishedWork("", [new(Material, 10)]) };
+        var second = Batch with
+        {
+            Progress = Batch.Progress with
+            {
+                Action = new ActionId("second"),
+                Bill = "second-bill",
+            },
+        };
+        Assert.Throws<DomainException>(() =>
+            ProductionRules.ProductionPromisesOf(
+                Known<EquatableArray<BatchPricing>>([Priced(Batch), Priced(second)]),
+                Known<EquatableArray<ProductionBatchState>>([
+                    State(3),
+                    State(3) with
+                    {
+                        Id = "second-bill",
+                    },
+                ])
+            )
+        );
+        var malformed = State(3) with
+        {
+            UnfinishedWork = new ProductionUnfinishedWork("", [new(Material, 10)]),
+        };
         Assert.Throws<DomainException>(() => Promises(malformed));
     }
 

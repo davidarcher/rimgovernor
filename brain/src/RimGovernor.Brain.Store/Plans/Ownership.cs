@@ -97,37 +97,45 @@ public sealed partial class Store
                 var candidates = new List<Candidate>();
                 foreach (var a in actions)
                 {
-                    switch (a.Kind)
+                    if (a.Kind == ActionKind.ZoneCreate)
                     {
-                        case ActionKind.Building:
-                            break;
-                        case ActionKind.ZoneCreate:
-                            DomainException.Require(previews.TryGetValue(a.Id, out var preview) && preview.Action == a, "method preview does not match action");
-                            candidates.Add(
-                                new Candidate
-                                {
-                                    Action = a,
-                                    Progress = new Progress(r.Plan, a.Id),
-                                    Purpose = r.Purpose,
-                                    Preview = preview,
-                                }
-                            );
-                            break;
-                        case ActionKind.WallRemoval
-                        or ActionKind.Excavation
-                        or ActionKind.Deconstruction
-                        or ActionKind.UninstallBuilding
-                        or ActionKind.ClaimBuilding
-                        or ActionKind.RemoveRoof
-                        or ActionKind.BuildRoof:
-                            // Guarded demolition, staged excavation, a shell ring's ruin clearance and claims, and packed
-                            // furniture carry no cost/footprint preview; they are admitted as part
-                            // of the bundle's dependency graph, excluded from the admission candidates, and re-checked at
-                            // dispatch, not here.
-                            DomainException.Require(!previews.ContainsKey(a.Id), "guarded action must not carry a preview");
-                            break;
-                        default:
-                            throw new DomainException("unsupported method action family");
+                        DomainException.Require(
+                            previews.TryGetValue(a.Id, out var preview) && preview.Action == a,
+                            "method preview does not match action"
+                        );
+                        candidates.Add(
+                            new Candidate
+                            {
+                                Action = a,
+                                Progress = new Progress(r.Plan, a.Id),
+                                Purpose = r.Purpose,
+                                Preview = preview,
+                            }
+                        );
+                    }
+                    else if (
+                        a.Kind
+                        is ActionKind.WallRemoval
+                            or ActionKind.Excavation
+                            or ActionKind.Deconstruction
+                            or ActionKind.UninstallBuilding
+                            or ActionKind.ClaimBuilding
+                            or ActionKind.RemoveRoof
+                            or ActionKind.BuildRoof
+                    )
+                    {
+                        // Guarded demolition, staged excavation, a shell ring's ruin clearance and claims, and packed
+                        // furniture carry no cost/footprint preview; they are admitted as part
+                        // of the bundle's dependency graph, excluded from the admission candidates, and re-checked at
+                        // dispatch, not here.
+                        DomainException.Require(
+                            !previews.ContainsKey(a.Id),
+                            "guarded action must not carry a preview"
+                        );
+                    }
+                    else if (a.Kind != ActionKind.Building)
+                    {
+                        throw new DomainException("unsupported method action family");
                     }
                 }
                 DomainException.Require(candidates.Count == previews.Count, "complete bounded method previews required");
@@ -196,8 +204,11 @@ public sealed partial class Store
                     continue;
                 }
                 var v = progress.View;
-                var known = v.Effect.TryGetValue(out var effect);
-                if (v.Stage == Stage.Cancelled && !v.Unresolved && (v.Attempt.Value == 0 || (known && effect == Effect.Absent)))
+                if (
+                    v.Stage == Stage.Cancelled
+                    && !v.Unresolved
+                    && (v.Attempt.Value == 0 || v.Observes(Effect.Absent))
+                )
                 {
                     continue;
                 }
@@ -237,8 +248,7 @@ public sealed partial class Store
         tx.Query(sql, [("$colony", current.Colony), ("$load", current.Load), ("$map", current.Map)], r => (Plan: new PlanId(r.GetString(0)), Owner: r.GetString(1)));
 
     private static bool CompletedInScope(ProgressView v, GenerationSnapshot current, Tick tick) =>
-        v.Effect.TryGetValue(out var effect)
-        && effect == Effect.Completed
+        v.Observes(Effect.Completed)
         && v.Stage == Stage.Completed
         && v.Tick <= tick
         && v.Snapshot.Colony == current.Colony
@@ -315,13 +325,35 @@ public sealed partial class Store
                 {
                     continue;
                 }
-                if (v.Stockpiles.TryGetValue(out var placements))
+                if (v.Stockpiles is { } placements)
                 {
-                    result.AddRange(placements.Rows.Select(created => new OwnedZone(created.Id, zone.Kind, "", created.Cells, zone.Role, owner, zone.Filter, zone.Priority)));
+                    result.AddRange(
+                        placements.Rows.Select(created => new OwnedZone(
+                            created.Id,
+                            zone.Kind,
+                            "",
+                            created.Cells,
+                            zone.Role,
+                            owner,
+                            zone.Stockpile?.Filter,
+                            zone.Stockpile?.Priority
+                        ))
+                    );
                 }
-                else if (v.Zone.TryGetValue(out var id))
+                else if (v.Zone is { } id)
                 {
-                    result.Add(new OwnedZone(id, zone.Kind, zone.Crop, zone.Cells, zone.Role, owner, zone.Filter, zone.Priority));
+                    result.Add(
+                        new OwnedZone(
+                            id,
+                            zone.Kind,
+                            zone.Crop,
+                            zone.Cells,
+                            zone.Role,
+                            owner,
+                            zone.Stockpile?.Filter,
+                            zone.Stockpile?.Priority
+                        )
+                    );
                 }
             }
         }

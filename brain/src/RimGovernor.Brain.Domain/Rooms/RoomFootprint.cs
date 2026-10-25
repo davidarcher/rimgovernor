@@ -224,14 +224,14 @@ public sealed record RoomFootprint
                 interior.Add(new Cell(x, z));
             }
         }
-        var door = entrance switch
-        {
-            Rotation.North => new Cell(bounds.X + bounds.Width / 2, bounds.Z + bounds.Height - 1),
-            Rotation.South => new Cell(bounds.X + bounds.Width / 2, bounds.Z),
-            Rotation.East => new Cell(bounds.X + bounds.Width - 1, bounds.Z + bounds.Height / 2),
-            Rotation.West => new Cell(bounds.X, bounds.Z + bounds.Height / 2),
-            _ => throw new DomainException("invalid room entrance side"),
-        };
+        var door =
+            entrance == Rotation.North
+                ? new Cell(bounds.X + bounds.Width / 2, bounds.Z + bounds.Height - 1)
+            : entrance == Rotation.South ? new Cell(bounds.X + bounds.Width / 2, bounds.Z)
+            : entrance == Rotation.East
+                ? new Cell(bounds.X + bounds.Width - 1, bounds.Z + bounds.Height / 2)
+            : entrance == Rotation.West ? new Cell(bounds.X, bounds.Z + bounds.Height / 2)
+            : throw new DomainException("invalid room entrance side");
         return new RoomFootprint(interior, door, entrance);
     }
 
@@ -279,11 +279,9 @@ public static class RotationExtensions
     /// west -X).
     /// </summary>
     internal static Cell Outward(this Rotation rotation) =>
-        rotation switch
-        {
-            Rotation.North => new Cell(0, 1),
-            Rotation.South => new Cell(0, -1),
-            Rotation.East => new Cell(1, 0),
-            _ => new Cell(-1, 0),
-        };
+        rotation == Rotation.North ? new Cell(0, 1)
+        : rotation == Rotation.South ? new Cell(0, -1)
+        : rotation == Rotation.East ? new Cell(1, 0)
+        : rotation == Rotation.West ? new Cell(-1, 0)
+        : throw new DomainException("invalid rotation");
 }

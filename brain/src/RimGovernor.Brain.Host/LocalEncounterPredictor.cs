@@ -67,7 +67,7 @@ public sealed class LocalEncounterPredictor(LocalEncounterOptions options) : IEn
             await _process.StandardInput.FlushAsync(budget.Token).ConfigureAwait(false);
             var line = await ReadFrameAsync(_process.StandardOutput, _settings.MaximumFrameCharacters, budget.Token).ConfigureAwait(false);
             var reply = Decode(line, request, key);
-            return reply with { EngineFingerprint = _engine, ColdStartMilliseconds = cold, RequestMilliseconds = watch.Elapsed.TotalMilliseconds };
+            return reply with { EngineFingerprint = _engine, ColdStartMilliseconds = Measured(cold), RequestMilliseconds = Measured(watch.Elapsed.TotalMilliseconds) };
         }
         catch (OperationCanceledException)
         {
@@ -75,7 +75,7 @@ public sealed class LocalEncounterPredictor(LocalEncounterOptions options) : IEn
             await StopAsync().ConfigureAwait(false);
             if (_cleanupFailure.Length != 0) return EncounterPredictionConsumer.Refused(EncounterStatus.Unavailable, key, _cleanupFailure);
             return EncounterPredictionConsumer.Refused(cancellationToken.IsCancellationRequested ? EncounterStatus.Cancelled : EncounterStatus.TimedOut, key, watch is null ? "worker_startup_cancelled" : "worker_request_cancelled")
-                with { ColdStartMilliseconds = cold ?? startup?.Elapsed.TotalMilliseconds, RequestMilliseconds = watch?.Elapsed.TotalMilliseconds };
+                with { ColdStartMilliseconds = Measured(cold ?? startup?.Elapsed.TotalMilliseconds), RequestMilliseconds = Measured(watch?.Elapsed.TotalMilliseconds) };
         }
         catch (Exception e) when (e is IOException or InvalidOperationException or System.ComponentModel.Win32Exception or JsonException or KeyNotFoundException or FormatException)
         {
@@ -83,7 +83,7 @@ public sealed class LocalEncounterPredictor(LocalEncounterOptions options) : IEn
             await StopAsync().ConfigureAwait(false);
             if (_cleanupFailure.Length != 0) return EncounterPredictionConsumer.Refused(EncounterStatus.Unavailable, key, _cleanupFailure);
             return EncounterPredictionConsumer.Refused(e is JsonException or KeyNotFoundException or FormatException ? EncounterStatus.Malformed : EncounterStatus.Unavailable, key, e.Message)
-                with { ColdStartMilliseconds = cold ?? startup?.Elapsed.TotalMilliseconds, RequestMilliseconds = watch?.Elapsed.TotalMilliseconds };
+                with { ColdStartMilliseconds = Measured(cold ?? startup?.Elapsed.TotalMilliseconds), RequestMilliseconds = Measured(watch?.Elapsed.TotalMilliseconds) };
         }
         finally { _active.Release(); }
     }
@@ -244,7 +244,7 @@ public sealed class LocalEncounterPredictor(LocalEncounterOptions options) : IEn
             var ticks = sample.GetProperty("ticks").GetInt32();
             if (ticks < 0 || ticks > request.HorizonTicks || !actors.Select(a => a.Id).Order(StringComparer.Ordinal).SequenceEqual(request.Actors.Select(a => a.Id).Order(StringComparer.Ordinal))) throw new JsonException("reply_participants_or_duration");
             foreach (var a in actors)
-                if (request.Actors.Single(p => p.Id == a.Id).Departure is { } d && a.LastShotTick >= d.Tick) throw new JsonException("combat_after_departure");
+                if (request.Actors.Single(p => p.Id == a.Id).Departure is { } d && a.LastShotTick is { } shot && shot.Tick >= d.Tick) throw new JsonException("combat_after_departure");
             samples.Add(new EncounterSample(sample.GetProperty("seed").GetInt32(), ticks, ticks == request.HorizonTicks, actors));
         }
         if (!samples.Select(s => s.Seed).SequenceEqual(request.Seeds)) throw new JsonException("reply_samples");
@@ -256,7 +256,9 @@ public sealed class LocalEncounterPredictor(LocalEncounterOptions options) : IEn
     }
 
     private static string[] Strings(JsonElement array) => array.EnumerateArray().Select(e => e.GetString() ?? throw new JsonException("null string")).ToArray();
-    private static int? Tick(JsonElement value, string property) => value.GetProperty(property).GetInt32() is var tick && tick >= 0 ? tick : null;
+    private static EncounterTick? Tick(JsonElement value, string property) => value.GetProperty(property).GetInt32() is var tick && tick >= 0 ? new EncounterTick(tick) : null;
+
+    private static MeasuredMilliseconds? Measured(double? milliseconds) => milliseconds is { } value ? new MeasuredMilliseconds(value) : null;
 }
 
 public sealed record LocalEncounterOptions(string DotnetExecutable, string WorkerAssembly, string PrivateGameDirectory,

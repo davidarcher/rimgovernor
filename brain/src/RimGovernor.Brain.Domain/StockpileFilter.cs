@@ -73,10 +73,10 @@ public static class QualityExtensions
 }
 
 /// <summary>A hit-point fraction range in [0,1].</summary>
-public readonly record struct HitPointRange(double Min, double Max);
+public sealed record HitPointRange(double Min, double Max);
 
 /// <summary>A quality range (Awful..Legendary).</summary>
-public readonly record struct QualityRange(Quality Min, Quality Max);
+public sealed record QualityRange(Quality Min, Quality Max);
 
 /// <summary>
 /// The closed, comparable value of one storage filter (a stockpile zone's or a storage building's): a native base

@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Store;
 /// The explicit worker/target footprint already persisted with an action. It carries no prediction of the native
 /// route to that target.
 /// </summary>
-public readonly record struct DispatchSite(PawnId Worker, string Target, Fact<Cell> Cell);
+public readonly record struct DispatchSite(PawnId Worker, string Target, Cell? Cell);
 
 /// <summary>The dispatch footprint of an action, read from its payload.</summary>
 internal static class ActionSites
@@ -14,7 +14,7 @@ internal static class ActionSites
     public static DispatchSite Of(DomainAction a)
     {
         static DispatchSite Site(PawnId worker, string target, Cell? cell) =>
-            new(worker, target, cell is { } c ? Fact.Known(c) : default);
+            new(worker, target, cell);
 
         return a.Payload switch
         {

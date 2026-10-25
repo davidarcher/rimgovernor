@@ -91,58 +91,165 @@ public static class MedicalCareExtensions
     }
 }
 
-/// <summary>An immutable value: the pawn and the one setting it should hold. Arm accessors are null when the arm is not selected.</summary>
-public sealed record PawnSettings : IActionPayload
+/// <summary>An immutable value: the pawn and the one setting it should hold. One arm per <see cref="SettingKind"/>.</summary>
+public abstract record PawnSettings : IActionPayload
 {
-    private PawnSettings(PawnId pawn, SettingKind kind)
+    private protected PawnSettings(PawnId pawn)
     {
         Pawn = pawn;
-        Kind = kind;
     }
 
     public PawnId Pawn { get; }
 
-    public SettingKind Kind { get; }
+    /// <summary>The arm this setting is; the journal's discriminator.</summary>
+    public abstract SettingKind Kind { get; }
 
-    public HostilityResponse? Hostility { get; private init; }
+    /// <summary>The hostility response a pawn should hold.</summary>
+    public sealed record HostilitySetting : PawnSettings
+    {
+        internal HostilitySetting(PawnId pawn, HostilityResponse mode)
+            : base(pawn) => Mode = mode;
 
-    public bool SelfTend { get; private init; }
+        public HostilityResponse Mode { get; }
 
-    /// <summary>The nickname arm's colliding short name; empty for every other arm.</summary>
-    public string LeaveName { get; private init; } = "";
+        public override SettingKind Kind => SettingKind.Hostility;
+    }
 
-    public MedicalCare? MedicalCare { get; private init; }
+    /// <summary>The pawn's playerSettings.selfTend.</summary>
+    public sealed record SelfTendSetting : PawnSettings
+    {
+        internal SelfTendSetting(PawnId pawn, bool on)
+            : base(pawn) => On = on;
 
-    /// <summary>The carry count when this is the carry arm.</summary>
-    public int? MedicineCarry { get; private init; }
+        public bool On { get; }
 
-    public string? ReadingPolicy { get; private init; }
+        public override SettingKind Kind => SettingKind.SelfTend;
+    }
 
-    public string? DrugPolicy { get; private init; }
+    /// <summary>The pawn's Medicine inventory-stock count.</summary>
+    public sealed record MedicineCarrySetting : PawnSettings
+    {
+        internal MedicineCarrySetting(PawnId pawn, int count)
+            : base(pawn) => Count = count;
 
-    public string? FoodPolicy { get; private init; }
+        public int Count { get; }
 
-    /// <summary>The work mode def when this is the mech work mode arm.</summary>
-    public string? MechWorkMode { get; private init; }
+        public override SettingKind Kind => SettingKind.MedicineCarry;
+    }
 
-    /// <summary>The group index when this is the control group arm.</summary>
-    public int? MechControlGroup { get; private init; }
+    /// <summary>The nickname arm's colliding short name.</summary>
+    public sealed record NicknameSetting : PawnSettings
+    {
+        internal NicknameSetting(PawnId pawn, string leaveName)
+            : base(pawn) => LeaveName = leaveName;
 
-    /// <summary>The flag value when this is the extract bioferrite arm.</summary>
-    public bool? ExtractBioferrite { get; private init; }
+        public string LeaveName { get; }
 
-    private string? PermitFaction { get; init; }
+        public override SettingKind Kind => SettingKind.Nickname;
+    }
 
-    private string? PermitDef { get; init; }
+    /// <summary>The cap on the medicine a doctor may use on the pawn.</summary>
+    public sealed record MedicalCareSetting : PawnSettings
+    {
+        internal MedicalCareSetting(PawnId pawn, MedicalCare care)
+            : base(pawn) => Care = care;
 
-    /// <summary>The faction and permit defs when this is the permit arm.</summary>
-    public (string Faction, string Permit)? ChoosePermit => Kind == SettingKind.ChoosePermit ? (PermitFaction!, PermitDef!) : null;
+        public MedicalCare Care { get; }
+
+        public override SettingKind Kind => SettingKind.MedicalCare;
+    }
+
+    /// <summary>The reading policy labelled <see cref="Name"/>.</summary>
+    public sealed record ReadingPolicySetting : PawnSettings
+    {
+        internal ReadingPolicySetting(PawnId pawn, string name)
+            : base(pawn) => Name = name;
+
+        public string Name { get; }
+
+        public override SettingKind Kind => SettingKind.ReadingPolicy;
+    }
+
+    /// <summary>The drug policy labelled <see cref="Name"/>.</summary>
+    public sealed record DrugPolicySetting : PawnSettings
+    {
+        internal DrugPolicySetting(PawnId pawn, string name)
+            : base(pawn) => Name = name;
+
+        public string Name { get; }
+
+        public override SettingKind Kind => SettingKind.DrugPolicy;
+    }
+
+    /// <summary>The food policy labelled <see cref="Name"/>.</summary>
+    public sealed record FoodPolicySetting : PawnSettings
+    {
+        internal FoodPolicySetting(PawnId pawn, string name)
+            : base(pawn) => Name = name;
+
+        public string Name { get; }
+
+        public override SettingKind Kind => SettingKind.FoodPolicy;
+    }
+
+    /// <summary>The MechWorkModeDef name the mech's control group runs.</summary>
+    public sealed record MechWorkModeSetting : PawnSettings
+    {
+        internal MechWorkModeSetting(PawnId pawn, string mode)
+            : base(pawn) => Mode = mode;
+
+        public string Mode { get; }
+
+        public override SettingKind Kind => SettingKind.MechWorkMode;
+    }
+
+    /// <summary>The index of the overseer control group the mech moves into.</summary>
+    public sealed record MechControlGroupSetting : PawnSettings
+    {
+        internal MechControlGroupSetting(PawnId pawn, int group)
+            : base(pawn) => Group = group;
+
+        public int Group { get; }
+
+        public override SettingKind Kind => SettingKind.MechControlGroup;
+    }
+
+    /// <summary>The permit (a RoyalTitlePermitDef name) the colonist takes with a faction (a FactionDef name).</summary>
+    public sealed record ChoosePermitSetting : PawnSettings
+    {
+        internal ChoosePermitSetting(PawnId pawn, string faction, string permit)
+            : base(pawn)
+        {
+            Faction = faction;
+            Permit = permit;
+        }
+
+        public string Faction { get; }
+
+        public string Permit { get; }
+
+        public override SettingKind Kind => SettingKind.ChoosePermit;
+    }
+
+    /// <summary>The held entity's extract-bioferrite flag value.</summary>
+    public sealed record ExtractBioferriteSetting : PawnSettings
+    {
+        internal ExtractBioferriteSetting(PawnId pawn, bool on)
+            : base(pawn) => On = on;
+
+        public bool On { get; }
+
+        public override SettingKind Kind => SettingKind.ExtractBioferrite;
+    }
 
     /// <summary>Sets the extract-bioferrite flag of the held entity pawn. Native refuses a pawn that is no entity on a holding platform.</summary>
     public static PawnSettings NewExtractBioferriteSetting(PawnId pawn, bool on)
     {
-        DomainException.Require(pawn.IsValid, "an extract bioferrite setting requires a held entity");
-        return new PawnSettings(pawn, SettingKind.ExtractBioferrite) { ExtractBioferrite = on };
+        DomainException.Require(
+            pawn.IsValid,
+            "an extract bioferrite setting requires a held entity"
+        );
+        return new ExtractBioferriteSetting(pawn, on);
     }
 
     /// <summary>
@@ -155,7 +262,7 @@ public sealed record PawnSettings : IActionPayload
             pawn.IsValid && IdText.IsValidText(faction) && !faction.Contains(':', StringComparison.Ordinal) && IdText.IsValidText(permit),
             "a choose permit setting requires a colonist, a faction def and a permit def"
         );
-        return new PawnSettings(pawn, SettingKind.ChoosePermit) { PermitFaction = faction, PermitDef = permit };
+        return new ChoosePermitSetting(pawn, faction, permit);
     }
 
     /// <summary>
@@ -164,70 +271,97 @@ public sealed record PawnSettings : IActionPayload
     /// </summary>
     public static PawnSettings NewMechWorkModeSetting(PawnId pawn, string mode)
     {
-        DomainException.Require(pawn.IsValid && IdText.IsValidText(mode), "a mech work mode setting requires a mech and a work mode def");
-        return new PawnSettings(pawn, SettingKind.MechWorkMode) { MechWorkMode = mode };
+        DomainException.Require(
+            pawn.IsValid && IdText.IsValidText(mode),
+            "a mech work mode setting requires a mech and a work mode def"
+        );
+        return new MechWorkModeSetting(pawn, mode);
     }
 
     /// <summary>Moves the mech pawn into its overseer's control group with the given index. Native refuses an index the overseer has no group for.</summary>
     public static PawnSettings NewMechControlGroupSetting(PawnId pawn, int group)
     {
-        DomainException.Require(pawn.IsValid && group >= 0, "a mech control group setting requires a mech and a non-negative group index");
-        return new PawnSettings(pawn, SettingKind.MechControlGroup) { MechControlGroup = group };
+        DomainException.Require(
+            pawn.IsValid && group >= 0,
+            "a mech control group setting requires a mech and a non-negative group index"
+        );
+        return new MechControlGroupSetting(pawn, group);
     }
 
     /// <summary>Assigns the drug policy labelled name.</summary>
     public static PawnSettings NewDrugPolicySetting(PawnId pawn, string name)
     {
-        DomainException.Require(pawn.IsValid && IdText.IsValidText(name) && ByteLength(name) <= 80, "a drug policy setting requires a pawn and a policy name");
-        return new PawnSettings(pawn, SettingKind.DrugPolicy) { DrugPolicy = name };
+        DomainException.Require(
+            pawn.IsValid && IdText.IsValidText(name) && ByteLength(name) <= 80,
+            "a drug policy setting requires a pawn and a policy name"
+        );
+        return new DrugPolicySetting(pawn, name);
     }
 
     /// <summary>Assigns the reading policy labelled name.</summary>
     public static PawnSettings NewReadingPolicySetting(PawnId pawn, string name)
     {
-        DomainException.Require(pawn.IsValid && IdText.IsValidText(name) && ByteLength(name) <= 80, "a reading policy setting requires a pawn and a policy name");
-        return new PawnSettings(pawn, SettingKind.ReadingPolicy) { ReadingPolicy = name };
+        DomainException.Require(
+            pawn.IsValid && IdText.IsValidText(name) && ByteLength(name) <= 80,
+            "a reading policy setting requires a pawn and a policy name"
+        );
+        return new ReadingPolicySetting(pawn, name);
     }
 
     /// <summary>Assigns the food policy labelled name.</summary>
     public static PawnSettings NewFoodPolicySetting(PawnId pawn, string name)
     {
-        DomainException.Require(pawn.IsValid && IdText.IsValidText(name) && ByteLength(name) <= 80, "a food policy setting requires a pawn and a policy name");
-        return new PawnSettings(pawn, SettingKind.FoodPolicy) { FoodPolicy = name };
+        DomainException.Require(
+            pawn.IsValid && IdText.IsValidText(name) && ByteLength(name) <= 80,
+            "a food policy setting requires a pawn and a policy name"
+        );
+        return new FoodPolicySetting(pawn, name);
     }
 
     /// <summary>The pawn's Medicine inventory-stock count, 0 to <see cref="PawnSettingsConstants.MaxMedicineCarry"/>.</summary>
     public static PawnSettings NewMedicineCarrySetting(PawnId pawn, int count)
     {
-        DomainException.Require(pawn.IsValid && count >= 0 && count <= PawnSettingsConstants.MaxMedicineCarry, "a medicine carry setting requires a pawn and a count of 0-3");
-        return new PawnSettings(pawn, SettingKind.MedicineCarry) { MedicineCarry = count };
+        DomainException.Require(
+            pawn.IsValid && count >= 0 && count <= PawnSettingsConstants.MaxMedicineCarry,
+            "a medicine carry setting requires a pawn and a count of 0-3"
+        );
+        return new MedicineCarrySetting(pawn, count);
     }
 
     public static PawnSettings NewHostilitySetting(PawnId pawn, HostilityResponse mode)
     {
-        DomainException.Require(pawn.IsValid && Wire.IsDefined(mode), "a hostility setting requires a pawn and Ignore, Attack or Flee");
-        return new PawnSettings(pawn, SettingKind.Hostility) { Hostility = mode };
+        DomainException.Require(
+            pawn.IsValid && Wire.IsDefined(mode),
+            "a hostility setting requires a pawn and Ignore, Attack or Flee"
+        );
+        return new HostilitySetting(pawn, mode);
     }
 
     /// <summary>Sets playerSettings.selfTend.</summary>
     public static PawnSettings NewSelfTendSetting(PawnId pawn, bool on)
     {
         DomainException.Require(pawn.IsValid, "a self-tend setting requires a pawn");
-        return new PawnSettings(pawn, SettingKind.SelfTend) { SelfTend = on };
+        return new SelfTendSetting(pawn, on);
     }
 
     /// <summary>Renames an owned pawn away from leave, its colliding short name.</summary>
     public static PawnSettings NewNicknameSetting(PawnId pawn, string leave)
     {
-        DomainException.Require(pawn.IsValid && !string.IsNullOrWhiteSpace(leave) && ByteLength(leave) <= 256, "a nickname setting requires a pawn and the short name it leaves");
-        return new PawnSettings(pawn, SettingKind.Nickname) { LeaveName = leave };
+        DomainException.Require(
+            pawn.IsValid && !string.IsNullOrWhiteSpace(leave) && ByteLength(leave) <= 256,
+            "a nickname setting requires a pawn and the short name it leaves"
+        );
+        return new NicknameSetting(pawn, leave);
     }
 
     /// <summary>Caps the pawn's medical care.</summary>
     public static PawnSettings NewMedicalCareSetting(PawnId pawn, MedicalCare care)
     {
-        DomainException.Require(pawn.IsValid && care.IsValid(), "a medical care setting requires a pawn and a MedicalCareCategory");
-        return new PawnSettings(pawn, SettingKind.MedicalCare) { MedicalCare = care };
+        DomainException.Require(
+            pawn.IsValid && care.IsValid(),
+            "a medical care setting requires a pawn and a MedicalCareCategory"
+        );
+        return new MedicalCareSetting(pawn, care);
     }
 
     private static int ByteLength(string s) => Encoding.UTF8.GetByteCount(s);

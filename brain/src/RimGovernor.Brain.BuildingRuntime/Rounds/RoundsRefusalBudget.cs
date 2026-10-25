@@ -13,7 +13,7 @@ internal static class RoundsRefusalBudget
             foreach (var progress in plan.Progress)
             {
                 var view = progress.View;
-                if (!view.Receipt.TryGetValue(out var receipt) || receipt != Domain.Receipt.Refused)
+                if (!view.Received(Domain.Receipt.Refused))
                 {
                     continue;
                 }
@@ -24,10 +24,8 @@ internal static class RoundsRefusalBudget
                     continue;
                 }
 
-                if (!view.Refusal.TryGetValue(out var refusal))
-                {
-                    refusal = new NativeRefusal("", "refused", RefusalClass.Unknown);
-                }
+                var refusal =
+                    view.Refusal ?? new NativeRefusal("", "refused", RefusalClass.Unclassified);
 
                 budget = budget.Record(subject, refusal.Reason, refusal.Class, BudgetWorld(view.Snapshot));
             }

@@ -162,18 +162,15 @@ public static class GiveJobRules
     }
 
     private static string RecoveryServiceJob(RecoveryMethod method) =>
-        method switch
-        {
-            RecoveryMethod.OfferHelp => "OfferHelp",
-            RecoveryMethod.InspectGravEngine => JobInspectGravEngine,
-            RecoveryMethod.Repair => JobRepair,
-            RecoveryMethod.Breakdown => JobFixBrokenDownBuilding,
-            RecoveryMethod.Refuel => JobRefuel,
-            RecoveryMethod.InvestigateMonolith => JobInvestigateMonolith,
-            RecoveryMethod.ActivateMonolith => JobActivateMonolith,
-            RecoveryMethod.Interact => JobInteractThing,
-            _ => throw BridgeContractException.Contract("recover intent requires a service method"),
-        };
+        method == RecoveryMethod.OfferHelp ? "OfferHelp"
+        : method == RecoveryMethod.InspectGravEngine ? JobInspectGravEngine
+        : method == RecoveryMethod.Repair ? JobRepair
+        : method == RecoveryMethod.Breakdown ? JobFixBrokenDownBuilding
+        : method == RecoveryMethod.Refuel ? JobRefuel
+        : method == RecoveryMethod.InvestigateMonolith ? JobInvestigateMonolith
+        : method == RecoveryMethod.ActivateMonolith ? JobActivateMonolith
+        : method == RecoveryMethod.Interact ? JobInteractThing
+        : throw BridgeContractException.Contract("recover intent requires a service method");
 
     /// <summary>
     /// The GiveJobIntent of one pawn servicing one colony building (repair, breakdown,

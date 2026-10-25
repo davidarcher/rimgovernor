@@ -145,7 +145,7 @@ public sealed partial class Store
 
     private static bool InstalledActivity(ProgressView progress) => !progress.Unresolved
         && progress.Stage is Stage.Completed or Stage.Cancelled
-        && progress.Receipt.TryGetValue(out var receipt) && receipt == Receipt.Accepted;
+        && progress.Received(Receipt.Accepted);
 
     // A refused replacement did not erase the previous native assignment. Retain its cleanup obligation
     // through predecessor history; uncertain receipts must not take this path.
@@ -155,9 +155,11 @@ public sealed partial class Store
         {
             if (plan.Progress.Count != 1) return null;
             var progress = plan.Progress[0].View;
-            if (InstalledActivity(progress)) return plan;
-            var noEffect = progress.Receipt.TryGetValue(out var receipt)
-                ? receipt == Receipt.Refused || (progress.Stage == Stage.Cancelled && receipt == Receipt.Unsent)
+            if (InstalledActivity(progress))
+                return plan;
+            var noEffect = progress.Receipt is ReceiptState.Received received
+                ? received.Kind == Receipt.Refused
+                    || (progress.Stage == Stage.Cancelled && received.Kind == Receipt.Unsent)
                 : progress.Stage == Stage.Cancelled;
             if (progress.Unresolved || !noEffect) return null;
             var predecessor = tx.ScalarText("SELECT id FROM plans WHERE superseded_by=$id AND retired=1", ("$id", plan.Spec.Id));

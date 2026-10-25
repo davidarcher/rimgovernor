@@ -14,37 +14,21 @@ public static class Families
     /// Maps a clock ObservationInvalidated family to its controller name; an
     /// unspecified or unknown value reports false.
     /// </summary>
-    public static bool FactFamilyFromWire(WireFactFamily value, out FactFamily family)
+    private static readonly Dictionary<WireFactFamily, FactFamily> FromWire = new Dictionary<
+        WireFactFamily,
+        FactFamily
+    >
     {
-        switch (value)
-        {
-            case WireFactFamily.Definitions:
-                family = FactFamily.Definitions;
-                return true;
-            case WireFactFamily.World:
-                family = FactFamily.World;
-                return true;
-            case WireFactFamily.Identity:
-                family = FactFamily.Identity;
-                return true;
-            case WireFactFamily.Colony:
-                family = FactFamily.Colony;
-                return true;
-            case WireFactFamily.Pawns:
-                family = FactFamily.Pawns;
-                return true;
-            case WireFactFamily.Emergency:
-                family = FactFamily.Emergency;
-                return true;
-            case WireFactFamily.Rooms:
-                family = FactFamily.Rooms;
-                return true;
-            case WireFactFamily.Research:
-                family = FactFamily.Research;
-                return true;
-            default:
-                family = default;
-                return false;
-        }
-    }
+        [WireFactFamily.Definitions] = FactFamily.Definitions,
+        [WireFactFamily.World] = FactFamily.World,
+        [WireFactFamily.Identity] = FactFamily.Identity,
+        [WireFactFamily.Colony] = FactFamily.Colony,
+        [WireFactFamily.Pawns] = FactFamily.Pawns,
+        [WireFactFamily.Emergency] = FactFamily.Emergency,
+        [WireFactFamily.Rooms] = FactFamily.Rooms,
+        [WireFactFamily.Research] = FactFamily.Research,
+    };
+
+    public static bool FactFamilyFromWire(WireFactFamily value, out FactFamily family) =>
+        FromWire.TryGetValue(value, out family);
 }

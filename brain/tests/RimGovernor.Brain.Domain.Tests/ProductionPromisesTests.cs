@@ -20,23 +20,63 @@ public sealed class ProductionPromisesTests
     private static BatchPricing.Priced Priced(ProductionBatch batch, EquatableArray<EquatableArray<Amount>>? slots = null, bool unfinished = false) =>
         new BatchPricing.Priced(batch, slots ?? Slots, unfinished);
     private static EquatableArray<IngredientReservation> EmptyReservations => [];
-    private static Fact<EquatableArray<ProductionBatchState>> Census(int remaining = 5) => Known<EquatableArray<ProductionBatchState>>([
-        new("bill", true, BillRepeat.Count, remaining, false, false, new ProductionUnfinishedWork("", default))]);
-    private static ProductionBatch Placed => Batch with
-    { Progress = Batch.Progress with { Attempt = new AttemptId(1), Stage = Stage.Completed, Bill = Known("bill") } };
-    private static Fact<EquatableArray<ForecastCommitment>> Promises(ProductionBatch batch, Fact<EquatableArray<ProductionBatchState>> census = default) =>
-        Promises(Priced(batch), census);
-    private static Fact<EquatableArray<ForecastCommitment>> Promises(BatchPricing batch, Fact<EquatableArray<ProductionBatchState>> census = default) =>
-        ProductionRules.ProductionPromisesOf(Known<EquatableArray<BatchPricing>>([batch]), census);
-    private static EquatableArray<IngredientReservation> Reserved(string bill) => [
-        new() { Pawn = new RimGovernor.Brain.Domain.PawnId("cook"), Bill = bill, Items = [new(Material, 10)] }];
-    private static RoundsFacts Facts(Fact<EquatableArray<ForecastCommitment>> promises) => new()
-    {
-        ProductionPromises = promises, BillReservations = EmptyReservations,
-        Resources = Known<EquatableArray<Amount>>([new(Material, 100), new(Other, 20)]),
-        CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long> { [Material] = 60 } },
-        ResourceConsumption = Known(new ResourceConsumption()),
-    };
+
+    private static Fact<EquatableArray<ProductionBatchState>> Census(int remaining = 5) =>
+        Known<EquatableArray<ProductionBatchState>>([
+            new(
+                "bill",
+                true,
+                BillRepeat.Count,
+                remaining,
+                false,
+                false,
+                new ProductionUnfinishedWork("", default)
+            ),
+        ]);
+
+    private static ProductionBatch Placed =>
+        Batch with
+        {
+            Progress = Batch.Progress with
+            {
+                Attempt = new AttemptId(1),
+                Stage = Stage.Completed,
+                Bill = "bill",
+            },
+        };
+
+    private static Fact<EquatableArray<ForecastCommitment>> Promises(
+        ProductionBatch batch,
+        Fact<EquatableArray<ProductionBatchState>> census = default
+    ) => Promises(Priced(batch), census);
+
+    private static Fact<EquatableArray<ForecastCommitment>> Promises(
+        BatchPricing batch,
+        Fact<EquatableArray<ProductionBatchState>> census = default
+    ) => ProductionRules.ProductionPromisesOf(Known<EquatableArray<BatchPricing>>([batch]), census);
+
+    private static EquatableArray<IngredientReservation> Reserved(string bill) =>
+        [
+            new()
+            {
+                Pawn = new RimGovernor.Brain.Domain.PawnId("cook"),
+                Bill = bill,
+                Items = [new(Material, 10)],
+            },
+        ];
+
+    private static RoundsFacts Facts(Fact<EquatableArray<ForecastCommitment>> promises) =>
+        new()
+        {
+            ProductionPromises = promises,
+            BillReservations = EmptyReservations,
+            Resources = Known<EquatableArray<Amount>>([new(Material, 100), new(Other, 20)]),
+            CurrentConstruction = CurrentConstruction.Empty with
+            {
+                Deficit = new Dictionary<Resource, long> { [Material] = 60 },
+            },
+            ResourceConsumption = Known(new ResourceConsumption()),
+        };
 
     [Fact]
     public void PendingBatchAndConstructionAddInsteadOfCompetingStockFloors()
@@ -71,8 +111,22 @@ public sealed class ProductionPromisesTests
     [Fact]
     public void CancellationReleasesPendingButAppliedBillRequiresNativeEvidence()
     {
-        Assert.Empty(Promises(Batch with { Progress = Batch.Progress with { Stage = Stage.Cancelled } }).Value);
-        var unsent = Batch with { Progress = Batch.Progress with { Attempt = new AttemptId(1), Effect = Known(Effect.Absent) } };
+        Assert.Empty(
+            Promises(
+                Batch with
+                {
+                    Progress = Batch.Progress with { Stage = Stage.Cancelled },
+                }
+            ).Value
+        );
+        var unsent = Batch with
+        {
+            Progress = Batch.Progress with
+            {
+                Attempt = new AttemptId(1),
+                Effect = new EffectState.Observed(Effect.Absent),
+            },
+        };
         Assert.Equal(50, Promises(unsent).Value[0].MaterialClaims[0].Units.Value);
         Assert.Empty(Promises(unsent with { Progress = unsent.Progress with { Stage = Stage.Cancelled } }).Value);
         var cancelled = Placed with { Progress = Placed.Progress with { Stage = Stage.Cancelled } };

@@ -64,11 +64,14 @@ public enum ConstructionTier
 /// </summary>
 public sealed record BuildingOrder(
     Building Building,
-    Fact<int> FinishingSkill,
+    FinishingSkillFloor? FinishingSkill,
     string ConstructionTarget,
     bool ReplaceWall,
-    Fact<ConstructionTier> Tier
+    ConstructionTier Tier
 ) : IActionPayload;
+
+/// <summary>The once-chosen finishing-skill requirement of a build order: the lowest skill a builder may have.</summary>
+public sealed record FinishingSkillFloor(int MinimumSkill);
 
 /// <summary>
 /// An action is a closed variant: a kind plus the payload record of that kind's family. It can only be built
@@ -112,7 +115,7 @@ public sealed partial record DomainAction
     {
         DomainException.Require(id.IsValid, "invalid action identity");
         DomainException.Require(Wire.IsDefined(tier), "invalid construction tier");
-        return Create(id, ActionKind.Building, new BuildingOrder(building, default, "", false, Known(tier)));
+        return Create(id, ActionKind.Building, new BuildingOrder(building, null, "", false, tier));
     }
 
     public Building? Building => PayloadOf<BuildingOrder>(ActionKind.Building)?.Building;
@@ -128,11 +131,21 @@ public sealed partial record DomainAction
     {
         const string Message = "invalid construction finishing skill";
         var order = BuildingOrderOrThrow(Message);
-        DomainException.Require(minimum is >= 0 and <= 1000 && IdText.IsNativeText(target, allowEmpty: true), Message);
-        return WithPayload(order with { FinishingSkill = Known(minimum), ConstructionTarget = target });
+        DomainException.Require(
+            minimum is >= 0 and <= 1000 && IdText.IsNativeText(target, allowEmpty: true),
+            Message
+        );
+        return WithPayload(
+            order with
+            {
+                FinishingSkill = new FinishingSkillFloor(minimum),
+                ConstructionTarget = target,
+            }
+        );
     }
 
-    public Fact<int> FinishingSkill => PayloadOf<BuildingOrder>(ActionKind.Building)?.FinishingSkill ?? default;
+    public FinishingSkillFloor? FinishingSkill =>
+        PayloadOf<BuildingOrder>(ActionKind.Building)?.FinishingSkill;
 
     public string ConstructionTarget => PayloadOf<BuildingOrder>(ActionKind.Building)?.ConstructionTarget ?? "";
 
@@ -150,10 +163,16 @@ public sealed partial record DomainAction
                 && !(order.ConstructionTarget.Length != 0 && target.Length != 0 && target != order.ConstructionTarget),
             Message
         );
-        return WithPayload(order with { Tier = Known(tier), ConstructionTarget = target.Length != 0 ? target : order.ConstructionTarget });
+        return WithPayload(
+            order with
+            {
+                Tier = tier,
+                ConstructionTarget = target.Length != 0 ? target : order.ConstructionTarget,
+            }
+        );
     }
 
-    public Fact<ConstructionTier> Tier => PayloadOf<BuildingOrder>(ActionKind.Building)?.Tier ?? default;
+    public ConstructionTier Tier => BuildingOrderOrThrow("not a building action").Tier;
 
     /// <summary>
     /// Marks a building action as an in-place swap of the built wall at the cell (#2529): a vanilla replacement

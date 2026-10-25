@@ -15,31 +15,60 @@ public static class Zones
             Label = zone.Label,
             AddCells = new Op.Cells { Selection = new Op.CellList { Cells = [.. IntentActionRules.WireCells(zone.Cells)] } },
         };
-        switch (zone.Kind)
+        if (zone.Kind == ZoneKind.Fishing)
         {
-            case ZoneKind.Fishing:
-                command = command with { Kind = Op.ZoneType.Fishing };
-                command = command with { Fishing = new Op.FishingSettings { PopulationFloor = ZoneCreateConstants.FishingPopulationFloor } };
-                if (zone.ExtendId.Length != 0)
+            command = command with { Kind = Op.ZoneType.Fishing };
+            command = command with
+            {
+                Fishing = new Op.FishingSettings
                 {
-                    command = command with { Zone = IntentActionRules.NewRef(zone.ExtendId) };
-                }
-                break;
-            case ZoneKind.Stockpile:
-                // A cell-list stockpile keeps the explicit list built above.
-                if (zone.Rectangle is { Width: > 0 } rect)
-                {
-                    command = command with { AddCells = new Op.Cells { Selection = new Op.Rectangle { Origin = IntentActionRules.WireCell(rect.Origin), Width = rect.Width, Height = rect.Height } } };
-                }
-                command = command with { Kind = Op.ZoneType.Stockpile };
-                command = command with { Stockpile = StockpileSettings(zone.Filter ?? throw BridgeContractException.Contract("stockpile zone without a filter"), zone.Priority ?? throw BridgeContractException.Contract("stockpile zone without a priority")) };
-                break;
-            default:
-                command = command with { Kind = Op.ZoneType.Growing };
-                command = command with { Growing = new Op.GrowingSettings { PlantDef = zone.Crop, AllowSow = true, AllowCut = true } };
-                break;
+                    PopulationFloor = ZoneCreateConstants.FishingPopulationFloor,
+                },
+            };
+            if (zone.ExtendId.Length != 0)
+            {
+                command = command with { Zone = IntentActionRules.NewRef(zone.ExtendId) };
+            }
+            return command;
         }
-        return command;
+        if (zone.Stockpile is { } stockpile)
+        {
+            // A cell-list stockpile keeps the explicit list built above.
+            if (stockpile.Ground is StockpileGround.Dragged { Rectangle: { Width: > 0 } rect })
+            {
+                command = command with
+                {
+                    AddCells = new Op.Cells
+                    {
+                        Selection = new Op.Rectangle
+                        {
+                            Origin = IntentActionRules.WireCell(rect.Origin),
+                            Width = rect.Width,
+                            Height = rect.Height,
+                        },
+                    },
+                };
+            }
+            command = command with { Kind = Op.ZoneType.Stockpile };
+            return command with
+            {
+                Stockpile = StockpileSettings(stockpile.Filter, stockpile.Priority),
+            };
+        }
+        if (zone.Kind == ZoneKind.Growing)
+        {
+            command = command with { Kind = Op.ZoneType.Growing };
+            return command with
+            {
+                Growing = new Op.GrowingSettings
+                {
+                    PlantDef = zone.Crop,
+                    AllowSow = true,
+                    AllowCut = true,
+                },
+            };
+        }
+        throw BridgeContractException.Contract("unknown zone kind");
     }
 
     /// <summary>
@@ -137,14 +166,12 @@ public static class Zones
     internal static Op.Action AreaAction(DomainAction action)
     {
         var v = action.Area ?? throw BridgeContractException.Contract("not an area action");
-        var operation = v.Operation switch
-        {
-            AreaOperation.Create => Op.AreaOperation.Create,
-            AreaOperation.SetCells => Op.AreaOperation.SetCells,
-            AreaOperation.ClearCells => Op.AreaOperation.ClearCells,
-            AreaOperation.Delete => Op.AreaOperation.Delete,
-            _ => Op.AreaOperation.Unspecified,
-        };
+        var operation =
+            v.Operation == AreaOperation.Create ? Op.AreaOperation.Create
+            : v.Operation == AreaOperation.SetCells ? Op.AreaOperation.SetCells
+            : v.Operation == AreaOperation.ClearCells ? Op.AreaOperation.ClearCells
+            : v.Operation == AreaOperation.Delete ? Op.AreaOperation.Delete
+            : throw BridgeContractException.Contract("unknown area operation");
         var intent = new Op.AreaIntent { Operation = operation };
         if (v.PollutionClear)
         {
@@ -168,17 +195,20 @@ public static class Zones
     /// <summary>The PolicyPruneIntent of one database; native reassigns holders to their own per-pawn policy, then deletes (NativePolicyPrune.cs).</summary>
     internal static Op.Action PolicyPruneAction(DomainAction action)
     {
-        var v = action.PolicyPrune ?? throw BridgeContractException.Contract("not a policy prune action");
-        var database = v.Database switch
+        var v =
+            action.PolicyPrune
+            ?? throw BridgeContractException.Contract("not a policy prune action");
+        var database =
+            v.Database == PolicyDatabase.Outfit ? Op.PolicyDatabase.Outfit
+            : v.Database == PolicyDatabase.Drug ? Op.PolicyDatabase.Drug
+            : v.Database == PolicyDatabase.Food ? Op.PolicyDatabase.Food
+            : v.Database == PolicyDatabase.Reading ? Op.PolicyDatabase.Reading
+            : v.Database == PolicyDatabase.AllowedArea ? Op.PolicyDatabase.AllowedArea
+            : throw BridgeContractException.Contract("unknown policy database");
+        return new Op.Action
         {
-            PolicyDatabase.Outfit => Op.PolicyDatabase.Outfit,
-            PolicyDatabase.Drug => Op.PolicyDatabase.Drug,
-            PolicyDatabase.Food => Op.PolicyDatabase.Food,
-            PolicyDatabase.Reading => Op.PolicyDatabase.Reading,
-            PolicyDatabase.AllowedArea => Op.PolicyDatabase.AllowedArea,
-            _ => Op.PolicyDatabase.Unspecified,
+            Intent = new Op.PolicyPruneIntent { Database = database, DeleteIds = [.. v.Ids] },
         };
-        return new Op.Action { Intent = new Op.PolicyPruneIntent { Database = database, DeleteIds = [.. v.Ids] } };
     }
 
     /// <summary>The BuildRoofIntent over canonical cells. Native designates vanilla BuildRoof live (NativeBuildRoof.cs).</summary>

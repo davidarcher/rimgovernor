@@ -27,9 +27,21 @@ public sealed class ForecastIncumbentPreparationTests
         var task = new SelectedActivityTask("joy-task", "pawn", [], step, new(1, 1), 100);
         var batch = new PawnActivities(1, [new("pawn", "joy-assignment", "joy-method", 0, 1, false, [step]) { Task = task.Id }]) { Tasks = [task] };
         var action = DomainAction.NewPawnActivitiesAction(new("joy-action"), batch);
-        var row = new WorkAction(new("joy-plan"), action, new() { Action = action.Id, Stage = Stage.Completed,
-            Attempt = new(1), Receipt = Known(Receipt.Accepted), Tick = new(100) });
-        var native = Known<EquatableArray<WorkResourcePawn>>([new("pawn", "joy-assignment", 1, "started", "", "", 0) { LocalHour = 12 }]);
+        var row = new WorkAction(
+            new("joy-plan"),
+            action,
+            new()
+            {
+                Action = action.Id,
+                Stage = Stage.Completed,
+                Attempt = new(1),
+                Receipt = new ReceiptState.Received(Receipt.Accepted),
+                Tick = new(100),
+            }
+        );
+        var native = Known<EquatableArray<WorkResourcePawn>>([
+            new("pawn", "joy-assignment", 1, "started", "", "", 0) { LocalHour = 12 },
+        ]);
         var evidence = facts.WorkView!.Evidence with
         {
             WorkResources = native,
@@ -99,14 +111,63 @@ public sealed class ForecastIncumbentPreparationTests
         var (facts, actions) = Current();
         var needs = facts.ForecastObserved.Needs!;
         if (reason == "revision")
-            facts = facts with { ForecastObserved = facts.ForecastObserved with { Needs = needs with { Pawns = [needs.Pawns[0] with
-            { CurrentService = needs.Pawns[0].CurrentService! with { Revision = 2 } }] } } };
-        if (reason == "carry") facts = facts with { WorkView = facts.WorkView! with { Evidence = facts.WorkView!.Evidence with
-            { WorkResources = Known<EquatableArray<WorkResourcePawn>>([new("pawn", "joy-assignment", 1, "started", "rice", "Rice", 1) { LocalHour = 12 }]) } } };
-        if (reason == "stale") facts = facts with { Tick = new(101) };
-        if (reason == "unaccepted") actions = new([actions.Actions[0] with { Progress = actions.Actions[0].Progress with { Receipt = default } }]);
-        if (reason == "truncated") actions = actions with { Truncated = true };
-        if (reason == "mixed") actions = new([actions.Actions[0], actions.Actions[0] with { Plan = new("other-plan") }]);
+            facts = facts with
+            {
+                ForecastObserved = facts.ForecastObserved with
+                {
+                    Needs = needs with
+                    {
+                        Pawns =
+                        [
+                            needs.Pawns[0] with
+                            {
+                                CurrentService = needs.Pawns[0].CurrentService! with
+                                {
+                                    Revision = 2,
+                                },
+                            },
+                        ],
+                    },
+                },
+            };
+        if (reason == "carry")
+            facts = facts with
+            {
+                WorkView = facts.WorkView! with
+                {
+                    Evidence = facts.WorkView!.Evidence with
+                    {
+                        WorkResources = Known<EquatableArray<WorkResourcePawn>>([
+                            new("pawn", "joy-assignment", 1, "started", "rice", "Rice", 1)
+                            {
+                                LocalHour = 12,
+                            },
+                        ]),
+                    },
+                },
+            };
+        if (reason == "stale")
+            facts = facts with { Tick = new(101) };
+        if (reason == "unaccepted")
+            actions = new([
+                actions.Actions[0] with
+                {
+                    Progress = actions.Actions[0].Progress with
+                    {
+                        Receipt = new ReceiptState.NoReceipt(),
+                    },
+                },
+            ]);
+        if (reason == "truncated")
+            actions = actions with { Truncated = true };
+        if (reason == "mixed")
+            actions = new([
+                actions.Actions[0],
+                actions.Actions[0] with
+                {
+                    Plan = new("other-plan"),
+                },
+            ]);
         if (reason is "input" or "output")
         {
             var row = actions.Actions[0]; var batch = row.Action.PawnActivities!;
@@ -225,9 +286,22 @@ public sealed class ForecastIncumbentPreparationTests
             tasks.Add(work);
             orders.Add(new PawnActivityOrder("busy", "busy-assignment", "coupled-cook", 0, 1, false, [work.Step]) { Task = work.Id });
         }
-        var action = DomainAction.NewPawnActivitiesAction(new("cook-action"), new PawnActivities(1, orders.ToArray()) { Tasks = EquatableArray.From(tasks) });
-        var row = new WorkAction(new("cook-plan"), action, new() { Action = action.Id, Stage = Stage.Completed,
-            Attempt = new(1), Receipt = Known(Receipt.Accepted), Tick = new(100) });
+        var action = DomainAction.NewPawnActivitiesAction(
+            new("cook-action"),
+            new PawnActivities(1, orders.ToArray()) { Tasks = EquatableArray.From(tasks) }
+        );
+        var row = new WorkAction(
+            new("cook-plan"),
+            action,
+            new()
+            {
+                Action = action.Id,
+                Stage = Stage.Completed,
+                Attempt = new(1),
+                Receipt = new ReceiptState.Received(Receipt.Accepted),
+                Tick = new(100),
+            }
+        );
         WorkAction[] rows = [row];
         var native = facts.WorkView!.Evidence.WorkResources.Value.Select(p => p.Pawn == "pawn" ? p with { Assignment = order.Assignment, Revision = order.Revision, State = state } : p).ToList();
         if (busy.Length != 0) native.Add(new("busy", "busy-assignment", 1, "started", "", "", 0) { LocalHour = 12, Bill = busy == "shares" ? recipe.Bill : "bill/Other" });

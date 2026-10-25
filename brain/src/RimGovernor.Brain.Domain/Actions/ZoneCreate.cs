@@ -67,6 +67,25 @@ public static class ZoneGroundRectExtensions
     }
 }
 
+/// <summary>Where a stockpile zone's ground comes from.</summary>
+public abstract record StockpileGround
+{
+    private protected StockpileGround() { }
+
+    /// <summary>A rectangle drag; native resolves the usable cells and the connected zones.</summary>
+    public sealed record Dragged(GroundRect Rectangle) : StockpileGround;
+
+    /// <summary>An explicit connected cell list (a room region), held by the zone request.</summary>
+    public sealed record Listed : StockpileGround;
+}
+
+/// <summary>What only a stockpile zone has: its priority, its storage filter and where its ground comes from.</summary>
+public sealed record StockpileSetup(
+    StockpilePriority Priority,
+    StockpileFilter Filter,
+    StockpileGround Ground
+);
+
 /// <summary>
 /// An exact growing/fishing footprint or a stockpile rectangle drag. RimWorld resolves the stockpile's usable
 /// cells and connected zones. Role is the stable key a stockpile planner claims the zone by (e.g. "general",
@@ -76,17 +95,20 @@ public static class ZoneGroundRectExtensions
 /// </summary>
 public sealed record ZoneCreate : IActionPayload
 {
-    // Requested ground of a cell-listed zone; empty for a rectangle stockpile (whose ground is Rectangle).
+    // Requested ground of a cell-listed zone; empty for a rectangle stockpile (whose ground is the dragged rectangle).
     private readonly EquatableArray<Cell> _cells;
 
-    private ZoneCreate(ZoneKind kind, string crop, StockpilePriority? priority, EquatableArray<Cell> cells, StockpileFilter? filter, GroundRect? rectangle)
+    private ZoneCreate(
+        ZoneKind kind,
+        string crop,
+        EquatableArray<Cell> cells,
+        StockpileSetup? stockpile
+    )
     {
         Kind = kind;
         Crop = crop;
-        Priority = priority;
         _cells = cells;
-        Filter = filter;
-        Rectangle = rectangle;
+        Stockpile = stockpile;
     }
 
     /// <summary>A growing zone over an exact connected footprint.</summary>
@@ -102,17 +124,12 @@ public sealed record ZoneCreate : IActionPayload
 
     public string Crop { get; } = "";
 
-    /// <summary>A stockpile's priority; null for other zone kinds.</summary>
-    public StockpilePriority? Priority { get; }
-
     /// <summary>The requested ground; stockpile receipts hold actual created cells.</summary>
-    public EquatableArray<Cell> Cells => Kind == ZoneKind.Stockpile && _cells.Count == 0 && Rectangle is { } r ? r.Cells() : _cells;
+    public EquatableArray<Cell> Cells =>
+        Stockpile is { Ground: StockpileGround.Dragged(var r) } ? r.Cells() : _cells;
 
-    /// <summary>A stockpile rectangle drag's rectangle; null for other zones and for a cell-listed stockpile.</summary>
-    public GroundRect? Rectangle { get; }
-
-    /// <summary>A stockpile's storage filter; null for other zone kinds.</summary>
-    public StockpileFilter? Filter { get; }
+    /// <summary>A stockpile's priority, filter and ground; null for other zone kinds.</summary>
+    public StockpileSetup? Stockpile { get; }
 
     /// <summary>A stockpile's planner role key; empty when untagged.</summary>
     public string Role { get; private init; } = "";
@@ -156,7 +173,7 @@ public sealed record ZoneCreate : IActionPayload
     /// daily catch quota.
     /// </summary>
     public static ZoneCreate NewFishingZone(IEnumerable<Cell> cells) =>
-        new(ZoneKind.Fishing, "", null, CanonicalConnectedCells(cells), null, null);
+        new(ZoneKind.Fishing, "", CanonicalConnectedCells(cells), null);
 
     /// <summary>
     /// Names the exact existing zone and the complete final footprint. Native admission requires a strict
@@ -183,14 +200,27 @@ public sealed record ZoneCreate : IActionPayload
                 && (long)rectangle.Origin.Z + rectangle.Height <= int.MaxValue,
             "invalid stockpile rectangle"
         );
-        return new ZoneCreate(ZoneKind.Stockpile, "", priority, default, filter, rectangle);
+        return new ZoneCreate(
+            ZoneKind.Stockpile,
+            "",
+            default,
+            new StockpileSetup(priority, filter, new StockpileGround.Dragged(rectangle))
+        );
     }
 
     /// <summary>A stockpile over an explicit connected cell list (a room region, not a rectangle), modelled on <c>NewZoneCreate</c>.</summary>
     public static ZoneCreate NewFilteredStockpileCellsZone(StockpileFilter filter, StockpilePriority priority, IEnumerable<Cell> cells)
     {
-        DomainException.Require(ValidStockpilePriority(priority), "invalid stockpile zone configuration");
-        return new ZoneCreate(ZoneKind.Stockpile, "", priority, CanonicalConnectedCells(cells), filter, null);
+        DomainException.Require(
+            ValidStockpilePriority(priority),
+            "invalid stockpile zone configuration"
+        );
+        return new ZoneCreate(
+            ZoneKind.Stockpile,
+            "",
+            CanonicalConnectedCells(cells),
+            new StockpileSetup(priority, filter, new StockpileGround.Listed())
+        );
     }
 
     /// <summary>Tags a stockpile with the role key its planner claims it by.</summary>
@@ -201,15 +231,12 @@ public sealed record ZoneCreate : IActionPayload
     }
 
     public string Label =>
-        Kind switch
-        {
-            ZoneKind.Fishing => "Fishing",
-            ZoneKind.Stockpile => StockpileLabel(Filter ?? throw new InvalidOperationException("stockpile zone without a filter"), Priority),
-            _ => "Crops",
-        };
+        Stockpile is { } stockpile ? StockpileLabel(stockpile.Filter, stockpile.Priority)
+        : Kind == ZoneKind.Fishing ? "Fishing"
+        : "Crops";
 
     // Names a stockpile by its filter; the named filters keep the labels their retired presets sent native.
-    private static string StockpileLabel(StockpileFilter f, StockpilePriority? priority)
+    private static string StockpileLabel(StockpileFilter f, StockpilePriority priority)
     {
         var allowOnly = f.TryGetAllowOnlyDefinitions(out var definitions);
         if (f == StockpileFilter.FoodFilter())

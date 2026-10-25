@@ -166,7 +166,12 @@ public sealed partial class RoundsBuildingPlanner
         foreach (var h in heldReservations)
         {
             var v = h.Progress.View;
-            if (!v.Unresolved && v.Effect.TryGetValue(out var effect) && (effect == Effect.Completed || effect == Effect.Unsuccessful) && v.Tick.Value <= facts.Identity.Tick.Value)
+            if (
+                !v.Unresolved
+                && v.Effect
+                    is EffectState.Observed { Kind: Effect.Completed or Effect.Unsuccessful }
+                && v.Tick.Value <= facts.Identity.Tick.Value
+            )
             {
                 continue;
             }
@@ -235,7 +240,13 @@ public sealed partial class RoundsBuildingPlanner
         current = current with { Plan = plan.Spec.Id, Revision = plan.Spec.Revision };
         var v = progress.View;
         current = current with { Native = v.Snapshot.Native };
-        if (v.Stage != Stage.Completed || v.Unresolved || !v.Effect.TryGetValue(out var effect) || effect != Effect.Completed || !v.Snapshot.Matches(current) || tick < v.Tick)
+        if (
+            v.Stage != Stage.Completed
+            || v.Unresolved
+            || !v.Observes(Effect.Completed)
+            || !v.Snapshot.Matches(current)
+            || tick < v.Tick
+        )
         {
             return (0, false);
         }

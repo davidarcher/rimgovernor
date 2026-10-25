@@ -91,7 +91,12 @@ public sealed partial class Player
                         break;
                     }
                 }
-                if (!proof.Receipt.TryGetValue(out var receipt) || receipt != Domain.Receipt.Accepted || proof.Snapshot.Colony != current.Colony || proof.Snapshot.Load != current.Load || proof.Snapshot.Map != current.Map)
+                if (
+                    !proof.Received(Domain.Receipt.Accepted)
+                    || proof.Snapshot.Colony != current.Colony
+                    || proof.Snapshot.Load != current.Load
+                    || proof.Snapshot.Map != current.Map
+                )
                 {
                     continue;
                 }

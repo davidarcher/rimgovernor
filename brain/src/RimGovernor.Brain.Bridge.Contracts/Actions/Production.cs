@@ -66,9 +66,12 @@ public static class Production
             }
             settings = settings with { Ingredients = new Op.FilterPatch { Replace = selectors } };
         }
-        if (bill.Corpses is { } corpses && corpses != DomainCorpseOf.None)
+        if (bill.Corpses != DomainCorpseOf.None)
         {
-            settings = settings with { CorpseClass = CorpseClassRules.WireCorpseClass(corpses) };
+            settings = settings with
+            {
+                CorpseClass = CorpseClassRules.WireCorpseClass(bill.Corpses),
+            };
         }
         if (!string.IsNullOrEmpty(bill.Worker))
         {

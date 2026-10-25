@@ -175,12 +175,11 @@ internal sealed class SchedulerLoop
             }
             else if (faulted && (_steps.Faulted(stall: outcome == Outcome.Stalled) || outcome == Outcome.Wedged))
             {
-                var kind = outcome switch
-                {
-                    Outcome.Wedged => SuspensionKind.Wedged,
-                    Outcome.Stalled => SuspensionKind.Stall,
-                    _ => SuspensionKind.Fault,
-                };
+                var kind =
+                    outcome == Outcome.Wedged ? SuspensionKind.Wedged
+                    : outcome == Outcome.Stalled ? SuspensionKind.Stall
+                    : outcome is Outcome.Faulted or Outcome.Cancelled ? SuspensionKind.Fault
+                    : throw new InvalidOperationException("a completed step is not a fault");
                 Suspend(kind, error?.Message ?? outcome.ToString());
             }
 

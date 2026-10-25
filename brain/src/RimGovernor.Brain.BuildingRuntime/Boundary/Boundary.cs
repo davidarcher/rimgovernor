@@ -226,7 +226,7 @@ public static class Boundary
         for (var i = 0; i < placements.Count; i++)
         {
             var p = placements[i];
-            output[i] = new Receipt { Action = p.Action.Id, Attempt = p.Attempt, Snapshot = p.Snapshot, Kind = Domain.Receipt.Unknown };
+            output[i] = new Receipt { Action = p.Action.Id, Attempt = p.Attempt, Snapshot = p.Snapshot, Kind = Domain.Receipt.Unconfirmed };
         }
         if (placements.Count == 0)
         {
@@ -333,6 +333,6 @@ public static class Boundary
             reason,
             cls == PbCommon.RefusalClass.Permanent ? RefusalClass.Permanent
             : cls == PbCommon.RefusalClass.Transient ? RefusalClass.Transient
-            : cls == PbCommon.RefusalClass.Unclassified ? RefusalClass.Unknown
+            : cls == PbCommon.RefusalClass.Unclassified ? RefusalClass.Unclassified
             : throw new DomainException($"undefined refusal class {cls}"));
 }

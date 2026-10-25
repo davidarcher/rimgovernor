@@ -201,9 +201,12 @@ public static partial class WorkRules
     /// </summary>
     /// <summary>A committed work action that owns nothing: cancelled or unsuccessful before any attempt, observed absent, or refused.</summary>
     public static bool ActionAbsent(ProgressView progress) =>
-        !progress.Unresolved && (progress.Attempt.Value == 0 && progress.Stage is Stage.Cancelled or Stage.Unsuccessful
-            || progress.Effect.TryGetValue(out var effect) && effect == Effect.Absent
-            || progress.Receipt.TryGetValue(out var receipt) && receipt == Receipt.Refused);
+        !progress.Unresolved
+        && (
+            progress.Attempt.Value == 0 && progress.Stage is Stage.Cancelled or Stage.Unsuccessful
+            || progress.Observes(Effect.Absent)
+            || progress.Received(Receipt.Refused)
+        );
 
     public static WorkResourceClaims WorkClaimsOf(WorkAdmissionEvidence evidence, IEnumerable<WorkAction> actions, bool footprint = false,
         bool ordersOnly = false)

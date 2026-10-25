@@ -186,7 +186,20 @@ public sealed partial class RoundsWorkPlanner
         }
         foreach (var s in settings)
         {
-            hash.Append(inv, $"{s.Kind}/{s.Pawn}/{s.Hostility}/{s.SelfTend}/{GoQuote(s.LeaveName)}/{s.MedicineCarry ?? 0}/{s.MedicalCare}/{GoQuote(s.ReadingPolicy ?? "")}/{GoQuote(s.DrugPolicy ?? "")}/{GoQuote(s.FoodPolicy ?? "")}/{GoQuote(s.MechWorkMode ?? "")}/{s.MechControlGroup ?? 0}\n");
+            var hostility = s is PawnSettings.HostilitySetting h ? h.Mode : default;
+            var selfTend = s is PawnSettings.SelfTendSetting t && t.On;
+            var leaveName = s is PawnSettings.NicknameSetting nick ? nick.LeaveName : "";
+            var carry = s is PawnSettings.MedicineCarrySetting c ? c.Count : 0;
+            var medicalCare = s is PawnSettings.MedicalCareSetting mc ? mc.Care : default;
+            var readingName = s is PawnSettings.ReadingPolicySetting rp ? rp.Name : "";
+            var drugName = s is PawnSettings.DrugPolicySetting dp ? dp.Name : "";
+            var foodName = s is PawnSettings.FoodPolicySetting fp ? fp.Name : "";
+            var workMode = s is PawnSettings.MechWorkModeSetting wm ? wm.Mode : "";
+            var group = s is PawnSettings.MechControlGroupSetting g ? g.Group : 0;
+            hash.Append(
+                inv,
+                $"{s.Kind}/{s.Pawn}/{hostility}/{selfTend}/{GoQuote(leaveName)}/{carry}/{medicalCare}/{GoQuote(readingName)}/{GoQuote(drugName)}/{GoQuote(foodName)}/{GoQuote(workMode)}/{group}\n"
+            );
         }
         foreach (var r in reading)
         {

@@ -9,15 +9,17 @@ public sealed class AbilitySourceConverter() : StringCodec<AbilitySource>(Abilit
 
 public sealed class AbilityTargetConverter : ObjectCodec<AbilityTarget>
 {
-    protected override AbilityTarget Read(JsonElement e, Codecs o) =>
-        e.Get<AbilityTargetKind>("Kind", o) switch
-        {
-            AbilityTargetKind.None => AbilityTarget.NoAbilityTarget(),
-            AbilityTargetKind.Cell => AbilityTarget.AbilityCellTarget(e.Get<Cell>("Cell", o)),
-            AbilityTargetKind.Pawn => AbilityTarget.AbilityPawnTarget(new PawnId(e.Str("Id"))),
-            AbilityTargetKind.Thing => AbilityTarget.AbilityThingTarget(e.Str("Id")),
-            _ => throw new StoreCorruptException("unknown ability target kind"),
-        };
+    protected override AbilityTarget Read(JsonElement e, Codecs o)
+    {
+        var kind = e.Get<AbilityTargetKind>("Kind", o);
+        return kind == AbilityTargetKind.None ? AbilityTarget.NoAbilityTarget()
+            : kind == AbilityTargetKind.Cell
+                ? AbilityTarget.AbilityCellTarget(e.Get<Cell>("Cell", o))
+            : kind == AbilityTargetKind.Pawn
+                ? AbilityTarget.AbilityPawnTarget(new PawnId(e.Str("Id")))
+            : kind == AbilityTargetKind.Thing ? AbilityTarget.AbilityThingTarget(e.Str("Id"))
+            : throw new StoreCorruptException("unknown ability target kind");
+    }
 
     protected override void WriteFields(Utf8JsonWriter w, AbilityTarget v, Codecs o)
     {

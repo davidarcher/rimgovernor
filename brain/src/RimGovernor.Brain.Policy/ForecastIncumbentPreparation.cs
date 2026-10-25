@@ -63,8 +63,11 @@ public static class ForecastIncumbentPreparation
             Cell Start, double Wait, double Travel, EquatableArray<ActivityOwnership> Released)>();
         foreach (var row in actions.Actions.OrderBy(a => a.Plan.Value, StringComparer.Ordinal).ThenBy(a => a.Action.Id.Value, StringComparer.Ordinal))
         {
-            if (row.Progress.Unresolved || row.Progress.Receipt != Known(Receipt.Accepted)
-                || row.Progress.Stage is not (Stage.Completed or Stage.Cancelled) || row.Progress.Tick > facts.Tick
+            if (
+                row.Progress.Unresolved
+                || !row.Progress.Received(Receipt.Accepted)
+                || row.Progress.Stage is not (Stage.Completed or Stage.Cancelled)
+                || row.Progress.Tick > facts.Tick
                 || row.Action.PawnActivities is not { Tasks.Count: 1 } batch
                 || batch.Orders.Count(o => !o.Release) != 1) continue;
             var order = batch.Orders.Single(o => !o.Release); var task = batch.Tasks[0];
@@ -243,9 +246,14 @@ public static class ForecastIncumbentPreparation
         var methods = new List<BoundaryMethod>();
         foreach (var row in actions.Actions.OrderBy(a => a.Plan.Value, StringComparer.Ordinal).ThenBy(a => a.Action.Id.Value, StringComparer.Ordinal))
         {
-            if (row.Progress.Unresolved || row.Progress.Receipt != Known(Receipt.Accepted)
-                || row.Progress.Stage is not (Stage.Completed or Stage.Cancelled) || row.Progress.Tick > facts.Tick
-                || row.Action.PawnActivities is not { Tasks.Count: > 0 } batch) continue;
+            if (
+                row.Progress.Unresolved
+                || !row.Progress.Received(Receipt.Accepted)
+                || row.Progress.Stage is not (Stage.Completed or Stage.Cancelled)
+                || row.Progress.Tick > facts.Tick
+                || row.Action.PawnActivities is not { Tasks.Count: > 0 } batch
+            )
+                continue;
             var orders = batch.Orders.Where(o => !o.Release).ToArray();
             if (orders.Length == 0 || orders.Any(o => !o.Method.StartsWith("coupled-", StringComparison.Ordinal))) continue;
             var done = orders.Where(o => !o.Preparing).Select(o => o.Task).ToHashSet(StringComparer.Ordinal);

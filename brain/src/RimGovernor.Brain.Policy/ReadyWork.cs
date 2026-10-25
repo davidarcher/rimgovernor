@@ -367,8 +367,13 @@ public static partial class ReadyWorkRules
                 }
                 var ok = byAction.TryGetValue(d.Requires, out var req);
                 var rv = ok ? req!.View : new ProgressView();
-                var known = rv.Effect.TryGetValue(out var effect);
-                if (!ok || rv.Stage != Stage.Completed || rv.Unresolved || !known || effect != Effect.Completed || BuildingWorkRules.AppliedBuildingOpen(req!, census))
+                if (
+                    !ok
+                    || rv.Stage != Stage.Completed
+                    || rv.Unresolved
+                    || !rv.Observes(Effect.Completed)
+                    || BuildingWorkRules.AppliedBuildingOpen(req!, census)
+                )
                 {
                     requires.Add(d.Requires.Value);
                 }
@@ -398,7 +403,7 @@ public static partial class ReadyWorkRules
             return (Set(ReadyState.Awaiting, "blueprint_open"), true);
         }
         // Dispatched or awaiting: the action is admitted and its effect open.
-        if (!v.Effect.TryGetValue(out var observed) || observed == Effect.Unknown)
+        if (v.Effect is not EffectState.Observed { Kind: not Effect.Inconclusive })
         {
             return (Set(ReadyState.Awaiting, "effect_unknown"), true);
         }

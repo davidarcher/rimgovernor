@@ -271,7 +271,11 @@ public sealed partial class Store
         var pawns = new HashSet<PawnId>();
         foreach (var action in plan.Actions)
         {
-            if (RoundsSettingsKinds.Contains(action.Kind) || (bound && action.FinishingSkill.IsKnown) || (isolation && action.Kind != ActionKind.WorkAssignment))
+            if (
+                RoundsSettingsKinds.Contains(action.Kind)
+                || (bound && action.FinishingSkill is not null)
+                || (isolation && action.Kind != ActionKind.WorkAssignment)
+            )
             {
                 continue;
             }

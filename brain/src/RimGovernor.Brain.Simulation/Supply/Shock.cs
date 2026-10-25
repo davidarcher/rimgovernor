@@ -78,7 +78,12 @@ public sealed record Shock(int Day, ShockKind Kind)
                     new Build("requisition " + Good.Value, Day, [new Yield(Good, Factor)]),
                     new Dictionary<Good, double> { [Good] = Factor }));
                 return;
-            default:
+            case ShockKind.ScaleCapacity:
+            case ShockKind.DestroyStock:
+            case ShockKind.RemoveSource:
+            case ShockKind.PauseGrowth:
+            case ShockKind.StopWork:
+                // Applies to a named source, below.
                 break;
         }
         var src = r.FindSource(Source);
@@ -106,7 +111,12 @@ public sealed record Shock(int Day, ShockKind Kind)
             case ShockKind.StopWork:
                 src.OffUntil = Math.Max(src.OffUntil, until);
                 break;
-            default:
+            case ShockKind.Threat:
+            case ShockKind.PowerLoss:
+            case ShockKind.StorageFull:
+            case ShockKind.SurgeDemand:
+            case ShockKind.Requisition:
+                // Applied to the world above.
                 break;
         }
     }

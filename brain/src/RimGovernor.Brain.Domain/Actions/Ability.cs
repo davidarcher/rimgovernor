@@ -59,12 +59,9 @@ public sealed record AbilitySource
 
     /// <summary>The source's stable single-string form, "permit:&lt;faction&gt;:&lt;permit&gt;" or "psycast:&lt;abilityDef&gt;".</summary>
     public string Key =>
-        Kind switch
-        {
-            AbilitySourceKind.Permit => Wire.Name(Kind) + ":" + Faction + ":" + Def,
-            AbilitySourceKind.Psycast => Wire.Name(Kind) + ":" + Def,
-            _ => "",
-        };
+        Kind == AbilitySourceKind.Permit ? Wire.Name(Kind) + ":" + Faction + ":" + Def
+        : Kind == AbilitySourceKind.Psycast ? Wire.Name(Kind) + ":" + Def
+        : throw new DomainException("invalid ability source kind");
 
     /// <summary><see cref="Key"/>'s inverse.</summary>
     public static AbilitySource ParseAbilitySource(string key)
@@ -87,12 +84,10 @@ public sealed record AbilitySource
     /// the arm is the one this ability takes.
     /// </summary>
     internal bool Accepts(AbilityTargetKind target) =>
-        Kind switch
-        {
-            AbilitySourceKind.Permit => target is AbilityTargetKind.None or AbilityTargetKind.Cell,
-            AbilitySourceKind.Psycast => true,
-            _ => false,
-        };
+        Kind == AbilitySourceKind.Permit
+            ? target is AbilityTargetKind.None or AbilityTargetKind.Cell
+        : Kind == AbilitySourceKind.Psycast ? true
+        : throw new DomainException("invalid ability source kind");
 }
 
 /// <summary>An immutable value: none, a cell, or the load id of a pawn or thing.</summary>

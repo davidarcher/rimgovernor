@@ -37,7 +37,7 @@ public sealed partial class Executor
                 return false;
             case Stage.Pending or Stage.Prepared:
                 break;
-            default:
+            case Stage.Dispatched or Stage.AwaitingObservation:
                 throw new EvidenceException();
         }
         if (expected.Plan != v.Plan || expected.Revision != v.Revision)
@@ -59,11 +59,11 @@ public sealed partial class Executor
         var error = callError;
         if (error is not null)
         {
-            kind = classify ? ReceiptAfterCallError(error) : Domain.Receipt.Unknown;
+            kind = classify ? ReceiptAfterCallError(error) : Domain.Receipt.Unconfirmed;
         }
         else if (receipt.Action != action || receipt.Attempt != attempt.Attempt || receipt.Snapshot != expected)
         {
-            (kind, error) = (Domain.Receipt.Unknown, new EvidenceException());
+            (kind, error) = (Domain.Receipt.Unconfirmed, new EvidenceException());
         }
         try
         {
@@ -71,7 +71,7 @@ public sealed partial class Executor
         }
         catch (DomainException e)
         {
-            (kind, error) = (Domain.Receipt.Unknown, Errors.Join(error, new EvidenceException(e)));
+            (kind, error) = (Domain.Receipt.Unconfirmed, Errors.Join(error, new EvidenceException(e)));
         }
         return (kind, error);
     }
@@ -111,7 +111,7 @@ public sealed partial class Executor
             }
             catch (Exception e)
             {
-                return await RecordAsync(flow.Result, v.Plan, attempt, Domain.Receipt.Unknown, e).ConfigureAwait(false);
+                return await RecordAsync(flow.Result, v.Plan, attempt, Domain.Receipt.Unconfirmed, e).ConfigureAwait(false);
             }
             flow.Result = flow.Result with { NativeCalled = true };
             var (receipt, callError) = await WriteAsync(() => haul.WriteHaulAsync(attempt, ct)).ConfigureAwait(false);
@@ -169,7 +169,7 @@ public sealed partial class Executor
             }
             catch (Exception e)
             {
-                return await RecordAsync(flow.Result, v.Plan, attempt, Domain.Receipt.Unknown, e).ConfigureAwait(false);
+                return await RecordAsync(flow.Result, v.Plan, attempt, Domain.Receipt.Unconfirmed, e).ConfigureAwait(false);
             }
             flow.Result = flow.Result with { NativeCalled = true };
             var (receipt, callError) = await WriteAsync(() => movement.WriteMovementAsync(attempt, ct)).ConfigureAwait(false);
@@ -237,7 +237,7 @@ public sealed partial class Executor
             }
             catch (Exception e)
             {
-                return await RecordAsync(flow.Result, v.Plan, attempt, Domain.Receipt.Unknown, e).ConfigureAwait(false);
+                return await RecordAsync(flow.Result, v.Plan, attempt, Domain.Receipt.Unconfirmed, e).ConfigureAwait(false);
             }
             flow.Result = flow.Result with { NativeCalled = true };
             var (receipt, callError) = await WriteAsync(() => trade.WriteTradeAsync(attempt, ct)).ConfigureAwait(false);
@@ -271,7 +271,7 @@ public sealed partial class Executor
         ArgumentNullException.ThrowIfNull(read);
         if (read.Tick < view.Tick)
         {
-            return (Effect.Unknown, UnsuccessfulReason.None);
+            return (Effect.Inconclusive, UnsuccessfulReason.None);
         }
         if (!read.RequestKnown)
         {
@@ -294,12 +294,12 @@ public sealed partial class Executor
             {
                 return (Effect.Pending, UnsuccessfulReason.None);
             }
-            if (view.Receipt.TryGetValue(out var receipt) && receipt == Domain.Receipt.Accepted)
+            if (view.Received(Domain.Receipt.Accepted))
             {
                 return (Effect.Unsuccessful, UnsuccessfulReason.NativeInterrupted);
             }
         }
-        return (Effect.Unknown, UnsuccessfulReason.None);
+        return (Effect.Inconclusive, UnsuccessfulReason.None);
     }
 
     private Task<(ExecutorResult Result, Exception? Error)> RunCommsTradeRequestAsync(DomainAction action, Progress progress, Authority authority, CancellationToken generation, CancellationToken ct)
@@ -338,7 +338,7 @@ public sealed partial class Executor
                 var (effect, reason) = CommsTradeRequestEffect(request, view, read);
                 // Unknown facts do not move the last verified pre-payment tick: later queue and arrival
                 // evidence must still correlate to this attempt.
-                if (effect == Effect.Unknown)
+                if (effect == Effect.Inconclusive)
                 {
                     return (flow.Result, null);
                 }
@@ -371,7 +371,7 @@ public sealed partial class Executor
             }
             catch (Exception e)
             {
-                return await RecordAsync(flow.Result, view.Plan, placement, Domain.Receipt.Unknown, e).ConfigureAwait(false);
+                return await RecordAsync(flow.Result, view.Plan, placement, Domain.Receipt.Unconfirmed, e).ConfigureAwait(false);
             }
             flow.Result = flow.Result with { NativeCalled = true };
             var (receipt, callError) = await WriteAsync(() => comms.WriteCommsTradeRequestAsync(placement, ct)).ConfigureAwait(false);
@@ -383,7 +383,7 @@ public sealed partial class Executor
             }
             else if (receipt.Action != view.Action || receipt.Attempt != placement.Attempt || receipt.Snapshot != snapshot)
             {
-                (kind, error) = (Domain.Receipt.Unknown, new EvidenceException());
+                (kind, error) = (Domain.Receipt.Unconfirmed, new EvidenceException());
             }
             return await RecordAsync(flow.Result, view.Plan, placement, kind, Errors.Join(error, CancelledBy(ct))).ConfigureAwait(false);
         });

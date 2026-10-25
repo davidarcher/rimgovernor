@@ -13,10 +13,11 @@ public sealed partial class Store
     internal static bool SettledRetirementOutcome(Progress progress)
     {
         var w = progress.View;
-        if (!w.Effect.TryGetValue(out var effect))
+        if (w.Effect is not EffectState.Observed observed)
         {
             return false;
         }
+        var effect = observed.Kind;
         var ended = w.Stage is Stage.Unsuccessful or Stage.Cancelled;
         if (effect == Effect.Completed)
         {
@@ -26,12 +27,9 @@ public sealed partial class Store
         {
             return false;
         }
-        return effect switch
-        {
-            Effect.Unsuccessful => ended,
-            Effect.Absent => ended && w.Attempt.Value > 0,
-            _ => false,
-        };
+        return effect == Effect.Unsuccessful ? ended
+            : effect == Effect.Absent ? ended && w.Attempt.Value > 0
+            : false;
     }
 
     /// <summary>
@@ -85,8 +83,9 @@ public sealed partial class Store
             foreach (var progress in p.Progress)
             {
                 var w = progress.View;
-                var known = w.Effect.TryGetValue(out var effect);
-                var absent = w.Stage == Stage.Cancelled && (w.Attempt.Value == 0 || (known && effect == Effect.Absent));
+                var absent =
+                    w.Stage == Stage.Cancelled
+                    && (w.Attempt.Value == 0 || w.Observes(Effect.Absent));
                 var settledOutcome = SettledRetirementOutcome(progress);
                 if (!absent && !settledOutcome)
                 {

@@ -80,9 +80,8 @@ internal sealed record Transition(TransitionKind Kind)
                 return p.Cancel();
             case TransitionKind.Withdraw:
                 return p.Withdraw(Snapshot, Tick);
-            default:
-                throw new DomainException($"unknown transition {Kind}");
         }
+        throw new DomainException($"unknown transition {Kind}");
     }
 }
 
@@ -125,7 +124,7 @@ public sealed class CreatedZoneConverter : ObjectCodec<CreatedZone>
 public sealed class NativeRefusalConverter : ObjectCodec<NativeRefusal>
 {
     protected override NativeRefusal Read(JsonElement e, Codecs o) =>
-        new(e.Str("Code"), e.Str("Reason"), e.GetOr("Class", RefusalClass.Unknown, o));
+        new(e.Str("Code"), e.Str("Reason"), e.GetOr("Class", RefusalClass.Unclassified, o));
 
     protected override void WriteFields(Utf8JsonWriter w, NativeRefusal v, Codecs o)
     {

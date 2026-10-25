@@ -8,16 +8,19 @@ public sealed class BuildingOrderConverter : ObjectCodec<BuildingOrder>
     protected override BuildingOrder Read(JsonElement e, Codecs o) =>
         new(
             e.Get<Building>("Building", o),
-            e.Get<Fact<int>>("FinishingSkill", o),
+            e.Has("FinishingSkill") ? new FinishingSkillFloor(e.I32("FinishingSkill")) : null,
             e.StrOr("ConstructionTarget"),
             e.BoolOr("ReplaceWall"),
-            e.Get<Fact<ConstructionTier>>("Tier", o)
+            e.Get<ConstructionTier>("Tier", o)
         );
 
     protected override void WriteFields(Utf8JsonWriter w, BuildingOrder v, Codecs o)
     {
         w.Put("Building", v.Building, o);
-        w.Put("FinishingSkill", v.FinishingSkill, o);
+        if (v.FinishingSkill is { } floor)
+        {
+            w.WriteNum("FinishingSkill", floor.MinimumSkill);
+        }
         w.WriteString("ConstructionTarget", v.ConstructionTarget);
         w.WriteBoolean("ReplaceWall", v.ReplaceWall);
         w.Put("Tier", v.Tier, o);
@@ -39,83 +42,166 @@ public sealed class DomainActionConverter : ObjectCodec<DomainAction>
             throw new StoreCorruptException("action without payload");
         }
         T Payload<T>() => o.Read<T>(p);
-        return kind switch
+        switch (kind)
         {
-            ActionKind.Ability => DomainAction.NewAbilityAction(id, Payload<Ability>()),
-            ActionKind.Acquisition => DomainAction.NewAcquisitionAction(id, Payload<Acquisition>()),
-            ActionKind.AcquisitionWithdraw => DomainAction.NewAcquisitionWithdrawAction(id, Payload<Acquisition>()),
-            ActionKind.MineAcquisition => DomainAction.NewMineAcquisitionAction(id, Payload<Acquisition>()),
-            ActionKind.ApparelPolicy => DomainAction.NewApparelPolicyAction(id, Payload<ApparelPolicy>()),
-            ActionKind.Area => DomainAction.NewAreaAction(id, Payload<Area>()),
-            ActionKind.AreaPlantCut => DomainAction.NewAreaPlantCutAction(id, Payload<AreaPlantCut>()),
-            ActionKind.Assign => DomainAction.NewAssignAction(id, Payload<Assign>()),
-            ActionKind.AutoHomeArea => DomainAction.NewAutoHomeAreaAction(id, Payload<AutoHomeAreaOrder>().Enabled),
-            ActionKind.AutoRefuel => DomainAction.NewAutoRefuelAction(id, Payload<AutoRefuel>()),
-            ActionKind.BedUse => DomainAction.NewBedUseAction(id, Payload<BedUse>()),
-            ActionKind.Building => ReadBuilding(id, Payload<BuildingOrder>()),
-            ActionKind.BuildingTemperature => DomainAction.NewBuildingTemperatureAction(id, Payload<BuildingTemperature>()),
-            ActionKind.BuildRoof => DomainAction.NewBuildRoofAction(id, Payload<BuildRoof>()),
-            ActionKind.Capture => DomainAction.NewCaptureAction(id, Payload<Capture>()),
-            ActionKind.CaravanDeparture => DomainAction.NewCaravanDepartureAction(id, Payload<CaravanDeparture>()),
-            ActionKind.ClaimBuilding => DomainAction.NewClaimBuildingAction(id, Payload<ClaimBuilding>()),
-            ActionKind.PawnActivities => DomainAction.NewPawnActivitiesAction(id, Payload<PawnActivities>()),
-            ActionKind.CombatBatch => DomainAction.NewCombatBatchAction(id, Payload<CombatBatch>()),
-            ActionKind.CommsTradeRequest => DomainAction.NewCommsTradeRequestAction(id, Payload<CommsTradeRequest>()),
-            ActionKind.CoverClearance => DomainAction.NewCoverClearanceAction(id, Payload<CoverClearance>()),
-            ActionKind.CutPlant => DomainAction.NewCutPlantAction(id, Payload<CutPlant>()),
-            ActionKind.Deconstruction => DomainAction.NewDeconstructionAction(id, Payload<Deconstruction>()),
-            ActionKind.DialogAnswer => DomainAction.NewDialogAnswerAction(id, Payload<DialogAnswer>()),
-            ActionKind.DoorControl => DomainAction.NewDoorControlAction(id, Payload<DoorControl>()),
-            ActionKind.DropEquipment => DomainAction.NewDropEquipmentAction(id, Payload<DropEquipment>()),
-            ActionKind.DrugPolicy => DomainAction.NewDrugPolicyAction(id, Payload<DrugPolicy>()),
-            ActionKind.Equip => DomainAction.NewEquipAction(id, Payload<Equip>()),
-            ActionKind.Excavation => DomainAction.NewExcavationAction(id, Payload<Excavation>()),
-            ActionKind.FloorRemoval => DomainAction.NewFloorRemovalAction(id, Payload<FloorRemoval>()),
-            ActionKind.FoodPolicy => DomainAction.NewFoodPolicyAction(id, Payload<FoodPolicy>()),
-            ActionKind.FoundationRemoval => DomainAction.NewFoundationRemovalAction(id, Payload<FoundationRemoval>()),
-            ActionKind.Gathering => DomainAction.NewGatheringAction(id, Payload<Gathering>()),
-            ActionKind.Conversion => DomainAction.NewConversionAction(id, Payload<Conversion>()),
-            ActionKind.GearReplace => DomainAction.NewGearReplaceAction(id, Payload<GearReplace>()),
-            ActionKind.GiveItem => DomainAction.NewGiveItemAction(id, Payload<GiveItem>()),
-            ActionKind.GrowerCrop => DomainAction.NewGrowerCropAction(id, Payload<GrowerCrop>()),
-            ActionKind.HackDesignation => DomainAction.NewHackDesignationAction(id, Payload<HackDesignation>()),
-            ActionKind.Haul => DomainAction.NewHaulAction(id, Payload<Haul>()),
-            ActionKind.Husbandry => DomainAction.NewHusbandryAction(id, Payload<Husbandry>()),
-            ActionKind.IdeoligionReform => DomainAction.NewIdeoligionReformAction(id, Payload<IdeoligionReform>()),
-            ActionKind.MoveBuilding => DomainAction.NewMoveBuildingAction(id, Payload<MoveBuilding>()),
-            ActionKind.UninstallBuilding => DomainAction.NewUninstallBuildingAction(id, Payload<MoveBuilding>()),
-            ActionKind.Movement => DomainAction.NewMovementAction(id, Payload<Movement>()),
-            ActionKind.OwnedDraft => DomainAction.NewOwnedDraftAction(id, Payload<OwnedDraft>()),
-            ActionKind.PawnSettings => DomainAction.NewPawnSettingsAction(id, Payload<PawnSettings>()),
-            ActionKind.PolicyPrune => DomainAction.NewPolicyPruneAction(id, Payload<PolicyPrune>()),
-            ActionKind.PrisonerInteraction => DomainAction.NewPrisonerInteractionAction(id, Payload<PrisonerInteraction>()),
-            ActionKind.ProductionBill => DomainAction.NewProductionBillAction(id, Payload<ProductionBill>()),
-            ActionKind.QuestAccept => DomainAction.NewQuestAcceptAction(id, Payload<QuestAccept>()),
-            ActionKind.QuestShuttle => DomainAction.NewQuestShuttleAction(id, Payload<QuestShuttle>()),
-            ActionKind.ReadingPolicy => DomainAction.NewReadingPolicyAction(id, Payload<ReadingPolicy>()),
-            ActionKind.RecoveryService => DomainAction.NewRecoveryServiceAction(id, Payload<RecoveryService>()),
-            ActionKind.RemoveProductionBill => DomainAction.NewRemoveProductionBillAction(id, Payload<RemoveProductionBill>()),
-            ActionKind.RemoveRoof => DomainAction.NewRemoveRoofAction(id, Payload<RemoveRoof>()),
-            ActionKind.Repair => DomainAction.NewRepairAction(id, Payload<Repair>()),
-            ActionKind.Rescue => DomainAction.NewRescueAction(id, Payload<Rescue>()),
-            ActionKind.ResearchSelect => DomainAction.NewResearchSelectAction(id, Payload<ResearchSelect>()),
-            ActionKind.Ritual => DomainAction.NewRitualAction(id, Payload<Ritual>()),
-            ActionKind.StockpilePatch => DomainAction.NewStockpilePatchAction(id, Payload<StockpilePatch>()),
-            ActionKind.Strip => DomainAction.NewStripAction(id, Payload<Strip>()),
-            ActionKind.Subdue => DomainAction.NewSubdueAction(id, Payload<Subdue>()),
-            ActionKind.SupplyAllow or ActionKind.SupplyForbid => DomainAction.NewSupplyAllowAction(id, Payload<SupplyAllow>()),
-            ActionKind.Surgery => DomainAction.NewSurgeryAction(id, Payload<Surgery>()),
-            ActionKind.Tend => DomainAction.NewTendAction(id, Payload<Tend>()),
-            ActionKind.Trade => DomainAction.NewTradeAction(id, Payload<Trade>()),
-            ActionKind.UseItem => DomainAction.NewUseItemAction(id, Payload<UseItem>()),
-            ActionKind.WallRemoval => DomainAction.NewWallRemovalAction(id, Payload<WallRemoval>()),
-            ActionKind.WastepackHaul => DomainAction.NewWastepackHaulAction(id, Payload<WastepackHaul>()),
-            ActionKind.WorkAssignment => DomainAction.NewWorkAssignmentAction(id, Payload<WorkAssignment>()),
-            ActionKind.ZoneCellEdit => DomainAction.NewZoneCellEditAction(id, Payload<ZoneCellEdit>()),
-            ActionKind.ZoneCreate => DomainAction.NewZoneCreateAction(id, Payload<ZoneCreate>()),
-            ActionKind.ZoneDelete => DomainAction.NewZoneDeleteAction(id, Payload<ZoneDelete>()),
-            _ => throw new StoreCorruptException("unknown action kind"),
-        };
+            case ActionKind.Ability:
+                return DomainAction.NewAbilityAction(id, Payload<Ability>());
+            case ActionKind.Acquisition:
+                return DomainAction.NewAcquisitionAction(id, Payload<Acquisition>());
+            case ActionKind.AcquisitionWithdraw:
+                return DomainAction.NewAcquisitionWithdrawAction(id, Payload<Acquisition>());
+            case ActionKind.MineAcquisition:
+                return DomainAction.NewMineAcquisitionAction(id, Payload<Acquisition>());
+            case ActionKind.ApparelPolicy:
+                return DomainAction.NewApparelPolicyAction(id, Payload<ApparelPolicy>());
+            case ActionKind.Area:
+                return DomainAction.NewAreaAction(id, Payload<Area>());
+            case ActionKind.AreaPlantCut:
+                return DomainAction.NewAreaPlantCutAction(id, Payload<AreaPlantCut>());
+            case ActionKind.Assign:
+                return DomainAction.NewAssignAction(id, Payload<Assign>());
+            case ActionKind.AutoHomeArea:
+                return DomainAction.NewAutoHomeAreaAction(id, Payload<AutoHomeAreaOrder>().Enabled);
+            case ActionKind.AutoRefuel:
+                return DomainAction.NewAutoRefuelAction(id, Payload<AutoRefuel>());
+            case ActionKind.BedUse:
+                return DomainAction.NewBedUseAction(id, Payload<BedUse>());
+            case ActionKind.Building:
+                return ReadBuilding(id, Payload<BuildingOrder>());
+            case ActionKind.BuildingTemperature:
+                return DomainAction.NewBuildingTemperatureAction(
+                    id,
+                    Payload<BuildingTemperature>()
+                );
+            case ActionKind.BuildRoof:
+                return DomainAction.NewBuildRoofAction(id, Payload<BuildRoof>());
+            case ActionKind.Capture:
+                return DomainAction.NewCaptureAction(id, Payload<Capture>());
+            case ActionKind.CaravanDeparture:
+                return DomainAction.NewCaravanDepartureAction(id, Payload<CaravanDeparture>());
+            case ActionKind.ClaimBuilding:
+                return DomainAction.NewClaimBuildingAction(id, Payload<ClaimBuilding>());
+            case ActionKind.PawnActivities:
+                return DomainAction.NewPawnActivitiesAction(id, Payload<PawnActivities>());
+            case ActionKind.CombatBatch:
+                return DomainAction.NewCombatBatchAction(id, Payload<CombatBatch>());
+            case ActionKind.CommsTradeRequest:
+                return DomainAction.NewCommsTradeRequestAction(id, Payload<CommsTradeRequest>());
+            case ActionKind.CoverClearance:
+                return DomainAction.NewCoverClearanceAction(id, Payload<CoverClearance>());
+            case ActionKind.CutPlant:
+                return DomainAction.NewCutPlantAction(id, Payload<CutPlant>());
+            case ActionKind.Deconstruction:
+                return DomainAction.NewDeconstructionAction(id, Payload<Deconstruction>());
+            case ActionKind.DialogAnswer:
+                return DomainAction.NewDialogAnswerAction(id, Payload<DialogAnswer>());
+            case ActionKind.DoorControl:
+                return DomainAction.NewDoorControlAction(id, Payload<DoorControl>());
+            case ActionKind.DropEquipment:
+                return DomainAction.NewDropEquipmentAction(id, Payload<DropEquipment>());
+            case ActionKind.DrugPolicy:
+                return DomainAction.NewDrugPolicyAction(id, Payload<DrugPolicy>());
+            case ActionKind.Equip:
+                return DomainAction.NewEquipAction(id, Payload<Equip>());
+            case ActionKind.Excavation:
+                return DomainAction.NewExcavationAction(id, Payload<Excavation>());
+            case ActionKind.FloorRemoval:
+                return DomainAction.NewFloorRemovalAction(id, Payload<FloorRemoval>());
+            case ActionKind.FoodPolicy:
+                return DomainAction.NewFoodPolicyAction(id, Payload<FoodPolicy>());
+            case ActionKind.FoundationRemoval:
+                return DomainAction.NewFoundationRemovalAction(id, Payload<FoundationRemoval>());
+            case ActionKind.Gathering:
+                return DomainAction.NewGatheringAction(id, Payload<Gathering>());
+            case ActionKind.Conversion:
+                return DomainAction.NewConversionAction(id, Payload<Conversion>());
+            case ActionKind.GearReplace:
+                return DomainAction.NewGearReplaceAction(id, Payload<GearReplace>());
+            case ActionKind.GiveItem:
+                return DomainAction.NewGiveItemAction(id, Payload<GiveItem>());
+            case ActionKind.GrowerCrop:
+                return DomainAction.NewGrowerCropAction(id, Payload<GrowerCrop>());
+            case ActionKind.HackDesignation:
+                return DomainAction.NewHackDesignationAction(id, Payload<HackDesignation>());
+            case ActionKind.Haul:
+                return DomainAction.NewHaulAction(id, Payload<Haul>());
+            case ActionKind.Husbandry:
+                return DomainAction.NewHusbandryAction(id, Payload<Husbandry>());
+            case ActionKind.IdeoligionReform:
+                return DomainAction.NewIdeoligionReformAction(id, Payload<IdeoligionReform>());
+            case ActionKind.MoveBuilding:
+                return DomainAction.NewMoveBuildingAction(id, Payload<MoveBuilding>());
+            case ActionKind.UninstallBuilding:
+                return DomainAction.NewUninstallBuildingAction(id, Payload<MoveBuilding>());
+            case ActionKind.Movement:
+                return DomainAction.NewMovementAction(id, Payload<Movement>());
+            case ActionKind.OwnedDraft:
+                return DomainAction.NewOwnedDraftAction(id, Payload<OwnedDraft>());
+            case ActionKind.PawnSettings:
+                return DomainAction.NewPawnSettingsAction(id, Payload<PawnSettings>());
+            case ActionKind.PolicyPrune:
+                return DomainAction.NewPolicyPruneAction(id, Payload<PolicyPrune>());
+            case ActionKind.PrisonerInteraction:
+                return DomainAction.NewPrisonerInteractionAction(
+                    id,
+                    Payload<PrisonerInteraction>()
+                );
+            case ActionKind.ProductionBill:
+                return DomainAction.NewProductionBillAction(id, Payload<ProductionBill>());
+            case ActionKind.QuestAccept:
+                return DomainAction.NewQuestAcceptAction(id, Payload<QuestAccept>());
+            case ActionKind.QuestShuttle:
+                return DomainAction.NewQuestShuttleAction(id, Payload<QuestShuttle>());
+            case ActionKind.ReadingPolicy:
+                return DomainAction.NewReadingPolicyAction(id, Payload<ReadingPolicy>());
+            case ActionKind.RecoveryService:
+                return DomainAction.NewRecoveryServiceAction(id, Payload<RecoveryService>());
+            case ActionKind.RemoveProductionBill:
+                return DomainAction.NewRemoveProductionBillAction(
+                    id,
+                    Payload<RemoveProductionBill>()
+                );
+            case ActionKind.RemoveRoof:
+                return DomainAction.NewRemoveRoofAction(id, Payload<RemoveRoof>());
+            case ActionKind.Repair:
+                return DomainAction.NewRepairAction(id, Payload<Repair>());
+            case ActionKind.Rescue:
+                return DomainAction.NewRescueAction(id, Payload<Rescue>());
+            case ActionKind.ResearchSelect:
+                return DomainAction.NewResearchSelectAction(id, Payload<ResearchSelect>());
+            case ActionKind.Ritual:
+                return DomainAction.NewRitualAction(id, Payload<Ritual>());
+            case ActionKind.StockpilePatch:
+                return DomainAction.NewStockpilePatchAction(id, Payload<StockpilePatch>());
+            case ActionKind.Strip:
+                return DomainAction.NewStripAction(id, Payload<Strip>());
+            case ActionKind.Subdue:
+                return DomainAction.NewSubdueAction(id, Payload<Subdue>());
+            case ActionKind.SupplyAllow:
+            case ActionKind.SupplyForbid:
+                return DomainAction.NewSupplyAllowAction(id, Payload<SupplyAllow>());
+            case ActionKind.Surgery:
+                return DomainAction.NewSurgeryAction(id, Payload<Surgery>());
+            case ActionKind.Tend:
+                return DomainAction.NewTendAction(id, Payload<Tend>());
+            case ActionKind.Trade:
+                return DomainAction.NewTradeAction(id, Payload<Trade>());
+            case ActionKind.UseItem:
+                return DomainAction.NewUseItemAction(id, Payload<UseItem>());
+            case ActionKind.WallRemoval:
+                return DomainAction.NewWallRemovalAction(id, Payload<WallRemoval>());
+            case ActionKind.WastepackHaul:
+                return DomainAction.NewWastepackHaulAction(id, Payload<WastepackHaul>());
+            case ActionKind.WorkAssignment:
+                return DomainAction.NewWorkAssignmentAction(id, Payload<WorkAssignment>());
+            case ActionKind.ZoneCellEdit:
+                return DomainAction.NewZoneCellEditAction(id, Payload<ZoneCellEdit>());
+            case ActionKind.ZoneCreate:
+                return DomainAction.NewZoneCreateAction(id, Payload<ZoneCreate>());
+            case ActionKind.ZoneDelete:
+                return DomainAction.NewZoneDeleteAction(id, Payload<ZoneDelete>());
+        }
+        throw new StoreCorruptException("unknown action kind");
     }
 
     protected override void WriteFields(Utf8JsonWriter w, DomainAction v, Codecs o)
@@ -128,18 +214,14 @@ public sealed class DomainActionConverter : ObjectCodec<DomainAction>
 
     private static DomainAction ReadBuilding(ActionId id, BuildingOrder order)
     {
-        if (!order.Tier.TryGetValue(out var tier))
+        var action = DomainAction.NewBuildingAction(id, order.Building, order.Tier);
+        if (order.FinishingSkill is { } floor)
         {
-            throw new StoreCorruptException("building action without a tier");
-        }
-        var action = DomainAction.NewBuildingAction(id, order.Building, tier);
-        if (order.FinishingSkill.TryGetValue(out var skill))
-        {
-            action = action.WithFinishingSkill(skill, order.ConstructionTarget);
+            action = action.WithFinishingSkill(floor.MinimumSkill, order.ConstructionTarget);
         }
         else if (order.ConstructionTarget.Length != 0)
         {
-            action = action.WithTier(tier, order.ConstructionTarget);
+            action = action.WithTier(order.Tier, order.ConstructionTarget);
         }
         return order.ReplaceWall ? action.WithWallReplacement() : action;
     }

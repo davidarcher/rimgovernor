@@ -162,7 +162,7 @@ public sealed class ActivityContinuationTests
         journal.ContinueActivityMethod(initial.Id, Root, new(110), [Row("completed")], next, ct);
         Assert.Equal("fresh-observed-stack", journal.LoadPlan(next.Id, ct).Spec.Actions[0].PawnActivities!.Orders[0].Steps[0].Target);
         using var uncertain = Open(ct);
-        Admit(uncertain, initial, ct, Receipt.Unknown);
+        Admit(uncertain, initial, ct, Receipt.Unconfirmed);
         Assert.Empty(uncertain.ActivityMethods(Root, ct));
         Assert.Throws<ConflictException>(() => uncertain.ContinueActivityMethod(initial.Id, Root, new(110), [Row("completed")], next, ct));
     }
