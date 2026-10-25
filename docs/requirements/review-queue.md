@@ -1,4 +1,11 @@
-# Questions and recommended work
+# Historical research-pilot review
+
+> The active review is now the [food pilot](food-security.md#what-to-do-next).
+> Research-goal requirements were retired following the user’s 2026-10-24 direction.
+> Q1/Q2 and their investments below are historical; reassess their issues as part
+> of [feature retirement](https://github.com/davidarcher/rimgovernor/issues/3999),
+> rather than investing in a feature slated for removal. Q3's Stop/save finding
+> remains independent of that decision.
 
 [Collection](README.md) · [Research requirements and evidence](research-goals.md)
 

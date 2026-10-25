@@ -1,30 +1,38 @@
 # Product requirements — pilot for review
 
-[Documentation](../README.md) · [Research goals pilot](research-goals.md) · [Questions and recommended work](review-queue.md)
+[Documentation](../README.md) · [Food pilot](food-security.md) · [Questions and recommended work](food-security.md#what-to-do-next)
 
 These documents explain what RimGovernor is intended to do for the player and
 colony, what the code currently supports, and what the tests establish. They help
 readers decide which improvements and checks matter. Implementation details stay
 in the linked developer contracts.
-**Stage 1 only:** review the map and research-goal pilot before expanding it. No
-requirement here has been marked human-approved.
+**Stage 1 only:** review the map and food pilot before expanding beyond it. No
+whole requirement has been marked human-approved; the user has explicitly confirmed autonomous responsibility in RG-FOOD-001.
 
-Repository revision examined: `5e067eaf9f7a6a6345b78a1bd0a63a354e1b1e54`, after fetching and
-merging `origin/main`, on 2026-10-24. Issue statements were read on that date.
-Later edits or issue closure do not automatically update what this inspection established.
+Food pilot revision: `06db87fb4deb9df2626e1dfbc7059e0655379463`, examined on
+2026-10-24. The earlier research inspection used
+`5e067eaf9f7a6a6345b78a1bd0a63a354e1b1e54`. Later code changes or issue closure do
+not automatically update these findings.
+
+The user redirected the pilot to food because the bot has full autonomy and
+player-set research goals are intended to be dropped. [RG-RES-001–004](research-goals.md)
+are retained as retired historical requirements, not promises to preserve.
+[Retirement work](https://github.com/davidarcher/rimgovernor/issues/3999) is separate
+from this documentation task. Autonomous research remains in scope for the product;
+retirement of other goals or preferences has not been decided.
 
 ## Proposed capability map
 
-The map lists areas to investigate. Only the research pilot has detailed
-requirements so far; the other rows are not yet established product promises.
+The map lists areas to investigate. The active food pilot has detailed
+requirements; the other rows are not yet established product promises.
 Suggested file names can change without changing requirement IDs.
 
 | Player or colony outcome | Proposed capability file | Where the expectation is described | What we examined |
 | --- | --- | --- | --- |
 | Start a playable colony with supported settings and understand launch failures | `start-and-control.md` | [Setup](../players/setup.md), [launch](../players/launch.md) | Guides read; Stop button connection checked; generation implementation/tests unexamined |
 | Delegate colony control, take it back, and stop safely when control is unavailable | `start-and-control.md` | [Controls](../players/controls.md), [voluntary control](../developers/contracts/voluntary-control.md) | Guide read; speed, manual control, threat detection and permission to issue orders unexamined |
-| Express a desired colony and see whether it is being achieved | `research-goals.md` initially; later other goal capabilities | [Goals](../players/goals.md), [goals contract](../developers/contracts/goals-contracts.md) | Ordinary research followed through the code; other kinds/themes/preferences only sampled in documents |
-| Keep colonists fed and preserve usable food | `food-security.md` | [Controller contracts](../developers/contracts/controller-contracts.md), [architecture](../developers/architecture/overview.md) | Map only; food policy, farming, hunting, storage and tests unexamined |
+| Understand and guide the colony where player input remains part of the product | To be decided | [Goals](../players/goals.md), [goals contract](../developers/contracts/goals-contracts.md) | Research-goal requirements retired; other goals, themes and preferences need a separate product decision |
+| Keep colonists fed and preserve usable food | [Food security](food-security.md) | [Controller contracts](../developers/contracts/controller-contracts.md), [architecture](../developers/architecture/overview.md) | Active pilot: forage-to-eating path, cooking and recovery sampled; farming, storage and sustained feeding unassessed |
 | Provide habitable shelter, power and maintained facilities | `habitat.md` | [Spatial](../developers/contracts/spatial-contracts.md), [power](../developers/contracts/power-contracts.md), [upkeep](../developers/contracts/upkeep-contracts.md) | Code that requests a research bench examined; construction completion and other paths unexamined |
 | Keep people healthy, rested, equipped and able to work | `colonist-wellbeing.md` | [Medical](../developers/contracts/medical-care.md), [mood](../developers/contracts/mood-control.md), [equipment](../developers/contracts/equipment-upkeep.md) | Map only; implementation/tests unexamined |
 | Acquire resources and develop useful capabilities without starving essential work | `development-and-supply.md` | [Research](../developers/contracts/research.md), [trade](../developers/contracts/controllable-trade.md), [mining](../developers/contracts/mining-contracts.md) | Ordinary research followed from request to result reporting; resource/trade/mining paths unexamined |
@@ -43,12 +51,12 @@ about control or established survival in every RimWorld situation.
 
 - **Read:** repository working agreement, documentation map, player guides,
   architecture overview, glossary, test-selection guide and acceptance charter;
-  goals/research contracts and player-goals architecture note.
+  goals/research contracts and player-goals architecture note; selected food, supply and pawn-activity contracts for the food pilot.
 - **Partly examined:** rules about saved state, pawn actions, machine setup and
-  architecture rules 7–9. The [evidence ledger](research-goals.md#evidence-ledger)
+  architecture rules 7–9. The [food evidence inventory](food-security.md#evidence-and-inspection-coverage) and historical [research evidence ledger](research-goals.md#evidence-ledger)
   identifies the code and test assertions examined. It does not represent a full
   review of every file linked there.
-- **Not examined:** the other capabilities' code and tests, mod/DLC combinations,
+- **Not examined:** the other capabilities' code and tests beyond the samples named in each pilot, mod/DLC combinations,
   the running game window, game save/reload, competing research goals, building a
   complete laboratory, Anomaly study, current campaign results and saved results
   from automated game tests. No game was run for this documentation task.

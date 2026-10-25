@@ -5,8 +5,8 @@
 Start with the [player guide](players/README.md).
 
 For recovered player outcomes and their implementation/evidence limits, see the
-[product requirements pilot](requirements/README.md) (capability map and research
-goals; awaiting review before expansion).
+[product requirements pilot](requirements/README.md) (capability map and autonomous food
+provision; awaiting review before further expansion).
 
 | Task | Guide |
 | --- | --- |

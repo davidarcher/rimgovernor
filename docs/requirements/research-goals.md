@@ -1,4 +1,13 @@
-# Achieve a player's research goal
+# Retired pilot: player-set research goals
+
+> **Retired as forward requirements on 2026-10-24.** The user intends to drop
+> player-set research goals because the bot has full autonomy. RG-RES-001 through
+> RG-RES-004 keep their IDs and evidence below for historical reference; their
+> former status and review questions are not current product commitments.
+> [#3999](https://github.com/davidarcher/rimgovernor/issues/3999) tracks removing the
+> feature while preserving autonomous research. [Food security](food-security.md)
+> replaces this pilot, not these requirements one for one. No product code has
+> been removed by this documentation change.
 
 [Collection and coverage](README.md) · [Questions and recommended work](review-queue.md)
 
